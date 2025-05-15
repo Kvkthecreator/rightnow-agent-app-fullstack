@@ -1,43 +1,36 @@
-import Link from 'next/link';
-import { ChatTeardropText, ArrowsOutCardinal, Smiley } from 'phosphor-react';
+## codex/tasks/landingpage_refactor_w_figma.md
+
+## 🎯 Goal
+Add basic user flow entry points (sign up, log in, CTA)
+
+## 🧠 Prompt to Codex
+Please update the existing landing page file:
+
+- Add a small header above the hero section with right-aligned `Sign Up` and `Login` links.
+- Below the headline “Want to be an influencer…”, add a large button that says **“Create Your Starter Kit”**.
+- The button should scroll to the 3-icon benefit section or link to `/profile-create`.
+
+Use Tailwind styles for spacing, alignment, and hover effects. Mobile responsiveness should be preserved.
+
+
+## sample code
+import { ChatTeardropText, ArrowsOutCardinal, Smiley } from "phosphor-react";
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-white text-black font-sans flex flex-col">
-      {/* Header */}
-      <header className="px-6 py-4 flex justify-end space-x-6 text-sm">
-        <Link href="/profile-create" className="text-gray-700 hover:underline">
-          Sign Up
-        </Link>
-        <Link href="/login" className="text-gray-700 hover:underline">
-          Login
-        </Link>
-      </header>
-
+    <main className="min-h-screen bg-white text-black font-sans">
       {/* Hero Section */}
       <section className="px-6 py-12 text-center border-b">
         <div className="flex justify-center gap-6 mb-6">
           <div className="w-12 h-12 bg-black rounded-full" />
           <div className="w-12 h-12 border-2 border-black rounded-full" />
-          <div className="bg-black text-white px-3 py-1 font-bold text-sm">
-            right<br />NOW
-          </div>
+          <div className="bg-black text-white px-3 py-1 font-bold text-sm">right<br />NOW</div>
         </div>
-        <h1 className="text-3xl md:text-5xl font-medium">
-          want to be an influencer<br />or content creator?
-        </h1>
-        <div className="mt-8">
-          <Link
-            href="/profile-create"
-            className="inline-block px-8 py-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-          >
-            Create Your Starter Kit
-          </Link>
-        </div>
+        <h1 className="text-3xl md:text-5xl font-medium">want to be an influencer<br />or content creator?</h1>
       </section>
 
       {/* Description + Feature Icons */}
-      <section id="benefits" className="px-6 py-12 border-b grid grid-cols-1 md:grid-cols-2 gap-10">
+      <section className="px-6 py-12 border-b grid grid-cols-1 md:grid-cols-2 gap-10">
         <p className="text-lg leading-relaxed">
           Discover your unique niche, captivate your audience with our personalized Starter Kit.
         </p>
@@ -62,9 +55,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section className="px-6 py-6 text-right">
-        <a href="#" className="text-sm underline underline-offset-2">
-          About →
-        </a>
+        <a href="#" className="text-sm underline underline-offset-2">About →</a>
       </section>
 
       {/* Mission Statement */}
