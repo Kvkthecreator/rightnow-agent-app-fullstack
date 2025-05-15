@@ -4,13 +4,13 @@
 import React from 'react';
 
 const jamieProfileOutput = {
-  type: "structured",
-  output_type: "creator_starter_kit",
+  type: 'structured',
+  output_type: 'creator_starter_kit',
   report: {
-    suggested_niches: ["Wellness journaling", "Mindful productivity"],
-    audience_persona: "Young women (ages 18–25) seeking balance in a busy world",
-    content_strengths: ["relatable", "calm", "first-person reflections"],
-    platform_fit: ["Instagram", "YouTube Shorts"],
+    suggested_niches: ['Wellness journaling', 'Mindful productivity'],
+    audience_persona: 'Young women (ages 18–25) seeking balance in a busy world',
+    content_strengths: ['relatable', 'calm', 'first-person reflections'],
+    platform_fit: ['Instagram', 'YouTube Shorts'],
     starting_content_ideas: [
       "How I journal when I'm anxious",
       "3 quiet habits that changed my day",
