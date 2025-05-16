@@ -8,11 +8,8 @@ export default function LandingPage() {
     <main className="min-h-screen bg-white text-black font-sans flex flex-col">
       {/* Header */}
       <header className="px-6 py-4 flex justify-end space-x-6 text-sm">
-        <Link href="/profile-create" className="text-gray-700 hover:underline">
-          Sign Up
-        </Link>
         <Link href="/login" className="text-gray-700 hover:underline">
-          Login
+          Sign-Up / Login
         </Link>
       </header>
 
