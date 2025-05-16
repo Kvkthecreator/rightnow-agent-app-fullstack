@@ -1,89 +1,73 @@
 // web/app/profile/jamie-test/page.tsx
 // This is a static-only preview page for the Creator Starter Kit report.
 // Uses a hardcoded sample payload and can be replaced with live data logic later.
-import React from 'react';
-
-const jamieProfileOutput = {
-  type: 'structured',
-  output_type: 'creator_starter_kit',
-  report: {
-    suggested_niches: ['Wellness journaling', 'Mindful productivity'],
-    audience_persona: 'Young women (ages 18–25) seeking balance in a busy world',
-    content_strengths: ['relatable', 'calm', 'first-person reflections'],
-    platform_fit: ['Instagram', 'YouTube Shorts'],
-    starting_content_ideas: [
-      "How I journal when I'm anxious",
-      "3 quiet habits that changed my day",
-      "What I’d tell my younger self about burnout"
-    ],
-    growth_readiness_note:
-      "You're deeply thoughtful and aligned with a powerful niche. Just start—your tone is your strength."
-  }
-};
+import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 export default function JamieTestProfilePage() {
-  const {
-    suggested_niches,
-    audience_persona,
-    content_strengths,
-    platform_fit,
-    starting_content_ideas,
-    growth_readiness_note
-  } = jamieProfileOutput.report;
+  const [markdown, setMarkdown] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Sample input for the agent
+  const input = {
+    agent_name: 'profile_analyzer',
+    input: {
+      display_name: 'Jamie',
+      sns_handle: '@jamiewellness',
+      primary_sns_channel: 'Instagram',
+      platforms: ['Instagram', 'YouTube Shorts'],
+      follower_count: 820,
+      niche: 'Wellness and Journaling',
+      audience_goal: 'Young women seeking mindfulness and balance',
+      monetization_goal: 'Brand sponsorships',
+      primary_objective: 'Build a personal brand to help others',
+      content_frequency: 'Weekly',
+      tone_keywords: ['relatable', 'calm', 'inspiring'],
+      favorite_brands: ['Headspace', 'Emma Chamberlain'],
+      prior_attempts: 'Posted a few times but didn’t feel consistent',
+      creative_barriers: 'I get stuck overthinking what people will think',
+      locale: 'en-US'
+    }
+  };
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch('/agent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input)
+        });
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+        const data = await res.json();
+        setMarkdown(data.report_markdown || data.report || '');
+      } catch (err: any) {
+        setError(err.message || 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="max-w-3xl mx-auto px-6 py-8">
+        <p>Loading…</p>
+      </main>
+    );
+  }
+  if (error) {
+    return (
+      <main className="max-w-3xl mx-auto px-6 py-8">
+        <p className="text-red-600">Error: {error}</p>
+      </main>
+    );
+  }
   return (
     <main className="max-w-3xl mx-auto px-6 py-8">
-      {/* TODO: Replace hardcoded payload with live fetch logic */}
-      <section className="space-y-2">
-        <h2 className="text-2xl font-bold">Your Suggested Niches</h2>
-        <ul className="list-disc list-inside space-y-1">
-          {suggested_niches.map((niche) => (
-            <li key={niche}>{niche}</li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="mt-6 space-y-2">
-        <h2 className="text-2xl font-bold">Your Audience Persona</h2>
-        <p>{audience_persona}</p>
-      </section>
-
-      <section className="mt-6 space-y-2">
-        <h2 className="text-2xl font-bold">Your Content Strengths</h2>
-        <ul className="list-disc list-inside space-y-1">
-          {content_strengths.map((strength) => (
-            <li key={strength}>{strength}</li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="mt-6 space-y-2">
-        <h2 className="text-2xl font-bold">Your Best Platforms to Start On</h2>
-        <ul className="list-disc list-inside space-y-1">
-          {platform_fit.map((platform) => (
-            <li key={platform}>{platform}</li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="mt-6 space-y-2">
-        <h2 className="text-2xl font-bold">Starter Content Ideas</h2>
-        <ul className="list-disc list-inside space-y-1">
-          {starting_content_ideas.map((idea) => (
-            <li key={idea}>{idea}</li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="mt-6 space-y-2">
-        <h2 className="text-2xl font-bold">Growth Readiness Note</h2>
-        <p>{growth_readiness_note}</p>
-      </section>
-
-      <div className="mt-8 flex space-x-4">
-        <button className="px-4 py-2 bg-blue-600 text-white rounded">Edit</button>
-        <button className="px-4 py-2 bg-green-600 text-white rounded">Export</button>
-      </div>
+      {markdown ? <ReactMarkdown>{markdown}</ReactMarkdown> : <p>No content available.</p>}
     </main>
   );
 }
