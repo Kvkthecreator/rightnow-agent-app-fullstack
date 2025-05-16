@@ -1,3 +1,5 @@
+"use client";
+
 // web/app/profile/jamie-test/page.tsx
 // This is a static-only preview page for the Creator Starter Kit report.
 // Uses a hardcoded sample payload and can be replaced with live data logic later.

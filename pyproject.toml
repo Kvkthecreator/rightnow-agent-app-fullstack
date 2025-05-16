@@ -10,7 +10,7 @@ authors = [{ name = "OpenAI", email = "support@openai.com" }]
 dependencies = [
     # ---------- External deps ----------
     "openai>=1.66.5",
-    "openai-agents==0.0.14",              # ← from PyPI, no more git install
+    "openai-agents @ git+https://github.com/openai/openai-agents-python.git@main#egg=openai-agents",
     "pydantic>=2.10,<3",
     "griffe>=1.5.6,<2",
     "typing-extensions>=4.12.2,<5",
