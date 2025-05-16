@@ -1,7 +1,8 @@
 from agents import Agent, output_guardrail, GuardrailFunctionOutput
 from typing import List, Optional
 from typing_extensions import TypedDict
-from openai.tools.web_search import web_search_tool
+from openai_agents.tools.web_search import web_search_tool
+
 
 class CreatorStarterKitReport(TypedDict, total=False):
     suggested_niches: List[str]
