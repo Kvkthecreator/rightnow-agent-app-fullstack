@@ -1,5 +1,6 @@
 # Use GitHub-based OpenAI Agents SDK
-git+https://github.com/openai/openai-agents-python.git@main#egg=openai-agents
+-e git+https://github.com/openai/openai-agents-python.git@main#egg=openai-agents
+
 
 # Ensure latest openai version
 openai>=1.66.5
