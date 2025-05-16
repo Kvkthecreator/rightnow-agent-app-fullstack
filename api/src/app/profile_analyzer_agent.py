@@ -51,22 +51,5 @@ Respond with both:
 - A structured JSON output (type = structured, output_type = creator_starter_kit)
 - A markdown-formatted string
 """,
-    input_example={
-        "display_name": "Jamie",
-        "sns_handle": "@jamiewellness",
-        "primary_sns_channel": "Instagram",
-        "platforms": ["Instagram", "YouTube Shorts"],
-        "follower_count": 820,
-        "niche": "Wellness and Journaling",
-        "audience_goal": "Young women seeking mindfulness and balance",
-        "monetization_goal": "Brand sponsorships",
-        "primary_objective": "Build a personal brand to help others",
-        "content_frequency": "Weekly",
-        "tone_keywords": ["relatable", "calm", "inspiring"],
-        "favorite_brands": ["Headspace", "Emma Chamberlain"],
-        "prior_attempts": "Posted a few times but didn’t feel consistent",
-        "creative_barriers": "I get stuck overthinking what people will think",
-        "locale": "en-US",
-    },
     output_type=ProfileAnalyzerOut,
 )
