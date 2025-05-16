@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 # Import legacy agent handlers
-from app.agent_entrypoints import run_agent, run_agent_direct
+from .agent_entrypoints import run_agent, run_agent_direct
 
 router = APIRouter()
 

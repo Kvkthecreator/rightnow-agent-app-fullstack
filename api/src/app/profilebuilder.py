@@ -1,6 +1,6 @@
-from app.util.supabase_helpers import get_collected_fields
-from app.util.webhook import send_webhook          # make sure this import path is right
-from app.util.task_utils import create_task_and_session
+from .util.supabase_helpers import get_collected_fields
+from .util.webhook import send_webhook          # make sure this import path is right
+from .util.task_utils import create_task_and_session
 from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException
 import os

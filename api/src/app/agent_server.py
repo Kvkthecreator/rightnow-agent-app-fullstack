@@ -4,21 +4,25 @@ from __future__ import annotations
 import os
 import sys
 import json
-import httpx
+import urllib.request
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from datetime import datetime
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from app.profilebuilder_agent import profilebuilder_agent
-from app.profilebuilder import router as profilebuilder_router
-from app.util.task_utils import create_task_and_session
-from app.util.webhook import send_webhook as util_send_webhook
-from app.profile_analyzer_agent import profile_analyzer_agent
+from .profilebuilder_agent import profilebuilder_agent
+from .profilebuilder import router as profilebuilder_router
+from .util.task_utils import create_task_and_session
+from .util.webhook import send_webhook as util_send_webhook
+from .profile_analyzer_agent import profile_analyzer_agent
 
 from agents.tool import WebSearchTool
 
@@ -31,10 +35,20 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 
 # ── send_webhook helper ─────────────────────────────────────────────────────
 async def send_webhook(payload: dict):
-    async with httpx.AsyncClient() as client:
+    # Synchronous HTTP POST using requests (no httpx available)
+    try:
         print("=== Webhook Dispatch ===\n", json.dumps(payload, indent=2))
-        await client.post(CHAT_URL, json=payload)
+        # Send HTTP POST via urllib.request
+        req = urllib.request.Request(
+            CHAT_URL,
+            data=json.dumps(payload).encode('utf-8'),
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req):
+            pass
         print("========================")
+    except Exception as e:
+        print("Webhook error:", e)
 
 # ── Specialist agents ──────────────────────────────────────────────────────
 strategy  = Agent(
@@ -150,7 +164,7 @@ app.add_middleware(
 app.include_router(profilebuilder_router)
 
 # Include legacy agent endpoints
-from app.legacy_agent_router import router as legacy_agent_router
+from .legacy_agent_router import router as legacy_agent_router
 app.include_router(legacy_agent_router)
 
 async def run_agent(req: Request):

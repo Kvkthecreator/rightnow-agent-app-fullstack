@@ -6,8 +6,8 @@ from fastapi import APIRouter, Request, HTTPException
 from agents import Agent, Runner
 from datetime import datetime
 import json
-import httpx
-from app.util.task_utils import create_task_and_session
+import urllib.request
+from .util.task_utils import create_task_and_session
 
 router = APIRouter()
 
@@ -82,10 +82,16 @@ async def onboard_influencer(request: Request):
         session["debug_info"] = debug_info
 
     if webhook_url:
-        async with httpx.AsyncClient() as client:
-            try:
-                await client.post(webhook_url, json=session)
-            except Exception as e:
-                session["webhook_error"] = str(e)
+        # Send HTTP POST via urllib.request
+        try:
+            req = urllib.request.Request(
+                webhook_url,
+                data=json.dumps(session).encode('utf-8'),
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req):
+                pass
+        except Exception as e:
+            session["webhook_error"] = str(e)
 
     return session
