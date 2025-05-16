@@ -1,7 +1,18 @@
 from agents import Agent, output_guardrail, GuardrailFunctionOutput
 from typing import List, Optional
 from typing_extensions import TypedDict
-from openai.tools.web_search import web_search_tool
+"""
+Attempt to import web_search_tool from OpenAI Agents SDK.
+Supports both `openai.tools` and `openai_agents.tools` paths.
+"""
+try:
+    from openai.tools.web_search import web_search_tool
+except ImportError:
+    try:
+        from openai_agents.tools.web_search import web_search_tool
+    except ImportError:
+        web_search_tool = None
+        print("Warning: web_search_tool not available. Check openai-agents version.")
 
 class CreatorStarterKitReport(TypedDict, total=False):
     suggested_niches: List[str]
@@ -20,7 +31,8 @@ class ProfileAnalyzerOut(TypedDict):
 profile_analyzer_agent = Agent(
     name="Profile Analyzer",
     model="gpt-4.1-mini",
-    tools=[web_search_tool],
+    # Include web_search_tool if available
+    tools=[web_search_tool] if web_search_tool else [],
     instructions="""
 You are a personal brand strategist specializing in helping aspiring creators find clarity and momentum. Your job is to create a Creator Starter Kit based on their profile.
 

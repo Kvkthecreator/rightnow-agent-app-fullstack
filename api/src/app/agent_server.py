@@ -1,4 +1,8 @@
 # agents/agent_server.py — deterministic handoffs via SDK `handoff()` with robust error handling
+#
+# Render deployment instructions:
+#   Working directory: <project-root>/api/src
+#   Command: uvicorn app.agent_server:app --host 0.0.0.0 --port 10000
 
 from __future__ import annotations
 import os
