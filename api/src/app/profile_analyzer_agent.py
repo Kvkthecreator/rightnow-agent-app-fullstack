@@ -2,17 +2,14 @@ from agents import Agent, output_guardrail, GuardrailFunctionOutput
 from typing import List, Optional
 from typing_extensions import TypedDict
 """
-Attempt to import web_search_tool from OpenAI Agents SDK.
-Supports both `openai.tools` and `openai_agents.tools` paths.
+Import web_search_tool from openai_agents.tools.web_search.
+Do not reference openai.tools web_search, as it is not part of the standard package.
 """
 try:
-    from openai.tools.web_search import web_search_tool
+    from openai_agents.tools.web_search import web_search_tool
 except ImportError:
-    try:
-        from openai_agents.tools.web_search import web_search_tool
-    except ImportError:
-        web_search_tool = None
-        print("Warning: web_search_tool not available. Check openai-agents version.")
+    web_search_tool = None
+    print("Warning: web_search_tool not available. Check openai-agents SDK installation.")
 
 class CreatorStarterKitReport(TypedDict, total=False):
     suggested_niches: List[str]
