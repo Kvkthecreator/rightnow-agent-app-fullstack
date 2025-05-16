@@ -61,9 +61,12 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section className="px-6 py-6 text-right">
-        <a href="#" className="text-sm underline underline-offset-2">
-          About →
-        </a>
+        <Link
+          href="/about"
+          className="text-sm underline underline-offset-2 hover:text-black/70 transition"
+        >
+          About &rarr;
+        </Link>
       </section>
 
       {/* Mission Statement */}
