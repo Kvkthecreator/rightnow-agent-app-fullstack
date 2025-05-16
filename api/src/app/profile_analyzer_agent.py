@@ -1,45 +1,52 @@
 from agents import Agent, output_guardrail, GuardrailFunctionOutput, WebSearchTool
+from agents.model_settings import ModelSettings
 from typing import List, Optional
 from typing_extensions import TypedDict
 
-class CreatorStarterKitReport(TypedDict, total=False):
-    suggested_niches: List[str]
-    audience_persona: str
-    content_strengths: List[str]
-    platform_fit: List[str]
-    starting_content_ideas: List[str]
-    growth_readiness_note: str
+class ReadinessRating(TypedDict):
+    score: int
+    reason: str
+
+class ReportSection(TypedDict):
+    title: str
+    content: str
+    source_links: List[str]
+
+class ProfileAnalyzerReport(TypedDict):
+    type: str
+    summary: str
+    readiness_rating: ReadinessRating
+    cta: str
+    sections: List[ReportSection]
 
 class ProfileAnalyzerOut(TypedDict):
     type: str
     output_type: str
-    report: CreatorStarterKitReport
-    report_markdown: str
+    report: ProfileAnalyzerReport
 
 profile_analyzer_agent = Agent(
     name="Profile Analyzer",
     model="gpt-4.1-mini",
+    model_settings=ModelSettings(tool_choice="required"),
     tools=[WebSearchTool()],
     instructions="""
-You are a personal brand strategist specializing in helping aspiring creators find clarity and momentum. Your job is to create a Creator Starter Kit based on their profile.
+You are a personal brand strategist specializing in helping aspiring creators find clarity and momentum.
 
-Your output must include:
-1. A one-line personalized summary of the user's creator positioning and opportunity.
-2. A readiness rating from 1 to 5 stars (⭐) with a short justification.
-3. A motivating CTA (e.g., “Start with Idea #2 this week.”).
-4. The structured report sections:
-   - Your Suggested Niches
-   - Your Audience Persona
-   - Your Content Strengths
-   - Your Best Platforms to Start On
-   - Starter Content Ideas
-   - Growth Readiness Note (optional)
+Always perform at least one live web search using WebSearchTool with the user's profile and locale to fetch current trends, cultural notes, or best practices.
+Match tone and language to the user's locale; for non-English locales, include an English summary at the end.
 
-Keep the tone confident, warm, and strategic. Match tone to the user’s style and locale if provided. Use locale (e.g. "ko-KR") to adjust suggestions, language, or cultural notes when relevant.
-
-Respond with both:
-- A structured JSON output (type = structured, output_type = creator_starter_kit)
-- A markdown-formatted string
+Output ONLY a JSON object matching this schema:
+{
+  "type": "structured",
+  "summary": "<one-line summary>",
+  "readiness_rating": {"score": <1-5>, "reason": "<short explanation>"},
+  "cta": "<short, actionable CTA>",
+  "sections": [
+    {"title": "<section title>", "content": "<advice/analysis>", "source_links": ["<URL1>", "<URL2>"]},
+    ...
+  ]
+}
+Ensure each section adds tailored, locale-aware value. Cite 1-2 reputable sources via source_links. Do NOT output markdown or extra text.
 """,
     output_type=ProfileAnalyzerOut,
 )
