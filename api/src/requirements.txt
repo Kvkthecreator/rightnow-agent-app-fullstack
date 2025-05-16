@@ -1,5 +1,5 @@
-openai>=1.66.5
 git+https://github.com/openai/openai-agents-python.git@main#egg=openai-agents
+openai>=1.66.5
 pydantic>=2.10,<3
 fastapi>=0.110.0
 uvicorn>=0.34.0
