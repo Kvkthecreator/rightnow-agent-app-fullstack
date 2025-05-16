@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { ChatTeardropText, ArrowsOutCardinal, Smiley } from 'phosphor-react';
+import { ChatTeardropText, ArrowsOutCardinal, Smiley, Butterfly, MicrophoneStage } from 'phosphor-react';
 
 export default function LandingPage() {
   return (
@@ -14,21 +14,21 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="px-6 py-12 text-center border-b">
-        <div className="flex justify-center gap-6 mb-6">
-          <div className="w-12 h-12 bg-black rounded-full" />
-          <div className="w-12 h-12 border-2 border-black rounded-full" />
-          <div className="bg-black text-white px-3 py-1 font-bold text-sm">
-            right<br />NOW
-          </div>
+      <section className="px-6 py-12 text-left border-b">
+        <div className="flex justify-start gap-6 mb-6">
+          <img
+            src="/assets/logos/rightnow-logo-dark.png"
+            alt="rightNOW logo"
+            className="w-30 h-30 object-contain"
+          />
         </div>
         <h1 className="text-3xl md:text-5xl font-medium">
-          want to be an influencer<br />or content creator?
+          Want to be an influencer<br />or content creator?
         </h1>
         <div className="mt-8">
           <Link
             href="/profile-create"
-            className="inline-block px-8 py-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            className="inline-block px-8 py-4 border border-black text-black rounded-md hover:bg-black hover:text-white transition"
           >
             Create Your Starter Kit
           </Link>
@@ -42,7 +42,7 @@ export default function LandingPage() {
         </p>
         <div className="space-y-10">
           <div className="flex items-center gap-4">
-            <ChatTeardropText size={40} />
+            <MicrophoneStage size={40} />
             <span className="text-sm">Personal brand voice</span>
           </div>
           <div className="flex items-center gap-4">
@@ -50,7 +50,7 @@ export default function LandingPage() {
             <span className="text-sm">Growth direction</span>
           </div>
           <div className="flex items-center gap-4">
-            <Smiley size={40} />
+            <Butterfly size={40} />
             <span className="text-sm">
               free, no login required<br />
               <em className="text-xs">*limited time only during beta</em>
