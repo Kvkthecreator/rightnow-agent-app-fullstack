@@ -245,6 +245,24 @@ async def run_agent(req: Request):
 
     return {"ok": True}
 
+
+@app.post("/agent")
+async def agent_endpoint(request: Request):
+    """
+    Universal agent entrypoint for frontend testing and integration.
+
+    Accepts JSON payload:
+        {
+            "prompt": "<prompt string>",
+            "user_id": "<user identifier>",
+            "task_id": "<task identifier>"  # optional
+        }
+
+    Returns:
+        {"ok": True} on success, or HTTPException on error.
+    """
+    return await run_agent(request)
+
 async def run_agent_direct(req: Request):
     data = await req.json()
 
