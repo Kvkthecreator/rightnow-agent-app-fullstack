@@ -2,6 +2,29 @@ from agents import Agent, output_guardrail, GuardrailFunctionOutput, WebSearchTo
 from agents.model_settings import ModelSettings
 from typing import List, Optional
 from typing_extensions import TypedDict
+from pydantic import BaseModel
+
+class ProfileModel(BaseModel):
+    display_name: str
+    sns_handle: str
+    primary_sns_channel: str
+    platforms: List[str]
+    follower_count: int
+    niche: str
+    audience_goal: str
+    monetization_goal: str
+    primary_objective: str
+    content_frequency: str
+    tone_keywords: List[str]
+    favorite_brands: List[str]
+    prior_attempts: str
+    creative_barriers: str
+    locale: str
+
+class ProfileAnalyzerInput(BaseModel):
+    profile: ProfileModel
+    user_id: str
+    task_id: str
 
 class ReadinessRating(TypedDict):
     score: int

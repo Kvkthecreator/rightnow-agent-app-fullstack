@@ -18,6 +18,7 @@ import os
 import sys
 import json
 import urllib.request
+import traceback
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -36,6 +37,7 @@ from .profilebuilder import router as profilebuilder_router
 from .util.task_utils import create_task_and_session
 from .util.webhook import send_webhook as util_send_webhook
 from .profile_analyzer_agent import profile_analyzer_agent
+from .profile_analyzer_agent import ProfileAnalyzerInput
 
 from agents.tool import WebSearchTool
 
@@ -182,72 +184,8 @@ app.include_router(profilebuilder_router)
 from .legacy_agent_router import router as legacy_agent_router
 app.include_router(legacy_agent_router)
 
-async def run_agent(req: Request):
-    data    = await req.json()
-    # normalize prompt
-    prompt = (
-        data.get("prompt") or data.get("user_prompt") or data.get("message")
-    )
-    if not prompt:
-        raise HTTPException(422, "Missing 'prompt' field")
+from .agent_entrypoints import run_agent, run_agent_direct
 
-    # mandatory IDs (generate new session if missing)
-    task_id = data.get("task_id")
-    user_id = data.get("user_id")
-    if not user_id:
-        raise HTTPException(422, "Missing 'user_id'")
-    if not task_id:
-        task_id = create_task_and_session(user_id, "manager")
-
-    # 1) Run Manager with error catch for handoff parsing issues
-    try:
-        result = await Runner.run(
-            manager,
-            input=prompt,
-            context={"task_id": task_id, "user_id": user_id},
-            max_turns=12,
-        )
-    except json.JSONDecodeError as e:
-        # Handoff JSON malformed: send fallback clarification
-        fallback = build_payload(
-            task_id=task_id,
-            user_id=user_id,
-            agent_type="manager",
-            message={"type":"text","content":
-                     "Sorry, I couldn’t process your request—could you rephrase?"},
-            reason="handoff_parse_error",
-            trace=[]
-        )
-        await send_webhook(flatten_payload(fallback))
-        print("RETURNING FROM run_agent (handoff_parse_error path):", {"ok": True})
-        return {"ok": True}
-
-    # 2) Final output comes from the last agent in the chain
-    raw = result.final_output.strip()
-    print(f"Raw LLM output: {raw}")
-    try:
-        json.loads(raw)
-        reason = "Agent returned structured JSON"
-    except Exception:
-        reason = "Agent returned unstructured output"
-    trace = result.to_debug_dict() if hasattr(result, 'to_debug_dict') else []
-
-    # 3) Send the final specialist webhook
-    final_type = (result.agent.name
-                  if hasattr(result, "agent") and result.agent
-                  else "manager")
-    out_payload = build_payload(
-        task_id=task_id,
-        user_id=user_id,
-        agent_type=final_type,
-        message={"type":"text","content": raw},
-        reason=reason,
-        trace=trace
-    )
-    await send_webhook(flatten_payload(out_payload))
-
-    print("RETURNING FROM run_agent (success path):", {"ok": True})
-    return {"ok": True}
 
 
 @app.post("/agent")
@@ -270,92 +208,39 @@ async def agent_endpoint(request: Request):
     print("RETURNING FROM /agent:", result)
     return result
 
-async def run_agent_direct(req: Request):
-    data = await req.json()
-
-    agent_type = data.get("agent_type")
-    agent = AGENTS.get(agent_type)
-    if not agent:
-        raise HTTPException(422, f"Unknown agent_type: {agent_type}")
-
-    task_id = data.get("task_id")
-    user_id = data.get("user_id")
-    if not user_id:
-        raise HTTPException(422, "Missing 'user_id'")
-    if not task_id:
-        task_id = create_task_and_session(user_id, agent.name)
-
-    prompt = data.get("prompt") or data.get("message") or ""
-    context = {
-        "task_id": task_id,
-        "user_id": user_id,
-        "profile_data": data.get("profile_data")
-    }
-
-    result = await Runner.run(agent, input=prompt, context=context, max_turns=12)
-    raw = result.final_output.strip()
-
-    try:
-        content = json.loads(raw)
-        reason = "Agent returned structured JSON"
-        msg = {"type": "structured", "content": content}
-    except json.JSONDecodeError:
-        reason = "Agent returned unstructured output"
-        msg = {"type": "text", "content": raw}
-
-    trace = result.to_debug_dict() if hasattr(result, "to_debug_dict") else []
-
-    payload = build_payload(
-        task_id=task_id,
-        user_id=user_id,
-        agent_type=agent.name,
-        message=msg,
-        reason=reason,
-        trace=trace
-    )
-    await send_webhook(flatten_payload(payload))
-    return {"ok": True}
 
 @app.post("/profile_analyzer")
-async def profile_analyzer_endpoint(request: Request):
-    # Parse and validate request body
-    try:
-        body = await request.json()
-    except Exception:
-        raise HTTPException(400, "Invalid JSON body")
-    task_id = body.get("task_id")
-    user_id = body.get("user_id")
-    profile = body.get("profile")
-    if not task_id:
-        raise HTTPException(422, "Missing 'task_id'")
-    if not user_id:
-        raise HTTPException(422, "Missing 'user_id'")
-    if not profile or not isinstance(profile, dict):
-        raise HTTPException(422, "Missing or invalid 'profile'")
-    print(f"[/profile_analyzer] Received payload: {body}")
-    # Generate insight report
-    try:
-        result = profile_analyzer_agent(profile)
-    except Exception as e:
-        print(f"[/profile_analyzer] Error running profile_analyzer_agent: {e}")
-        raise HTTPException(500, "Error processing profile")
-    print(f"[/profile_analyzer] Agent result: {result}")
-    # Build webhook payload
-    hook_payload = {
-        "task_id": task_id,
-        "user_id": user_id,
-        "agent_type": "profileanalyzer",
-        "message_type": "profile_report",
-        "message_content": result,
-        "created_at": datetime.utcnow().isoformat()
+async def profile_analyzer_endpoint(payload: ProfileAnalyzerInput):
+    """
+    Accepts a profile analysis request and returns the structured insights from the Profile Analyzer agent.
+    """
+    # Prepare profile data as a single text block for agent input
+    profile_dict = payload.profile.dict()
+    profile_text = "\n".join([f"{key}: {value}" for key, value in profile_dict.items()])
+    input_message = {
+        "role": "user",
+        "content": [
+            {
+                "type": "input_text",
+                "text": profile_text
+            }
+        ]
     }
-    # POST report to new frontend endpoint instead of legacy Bubble webhook
-    webhook_url = "https://rightnow-agent-app-fullstack.vercel.app/api/receive_report"
-    # Send webhook
+    # Run the Profile Analyzer agent asynchronously with message list format
     try:
-        await util_send_webhook(webhook_url, hook_payload)
+        result = await Runner.run(
+            profile_analyzer_agent,
+            input=[input_message],
+            context={"task_id": payload.task_id, "user_id": payload.user_id},
+            max_turns=12,
+        )
     except Exception as e:
-        print(f"[/profile_analyzer] Error sending webhook: {e}")
-        raise HTTPException(500, "Error sending webhook")
-    # Return the insight report
-    return result
+        print("=== PROFILE_ANALYZER EXCEPTION ===")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error processing profile: {e}")
+    # Parse and return structured JSON
+    raw = result.final_output.strip()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise HTTPException(500, f"Agent returned invalid JSON: {e}")
