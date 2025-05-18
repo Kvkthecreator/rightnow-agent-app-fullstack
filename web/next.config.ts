@@ -1,18 +1,22 @@
 import path from 'path'
 import type { NextConfig } from 'next'
 
+// Fail-safe: Throw error if env is missing
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+if (!apiBaseUrl) {
+  throw new Error('NEXT_PUBLIC_API_BASE_URL is not set! Please add it to your .env file and Vercel project settings.')
+}
+
 const nextConfig: NextConfig = {
-  // Set up your API proxy as before
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/:path*`,
+        destination: `${apiBaseUrl}/:path*`,
       },
     ]
   },
 
-  // Tell Webpack that `@` points at the project root (i.e. the `web/` folder)
   webpack(config) {
     config.resolve.alias = {
       ...config.resolve.alias,
