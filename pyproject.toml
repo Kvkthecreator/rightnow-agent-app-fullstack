@@ -3,7 +3,7 @@ name = "rightnow-agent-app"
 version = "0.0.9"
 description = "OpenAI Agents SDK demo app"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.9,<4.0"
 license = "MIT"
 authors = [{ name = "OpenAI", email = "support@openai.com" }]
 
