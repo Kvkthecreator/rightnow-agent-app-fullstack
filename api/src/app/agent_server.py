@@ -48,6 +48,8 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 
 # ── send_webhook helper ─────────────────────────────────────────────────────
 async def send_webhook(payload: dict):
+    # Debug: show webhook payload before dispatch
+    print("SENDING WEBHOOK:", payload)
     # Synchronous HTTP POST using requests (no httpx available)
     try:
         print("=== Webhook Dispatch ===\n", json.dumps(payload, indent=2))
@@ -217,6 +219,7 @@ async def run_agent(req: Request):
             trace=[]
         )
         await send_webhook(flatten_payload(fallback))
+        print("RETURNING FROM run_agent (handoff_parse_error path):", {"ok": True})
         return {"ok": True}
 
     # 2) Final output comes from the last agent in the chain
@@ -243,6 +246,7 @@ async def run_agent(req: Request):
     )
     await send_webhook(flatten_payload(out_payload))
 
+    print("RETURNING FROM run_agent (success path):", {"ok": True})
     return {"ok": True}
 
 
@@ -261,7 +265,10 @@ async def agent_endpoint(request: Request):
     Returns:
         {"ok": True} on success, or HTTPException on error.
     """
-    return await run_agent(request)
+    # Invoke core agent logic and debug return value
+    result = await run_agent(request)
+    print("RETURNING FROM /agent:", result)
+    return result
 
 async def run_agent_direct(req: Request):
     data = await req.json()

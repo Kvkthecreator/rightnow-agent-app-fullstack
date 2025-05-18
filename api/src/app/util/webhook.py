@@ -42,6 +42,8 @@ async def send_webhook(target_url: str, payload: Mapping[str, Any]) -> None:
         ValueError: if *target_url* is outside the allowed Bubble domain roots.
         httpx.HTTPStatusError: if Bubble responds with an error status code.
     """
+    # Debug: show outbound webhook target and payload
+    print("SENDING OUTBOUND WEBHOOK to", target_url, "payload:", payload)
     if not any(target_url.startswith(root.strip()) for root in ALLOWED_ROOTS):
         raise ValueError(
             f"Refusing to POST to {target_url!r} — must begin with one of {ALLOWED_ROOTS!r}"
