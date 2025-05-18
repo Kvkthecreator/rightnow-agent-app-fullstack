@@ -238,9 +238,5 @@ async def profile_analyzer_endpoint(payload: ProfileAnalyzerInput):
         print("=== PROFILE_ANALYZER EXCEPTION ===")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error processing profile: {e}")
-    # Parse and return structured JSON
-    raw = result.final_output.strip()
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError as e:
-        raise HTTPException(500, f"Agent returned invalid JSON: {e}")
+    # Return structured output from the agent (already a Python dict)
+    return result.final_output

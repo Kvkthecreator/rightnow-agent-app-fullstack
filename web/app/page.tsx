@@ -12,24 +12,28 @@ export default function LandingPage() {
       {/* Animated BG behind just the header and hero */}
       <section className="relative overflow-hidden min-h-[500px]">
         <BackgroundPaths />
-        <div className="relative z-10">
-          <LandingHeader />
-          <div className="max-w-[1200px] mx-auto px-4 py-24 flex flex-col items-start">
-            <img
-              src="/assets/logos/rightnow-logo-dark.png"
-              alt="rightNOW logo"
-              className="w-32 h-32 mb-6 object-contain"
-            />
-            <h1 className="text-3xl md:text-5xl font-bold mb-6">
-              Want to be an influencer<br />or content creator?
-            </h1>
-            <Link
-              href="/profile-create"
-              className="inline-block px-8 py-4 border border-black text-black rounded-md hover:bg-black hover:text-white transition"
-            >
-              Create Your Starter Kit
-            </Link>
-          </div>
+          <div className="relative z-10">
+            <LandingHeader />
+            <div className="max-w-[1200px] mx-auto px-4 py-24 flex flex-col sm:flex-row">
+              <div className="w-full sm:w-1/2">
+                <h1 className="text-3xl md:text-5xl font-bold mb-6">
+                  Want to be an influencer<br />or content creator?
+                </h1>
+              </div>
+              <div className="w-full sm:w-1/2 mt-6 sm:mt-0 flex flex-col items-start sm:items-end sm:self-center space-y-6">
+                <img
+                  src="/assets/logos/rightnow-logo-dark.png"
+                  alt="rightNOW logo"
+                  className="w-32 h-32 object-contain"
+                />
+                <Link
+                  href="/profile-create"
+                  className="inline-block px-8 py-4 border border-black text-black rounded-md hover:bg-black hover:text-white transition"
+                >
+                  Create Your Starter Kit
+                </Link>
+              </div>
+            </div>
         </div>
       </section>
 

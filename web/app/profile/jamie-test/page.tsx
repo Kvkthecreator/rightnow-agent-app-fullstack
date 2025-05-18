@@ -13,8 +13,7 @@ export default function JamieTestProfilePage() {
 
   // Sample input for the agent
   const input = {
-    agent_name: 'profile_analyzer',
-    input: {
+    profile: {
       display_name: 'Jamie',
       sns_handle: '@jamiewellness',
       primary_sns_channel: 'Instagram',
@@ -30,13 +29,15 @@ export default function JamieTestProfilePage() {
       prior_attempts: 'Posted a few times but didn’t feel consistent',
       creative_barriers: 'I get stuck overthinking what people will think',
       locale: 'en-US'
-    }
+    },
+    user_id: 'jamie-test-user',
+    task_id: 'jamie-test-task'
   };
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch('/agent', {
+        const res = await fetch('/profile_analyzer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(input)
