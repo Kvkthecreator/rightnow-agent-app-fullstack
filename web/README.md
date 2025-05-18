@@ -59,3 +59,11 @@ import Logo from '../components/Logo'; // or '@/components/Logo'
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+  
+## Environment Variables
+
+To configure the backend API URL, create a `.env.local` file in the `web/` directory with the following content:
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:10000
+```
+On your production host (e.g., Vercel), set the same `NEXT_PUBLIC_API_BASE_URL` environment variable to your backend URL (e.g., `https://YOUR-BACKEND-RENDER-URL`).

@@ -10,6 +10,8 @@ import { SelectField } from "@/components/ui/SelectField";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import ProfileInsightReport from "@/components/ProfileInsightReport";
+// Base URL for backend API (set via NEXT_PUBLIC_API_BASE_URL in .env.local)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
 // Type for insight report data
 interface InsightReport {
@@ -159,7 +161,8 @@ export default function ProfileCreatePage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/profilebuilder', {
+      // Send chat message to profilebuilder endpoint using dynamic base URL
+      const res = await fetch(`${API_BASE_URL}/profilebuilder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task_id: profile.id, user_id: session.user.id, prompt: userMessage }),
@@ -199,7 +202,8 @@ export default function ProfileCreatePage() {
     if (!session || !profile) return;
     setReportLoading(true);
     try {
-      const res = await fetch('/api/profile_analyzer', {
+      // Request insight report from profile_analyzer endpoint using dynamic base URL
+      const res = await fetch(`${API_BASE_URL}/profile_analyzer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
