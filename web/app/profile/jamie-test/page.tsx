@@ -4,7 +4,6 @@
 // This is a static-only preview page for the Creator Starter Kit report.
 // Uses a hardcoded sample payload and can be replaced with live data logic later.
 import React, { useState, useEffect } from 'react';
-// import ReactMarkdown from 'react-markdown'; // no longer needed for structured rendering
 
 // Base URL for backend API (set via NEXT_PUBLIC_API_BASE_URL in .env.local)
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
@@ -52,19 +51,9 @@ export default function JamieTestProfilePage() {
         const data = await res.json();
         // Debug: log full API response
         console.log('API RESPONSE:', data);
-        // Store full structured report
-        setReport(data);
-        // Robustly extract markdown string if provided
-        let markdownString = '';
-        if (typeof data.report_markdown === 'string') {
-          markdownString = data.report_markdown;
-        } else if (
-          data.report_markdown &&
-          typeof data.report_markdown.text === 'string'
-        ) {
-          markdownString = data.report_markdown.text;
-        }
-        setMarkdown(markdownString);
+        // Extract structured report and optional markdown
+        setReport(data.report || null);
+        setMarkdown(data.report_markdown || null);
       } catch (err: any) {
         setError(err.message || 'Unknown error');
       } finally {
@@ -91,60 +80,53 @@ export default function JamieTestProfilePage() {
   // Render structured report if available
   if (report) {
     return (
-      <main className="max-w-3xl mx-auto px-6 py-8 space-y-6">
-        <h1 className="text-2xl font-bold">Profile Analysis Summary</h1>
-        <p>{report.summary}</p>
-
-        <section>
+      <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
+        <h1 className="text-2xl font-bold mb-4">Profile Analysis Summary</h1>
+        {/* Readiness Rating */}
+        <div>
           <h2 className="text-xl font-semibold">Readiness Rating</h2>
-          <p><span className="font-bold">Score:</span> {report.readiness_rating?.score}</p>
-          <p>{report.readiness_rating?.reason}</p>
-        </section>
-
-        <section>
-          <h2 className="text-xl font-semibold">Sections</h2>
-          <div className="space-y-4">
-            {report.sections?.map((section: any, idx: number) => (
-              <div key={idx} className="border rounded p-4">
-                <h3 className="text-lg font-semibold mb-2">{section.title}</h3>
-                <p className="mb-2">{section.content}</p>
-                {section.source_links?.length > 0 && (
-                  <div>
-                    <p className="font-semibold">Sources:</p>
-                    <ul className="list-disc list-inside">
-                      {section.source_links.map((link: string, i: number) => (
-                        <li key={i}>
-                          <a
-                            href={link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 underline"
-                          >{link}</a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="ml-2">
+            <strong>Score:</strong> {report.readiness_rating?.score ?? 'N/A'}
+            <div className="text-gray-500 text-sm">
+              {report.readiness_rating?.reason}
+            </div>
           </div>
-        </section>
-
-        <section>
-          <h2 className="text-xl font-semibold">Next Steps</h2>
-          <p>{report.cta}</p>
-        </section>
-
+        </div>
+        {/* Sections */}
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Sections</h2>
+          <ul className="list-disc pl-4 space-y-2">
+            {report.sections?.length > 0 ? (
+              report.sections.map((section: any, idx: number) => (
+                <li key={idx}>
+                  <strong>{section.title}</strong>: {section.content}
+                </li>
+              ))
+            ) : (
+              <li>No sections available.</li>
+            )}
+          </ul>
+        </div>
+        {/* Next Steps */}
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Next Steps</h2>
+          <div>
+            <strong>CTA:</strong> {report.cta ?? 'No CTA available.'}
+          </div>
+        </div>
+        {/* Copy Markdown */}
         {markdown && (
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(markdown);
-              alert('Markdown copied to clipboard!');
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
-          >
-            Copy Markdown
-          </button>
+          <div>
+            <button
+              className="mt-6 px-4 py-2 bg-gray-100 border rounded text-sm"
+              onClick={() => {
+                navigator.clipboard.writeText(markdown || '');
+                alert('Markdown copied!');
+              }}
+            >
+              Copy Markdown
+            </button>
+          </div>
         )}
       </main>
     );
