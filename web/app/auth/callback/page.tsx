@@ -1,37 +1,35 @@
 "use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
-  const supabase = useSupabaseClient();
+  const supabase = createClientComponentClient();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function handleAuth() {
-      try {
-        // Exchange the OAuth code in the URL for a session and persist it
-        // Handle OAuth code exchange and session restoration
-        const { data: { session }, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
-        if (error || !session) {
-          console.error('Error exchanging code for session:', error);
-          router.replace('/login');
-        } else {
-          // Redirect to profile page on current domain
-          router.replace('/profile');
-        }
-      } catch (err) {
-        console.error('Error handling auth callback:', err);
-        router.replace('/login');
+    const checkSession = async () => {
+      // In Supabase JS v2+, getSession() is all you need.
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data?.session) {
+        setError("Authentication failed. Please try logging in again.");
+        setTimeout(() => router.replace("/login"), 1500);
+        return;
       }
-    }
-    handleAuth();
+      router.replace("/profile");
+    };
+    checkSession();
   }, [router, supabase]);
 
+  if (error) {
+    return <div className="text-center py-20 text-red-600">{error}</div>;
+  }
+
   return (
-    <div className="flex items-center justify-center h-screen">
-      <p>Redirecting...</p>
+    <div className="flex items-center justify-center min-h-screen">
+      <p className="text-lg font-medium">Signing you in…</p>
     </div>
   );
 }
