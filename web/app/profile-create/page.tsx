@@ -48,6 +48,7 @@ export default function ProfileCreatePage() {
       return;
     }
     async function loadProfile() {
+      if (!session || !session.user) return;
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
