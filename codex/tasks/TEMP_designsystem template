@@ -1,4 +1,4 @@
-Sample Codex Prompt: (Copy-paste this every time)
+## Sample Codex Prompt: (Copy-paste this every time)
 
 Use my design system exactly as follows:
 Color classes like bg-background, bg-primary, bg-card, etc. refer to Tailwind utilities that map to CSS variables from the shadcn/ui official theme, set in :root and .dark.
@@ -8,6 +8,8 @@ For cards: bg-card rounded-2xl shadow-sm p-6
 For buttons: bg-primary text-primary-foreground rounded-lg px-4 py-2
 Font: Inter (from Tailwind), headings as text-xl font-semibold
 Use only spacing, radii, and shadows as specified in my theme guide (below).
-Theme Guide:
+
+## Theme Guide:
 [Paste your cleaned up theme-guide.md here]
+
 Build [describe your component/page here], using only the above conventions.

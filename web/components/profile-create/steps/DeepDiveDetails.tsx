@@ -12,6 +12,7 @@ interface DeepDiveDetailsProps {
   ) => void;
 }
 
+
 export default function DeepDiveDetails({ formData, onChange }: DeepDiveDetailsProps) {
   return (
     <div className="space-y-4">
@@ -44,12 +45,23 @@ export default function DeepDiveDetails({ formData, onChange }: DeepDiveDetailsP
       </div>
       <div>
         <label className="block text-sm font-medium">Primary Objective</label>
-        <input
+        <select
           name="primary_objective"
           value={formData.primary_objective}
           onChange={onChange}
+          required
           className="mt-1 block w-full border rounded p-2"
-        />
+        >
+          <option value="">Select a primary objective</option>
+          <option value="enhance_engagement">Enhance engagement</option>
+          <option value="connect_with_people">Connect with people</option>
+          <option value="motivational">Motivational</option>
+          <option value="help_others">Help others</option>
+          <option value="educate">Educate</option>
+          <option value="raise_awareness">Raise awareness</option>
+          <option value="brand_sponsorships">Brand sponsorships</option>
+          <option value="build_personal_brand">Build personal brand</option>
+        </select>
       </div>
       <div>
         <label className="block text-sm font-medium">Content Frequency</label>

@@ -43,11 +43,11 @@ export default function ProfileBasics({ formData, onChange }: ProfileBasicsProps
           className="mt-1 block w-full border rounded p-2"
         >
           <option value="">Select channel</option>
-          <option>Instagram</option>
-          <option>TikTok</option>
-          <option>YouTube</option>
-          <option>YouTube Shorts</option>
-          <option>Other</option>
+          <option value="instagram">Instagram</option>
+          <option value="tiktok">TikTok</option>
+          <option value="youtube">YouTube</option>
+          <option value="youtube_shorts">YouTube Shorts</option>
+          <option value="other">Other</option>
         </select>
       </div>
       <div>
