@@ -25,7 +25,7 @@ export default function LandingPage() {
               </h1>
               <Link
                 href="/profile-create"
-                className="inline-block px-8 py-4 border border-black text-black rounded-md hover:bg-black hover:text-white transition"
+                className="inline-block px-8 py-4 border border-foreground text-foreground rounded-md hover:bg-black hover:text-white transition"
               >
                 Create Your Starter Kit
               </Link>
@@ -34,7 +34,7 @@ export default function LandingPage() {
       </section>
 
       {/* Main content - no animated background */}
-      <main className="bg-white text-black font-sans flex flex-col">
+      <main className="bg-background text-foreground font-sans flex flex-col">
         <div className="max-w-[1200px] mx-auto px-4 w-full">
           {/* Description + Feature Icons */}
           <section id="benefits" className="px-6 py-12 border-b grid grid-cols-1 md:grid-cols-2 gap-10">

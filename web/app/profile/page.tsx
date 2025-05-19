@@ -242,7 +242,7 @@ export default function ProfilePage() {
               <div>
                 <label className="text-sm font-medium block mb-1">Body</label>
                 <textarea
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent disabled:opacity-50"
+                  className="w-full rounded-lg border border-gray-300 bg-background px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent disabled:opacity-50"
                   value={sec.body}
                   onChange={(e) =>
                     updateSectionState(index, { body: e.target.value })

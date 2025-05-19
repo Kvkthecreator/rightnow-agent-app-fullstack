@@ -41,7 +41,7 @@ export default function LoginPage() {
         <span className="text-2xl font-bold">rgtNOW</span>
       </div>
       {/* Login Card */}
-      <div className="w-full max-w-sm rounded-lg shadow-sm p-6 bg-white">
+      <div className="w-full max-w-sm rounded-lg shadow-sm p-6 bg-card">
         <div className="space-y-4">
           <h2 className="text-2xl font-bold text-center">Welcome back</h2>
           <div className="flex items-center">
