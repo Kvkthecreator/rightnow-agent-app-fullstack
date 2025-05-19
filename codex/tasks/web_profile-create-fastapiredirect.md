@@ -1,3 +1,5 @@
+## codex/tasks/web_profile-create-fastapiredirect.md
+
 Task 2: Wire Up “Generate Report” Button to FastAPI Agent
 
 Goal:
@@ -12,6 +14,7 @@ Codex Task
 #### Goal
 Update the file:
 - `web/app/profile-create/page.tsx`
+- but apply the updates to the new components structure where relevant.
 
 Modify the existing three-step wizard:
 

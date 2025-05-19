@@ -1,4 +1,4 @@
-## codex/tasks/0_web_profile-create-stepscaffold.md
+## codex/tasks/web_profile-create-stepscaffold.md
 
 Task 1: Scaffold the Three-Step Profile-Create Page
 

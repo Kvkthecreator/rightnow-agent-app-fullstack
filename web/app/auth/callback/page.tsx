@@ -2,17 +2,18 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabaseClient';
+import { useSupabaseClient } from '@supabase/auth-helpers-react';
 
 export default function AuthCallbackPage() {
   const router = useRouter();
+  const supabase = useSupabaseClient();
 
   useEffect(() => {
-    const supabase = createClient();
     async function handleAuth() {
       try {
         // Exchange the OAuth code in the URL for a session and persist it
-        const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+        // Handle OAuth code exchange and session restoration
+        const { data: { session }, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
         if (error || !session) {
           console.error('Error exchanging code for session:', error);
           router.replace('/login');
@@ -26,7 +27,7 @@ export default function AuthCallbackPage() {
       }
     }
     handleAuth();
-  }, [router]);
+  }, [router, supabase]);
 
   return (
     <div className="flex items-center justify-center h-screen">
