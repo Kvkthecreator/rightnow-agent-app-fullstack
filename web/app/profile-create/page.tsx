@@ -43,7 +43,10 @@ export default function ProfileCreatePage() {
   // Prefill form data if profile exists (edit mode)
   useEffect(() => {
     if (sessionLoading) return;
-    if (!session) return;
+    if (!session || !session.user) {
+      router.replace('/login');
+      return;
+    }
     async function loadProfile() {
       const { data, error } = await supabase
         .from("profiles")
@@ -75,14 +78,14 @@ export default function ProfileCreatePage() {
       }
     }
     loadProfile();
-  }, [session, sessionLoading, supabase]);
-  // Redirect to login if there's no session
+  }, [session, sessionLoading, supabase, router]);
+  // Redirect to login if session missing
   if (sessionLoading) {
-    return <div>Loading...</div>;
+    return <p>Loading...</p>;
   }
   if (!session || !session.user) {
     router.replace('/login');
-    return <div>Redirecting to login...</div>;
+    return <p>Loading...</p>;
   }
 
   const handleChange = (
