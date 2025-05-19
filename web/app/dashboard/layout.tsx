@@ -1,10 +1,10 @@
 import { ReactNode } from "react";
 import Shell from "@/components/layouts/Shell";
 
-interface DemoLayoutProps {
+interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-export default function DemoLayout({ children }: DemoLayoutProps) {
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return <Shell>{children}</Shell>;
 }

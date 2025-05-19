@@ -36,7 +36,7 @@ export default function Shell({ children }: ShellProps) {
         {/* Main content area */}
         <div className="flex flex-col flex-1">
           <MainNav onNavToggle={() => setShowNav((prev) => !prev)} />
-          <main className="p-6">{children}</main>
+          <main className="px-2 py-6 md:px-6 md:py-4">{children}</main>
         </div>
       </div>
     </div>

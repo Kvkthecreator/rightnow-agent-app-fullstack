@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useSessionContext } from "@supabase/auth-helpers-react";
 
-export default function DemoPage() {
+export default function DashboardPage() {
   const router = useRouter();
   const { session, isLoading } = useSessionContext();
   const { control, handleSubmit } = useForm({ defaultValues: { firstName: "", bio: "", role: "" } });
@@ -28,7 +28,7 @@ export default function DemoPage() {
   }
   const onSubmit = (data: any) => console.log(data);
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
         🌈 Design System Preview
       </h1>

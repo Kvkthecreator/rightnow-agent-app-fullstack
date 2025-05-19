@@ -12,7 +12,7 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const protectedPaths = ['/demo'];
+  const protectedPaths = ['/dashboard'];
   const isProtected = protectedPaths.some((path) =>
     req.nextUrl.pathname.startsWith(path)
   );
@@ -25,5 +25,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/demo/:path*'],
+  matcher: ['/dashboard/:path*'],
 };

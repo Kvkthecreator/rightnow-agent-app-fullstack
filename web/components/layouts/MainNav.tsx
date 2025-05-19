@@ -11,7 +11,7 @@ interface MainNavProps {
 
 export default function MainNav({ onNavToggle }: MainNavProps) {
   return (
-    <header className="flex items-center justify-between p-4 border-b border-border bg-background">
+    <header className="sticky top-0 z-10 flex items-center justify-between p-4 md:py-2 md:px-4 border-b border-border bg-background">
       <div className="flex items-center">
         {onNavToggle && (
           <Button

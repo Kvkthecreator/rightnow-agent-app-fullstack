@@ -13,8 +13,8 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { title: "Demo", href: "/demo", icon: Home },
-  { title: "Profile", href: "/demo/profile-preview", icon: User },
+  { title: "Dashboard", href: "/dashboard", icon: Home },
+  { title: "Profile", href: "/profile", icon: User },
 ];
 
 interface SidebarNavProps {

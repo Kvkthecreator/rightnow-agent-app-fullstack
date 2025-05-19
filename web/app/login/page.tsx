@@ -15,7 +15,7 @@ export default function LoginPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        router.replace("/demo");
+        router.replace("/dashboard");
       }
     });
   }, [router, supabase]);
