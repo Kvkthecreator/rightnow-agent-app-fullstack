@@ -22,8 +22,8 @@ export default function LoginPage() {
 
   // Handler for your “Login with Google” button
   const handleGoogleLogin = async () => {
-    // Redirect to our auth callback after Google sign-in
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    // Redirect to our auth callback after Google sign-in using dynamic site URL
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },

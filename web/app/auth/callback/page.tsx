@@ -17,12 +17,11 @@ export default function AuthCallbackPage() {
           console.error('Error exchanging code for session:', error);
           router.replace('/login');
         } else {
-          const redirectPath = localStorage.getItem("postLoginRedirect") || "/";
-          router.replace(redirectPath);
-          localStorage.removeItem("postLoginRedirect");
+          // Redirect to profile page on current domain
+          router.replace('/profile');
         }
       } catch (err) {
-        console.error("Error handling auth callback:", err);
+        console.error('Error handling auth callback:', err);
         router.replace('/login');
       }
     }

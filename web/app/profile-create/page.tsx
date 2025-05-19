@@ -9,6 +9,7 @@ import { TextareaField } from "@/components/ui/TextareaField";
 import { SelectField } from "@/components/ui/SelectField";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
 import ProfileInsightReport from "@/components/ProfileInsightReport";
 // Base URL for backend API (set via NEXT_PUBLIC_API_BASE_URL in .env.local)
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
@@ -260,7 +261,7 @@ export default function ProfileCreatePage() {
   ];
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
+    <Card className="max-w-3xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold mb-6">
         {step === 1
           ? 'Step 1 of 4: Basic Profile Info'
@@ -402,6 +403,6 @@ export default function ProfileCreatePage() {
           next_steps={reportData.next_steps}
         />
       ) : null}
-    </div>
+    </Card>
   );
 }
