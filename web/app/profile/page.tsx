@@ -170,8 +170,10 @@ export default function ProfilePage() {
     return null;
   }
 
-  if (!session) {
-    return <div>Please log in to view your profile.</div>;
+  // Redirect to login if not signed in
+  if (!session || !session.user) {
+    router.replace('/login');
+    return <div>Redirecting to login...</div>;
   }
 
   if (!profile) {
