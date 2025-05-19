@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSessionContext } from "@supabase/auth-helpers-react";
+import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
 import StepIndicator from "@/components/profile-create/StepIndicator";
 import StepNav from "@/components/profile-create/StepNav";
 import ProfileBasics from "@/components/profile-create/steps/ProfileBasics";
@@ -16,6 +16,7 @@ const totalSteps = 3;
 export default function ProfileCreatePage() {
   const router = useRouter();
   const { session, isLoading: sessionLoading } = useSessionContext();
+  const supabase = useSupabaseClient();
   const [step, setStep] = useState<number>(1);
   const [taskId] = useState<string>(() => crypto.randomUUID());
   const [formData, setFormData] = useState<FormData>({
@@ -38,6 +39,43 @@ export default function ProfileCreatePage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>();
 
+  // Prefill form data if profile exists (edit mode)
+  useEffect(() => {
+    if (sessionLoading) return;
+    if (!session) return;
+    async function loadProfile() {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (error) {
+        console.error("Error fetching profile for editing:", error);
+        return;
+      }
+      if (data) {
+        setFormData({
+          display_name: data.display_name || "",
+          sns_handle: data.sns_handle || "",
+          primary_sns_channel: data.primary_sns_channel || "",
+          platforms: Array.isArray(data.platforms) ? data.platforms.join(", ") : data.platforms || "",
+          follower_count: data.follower_count?.toString() || "",
+          locale: data.locale || "",
+          niche: data.niche || "",
+          audience_goal: data.audience_goal || "",
+          monetization_goal: data.monetization_goal || "",
+          primary_objective: data.primary_objective || "",
+          content_frequency: data.content_frequency || "",
+          tone_keywords: Array.isArray(data.tone_keywords) ? data.tone_keywords.join(", ") : data.tone_keywords || "",
+          favorite_brands: Array.isArray(data.favorite_brands) ? data.favorite_brands.join(", ") : data.favorite_brands || "",
+          prior_attempts: data.prior_attempts || "",
+          creative_barriers: data.creative_barriers || "",
+        });
+      }
+    }
+    loadProfile();
+  }, [session, sessionLoading, supabase]);
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -56,7 +94,7 @@ export default function ProfileCreatePage() {
       return;
     }
     if (!session) {
-      setError("You must be logged in to generate a report.");
+      setError("You must be logged in to create or update your profile.");
       return;
     }
     // Basic validation: ensure all fields are filled
@@ -64,6 +102,9 @@ export default function ProfileCreatePage() {
       formData.display_name,
       formData.sns_handle,
       formData.primary_sns_channel,
+      formData.platforms,
+      formData.follower_count,
+      formData.locale,
       formData.niche,
       formData.audience_goal,
       formData.monetization_goal,
@@ -73,60 +114,44 @@ export default function ProfileCreatePage() {
       formData.favorite_brands,
       formData.prior_attempts,
       formData.creative_barriers,
-      formData.locale,
-      formData.platforms,
-      formData.follower_count,
     ];
     if (required.some((v) => !v || v.trim() === "")) {
-      setError("Please fill in all fields before generating report.");
+      setError("Please fill in all fields before saving your profile.");
       return;
     }
     if (loading) return;
     setLoading(true);
     setError(undefined);
     try {
-      const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      // Construct final payload
+      // Upsert profile for single user
       const payload = {
-        profile: {
-          display_name: formData.display_name,
-          sns_handle: formData.sns_handle,
-          primary_sns_channel: formData.primary_sns_channel,
-          platforms: formData.platforms.split(',').map((s) => s.trim()),
-          follower_count: parseInt(formData.follower_count, 10),
-          locale: formData.locale,
-          niche: formData.niche,
-          audience_goal: formData.audience_goal,
-          monetization_goal: formData.monetization_goal,
-          primary_objective: formData.primary_objective,
-          content_frequency: formData.content_frequency,
-          tone_keywords: formData.tone_keywords.split(',').map((s) => s.trim()),
-          favorite_brands: formData.favorite_brands.split(',').map((s) => s.trim()),
-          prior_attempts: formData.prior_attempts,
-          creative_barriers: formData.creative_barriers,
-        },
         user_id: session.user.id,
-        task_id: taskId,
+        display_name: formData.display_name,
+        sns_handle: formData.sns_handle,
+        primary_sns_channel: formData.primary_sns_channel,
+        platforms: formData.platforms.split(",").map((s) => s.trim()),
+        follower_count: parseInt(formData.follower_count, 10) || 0,
+        locale: formData.locale,
+        niche: formData.niche,
+        audience_goal: formData.audience_goal,
+        monetization_goal: formData.monetization_goal,
+        primary_objective: formData.primary_objective,
+        content_frequency: formData.content_frequency,
+        tone_keywords: formData.tone_keywords.split(",").map((s) => s.trim()),
+        favorite_brands: formData.favorite_brands.split(",").map((s) => s.trim()),
+        prior_attempts: formData.prior_attempts,
+        creative_barriers: formData.creative_barriers,
       };
-      const res = await fetch(`${base}/agent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        setError(`Error: ${text}`);
-        return;
+      const { error: upsertError } = await supabase
+        .from("profiles")
+        .upsert(payload, { onConflict: "user_id" });
+      if (upsertError) {
+        throw upsertError;
       }
-      const data = await res.json();
-      const { id } = data;
-      if (id) {
-        router.push(`/profile/${id}`);
-      } else {
-        setError("Invalid response from server: missing id");
-      }
+      // Redirect to profile view
+      router.push("/profile");
     } catch (err: any) {
-      setError(`Request failed: ${err.message || err}`);
+      setError(err.message || "Failed to save profile.");
     } finally {
       setLoading(false);
     }

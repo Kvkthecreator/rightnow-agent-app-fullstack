@@ -1,7 +1,7 @@
 "use client";
-
 import React, { useState, useEffect } from "react";
 import { useSupabaseClient, useSessionContext } from "@supabase/auth-helpers-react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -29,6 +29,7 @@ type Section = {
 export default function ProfilePage() {
   const supabase = useSupabaseClient();
   const { session, isLoading } = useSessionContext();
+  const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
 
@@ -47,12 +48,17 @@ export default function ProfilePage() {
       .from("profiles")
       .select("*")
       .eq("user_id", session.user.id)
-      .single();
+      .maybeSingle();
     if (error) {
       console.error("Error fetching profile:", error);
       return;
     }
-    setProfile(fetchedProfile!);
+    // if no profile, redirect to creation page
+    if (!fetchedProfile) {
+      router.push('/profile-create');
+      return;
+    }
+    setProfile(fetchedProfile);
     fetchSections(fetchedProfile.id);
   }
 
@@ -174,7 +180,10 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
-      <h1 className="text-2xl font-bold">Your Profile</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Your Profile</h1>
+        <Button variant="outline" onClick={() => router.push('/profile-create')}>Edit Profile</Button>
+      </div>
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
