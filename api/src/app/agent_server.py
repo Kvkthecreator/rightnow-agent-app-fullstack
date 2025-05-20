@@ -38,6 +38,7 @@ from .util.task_utils import create_task_and_session
 from .util.webhook import send_webhook as util_send_webhook
 from .profile_analyzer_agent import profile_analyzer_agent
 from .profile_analyzer_agent import ProfileAnalyzerInput
+from .agent_tasks.context import get_full_profile_context
 
 from agents.tool import WebSearchTool
 
@@ -214,9 +215,16 @@ async def profile_analyzer_endpoint(payload: ProfileAnalyzerInput):
     """
     Accepts a profile analysis request and returns the structured insights from the Profile Analyzer agent.
     """
+    # Load full profile context (profile row + report sections) from DB
+    full_context = get_full_profile_context(payload.user_id)
+    profile_data = full_context.get("profile", {})
     # Prepare profile data as a single text block for agent input
-    profile_dict = payload.profile.dict()
-    profile_text = "\n".join([f"{key}: {value}" for key, value in profile_dict.items()])
+    profile_text = "\n".join([f"{key}: {value}" for key, value in profile_data.items()])
+    # Optionally include prior report sections in the prompt
+    if full_context.get("report_sections"):
+        profile_text += "\n\nPrevious Report Sections:\n"
+        for sec in full_context["report_sections"]:
+            profile_text += f"- {sec.get('title')}: {sec.get('body')}\n"
     input_message = {
         "role": "user",
         "content": [
@@ -228,10 +236,17 @@ async def profile_analyzer_endpoint(payload: ProfileAnalyzerInput):
     }
     # Run the Profile Analyzer agent asynchronously with message list format
     try:
+        # Build agent invocation context bundle
+        agent_context = {
+            "task_id": payload.task_id,
+            "user_id": payload.user_id,
+            "profile": profile_data,
+            "report_sections": full_context.get("report_sections", []),
+        }
         result = await Runner.run(
             profile_analyzer_agent,
             input=[input_message],
-            context={"task_id": payload.task_id, "user_id": payload.user_id},
+            context=agent_context,
             max_turns=12,
         )
     except Exception as e:
