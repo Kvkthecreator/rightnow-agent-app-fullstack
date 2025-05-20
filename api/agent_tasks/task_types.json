@@ -1,0 +1,38 @@
+[
+  {
+    "task_type_id": "analyze_competitors",
+    "title": "Analyze My Competitors",
+    "description": "Paste competitor URLs to get insights and differentiation advice.",
+    "agent_type": "strategy",
+    "input_fields": ["competitor_urls", "target_platform"],
+    "prompt_template": "You are a brand strategist. Analyze the following competitor profiles. Extract their positioning, tone, and engagement style. Then summarize how the user can differentiate themselves.",
+    "output_type": "competitor_table",
+    "allow_custom_prompt": false,
+    "enabled": true,
+    "schema_version": "1.0"
+  },
+  {
+    "task_type_id": "generate_weekly_plan",
+    "title": "Create 7-Day Content Plan",
+    "description": "Get a personalized, actionable 7-day content calendar.",
+    "agent_type": "strategy",
+    "input_fields": ["primary_objective", "niche", "target_platform"],
+    "prompt_template": "You are an expert social media strategist. Based on the user's objective, niche, and platform, generate a detailed 7-day content plan with suggested post types and captions.",
+    "output_type": "weekly_plan",
+    "allow_custom_prompt": false,
+    "enabled": true,
+    "schema_version": "1.0"
+  },
+  {
+    "task_type_id": "caption_generator",
+    "title": "Write Instagram Captions",
+    "description": "Quickly generate engaging captions for your Instagram posts.",
+    "agent_type": "content",
+    "input_fields": ["post_topic", "tone_keywords", "call_to_action"],
+    "prompt_template": "Write several Instagram captions for a post about {post_topic}. Match the tone: {tone_keywords}. Include a call to action: {call_to_action}.",
+    "output_type": "caption_list",
+    "allow_custom_prompt": true,
+    "enabled": true,
+    "schema_version": "1.0"
+  }
+]
