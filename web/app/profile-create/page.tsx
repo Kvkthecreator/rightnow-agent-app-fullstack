@@ -155,12 +155,63 @@ export default function ProfileCreatePage() {
         prior_attempts: formData.prior_attempts,
         creative_barriers: formData.creative_barriers,
       };
-      const { error: upsertError } = await supabase
+      // Upsert profile and retrieve the saved row
+      const { data: upserted, error: upsertError } = await supabase
         .from("profiles")
-        .upsert(payload, { onConflict: "user_id" });
+        .upsert(payload, { onConflict: "user_id" })
+        .select()
+        .single();
       if (upsertError) {
         throw upsertError;
       }
+
+      // Call the Profile Analyzer agent
+      try {
+        const resp = await fetch("/api/profile_analyzer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            profile: payload,
+            user_id: session.user.id,
+            task_id: taskId,
+          }),
+        });
+        if (!resp.ok) {
+          throw new Error(`agent API ${resp.status}: ${await resp.text()}`);
+        }
+        const reportOutput = await resp.json();
+
+        console.log("Agent report:", reportOutput);
+
+        // Persist the returned sections
+        if (reportOutput.sections && upserted?.id) {
+          // remove any existing sections
+          await supabase
+            .from("profile_report_sections")
+            .delete()
+            .eq("profile_id", upserted.id);
+          // insert new sections
+          const toInsert = reportOutput.sections.map((sec: any) => ({
+            profile_id: upserted.id,
+            title: sec.title,
+            body: sec.content,
+          }));
+          const { error: secError } = await supabase
+            .from("profile_report_sections")
+            .insert(toInsert);
+          if (secError) {
+            console.error("Failed writing report sections:", secError);
+          }
+        }
+      } catch (agentErr: any) {
+        console.error("Error calling profile_analyzer:", agentErr);
+        setError(
+          "Profile saved but report generation failed: " + agentErr.message
+        );
+        setLoading(false);
+        return;
+      }
+
       // Redirect to profile view
       router.push("/profile");
     } catch (err: any) {
