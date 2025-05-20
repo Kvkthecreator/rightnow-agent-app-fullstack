@@ -6,8 +6,8 @@ Builds agent prompts by merging task templates with runtime context and user inp
 import json
 from pathlib import Path
 
-# Path to the JSON registry of task definitions
-TASK_TYPES_FILE = Path(__file__).parent / "task_types.json"
+# Path to the JSON registry of task definitions (moved to agent_tasks root)
+TASK_TYPES_FILE = Path(__file__).parent.parent / "task_types.json"
 
 def load_task_types() -> dict:
     """
