@@ -185,22 +185,31 @@ export default function ProfileCreatePage() {
 
         // Persist the returned sections
         if (reportOutput.sections && upserted?.id) {
-          // remove any existing sections
-          await supabase
+          const profileId = upserted.id;
+
+          // Delete old sections
+          const { error: delError } = await supabase
             .from("profile_report_sections")
             .delete()
-            .eq("profile_id", upserted.id);
-          // insert new sections
-          const toInsert = reportOutput.sections.map((sec: any) => ({
-            profile_id: upserted.id,
+            .eq("profile_id", profileId);
+          if (delError) {
+            console.error("Error deleting old sections:", delError);
+          }
+
+          // Prepare new rows with order_index
+          const sectionRows = reportOutput.sections.map((sec: any, idx: number) => ({
+            profile_id: profileId,
             title: sec.title,
             body: sec.content,
+            order_index: idx,
           }));
-          const { error: secError } = await supabase
+
+          // Insert new sections
+          const { error: insertError } = await supabase
             .from("profile_report_sections")
-            .insert(toInsert);
-          if (secError) {
-            console.error("Failed writing report sections:", secError);
+            .insert(sectionRows);
+          if (insertError) {
+            console.error("Error saving profile report sections:", insertError);
           }
         }
       } catch (agentErr: any) {
