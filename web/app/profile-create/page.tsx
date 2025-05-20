@@ -184,7 +184,7 @@ export default function ProfileCreatePage() {
         console.log("Agent report:", reportOutput);
 
         // Persist the returned sections
-        if (reportOutput.sections && upserted?.id) {
+        if (reportOutput.report?.sections && upserted?.id) {
           const profileId = upserted.id;
 
           // Delete old sections
@@ -197,7 +197,7 @@ export default function ProfileCreatePage() {
           }
 
           // Prepare new rows with order_index
-          const sectionRows = reportOutput.sections.map((sec: any, idx: number) => ({
+          const sectionRows = reportOutput.report.sections.map((sec: any, idx: number) => ({
             profile_id: profileId,
             title: sec.title,
             body: sec.content,
