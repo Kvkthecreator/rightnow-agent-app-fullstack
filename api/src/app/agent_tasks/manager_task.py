@@ -19,6 +19,7 @@ from .repurpose_agent import repurpose
 from .feedback_agent import feedback
 from ..util.task_utils import create_task_and_session
 from ..util.webhook import send_webhook
+from .middleware.output_utils import build_payload, flatten_payload
 
 # Pydantic model for Manager handoff payload
 class HandoffData(BaseModel):
@@ -76,29 +77,6 @@ AGENTS = {
     "feedback": feedback,
 }
 
-def build_payload(task_id: str, user_id: str, agent_type: str, message: dict, reason: str, trace: list) -> dict:
-    """Construct the common webhook payload for Bubble."""
-    return {
-        "task_id":    task_id,
-        "user_id":    user_id,
-        "agent_type": agent_type,
-        "message":    {"type": message.get("type"), "content": message.get("content")},
-        "metadata":   {"reason": reason},
-        "trace":      trace,
-        "created_at": datetime.utcnow().isoformat(),
-    }
-
-def flatten_payload(p: dict) -> dict:
-    """Flatten nested payload for the webhook receiver."""
-    return {
-        "task_id":         p["task_id"],
-        "user_id":         p["user_id"],
-        "agent_type":      p["agent_type"],
-        "message_type":    p["message"]["type"],
-        "message_content": p["message"]["content"],
-        "metadata_reason": p["metadata"].get("reason", ""),
-        "created_at":      p["created_at"],
-    }
 
 # FastAPI router exposing the /agent endpoint
 router = APIRouter()

@@ -7,7 +7,8 @@ from fastapi import Request, HTTPException
 import json
 
 from agents import Runner
-from .agent_tasks.manager_task import manager, AGENTS, build_payload, flatten_payload
+from .agent_tasks.manager_task import manager, AGENTS
+from .agent_tasks.middleware.output_utils import build_payload, flatten_payload
 from .util.task_utils import create_task_and_session
 from .util.webhook import send_webhook
 

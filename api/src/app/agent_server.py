@@ -29,25 +29,14 @@ try:
     load_dotenv()
 except ImportError:
     pass
-from fastapi import FastAPI, Request, HTTPException
+# FastAPI and CORS imports
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from .profilebuilder_agent import profilebuilder_agent
+
+# Routers from agent_tasks
 from .agent_tasks.profilebuilder_task import router as profilebuilder_router
-from .util.task_utils import create_task_and_session
-from .util.webhook import send_webhook as util_send_webhook
-# Profile Analyzer logic moved to agent_tasks/profile_analyzer_task.py
 from .agent_tasks.profile_analyzer_task import router as profile_analyzer_router
-from .agent_tasks.context import get_full_profile_context
-
-from agents import Runner
-
-# Specialist and Manager agent definitions (moved to agent_tasks)
-from .agent_tasks.strategy_agent import strategy
-from .agent_tasks.content_agent import content
-from .agent_tasks.repurpose_agent import repurpose
-from .agent_tasks.feedback_agent import feedback
-from .agent_tasks.manager_task import manager, AGENTS, build_payload, flatten_payload
+from .agent_tasks.manager_task import router as manager_router
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
@@ -62,7 +51,6 @@ app.add_middleware(
 )
 app.include_router(profilebuilder_router)
 app.include_router(profile_analyzer_router)
-from .agent_tasks.manager_task import router as manager_router
 app.include_router(manager_router)
 
 
