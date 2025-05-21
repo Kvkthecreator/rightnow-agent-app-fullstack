@@ -75,3 +75,38 @@ This app uses a hosted architecture for backend and database, simplifying local 
 
 ```bash
 ./start-dev.sh
+```
+
+## 🗂 Agent Task Structure
+
+The backend is now organized under `api/src/app/agent_tasks/` into modular agent files, task endpoints, middleware, and utilities.
+
+### Directory Layout
+```
+api/src/app/
+├─ agent_server.py            # FastAPI app entrypoint
+├─ agent_entrypoints.py       # Runner integration
+├─ agent_output.py            # Output validation
+├─ exceptions.py              # Error classes
+├─ util/                      # Shared helpers (Supabase, webhook, tasks)
+└─ agent_tasks/               # Agent task modules
+   ├─ context.py              # Profile + report_sections loader
+   ├─ middleware/             # Prompt builder & routing utils
+   ├─ task_types.json         # Task definitions
+   ├─ <agent>_agent.py        # Agent definitions & models
+   ├─ <agent>_task.py         # FastAPI routers/endpoints
+   └─ ...                     # Other agent/task files
+```
+
+### Core Endpoints
+- POST `/agent`           : Manager orchestration endpoint
+- POST `/profilebuilder` : Stepwise profile Q&A endpoint
+- POST `/profile_analyzer`: Complete profile analysis endpoint
+
+## ➕ How to Add a New Agent Task
+1. **Define the Agent** in `agent_tasks/<name>_agent.py` with models & `Agent(...)`.
+2. **Create the Task** in `agent_tasks/<name>_task.py` with an `APIRouter` and endpoint(s).
+3. **Register the Router** in `agent_server.py` via `app.include_router(...)`.
+4. **Update `task_types.json`** for prompt templates and routing logic.
+5. **Use `output_utils`** for consistent webhook payloads and `send_webhook` calls.
+6. **Smoke-test & Document** your new endpoint and update this README.
