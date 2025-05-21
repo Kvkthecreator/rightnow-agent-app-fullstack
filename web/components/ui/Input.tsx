@@ -11,7 +11,9 @@ export const Input = React.forwardRef<
   return (
     <input
       className={cn(
-        "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent disabled:opacity-50",
+        // Theme-based input styling
+        "w-full p-3 rounded-lg border border-input bg-input text-base text-foreground shadow-sm placeholder:text-muted-foreground",
+        "focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50",
         className
       )}
       ref={ref}

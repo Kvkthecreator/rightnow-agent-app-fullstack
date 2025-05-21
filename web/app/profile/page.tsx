@@ -181,9 +181,9 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-8">
+    <div className="max-w-3xl mx-auto space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Your Profile</h1>
+        <h1 className="text-xl font-semibold">Your Profile</h1>
         <Button variant="outline" onClick={() => router.push('/profile-create')}>Edit Profile</Button>
       </div>
       <Card>
@@ -197,7 +197,7 @@ export default function ProfilePage() {
               href={profile.sns_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600"
+              className="text-primary-foreground underline hover:underline"
             >
               {profile.sns_url}
             </a>
@@ -229,7 +229,7 @@ export default function ProfilePage() {
           <Card key={sec.id ?? `new-${index}`}> 
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium block mb-1">Title</label>
+                <label className="text-sm text-foreground font-medium block mb-1">Title</label>
                 <Input
                   type="text"
                   value={sec.title}
@@ -240,9 +240,9 @@ export default function ProfilePage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium block mb-1">Body</label>
+                <label className="text-sm text-foreground font-medium block mb-1">Body</label>
                 <textarea
-                  className="w-full rounded-lg border border-gray-300 bg-background px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent disabled:opacity-50"
+                  className="w-full p-3 rounded-lg border border-input bg-input text-base text-foreground shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                   value={sec.body}
                   onChange={(e) =>
                     updateSectionState(index, { body: e.target.value })

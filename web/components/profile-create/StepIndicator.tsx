@@ -9,7 +9,7 @@ interface StepIndicatorProps {
 
 export default function StepIndicator({ current, total }: StepIndicatorProps) {
   return (
-    <div className="text-sm font-medium">
+    <div className="text-sm text-muted-foreground font-medium">
       Step {current} of {total}
     </div>
   );

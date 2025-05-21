@@ -1,18 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { Card } from "@/components/ui/Card";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
-import StepIndicator from "@/components/profile-create/StepIndicator";
+// import StepIndicator from "@/components/profile-create/StepIndicator"; (replaced by ProgressStepper)
 import StepNav from "@/components/profile-create/StepNav";
 import ProfileBasics from "@/components/profile-create/steps/ProfileBasics";
 import DeepDiveDetails from "@/components/profile-create/steps/DeepDiveDetails";
 import ReviewProfile from "@/components/profile-create/steps/ReviewProfile";
 import { FormData } from "@/components/profile-create/types";
 
+import { ProgressStepper } from "@/components/ui/ProgressStepper";
+import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 const totalSteps = 3;
-
 export default function ProfileCreatePage() {
   const router = useRouter();
   const { session, isLoading: sessionLoading } = useSessionContext();
@@ -231,10 +233,19 @@ export default function ProfileCreatePage() {
   };
 
   return (
-    <div className="max-w-lg mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Profile Creation</h1>
-      <StepIndicator current={step} total={totalSteps} />
-      <div className="overflow-hidden">
+    <div className="max-w-lg mx-auto">
+      {/* Progress stepper showing current step */}
+      <ProgressStepper
+        current={step}
+        steps={["Basics", "Details", "Review"]}
+      />
+      <Card className="relative space-y-6">
+        {/* Loading overlay during async actions */}
+        {loading && (
+          <LoadingOverlay message="Generating your report..." />
+        )}
+        <h1 className="text-xl font-semibold">Profile Creation</h1>
+        <div className="overflow-hidden">
         <AnimatePresence initial={false} mode="popLayout">
           <motion.div
             key={`step${step}`}
@@ -252,15 +263,16 @@ export default function ProfileCreatePage() {
           </motion.div>
         </AnimatePresence>
       </div>
-      <StepNav
-        currentStep={step}
-        totalSteps={totalSteps}
-        onBack={handleBack}
-        onNext={handleNext}
-        onGenerate={handleGenerate}
-        loading={loading}
-        error={error}
-      />
+        <StepNav
+          currentStep={step}
+          totalSteps={totalSteps}
+          onBack={handleBack}
+          onNext={handleNext}
+          onGenerate={handleGenerate}
+          loading={loading}
+          error={error}
+        />
+      </Card>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Button } from "@/components/ui/Button";
 
 interface StepNavProps {
   currentStep: number;
@@ -24,31 +25,20 @@ export default function StepNav({
   return (
     <>
       <div className="flex justify-between items-center mt-4">
-        <button
-          onClick={onBack}
-          disabled={currentStep === 1}
-          className="px-4 py-2 bg-gray-200 text-gray-700 rounded disabled:opacity-50"
-        >
+        <Button variant="outline" size="md" onClick={onBack} disabled={currentStep === 1}>
           Back
-        </button>
+        </Button>
         {currentStep < totalSteps ? (
-          <button
-            onClick={onNext}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
-          >
+          <Button onClick={onNext} size="md">
             Next
-          </button>
+          </Button>
         ) : (
-          <button
-            onClick={onGenerate}
-            disabled={loading}
-            className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
-          >
+          <Button onClick={onGenerate} size="md" disabled={loading}>
             {loading ? "Generating..." : "Generate Report"}
-          </button>
+          </Button>
         )}
       </div>
-      {error && <div className="mt-2 text-red-600">{error}</div>}
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
     </>
   );
 }
