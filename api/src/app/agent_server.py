@@ -43,7 +43,10 @@ from .agent_tasks.context import get_full_profile_context
 from agents import Runner
 
 # Specialist and Manager agent definitions (moved to agent_tasks)
-from .agent_tasks.specialist_agents import strategy, content, repurpose, feedback
+from .agent_tasks.strategy_agent import strategy
+from .agent_tasks.content_agent import content
+from .agent_tasks.repurpose_agent import repurpose
+from .agent_tasks.feedback_agent import feedback
 from .agent_tasks.manager_task import manager, AGENTS, build_payload, flatten_payload
 
 # ── Environment variable for Bubble webhook URL
@@ -58,30 +61,9 @@ app.add_middleware(
     allow_methods=["*"], allow_headers=["*"],
 )
 app.include_router(profilebuilder_router)
+from .agent_tasks.manager_task import router as manager_router
+app.include_router(manager_router)
 
-from .agent_entrypoints import run_agent, run_agent_direct
-
-
-
-@app.post("/agent")
-async def agent_endpoint(request: Request):
-    """
-    Universal agent entrypoint for frontend testing and integration.
-
-    Accepts JSON payload:
-        {
-            "prompt": "<prompt string>",
-            "user_id": "<user identifier>",
-            "task_id": "<task identifier>"  # optional
-        }
-
-    Returns:
-        {"ok": True} on success, or HTTPException on error.
-    """
-    # Invoke core agent logic and debug return value
-    result = await run_agent(request)
-    print("RETURNING FROM /agent:", result)
-    return result
 
 
 @app.post("/profile_analyzer")
