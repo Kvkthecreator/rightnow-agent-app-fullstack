@@ -181,10 +181,6 @@ app.add_middleware(
 )
 app.include_router(profilebuilder_router)
 
-# Include legacy agent endpoints
-from .legacy_agent_router import router as legacy_agent_router
-app.include_router(legacy_agent_router)
-
 from .agent_entrypoints import run_agent, run_agent_direct
 
 
