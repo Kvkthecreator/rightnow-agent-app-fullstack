@@ -33,11 +33,11 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from .profilebuilder_agent import profilebuilder_agent
-from .profilebuilder import router as profilebuilder_router
+from .agent_tasks.profilebuilder_task import router as profilebuilder_router
 from .util.task_utils import create_task_and_session
 from .util.webhook import send_webhook as util_send_webhook
-from .profile_analyzer_agent import profile_analyzer_agent
-from .profile_analyzer_agent import ProfileAnalyzerInput
+# Profile Analyzer logic moved to agent_tasks/profile_analyzer_task.py
+from .agent_tasks.profile_analyzer_task import router as profile_analyzer_router
 from .agent_tasks.context import get_full_profile_context
 
 from agents import Runner
@@ -61,53 +61,9 @@ app.add_middleware(
     allow_methods=["*"], allow_headers=["*"],
 )
 app.include_router(profilebuilder_router)
+app.include_router(profile_analyzer_router)
 from .agent_tasks.manager_task import router as manager_router
 app.include_router(manager_router)
 
 
 
-@app.post("/profile_analyzer")
-async def profile_analyzer_endpoint(payload: ProfileAnalyzerInput):
-    """
-    Accepts a profile analysis request and returns the structured insights from the Profile Analyzer agent.
-    """
-    # Load full profile context (profile row + report sections) from DB
-    full_context = get_full_profile_context(payload.user_id)
-    profile_data = full_context.get("profile", {})
-    # Prepare profile data as a single text block for agent input
-    profile_text = "\n".join([f"{key}: {value}" for key, value in profile_data.items()])
-    # Optionally include prior report sections in the prompt
-    if full_context.get("report_sections"):
-        profile_text += "\n\nPrevious Report Sections:\n"
-        for sec in full_context["report_sections"]:
-            profile_text += f"- {sec.get('title')}: {sec.get('body')}\n"
-    input_message = {
-        "role": "user",
-        "content": [
-            {
-                "type": "input_text",
-                "text": profile_text
-            }
-        ]
-    }
-    # Run the Profile Analyzer agent asynchronously with message list format
-    try:
-        # Build agent invocation context bundle
-        agent_context = {
-            "task_id": payload.task_id,
-            "user_id": payload.user_id,
-            "profile": profile_data,
-            "report_sections": full_context.get("report_sections", []),
-        }
-        result = await Runner.run(
-            profile_analyzer_agent,
-            input=[input_message],
-            context=agent_context,
-            max_turns=12,
-        )
-    except Exception as e:
-        print("=== PROFILE_ANALYZER EXCEPTION ===")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error processing profile: {e}")
-    # Return structured output from the agent (already a Python dict)
-    return result.final_output

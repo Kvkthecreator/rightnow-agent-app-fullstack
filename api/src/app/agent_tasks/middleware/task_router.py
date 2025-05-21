@@ -7,7 +7,7 @@ from .prompt_builder import build_agent_prompt, load_task_types
 from agents import Runner
 
 # Import your agent instances
-from ...profile_analyzer_agent import profile_analyzer_agent
+from ..profile_analyzer_task import profile_analyzer_agent
 from ...profilebuilder_agent import profilebuilder_agent
 # Placeholder import for competitor_agent
 # from ...competitor_agent import competitor_agent
