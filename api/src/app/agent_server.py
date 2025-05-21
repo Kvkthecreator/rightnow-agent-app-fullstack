@@ -40,137 +40,15 @@ from .profile_analyzer_agent import profile_analyzer_agent
 from .profile_analyzer_agent import ProfileAnalyzerInput
 from .agent_tasks.context import get_full_profile_context
 
-from agents.tool import WebSearchTool
+from agents import Runner
 
-# ── SDK setup ───────────────────────────────────────────────────────────────
-from agents import Agent, Runner, handoff, RunContextWrapper
-from agents.extensions.handoff_prompt import prompt_with_handoff_instructions
+# Specialist and Manager agent definitions (moved to agent_tasks)
+from .agent_tasks.specialist_agents import strategy, content, repurpose, feedback
+from .agent_tasks.manager_task import manager, AGENTS, build_payload, flatten_payload
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 
-# ── send_webhook helper ─────────────────────────────────────────────────────
-async def send_webhook(payload: dict):
-    # Debug: show webhook payload before dispatch
-    print("SENDING WEBHOOK:", payload)
-    # Synchronous HTTP POST using requests (no httpx available)
-    try:
-        print("=== Webhook Dispatch ===\n", json.dumps(payload, indent=2))
-        # Send HTTP POST via urllib.request
-        req = urllib.request.Request(
-            CHAT_URL,
-            data=json.dumps(payload).encode('utf-8'),
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req):
-            pass
-        print("========================")
-    except Exception as e:
-        print("Webhook error:", e)
-
-# ── Specialist agents ──────────────────────────────────────────────────────
-strategy  = Agent(
-    name="strategy",
-    instructions="You create 7-day social strategies. Respond ONLY in structured JSON."
-)
-content   = Agent(
-    name="content",
-    instructions="You write brand-aligned social posts. Respond ONLY in structured JSON."
-)
-repurpose = Agent(
-    name="repurpose",
-    instructions="You repurpose content. Respond ONLY in structured JSON."
-)
-feedback  = Agent(
-    name="feedback",
-    instructions="You critique content. Respond ONLY in structured JSON."
-)
-# Override inline `profile_analyzer` with the updated, tool-enabled agent
-profile_analyzer = profile_analyzer_agent
-
-AGENTS = {
-    "strategy": strategy,
-    "content": content,
-    "repurpose": repurpose,
-    "feedback": feedback,
-    "profile_analyzer": profile_analyzer,
-    "profilebuilder": profilebuilder_agent
-}
-
-# ── Pydantic model for Manager handoff payload ────────────────────────────
-class HandoffData(BaseModel):
-    clarify: str
-    prompt: str
-
-# ── Manager agent ──────────────────────────────────────────────────────────
-MANAGER_TXT = """
-You are the Manager. When routing, you MUST call exactly one of these tools:
-  • transfer_to_strategy
-  • transfer_to_content
-  • transfer_to_repurpose
-  • transfer_to_feedback
-
-Each call must pass a JSON object matching this schema (HandoffData):
-{
-  "clarify": "<optional follow-up question or empty string>",
-  "prompt":  "<the text to send next>"
-}
-
-Do NOT output any other JSON or wrap in Markdown. The SDK will handle the rest.
-"""
-
-async def on_handoff(ctx: RunContextWrapper[HandoffData], input_data: HandoffData):
-    # Send manager clarification webhook
-    task_id = ctx.context['task_id']
-    user_id = ctx.context['user_id']
-    payload = build_payload(
-        task_id=task_id,
-        user_id=user_id,
-        agent_type="manager",
-        message={'type':'text','content': input_data.clarify},
-        reason='handoff',
-        trace=ctx.usage.to_debug_dict() if hasattr(ctx.usage, 'to_debug_dict') else []
-    )
-    await send_webhook(flatten_payload(payload))
-
-manager = Agent(
-    name="manager",
-    instructions=prompt_with_handoff_instructions(MANAGER_TXT),
-    handoffs=[
-        handoff(agent=strategy,  on_handoff=on_handoff, input_type=HandoffData),
-        handoff(agent=content,   on_handoff=on_handoff, input_type=HandoffData),
-        handoff(agent=repurpose, on_handoff=on_handoff, input_type=HandoffData),
-        handoff(agent=feedback,  on_handoff=on_handoff, input_type=HandoffData),
-    ]
-)
-
-ALL_AGENTS = {"manager": manager, **AGENTS}
-
-# ── Payload builders ─────────────────────────────────────────────────────────
-def build_payload(task_id, user_id, agent_type, message, reason, trace):
-    return {
-        "task_id":    task_id,
-        "user_id":    user_id,
-        "agent_type": agent_type,
-        "message":    {"type": message.get("type"), "content": message.get("content")},
-        "metadata":   {"reason": reason},
-        "trace":      trace,
-        "created_at": datetime.utcnow().isoformat(),
-    }
-
-def flatten_payload(p: dict) -> dict:
-    """
-    Flatten one level of nested message/metadata for Bubble.
-    """
-    return {
-        "task_id":         p["task_id"],
-        "user_id":         p["user_id"],
-        "agent_type":      p["agent_type"],
-        "message_type":    p["message"]["type"],
-        "message_content": p["message"]["content"],
-        "metadata_reason": p["metadata"].get("reason", ""),
-        "created_at":      p["created_at"],
-    }
 
 # ── FastAPI app ────────────────────────────────────────────────────────────
 app = FastAPI()
