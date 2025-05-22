@@ -1,9 +1,9 @@
 "use client";
-
 import useSWR from "swr";
 import Link from "next/link";
 import { apiGet } from "@/lib/api";
 import type { Report } from "@/lib/types";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 // 🔐  grab Supabase JWT if you already have a session hook
 // otherwise remove 'token' lines – the endpoint also works with credentials cookie
@@ -18,9 +18,20 @@ export default function ReportsPage() {
     ([p, t]) => apiGet<Report[]>(p, t)
   );
 
-  if (isLoading) return <p>Loading reports…</p>;
-  if (error)     return <p className="text-red-600">Failed to load reports.</p>;
-  if (!reports?.length) return <p>No reports yet — run a task!</p>;
+  if (isLoading) {
+    return (
+      <EmptyState
+        title="Loading reports…"
+        icon={<div className="loader" />}
+      />
+    );
+  }
+  if (error) {
+    return <EmptyState title="Failed to load reports." />;
+  }
+  if (!reports?.length) {
+    return <EmptyState title="No reports yet — run a task!" />;
+  }
 
   return (
     <ul className="space-y-2">

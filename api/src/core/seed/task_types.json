@@ -1,11 +1,11 @@
 [
   {
-    "id": "hello_world",
-    "title": "Hello-World Task",
-    "description": "Returns a friendly greeting.",
-    "agent_type": "content",
-    "input_fields": [],
-    "prompt_template": "Hello, world!",
-    "output_type": "PlainText"
+    "id": "competitor-table",
+    "title": "Competitor Analysis",
+    "description": "Compare handles & positioning.",
+    "input_fields": [
+      { "name": "brand", "label": "Brand handle", "type": "string" }
+    ],
+    "output_type": "CompetitorTable"
   }
 ]

@@ -3,13 +3,18 @@
 import { useRouter } from "next/navigation";
 import { useTaskTypes } from "@/hooks/useTaskTypes";
 import { TaskForm } from "@/components/TaskForm";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function Page({ params }: { params: any }) {
   const router = useRouter();
   const { taskTypes, isLoading } = useTaskTypes();
-  if (isLoading) return <p>Loading…</p>;
+  if (isLoading) {
+    return <EmptyState title="Loading task…" icon={<div className="loader" />} />;
+  }
   const task = taskTypes?.find((t) => t.id === params.taskId);
-  if (!task) return <p>Not found</p>;
+  if (!task) {
+    return <EmptyState title="Task not found" />;
+  }
 
   return (
     <>

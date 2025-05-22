@@ -1,0 +1,28 @@
+name: Smoke tests
+on: [push, pull_request]
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install back-end deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r src/requirements.txt
+      - name: Quick task-types import
+        run: python - <<'PY'
+import requests, json, subprocess, sys, os, threading
+from core.task_registry import list_task_types
+assert list_task_types(), "task_types list empty 🚨"
+print("✅ backend task registry OK")
+PY
+      - name: Build front-end
+        working-directory: web
+        run: npm ci && npm run build --if-present

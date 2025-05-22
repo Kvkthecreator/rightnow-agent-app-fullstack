@@ -1,13 +1,21 @@
 "use client";
-
-import React from "react";
 import { useTaskTypes } from "@/hooks/useTaskTypes";
 import { TaskCard } from "@/components/TaskCard";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function TasksPage() {
   const { taskTypes, isLoading } = useTaskTypes();
-  if (isLoading) return <p className="animate-pulse">Loading tasks…</p>;
-  if (!taskTypes) return <p className="text-red-600">Failed to load tasks.</p>;
+  if (isLoading) {
+    return (
+      <EmptyState
+        title="Loading tasks…"
+        icon={<div className="loader" />}
+      />
+    );
+  }
+  if (!taskTypes?.length) {
+    return <EmptyState title="No tasks available yet." />;
+  }
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       {taskTypes.map((t) => (

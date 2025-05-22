@@ -12,16 +12,15 @@ class FileProvider:
         self._cache = None
 
     def _load(self):
-        if self._cache is None:
-            try:
-                with open(self.path) as f:
-                    raw = json.load(f)
-            except FileNotFoundError:
-                # No seed file; return empty list
-                self._cache = []
-            else:
-                self._cache = [TaskType(**t) for t in (raw or [])]
-        return self._cache
+        # Load from JSON seed file, fallback gracefully if missing
+        try:
+            with open(self.path) as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            import logging
+            logging.warning("task_types seed file missing at %s", self.path)
+            return []
+        return [TaskType(**d) for d in (data or [])]
 
     def list(self):
         """Return list of all TaskType instances."""
