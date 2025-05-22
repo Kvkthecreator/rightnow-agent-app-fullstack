@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, Menu } from "lucide-react";
+import { Home, User, Menu, Clipboard, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import UserNav from "@/components/UserNav";
@@ -14,7 +14,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
-  { title: "Profile", href: "/profile", icon: User },
+  { title: "Tasks",     href: "/tasks",     icon: Clipboard },
+  { title: "Reports",   href: "/reports",   icon: BarChart2 },
+  { title: "Profile",   href: "/profile",   icon: User },
 ];
 
 interface SidebarNavProps {
@@ -57,7 +59,7 @@ export default function SidebarNav({ collapsed = false, onCollapseToggle }: Side
         {/* Navigation items */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {navItems.map((item) => {
-            const active = pathname === item.href;
+            const active = pathname?.startsWith(item.href);
             return (
               <Link
                 key={item.href}

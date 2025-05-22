@@ -1,6 +1,7 @@
 "use client";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import Breadcrumb from "@/components/Breadcrumb";
 
 interface MainNavProps {
   /**
@@ -23,7 +24,8 @@ export default function MainNav({ onNavToggle }: MainNavProps) {
             <Menu className="h-5 w-5" />
           </Button>
         )}
-        {/* Optional: page title or breadcrumbs can go here */}
+        {/* Breadcrumb navigation */}
+        <Breadcrumb />
       </div>
       <div />
     </header>

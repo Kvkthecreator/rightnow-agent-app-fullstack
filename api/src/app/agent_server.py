@@ -52,10 +52,17 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 
 # ── FastAPI app ────────────────────────────────────────────────────────────
 app = FastAPI()
+
+# Allow local dev and prod front-end origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True,
-    allow_methods=["*"], allow_headers=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://rgtnow.com",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 @app.post("/agent-run")
 async def agent_run(payload: dict, user_id: str = Depends(current_user_id)):
