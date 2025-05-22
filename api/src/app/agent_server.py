@@ -70,8 +70,13 @@ async def agent_run(payload: dict, user_id: str = Depends(current_user_id)):
     try:
         # Execute and validate the task
         result = await route_and_validate_task(task_type_id, {}, payload)
+        # Prepare report output with expected shape: output_type and data
+        report_data = {
+            "output_type": result.get("output_type"),
+            "data": result.get("validated_output"),
+        }
         # Mark report as completed
-        complete_report(report_id, result)
+        complete_report(report_id, report_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return {"report_id": report_id}
