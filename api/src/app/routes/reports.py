@@ -2,10 +2,18 @@
 API routes for report retrieval.
 """
 from fastapi import APIRouter, HTTPException, Depends
-from app.db.reports import get_report
+from app.db.reports import get_report, list_reports_for_user
 from app.util.auth_helpers import current_user_id
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+ 
+# ---------- LIST ----------
+@router.get("/", response_model=list[dict])
+async def list_reports(user_id: str = Depends(current_user_id)):
+    """
+    Return all reports that belong to the current user.
+    """
+    return list_reports_for_user(user_id)
 
 @router.get("/{report_id}")
 async def read_report(report_id: str, user_id: str = Depends(current_user_id)):
