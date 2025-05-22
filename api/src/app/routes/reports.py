@@ -7,11 +7,15 @@ from app.util.auth_helpers import current_user_id
 
 router = APIRouter(prefix="/reports", tags=["reports"])
  
-# ---------- LIST ----------
-@router.get("/", response_model=list[dict])
-async def list_reports(user_id: str = Depends(current_user_id)):
+# --------------------------------------------------------------------------- #
+#  LIST (gallery view)                                                        #
+# --------------------------------------------------------------------------- #
+
+@router.get("/")
+async def list_all_reports(user_id: str = Depends(current_user_id)):
     """
-    Return all reports that belong to the current user.
+    Return all reports that belong to the authenticated user,
+    sorted newest first.
     """
     return list_reports_for_user(user_id)
 

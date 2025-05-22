@@ -37,13 +37,13 @@ def get_report(report_id: str, user_id: str) -> Dict[str, Any]:
     return resp.data
     
 # NEW -----------------------------------------------------------------
-def list_reports_for_user(user_id: str) -> list[dict]:
+def list_reports_for_user(user_id: str) -> list[Dict[str, Any]]:
     """
     Return the user’s reports ordered newest-first.
     """
-    supabase = get_supabase()
+    supa = get_supabase()
     res = (
-        supabase.table("reports")
+        supa.table("reports")
         .select("*")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
