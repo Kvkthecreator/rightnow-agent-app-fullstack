@@ -1,11 +1,11 @@
-import React from "react";
 import { RendererSwitch } from "@/components/renderers/RendererSwitch";
+import { apiGet } from "@/lib/api";
 
-interface Props {
+export default async function Page({
+  params,
+}: {
   params: { reportId: string };
-}
-
-export default async function ReportPage({ params }: Props) {
+}) {
   // Fetch report data using shared apiGet helper
   const { apiGet } = await import("@/lib/api");
   let report: import("@/lib/types").Report;
