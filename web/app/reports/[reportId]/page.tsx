@@ -1,11 +1,7 @@
 import { RendererSwitch } from "@/components/renderers/RendererSwitch";
 import { apiGet } from "@/lib/api";
 
-type PageProps = {
-  params: { reportId: string };
-};
-
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, }: { params: { reportId: string }; }) {
   let report: import("@/lib/types").Report;
   try {
     report = await apiGet(`/reports/${params.reportId}`);
