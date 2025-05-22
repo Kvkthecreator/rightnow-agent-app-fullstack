@@ -63,6 +63,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://rgtnow.com",
+        "https://rightnow-agent-app-fullstack.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],

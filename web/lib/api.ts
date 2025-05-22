@@ -2,7 +2,10 @@
  * Simple wrapper for GET requests to the backend API.
  * Uses the Next.js rewrite from /api to the configured API base.
  */
-export async function apiGet<T>(path: string, token?: string): Promise<T> {
+export async function apiGet<T>(
+  path: string,
+  token?: string | null
+): Promise<T> {
   const res = await fetch(`/api${path}`, {
     credentials: "include",
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
