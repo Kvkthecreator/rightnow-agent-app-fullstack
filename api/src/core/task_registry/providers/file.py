@@ -13,9 +13,14 @@ class FileProvider:
 
     def _load(self):
         if self._cache is None:
-            with open(self.path) as f:
-                raw = json.load(f)
-            self._cache = [TaskType(**t) for t in raw]
+            try:
+                with open(self.path) as f:
+                    raw = json.load(f)
+            except FileNotFoundError:
+                # No seed file; return empty list
+                self._cache = []
+            else:
+                self._cache = [TaskType(**t) for t in (raw or [])]
         return self._cache
 
     def list(self):

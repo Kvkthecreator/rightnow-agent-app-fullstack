@@ -52,6 +52,10 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 
 # ── FastAPI app ────────────────────────────────────────────────────────────
 app = FastAPI()
+@app.get("/", include_in_schema=False)
+async def root():  # pragma: no cover
+    """Health-check endpoint."""
+    return {"status": "ok"}
 
 # Allow local dev and prod front-end origins
 app.add_middleware(
