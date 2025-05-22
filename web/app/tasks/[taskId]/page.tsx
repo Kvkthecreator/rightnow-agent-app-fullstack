@@ -1,11 +1,10 @@
 "use client";
 
-import React from "react";
 import { useRouter } from "next/navigation";
 import { useTaskTypes } from "@/hooks/useTaskTypes";
 import { TaskForm } from "@/components/TaskForm";
 
-export default function SingleTask({ params }: { params: { taskId: string } }) {
+export default function Page({ params }: { params: any }) {
   const router = useRouter();
   const { taskTypes, isLoading } = useTaskTypes();
   if (isLoading) return <p>Loading…</p>;
