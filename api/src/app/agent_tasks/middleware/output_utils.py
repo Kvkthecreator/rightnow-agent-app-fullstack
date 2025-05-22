@@ -3,7 +3,13 @@ Module: agent_tasks.middleware.output_utils
 
 Provides utilities for building and flattening webhook payloads for agent tasks.
 """
+import json
+from pathlib import Path
 from datetime import datetime
+from jsonschema import validate, ValidationError
+from core.task_registry import get_task_type
+
+SCHEMA_DIR = Path(__file__).parents[3] / "core" / "task_registry" / "validator_schemas"
 
 def build_payload(
     task_id: str,
@@ -52,3 +58,22 @@ def flatten_payload(payload: dict) -> dict:
         "metadata_reason": payload.get("metadata", {}).get("reason", ""),
         "created_at": payload.get("created_at"),
     }
+
+def validate_agent_output(task_type_id: str, raw_output: str) -> dict:
+    """
+    Parse JSON string -> dict, then JSON-Schema validate
+    using schema mapped by TaskType.output_type (if a schema exists).
+    """
+    data = json.loads(raw_output)
+
+    task = get_task_type(task_type_id)
+    schema_path = SCHEMA_DIR / f"{task.output_type}.json"
+    if schema_path.exists():
+        try:
+            with open(schema_path) as f:
+                schema = json.load(f)
+            validate(instance=data, schema=schema)
+        except ValidationError as exc:
+            raise ValueError(f"Output failed schema validation: {exc.message}") from exc
+
+    return data

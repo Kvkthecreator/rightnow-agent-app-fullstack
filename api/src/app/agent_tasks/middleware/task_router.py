@@ -3,14 +3,10 @@ Module: agent_tasks.middleware.task_router
 
 Routes tasks to their assigned agents and validates their outputs.
 """
-from .prompt_builder import build_agent_prompt, load_task_types
+from .prompt_builder import build_agent_prompt
+from core.task_registry import get_task_type
+from app.tools import get_tool_clients
 from agents import Runner
-
-# Import your agent instances
-from ..profile_analyzer_task import profile_analyzer_agent
-from ...profilebuilder_agent import profilebuilder_agent
-# Placeholder import for competitor_agent
-# from ...competitor_agent import competitor_agent
 
 def validate_output(raw_output: dict, output_type: str) -> dict:
     """
@@ -42,27 +38,36 @@ async def route_and_validate_task(
       { 'raw_output': dict, 'validated_output': dict, 'output_type': str }
     """
     # 1. Load task definition
-    tasks = load_task_types()
-    task_def = tasks.get(task_type_id)
+    task_def = get_task_type(task_type_id)
     if not task_def:
         raise ValueError(f"Unknown task_type_id '{task_type_id}'")
 
-    agent_type = task_def.get("agent_type")
-    output_type = task_def.get("output_type", "generic")
+    agent_type = task_def.agent_type
+    output_type = task_def.output_type
+
+    # ------------------------------------------------------------------
+    # NEW: build list[Tool] for this task
+    # ------------------------------------------------------------------
+    tool_clients = get_tool_clients(task_def.tools)
 
     # 2. Build the agent prompt
     prompt = build_agent_prompt(task_type_id, context, user_inputs)
 
     # 3. Select the agent based on agent_type
-    if agent_type == "profile_analyzer":
-        agent = profile_analyzer_agent
-    elif agent_type == "profilebuilder":
-        agent = profilebuilder_agent
-    elif agent_type == "competitor_agent":
-        # agent = competitor_agent
-        raise NotImplementedError("competitor_agent is not yet implemented")
+    if agent_type == "strategy":
+        from ..strategy_agent import strategy as StrategyAgent
+        agent = StrategyAgent(tools=tool_clients)
+    elif agent_type == "content":
+        from ..content_agent import content as ContentAgent
+        agent = ContentAgent(tools=tool_clients)
+    elif agent_type == "repurpose":
+        from ..repurpose_agent import repurpose as RepurposeAgent
+        agent = RepurposeAgent(tools=tool_clients)
+    elif agent_type == "feedback":
+        from ..feedback_agent import feedback as FeedbackAgent
+        agent = FeedbackAgent(tools=tool_clients)
     else:
-        raise ValueError(f"No agent configured for type '{agent_type}'")
+        raise ValueError(f"Unknown agent_type: {agent_type}")
 
     # 4. Run the agent
     result = await Runner.run(

@@ -12,3 +12,12 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
     />
   )
 }
+
+/**
+ * CardContent wraps the content area inside a Card.
+ */
+export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn("p-4", className)} {...props} />
+  );
+}
