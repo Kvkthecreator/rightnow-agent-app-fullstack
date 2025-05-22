@@ -44,6 +44,7 @@ from .util.auth_helpers import current_user_id
 from .agent_tasks.middleware.task_router import route_and_validate_task
 # API routes for reports
 from .routes.reports import router as reports_router
+from .routes.task_types import router as task_types_router
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
@@ -84,8 +85,9 @@ async def agent_run(payload: dict, user_id: str = Depends(current_user_id)):
 app.include_router(profilebuilder_router)
 app.include_router(profile_analyzer_router)
 app.include_router(manager_router)
-# Mount report routes
+# Mount report and task-types routes
 app.include_router(reports_router)
+app.include_router(task_types_router)
 
 
 
