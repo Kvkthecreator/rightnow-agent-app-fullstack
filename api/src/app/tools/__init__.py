@@ -8,6 +8,7 @@ _TOOL_MODULES = {
     "mcp": ".mcp",
     "web_search": ".web_search",
     "image_gen": ".image_gen",
+    # add future tools here
 }
 
 def _load(slug: str) -> Tool:
