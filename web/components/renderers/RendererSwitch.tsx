@@ -1,5 +1,5 @@
 import dynamic from "next/dynamic";
-import React from "react";
+import type React from "react";
 
 interface RendererSwitchProps {
   outputType: string;
@@ -13,9 +13,9 @@ const COMPONENT_MAP: Record<string, () => Promise<any>> = {
 };
 
 export function RendererSwitch({ outputType, data }: RendererSwitchProps) {
-  const LazyComponent = dynamic(
+  const Lazy = dynamic(
     COMPONENT_MAP[outputType] || (() => import("./Fallback"))
-  );
+  ) as React.ComponentType<any>;
 
-  return <LazyComponent data={data} />;
+  return <Lazy data={data} />;
 }
