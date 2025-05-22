@@ -5,6 +5,7 @@ Builds agent prompts by merging task templates with runtime context and user inp
 """
 import json
 from pathlib import Path
+from core.task_registry import get_task_type
 
 # Path to the JSON registry of task definitions (moved to agent_tasks root)
 TASK_TYPES_FILE = Path(__file__).parent.parent / "task_types.json"
@@ -38,6 +39,20 @@ def build_agent_prompt(task_type_id: str, context: dict, user_inputs: dict) -> s
         raise ValueError(f"Unknown task_type_id '{task_type_id}'")
 
     template = task_def.get('prompt_template', '')
+
+    # ------------------------------------------------------------------
+    # NEW: prepend tool availability note based on TaskType.tools
+    # ------------------------------------------------------------------
+    registry_task = get_task_type(task_type_id)
+    if registry_task and registry_task.tools:
+        tool_note = (
+            "You have access to the following external tools during reasoning: "
+            + ", ".join(registry_task.tools)
+            + ".\n\n"
+        )
+    else:
+        tool_note = ""
+    template = tool_note + template
     # 2) Flatten context and inputs for simple template substitution
     flat_data = {}
     # a) Profile fields, prefixed to avoid naming collisions

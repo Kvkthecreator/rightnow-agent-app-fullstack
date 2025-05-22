@@ -15,8 +15,7 @@ class TaskType(BaseModel):
     input_fields: List[InputField]
     prompt_template: str
     output_type: str
-    tools: list[str] = []       # ← NEW (default empty)
-    tools: List[str] = []
+    tools: list[str] = []      # keep single definition (lower-case list OK on 3.9+)
     validator_schema: Optional[str] = None
     enabled: bool = True
     version: str = "1"
