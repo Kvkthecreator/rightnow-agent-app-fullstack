@@ -5,6 +5,12 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
+def get_supabase() -> 'Client':
+    """
+    Return the initialized Supabase client.
+    """
+    return supabase
+
 def get_collected_fields(user_id: str, task_id: str) -> dict:
     """
     Retrieves all profile_partial fields collected so far for a given user and task.
