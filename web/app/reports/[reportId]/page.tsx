@@ -6,12 +6,14 @@ interface Props {
 }
 
 export default async function ReportPage({ params }: Props) {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE}/reports/${params.reportId}`,
-    { credentials: "include" }
-  );
-  if (!res.ok) return <p>Not found</p>;
-  const report = await res.json();
+  // Fetch report data using shared apiGet helper
+  const { apiGet } = await import("@/lib/api");
+  let report: import("@/lib/types").Report;
+  try {
+    report = await apiGet(`/reports/${params.reportId}`);
+  } catch (e) {
+    return <p className="text-red-600">Unable to load report.</p>;
+  }
   return (
     <>
       <h1 className="text-xl mb-4">Report · {report.task_id}</h1>

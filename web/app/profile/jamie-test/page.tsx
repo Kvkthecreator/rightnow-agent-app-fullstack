@@ -5,8 +5,7 @@
 // Uses a hardcoded sample payload and can be replaced with live data logic later.
 import React, { useState, useEffect } from 'react';
 
-// Base URL for backend API (set via NEXT_PUBLIC_API_BASE_URL in .env.local)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+// Uses Next.js API rewrite to call the backend
 
 export default function JamieTestProfilePage() {
   // State for raw markdown (optional) and structured report
@@ -41,8 +40,8 @@ export default function JamieTestProfilePage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Send request to backend using dynamic base URL
-        const res = await fetch(`${API_BASE_URL}/profile_analyzer`, {
+        // Send request to backend via /api rewrite
+        const res = await fetch('/api/profile_analyzer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(input)
