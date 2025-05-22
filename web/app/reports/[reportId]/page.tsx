@@ -1,17 +1,15 @@
 import { RendererSwitch } from "@/components/renderers/RendererSwitch";
 import { apiGet } from "@/lib/api";
 
-export default async function Page({
-  params,
-}: {
+type PageProps = {
   params: { reportId: string };
-}) {
-  // Fetch report data using shared apiGet helper
-  const { apiGet } = await import("@/lib/api");
+};
+
+export default async function Page({ params }: PageProps) {
   let report: import("@/lib/types").Report;
   try {
     report = await apiGet(`/reports/${params.reportId}`);
-  } catch (e) {
+  } catch {
     return <p className="text-red-600">Unable to load report.</p>;
   }
   return (
