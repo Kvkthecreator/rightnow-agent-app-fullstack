@@ -3,7 +3,7 @@ Module: agent_tasks.tools.calendar
 
 Defines a CalendarTool for fetching user calendar events within a given date range.
 """
-from openai_agents import Tool
+from .base import Tool
 
 class CalendarTool(Tool):
     """

@@ -3,7 +3,7 @@ Module: agent_tasks.tools.data_fetch
 
 Defines a DataFetchTool for retrieving competitor metrics from a given API URL.
 """
-from openai_agents import Tool
+from .base import Tool
 
 class DataFetchTool(Tool):
     """
