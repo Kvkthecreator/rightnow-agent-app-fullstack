@@ -5,17 +5,23 @@ from typing import List, Literal, Optional
 class InputField(BaseModel):
     name: str
     label: str
-    type: Literal["string", "url", "markdown", "number", "list"]
+    type: Literal["string", "url", "markdown", "number", "list", "array"]
 
 class TaskType(BaseModel):
     id: str
     title: str
     description: str
-    agent_type: Literal["strategy", "content", "repurpose", "feedback"]
+    agent_type: Literal[
+        "strategy", "content", "repurpose", "feedback",
+        "nlp", "assistant", "creative", "competitor_table"
+    ]
     input_fields: List[InputField]
-    prompt_template: str
+    prompt_template: Optional[str] = None
     output_type: str
-    tools: list[str] = []      # keep single definition (lower-case list OK on 3.9+)
+    tools: list[str] = []
     validator_schema: Optional[str] = None
     enabled: bool = True
     version: str = "1"
+
+    class Config:
+        extra = "ignore"
