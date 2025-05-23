@@ -29,8 +29,13 @@ export function TaskForm({ taskTypeId, inputFields, onResult }: Props) {
       console.error("🚨 No Supabase session! User not logged in?");
       return;
     }
-    console.log("→ calling /api/agent-run with Bearer token…");
-    const res = await fetch("/api/agent-run", {
+    // determine endpoint: direct backend call to avoid rewrite
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
+    const endpoint = base
+      ? `${base}/agent-run`
+      : "/api/agent-run";
+    console.log(`→ calling ${endpoint} with Bearer token…`);
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
