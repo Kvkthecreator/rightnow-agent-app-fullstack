@@ -3,24 +3,12 @@ Module: agent_tasks.middleware.prompt_builder
 
 Builds agent prompts by merging task templates with runtime context and user inputs.
 """
-import json
-from pathlib import Path
 from core.task_registry import get_task_type
+from ..registry import get_all_task_types, get_task_def
+import logging
 
-# Path to the JSON registry of task definitions (moved to agent_tasks root)
-TASK_TYPES_FILE = Path(__file__).parent.parent / "task_types.json"
-
-def load_task_types() -> dict:
-    """
-    Load and return the task type definitions from the JSON registry.
-    Returns an empty dict on error.
-    """
-    try:
-        with open(TASK_TYPES_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"[PromptBuilder] Error loading task_types.json: {e}")
-        return {}
+# Logger for instrumentation
+logger = logging.getLogger("uvicorn.error")
 
 def build_agent_prompt(task_type_id: str, context: dict, user_inputs: dict) -> str:
     """
@@ -32,16 +20,16 @@ def build_agent_prompt(task_type_id: str, context: dict, user_inputs: dict) -> s
     :param user_inputs: Additional user-provided inputs for this task run
     :return: A formatted prompt ready to send to the agent
     """
-    # 1) Load task definitions
-    tasks = load_task_types()
-    task_def = tasks.get(task_type_id)
-    # ─── DEBUG: show me exactly which IDs we loaded ───
-    import logging
-    logger = logging.getLogger("uvicorn.error")
-    logger.info("🗂️ Loaded task_type_ids: %s", list(tasks.keys()))
-    if not task_def:
+    # 1) Load task definitions from centralized registry
+    all_tasks = get_all_task_types()
+    task_ids = [t.id for t in all_tasks]
+    logger.info("🗂️ Loaded task IDs: %s", task_ids)
+    task_model = get_task_def(task_type_id)
+    if not task_model:
         logger.error("❌ Asked for missing id: %s", task_type_id)
         raise ValueError(f"Unknown task_type_id '{task_type_id}'")
+    # Convert Pydantic model to dict for legacy compatibility
+    task_def = task_model.model_dump()
 
     template = task_def.get('prompt_template', '')
 

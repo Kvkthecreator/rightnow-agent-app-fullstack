@@ -4,8 +4,11 @@ Module: agent_tasks.middleware.task_router
 Routes tasks to their assigned agents and validates their outputs.
 """
 from .prompt_builder import build_agent_prompt
-from core.task_registry import get_task_type
-from app.tools import get_tool_clients
+from ..registry import get_all_task_types, get_task_def
+import logging
+
+# Logger for instrumentation
+logger = logging.getLogger("uvicorn.error")
 from agents import Runner
 
 def validate_output(raw_output: dict, output_type: str) -> dict:
@@ -37,35 +40,38 @@ async def route_and_validate_task(
     Returns:
       { 'raw_output': dict, 'validated_output': dict, 'output_type': str }
     """
-    # 1. Load task definition
-    task_def = get_task_type(task_type_id)
+    # 1. Load task definition from centralized registry
+    task_ids = [t.id for t in get_all_task_types()]
+    logger.info("🗂️ Loaded task IDs: %s", task_ids)
+    task_def = get_task_def(task_type_id)
     if not task_def:
+        logger.error("❌ Asked for missing id: %s", task_type_id)
         raise ValueError(f"Unknown task_type_id '{task_type_id}'")
 
     agent_type = task_def.agent_type
     output_type = task_def.output_type
 
-    # ------------------------------------------------------------------
-    # NEW: build list[Tool] for this task
-    # ------------------------------------------------------------------
-    tool_clients = get_tool_clients(task_def.tools)
 
     # 2. Build the agent prompt
     prompt = build_agent_prompt(task_type_id, context, user_inputs)
 
     # 3. Select the agent based on agent_type
     if agent_type == "strategy":
-        from ..strategy_agent import strategy as StrategyAgent
-        agent = StrategyAgent(tools=tool_clients)
+        # Use existing strategy agent instance
+        from ..strategy_agent import strategy
+        agent = strategy
     elif agent_type == "content":
-        from ..content_agent import content as ContentAgent
-        agent = ContentAgent(tools=tool_clients)
+        # Use existing content agent instance
+        from ..content_agent import content
+        agent = content
     elif agent_type == "repurpose":
-        from ..repurpose_agent import repurpose as RepurposeAgent
-        agent = RepurposeAgent(tools=tool_clients)
+        # Use existing repurpose agent instance
+        from ..repurpose_agent import repurpose
+        agent = repurpose
     elif agent_type == "feedback":
-        from ..feedback_agent import feedback as FeedbackAgent
-        agent = FeedbackAgent(tools=tool_clients)
+        # Use existing feedback agent instance
+        from ..feedback_agent import feedback
+        agent = feedback
     else:
         raise ValueError(f"Unknown agent_type: {agent_type}")
 
