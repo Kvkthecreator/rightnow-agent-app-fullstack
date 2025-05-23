@@ -52,7 +52,7 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 
 
 # ── FastAPI app ────────────────────────────────────────────────────────────
-app = FastAPI()
+app = FastAPI(debug=True)
 # Logger for instrumentation
 logger = logging.getLogger("uvicorn.error")
 @app.get("/", include_in_schema=False)
@@ -80,13 +80,14 @@ async def agent_run(
     logger.info("▶▶ [agent-run] got payload: %r", payload)
     logger.info("▶▶ [agent-run] resolved user_id: %r", user_id)
     # breakpoint()  # uncomment to trigger debugger
-    # Extract task type and inputs
-    task_type_id = payload.pop("task_type_id", None)
-    if not task_type_id:
-        raise HTTPException(status_code=422, detail="Missing 'task_type_id'")
-    # Create initial report record
-    report_id = create_report(user_id, task_type_id, payload)
     try:
+        # Extract task type and inputs
+        task_type_id = payload.pop("task_type_id", None)
+        if not task_type_id:
+            raise HTTPException(status_code=422, detail="Missing 'task_type_id'")
+        # Create initial report record
+        report_id = create_report(user_id, task_type_id, payload)
+
         # Execute and validate the task
         result = await route_and_validate_task(task_type_id, {}, payload)
         # Prepare report output with expected shape: output_type and data
@@ -96,9 +97,16 @@ async def agent_run(
         }
         # Mark report as completed
         complete_report(report_id, report_data)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    return {"report_id": report_id}
+
+        return {"report_id": report_id}
+    except HTTPException:
+        # re-raise client errors (e.g. missing task_type_id)
+        raise
+    except Exception as exc:
+        # Log full exception stack trace
+        logger.exception("‼️ Exception in /agent-run")
+        # Return exception type and message to client
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
     
 app.include_router(profilebuilder_router)
 app.include_router(profile_analyzer_router)
