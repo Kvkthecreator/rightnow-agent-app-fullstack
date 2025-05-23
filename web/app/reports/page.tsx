@@ -4,6 +4,8 @@ import Link from "next/link";
 import { apiGet } from "@/lib/api";
 import type { Report } from "@/lib/types";
 import { EmptyState } from "@/components/ui/EmptyState";
+import DashboardLayout from "@/app/dashboard/layout";
+import { Card } from "@/components/ui/Card";
 
 // 🔐  grab Supabase JWT if you already have a session hook
 // otherwise remove 'token' lines – the endpoint also works with credentials cookie
@@ -20,28 +22,50 @@ export default function ReportsPage() {
 
   if (isLoading) {
     return (
-      <EmptyState
-        title="Loading reports…"
-        icon={<div className="loader" />}
-      />
+      <DashboardLayout>
+        <div className="px-6 md:px-10 py-6">
+          <EmptyState
+            title="Loading reports…"
+            icon={<div className="loader" />}
+          />
+        </div>
+      </DashboardLayout>
     );
   }
   if (error) {
-    return <EmptyState title="Failed to load reports." />;
+    return (
+      <DashboardLayout>
+        <div className="px-6 md:px-10 py-6">
+          <EmptyState title="Failed to load reports." />
+        </div>
+      </DashboardLayout>
+    );
   }
   if (!reports?.length) {
-    return <EmptyState title="No reports yet — run a task!" />;
+    return (
+      <DashboardLayout>
+        <div className="px-6 md:px-10 py-6">
+          <EmptyState title="No reports yet — run a task!" />
+        </div>
+      </DashboardLayout>
+    );
   }
 
   return (
-    <ul className="space-y-2">
-      {reports.map((r) => (
-        <li key={r.id} className="border p-3 rounded">
-          <Link href={`/reports/${r.id}`}>
-            {r.task_id} · {new Date(r.created_at).toLocaleString()}
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <DashboardLayout>
+      <div className="px-6 md:px-10 py-6">
+        <h1 className="text-xl font-semibold mb-4">Reports</h1>
+        <div className="space-y-4">
+          {reports.map((r) => (
+            <Card key={r.id} className="cursor-pointer hover:bg-muted">
+              <Link href={`/reports/${r.id}`} className="block">
+                <h3 className="text-lg font-semibold">Report · {r.task_id}</h3>
+                <p className="text-sm text-muted-foreground mt-1">{new Date(r.created_at).toLocaleString()}</p>
+              </Link>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }

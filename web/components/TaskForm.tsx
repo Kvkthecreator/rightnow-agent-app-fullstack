@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 
 interface InputField {
   name: string;
@@ -34,15 +36,14 @@ export function TaskForm({ taskTypeId, inputFields, onResult }: Props) {
       {inputFields.map((f) => (
         <div key={f.name} className="flex flex-col gap-1">
           <label className="text-sm font-medium">{f.label}</label>
-          <input
-            className="border rounded p-2"
+          <Input
             type="text"
             onChange={(e) => handleChange(f.name, e.target.value)}
             required
           />
         </div>
       ))}
-      <button className="px-4 py-2 rounded bg-blue-600 text-white">Run Task</button>
+      <Button type="submit">Run Task</Button>
     </form>
   );
 }
