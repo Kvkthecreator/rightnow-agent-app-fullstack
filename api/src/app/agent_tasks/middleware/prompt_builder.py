@@ -35,7 +35,12 @@ def build_agent_prompt(task_type_id: str, context: dict, user_inputs: dict) -> s
     # 1) Load task definitions
     tasks = load_task_types()
     task_def = tasks.get(task_type_id)
+    # ─── DEBUG: show me exactly which IDs we loaded ───
+    import logging
+    logger = logging.getLogger("uvicorn.error")
+    logger.info("🗂️ Loaded task_type_ids: %s", list(tasks.keys()))
     if not task_def:
+        logger.error("❌ Asked for missing id: %s", task_type_id)
         raise ValueError(f"Unknown task_type_id '{task_type_id}'")
 
     template = task_def.get('prompt_template', '')
