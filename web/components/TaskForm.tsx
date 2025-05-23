@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/lib/useAuth";
 
 interface InputField {
   name: string;
@@ -16,6 +17,7 @@ interface Props {
 
 export function TaskForm({ taskTypeId, inputFields, onResult }: Props) {
   const [form, setForm] = useState<Record<string, any>>({});
+  const { token } = useAuth();
 
   function handleChange(name: string, value: any) {
     setForm((p) => ({ ...p, [name]: value }));
@@ -23,12 +25,33 @@ export function TaskForm({ taskTypeId, inputFields, onResult }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!token) {
+      console.error("🚨 No Supabase session! User not logged in?");
+      return;
+    }
+    console.log("→ calling /api/agent-run with Bearer token…");
     const res = await fetch("/api/agent-run", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
       body: JSON.stringify({ task_type_id: taskTypeId, ...form }),
     });
-    onResult(await res.json());
+    console.log("← status", res.status);
+    const text = await res.text();
+    console.log("← body", text);
+    if (!res.ok) {
+      console.error("Error creating agent run:", res.status, text);
+      return onResult({ error: text });
+    }
+    try {
+      const data = JSON.parse(text);
+      onResult(data);
+    } catch (err) {
+      console.error("Failed to parse JSON response", err);
+      onResult({ error: text });
+    }
   }
 
   return (
