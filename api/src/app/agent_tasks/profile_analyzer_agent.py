@@ -5,7 +5,7 @@ Defines the Profile Analyzer agent and its data models (input/output schemas).
 """
 from agents import Agent
 from agents.model_settings import ModelSettings
-from openai_agents.tools.web_search import WebSearchTool
+from agents import WebSearchTool
 from pydantic import BaseModel
 from typing import List
 from typing_extensions import TypedDict
