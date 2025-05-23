@@ -5,7 +5,7 @@ Defines the Profile Analyzer agent and its data models (input/output schemas).
 """
 from agents import Agent
 from agents.model_settings import ModelSettings
-from agents.tool import WebSearchTool
+from app.tools.common import web_search
 from pydantic import BaseModel
 from typing import List
 from typing_extensions import TypedDict
@@ -58,7 +58,7 @@ profile_analyzer_agent = Agent(
     name="Profile Analyzer",
     model="gpt-4.1-mini",
     model_settings=ModelSettings(tool_choice="required"),
-    tools=[WebSearchTool()],
+    tools=[web_search],
     instructions="""
 You are a personal brand strategist specializing in helping aspiring creators find clarity and momentum.
 
