@@ -9,7 +9,7 @@
     ],
     "prompt_template": "You are a brand strategist. Analyse {{competitor_urls}} …",
     "output_type": "CompetitorTable",
-    "tools": ["mcp", "web_search"],
+    "tools": [],
     "enabled": true,
     "version": "1"
   },
@@ -24,7 +24,7 @@
     ],
     "prompt_template": "You are an expert planner. Given {{objectives}} and {{available_time}} hours per day, build a 7-day plan.",
     "output_type": "WeeklyPlanTable",
-    "tools": ["calendar", "reminder"],
+    "tools": [],
     "enabled": true,
     "version": "1"
   },
