@@ -8,8 +8,8 @@ from typing import List, Optional
 from ..models import TaskType
 
 # Path to seed JSON file containing task type definitions
-# (we keep our seed folder under task_registry/seed)
-SEED_PATH = Path(__file__).parents[1] / "seed" / "task_types.json"
+# Seed files are located in core/seed
+SEED_PATH = Path(__file__).parents[2] / "seed" / "task_types.json"
 
 class FileProvider:
     """
