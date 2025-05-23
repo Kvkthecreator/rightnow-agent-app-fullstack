@@ -31,6 +31,7 @@ except ImportError:
     pass
 # FastAPI and CORS imports
 from fastapi import FastAPI, HTTPException, Depends
+import logging
 from fastapi.middleware.cors import CORSMiddleware
 
 # Routers from agent_tasks
@@ -52,6 +53,8 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 
 # ── FastAPI app ────────────────────────────────────────────────────────────
 app = FastAPI()
+# Logger for instrumentation
+logger = logging.getLogger("uvicorn.error")
 @app.get("/", include_in_schema=False)
 async def root():  # pragma: no cover
     """Health-check endpoint."""
@@ -66,10 +69,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 @app.post("/agent-run")
-async def agent_run(payload: dict, user_id: str = Depends(current_user_id)):
+async def agent_run(
+    payload: dict,
+    user_id: str = Depends(current_user_id),
+):
     """
     Run a registered task, create a report, and return its ID.
     """
+    # Instrumentation: log incoming payload and resolved user
+    logger.info("▶▶ [agent-run] got payload: %r", payload)
+    logger.info("▶▶ [agent-run] resolved user_id: %r", user_id)
+    # breakpoint()  # uncomment to trigger debugger
     # Extract task type and inputs
     task_type_id = payload.pop("task_type_id", None)
     if not task_type_id:
