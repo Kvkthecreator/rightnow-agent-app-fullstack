@@ -3,8 +3,9 @@
     "id": "competitor-table",
     "title": "Competitor Analysis",
     "description": "Compare handles & positioning.",
+    "agent_type": "competitor_table",
     "input_fields": [
-      { "name": "brand", "label": "Brand handle", "type": "string" }
+      { "name": "handles", "label": "Competitor handles", "type": "array", "required": true }
     ],
     "output_type": "CompetitorTable"
   }
