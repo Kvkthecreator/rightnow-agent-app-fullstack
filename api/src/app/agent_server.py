@@ -57,14 +57,10 @@ async def root():  # pragma: no cover
     """Health-check endpoint."""
     return {"status": "ok"}
 
-# Allow local dev and prod front-end origins
+# Allow CORS from any origin (adjust in production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://rgtnow.com",
-        "https://rightnow-agent-app-fullstack.vercel.app",
-    ],
+    allow_origins=["*"],  # replace "*" with your front-end URL(s)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
