@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 export default async function Page({ params }: { params: any }) {
   let report: Report;
   try {
-    report = await apiGet(`/reports/${params.reportId}`);
+    report = await apiGet(`/api/reports/${params.reportId}`);
   } catch {
     return (
       <DashboardLayout>
