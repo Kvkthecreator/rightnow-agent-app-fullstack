@@ -1,3 +1,5 @@
+// web/app/reports/[reportId]/page.tsx
+
 import { RendererSwitch } from "@/components/renderers/RendererSwitch";
 import { apiGet } from "@/lib/api";
 import type { Report } from "@/lib/types";
