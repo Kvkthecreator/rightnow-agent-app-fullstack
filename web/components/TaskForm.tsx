@@ -29,12 +29,9 @@ export function TaskForm({ taskTypeId, inputFields, onResult }: Props) {
       console.error("🚨 No Supabase session! User not logged in?");
       return;
     }
-    // determine endpoint: direct backend call to avoid rewrite
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
-    const endpoint = base
-      ? `${base}/agent-run`
-      : "/api/agent-run";
-    console.log(`→ calling ${endpoint} with Bearer token…`);
+    // call our Next.js API proxy for agent-run
+    const endpoint = "/api/agent-run";
+    console.log(`→ POST ${endpoint} with Bearer token…`);
     const res = await fetch(endpoint, {
       method: "POST",
       headers: {
