@@ -4,14 +4,17 @@ export async function POST(request: NextRequest) {
   // ① copy incoming body
   const body = await request.text();
 
-  // ② forward Authorization header if present
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  // ② Forward BOTH the Authorization header and the Supabase cookie.
+  //    FastAPI validates either one, and RSC/Route Handlers strip auth headers automatically.
+  const headers: HeadersInit = { "Content-Type": "application/json" };
   const auth = request.headers.get("authorization");
-  if (auth) {
-    headers["authorization"] = auth;
-  }
+  if (auth) headers["Authorization"] = auth;          // capital-A
+  const cookie = request.headers.get("cookie");
+  if (cookie) headers["cookie"] = cookie;               // pass Supabase session cookie
 
-  const res = await fetch(`${process.env.BACKEND_URL}/agent-run`, {
+  // ③ proxy to backend
+  const upstream = `${process.env.BACKEND_URL}/agent-run`;
+  const res = await fetch(upstream, {
     method: "POST",
     headers,
     body,

@@ -62,6 +62,8 @@ export function TaskForm({ taskTypeId, inputFields, onResult }: Props) {
         <div key={f.name} className="flex flex-col gap-1">
           <label className="text-sm font-medium">{f.label}</label>
           <Input
+            // match profile-create input styling: transparent background, default border
+            className="mt-1 block w-full border border-border rounded p-2 bg-background text-base text-foreground placeholder:text-muted-foreground"
             type="text"
             onChange={(e) => handleChange(f.name, e.target.value)}
             required
