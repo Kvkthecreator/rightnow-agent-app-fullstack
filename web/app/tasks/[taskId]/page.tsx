@@ -36,11 +36,19 @@ export default function Page({ params }: { params: any }) {
       <div className="px-6 md:px-10 py-6">
         <h1 className="text-xl font-semibold mb-4">{task.title}</h1>
         <Card>
-          <TaskForm
-            taskTypeId={task.id}
-            inputFields={task.input_fields as any}
-            onResult={(res) => router.push(`/reports/${res.report_id}`)}
-          />
+        <TaskForm
+          taskTypeId={task.id}
+          inputFields={task.input_fields as any}
+          onResult={(res) => {
+            // Guard against missing report_id to avoid navigating to undefined
+            if (!res || !res.report_id) {
+              // TODO: replace alert with toast.error if using a toast library
+              alert("Agent run failed—please try again.");
+              return;
+            }
+            router.push(`/reports/${res.report_id}`);
+          }}
+        />
         </Card>
       </div>
     </DashboardLayout>
