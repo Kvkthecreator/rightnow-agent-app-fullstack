@@ -64,6 +64,9 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 To configure the backend API URL, create a `.env.local` file in the `web/` directory with the following content:
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:10000
+BACKEND_URL=http://localhost:10000
 ```
-On your production host (e.g., Vercel), set the same `NEXT_PUBLIC_API_BASE_URL` environment variable to your backend URL (e.g., `https://YOUR-BACKEND-RENDER-URL`).
+On your production host (e.g., Vercel), set the `BACKEND_URL` environment variable to your Render backend URL, e.g.: 
+```env
+BACKEND_URL=https://rightnow-agent-app-fullstack.onrender.com
+```

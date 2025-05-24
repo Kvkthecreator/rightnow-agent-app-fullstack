@@ -5,12 +5,17 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   async rewrites() {
-    const backend =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+    // Proxy only specific backend endpoints to Render-hosted API
+    // Default to local backend run via 'uvicorn ... --port 10000'
+    const backend = process.env.BACKEND_URL || "http://localhost:10000";
     return [
       {
-        source: '/api/:path*',
-        destination: `${backend}/:path*`,
+        source: '/agent-run',
+        destination: `${backend}/agent-run`,
+      },
+      {
+        source: '/task-types/:path*',
+        destination: `${backend}/task-types/:path*`,
       },
     ];
   },
