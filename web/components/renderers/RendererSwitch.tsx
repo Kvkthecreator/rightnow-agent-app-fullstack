@@ -1,5 +1,6 @@
 import dynamic from "next/dynamic";
 import type React from "react";
+import { Card } from "@/components/ui/Card";
 
 interface RendererSwitchProps {
   outputType: string;
@@ -23,6 +24,15 @@ const COMPONENT_MAP: Record<string, () => Promise<any>> = {
 };
 
 export function RendererSwitch({ outputType, data }: RendererSwitchProps) {
+  // Fallback for error messages or unexpected raw strings
+  if (typeof data === "string" || (data && (data as any).error)) {
+    return (
+      <Card className="p-6 text-red-600 whitespace-pre-wrap">
+        {typeof data === "string" ? data : (data as any).error}
+      </Card>
+    );
+  }
+
   const Lazy = dynamic(
     COMPONENT_MAP[outputType] || (() => import("./Fallback"))
   ) as React.ComponentType<any>;
