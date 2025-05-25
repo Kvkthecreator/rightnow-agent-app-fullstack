@@ -1,3 +1,4 @@
+"use client";
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import Fallback from './renderers/Fallback'; // Adjust path as needed
 

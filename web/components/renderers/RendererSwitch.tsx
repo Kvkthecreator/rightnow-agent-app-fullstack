@@ -1,3 +1,4 @@
+"use client";
 import dynamic from "next/dynamic";
 import type React from "react";
 import { Card } from "@/components/ui/Card";
