@@ -41,6 +41,7 @@ from .agent_tasks.manager_task import router as manager_router
 # Report DB helpers and auth
 from .db.reports import create_report, complete_report
 from .util.auth_helpers import current_user_id
+from .util.normalize_output import normalize_output
 # Task routing for report-based tasks
 from .agent_tasks.middleware.task_router import route_and_validate_task
 # API routes for reports
@@ -91,9 +92,10 @@ async def agent_run(
         # Execute and validate the task
         result = await route_and_validate_task(task_type_id, {}, payload)
         # Prepare report output with expected shape: output_type and data
+        # Normalize the agent output so data is always an object or list
         report_data = {
             "output_type": result.get("output_type"),
-            "data": result.get("validated_output"),
+            "data": normalize_output(result.get("validated_output")),
         }
         # Mark report as completed
         complete_report(report_id, report_data)
