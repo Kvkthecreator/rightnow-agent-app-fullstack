@@ -1,67 +1,55 @@
-"use client";
-import useSWR from "swr";
 import Link from "next/link";
-import { apiGet } from "@/lib/api";
-import type { Report } from "@/lib/types";
-import { EmptyState } from "@/components/ui/EmptyState";
 import DashboardLayout from "@/app/dashboard/layout";
-import { Card } from "@/components/ui/Card";
+import { apiGet } from "@/lib/api";
 
 // 🔐  grab Supabase JWT if you already have a session hook
 // otherwise remove 'token' lines – the endpoint also works with credentials cookie
 // import { useAuth } from "@/lib/useAuth";
 
-export default function ReportsPage() {
-  const { data: reports, error, isLoading } = useSWR<Report[]>(
-    "/api/reports",
-    apiGet
-  );
+export const dynamic = "force-dynamic";
 
-  if (isLoading) {
+type Row = { id: string; task_id: string; status: string; created_at: string };
+
+export default async function ReportsIndex() {
+  let rows: Row[] = [];
+  try {
+    rows = await apiGet<Row[]>("/api/reports");
+  } catch {
     return (
       <DashboardLayout>
-        <div className="px-6 md:px-10 py-6">
-          <EmptyState
-            title="Loading reports…"
-            icon={<div className="loader" />}
-          />
-        </div>
+        <p className="p-10 text-gray-500">Failed to load reports.</p>
       </DashboardLayout>
     );
   }
-  if (error) {
+
+  if (!rows.length) {
     return (
       <DashboardLayout>
-        <div className="px-6 md:px-10 py-6">
-          <EmptyState title="Failed to load reports." />
-        </div>
-      </DashboardLayout>
-    );
-  }
-  if (!reports?.length) {
-    return (
-      <DashboardLayout>
-        <div className="px-6 md:px-10 py-6">
-          <EmptyState title="No reports yet — run a task!" />
-        </div>
+        <p className="p-10 text-gray-500">Nothing here yet — run a task!</p>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <div className="px-6 md:px-10 py-6">
-        <h1 className="text-xl font-semibold mb-4">Reports</h1>
-        <div className="space-y-4">
-          {reports.map((r) => (
-            <Card key={r.id} className="cursor-pointer hover:bg-muted">
-              <Link href={`/reports/${r.id}`} className="block">
-                <h3 className="text-lg font-semibold">Report · {r.task_id}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{new Date(r.created_at).toLocaleString()}</p>
-              </Link>
-            </Card>
-          ))}
-        </div>
+      <div className="p-6 md:p-10 space-y-4">
+        {rows.map((r) => (
+          <Link
+            key={r.id}
+            href={`/reports/${r.id}`}
+            className="block rounded-xl border p-4 hover:bg-gray-50 transition"
+          >
+            <div className="flex justify-between">
+              <span className="font-medium">{r.task_id}</span>
+              <span className="text-sm text-gray-500">
+                {new Date(r.created_at).toLocaleString()}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-gray-600 capitalize">
+              {r.status}
+            </p>
+          </Link>
+        ))}
       </div>
     </DashboardLayout>
   );
