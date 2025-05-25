@@ -12,12 +12,9 @@ import { Card } from "@/components/ui/Card";
 // import { useAuth } from "@/lib/useAuth";
 
 export default function ReportsPage() {
-  // const { token } = useAuth();
-  const token = undefined;
-
-  const { data: reports, error, isLoading } = useSWR(
-    token !== undefined ? ["/reports", token] : null,
-    ([p, t]) => apiGet<Report[]>(p, t)
+  const { data: reports, error, isLoading } = useSWR<Report[]>(
+    "/api/reports",
+    apiGet
   );
 
   if (isLoading) {

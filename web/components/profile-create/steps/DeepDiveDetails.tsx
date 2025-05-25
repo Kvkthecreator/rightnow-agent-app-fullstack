@@ -99,6 +99,7 @@ export default function DeepDiveDetails({ formData, onChange }: DeepDiveDetailsP
           value={formData.prior_attempts}
           onChange={onChange}
           className="mt-1 block w-full border rounded p-2"
+          rows={4}
         />
       </div>
       <div>
@@ -108,6 +109,7 @@ export default function DeepDiveDetails({ formData, onChange }: DeepDiveDetailsP
           value={formData.creative_barriers}
           onChange={onChange}
           className="mt-1 block w-full border rounded p-2"
+          rows={4}
         />
       </div>
     </div>

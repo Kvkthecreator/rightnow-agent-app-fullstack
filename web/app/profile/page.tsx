@@ -3,7 +3,9 @@ import React, { useState, useEffect } from "react";
 import { useSupabaseClient, useSessionContext } from "@supabase/auth-helpers-react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
+// import { Input } from "@/components/ui/Input"; (unused)
+import { InputInline } from "@/components/InputInline";
+import { TextareaInline } from "@/components/TextareaInline";
 import { Button } from "@/components/ui/Button";
 
 type Profile = {
@@ -30,6 +32,8 @@ export default function ProfilePage() {
   const supabase = useSupabaseClient();
   const { session, isLoading } = useSessionContext();
   const router = useRouter();
+  // Global edit mode toggle
+  const [editMode, setEditMode] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
 
@@ -152,6 +156,13 @@ export default function ProfilePage() {
     });
   }
 
+  // Cancel inline edits by reloading sections
+  function handleCancelSection(index: number) {
+    if (profile) {
+      fetchSections(profile.id);
+    }
+  }
+
   function handleExportMarkdown() {
     if (!profile?.report_markdown) {
       alert("No report markdown available to export.");
@@ -184,7 +195,9 @@ export default function ProfilePage() {
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-semibold">Your Profile</h1>
-        <Button variant="outline" onClick={() => router.push('/profile-create')}>Edit Profile</Button>
+        <Button variant="outline" onClick={() => setEditMode(!editMode)}>
+          {editMode ? "View Profile" : "Edit Profile"}
+        </Button>
       </div>
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -227,46 +240,53 @@ export default function ProfilePage() {
       <div className="space-y-4">
         {sections.map((sec, index) => (
           <Card key={sec.id ?? `new-${index}`}> 
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-foreground font-medium block mb-1">Title</label>
-                <Input
-                  type="text"
-                  value={sec.title}
-                  onChange={(e) =>
-                    updateSectionState(index, { title: e.target.value })
-                  }
-                  disabled={sec.isSaving}
-                />
+            {!editMode ? (
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold">{sec.title}</h3>
+                <p className="text-base">{sec.body}</p>
               </div>
-              <div>
-                <label className="text-sm text-foreground font-medium block mb-1">Body</label>
-                <textarea
-                  className="w-full p-3 rounded-lg border border-input bg-input text-base text-foreground shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                  value={sec.body}
-                  onChange={(e) =>
-                    updateSectionState(index, { body: e.target.value })
-                  }
-                  rows={4}
-                  disabled={sec.isSaving}
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => handleDeleteSection(index)}
-                disabled={sec.isDeleting}
-              >
-                Delete
-              </Button>
-              <Button
-                onClick={() => handleSaveSection(index)}
-                disabled={sec.isSaving}
-              >
-                Save
-              </Button>
-            </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <div>
+                    <InputInline
+                      value={sec.title}
+                      onChange={(e) =>
+                        updateSectionState(index, { title: e.target.value })
+                      }
+                      disabled={sec.isSaving}
+                      className="w-full text-base text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                  <div>
+                    <TextareaInline
+                      value={sec.body}
+                      onChange={(e) =>
+                        updateSectionState(index, { body: e.target.value })
+                      }
+                      disabled={sec.isSaving}
+                      rows={4}
+                      className="w-full text-base text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 flex space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleCancelSection(index)}
+                    disabled={sec.isSaving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => handleSaveSection(index)}
+                    disabled={sec.isSaving}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </>
+            )}
           </Card>
         ))}
       </div>
