@@ -7,8 +7,8 @@ const supabase = createClient(
 );
 
 export async function GET(
-  req: NextRequest, // ✅ must be NextRequest
-  { params }: { params: { reportId: string } }
+  req: NextRequest, // ✅ Must be NextRequest
+  { params }: { params: { reportId: string } } // ✅ Exact signature Next expects
 ) {
   const { reportId } = params;
   console.log("▶▶ [reports/:id] handler hit", reportId);
