@@ -7,6 +7,7 @@ Loads the core seed JSON file once at import time and parses entries into Pydant
 import json
 from pathlib import Path
 from core.task_registry.models import TaskType
+from core.task_registry import get_task_type
 
 # Path to the JSON seed file in core/seed
 _FILE = Path(__file__).parents[2] / "core" / "seed" / "task_types.json"
@@ -32,3 +33,23 @@ def get_all_task_types() -> list[TaskType]:  # noqa: E305
 def get_task_def(task_id: str) -> TaskType | None:  # noqa: E305
     """Retrieve a TaskType by ID, or None if not found."""
     return next((t for t in _TASK_TYPES if t.id == task_id), None)
+ 
+def get_missing_fields(task_type_id: str, provided_data: dict) -> list[str]:  # noqa: E305
+    """
+    Returns the names of input_fields for the given task_type_id
+    that are still missing based on simple presence/non-empty checks.
+    """
+    task_def = get_task_def(task_type_id)
+    if not task_def:
+        raise ValueError(f"Unknown task_type_id '{task_type_id}'")
+    missing: list[str] = []
+    for field in task_def.input_fields:
+        name = field.name
+        val = provided_data.get(name)
+        if val is None:
+            missing.append(name)
+        elif isinstance(val, str) and not val.strip():
+            missing.append(name)
+        elif isinstance(val, (list, dict)) and not val:
+            missing.append(name)
+    return missing

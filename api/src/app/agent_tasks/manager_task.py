@@ -85,6 +85,6 @@ router = APIRouter()
 async def agent_endpoint(request: Request):
     """Universal manager entrypoint for task orchestration."""
     # Delegate to the shared run_agent logic in agent_entrypoints
-    from .manager_task import manager
+    from .manager_agent import manager
     from ..agent_entrypoints import run_agent
     return await run_agent(request)
