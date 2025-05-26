@@ -1,4 +1,4 @@
-import { NextResponse, Request } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(req: Request, context: any) {
+export async function GET(req: NextRequest, context: any) {
   const { reportId } = context.params;
   console.log("▶▶ [reports/:id] handler hit", reportId);
 
