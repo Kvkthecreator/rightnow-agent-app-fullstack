@@ -7,11 +7,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(request: NextRequest) {
-  // 1) extract reportId from the incoming URL
-  const url = new URL(request.url);
-  const segments = url.pathname.split("/"); // ["", "api", "reports", "{reportId}"]
-  const reportId = segments[segments.length - 1];
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { reportId: string } }
+) {
+  const reportId = params.reportId;
   // Log invocation with reportId
   console.log('▶▶ [reports/:id] handler hit, reportId=', reportId);
 
