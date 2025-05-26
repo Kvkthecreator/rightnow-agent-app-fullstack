@@ -4,14 +4,20 @@
  */
 export async function apiGet<T = any>(path: string): Promise<T> {
   const res = await fetch(path);
-  // Read raw text for debugging (do not throw on non-OK)
-  const text = await res.text();
-  console.log("[apiGet] raw response text:", text);
+  // Handle non-OK responses
+  if (!res.ok) {
+    console.error(`[apiGet] Non-OK response (${res.status}) for ${path}`);
+    throw new Error(`API error: ${res.status}`);
+  }
   try {
-    return JSON.parse(text) as T;
+    const data = await res.json();
+    if (data === undefined || data === null) {
+      throw new Error("Empty JSON response");
+    }
+    return data as T;
   } catch (err) {
-    console.error("[apiGet] JSON parse failed", err);
-    throw new Error("Invalid JSON from " + path);
+    console.error(`[apiGet] Failed to parse JSON from ${path}:`, err);
+    throw err;
   }
 }
 
