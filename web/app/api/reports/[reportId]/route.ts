@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import type { NextApiRequest } from "next";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
 );
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { reportId: string } }
-) {
-  const reportId = params.reportId;
+export async function GET(request: NextRequest, context: any) {
+  const reportId = context?.params?.reportId;
   console.log("▶▶ [reports/:id] handler hit", reportId);
 
   const { data, error } = await supabase
