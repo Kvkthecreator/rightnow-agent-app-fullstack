@@ -8,7 +8,7 @@ const supabase = createClient(
 
 export async function GET(
   request: NextRequest,
-  context: { params: { reportId: string } }
+  context: { params: Record<string, string> }
 ) {
   const { reportId } = context.params;
 
