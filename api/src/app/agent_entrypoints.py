@@ -28,11 +28,19 @@ async def run_agent(req: Request):
     user_id = data.get("user_id")
     if not user_id:
         raise HTTPException(422, "Missing 'user_id'")
-    if not task_id:
-        task_id = create_task_and_session(user_id, "manager")
-
     # Extract collected inputs for iterative flow
     collected_inputs = data.get("collected_inputs", {}) or {}
+    # Create a new manager session if missing, persisting initial inputs and status
+    if not task_id:
+        task_id = create_task_and_session(
+            user_id,
+            "manager",
+            metadata={
+                "task_type_id": task_type_id,
+                "inputs": collected_inputs,
+                "status": "clarifying",
+            },
+        )
     # Track missing vs provided fields and persist inputs
     from .agent_tasks.registry import get_missing_fields
     from .util.supabase_helpers import supabase
@@ -120,6 +128,12 @@ async def run_agent(req: Request):
     if msg_type == "structured":
         agent_type = parsed.get("agent_type")
         inputs = parsed.get("input", {})
+        # Update session status to 'dispatched' and persist final inputs
+        from .util.supabase_helpers import supabase
+        try:
+            supabase.table("agent_sessions").update({"status": "dispatched", "inputs": inputs}).eq("id", task_id).execute()
+        except Exception:
+            print(f"Warning: failed to update session status to dispatched for task_id={task_id}")
         # Route to specialist via existing router and validate output
         spec_result = await route_and_validate_task(
             task_type_id, {"task_id": task_id, "user_id": user_id}, inputs
@@ -135,6 +149,11 @@ async def run_agent(req: Request):
             trace=spec_result.get("trace", []),
         )
         await send_webhook(flatten_payload(final_payload))
+        # Mark session as completed
+        try:
+            supabase.table("agent_sessions").update({"status": "completed"}).eq("id", task_id).execute()
+        except Exception:
+            print(f"Warning: failed to update session status to completed for task_id={task_id}")
         return {"ok": True}
 
     # 3c) Fallback: send raw text
