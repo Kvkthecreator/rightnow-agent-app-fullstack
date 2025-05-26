@@ -12,7 +12,14 @@ interface InputField {
 interface Props {
   taskTypeId: string;
   inputFields: InputField[];
-  onResult: (payload: any) => void;
+  /**
+   * Called with final report or error after specialist completion.
+   */
+  onResult?: (payload: any) => void;
+  /**
+   * Called when a new manager session is created. Receives the session/task_id.
+   */
+  onSessionCreated?: (sessionId: string) => void;
 }
 
 export function TaskForm({ taskTypeId, inputFields, onResult }: Props) {
@@ -29,30 +36,34 @@ export function TaskForm({ taskTypeId, inputFields, onResult }: Props) {
       console.error("🚨 No Supabase session! User not logged in?");
       return;
     }
-    // call our Next.js API proxy for agent-run
-    const endpoint = "/api/agent-run";
-    console.log(`→ POST ${endpoint} with Bearer token…`);
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-      body: JSON.stringify({ task_type_id: taskTypeId, ...form }),
-    });
-    console.log("← status", res.status);
-    const text = await res.text();
-    console.log("← body", text);
-    if (!res.ok) {
-      console.error("Error creating agent run:", res.status, text);
-      return onResult({ error: text });
-    }
+    // initiate manager session via backend
+    const endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/agent`;
     try {
-      const data = JSON.parse(text);
-      onResult(data);
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_prompt: "",
+          task_type_id: taskTypeId,
+          collected_inputs: form,
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Error initiating manager session:", res.status, errText);
+        onResult && onResult({ error: errText });
+        return;
+      }
+      const result = await res.json();
+      // manager returns task_id for chat session
+      if (result.task_id && onSessionCreated) {
+        onSessionCreated(result.task_id);
+      } else {
+        onResult && onResult(result);
+      }
     } catch (err) {
-      console.error("Failed to parse JSON response", err);
-      onResult({ error: text });
+      console.error("Exception initiating manager session", err);
+      onResult && onResult({ error: String(err) });
     }
   }
 
@@ -66,7 +77,6 @@ export function TaskForm({ taskTypeId, inputFields, onResult }: Props) {
             className="mt-1 block w-full border border-border rounded p-2 bg-background text-base text-foreground placeholder:text-muted-foreground"
             type="text"
             onChange={(e) => handleChange(f.name, e.target.value)}
-            required
           />
         </div>
       ))}

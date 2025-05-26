@@ -88,7 +88,7 @@ async def run_agent(req: Request):
             trace=[],
         )
         await send_webhook(flatten_payload(fallback))
-        return {"ok": True}
+        return {"ok": True, "task_id": task_id}
 
     raw = result.final_output.strip()
     # 2) Parse manager output
@@ -122,7 +122,7 @@ async def run_agent(req: Request):
             trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
         )
         await send_webhook(flatten_payload(payload))
-        return {"ok": True}
+        return {"ok": True, "task_id": task_id}
 
     # 3b) All inputs gathered: dispatch to specialist
     if msg_type == "structured":
@@ -154,7 +154,7 @@ async def run_agent(req: Request):
             supabase.table("agent_sessions").update({"status": "completed"}).eq("id", task_id).execute()
         except Exception:
             print(f"Warning: failed to update session status to completed for task_id={task_id}")
-        return {"ok": True}
+        return {"ok": True, "task_id": task_id}
 
     # 3c) Fallback: send raw text
     fallback_payload = build_payload(
@@ -166,7 +166,7 @@ async def run_agent(req: Request):
         trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
     )
     await send_webhook(flatten_payload(fallback_payload))
-    return {"ok": True}
+    return {"ok": True, "task_id": task_id}
 
 async def run_agent_direct(req: Request):
     data = await req.json()
