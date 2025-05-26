@@ -1,3 +1,12 @@
+## codex/tasks/20250526_fix_reportid_route.md
+
+# Title
+Fix invalid GET export for app/api/reports/[reportId]/route.ts
+
+# Instructions
+Replace the contents of `web/app/api/reports/[reportId]/route.ts` with:
+
+```ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
