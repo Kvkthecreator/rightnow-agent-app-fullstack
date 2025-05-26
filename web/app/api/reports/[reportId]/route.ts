@@ -1,8 +1,7 @@
-// app/api/reports/[reportId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { NextApiRequest } from "next";
 
-// Safe fallback if env is undefined
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
@@ -10,9 +9,9 @@ const supabase = createClient(
 
 export async function GET(
   request: NextRequest,
-  context: { params: Record<string, string> }
+  { params }: { params: { reportId: string } }
 ) {
-  const reportId = context.params.reportId;
+  const reportId = params.reportId;
   console.log("▶▶ [reports/:id] handler hit", reportId);
 
   const { data, error } = await supabase
@@ -22,7 +21,7 @@ export async function GET(
     .single();
 
   if (error || !data) {
-    console.log("▶▶ [reports/:id] not found", error);
+    console.error("▶▶ report not found:", error);
     return NextResponse.json({ error: "Report not found" }, { status: 404 });
   }
 
