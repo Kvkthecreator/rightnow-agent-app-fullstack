@@ -1,3 +1,19 @@
+## codex/tasks/20250526_fix_single_report_route.md
+
+# Title
+Fix Next.js 15 route handler for /api/reports/[reportId]
+
+# Summary
+Refactor the dynamic route handler for fetching a single report by ID using the updated `App Router` syntax required by Next.js 15+.
+
+# Task Type
+rewrite_file
+
+# Target File
+web/app/api/reports/[reportId]/route.ts
+
+# Replacement Code
+```ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
