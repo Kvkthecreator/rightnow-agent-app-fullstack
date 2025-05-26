@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -7,11 +7,10 @@ const supabase = createClient(
 );
 
 export async function GET(
-  req: Request,
-  context: { params: Record<string, string | string[]> }
+  request: NextRequest,
+  context: { params: { reportId: string } }
 ) {
-  const reportIdRaw = context.params.reportId;
-  const reportId = Array.isArray(reportIdRaw) ? reportIdRaw[0] : reportIdRaw;
+  const { reportId } = context.params;
 
   console.log("▶▶ [reports/:id] handler hit", reportId);
 
@@ -28,3 +27,5 @@ export async function GET(
 
   return NextResponse.json(data);
 }
+// Ensure Node.js runtime for Supabase service role
+export const runtime = 'nodejs';
