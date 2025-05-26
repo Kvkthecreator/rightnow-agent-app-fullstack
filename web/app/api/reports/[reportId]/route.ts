@@ -7,10 +7,10 @@ const supabase = createClient(
 );
 
 export async function GET(
-  request: Request,
-  context: { params: { reportId: string } }
+  req: NextRequest, // ✅ must be NextRequest
+  { params }: { params: { reportId: string } }
 ) {
-  const { reportId } = context.params;
+  const { reportId } = params;
   console.log("▶▶ [reports/:id] handler hit", reportId);
 
   const { data, error } = await supabase
