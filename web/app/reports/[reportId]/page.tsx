@@ -11,7 +11,9 @@ export default async function Page({ params }: { params: any }) {
   let report: Report;
   try {
     report = await apiGet(`/api/reports/${params.reportId}`);
-  } catch {
+    // Log fetch result on server
+    console.log('▶▶ [Page] fetched report:', report);
+  } catch (err) {
     return (
       <DashboardLayout>
         <div className="px-6 md:px-10 py-6">

@@ -10,8 +10,10 @@ const supabase = createClient(
 export async function GET(request: NextRequest) {
   // 1) extract reportId from the incoming URL
   const url = new URL(request.url);
-  const segments = url.pathname.split("/");         // ["", "api", "reports", "{reportId}"]
+  const segments = url.pathname.split("/"); // ["", "api", "reports", "{reportId}"]
   const reportId = segments[segments.length - 1];
+  // Log invocation with reportId
+  console.log('▶▶ [reports/:id] handler hit, reportId=', reportId);
 
   // 2) fetch the full row from Supabase
   const { data, error } = await supabase
@@ -21,9 +23,13 @@ export async function GET(request: NextRequest) {
     .single();
 
   if (error || !data) {
+    // Log not found error
+    console.log('▶▶ [reports/:id] report not found, reportId=', reportId, 'error=', error);
     return NextResponse.json({ error: "Report not found" }, { status: 404 });
   }
 
   // 3) return the JSON to your client
+  // Log successful return
+  console.log('▶▶ [reports/:id] success, reportId=', reportId, 'data=', data);
   return NextResponse.json(data);
 }
