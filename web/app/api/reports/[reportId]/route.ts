@@ -9,9 +9,9 @@ const supabase = createClient(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { reportId: string } }
+  context: { params: { reportId: string } }
 ) {
-  const reportId = params.reportId;
+  const { reportId } = context.params;
   // Log invocation with reportId
   console.log('▶▶ [reports/:id] handler hit, reportId=', reportId);
 
