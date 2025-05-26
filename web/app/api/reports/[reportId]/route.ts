@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, Request } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -6,11 +6,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(
-  req: NextRequest, // ✅ Must be NextRequest
-  { params }: { params: { reportId: string } } // ✅ Exact signature Next expects
-) {
-  const { reportId } = params;
+export async function GET(req: Request, context: any) {
+  const { reportId } = context.params;
   console.log("▶▶ [reports/:id] handler hit", reportId);
 
   const { data, error } = await supabase
