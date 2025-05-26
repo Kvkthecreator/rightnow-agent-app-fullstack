@@ -13,7 +13,7 @@ class TaskType(BaseModel):
     description: str
     agent_type: Literal[
         "strategy", "content", "repurpose", "feedback",
-        "nlp", "assistant", "creative", "competitor_table"
+        "nlp", "assistant", "creative", "competitor_table", "competitor"
     ]
     input_fields: List[InputField]
     prompt_template: Optional[str] = None

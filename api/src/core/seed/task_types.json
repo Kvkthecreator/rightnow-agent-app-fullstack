@@ -1,9 +1,9 @@
 [
-  {
-    "id": "analyze_competitors",
-    "title": "Analyze My Competitors",
-    "description": "Compare up to 5 competitor handles and find differentiation opportunities.",
-    "agent_type": "strategy",
+    {
+      "id": "analyze_competitors",
+      "title": "Analyze My Competitors",
+      "description": "Compare up to 5 competitor handles and find differentiation opportunities.",
+      "agent_type": "competitor",
     "input_fields": [
       { "name": "competitor_urls", "label": "Competitor URLs", "type": "list", "required": true }
     ],

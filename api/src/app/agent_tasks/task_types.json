@@ -1,8 +1,0 @@
-{
-  "analyze_competitors": {
-    "description": "Analyze competitors based on user profile and inputs.",
-    "agent_type": "competitor_agent",
-    "output_type": "analysis_sections",
-    "prompt_template": "You are a marketing analyst. Given the user's profile:\nName: {profile_display_name}\nSNS handle: {profile_sns_handle}\nNiche: {profile_niche}\nExisting report sections:\n{report_sections}\nUser inputs:\nCompetitors: {competitors_list}\n\nProvide a detailed analysis of each competitor, including strengths and weaknesses."
-  }
-}
