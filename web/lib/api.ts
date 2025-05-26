@@ -1,3 +1,5 @@
+//web/lib/api.ts
+
 /**
  * Simple wrapper for GET requests to the backend API.
  * Uses the Next.js rewrite from /api to the configured API base.
