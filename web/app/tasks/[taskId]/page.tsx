@@ -51,7 +51,7 @@ export default function Page({ params }: { params: any }) {
   useEffect(() => {
     if (!sessionId) return;
     supabase
-      .from<AgentMessage>("agent_messages")
+      .from<AgentMessage, AgentMessage>("agent_messages")
       .select("*")
       .eq("task_id", sessionId)
       .order("created_at", { ascending: true })
