@@ -52,11 +52,15 @@ export default function Page({ params }: { params: any }) {
     if (!sessionId) return;
     supabase
       .from("agent_messages")
-      .select<AgentMessage>("*")
+      .select("*")
       .eq("task_id", sessionId)
       .order("created_at", { ascending: true })
-      .then(({ data }) => {
-        if (data) setMessages(data);
+      .then(({ data, error }) => {
+        if (error) {
+          console.warn("Failed to load messages:", error.message);
+          return;
+        }
+        setMessages(data as AgentMessage[]);
       });
   }, [sessionId]);
 
