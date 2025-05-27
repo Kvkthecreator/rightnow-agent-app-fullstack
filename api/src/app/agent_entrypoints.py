@@ -7,7 +7,24 @@ from fastapi import Request, HTTPException
 import json
 
 from agents import Runner
-from .agent_tasks.manager_agent import manager, AGENTS
+# Orchestrator for manager flows
+from .agent_tasks.manager_agent import manager
+# Specialist agents registry
+from .agent_tasks.strategy_agent import strategy
+from .agent_tasks.content_agent import content
+from .agent_tasks.feedback_agent import feedback
+from .agent_tasks.repurpose_agent import repurpose
+from .agent_tasks.profile_analyzer_agent import profile_analyzer
+from .agent_tasks.competitor_agent import competitor
+
+AGENT_REGISTRY = {
+    "strategy": strategy,
+    "content": content,
+    "feedback": feedback,
+    "repurpose": repurpose,
+    "profile_analyzer": profile_analyzer,
+    "competitor": competitor,
+}
 from .agent_tasks.middleware.task_router import route_and_validate_task
 from .agent_tasks.middleware.output_utils import build_payload, flatten_payload
 from .util.task_utils import create_task_and_session
@@ -180,7 +197,7 @@ async def run_agent_direct(req: Request):
     data = await req.json()
 
     agent_type = data.get("agent_type")
-    agent = AGENTS.get(agent_type)
+    agent = AGENT_REGISTRY.get(agent_type)
     if not agent:
         raise HTTPException(422, f"Unknown agent_type: {agent_type}")
 

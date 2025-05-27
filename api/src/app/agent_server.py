@@ -37,7 +37,6 @@ from fastapi.middleware.cors import CORSMiddleware
 # Routers from agent_tasks
 from .agent_tasks.profilebuilder_task import router as profilebuilder_router
 from .agent_tasks.profile_analyzer_task import router as profile_analyzer_router
-from .agent_tasks.manager_task import router as manager_router
 # Authentication helper and output normalization
 from .util.auth_helpers import current_user_id
 from .util.normalize_output import normalize_output
@@ -66,42 +65,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-@app.post("/agent-run")
-async def agent_run(
-    payload: dict,
-    user_id: str = Depends(current_user_id),
-):
-    """
-    Run a registered task and return its output.
-    """
-    # Instrumentation: log incoming payload and resolved user
-    logger.info("▶▶ [agent-run] got payload: %r", payload)
-    logger.info("▶▶ [agent-run] resolved user_id: %r", user_id)
-    # breakpoint()  # uncomment to trigger debugger
-    try:
-        # Extract task type and inputs
-        task_type_id = payload.pop("task_type_id", None)
-        if not task_type_id:
-            raise HTTPException(status_code=422, detail="Missing 'task_type_id'")
-        # Execute and validate the task
-        result = await route_and_validate_task(task_type_id, {}, payload)
-        # Return the normalized result directly
-        return {
-            "output_type": result.get("output_type"),
-            "data": normalize_output(result.get("validated_output")),
-        }
-    except HTTPException:
-        # re-raise client errors (e.g. missing task_type_id)
-        raise
-    except Exception as exc:
-        # Log full exception stack trace
-        logger.exception("‼️ Exception in /agent-run")
-        # Return exception type and message to client
-        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
-    
+
+# Mount agent entrypoint handlers
+from .agent_entrypoints import run_agent, run_agent_direct
+app.post("/agent")(run_agent)
+app.post("/agent/direct")(run_agent_direct)
+
+# Mount task-type routes and other agent task routers
 app.include_router(profilebuilder_router)
 app.include_router(profile_analyzer_router)
-app.include_router(manager_router)
 # Mount task-types routes
 app.include_router(task_types_router)
 
