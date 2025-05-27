@@ -1,4 +1,4 @@
-# /api/src/app/utils/task_utils.py
+# /api/src/app/util/task_utils.py
 
 import uuid
 import os
@@ -24,11 +24,13 @@ def create_task_and_session(user_id: str, agent_type: str, metadata: dict = {}) 
         **metadata,
     }
 
-    # Debug: log payload for insertion
+    # Log payload before sending
     print("📝 create_task_and_session payload:", payload)
-    # Insert new session row
+
+    # Insert session row
     response = supabase.table("agent_sessions").insert(payload).execute()
-    # Debug: log full Supabase response
+
+    # Log response (flexibly handle missing fields)
     try:
         code = getattr(response, 'status_code', None)
         data = getattr(response, 'data', None)
@@ -36,15 +38,18 @@ def create_task_and_session(user_id: str, agent_type: str, metadata: dict = {}) 
     except Exception as _e:
         print("⚠️ create_task_and_session: Could not unpack response fields", _e)
         code, data, error = None, None, None
+
     print(f"🔍 create_task_and_session response: status_code={code}, data={data}, error={error}")
 
-    # Check for insertion errors
-    if error or code != 201:
-        # Build informative message
-        msg = f"Agent session creation failed (status={code})"
+    # New check: only fail if data is missing or error exists
+    if not data:
+        msg = f"Agent session creation failed: no data returned"
         if error:
-            msg += f": {error.message if hasattr(error, 'message') else error}"
+            msg += f" — Supabase error: {error.message if hasattr(error, 'message') else error}"
         print("❌", msg)
         raise Exception(msg)
 
-    return task_id
+    # Success
+    session_id = data[0]["id"]
+    print("✅ Created agent_session:", session_id)
+    return session_id
