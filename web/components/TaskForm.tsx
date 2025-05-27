@@ -4,26 +4,52 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
 interface TaskFormProps {
-  onSubmit?: (input: string) => void;
-  disabled?: boolean;
-  /** Task type identifier (optional) */
-  taskTypeId?: string;
-  /** Dynamic input field definitions (optional) */
+  taskTypeId: string;
   inputFields?: any;
-  /** Callback when a new session is created (optional) */
   onSessionCreated?: (sid: string) => void;
-  /** Callback when task run returns a result (optional) */
   onResult?: (res: any) => void;
 }
 
-export function TaskForm({ onSubmit, disabled }: TaskFormProps) {
+export function TaskForm({
+  taskTypeId,
+  inputFields,
+  onSessionCreated,
+  onResult,
+}: TaskFormProps) {
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim()) return;
-    onSubmit?.(input);
-    setInput("");
+    const prompt = input.trim();
+    if (!prompt) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          task_type_id: taskTypeId,
+          collected_inputs: {},
+        }),
+      });
+      const json = await res.json();
+      const taskId = json.task_id;
+
+      if (onSessionCreated && taskId) {
+        onSessionCreated(taskId); // ✅ triggers ChatPane
+      } else if (onResult) {
+        onResult(json); // fallback
+      }
+    } catch (err) {
+      console.error("TaskForm error:", err);
+      alert("Failed to start agent task.");
+    } finally {
+      setLoading(false);
+      setInput("");
+    }
   }
 
   return (
@@ -32,10 +58,10 @@ export function TaskForm({ onSubmit, disabled }: TaskFormProps) {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Type a clarification or message..."
-        disabled={disabled}
+        disabled={loading}
         className="flex-1"
       />
-      <Button type="submit" disabled={disabled}>
+      <Button type="submit" disabled={loading}>
         Send
       </Button>
     </form>
