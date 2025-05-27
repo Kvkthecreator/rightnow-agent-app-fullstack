@@ -29,12 +29,8 @@ AGENT_REGISTRY = {
 }
 
 from .agent_tasks.middleware.task_router import route_and_validate_task
-from .agent_tasks.middleware.output_utils import build_payload, flatten_payload
+# Removed webhook dispatch utilities
 from .util.task_utils import create_task_and_session
-from .util.webhook import send_webhook
-
-# Webhook targets
-from .constants import CLARIFICATION_WEBHOOK_URL, STRUCTURED_WEBHOOK_URL
 
 async def run_agent(req: Request):
     data = await req.json()
@@ -66,21 +62,13 @@ async def run_agent(req: Request):
     from .util.supabase_helpers import supabase
 
     missing_fields = get_missing_fields(task_type_id, collected_inputs)
+    # Persist current inputs state
     try:
         supabase.table("agent_sessions").update({"inputs": collected_inputs}).eq("id", task_id).execute()
     except Exception:
         print(f"Warning: failed to persist inputs for task_id={task_id}")
 
-    status_payload = build_payload(
-        task_id=task_id,
-        user_id=user_id,
-        agent_type="manager",
-        message={"type": "system", "content": {"provided_fields": list(collected_inputs.keys()), "missing_fields": missing_fields}},
-        reason="input_status",
-        trace=[],
-    )
-    await send_webhook(CLARIFICATION_WEBHOOK_URL, flatten_payload(status_payload))
-
+    # Run manager agent
     try:
         result = await Runner.run(
             manager,
@@ -94,93 +82,68 @@ async def run_agent(req: Request):
             max_turns=12,
         )
     except Exception:
-        fallback = build_payload(
-            task_id=task_id,
-            user_id=user_id,
-            agent_type="manager",
-            message={"type": "text", "content": "Sorry, I couldn’t process your request—could you rephrase?"},
-            reason="parse_error",
-            trace=[],
-        )
-        await send_webhook(CLARIFICATION_WEBHOOK_URL, flatten_payload(fallback))
-        return {"ok": True, "task_id": task_id}
+        # Parse error fallback
+        return {
+            "ok": True,
+            "task_id": task_id,
+            "agent_type": "manager",
+            "output_type": "text",
+            "message": { "type": "text", "content": "Sorry, I couldn’t process your request—could you rephrase?" },
+            "trace": []
+        }
 
     raw = result.final_output.strip()
+    # Attempt JSON parsing
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        fallback = build_payload(
-            task_id=task_id,
-            user_id=user_id,
-            agent_type="manager",
-            message={"type": "text", "content": "Sorry, I couldn’t process your request—could you rephrase?"},
-            reason="parse_error",
-            trace=[],
-        )
-        await send_webhook(CLARIFICATION_WEBHOOK_URL, flatten_payload(fallback))
-        return {"ok": True}
+        return {
+            "ok": True,
+            "task_id": task_id,
+            "agent_type": "manager",
+            "output_type": "text",
+            "message": { "type": "text", "content": raw },
+            "trace": []
+        }
 
     msg_type = parsed.get("type")
-
+    # Clarification
     if msg_type == "clarification":
-        field = parsed.get("field")
-        question = parsed.get("message")
-        try:
-            supabase.table("agent_sessions").update({
-                "inputs": collected_inputs,
-                "pending_field": field
-            }).eq("id", task_id).execute()
-        except Exception:
-            print(f"[warn] Could not persist pending_field for task_id={task_id}")
-        payload = build_payload(
-            task_id=task_id,
-            user_id=user_id,
-            agent_type="manager",
-            message={"type": "text", "content": question},
-            reason="clarification",
-            trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
-        )
-        await send_webhook(CLARIFICATION_WEBHOOK_URL, flatten_payload(payload))
-        return {"ok": True}
-
+        return {
+            "ok": True,
+            "task_id": task_id,
+            "agent_type": "manager",
+            "output_type": "clarification",
+            "message": { "type": "clarification", "field": parsed.get("field"), "message": parsed.get("message") },
+            "trace": result.to_debug_dict() if hasattr(result, "to_debug_dict") else []
+        }
+    # Structured dispatch
     if msg_type == "structured":
         agent_type = parsed.get("agent_type")
         inputs = parsed.get("input", {})
+        # Persist dispatched state
         try:
             supabase.table("agent_sessions").update({"status": "dispatched", "inputs": inputs}).eq("id", task_id).execute()
         except Exception:
             print(f"Warning: failed to update session status to dispatched for task_id={task_id}")
-
-        spec_result = await route_and_validate_task(
-            task_type_id, {"task_id": task_id, "user_id": user_id}, inputs
-        )
-        output_type = spec_result.get("output_type")
-        validated_data = spec_result.get("validated_output")
-        final_payload = build_payload(
-            task_id=task_id,
-            user_id=user_id,
-            agent_type=agent_type,
-            message={"type": "structured", "output_type": output_type, "data": validated_data},
-            reason="completion",
-            trace=spec_result.get("trace", []),
-        )
-        await send_webhook(STRUCTURED_WEBHOOK_URL, flatten_payload(final_payload))
-        try:
-            supabase.table("agent_sessions").update({"status": "completed"}).eq("id", task_id).execute()
-        except Exception:
-            print(f"Warning: failed to update session status to completed for task_id={task_id}")
-        return {"ok": True, "task_id": task_id}
-
-    fallback_payload = build_payload(
-        task_id=task_id,
-        user_id=user_id,
-        agent_type="manager",
-        message={"type": "text", "content": raw},
-        reason="unstructured",
-        trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
-    )
-    await send_webhook(CLARIFICATION_WEBHOOK_URL, flatten_payload(fallback_payload))
-    return {"ok": True, "task_id": task_id}
+        spec = await route_and_validate_task(task_type_id, {"task_id": task_id, "user_id": user_id}, inputs)
+        return {
+            "ok": True,
+            "task_id": task_id,
+            "agent_type": agent_type,
+            "output_type": spec.get("output_type"),
+            "message": { "type": "structured", "output_type": spec.get("output_type"), "data": spec.get("validated_output") },
+            "trace": spec.get("trace", [])
+        }
+    # Fallback unstructured
+    return {
+        "ok": True,
+        "task_id": task_id,
+        "agent_type": "manager",
+        "output_type": "text",
+        "message": { "type": "text", "content": raw },
+        "trace": result.to_debug_dict() if hasattr(result, "to_debug_dict") else []
+    }
 
 
 async def run_agent_direct(req: Request):
@@ -207,24 +170,21 @@ async def run_agent_direct(req: Request):
 
     result = await Runner.run(agent, input=prompt, context=context, max_turns=12)
     raw = result.final_output.strip()
-
+    # Attempt parse
     try:
         content = json.loads(raw)
-        reason = "Agent returned structured JSON"
-        msg = {"type": "structured", "content": content}
+        output_type = "structured"
+        message = { "type": "structured", "content": content }
     except json.JSONDecodeError:
-        reason = "Agent returned unstructured output"
-        msg = {"type": "text", "content": raw}
-
+        output_type = "text"
+        message = { "type": "text", "content": raw }
     trace = result.to_debug_dict() if hasattr(result, "to_debug_dict") else []
-
-    payload = build_payload(
-        task_id=task_id,
-        user_id=user_id,
-        agent_type=agent.name,
-        message=msg,
-        reason=reason,
-        trace=trace
-    )
-    await send_webhook(STRUCTURED_WEBHOOK_URL, flatten_payload(payload))
-    return {"ok": True}
+    # Return inline response
+    return {
+        "ok": True,
+        "task_id": task_id,
+        "agent_type": agent.name,
+        "output_type": output_type,
+        "message": message,
+        "trace": trace
+    }
