@@ -83,7 +83,7 @@ async def run_agent(req: Request):
         )
     except Exception:
         # Parse error fallback
-        return {
+        response = {
             "ok": True,
             "task_id": task_id,
             "agent_type": "manager",
@@ -91,13 +91,28 @@ async def run_agent(req: Request):
             "message": { "type": "text", "content": "Sorry, I couldn’t process your request—could you rephrase?" },
             "trace": []
         }
+        # Persist message for chat UI
+        try:
+            from datetime import datetime
+            supabase.table("agent_messages").insert({
+                "task_id": task_id,
+                "user_id": user_id,
+                "agent_type": "manager",
+                "message_type": response["output_type"],
+                "message_content": response["message"],
+                "created_at": datetime.utcnow().isoformat()
+            }).execute()
+        except Exception as e:
+            print(f"[warn] create agent_messages record failed: {e}")
+        return response
 
     raw = result.final_output.strip()
     # Attempt JSON parsing
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        return {
+        # Unstructured raw text fallback
+        response = {
             "ok": True,
             "task_id": task_id,
             "agent_type": "manager",
@@ -105,11 +120,25 @@ async def run_agent(req: Request):
             "message": { "type": "text", "content": raw },
             "trace": []
         }
+        # Persist message for chat UI
+        try:
+            from datetime import datetime
+            supabase.table("agent_messages").insert({
+                "task_id": task_id,
+                "user_id": user_id,
+                "agent_type": "manager",
+                "message_type": response["output_type"],
+                "message_content": response["message"],
+                "created_at": datetime.utcnow().isoformat()
+            }).execute()
+        except Exception as e:
+            print(f"[warn] create agent_messages record failed: {e}")
+        return response
 
     msg_type = parsed.get("type")
     # Clarification
     if msg_type == "clarification":
-        return {
+        response = {
             "ok": True,
             "task_id": task_id,
             "agent_type": "manager",
@@ -117,6 +146,20 @@ async def run_agent(req: Request):
             "message": { "type": "clarification", "field": parsed.get("field"), "message": parsed.get("message") },
             "trace": result.to_debug_dict() if hasattr(result, "to_debug_dict") else []
         }
+        # Persist message for chat UI
+        try:
+            from datetime import datetime
+            supabase.table("agent_messages").insert({
+                "task_id": task_id,
+                "user_id": user_id,
+                "agent_type": "manager",
+                "message_type": response["output_type"],
+                "message_content": response["message"],
+                "created_at": datetime.utcnow().isoformat()
+            }).execute()
+        except Exception as e:
+            print(f"[warn] create agent_messages record failed: {e}")
+        return response
     # Structured dispatch
     if msg_type == "structured":
         agent_type = parsed.get("agent_type")
@@ -127,7 +170,7 @@ async def run_agent(req: Request):
         except Exception:
             print(f"Warning: failed to update session status to dispatched for task_id={task_id}")
         spec = await route_and_validate_task(task_type_id, {"task_id": task_id, "user_id": user_id}, inputs)
-        return {
+        response = {
             "ok": True,
             "task_id": task_id,
             "agent_type": agent_type,
@@ -135,8 +178,22 @@ async def run_agent(req: Request):
             "message": { "type": "structured", "output_type": spec.get("output_type"), "data": spec.get("validated_output") },
             "trace": spec.get("trace", [])
         }
+        # Persist message for chat UI
+        try:
+            from datetime import datetime
+            supabase.table("agent_messages").insert({
+                "task_id": task_id,
+                "user_id": user_id,
+                "agent_type": agent_type,
+                "message_type": response["output_type"],
+                "message_content": response["message"],
+                "created_at": datetime.utcnow().isoformat()
+            }).execute()
+        except Exception as e:
+            print(f"[warn] create agent_messages record failed: {e}")
+        return response
     # Fallback unstructured
-    return {
+    response = {
         "ok": True,
         "task_id": task_id,
         "agent_type": "manager",
@@ -144,6 +201,20 @@ async def run_agent(req: Request):
         "message": { "type": "text", "content": raw },
         "trace": result.to_debug_dict() if hasattr(result, "to_debug_dict") else []
     }
+    # Persist message for chat UI
+    try:
+        from datetime import datetime
+        supabase.table("agent_messages").insert({
+            "task_id": task_id,
+            "user_id": user_id,
+            "agent_type": "manager",
+            "message_type": response["output_type"],
+            "message_content": response["message"],
+            "created_at": datetime.utcnow().isoformat()
+        }).execute()
+    except Exception as e:
+        print(f"[warn] create agent_messages record failed: {e}")
+    return response
 
 
 async def run_agent_direct(req: Request):
