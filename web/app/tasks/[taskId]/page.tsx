@@ -1,17 +1,6 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-// Removed local clarification state and handlers; ChatPane now manages replies internally
-import { useTaskTypes } from "@/hooks/useTaskTypes";
-import { TaskForm } from "@/components/TaskForm";
-import { ChatPane } from "@/components/ChatPane";
-import { EmptyState } from "@/components/ui/EmptyState";
-
-import DashboardLayout from "@/app/dashboard/layout";
-import { Card } from "@/components/ui/Card";
-
-"use client";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useTaskTypes } from "@/hooks/useTaskTypes";
 import { TaskForm } from "@/components/TaskForm";
