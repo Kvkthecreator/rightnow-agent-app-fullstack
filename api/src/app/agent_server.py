@@ -38,14 +38,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from .agent_tasks.profilebuilder_task import router as profilebuilder_router
 from .agent_tasks.profile_analyzer_task import router as profile_analyzer_router
 from .agent_tasks.manager_task import router as manager_router
-# Report DB helpers and auth
-from .db.reports import create_report, complete_report
+# Authentication helper and output normalization
 from .util.auth_helpers import current_user_id
 from .util.normalize_output import normalize_output
-# Task routing for report-based tasks
+# Task routing for execution
 from .agent_tasks.middleware.task_router import route_and_validate_task
-# API routes for reports
-from .routes.reports import router as reports_router
 from .routes.task_types import router as task_types_router
 
 # ── Environment variable for Bubble webhook URL
@@ -75,7 +72,7 @@ async def agent_run(
     user_id: str = Depends(current_user_id),
 ):
     """
-    Run a registered task, create a report, and return its ID.
+    Run a registered task and return its output.
     """
     # Instrumentation: log incoming payload and resolved user
     logger.info("▶▶ [agent-run] got payload: %r", payload)
@@ -86,21 +83,13 @@ async def agent_run(
         task_type_id = payload.pop("task_type_id", None)
         if not task_type_id:
             raise HTTPException(status_code=422, detail="Missing 'task_type_id'")
-        # Create initial report record
-        report_id = create_report(user_id, task_type_id, payload)
-
         # Execute and validate the task
         result = await route_and_validate_task(task_type_id, {}, payload)
-        # Prepare report output with expected shape: output_type and data
-        # Normalize the agent output so data is always an object or list
-        report_data = {
+        # Return the normalized result directly
+        return {
             "output_type": result.get("output_type"),
             "data": normalize_output(result.get("validated_output")),
         }
-        # Mark report as completed
-        complete_report(report_id, report_data)
-
-        return {"report_id": report_id}
     except HTTPException:
         # re-raise client errors (e.g. missing task_type_id)
         raise
@@ -113,8 +102,7 @@ async def agent_run(
 app.include_router(profilebuilder_router)
 app.include_router(profile_analyzer_router)
 app.include_router(manager_router)
-# Mount report and task-types routes
-app.include_router(reports_router)
+# Mount task-types routes
 app.include_router(task_types_router)
 
 

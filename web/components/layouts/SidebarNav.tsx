@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, Menu, Clipboard, BarChart2 } from "lucide-react";
+import { Home, User, Menu, Clipboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import UserNav from "@/components/UserNav";
@@ -15,7 +15,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
   { title: "Tasks",     href: "/tasks",     icon: Clipboard },
-  { title: "Reports",   href: "/reports",   icon: BarChart2 },
   { title: "Profile",   href: "/profile",   icon: User },
 ];
 
