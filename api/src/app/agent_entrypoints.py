@@ -1,23 +1,21 @@
-"""
-agent_entrypoints.py
-
-Entrypoint implementations for agent_server endpoints.
-"""
 from fastapi import Request, HTTPException
 import json
+from datetime import datetime
 
 from agents import Runner
-# Orchestrator for manager flows
 from .agent_tasks.manager_agent import manager
-"""Specialist agents registry"""
 from .agent_tasks.strategy_agent import strategy
 from .agent_tasks.content_agent import content
 from .agent_tasks.feedback_agent import feedback
 from .agent_tasks.repurpose_agent import repurpose
-# Profile Analyzer agent exports as profile_analyzer_agent
 from .agent_tasks.profile_analyzer_agent import profile_analyzer_agent as profile_analyzer
-# Competitor agent exports as competitor_agent
 from .agent_tasks.competitor_agent import competitor_agent as competitor
+
+from .agent_tasks.middleware.task_router import route_and_validate_task
+from .agent_tasks.middleware.output_utils import build_payload
+from .util.task_utils import create_task_and_session
+from .util.supabase_helpers import supabase
+from .agent_tasks.registry import get_missing_fields
 
 AGENT_REGISTRY = {
     "strategy": strategy,
@@ -28,9 +26,18 @@ AGENT_REGISTRY = {
     "competitor": competitor,
 }
 
-from .agent_tasks.middleware.task_router import route_and_validate_task
-# Removed webhook dispatch utilities
-from .util.task_utils import create_task_and_session
+def log_agent_message(task_id, user_id, agent_type, message):
+    try:
+        supabase.table("agent_messages").insert({
+            "task_id": task_id,
+            "user_id": user_id,
+            "agent_type": agent_type,
+            "message_type": message.get("type", "text"),
+            "message_content": message,
+            "created_at": datetime.utcnow().isoformat(),
+        }).execute()
+    except Exception as e:
+        print(f"[warn] Failed to log message to agent_messages: {e}")
 
 async def run_agent(req: Request):
     data = await req.json()
@@ -48,174 +55,118 @@ async def run_agent(req: Request):
     collected_inputs = data.get("collected_inputs", {}) or {}
 
     if not task_id:
-        task_id = create_task_and_session(
-            user_id,
-            "manager",
-            metadata={
-                "task_type_id": task_type_id,
-                "inputs": collected_inputs,
-                "status": "clarifying",
-            },
-        )
-
-    from .agent_tasks.registry import get_missing_fields
-    from .util.supabase_helpers import supabase
+        task_id = create_task_and_session(user_id, "manager", metadata={
+            "task_type_id": task_type_id,
+            "inputs": collected_inputs,
+            "status": "clarifying",
+        })
 
     missing_fields = get_missing_fields(task_type_id, collected_inputs)
-    # Persist current inputs state
     try:
         supabase.table("agent_sessions").update({"inputs": collected_inputs}).eq("id", task_id).execute()
     except Exception:
         print(f"Warning: failed to persist inputs for task_id={task_id}")
 
-    # Run manager agent
+    status_payload = build_payload(
+        task_id=task_id,
+        user_id=user_id,
+        agent_type="manager",
+        message={"type": "system", "content": {"provided_fields": list(collected_inputs.keys()), "missing_fields": missing_fields}},
+        reason="input_status",
+        trace=[],
+    )
+    log_agent_message(task_id, user_id, "manager", status_payload["message"])
+
     try:
         result = await Runner.run(
             manager,
             input=prompt,
-            context={
-                "task_id": task_id,
-                "user_id": user_id,
-                "task_type_id": task_type_id,
-                "collected_inputs": collected_inputs,
-            },
+            context={"task_id": task_id, "user_id": user_id, "task_type_id": task_type_id, "collected_inputs": collected_inputs},
             max_turns=12,
         )
     except Exception:
-        # Parse error fallback
-        response = {
-            "ok": True,
-            "task_id": task_id,
-            "agent_type": "manager",
-            "output_type": "text",
-            "message": { "type": "text", "content": "Sorry, I couldn’t process your request—could you rephrase?" },
-            "trace": []
-        }
-        # Persist message for chat UI
-        try:
-            from datetime import datetime
-            supabase.table("agent_messages").insert({
-                "task_id": task_id,
-                "user_id": user_id,
-                "agent_type": "manager",
-                "message_type": response["output_type"],
-                "message_content": response["message"],
-                "created_at": datetime.utcnow().isoformat()
-            }).execute()
-        except Exception as e:
-            print(f"[warn] create agent_messages record failed: {e}")
-        return response
+        fallback = build_payload(
+            task_id=task_id,
+            user_id=user_id,
+            agent_type="manager",
+            message={"type": "text", "content": "Sorry, I couldn’t process your request—could you rephrase?"},
+            reason="parse_error",
+            trace=[],
+        )
+        log_agent_message(task_id, user_id, "manager", fallback["message"])
+        return {"ok": True, "task_id": task_id}
 
     raw = result.final_output.strip()
-    # Attempt JSON parsing
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        # Unstructured raw text fallback
-        response = {
-            "ok": True,
-            "task_id": task_id,
-            "agent_type": "manager",
-            "output_type": "text",
-            "message": { "type": "text", "content": raw },
-            "trace": []
-        }
-        # Persist message for chat UI
-        try:
-            from datetime import datetime
-            supabase.table("agent_messages").insert({
-                "task_id": task_id,
-                "user_id": user_id,
-                "agent_type": "manager",
-                "message_type": response["output_type"],
-                "message_content": response["message"],
-                "created_at": datetime.utcnow().isoformat()
-            }).execute()
-        except Exception as e:
-            print(f"[warn] create agent_messages record failed: {e}")
-        return response
+        fallback = build_payload(
+            task_id=task_id,
+            user_id=user_id,
+            agent_type="manager",
+            message={"type": "text", "content": "Sorry, I couldn’t process your request—could you rephrase?"},
+            reason="parse_error",
+            trace=[],
+        )
+        log_agent_message(task_id, user_id, "manager", fallback["message"])
+        return {"ok": True, "task_id": task_id}
 
     msg_type = parsed.get("type")
-    # Clarification
+
     if msg_type == "clarification":
-        response = {
-            "ok": True,
-            "task_id": task_id,
-            "agent_type": "manager",
-            "output_type": "clarification",
-            "message": { "type": "clarification", "field": parsed.get("field"), "message": parsed.get("message") },
-            "trace": result.to_debug_dict() if hasattr(result, "to_debug_dict") else []
-        }
-        # Persist message for chat UI
+        field = parsed.get("field")
+        question = parsed.get("message")
         try:
-            from datetime import datetime
-            supabase.table("agent_messages").insert({
-                "task_id": task_id,
-                "user_id": user_id,
-                "agent_type": "manager",
-                "message_type": response["output_type"],
-                "message_content": response["message"],
-                "created_at": datetime.utcnow().isoformat()
-            }).execute()
-        except Exception as e:
-            print(f"[warn] create agent_messages record failed: {e}")
-        return response
-    # Structured dispatch
+            supabase.table("agent_sessions").update({"inputs": collected_inputs, "pending_field": field}).eq("id", task_id).execute()
+        except Exception:
+            print(f"[warn] Could not persist pending_field for task_id={task_id}")
+        payload = build_payload(
+            task_id=task_id,
+            user_id=user_id,
+            agent_type="manager",
+            message={"type": "text", "content": question},
+            reason="clarification",
+            trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
+        )
+        log_agent_message(task_id, user_id, "manager", payload["message"])
+        return {"ok": True, "task_id": task_id}
+
     if msg_type == "structured":
         agent_type = parsed.get("agent_type")
         inputs = parsed.get("input", {})
-        # Persist dispatched state
         try:
             supabase.table("agent_sessions").update({"status": "dispatched", "inputs": inputs}).eq("id", task_id).execute()
         except Exception:
             print(f"Warning: failed to update session status to dispatched for task_id={task_id}")
-        spec = await route_and_validate_task(task_type_id, {"task_id": task_id, "user_id": user_id}, inputs)
-        response = {
-            "ok": True,
-            "task_id": task_id,
-            "agent_type": agent_type,
-            "output_type": spec.get("output_type"),
-            "message": { "type": "structured", "output_type": spec.get("output_type"), "data": spec.get("validated_output") },
-            "trace": spec.get("trace", [])
-        }
-        # Persist message for chat UI
-        try:
-            from datetime import datetime
-            supabase.table("agent_messages").insert({
-                "task_id": task_id,
-                "user_id": user_id,
-                "agent_type": agent_type,
-                "message_type": response["output_type"],
-                "message_content": response["message"],
-                "created_at": datetime.utcnow().isoformat()
-            }).execute()
-        except Exception as e:
-            print(f"[warn] create agent_messages record failed: {e}")
-        return response
-    # Fallback unstructured
-    response = {
-        "ok": True,
-        "task_id": task_id,
-        "agent_type": "manager",
-        "output_type": "text",
-        "message": { "type": "text", "content": raw },
-        "trace": result.to_debug_dict() if hasattr(result, "to_debug_dict") else []
-    }
-    # Persist message for chat UI
-    try:
-        from datetime import datetime
-        supabase.table("agent_messages").insert({
-            "task_id": task_id,
-            "user_id": user_id,
-            "agent_type": "manager",
-            "message_type": response["output_type"],
-            "message_content": response["message"],
-            "created_at": datetime.utcnow().isoformat()
-        }).execute()
-    except Exception as e:
-        print(f"[warn] create agent_messages record failed: {e}")
-    return response
 
+        spec_result = await route_and_validate_task(task_type_id, {"task_id": task_id, "user_id": user_id}, inputs)
+        output_type = spec_result.get("output_type")
+        validated_data = spec_result.get("validated_output")
+        final_payload = build_payload(
+            task_id=task_id,
+            user_id=user_id,
+            agent_type=agent_type,
+            message={"type": "structured", "output_type": output_type, "data": validated_data},
+            reason="completion",
+            trace=spec_result.get("trace", []),
+        )
+        log_agent_message(task_id, user_id, agent_type, final_payload["message"])
+        try:
+            supabase.table("agent_sessions").update({"status": "completed"}).eq("id", task_id).execute()
+        except Exception:
+            print(f"Warning: failed to update session status to completed for task_id={task_id}")
+        return {"ok": True, "task_id": task_id}
+
+    fallback_payload = build_payload(
+        task_id=task_id,
+        user_id=user_id,
+        agent_type="manager",
+        message={"type": "text", "content": raw},
+        reason="unstructured",
+        trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
+    )
+    log_agent_message(task_id, user_id, "manager", fallback_payload["message"])
+    return {"ok": True, "task_id": task_id}
 
 async def run_agent_direct(req: Request):
     data = await req.json()
@@ -233,29 +184,27 @@ async def run_agent_direct(req: Request):
         task_id = create_task_and_session(user_id, agent.name)
 
     prompt = data.get("prompt") or data.get("message") or ""
-    context = {
-        "task_id": task_id,
-        "user_id": user_id,
-        "profile_data": data.get("profile_data")
-    }
+    context = {"task_id": task_id, "user_id": user_id, "profile_data": data.get("profile_data")}
 
     result = await Runner.run(agent, input=prompt, context=context, max_turns=12)
     raw = result.final_output.strip()
-    # Attempt parse
+
     try:
         content = json.loads(raw)
-        output_type = "structured"
-        message = { "type": "structured", "content": content }
+        reason = "Agent returned structured JSON"
+        msg = {"type": "structured", "content": content}
     except json.JSONDecodeError:
-        output_type = "text"
-        message = { "type": "text", "content": raw }
+        reason = "Agent returned unstructured output"
+        msg = {"type": "text", "content": raw}
+
     trace = result.to_debug_dict() if hasattr(result, "to_debug_dict") else []
-    # Return inline response
-    return {
-        "ok": True,
-        "task_id": task_id,
-        "agent_type": agent.name,
-        "output_type": output_type,
-        "message": message,
-        "trace": trace
-    }
+    payload = build_payload(
+        task_id=task_id,
+        user_id=user_id,
+        agent_type=agent.name,
+        message=msg,
+        reason=reason,
+        trace=trace,
+    )
+    log_agent_message(task_id, user_id, agent.name, msg)
+    return {"ok": True, "task_id": task_id}
