@@ -9,13 +9,15 @@ import json
 from agents import Runner
 # Orchestrator for manager flows
 from .agent_tasks.manager_agent import manager
-# Specialist agents registry
+"""Specialist agents registry"""
 from .agent_tasks.strategy_agent import strategy
 from .agent_tasks.content_agent import content
 from .agent_tasks.feedback_agent import feedback
 from .agent_tasks.repurpose_agent import repurpose
-from .agent_tasks.profile_analyzer_agent import profile_analyzer
-from .agent_tasks.competitor_agent import competitor
+# Profile Analyzer agent exports as profile_analyzer_agent
+from .agent_tasks.profile_analyzer_agent import profile_analyzer_agent as profile_analyzer
+# Competitor agent exports as competitor_agent
+from .agent_tasks.competitor_agent import competitor_agent as competitor
 
 AGENT_REGISTRY = {
     "strategy": strategy,
