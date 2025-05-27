@@ -22,7 +22,7 @@ export function TaskForm({ onSubmit, disabled }: TaskFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim()) return;
-    onSubmit(input);
+    onSubmit?.(input);
     setInput("");
   }
 
