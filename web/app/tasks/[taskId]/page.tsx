@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+// Removed local clarification state and handlers; ChatPane now manages replies internally
 import { useTaskTypes } from "@/hooks/useTaskTypes";
 import { TaskForm } from "@/components/TaskForm";
 import { ChatPane } from "@/components/ChatPane";
@@ -40,7 +41,7 @@ export default function Page({ params }: { params: any }) {
         <h1 className="text-xl font-semibold mb-4">{task.title}</h1>
         <Card>
           {sessionId ? (
-            // Chat view for ongoing manager session
+            // Chat view for ongoing manager session with clarification support
             <ChatPane taskId={sessionId} />
           ) : (
             // Initial form to collect inputs

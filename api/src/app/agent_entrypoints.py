@@ -113,6 +113,14 @@ async def run_agent(req: Request):
     if msg_type == "clarification":
         field = parsed.get("field")
         question = parsed.get("message")
+        # Persist current state with pending clarification field
+        try:
+            supabase.table("agent_sessions").update({
+                "inputs": collected_inputs,
+                "pending_field": field
+            }).eq("id", task_id).execute()
+        except Exception:
+            print(f"[warn] Could not persist pending_field for task_id={task_id}")
         payload = build_payload(
             task_id=task_id,
             user_id=user_id,
@@ -122,7 +130,7 @@ async def run_agent(req: Request):
             trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
         )
         await send_webhook(flatten_payload(payload))
-        return {"ok": True, "task_id": task_id}
+        return {"ok": True}
 
     # 3b) All inputs gathered: dispatch to specialist
     if msg_type == "structured":
