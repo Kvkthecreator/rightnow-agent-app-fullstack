@@ -27,19 +27,21 @@ AGENT_REGISTRY = {
     "profile_analyzer": profile_analyzer,
     "competitor": competitor,
 }
+
 from .agent_tasks.middleware.task_router import route_and_validate_task
 from .agent_tasks.middleware.output_utils import build_payload, flatten_payload
 from .util.task_utils import create_task_and_session
 from .util.webhook import send_webhook
 
+# Webhook targets
+from .constants import CLARIFICATION_WEBHOOK_URL, STRUCTURED_WEBHOOK_URL
+
 async def run_agent(req: Request):
     data = await req.json()
-    # normalize prompt
     prompt = data.get("prompt") or data.get("user_prompt") or data.get("message")
     if not prompt:
         raise HTTPException(422, "Missing 'prompt' field")
 
-    # Extract required identifiers
     task_type_id = data.get("task_type_id")
     if not task_type_id:
         raise HTTPException(422, "Missing 'task_type_id'")
@@ -47,9 +49,8 @@ async def run_agent(req: Request):
     user_id = data.get("user_id")
     if not user_id:
         raise HTTPException(422, "Missing 'user_id'")
-    # Extract collected inputs for iterative flow
     collected_inputs = data.get("collected_inputs", {}) or {}
-    # Create a new manager session if missing, persisting initial inputs and status
+
     if not task_id:
         task_id = create_task_and_session(
             user_id,
@@ -60,18 +61,16 @@ async def run_agent(req: Request):
                 "status": "clarifying",
             },
         )
-    # Track missing vs provided fields and persist inputs
+
     from .agent_tasks.registry import get_missing_fields
     from .util.supabase_helpers import supabase
-    # Determine which fields still missing
+
     missing_fields = get_missing_fields(task_type_id, collected_inputs)
-    # Persist current inputs state to Supabase
     try:
         supabase.table("agent_sessions").update({"inputs": collected_inputs}).eq("id", task_id).execute()
     except Exception:
-        # Log but don't fail the flow
         print(f"Warning: failed to persist inputs for task_id={task_id}")
-    # Send system message with input status
+
     status_payload = build_payload(
         task_id=task_id,
         user_id=user_id,
@@ -80,9 +79,8 @@ async def run_agent(req: Request):
         reason="input_status",
         trace=[],
     )
-    await send_webhook(flatten_payload(status_payload))
+    await send_webhook(CLARIFICATION_WEBHOOK_URL, flatten_payload(status_payload))
 
-    # 1) Run Manager agent to decide next action
     try:
         result = await Runner.run(
             manager,
@@ -96,43 +94,37 @@ async def run_agent(req: Request):
             max_turns=12,
         )
     except Exception:
-        # Parsing or runner error: ask user to rephrase
         fallback = build_payload(
             task_id=task_id,
             user_id=user_id,
             agent_type="manager",
-            message={"type": "text", "content":
-                     "Sorry, I couldn’t process your request—could you rephrase?"},
+            message={"type": "text", "content": "Sorry, I couldn’t process your request—could you rephrase?"},
             reason="parse_error",
             trace=[],
         )
-        await send_webhook(flatten_payload(fallback))
+        await send_webhook(CLARIFICATION_WEBHOOK_URL, flatten_payload(fallback))
         return {"ok": True, "task_id": task_id}
 
     raw = result.final_output.strip()
-    # 2) Parse manager output
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        # Malformed JSON: ask user to rephrase
         fallback = build_payload(
             task_id=task_id,
             user_id=user_id,
             agent_type="manager",
-            message={"type": "text", "content":
-                     "Sorry, I couldn’t process your request—could you rephrase?"},
+            message={"type": "text", "content": "Sorry, I couldn’t process your request—could you rephrase?"},
             reason="parse_error",
             trace=[],
         )
-        await send_webhook(flatten_payload(fallback))
+        await send_webhook(CLARIFICATION_WEBHOOK_URL, flatten_payload(fallback))
         return {"ok": True}
 
     msg_type = parsed.get("type")
-    # 3a) Clarification requested
+
     if msg_type == "clarification":
         field = parsed.get("field")
         question = parsed.get("message")
-        # Persist current state with pending clarification field
         try:
             supabase.table("agent_sessions").update({
                 "inputs": collected_inputs,
@@ -148,20 +140,17 @@ async def run_agent(req: Request):
             reason="clarification",
             trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
         )
-        await send_webhook(flatten_payload(payload))
+        await send_webhook(CLARIFICATION_WEBHOOK_URL, flatten_payload(payload))
         return {"ok": True}
 
-    # 3b) All inputs gathered: dispatch to specialist
     if msg_type == "structured":
         agent_type = parsed.get("agent_type")
         inputs = parsed.get("input", {})
-        # Update session status to 'dispatched' and persist final inputs
-        from .util.supabase_helpers import supabase
         try:
             supabase.table("agent_sessions").update({"status": "dispatched", "inputs": inputs}).eq("id", task_id).execute()
         except Exception:
             print(f"Warning: failed to update session status to dispatched for task_id={task_id}")
-        # Route to specialist via existing router and validate output
+
         spec_result = await route_and_validate_task(
             task_type_id, {"task_id": task_id, "user_id": user_id}, inputs
         )
@@ -175,15 +164,13 @@ async def run_agent(req: Request):
             reason="completion",
             trace=spec_result.get("trace", []),
         )
-        await send_webhook(flatten_payload(final_payload))
-        # Mark session as completed
+        await send_webhook(STRUCTURED_WEBHOOK_URL, flatten_payload(final_payload))
         try:
             supabase.table("agent_sessions").update({"status": "completed"}).eq("id", task_id).execute()
         except Exception:
             print(f"Warning: failed to update session status to completed for task_id={task_id}")
         return {"ok": True, "task_id": task_id}
 
-    # 3c) Fallback: send raw text
     fallback_payload = build_payload(
         task_id=task_id,
         user_id=user_id,
@@ -192,8 +179,9 @@ async def run_agent(req: Request):
         reason="unstructured",
         trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
     )
-    await send_webhook(flatten_payload(fallback_payload))
+    await send_webhook(CLARIFICATION_WEBHOOK_URL, flatten_payload(fallback_payload))
     return {"ok": True, "task_id": task_id}
+
 
 async def run_agent_direct(req: Request):
     data = await req.json()
@@ -238,5 +226,5 @@ async def run_agent_direct(req: Request):
         reason=reason,
         trace=trace
     )
-    await send_webhook(flatten_payload(payload))
+    await send_webhook(STRUCTURED_WEBHOOK_URL, flatten_payload(payload))
     return {"ok": True}
