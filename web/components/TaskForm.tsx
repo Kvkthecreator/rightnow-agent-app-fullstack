@@ -4,8 +4,16 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
 interface TaskFormProps {
-  onSubmit: (input: string) => void;
+  onSubmit?: (input: string) => void;
   disabled?: boolean;
+  /** Task type identifier (optional) */
+  taskTypeId?: string;
+  /** Dynamic input field definitions (optional) */
+  inputFields?: any;
+  /** Callback when a new session is created (optional) */
+  onSessionCreated?: (sid: string) => void;
+  /** Callback when task run returns a result (optional) */
+  onResult?: (res: any) => void;
 }
 
 export function TaskForm({ onSubmit, disabled }: TaskFormProps) {
