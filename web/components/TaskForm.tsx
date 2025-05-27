@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/lib/useAuth";
 
 interface TaskFormProps {
   taskTypeId: string;
@@ -16,6 +17,7 @@ export function TaskForm({
   onSessionCreated,
   onResult,
 }: TaskFormProps) {
+  const { user } = useAuth();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,24 +27,30 @@ export function TaskForm({
     if (!prompt) return;
 
     setLoading(true);
+    if (!user?.id) {
+      console.warn("Missing user_id");
+      setLoading(false);
+      return;
+    }
     try {
+      const payload = {
+        prompt,
+        task_type_id: taskTypeId,
+        user_id: user.id,
+        collected_inputs: {},
+      };
+      console.log("[📤 sending to /api/agent]", payload);
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          task_type_id: taskTypeId,
-          collected_inputs: {},
-        }),
+        body: JSON.stringify(payload),
       });
-      const json = await res.json();
-      const taskId = json.task_id;
-
-      if (onSessionCreated && taskId) {
-        onSessionCreated(taskId); // ✅ triggers ChatPane
-      } else if (onResult) {
-        onResult(json); // fallback
+      const result = await res.json();
+      console.log("[✅ response from backend]", result);
+      if (!res.ok) {
+        console.warn("[⚠️ API error]", result);
       }
+      // TODO: Add response to message list, handle session or direct result
     } catch (err) {
       console.error("TaskForm error:", err);
       alert("Failed to start agent task.");

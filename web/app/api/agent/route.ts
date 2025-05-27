@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   // Read raw body
   const body = await request.text();
+  // Logging incoming proxy request
+  console.log("[🔀 proxy /api/agent] Incoming request body:", body);
   // Forward auth headers and cookies
   const headers: HeadersInit = { "Content-Type": "application/json" };
   const auth = request.headers.get("authorization");
@@ -21,6 +23,10 @@ export async function POST(request: NextRequest) {
     body,
     cache: "no-store",
   });
+  // Log upstream response status
+  console.log("[🔀 proxy /api/agent] Upstream response status:", res.status);
   const data = await res.json();
+  // Log upstream response body
+  console.log("[🔀 proxy /api/agent] Upstream response body:", data);
   return NextResponse.json(data, { status: res.status });
 }
