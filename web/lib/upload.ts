@@ -8,50 +8,37 @@ import { createClient } from "@/lib/supabaseClient";
  * @param id - Unique ID to scope this file (e.g., taskBrief.id or user.id)
  * @param options - Optional settings for visibility and filename override
  */
+/**
+ * Uploads a file to Supabase Storage and returns its public URL.
+ * @param file - The file to upload
+ * @param path - Full path within the bucket, e.g. 'task_briefs/1234/image.png'
+ * @param bucket - Storage bucket name (default 'public')
+ */
 export async function uploadFile(
   file: File,
-  entity: "task_briefs" | "profile_core",
-  id: string,
-  options?: { usePrivate?: boolean; filename?: string }
+  path: string,
+  bucket: string = "public"
 ): Promise<string> {
   const supabase = createClient();
-  const bucket = options?.usePrivate ? "private" : "public";
-
-  const timestamp = Date.now();
-  const sanitized = file.name.replace(/\s+/g, "-").toLowerCase();
-  const filename = options?.filename ?? `${timestamp}-${sanitized}`;
-  const fullPath = `${entity}/${id}/${filename}`;
-
+  // Upload the file
   const { data, error } = await supabase
     .storage
     .from(bucket)
-    .upload(fullPath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-
+    .upload(path, file, { cacheControl: "3600", upsert: false });
   if (error || !data) {
     console.error("[uploadFile] Upload failed:", error);
     throw error || new Error("Upload failed");
   }
-
-  if (options?.usePrivate) {
-    const signed = await supabase
-      .storage
-      .from(bucket)
-      .createSignedUrl(fullPath, 60 * 60); // 1hr signed URL
-    if (!signed.data?.signedUrl) throw new Error("Signed URL generation failed");
-    return signed.data.signedUrl;
-  }
-
-  const publicUrl = supabase
+  // Get the public URL
+  const { data: urlData, error: urlError } = supabase
     .storage
     .from(bucket)
-    .getPublicUrl(fullPath).data.publicUrl;
-
-  if (!publicUrl) throw new Error("Failed to retrieve public URL");
-
-  return publicUrl;
+    .getPublicUrl(data.path);
+  if (urlError || !urlData?.publicUrl) {
+    console.error("[uploadFile] getPublicUrl error:", urlError);
+    throw urlError || new Error("Failed to retrieve public URL");
+  }
+  return urlData.publicUrl;
 }
 
 /**

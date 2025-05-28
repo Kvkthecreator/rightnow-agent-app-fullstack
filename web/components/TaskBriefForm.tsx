@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
 // Removed TextareaField in favor of native <textarea>
 import { Button } from "@/components/ui/Button";
-import UploadButton from "@/components/ui/UploadButton";
+import { TaskBriefUploadButton } from "@/components/ui/TaskBriefUploadButton";
 import { Card } from "@/components/ui/Card";
 
 // TaskBrief and ProfileCoreData match PRD contracts
@@ -122,8 +122,8 @@ export default function TaskBriefForm({ onCreate }: TaskBriefFormProps) {
           <label className="block text-sm font-medium text-gray-700">Media (max 5)</label>
           {media.map((item, idx) => (
             <div key={idx} className="flex gap-2 items-center">
-              <UploadButton
-                pathPrefix={`task_briefs/media`}
+              <TaskBriefUploadButton
+                pathPrefix="media"
                 onUpload={(url) => updateMedia(idx, "image_url", url)}
                 label="Upload Image"
               />
