@@ -18,6 +18,10 @@ export interface FormData {
   prior_attempts: string;
   creative_barriers: string;
   locale: string;
+  /** Brand or Company name */
+  brand_or_company: string;
+  /** Tone preferences */
+  tone_preferences: string;
   /** URL of uploaded logo */
   logo_url?: string;
 }

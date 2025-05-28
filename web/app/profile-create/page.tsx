@@ -52,7 +52,7 @@ export default function ProfileCreatePage() {
     async function loadProfile() {
       if (!session || !session.user) return;
       const { data, error } = await supabase
-        .from("profiles")
+        .from("profile_core_data")
         .select("*")
         .eq("user_id", session.user.id)
         .maybeSingle();
@@ -139,28 +139,23 @@ export default function ProfileCreatePage() {
     setError(undefined);
     try {
       // Upsert profile for single user
+      // Align payload with profile_core_data schema
       const payload = {
         user_id: session.user.id,
         display_name: formData.display_name,
-        sns_handle: formData.sns_handle,
-        primary_sns_channel: formData.primary_sns_channel,
-        platforms: formData.platforms.split(",").map((s) => s.trim()),
-        follower_count: parseInt(formData.follower_count, 10) || 0,
+        brand_or_company: formData.brand_or_company,
+        sns_links: {
+          primary: formData.primary_sns_channel,
+          handle: formData.sns_handle,
+          others: formData.platforms.split(",").map((s) => s.trim()),
+        },
+        tone_preferences: formData.tone_preferences,
         locale: formData.locale,
-        niche: formData.niche,
-        audience_goal: formData.audience_goal,
-        monetization_goal: formData.monetization_goal,
-        primary_objective: formData.primary_objective,
-        content_frequency: formData.content_frequency,
-        tone_keywords: formData.tone_keywords.split(",").map((s) => s.trim()),
-        favorite_brands: formData.favorite_brands.split(",").map((s) => s.trim()),
-        prior_attempts: formData.prior_attempts,
-        creative_barriers: formData.creative_barriers,
         logo_url: formData.logo_url,
       };
       // Upsert profile and retrieve the saved row
       const { data: upserted, error: upsertError } = await supabase
-        .from("profiles")
+        .from("profile_core_data")
         .upsert(payload, { onConflict: "user_id" })
         .select()
         .single();
@@ -234,7 +229,7 @@ export default function ProfileCreatePage() {
   };
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="max-w-md w-full mx-auto px-4 py-6">
       {/* Progress stepper showing current step */}
       <ProgressStepper
         current={step}

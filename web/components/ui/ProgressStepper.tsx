@@ -15,7 +15,7 @@ export interface ProgressStepperProps {
  */
 export function ProgressStepper({ current, steps }: ProgressStepperProps) {
   return (
-    <div className="flex flex-col md:flex-row items-center w-full">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
       {steps.map((label, idx) => (
         <React.Fragment key={idx}>
           <div className="flex flex-col items-center">

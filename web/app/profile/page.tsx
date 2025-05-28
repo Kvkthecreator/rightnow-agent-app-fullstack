@@ -1,12 +1,24 @@
-"use client";
-import React, { useState, useEffect } from "react";
-import { useSupabaseClient, useSessionContext } from "@supabase/auth-helpers-react";
-import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/Card";
-// import { Input } from "@/components/ui/Input"; (unused)
-import { InputInline } from "@/components/InputInline";
-import { TextareaInline } from "@/components/TextareaInline";
-import { Button } from "@/components/ui/Button";
+import { getSupabaseAdmin } from "@/lib/supabaseServerClient";
+import { redirect } from "next/navigation";
+
+export default async function ProfilePage() {
+  const supabase = getSupabaseAdmin();
+  const { data: profile, error } = await supabase
+    .from("profile_core_data")
+    .select("*")
+    .single();
+
+  if (error || !profile) {
+    redirect('/profile/create');
+  }
+
+  return (
+    <div className="max-w-xl mx-auto p-6">
+      <h1 className="text-2xl font-semibold mb-4">Your Profile</h1>
+      <pre className="bg-white p-4 rounded shadow">{JSON.stringify(profile, null, 2)}</pre>
+    </div>
+  );
+}
 
 type Profile = {
   id: string;
