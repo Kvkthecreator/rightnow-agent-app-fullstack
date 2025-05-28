@@ -10,7 +10,6 @@ from typing import Dict
 from fastapi import APIRouter, Request, HTTPException
 
 from ..util.supabase_helpers import get_collected_fields
-from ..util.webhook import send_webhook
 from ..util.task_utils import create_task_and_session
 
 router = APIRouter()
