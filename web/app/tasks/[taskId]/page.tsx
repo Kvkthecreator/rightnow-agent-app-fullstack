@@ -1,6 +1,7 @@
 "use client";
 // PRD-aligned AgentMessage type
-import type { AgentMessage } from "@/codex/PRD/frontend_contracts/task_contract";
+import type { AgentMessage } from "@/lib/types";
+
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -11,7 +12,6 @@ import DashboardLayout from "@/app/dashboard/layout";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabaseClient";
 
-import type { AgentMessage } from "@/codex/PRD/frontend_contracts/task_contract";
 
 export default function Page({ params }: { params: any }) {
   const router = useRouter();

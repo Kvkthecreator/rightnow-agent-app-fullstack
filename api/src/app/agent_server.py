@@ -75,10 +75,10 @@ app.post("/agent/direct")(run_agent_direct)
 # Mount task-type routes and other agent task routers
 app.include_router(profilebuilder_router)
 app.include_router(profile_analyzer_router)
-    # Mount task-types routes
-    app.include_router(task_types_router)
-    # Mount task-brief routes
-    app.include_router(task_brief_router)
+# Mount task-types routes
+app.include_router(task_types_router)
+# Mount task-brief routes
+app.include_router(task_brief_router)
 
 
 
