@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
-import { TextareaField } from "@/components/ui/TextareaField";
+// Removed TextareaField in favor of native <textarea>
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 
@@ -100,19 +100,21 @@ export default function TaskBriefForm({ onCreate }: TaskBriefFormProps) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <section>
           <label className="block text-sm font-medium text-gray-700">Intent</label>
-          <TextareaField
+          <textarea
             value={intent}
             onChange={(e) => setIntent(e.target.value)}
             placeholder="Describe your task goal"
             required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
           />
         </section>
         <section>
           <label className="block text-sm font-medium text-gray-700">Sub instructions</label>
-          <TextareaField
+          <textarea
             value={subInstructions}
             onChange={(e) => setSubInstructions(e.target.value)}
             placeholder="Optional additional instructions"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
           />
         </section>
         <section>
