@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, Menu, Clipboard } from "lucide-react";
+import { Home, User, Menu, Clipboard, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import UserNav from "@/components/UserNav";
@@ -13,9 +13,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { title: "Dashboard", href: "/dashboard", icon: Home },
-  { title: "Tasks",     href: "/tasks",     icon: Clipboard },
-  { title: "Profile",   href: "/profile",   icon: User },
+  { title: "Dashboard",   href: "/dashboard",        icon: Home },
+  { title: "Task Briefs", href: "/task-brief/create", icon: FileText },
+  { title: "Tasks",       href: "/tasks",            icon: Clipboard },
+  { title: "Profile",     href: "/profile",          icon: User },
 ];
 
 interface SidebarNavProps {

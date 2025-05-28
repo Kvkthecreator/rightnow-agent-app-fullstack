@@ -43,6 +43,7 @@ from .util.normalize_output import normalize_output
 # Task routing for execution
 from .agent_tasks.middleware.task_router import route_and_validate_task
 from .routes.task_types import router as task_types_router
+from .routes.task_brief import router as task_brief_router
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
@@ -74,8 +75,10 @@ app.post("/agent/direct")(run_agent_direct)
 # Mount task-type routes and other agent task routers
 app.include_router(profilebuilder_router)
 app.include_router(profile_analyzer_router)
-# Mount task-types routes
-app.include_router(task_types_router)
+    # Mount task-types routes
+    app.include_router(task_types_router)
+    # Mount task-brief routes
+    app.include_router(task_brief_router)
 
 
 
