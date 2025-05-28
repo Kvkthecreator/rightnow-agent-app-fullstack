@@ -49,10 +49,10 @@ export default function SidebarNav({ collapsed = false, onCollapseToggle }: Side
               <Menu className="h-5 w-5" />
             </Button>
           )}
-          <div className="border-r border-border h-6 px-2" />
+          <div className="w-full py-4 px-5 flex justify-between items-center bg-white" />
           {!collapsed && (
-            <Link href="/" className="text-lg font-bold">
-              rgtNOW
+            <Link href="/" className="text-black hover:text-black/80 transition-colors">
+              rightNOW
             </Link>
           )}
         </div>
