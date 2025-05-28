@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import UploadButton from "@/components/ui/UploadButton";
 import { FormData } from "../types";
 
 interface ProfileBasicsProps {
@@ -80,6 +81,17 @@ export default function ProfileBasics({ formData, onChange }: ProfileBasicsProps
           className="mt-1 block w-full border rounded p-2"
           placeholder="en-US"
         />
+      </div>
+      <div>
+        <label className="block text-sm font-medium">Logo Upload</label>
+        <UploadButton
+          pathPrefix="profile/logos"
+          label="Upload Logo"
+          onUpload={(url) => onChange({ target: { name: 'logo_url', value: url } } as any)}
+        />
+        {formData.logo_url && (
+          <img src={formData.logo_url} alt="Logo" className="h-16 mt-2" />
+        )}
       </div>
     </div>
   );

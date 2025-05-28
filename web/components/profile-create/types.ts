@@ -18,4 +18,6 @@ export interface FormData {
   prior_attempts: string;
   creative_barriers: string;
   locale: string;
+  /** URL of uploaded logo */
+  logo_url?: string;
 }

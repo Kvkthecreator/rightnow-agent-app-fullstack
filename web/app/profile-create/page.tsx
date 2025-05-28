@@ -156,6 +156,7 @@ export default function ProfileCreatePage() {
         favorite_brands: formData.favorite_brands.split(",").map((s) => s.trim()),
         prior_attempts: formData.prior_attempts,
         creative_barriers: formData.creative_barriers,
+        logo_url: formData.logo_url,
       };
       // Upsert profile and retrieve the saved row
       const { data: upserted, error: upsertError } = await supabase
