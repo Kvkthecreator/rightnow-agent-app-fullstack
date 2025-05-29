@@ -20,7 +20,7 @@ export function ProfileUploadButton({
     try {
       const filename = `${Date.now()}-${file.name}`;
       const path = `${prefix}/${filename}`;
-      const url = await uploadFile(file, path, "profile_core");
+      const url = await uploadFile(file, path, "task-media");
       onUpload(url);
     } catch (err) {
       console.error("Upload error", err);

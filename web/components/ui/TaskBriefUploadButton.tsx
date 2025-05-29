@@ -20,7 +20,8 @@ export function TaskBriefUploadButton({
 
     try {
       const filename = `${Date.now()}-${file.name}`;
-      const url = await uploadFile(file, "task_briefs", `${pathPrefix}/${filename}`);
+      const path = `${pathPrefix}/${filename}`;
+      const url = await uploadFile(file, path, "task-media");
       onUpload(url);
     } catch (err) {
       console.error("Upload error:", err);
