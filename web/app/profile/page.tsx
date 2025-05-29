@@ -44,7 +44,7 @@ export default function ProfilePage() {
         .eq("user_id", session.user.id)
         .single();
       if (error || !data) {
-        router.replace("/profile/create");
+        router.replace("/profile-create");
         return;
       }
       setProfile(data);

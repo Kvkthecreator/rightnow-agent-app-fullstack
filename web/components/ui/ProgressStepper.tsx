@@ -15,10 +15,10 @@ export interface ProgressStepperProps {
  */
 export function ProgressStepper({ current, steps }: ProgressStepperProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-around gap-4 w-full max-w-2xl mx-auto px-4">
       {steps.map((label, idx) => (
         <React.Fragment key={idx}>
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center flex-shrink-0 min-w-[80px]">
             <div
               className={cn(
                 "w-8 h-8 flex items-center justify-center rounded-full border transition-colors",

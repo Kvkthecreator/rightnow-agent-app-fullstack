@@ -166,7 +166,9 @@ export default function ProfileCreatePage() {
 
   return (
     <div className="max-w-md w-full mx-auto px-4 py-6">
-      <ProgressStepper current={step} steps={["Basics", "Details", "Review"]} />
+      <div className="overflow-x-auto w-full">
+        <ProgressStepper current={step} steps={["Basics", "Details", "Review"]} />
+      </div>
       <Card className="relative space-y-6">
         {loading && <LoadingOverlay message="Generating your report..." />}
         <h1 className="text-xl font-semibold">Profile Creation</h1>

@@ -73,20 +73,8 @@ export default function ProfileBasics({ formData, onChange }: ProfileBasicsProps
         />
       </div>
       <div>
-        <label className="block text-sm font-medium">Locale</label>
-        <input
-          name="locale"
-          value={formData.locale}
-          onChange={onChange}
-          className="mt-1 block w-full border rounded p-2"
-          placeholder="en-US"
-        />
-      </div>
-      <div>
         <label className="block text-sm font-medium">Logo Upload</label>
-        <ProfileUploadButton
-          onUpload={(url) => onChange({ target: { name: 'logo_url', value: url } } as any)}
-        />
+        <ProfileUploadButton onUpload={(url) => onChange({ target: { name: "logo_url", value: url } } as any)} />
         {formData.logo_url && (
           <img src={formData.logo_url} alt="Logo" className="h-16 mt-2" />
         )}

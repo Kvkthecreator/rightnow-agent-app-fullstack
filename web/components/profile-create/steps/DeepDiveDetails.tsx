@@ -37,18 +37,6 @@ export default function DeepDiveDetails({ formData, onChange }: Props) {
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-muted-foreground">
-          Logo URL (optional)
-        </label>
-        <input
-          type="text"
-          name="logo_url"
-          value={formData.logo_url}
-          onChange={onChange}
-          className="mt-1 block w-full border rounded p-2"
-        />
-      </div>
     </div>
   );
 }
