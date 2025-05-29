@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, Menu, Clipboard, FileText } from "lucide-react";
+import { Home, User, Menu, Clipboard, FileText, LibraryIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import UserNav from "@/components/UserNav";
@@ -17,6 +17,8 @@ const navItems: NavItem[] = [
   { title: "Task Briefs", href: "/task-brief/create", icon: FileText },
   { title: "Tasks",       href: "/tasks",            icon: Clipboard },
   { title: "Profile",     href: "/profile",          icon: User },
+  { title: "Library",     href: "/library",          icon: LibraryIcon}
+
 ];
 
 interface SidebarNavProps {
