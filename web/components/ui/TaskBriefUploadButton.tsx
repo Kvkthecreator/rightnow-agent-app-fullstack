@@ -12,7 +12,7 @@ export function TaskBriefUploadButton({ pathPrefix, onUpload }: TaskBriefUploadB
   return (
     <UploadArea
       prefix="task_briefs"
-      bucket="task-briefs"        // ✅ Add this line
+      bucket="task-briefs"        // required: do not change, matches Supabase config
       maxFiles={5}
       onUpload={onUpload}
       maxSizeMB={5}
