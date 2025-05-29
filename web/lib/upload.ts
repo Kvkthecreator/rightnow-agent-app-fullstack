@@ -4,10 +4,14 @@ import { createClient } from "@/lib/supabaseClient";
 /**
  * Uploads a file to Supabase Storage and returns its public URL.
  * @param file File object to upload
- * @param bucket Which Supabase bucket to use (e.g. 'task_briefs' or 'profile_core')
  * @param path Full key path inside the bucket (e.g. 'media/123456-img.png')
+ * @param bucket Supabase bucket name (e.g. 'task-media')
  */
-export async function uploadFile(file: File, bucket: string, path: string): Promise<string> {
+export async function uploadFile(
+  file: File,
+  path: string,
+  bucket: string = "task-media"
+): Promise<string> {
   const supabase = createClient();
 
   // Upload the file
@@ -24,13 +28,15 @@ export async function uploadFile(file: File, bucket: string, path: string): Prom
     throw error || new Error("File upload failed");
   }
 
-  // Get the public URL directly
-  const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
-  const publicUrl = publicData?.publicUrl;
+  // Get the public URL
+  const { data: urlData } = supabase
+    .storage
+    .from(bucket)
+    .getPublicUrl(path);
 
-  if (!publicUrl) {
+  if (!urlData?.publicUrl) {
     throw new Error("Failed to retrieve public URL");
   }
 
-  return publicUrl;
+  return urlData.publicUrl;
 }
