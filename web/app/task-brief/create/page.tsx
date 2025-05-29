@@ -1,21 +1,25 @@
+// web/app/task-brief/create/page.tsx
 "use client";
+import React, { useState } from "react";
+import { TaskBriefUploadButton } from "@/components/ui/TaskBriefUploadButton";
 
-import { useRouter } from "next/navigation";
-import React from "react";
-import { Card } from "@/components/ui/Card";
-import TaskBriefForm from "@/components/TaskBriefForm";
+export default function TaskBriefCreatePage() {
+  const [imageUrl, setImageUrl] = useState<string>("");
 
-export default function CreateTaskBriefPage() {
-  const router = useRouter();
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-semibold mb-4">New Task Brief</h1>
-      <TaskBriefForm
-        onCreate={(brief) => {
-          // Redirect to task execution
-          router.push(`/tasks/${brief.id}`);
-        }}
+    <div className="max-w-xl mx-auto p-6 space-y-6">
+      <h1 className="text-xl font-bold">Create Task Brief</h1>
+      <TaskBriefUploadButton
+        pathPrefix="briefs"
+        onUpload={(url) => setImageUrl(url)}
+        label="Upload Reference Image"
       />
+      {imageUrl && (
+        <div className="mt-4">
+          <p className="text-sm text-muted-foreground mb-1">Uploaded Image:</p>
+          <img src={imageUrl} alt="Uploaded" className="rounded border max-w-full h-auto" />
+        </div>
+      )}
     </div>
   );
 }

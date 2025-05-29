@@ -1,45 +1,31 @@
 // web/components/ui/ProfileUploadButton.tsx
 "use client";
+import React from "react";
+import { UploadArea } from "@/components/ui/UploadArea";
 
-import { uploadFile } from "@/lib/upload";
-import { Button } from "./Button";
+interface ProfileUploadButtonProps {
+  onUpload: (url: string) => void;
+  label?: string;
+}
 
 export function ProfileUploadButton({
   onUpload,
-  prefix = "profile_core",
-}: {
-  onUpload: (url: string) => void;
-  prefix?: string;
-}) {
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-
-    if (!file) return;
-
-    try {
-      const filename = `${Date.now()}-${file.name}`;
-      const path = `${prefix}/${filename}`;
-      const url = await uploadFile(file, path, "task-media");
-      onUpload(url);
-    } catch (err) {
-      console.error("Upload error", err);
-      alert("Upload failed");
-    }
-  };
-
+  label = "Upload Logo",
+}: ProfileUploadButtonProps) {
   return (
-    <div>
-      <input
-        type="file"
-        onChange={handleFileChange}
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <UploadArea
+        prefix="profile_core"
+        maxFiles={1}
+        onUpload={onUpload}
+        maxSizeMB={5}
         accept="image/*"
-        className="hidden"
-        id="profile-logo-input"
+        preview
+        removable
+        showProgress
+        enableDrop
       />
-      <label htmlFor="profile-logo-input">
-        <Button variant="outline">Upload Logo</Button>
-      </label>
     </div>
   );
 }

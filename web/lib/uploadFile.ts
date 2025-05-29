@@ -1,11 +1,9 @@
-// web/lib/upload.ts
+// web/lib/uploadFile.ts
 import { createClient } from "@/lib/supabaseClient";
 
 /**
  * Uploads a file to Supabase Storage and returns its public URL.
- * @param file File object to upload
- * @param path Full key path inside the bucket (e.g. 'media/123456-img.png')
- * @param bucket Supabase bucket name (e.g. 'task-media')
+ * Validates file type, size, and allowed extensions.
  */
 export async function uploadFile(
   file: File,
@@ -13,6 +11,16 @@ export async function uploadFile(
   bucket: string = "task-media"
 ): Promise<string> {
   const supabase = createClient();
+
+  // Validate file type and size
+  const maxSizeMB = 2;
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error("Only JPG, PNG, GIF, or WEBP images are allowed.");
+  }
+  if (file.size > maxSizeMB * 1024 * 1024) {
+    throw new Error("File size must be under 2MB.");
+  }
 
   // Upload the file
   const { data, error } = await supabase.storage
@@ -28,11 +36,7 @@ export async function uploadFile(
   }
 
   // Get the public URL
-  const { data: urlData } = supabase
-    .storage
-    .from(bucket)
-    .getPublicUrl(path);
-
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
   if (!urlData?.publicUrl) {
     throw new Error("Failed to retrieve public URL");
   }
