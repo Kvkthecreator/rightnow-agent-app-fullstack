@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-// Removed TextareaField (RHF) in favor of native <textarea>
-import { TaskBriefUploadButton } from "@/components/ui/TaskBriefUploadButton";
-import { Button } from "@/components/ui/Button";
 import { useUser } from "@supabase/auth-helpers-react";
 import { useRouter } from "next/navigation";
-// Use built-in crypto for UUID generation
+import { Button } from "@/components/ui/Button";
+import { UploadArea } from "@/components/ui/UploadArea";
 
 export default function TaskBriefCreatePage() {
   const user = useUser();
@@ -16,10 +14,6 @@ export default function TaskBriefCreatePage() {
   const [subInstructions, setSubInstructions] = useState("");
   const [media, setMedia] = useState<string[]>([]);
 
-  const handleAddFile = (url: string) => {
-    setMedia((prev) => [...prev, url]);
-  };
-
   const handleSubmit = async () => {
     if (!intent.trim()) {
       alert("Intent is required.");
@@ -27,7 +21,7 @@ export default function TaskBriefCreatePage() {
     }
 
     const brief = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       user_id: user?.id || "",
       intent,
       sub_instructions: subInstructions || "",
@@ -36,10 +30,8 @@ export default function TaskBriefCreatePage() {
     };
 
     console.log("[DEBUG] Brief to submit:", brief);
-
-    // TODO: Replace with actual Supabase insert logic or API call
     alert("Brief created (check console for payload)");
-    router.push("/task-briefs"); // optional route after creation
+    router.push("/task-briefs");
   };
 
   return (
@@ -57,6 +49,7 @@ export default function TaskBriefCreatePage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
           />
         </section>
+
         <section>
           <label className="block text-sm font-medium text-gray-700">Sub instructions</label>
           <textarea
@@ -66,23 +59,28 @@ export default function TaskBriefCreatePage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
           />
         </section>
-        <div>
-          <TaskBriefUploadButton
-            pathPrefix="briefs"
-            onUpload={handleAddFile}
-            label="Media (max 5)"
+
+        <section>
+          <label className="block text-sm font-medium text-gray-700">Media (max 5)</label>
+          <UploadArea
+            prefix="task_briefs"
+            maxFiles={5}
+            maxSizeMB={5}
+            onUpload={(url) => setMedia((prev) => [...prev, url])}
+            preview
+            removable
+            accept="*/*"
+            showProgress
+            enableDrop
+            showPreviewGrid
+            internalDragState
+            dragStyle={{
+              base: "border-2 border-dashed border-gray-300 p-4 rounded-md text-center transition",
+              active: "border-primary bg-muted",
+              reject: "border-destructive text-destructive-foreground bg-muted/50",
+            }}
           />
-          {media.length > 0 && (
-            <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-              <p>Uploaded Files:</p>
-              <ul className="list-disc list-inside">
-                {media.map((url, i) => (
-                  <li key={i}>{url}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+        </section>
       </div>
 
       <Button className="mt-6" onClick={handleSubmit}>
