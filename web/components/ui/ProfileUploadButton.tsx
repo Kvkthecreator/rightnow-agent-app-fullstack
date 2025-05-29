@@ -17,6 +17,7 @@ export function ProfileUploadButton({
       <label className="block text-sm font-medium text-gray-700">{label}</label>
       <UploadArea
         prefix="profile_core"
+        bucket="profile-core"
         maxFiles={1}
         onUpload={onUpload}
         maxSizeMB={5}

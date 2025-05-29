@@ -1,10 +1,14 @@
-// web/components/ui/UploadArea.tsx
+// UploadArea: drag/drop & click-to-upload area with preview, progress, and removal support
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { uploadFile } from "@/lib/uploadFile";
+import { cn } from "@/lib/utils";
 
-interface UploadAreaProps {
+export interface UploadAreaProps {
+  /** Storage path prefix (folder) within the bucket */
   prefix: string;
+  /** Optional Supabase storage bucket name (default: "task-media") */
+  bucket?: string;
   maxFiles: number;
   onUpload: (url: string) => void;
   maxSizeMB?: number;
@@ -22,78 +26,194 @@ interface UploadAreaProps {
   };
 }
 
+interface FileMeta {
+  id: string;
+  file: File;
+  progress: number;
+  status: "uploading" | "done" | "error";
+  url?: string;
+  errorMsg?: string;
+}
 
 export function UploadArea({
   prefix,
+  bucket = "task-media",
   maxFiles,
   onUpload,
   maxSizeMB = 5,
   preview = false,
   removable = false,
+  accept = "*/*",
+  showProgress = false,
+  enableDrop = false,
+  showPreviewGrid = false,
+  internalDragState = false,
+  dragStyle = {
+    base: "border-2 border-dashed border-gray-300 p-4 rounded-md text-center transition",
+    active: "border-primary bg-muted",
+    reject: "border-destructive text-destructive-foreground bg-muted/50",
+  },
 }: UploadAreaProps) {
+  const showPreview = preview || showPreviewGrid;
+  const [files, setFiles] = useState<FileMeta[]>([]);
+  const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
+  const progressIntervals = useRef<Record<string, number>>({});
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
+  useEffect(() => {
+    return () => {
+      Object.values(progressIntervals.current).forEach(clearInterval);
+    };
+  }, []);
 
-    if (file.size > maxSizeMB * 1024 * 1024) {
-      alert(`File size must be less than ${maxSizeMB}MB`);
-      return;
-    }
-
-    try {
-      const filename = `${Date.now()}-${file.name}`;
-      const url = await uploadFile(file, `${prefix}`, `${filename}`);
-      setUploadedUrls((prev) => [...prev, url]);
-      onUpload(url);
-    } catch (err) {
-      console.error("Upload failed", err);
-      alert("Upload failed");
-    }
+  const resetDrag = () => {
+    if (internalDragState) setDragActive(false);
   };
 
-  const removeImage = (url: string) => {
-    setUploadedUrls((prev) => prev.filter((u) => u !== url));
-    // NOTE: You may also want to implement server-side removal here if needed
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (enableDrop && internalDragState) setDragActive(true);
+  };
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (enableDrop && internalDragState) setDragActive(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resetDrag();
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resetDrag();
+    if (!enableDrop || !e.dataTransfer.files) return;
+    if (files.length >= maxFiles) return;
+    handleFiles(e.dataTransfer.files);
+  };
+
+  const handleFiles = (fileList: FileList) => {
+    const toUpload = Array.from(fileList).slice(0, maxFiles - files.length);
+    toUpload.forEach((file) => {
+      if (maxSizeMB && file.size > maxSizeMB * 1024 * 1024) {
+        alert(`File ${file.name} must be smaller than ${maxSizeMB}MB`);
+        return;
+      }
+      const id = `${Date.now()}-${file.name}`;
+      setFiles((prev) => [...prev, { id, file, progress: 0, status: "uploading" }]);
+      if (showProgress) {
+        const interval = window.setInterval(() => {
+          setFiles((prevFiles) =>
+            prevFiles.map((f) =>
+              f.id === id && f.status === "uploading"
+                ? { ...f, progress: Math.min(f.progress + Math.random() * 10, 90) }
+                : f
+            )
+          );
+        }, 500);
+        progressIntervals.current[id] = interval;
+      }
+      const filename = `${Date.now()}-${file.name}`;
+      uploadFile(file, `${prefix}/${filename}`, bucket)
+        .then((url) => {
+          if (progressIntervals.current[id]) {
+            clearInterval(progressIntervals.current[id]);
+            delete progressIntervals.current[id];
+          }
+          setFiles((prevFiles) =>
+            prevFiles.map((f) =>
+              f.id === id ? { ...f, url, progress: 100, status: "done" } : f
+            )
+          );
+          onUpload(url);
+        })
+        .catch((err: any) => {
+          if (progressIntervals.current[id]) {
+            clearInterval(progressIntervals.current[id]);
+            delete progressIntervals.current[id];
+          }
+          setFiles((prevFiles) =>
+            prevFiles.map((f) =>
+              f.id === id
+                ? { ...f, progress: 100, status: "error", errorMsg: err.message }
+                : f
+            )
+          );
+        });
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) handleFiles(e.target.files);
+    e.target.value = "";
+  };
+
+  const removeFile = (id: string) => {
+    setFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
   return (
     <div className="space-y-2">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-      />
-      <button
-        type="button"
+      <div
+        className={cn(dragStyle.base, dragActive && dragStyle.active)}
         onClick={() => inputRef.current?.click()}
-        className="inline-flex items-center px-4 py-2 border rounded text-sm font-medium bg-white text-gray-700 hover:bg-gray-50"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
-        Upload Image
-      </button>
-
-      {preview && uploadedUrls.length > 0 && (
-        <div className="space-y-2">
-          {uploadedUrls.map((url) => (
-            <div key={url} className="relative">
-              <img
-                src={url}
-                alt="preview"
-                className="max-w-xs border rounded"
-              />
-              {removable && (
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          multiple={maxFiles > 1}
+          disabled={files.length >= maxFiles}
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <p className="text-sm">Drag &amp; drop files here or click to upload</p>
+        <p className="text-xs text-muted-foreground">
+          {`(${files.length}/${maxFiles} files, max ${maxSizeMB}MB each)`}
+        </p>
+      </div>
+      {showPreview && files.length > 0 && (
+        <div className={cn(showPreviewGrid ? "grid grid-cols-3 gap-2" : "space-y-2")}>
+          {files.map((f) => (
+            <div key={f.id} className="relative">
+              {f.url && f.file.type.startsWith("image/") ? (
+                <img
+                  src={f.url}
+                  alt={f.file.name}
+                  className="w-full h-24 object-cover rounded"
+                />
+              ) : (
+                <div className="p-2 border rounded text-xs truncate">
+                  {f.file.name}
+                </div>
+              )}
+              {showProgress && (
+                <div className="mt-1 w-full bg-muted h-1 rounded overflow-hidden">
+                  <div
+                    className={cn(
+                      f.status === "error" ? "bg-destructive" : "bg-primary"
+                    )}
+                    style={{ width: `${f.progress}%` }}
+                  />
+                </div>
+              )}
+              {removable && f.status === "done" && (
                 <button
                   type="button"
-                  onClick={() => removeImage(url)}
-                  className="absolute top-1 right-1 bg-white border px-2 py-1 rounded text-xs"
+                  onClick={() => removeFile(f.id)}
+                  className="absolute top-1 right-1 bg-white border px-1 py-0.5 rounded text-xs"
                 >
-                  Remove
+                  ×
                 </button>
+              )}
+              {f.status === "error" && (
+                <p className="text-xs text-destructive">{f.errorMsg}</p>
               )}
             </div>
           ))}
