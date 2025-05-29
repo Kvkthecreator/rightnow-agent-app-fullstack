@@ -1,24 +1,17 @@
-"use client";
-import React, { TextareaHTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import React from "react";
 
-export interface TextareaInlineProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
-  className?: string;
+interface TextareaInlineProps {
+  value: string;
+  readOnly?: boolean;
 }
 
-/**
- * Inline-editable textarea: looks like text until focused,
- * then shows an underline and focus ring.
- */
-export function TextareaInline({ className, ...props }: TextareaInlineProps) {
+export const TextareaInline: React.FC<TextareaInlineProps> = ({ value, readOnly = false }) => {
   return (
     <textarea
-      {...props}
-      className={cn(
-        "bg-transparent border-0 border-b border-transparent focus:border-b focus:border-primary focus:ring-0 resize-none",
-        className
-      )}
+      value={value}
+      readOnly={readOnly}
+      rows={3}
+      className="w-full bg-transparent border-b border-muted px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
     />
   );
-}
-TextareaInline.displayName = "TextareaInline";
+};

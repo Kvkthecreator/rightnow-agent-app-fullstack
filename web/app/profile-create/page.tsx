@@ -5,97 +5,77 @@ import { Card } from "@/components/ui/Card";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
-// import StepIndicator from "@/components/profile-create/StepIndicator"; (replaced by ProgressStepper)
 import StepNav from "@/components/profile-create/StepNav";
 import ProfileBasics from "@/components/profile-create/steps/ProfileBasics";
 import DeepDiveDetails from "@/components/profile-create/steps/DeepDiveDetails";
 import ReviewProfile from "@/components/profile-create/steps/ReviewProfile";
 import { FormData } from "@/components/profile-create/types";
-
 import { ProgressStepper } from "@/components/ui/ProgressStepper";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
+
 const totalSteps = 3;
+
 export default function ProfileCreatePage() {
   const router = useRouter();
   const { session, isLoading: sessionLoading } = useSessionContext();
   const supabase = useSupabaseClient();
+
   const [step, setStep] = useState<number>(1);
   const [taskId] = useState<string>(() => crypto.randomUUID());
+
   const [formData, setFormData] = useState<FormData>({
     display_name: "",
+    brand_or_company: "",
     sns_handle: "",
     primary_sns_channel: "",
     platforms: "",
     follower_count: "",
     locale: "",
-    niche: "",
-    audience_goal: "",
-    monetization_goal: "",
-    primary_objective: "",
-    content_frequency: "",
-    tone_keywords: "",
-    favorite_brands: "",
-    prior_attempts: "",
-    creative_barriers: "",
+    tone_preferences: "",
+    logo_url: "",
   });
+
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>();
 
-
-  // Prefill form data if profile exists (edit mode)
+  // Prefill if profile exists
   useEffect(() => {
     if (sessionLoading) return;
-    if (!session || !session.user) {
-      router.replace('/login');
+    if (!session?.user) {
+      router.replace("/login");
       return;
     }
-    async function loadProfile() {
-      if (!session || !session.user) return;
+    (async () => {
       const { data, error } = await supabase
         .from("profile_core_data")
         .select("*")
         .eq("user_id", session.user.id)
         .maybeSingle();
+
       if (error) {
-        console.error("Error fetching profile for editing:", error);
+        console.error("Error loading existing profile:", error);
         return;
       }
+
       if (data) {
         setFormData({
           display_name: data.display_name || "",
-          sns_handle: data.sns_handle || "",
-          primary_sns_channel: data.primary_sns_channel || "",
-          platforms: Array.isArray(data.platforms) ? data.platforms.join(", ") : data.platforms || "",
+          brand_or_company: data.brand_or_company || "",
+          sns_handle: data.sns_links?.handle || "",
+          primary_sns_channel: data.sns_links?.primary || "",
+          platforms: Array.isArray(data.sns_links?.others)
+            ? data.sns_links.others.join(", ")
+            : "",
           follower_count: data.follower_count?.toString() || "",
           locale: data.locale || "",
-          niche: data.niche || "",
-          audience_goal: data.audience_goal || "",
-          monetization_goal: data.monetization_goal || "",
-          primary_objective: data.primary_objective || "",
-          content_frequency: data.content_frequency || "",
-          tone_keywords: Array.isArray(data.tone_keywords) ? data.tone_keywords.join(", ") : data.tone_keywords || "",
-          favorite_brands: Array.isArray(data.favorite_brands) ? data.favorite_brands.join(", ") : data.favorite_brands || "",
-          prior_attempts: data.prior_attempts || "",
-          creative_barriers: data.creative_barriers || "",
+          tone_preferences: data.tone_preferences || "",
+          logo_url: data.logo_url || "",
         });
       }
-    }
-    loadProfile();
-  }, [session, sessionLoading, supabase, router]);
-  // Redirect to login if session missing
-  if (sessionLoading) {
-    return <p>Loading...</p>;
-  }
-  if (!session || !session.user) {
-    router.replace('/login');
-    return <p>Loading...</p>;
-  }
+    })();
+  }, [session, sessionLoading]);
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -104,42 +84,21 @@ export default function ProfileCreatePage() {
   const handleBack = () => setStep((s) => Math.max(1, s - 1));
 
   const handleGenerate = async () => {
-    if (sessionLoading) {
-      setError("Checking session...");
+    if (!session?.user) {
+      setError("You must be logged in to save your profile.");
       return;
     }
-    if (!session) {
-      setError("You must be logged in to create or update your profile.");
-      return;
-    }
-    // Basic validation: ensure all fields are filled
-    const required = [
-      formData.display_name,
-      formData.sns_handle,
-      formData.primary_sns_channel,
-      formData.platforms,
-      formData.follower_count,
-      formData.locale,
-      formData.niche,
-      formData.audience_goal,
-      formData.monetization_goal,
-      formData.primary_objective,
-      formData.content_frequency,
-      formData.tone_keywords,
-      formData.favorite_brands,
-      formData.prior_attempts,
-      formData.creative_barriers,
-    ];
-    if (required.some((v) => !v || v.trim() === "")) {
+
+    const requiredFields = Object.values(formData);
+    if (requiredFields.some((v) => !v || v.trim() === "")) {
       setError("Please fill in all fields before saving your profile.");
       return;
     }
-    if (loading) return;
+
     setLoading(true);
     setError(undefined);
+
     try {
-      // Upsert profile for single user
-      // Align payload with profile_core_data schema
       const payload = {
         user_id: session.user.id,
         display_name: formData.display_name,
@@ -153,112 +112,73 @@ export default function ProfileCreatePage() {
         locale: formData.locale,
         logo_url: formData.logo_url,
       };
-      // Upsert profile and retrieve the saved row
+
       const { data: upserted, error: upsertError } = await supabase
         .from("profile_core_data")
         .upsert(payload, { onConflict: "user_id" })
         .select()
         .single();
-      if (upsertError) {
-        throw upsertError;
+
+      if (upsertError) throw upsertError;
+
+      const resp = await fetch("/api/profile_analyzer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profile: payload,
+          user_id: session.user.id,
+          task_id: taskId,
+        }),
+      });
+
+      if (!resp.ok) {
+        throw new Error(`Agent API error ${resp.status}: ${await resp.text()}`);
       }
 
-      // Call the Profile Analyzer agent
-      try {
-        const resp = await fetch("/api/profile_analyzer", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            profile: payload,
-            user_id: session.user.id,
-            task_id: taskId,
-          }),
-        });
-        if (!resp.ok) {
-          throw new Error(`agent API ${resp.status}: ${await resp.text()}`);
-        }
-        const reportOutput = await resp.json();
+      const reportOutput = await resp.json();
 
-        console.log("Agent report:", reportOutput);
+      if (reportOutput.report?.sections && upserted?.id) {
+        await supabase
+          .from("profile_report_sections")
+          .delete()
+          .eq("profile_id", upserted.id);
 
-        // Persist the returned sections
-        if (reportOutput.report?.sections && upserted?.id) {
-          const profileId = upserted.id;
+        const rows = reportOutput.report.sections.map((sec: any, idx: number) => ({
+          profile_id: upserted.id,
+          title: sec.title,
+          body: sec.content,
+          order_index: idx,
+        }));
 
-          // Delete old sections
-          const { error: delError } = await supabase
-            .from("profile_report_sections")
-            .delete()
-            .eq("profile_id", profileId);
-          if (delError) {
-            console.error("Error deleting old sections:", delError);
-          }
-
-          // Prepare new rows with order_index
-          const sectionRows = reportOutput.report.sections.map((sec: any, idx: number) => ({
-            profile_id: profileId,
-            title: sec.title,
-            body: sec.content,
-            order_index: idx,
-          }));
-
-          // Insert new sections
-          const { error: insertError } = await supabase
-            .from("profile_report_sections")
-            .insert(sectionRows);
-          if (insertError) {
-            console.error("Error saving profile report sections:", insertError);
-          }
-        }
-      } catch (agentErr: any) {
-        console.error("Error calling profile_analyzer:", agentErr);
-        setError(
-          "Profile saved but report generation failed: " + agentErr.message
-        );
-        setLoading(false);
-        return;
+        await supabase.from("profile_report_sections").insert(rows);
       }
 
-      // Redirect to profile view
       router.push("/profile");
     } catch (err: any) {
+      console.error("Save error:", err);
       setError(err.message || "Failed to save profile.");
     } finally {
       setLoading(false);
     }
   };
 
+  if (sessionLoading) return <p>Loading...</p>;
+
   return (
     <div className="max-w-md w-full mx-auto px-4 py-6">
-      {/* Progress stepper showing current step */}
-      <ProgressStepper
-        current={step}
-        steps={["Basics", "Details", "Review"]}
-      />
+      <ProgressStepper current={step} steps={["Basics", "Details", "Review"]} />
       <Card className="relative space-y-6">
-        {/* Loading overlay during async actions */}
-        {loading && (
-          <LoadingOverlay message="Generating your report..." />
-        )}
+        {loading && <LoadingOverlay message="Generating your report..." />}
         <h1 className="text-xl font-semibold">Profile Creation</h1>
         <div className="overflow-hidden">
-        <AnimatePresence initial={false} mode="popLayout">
-          <motion.div
-            key={`step${step}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            {step === 1 && (
-              <ProfileBasics formData={formData} onChange={handleChange} />
-            )}
-            {step === 2 && (
-              <DeepDiveDetails formData={formData} onChange={handleChange} />
-            )}
-            {step === 3 && <ReviewProfile formData={formData} />}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+          <AnimatePresence initial={false} mode="popLayout">
+            <motion.div key={`step${step}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              {step === 1 && <ProfileBasics formData={formData} onChange={handleChange} />}
+              {step === 2 && <DeepDiveDetails formData={formData} onChange={handleChange} />}
+              {step === 3 && <ReviewProfile formData={formData} />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
         <StepNav
           currentStep={step}
           totalSteps={totalSteps}

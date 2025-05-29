@@ -1,24 +1,21 @@
-"use client";
-import React, { InputHTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import React from "react";
 
-export interface InputInlineProps extends InputHTMLAttributes<HTMLInputElement> {
-  className?: string;
+interface InputInlineProps {
+  label: string;
+  value: string;
+  readOnly?: boolean;
 }
 
-/**
- * Inline-editable input: looks like text until focused,
- * then shows an underline and focus ring.
- */
-export function InputInline({ className, ...props }: InputInlineProps) {
+export const InputInline: React.FC<InputInlineProps> = ({ label, value, readOnly = false }) => {
   return (
-    <input
-      {...props}
-      className={cn(
-        "bg-transparent border-0 border-b border-transparent focus:border-b focus:border-primary focus:ring-0",
-        className
-      )}
-    />
+    <div className="flex items-center gap-4">
+      <label className="w-40 text-sm font-medium text-muted-foreground">{label}</label>
+      <input
+        type="text"
+        value={value}
+        readOnly={readOnly}
+        className="flex-1 bg-transparent border-b border-muted px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+    </div>
   );
-}
-InputInline.displayName = "InputInline";
+};
