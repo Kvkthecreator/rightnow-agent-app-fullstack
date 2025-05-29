@@ -1,64 +1,93 @@
-// web/app/user-library/page.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useUser } from "@supabase/auth-helpers-react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
-import UploadToUserLibrary from "@/components/library/UploadToLibrary";
-import UserLibraryCard from "@/components/library/UserLibraryCard";
-import { Card } from "@/components/ui/Card";
+import { UserLibraryCard } from "@/components/library/UserLibraryCard";
+import type { FileEntry } from "@/components/library/types";
+import { Button } from "@/components/ui/Button";
+import UploadToLibrary from "@/components/library/UploadToLibrary";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-interface UserFile {
-  id: string;
-  file_url: string;
-  file_name: string;
-  label: string;
-  note?: string;
-  size_bytes: number;
-  created_at: string;
-}
-
-export default function UserLibraryPage() {
-  const user = useUser();
-  const [files, setFiles] = useState<UserFile[]>([]);
+export default function LibraryPage() {
   const supabase = createClient();
+  const [files, setFiles] = useState<FileEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [quotaUsed, setQuotaUsed] = useState(0);
+  const MAX_QUOTA = 100 * 1024 * 1024; // 100MB
 
   const fetchFiles = async () => {
+    setLoading(true);
     const { data, error } = await supabase
       .from("user_files")
       .select("*")
-      .eq("user_id", user?.id)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Error fetching files:", error.message);
-      return;
+    if (!error && data) {
+      setFiles(data);
+      const totalUsed = data.reduce((sum, f) => sum + (f.size_bytes || 0), 0);
+      setQuotaUsed(totalUsed);
     }
 
-    setFiles(data || []);
+    setLoading(false);
   };
 
   useEffect(() => {
-    if (user?.id) {
-      fetchFiles();
-    }
-  }, [user?.id]);
+    fetchFiles();
+  }, []);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <h1 className="text-xl font-semibold">Your File Library</h1>
-      <Card className="p-4">
-        <UploadToUserLibrary onUpload={fetchFiles} />
-      </Card>
-      {files.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No files uploaded yet.</p>
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-semibold tracking-tight">My Library</h1>
+        <Button onClick={() => setShowModal(true)}>+ Upload</Button>
+      </div>
+
+      <div className="mb-4 text-sm text-muted-foreground">
+        {(quotaUsed / 1024 / 1024).toFixed(1)}MB of 100MB used
+        <div className="h-2 mt-1 bg-muted rounded overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all"
+            style={{ width: `${(quotaUsed / MAX_QUOTA) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Upload Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload a File to Your Library</DialogTitle>
+          </DialogHeader>
+          <UploadToLibrary
+            onUpload={fetchFiles}
+            onUploadComplete={() => setShowModal(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* File Grid */}
+      {loading ? (
+        <p className="text-muted-foreground">Loading files…</p>
+      ) : files.length === 0 ? (
+        <p className="text-muted-foreground">No files uploaded yet.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {files.map((f) => (
-            <UserLibraryCard key={f.id} file={f} onDelete={fetchFiles} />
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {files.map((file) => (
+            <UserLibraryCard
+              key={file.id}
+              file={file}
+              onDelete={fetchFiles}
+              onEdit={fetchFiles}
+            />
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }

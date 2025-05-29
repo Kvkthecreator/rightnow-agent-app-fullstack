@@ -1,93 +1,163 @@
 // web/components/user-library/UserLibraryCard.tsx
 "use client";
 
-import React from "react";
-import { createClient } from "@/lib/supabaseClient";
+import * as React from "react";
+import { Input } from "@/components/ui/Input";
+import { TextareaField } from "@/components/ui/TextareaField";
 import { Button } from "@/components/ui/Button";
-
-interface UserFile {
-  id: string;
-  file_url: string;
-  file_name: string;
-  label: string;
-  note?: string;
-  size_bytes: number;
-  created_at: string;
-}
+import { createClient } from "@/lib/supabaseClient";
+import { Trash2, Pencil, Check, X } from "lucide-react";
+import type { FileEntry } from "./types";
 
 interface Props {
-  file: UserFile;
-  onDelete: () => void; // callback to refresh the list
+  file: FileEntry;
+  onDelete?: () => void;
+  onEdit?: () => void;
 }
 
-export default function UserLibraryCard({ file, onDelete }: Props) {
+export function UserLibraryCard({ file, onDelete, onEdit }: Props) {
+  const [editing, setEditing] = React.useState(false);
+  const [label, setLabel] = React.useState(file.label);
+  const [note, setNote] = React.useState(file.note || "");
+  const [loading, setLoading] = React.useState(false);
   const supabase = createClient();
 
-const handleDelete = async () => {
-  if (!confirm("Are you sure you want to delete this file?")) return;
+  const handleSave = async () => {
+    setLoading(true);
+    const { error } = await supabase
+      .from("user_files")
+      .update({ label, note: note || null })
+      .eq("id", file.id);
 
-  // Extract the internal path from the public URL
-  const path = file.file_url.split(`/object/public/user-library/`)[1];
-  const bucket = "user-library";
+    setLoading(false);
+    if (error) return alert("Update failed");
+    setEditing(false);
+    if (onEdit) onEdit();
+  };
 
-  const supabase = createClient();
+  const handleCancel = () => {
+    setLabel(file.label);
+    setNote(file.note || "");
+    setEditing(false);
+  };
 
-  // 1. Delete from Supabase storage bucket
-  const { error: storageError } = await supabase.storage
-    .from(bucket)
-    .remove([path]);
+  const handleDelete = async () => {
+    const confirmed = confirm("Delete this file?");
+    if (!confirmed) return;
 
-  if (storageError) {
-    alert("Failed to delete file from storage.");
-    console.error(storageError);
-    return;
-  }
+    setLoading(true);
+    const path = file.file_url.split("/storage/v1/object/public/user-library/")[1];
 
-  // 2. Delete from Supabase DB table
-  const { error: dbError } = await supabase
-    .from("user_files")
-    .delete()
-    .eq("id", file.id);
+    // Delete from bucket
+    const { error: storageErr } = await supabase.storage
+      .from("user-library")
+      .remove([path]);
 
-  if (dbError) {
-    alert("Failed to delete DB record.");
-    console.error(dbError);
-    return;
-  }
+    // Delete from DB
+    const { error: dbErr } = await supabase
+      .from("user_files")
+      .delete()
+      .eq("id", file.id);
 
-  // 3. Callback to refresh
-  onDelete?.();
-};
+    setLoading(false);
 
-
-  const formatSize = (bytes: number) => {
-    return (bytes / 1024 / 1024).toFixed(2) + " MB";
+    if (storageErr || dbErr) {
+      alert("Error deleting file.");
+    } else {
+      if (onDelete) onDelete();
+    }
   };
 
   return (
-    <div className="border rounded-md p-4 shadow-sm space-y-2">
-      {file.file_url.match(/\.(jpeg|jpg|png|gif|webp)$/) ? (
+    <div className="rounded-lg border p-4 bg-card text-card-foreground shadow-sm space-y-3">
+      <div className="flex justify-between items-start">
+        <div className="text-sm text-muted-foreground">{file.file_name}</div>
+        <div className="flex gap-2">
+          {editing ? (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={loading}
+                onClick={handleSave}
+                aria-label="Save"
+              >
+                <Check className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCancel}
+                aria-label="Cancel"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setEditing(true)}
+              aria-label="Edit"
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDelete}
+            aria-label="Delete"
+            disabled={loading}
+          >
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="aspect-video overflow-hidden rounded bg-muted border">
         <img
           src={file.file_url}
           alt={file.label}
-          className="w-full h-32 object-cover rounded"
+          className="object-cover w-full h-full"
         />
-      ) : (
-        <div className="bg-muted p-4 text-sm text-center rounded">Non-image file</div>
-      )}
-      <div className="space-y-1">
-        <p className="font-semibold">{file.label}</p>
-        {file.note && <p className="text-sm text-muted-foreground">{file.note}</p>}
-        <p className="text-xs text-muted-foreground">{formatSize(file.size_bytes)}</p>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleDelete}
-        className="w-full"
-      >
-        Delete
-      </Button>
+
+      {editing ? (
+        <>
+          <Input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+        <TextareaField
+          control={
+            {
+              // Stub out just enough of react-hook-form's control object
+              register: () => ({ name: "note" }),
+              getFieldState: () => ({
+                isDirty: false,
+                invalid: false,
+                isTouched: false,
+                isValidating: false,
+                error: undefined,
+              }),
+            } as any // Cast to bypass full RHF requirement
+          }
+          name="note"
+          label="Note"
+          placeholder="Optional context"
+          disabled={false}
+        />
+        </>
+      ) : (
+        <>
+          <div className="text-base font-medium">{file.label}</div>
+          {file.note && <p className="text-sm text-muted-foreground">{file.note}</p>}
+          <div className="text-xs text-muted-foreground">
+            {(file.size_bytes / 1024).toFixed(1)} KB
+          </div>
+        </>
+      )}
     </div>
   );
 }
