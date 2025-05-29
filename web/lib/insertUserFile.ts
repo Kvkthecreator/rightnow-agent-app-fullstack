@@ -1,0 +1,44 @@
+// web/lib/insertUserFile.ts
+import { createClient } from "@/lib/supabaseClient";
+
+/**
+ * Inserts a new file record into the user_files table.
+ * Used for user-library persistent uploads.
+ */
+export async function insertUserFile({
+  user_id,
+  file_url,
+  file_name,
+  label,
+  note,
+  size_bytes,
+}: {
+  user_id: string;
+  file_url: string;
+  file_name: string;
+  label: string;
+  note?: string;
+  size_bytes: number;
+}) {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("user_files")
+    .insert([
+      {
+        user_id,
+        file_url,
+        file_name,
+        label,
+        note: note || null,
+        size_bytes,
+      },
+    ]);
+
+  if (error) {
+    console.error("[insertUserFile] DB insert error:", error);
+    throw new Error("Failed to save file metadata.");
+  }
+
+  return data?.[0];
+}
