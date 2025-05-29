@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabaseClient";
 export async function uploadFile(
   file: File,
   path: string,
-  bucket: string = "task-media"
+  bucket: string = "task-briefs"
 ): Promise<string> {
   const supabase = createClient();
 
