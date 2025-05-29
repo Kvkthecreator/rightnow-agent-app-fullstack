@@ -1,6 +1,7 @@
+"use client";
+
 import React from "react";
 import { FormData } from "../types";
-import { ReviewRow } from "@/components/ui/ReviewRow";
 
 interface Props {
   formData: FormData;
