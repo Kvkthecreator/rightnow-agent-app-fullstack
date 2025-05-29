@@ -23,32 +23,42 @@ interface Props {
 export default function UserLibraryCard({ file, onDelete }: Props) {
   const supabase = createClient();
 
-  const handleDelete = async () => {
-    const confirmed = window.confirm(`Delete "${file.label}"?`);
-    if (!confirmed) return;
+const handleDelete = async () => {
+  if (!confirm("Are you sure you want to delete this file?")) return;
 
-    // Delete from bucket
-    const storagePath = file.file_url.split("/storage/v1/object/public/user-library/")[1];
-    const { error: storageError } = await supabase.storage
-      .from("user-library")
-      .remove([storagePath]);
+  // Extract the internal path from the public URL
+  const path = file.file_url.split(`/object/public/user-library/`)[1];
+  const bucket = "user-library";
 
-    // If file deleted from bucket, delete DB entry
-    if (!storageError) {
-      const { error: dbError } = await supabase
-        .from("user_files")
-        .delete()
-        .eq("id", file.id);
+  const supabase = createClient();
 
-      if (dbError) {
-        alert("DB delete error: " + dbError.message);
-      } else {
-        onDelete(); // refresh file list
-      }
-    } else {
-      alert("Storage delete error: " + storageError.message);
-    }
-  };
+  // 1. Delete from Supabase storage bucket
+  const { error: storageError } = await supabase.storage
+    .from(bucket)
+    .remove([path]);
+
+  if (storageError) {
+    alert("Failed to delete file from storage.");
+    console.error(storageError);
+    return;
+  }
+
+  // 2. Delete from Supabase DB table
+  const { error: dbError } = await supabase
+    .from("user_files")
+    .delete()
+    .eq("id", file.id);
+
+  if (dbError) {
+    alert("Failed to delete DB record.");
+    console.error(dbError);
+    return;
+  }
+
+  // 3. Callback to refresh
+  onDelete?.();
+};
+
 
   const formatSize = (bytes: number) => {
     return (bytes / 1024 / 1024).toFixed(2) + " MB";
