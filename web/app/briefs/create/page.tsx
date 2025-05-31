@@ -2,43 +2,75 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useUser } from "@supabase/auth-helpers-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { UploadArea } from "@/components/ui/UploadArea";
 import Shell from "@/components/layouts/Shell";
+import { createClient } from "@/lib/supabaseClient";
 
 export default function CreateBriefPage() {
   const user = useUser();
   const router = useRouter();
+  const supabase = createClient();
 
   const [intent, setIntent] = useState("");
   const [subInstructions, setSubInstructions] = useState("");
   const [media, setMedia] = useState<string[]>([]);
+  const [contextBlocks, setContextBlocks] = useState<any[]>([]);
+  const [briefTypes, setBriefTypes] = useState<any[]>([]);
+  const [contextBlockId, setContextBlockId] = useState("");
+  const [briefTypeId, setBriefTypeId] = useState("");
 
-  // Auth check — redirect or guard if not logged in
-  if (!user) return null;
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchOptions = async () => {
+      const { data: blocks } = await supabase
+        .from("context_blocks")
+        .select("id, display_name")
+        .eq("user_id", user.id);
+
+      const { data: types } = await supabase
+        .from("task_brief_types")
+        .select("id, title");
+
+      if (blocks) setContextBlocks(blocks);
+      if (types) setBriefTypes(types);
+    };
+
+    fetchOptions();
+  }, [user]);
 
   const handleSubmit = async () => {
-    if (!intent.trim()) {
-      alert("Intent is required.");
+    if (!intent.trim() || !contextBlockId || !briefTypeId) {
+      alert("Please fill all required fields.");
       return;
     }
 
-    const brief = {
-      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-      user_id: user.id,
-      intent,
-      sub_instructions: subInstructions || "",
-      media,
-      created_at: new Date().toISOString(),
-    };
+    const { data, error } = await supabase
+      .from("task_briefs")
+      .insert({
+        user_id: user?.id,
+        intent,
+        sub_instructions: subInstructions || "",
+        file_urls: media,
+        context_block_id: contextBlockId,
+        task_brief_type_id: briefTypeId,
+      })
+      .select()
+      .single();
 
-    console.log("[DEBUG] Brief to submit:", brief);
-    alert("Brief created (check console for payload)");
-    router.push("/briefs"); // 🔄 updated path
+    if (error) {
+      console.error("Brief creation failed:", error);
+      alert("Error creating brief");
+    } else {
+      router.push(`/briefs/${data.id}/view`);
+    }
   };
+
+  if (!user) return null;
 
   return (
     <Shell>
@@ -47,13 +79,45 @@ export default function CreateBriefPage() {
 
         <div className="space-y-4">
           <section>
+            <label className="block text-sm font-medium text-gray-700">Select Context Block</label>
+            <select
+              className="w-full border rounded p-2"
+              value={contextBlockId}
+              onChange={(e) => setContextBlockId(e.target.value)}
+            >
+              <option value="">— Select a Block —</option>
+              {contextBlocks.map((block) => (
+                <option key={block.id} value={block.id}>
+                  {block.display_name}
+                </option>
+              ))}
+            </select>
+          </section>
+
+          <section>
+            <label className="block text-sm font-medium text-gray-700">Select Task Type</label>
+            <select
+              className="w-full border rounded p-2"
+              value={briefTypeId}
+              onChange={(e) => setBriefTypeId(e.target.value)}
+            >
+              <option value="">— Select Task Type —</option>
+              {briefTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.title}
+                </option>
+              ))}
+            </select>
+          </section>
+
+          <section>
             <label className="block text-sm font-medium text-gray-700">Intent</label>
             <textarea
               value={intent}
               onChange={(e) => setIntent(e.target.value)}
               placeholder="Describe your task goal"
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
             />
           </section>
 
@@ -63,7 +127,7 @@ export default function CreateBriefPage() {
               value={subInstructions}
               onChange={(e) => setSubInstructions(e.target.value)}
               placeholder="Optional additional instructions"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
             />
           </section>
 
@@ -83,28 +147,12 @@ export default function CreateBriefPage() {
               internalDragState
               onUpload={(url) => setMedia((prev) => [...prev, url])}
             />
-            {media.length > 0 && (
-              <div className="mt-2 space-y-1 text-sm">
-                <p>Uploaded Files:</p>
-                <ul className="list-disc list-inside">
-                  {media.map((url, i) => (
-                    <li key={i}>
-                      <a href={url} target="_blank" rel="noreferrer" className="underline text-primary">
-                        {url}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </section>
         </div>
 
-        <div>
-          <Button className="mt-6" onClick={handleSubmit}>
-            Create Task Brief
-          </Button>
-        </div>
+        <Button className="mt-6" onClick={handleSubmit}>
+          Create Task Brief
+        </Button>
       </div>
     </Shell>
   );
