@@ -73,8 +73,8 @@ export default function BlockSetupShell() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleNext = () => setStep((s) => Math.min(totalSteps, s + 1));
-  const handleBack = () => setStep((s) => Math.max(1, s - 1));
+  const handleNext = () => setStep((s) => Math.min(totalSteps, s + 1) as Step);
+  const handleBack = () => setStep((s) => Math.max(1, s - 1) as Step);
 
   const handleGenerate = async () => {
     if (!session?.user) {
