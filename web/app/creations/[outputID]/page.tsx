@@ -1,3 +1,7 @@
+"use client";
+
+import React from "react";
+
 interface Props {
   params: { outputId: string };
 }
