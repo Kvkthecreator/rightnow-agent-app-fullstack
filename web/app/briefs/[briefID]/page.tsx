@@ -2,11 +2,7 @@
 
 import Shell from "@/components/layouts/Shell";
 
-interface Props {
-  params: { briefID: string };
-}
-
-export default function BriefDetailPage({ params }: Props) {
+export default function BriefDetailPage({ params }: { params: { briefID: string } }) {
   return (
     <Shell>
       <div className="max-w-3xl mx-auto p-6 space-y-4">
