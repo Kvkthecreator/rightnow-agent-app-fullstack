@@ -1,14 +1,16 @@
-//web/app/briefs/[briefID]/page.tsx
+// web/app/briefs/[briefID]/page.tsx
 
-import React from 'react';
-import Shell from '@/components/layouts/Shell';
+import { Metadata } from "next";
+import Shell from "@/components/layouts/Shell";
 
-// Detail page for a specific brief
-interface Props {
-  params: { briefID: string };
+// Optional: Dynamic metadata (if needed)
+export async function generateMetadata({ params }: { params: { briefID: string } }): Promise<Metadata> {
+  return {
+    title: `Brief ${params.briefID}`,
+  };
 }
 
-export default function BriefDetailPage({ params }: Props) {
+export default function BriefDetailPage({ params }: { params: { briefID: string } }) {
   return (
     <Shell>
       <div className="max-w-3xl mx-auto p-6 space-y-4">
