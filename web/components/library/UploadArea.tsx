@@ -3,7 +3,9 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useSessionContext } from "@supabase/auth-helpers-react";
 import { createClient } from "@/lib/supabaseClient";
+import { insertBlockFile } from "@/lib/insertBlockFile";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/library/progress";
 
@@ -12,6 +14,7 @@ export function UploadArea({ onUpload }: { onUpload: () => void }) {
   const [progress, setProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+  const { session } = useSessionContext();
 
   const handleFiles = async (files: FileList) => {
     const file = files[0];
@@ -31,12 +34,18 @@ export function UploadArea({ onUpload }: { onUpload: () => void }) {
     if (error) {
       alert("Upload failed.");
     } else {
-      // Optionally insert metadata into `block_files` table here
-      await supabase.from("block_files").insert({
-        file_url: `https://YOUR_PROJECT.supabase.co/storage/v1/object/public/user-library/${filePath}`,
-        label: file.name,
-        size_bytes: file.size,
-      });
+      // Centralize file metadata insertion
+      if (!session?.user) {
+        console.warn("No user session - cannot insert metadata");
+      } else {
+        const url = `https://YOUR_PROJECT.supabase.co/storage/v1/object/public/user-library/${filePath}`;
+        await insertBlockFile({
+          user_id: session.user.id,
+          file_url: url,
+          label: file.name,
+          file_size: file.size,
+        });
+      }
       onUpload(); // Trigger parent refresh
     }
 
