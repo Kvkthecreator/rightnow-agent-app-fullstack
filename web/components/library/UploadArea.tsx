@@ -31,8 +31,8 @@ export function UploadArea({ onUpload }: { onUpload: () => void }) {
     if (error) {
       alert("Upload failed.");
     } else {
-      // Optionally insert metadata into `user_files` table here
-      await supabase.from("user_files").insert({
+      // Optionally insert metadata into `block_files` table here
+      await supabase.from("block_files").insert({
         file_url: `https://YOUR_PROJECT.supabase.co/storage/v1/object/public/user-library/${filePath}`,
         label: file.name,
         size_bytes: file.size,

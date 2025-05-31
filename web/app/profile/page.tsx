@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
+import { getBlocks } from "@/lib/supabase/blocks";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { InputInline } from "@/components/InputInline";
@@ -38,11 +39,8 @@ export default function ProfilePage() {
       return;
     }
     (async () => {
-      const { data, error } = await supabase
-        .from("profile_core_data")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .single();
+      // TODO: replace direct Supabase call with getBlocks()
+      const { data, error } = await getBlocks(session.user.id);
       if (error || !data) {
         router.replace("/blocks/setup");
         return;

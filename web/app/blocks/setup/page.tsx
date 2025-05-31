@@ -5,11 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
-import StepNav from "@/components/profile-create/StepNav";
-import ProfileBasics from "@/components/profile-create/steps/ProfileBasics";
-import DeepDiveDetails from "@/components/profile-create/steps/DeepDiveDetails";
-import ReviewProfile from "@/components/profile-create/steps/ReviewProfile";
-import { FormData } from "@/components/profile-create/types";
+import { getBlocks, createBlock } from "@/lib/supabase/blocks";
 import { ProgressStepper } from "@/components/ui/ProgressStepper";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 
@@ -46,11 +42,8 @@ export default function ProfileCreatePage() {
       return;
     }
     (async () => {
-      const { data, error } = await supabase
-        .from("profile_core_data")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
+      // TODO: replace direct Supabase call with getBlocks()
+      const { data, error } = await getBlocks(session.user.id);
 
       if (error) {
         console.error("Error loading existing profile:", error);
@@ -113,11 +106,8 @@ export default function ProfileCreatePage() {
         logo_url: formData.logo_url,
       };
 
-      const { data: upserted, error: upsertError } = await supabase
-        .from("profile_core_data")
-        .upsert(payload, { onConflict: "user_id" })
-        .select()
-        .single();
+      // TODO: replace direct Supabase call with createBlock()
+      const { data: upserted, error: upsertError } = await createBlock(payload);
 
       if (upsertError) throw upsertError;
 

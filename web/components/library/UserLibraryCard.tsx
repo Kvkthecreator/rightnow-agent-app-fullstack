@@ -25,7 +25,7 @@ export function UserLibraryCard({ file, onDelete, onEdit }: Props) {
   const handleSave = async () => {
     setLoading(true);
     const { error } = await supabase
-      .from("user_files")
+      .from("block_files")
       .update({ label, note: note || null })
       .eq("id", file.id);
 
@@ -55,7 +55,7 @@ export function UserLibraryCard({ file, onDelete, onEdit }: Props) {
 
     // Delete from DB
     const { error: dbErr } = await supabase
-      .from("user_files")
+        .from("block_files")
       .delete()
       .eq("id", file.id);
 

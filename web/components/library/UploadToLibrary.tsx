@@ -47,7 +47,7 @@ export default function UploadToUserLibrary({
       // Upload to Supabase Storage and get public URL
       const url = await uploadFile(file, path, "user-library");
 
-      const { error } = await supabase.from("user_files").insert({
+      const { error } = await supabase.from("block_files").insert({
         user_id: user.id,
         file_url: url,
         file_name: file.name,
