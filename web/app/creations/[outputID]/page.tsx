@@ -1,17 +1,11 @@
-"use client";
+// web/app/creations/[outputID]/page.tsx
 
-import React from "react";
-
-interface Props {
-  params: { outputId: string };
-}
-
-export default function OutputDetailPage({ params }: Props) {
+export default function OutputDetailPage({ params }: any) {
   return (
     <div className="p-6">
-      <h1 className="text-xl font-bold">Output ID: {params.outputId}</h1>
+      <h1 className="text-xl font-bold">📦 Output</h1>
       <p className="text-muted-foreground text-sm">
-        This is where the output result will be displayed.
+        Output ID: {params?.outputID}
       </p>
     </div>
   );
