@@ -44,7 +44,7 @@ export default function ProfilePage() {
         .eq("user_id", session.user.id)
         .single();
       if (error || !data) {
-        router.replace("/profile-create");
+        router.replace("/blocks/setup");
         return;
       }
       setProfile(data);
@@ -63,7 +63,7 @@ export default function ProfilePage() {
     <div className="max-w-3xl mx-auto space-y-8 px-4 py-6">
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-semibold">Your Profile</h1>
-        <Button variant="outline" onClick={() => router.push("/profile/create")}>
+        <Button variant="outline" onClick={() => router.push("/blocks/setup")}>
           Edit Profile
         </Button>
       </div>

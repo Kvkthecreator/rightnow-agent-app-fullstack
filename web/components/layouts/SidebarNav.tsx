@@ -13,12 +13,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { title: "Dashboard",   href: "/dashboard",        icon: Home },
-  { title: "Task Briefs", href: "/task-brief/create", icon: FileText },
-  { title: "Tasks",       href: "/tasks",            icon: Clipboard },
-  { title: "Profile",     href: "/profile",          icon: User },
-  { title: "Library",     href: "/library",          icon: LibraryIcon}
-
+  { title: "Dashboard", href: "/dashboard", icon: Home },
+  { title: "Blocks",    href: "/blocks",    icon: LibraryIcon },
+  { title: "Briefs",    href: "/briefs/create", icon: FileText },
+  { title: "Tasks",     href: "/tasks",     icon: Clipboard },
+  { title: "Creations", href: "/creations", icon: User },
 ];
 
 interface SidebarNavProps {
