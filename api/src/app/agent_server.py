@@ -34,9 +34,7 @@ from fastapi import FastAPI, HTTPException, Depends
 import logging
 from fastapi.middleware.cors import CORSMiddleware
 
-# Routers from agent_tasks
-from .agent_tasks.profilebuilder_task import router as profilebuilder_router
-from .agent_tasks.profile_analyzer_task import router as profile_analyzer_router
+
 # Authentication helper and output normalization
 from .agent_tasks.layer1_infra.utils.auth_helpers import current_user_id
 from .agent_tasks.layer1_infra.utils.normalize_output import normalize_output
@@ -72,9 +70,6 @@ from .agent_entrypoints import run_agent, run_agent_direct
 app.post("/agent")(run_agent)
 app.post("/agent/direct")(run_agent_direct)
 
-# Mount task-type routes and other agent task routers
-app.include_router(profilebuilder_router)
-app.include_router(profile_analyzer_router)
 # Mount task-types routes
 app.include_router(task_types_router)
 # Mount task-brief routes
