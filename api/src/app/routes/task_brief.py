@@ -6,7 +6,8 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from datetime import datetime
 
-from ..util.supabase_helpers import get_supabase
+from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
+
 
 router = APIRouter(prefix="/task-brief", tags=["task-brief"])
 

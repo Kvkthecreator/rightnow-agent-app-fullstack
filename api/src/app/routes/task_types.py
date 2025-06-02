@@ -1,6 +1,7 @@
 """API route for listing available task types."""
 from fastapi import APIRouter
-from ..agent_tasks.registry import get_all_task_types
+from ..agent_tasks.layer2_tasks.registry import get_all_task_types
+
 
 router = APIRouter(prefix="/task-types", tags=["task-types"])
 
