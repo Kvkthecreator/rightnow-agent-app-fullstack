@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 
 from agents import Runner
-from .agent_tasks.infra.agents.infra_manager_agent import manager
+from .agent_tasks.layer1_infra.agents.infra_manager_agent import manager
 from .agent_tasks.holding.strategy_agent import strategy
 from .agent_tasks.holding.content_agent import content
 from .agent_tasks.holding.feedback_agent import feedback
@@ -11,11 +11,11 @@ from .agent_tasks.holding.repurpose_agent import repurpose
 from .agent_tasks.holding.profile_analyzer_agent import profile_analyzer_agent as profile_analyzer
 from .agent_tasks.holding.competitor_agent import competitor_agent as competitor
 
-from .agent_tasks.tasks.utils.task_router import route_and_validate_task
-from .agent_tasks.tasks.utils.output_utils import build_payload
-from .agent_tasks.tasks.utils.task_utils import create_task_and_session
-from .agent_tasks.infra.utils.supabase_helpers import supabase
-from .agent_tasks.tasks.registry import get_missing_fields
+from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
+from .agent_tasks.layer2_tasks.utils.output_utils import build_payload
+from .agent_tasks.layer2_tasks.utils.task_utils import create_task_and_session
+from .agent_tasks.layer1_infra.utils.supabase_helpers import supabase
+from .agent_tasks.layer2_tasks.registry import get_missing_fields
 
 AGENT_REGISTRY = {
     "strategy": strategy,

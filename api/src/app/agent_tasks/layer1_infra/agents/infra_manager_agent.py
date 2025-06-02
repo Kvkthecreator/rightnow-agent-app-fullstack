@@ -6,7 +6,7 @@ It accepts initial task_type and user input, iteratively clarifies missing field
 and when all fields are gathered, dispatches to a downstream specialist agent.
 """
 from agents import Agent
-from ...tasks.registry import get_task_def
+from ...layer2_tasks.registry import get_task_def
 
 from ...holding.strategy_agent import strategy
 from ...holding.content_agent import content

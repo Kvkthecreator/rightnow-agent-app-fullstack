@@ -38,10 +38,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from .agent_tasks.profilebuilder_task import router as profilebuilder_router
 from .agent_tasks.profile_analyzer_task import router as profile_analyzer_router
 # Authentication helper and output normalization
-from .agent_tasks.infra.utils.auth_helpers import current_user_id
-from .agent_tasks.infra.utils.normalize_output import normalize_output
+from .agent_tasks.layer1_infra.utils.auth_helpers import current_user_id
+from .agent_tasks.layer1_infra.utils.normalize_output import normalize_output
 # Task routing for execution
-from .agent_tasks.tasks.utils.task_router import route_and_validate_task
+from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
 from .routes.task_types import router as task_types_router
 from .routes.task_brief import router as task_brief_router
 
