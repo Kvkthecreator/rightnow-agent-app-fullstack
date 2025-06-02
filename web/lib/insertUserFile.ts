@@ -2,7 +2,7 @@
 import { createClient } from "@/lib/supabaseClient";
 
 /**
- * Inserts a new file record into the user_files table.
+ * Inserts a new file record into the block_files table.
  * Used for user-library persistent uploads.
  */
 export async function insertUserFile({
@@ -23,7 +23,7 @@ export async function insertUserFile({
   const supabase = createClient();
 
   const { data, error } = await supabase
-    .from("user_files")
+  .from("block_files")
     .insert([
       {
         user_id,

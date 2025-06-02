@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSessionContext, useSupabaseClient } from "@supabase/auth-helpers-react";
+import { getBlocks } from "@/lib/supabase/blocks";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { InputInline } from "@/components/InputInline";
@@ -38,13 +39,10 @@ export default function ProfilePage() {
       return;
     }
     (async () => {
-      const { data, error } = await supabase
-        .from("profile_core_data")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .single();
+      // TODO: replace direct Supabase call with getBlocks()
+      const { data, error } = await getBlocks(session.user.id);
       if (error || !data) {
-        router.replace("/profile-create");
+        router.replace("/blocks/setup");
         return;
       }
       setProfile(data);
@@ -63,7 +61,7 @@ export default function ProfilePage() {
     <div className="max-w-3xl mx-auto space-y-8 px-4 py-6">
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-semibold">Your Profile</h1>
-        <Button variant="outline" onClick={() => router.push("/profile/create")}>
+        <Button variant="outline" onClick={() => router.push("/blocks/setup")}>
           Edit Profile
         </Button>
       </div>

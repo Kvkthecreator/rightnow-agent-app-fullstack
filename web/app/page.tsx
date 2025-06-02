@@ -24,7 +24,7 @@ export default function LandingPage() {
                 Want to be an influencer<br />or content creator?
               </h1>
               <Link
-                href="/profile-create"
+                href="/blocks/setup"
                 className="inline-block px-8 py-4 border border-foreground text-foreground rounded-md hover:bg-black hover:text-white transition"
               >
                 Create Your Starter Kit

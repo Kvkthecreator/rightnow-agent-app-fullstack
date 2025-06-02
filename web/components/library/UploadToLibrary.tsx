@@ -5,7 +5,7 @@
 import React, { useRef, useState } from "react";
 import { uploadFile } from "@/lib/uploadFile";
 import { useUser } from "@supabase/auth-helpers-react";
-import { createClient } from "@/lib/supabaseClient";
+import { insertBlockFile } from "@/lib/insertBlockFile";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
@@ -19,7 +19,7 @@ export default function UploadToUserLibrary({
   onUpload,
 }: Props) {
   const user = useUser();
-  const supabase = createClient();
+  // const supabase = createClient(); // replaced by insertBlockFile
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -47,16 +47,16 @@ export default function UploadToUserLibrary({
       // Upload to Supabase Storage and get public URL
       const url = await uploadFile(file, path, "user-library");
 
-      const { error } = await supabase.from("user_files").insert({
+      // centralize file metadata insertion
+      const { success, error } = await insertBlockFile({
         user_id: user.id,
         file_url: url,
-        file_name: file.name,
         label: label.trim(),
-        note: note.trim() || null,
-        size_bytes: file.size,
+        note: note.trim() || "",
+        file_size: file.size,
       });
 
-      if (error) throw error;
+      if (!success && error) throw error;
 
       // Reset input state
       setFile(null);
