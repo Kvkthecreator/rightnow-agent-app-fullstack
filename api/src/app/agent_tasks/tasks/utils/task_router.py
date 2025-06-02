@@ -57,19 +57,19 @@ async def route_and_validate_task(
 
     # 3. Select the agent based on agent_type
     if agent_type == "strategy":
-        from ..strategy_agent import strategy
+        from ...holding.strategy_agent import strategy
         agent = strategy
     elif agent_type == "content":
-        from ..content_agent import content
+        from ...holding.content_agent import content
         agent = content
     elif agent_type == "repurpose":
-        from ..repurpose_agent import repurpose
+        from ...holding.repurpose_agent import repurpose
         agent = repurpose
     elif agent_type == "feedback":
-        from ..feedback_agent import feedback
+        from ...holding.feedback_agent import feedback
         agent = feedback
     elif agent_type == "competitor":
-        from ..competitor_agent import competitor_agent
+        from ...holding.competitor_agent import competitor_agent
         agent = competitor_agent
     else:
         raise ValueError(f"Unknown agent_type: {agent_type}")

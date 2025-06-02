@@ -6,11 +6,11 @@ Loads the core seed JSON file once at import time and parses entries into Pydant
 """
 import json
 from pathlib import Path
-from core.task_registry.models import TaskType
-from core.task_registry import get_task_type
+from .models import TaskType
 
 # Path to the JSON seed file in core/seed
-_FILE = Path(__file__).parents[2] / "core" / "seed" / "task_types.json"
+# Calculate path: ../../../../core/seed/task_types.json (from registry/__init__.py)
+_FILE = Path(__file__).parents[4] / "core" / "seed" / "task_types.json"
 
 # Load and parse TaskType entries at import time
 try:

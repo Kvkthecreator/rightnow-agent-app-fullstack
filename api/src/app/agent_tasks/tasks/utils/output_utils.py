@@ -7,9 +7,9 @@ import json
 from pathlib import Path
 from datetime import datetime
 from jsonschema import validate, ValidationError
-from core.task_registry import get_task_type
+from ..registry import get_task_def
 
-SCHEMA_DIR = Path(__file__).parents[3] / "core" / "task_registry" / "validator_schemas"
+SCHEMA_DIR = Path(__file__).parents[2] / "registry" / "validator_schemas"
 
 def build_payload(
     task_id: str,
@@ -66,7 +66,7 @@ def validate_agent_output(task_type_id: str, raw_output: str) -> dict:
     """
     data = json.loads(raw_output)
 
-    task = get_task_type(task_type_id)
+    task = get_task_def(task_type_id)
     schema_path = SCHEMA_DIR / f"{task.output_type}.json"
     if schema_path.exists():
         try:
