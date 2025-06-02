@@ -6,13 +6,13 @@ It accepts initial task_type and user input, iteratively clarifies missing field
 and when all fields are gathered, dispatches to a downstream specialist agent.
 """
 from agents import Agent
-from core.task_registry import get_task_type
+from ...tasks.registry import get_task_def
 
-from .strategy_agent import strategy
-from .content_agent import content
-from .repurpose_agent import repurpose
-from .feedback_agent import feedback
-from .competitor_agent import competitor_agent
+from ...holding.strategy_agent import strategy
+from ...holding.content_agent import content
+from ...holding.repurpose_agent import repurpose
+from ...holding.feedback_agent import feedback
+from ...holding.competitor_agent import competitor_agent
 
 AGENTS = {
     "strategy": strategy,

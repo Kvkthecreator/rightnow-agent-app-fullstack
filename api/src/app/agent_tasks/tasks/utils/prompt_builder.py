@@ -3,7 +3,6 @@ Module: agent_tasks.middleware.prompt_builder
 
 Builds agent prompts by merging task templates with runtime context and user inputs.
 """
-from core.task_registry import get_task_type
 from ..registry import get_all_task_types, get_task_def
 import logging
 
@@ -36,7 +35,7 @@ def build_agent_prompt(task_type_id: str, context: dict, user_inputs: dict) -> s
     # ------------------------------------------------------------------
     # NEW: prepend tool availability note based on TaskType.tools
     # ------------------------------------------------------------------
-    registry_task = get_task_type(task_type_id)
+    registry_task = get_task_def(task_type_id)
     if registry_task and registry_task.tools:
         tool_note = (
             "You have access to the following external tools during reasoning: "

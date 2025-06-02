@@ -7,7 +7,7 @@ import traceback
 from fastapi import APIRouter, HTTPException, Request
 from agents import Runner
 
-from .profile_analyzer_agent import profile_analyzer_agent, ProfileAnalyzerInput
+from .holding.profile_analyzer_agent import profile_analyzer_agent, ProfileAnalyzerInput
 from .context import get_full_profile_context
 
 router = APIRouter()
