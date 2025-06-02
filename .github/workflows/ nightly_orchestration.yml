@@ -1,0 +1,43 @@
+name: Nightly Orchestration
+
+# ── WHEN ──────────────────────────────────────────────────────────
+on:
+  schedule:
+    # ┌──────── minute (0)
+    # │ ┌────── hour   (3 → 03:00 UTC)
+    # │ │ ┌──── day of month
+    # │ │ │ ┌── month
+    # │ │ │ │ ┌─ day of week
+    - cron:  '0 3 * * *'
+  workflow_dispatch:  # lets you click “Run workflow” manually
+
+# ── WHAT ──────────────────────────────────────────────────────────
+jobs:
+  run-orchestration:
+    runs-on: ubuntu-latest
+
+    # If you need your repo’s secrets (DB URL, API keys), list them here
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      # 1.  Check out the code
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # 2.  Set up the desired Python version
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # 3.  Install dependencies
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4.  Run the orchestration script
+      - name: Run orchestration
+        run: python scripts/run_orchestration.py
