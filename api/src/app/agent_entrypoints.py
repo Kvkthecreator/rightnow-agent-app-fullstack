@@ -1,4 +1,4 @@
-from fastapi import Request, HTTPException
+from fastapi import Request, HTTPException, Depends, APIRouter
 import json
 from datetime import datetime
 
@@ -16,6 +16,19 @@ from .agent_tasks.layer2_tasks.utils.output_utils import build_payload
 from .agent_tasks.layer2_tasks.utils.task_utils import create_task_and_session
 from .agent_tasks.layer1_infra.utils.supabase_helpers import supabase
 from .agent_tasks.layer2_tasks.registry import get_missing_fields
+
+#0603 for layer2 agents (above fastapi, Depends import as well)
+from .agent_tasks.layer2_tasks.schemas import ComposeRequest
+from .agent_tasks.layer2_tasks.agents.tasks_composer_agent import compose
+
+
+router = APIRouter()
+
+@router.post("/brief/compose")
+async def compose_brief(req: ComposeRequest):
+    draft = await compose(req)
+    return {"brief_id": draft.brief_id}
+#0603 for layer2 agents (above fastapi, Depends import as well)
 
 AGENT_REGISTRY = {
     "strategy": strategy,

@@ -1,73 +1,36 @@
-"""
-Module: agent_tasks.middleware.prompt_builder
+#api/src/app/agent_tasks/layer2_tasks/utils/prompt_builder.py
 
-Builds agent prompts by merging task templates with runtime context and user inputs.
-"""
-from ..registry import get_all_task_types, get_task_def
-import logging
+import textwrap
+from typing import List, Dict
 
-# Logger for instrumentation
-logger = logging.getLogger("uvicorn.error")
-
-def build_agent_prompt(task_type_id: str, context: dict, user_inputs: dict) -> str:
+def build_prompt(user_intent: str,
+                 sub_instructions: str,
+                 blocks: List[Dict],
+                 file_urls: List[str]) -> str:
     """
-    Build a prompt string for the specified task type by merging the prompt template
-    with provided context and user input values.
-
-    :param task_type_id: Identifier of the task in task_types.json
-    :param context: Runtime context (e.g., {'profile': {...}, 'report_sections': [...]})
-    :param user_inputs: Additional user-provided inputs for this task run
-    :return: A formatted prompt ready to send to the agent
+    Build a plain-text prompt for the LLM.
+    `blocks` = [{label,type,content}, …] as returned from DB
     """
-    # 1) Load task definitions from centralized registry
-    all_tasks = get_all_task_types()
-    task_ids = [t.id for t in all_tasks]
-    logger.info("🗂️ Loaded task IDs: %s", task_ids)
-    task_model = get_task_def(task_type_id)
-    if not task_model:
-        logger.error("❌ Asked for missing id: %s", task_type_id)
-        raise ValueError(f"Unknown task_type_id '{task_type_id}'")
-    # Convert Pydantic model to dict for legacy compatibility
-    task_def = task_model.model_dump()
+    ctx = "\n".join(
+        f"- ({b['type']}) {b['label']}: {b['content'][:120]}…" for b in blocks
+    )
+    files = "\n".join(f"- {url}" for url in file_urls) or "None"
 
-    template = task_def.get('prompt_template', '')
+    prompt = f"""
+    You are an expert strategic planner.
 
-    # ------------------------------------------------------------------
-    # NEW: prepend tool availability note based on TaskType.tools
-    # ------------------------------------------------------------------
-    registry_task = get_task_def(task_type_id)
-    if registry_task and registry_task.tools:
-        tool_note = (
-            "You have access to the following external tools during reasoning: "
-            + ", ".join(registry_task.tools)
-            + ".\n\n"
-        )
-    else:
-        tool_note = ""
-    template = tool_note + template
-    # 2) Flatten context and inputs for simple template substitution
-    flat_data = {}
-    # a) Profile fields, prefixed to avoid naming collisions
-    profile = context.get('profile', {}) or {}
-    for k, v in profile.items():
-        flat_data[f'profile_{k}'] = v
-    # b) Report sections as numbered list
-    sections = context.get('report_sections', []) or []
-    section_lines = []
-    for idx, sec in enumerate(sections, start=1):
-        title = sec.get('title', '')
-        body = sec.get('body', '')
-        section_lines.append(f"{idx}. {title}: {body}")
-    flat_data['report_sections'] = '\n'.join(section_lines)
-    # c) User inputs
-    for k, v in (user_inputs or {}).items():
-        flat_data[k] = v
+    ## User Intent
+    {user_intent}
 
-    # 3) Perform template substitution
-    try:
-        prompt = template.format(**flat_data)
-    except Exception as e:
-        print(f"[PromptBuilder] Error formatting prompt: {e}")
-        prompt = template
+    ## Extra Instructions
+    {sub_instructions or 'None'}
 
-    return prompt
+    ## Context Blocks
+    {ctx or 'None'}
+
+    ## Attached Media
+    {files}
+
+    Generate a structured outline (max 400 words) for how to accomplish the intent.
+    """
+    return textwrap.dedent(prompt).strip()
