@@ -41,3 +41,6 @@ async def run():
 
     await publish_event(EVENT_TOPIC, json.loads(report.json()))
     return report  # useful for tests
+
+if __name__ == "__main__":
+    print("✅ Infra analyzer agent loaded successfully.")
