@@ -34,3 +34,16 @@ def build_prompt(user_intent: str,
     Generate a structured outline (max 400 words) for how to accomplish the intent.
     """
     return textwrap.dedent(prompt).strip()
+
+def build_agent_prompt(task_type_id: str, context: dict, user_inputs: dict) -> str:
+    """
+    Wrapper for building prompts from agent task router context.
+    - Extracts relevant fields from context and user_inputs
+    - Normalizes them for build_prompt()
+    """
+    return build_prompt(
+        user_intent=user_inputs.get("user_intent", ""),
+        sub_instructions=user_inputs.get("sub_instructions", ""),
+        blocks=context.get("blocks", []),
+        file_urls=user_inputs.get("file_urls", []),
+    )
