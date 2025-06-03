@@ -14,7 +14,7 @@ v0.1 only detects duplicate labels (case-insensitive).*
 
 Event emitted: **block.audit_report**
 
-```json
+json
 {
   "ok": false,
   "duplicate_labels": [
@@ -22,3 +22,16 @@ Event emitted: **block.audit_report**
   ],
   "generated_at": "2025-06-02T03:05:01Z"
 }
+
+
+### infra_observer_agent
+Detects potentially stale or unused context blocks.
+
+Event: **block.usage_report**
+json
+{
+  "stale_ids": ["…"],
+  "unused_ids": ["…"],
+  "generated_at": "2025-06-02T04:08:00Z"
+}
+
