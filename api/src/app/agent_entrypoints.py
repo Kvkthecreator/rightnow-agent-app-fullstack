@@ -19,14 +19,19 @@ from .agent_tasks.layer2_tasks.registry import get_missing_fields
 
 #0603 for layer2 agents (above fastapi, Depends import as well)
 from .agent_tasks.layer2_tasks.schemas import ComposeRequest
-from .agent_tasks.layer2_tasks.agents.tasks_composer_agent import compose
+from .agent_tasks.layer2_tasks.agents.tasks_composer_agent import run as compose
 
 
 router = APIRouter()
 
 @router.post("/brief/compose")
 async def compose_brief(req: ComposeRequest):
-    draft = await compose(req)
+    draft = await compose(
+        req.user_id,
+        intent=req.user_intent,
+        sub_instructions=req.sub_instructions,
+        file_urls=req.file_urls,
+    )
     return {"brief_id": draft.brief_id}
 #0603 for layer2 agents (above fastapi, Depends import as well)
 
