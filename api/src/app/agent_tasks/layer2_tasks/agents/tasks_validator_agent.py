@@ -1,7 +1,8 @@
 #api/src/app/agent_tasks/layer2_tasks/agents/tasks_validator_agent.py
 
 from ..schemas import TaskBriefEdited, TaskBriefValidation
-from app.event_bus import publish_event, DB_URL
+from app.event_bus import DB_URL
+from app.supabase_helpers import publish_event
 import asyncpg
 import datetime
 
@@ -38,5 +39,5 @@ async def validate(brief: TaskBriefEdited) -> TaskBriefValidation:
         errors=errors,
         checked_at=datetime.datetime.utcnow(),
     )
-    publish_event(EVENT_TOPIC_OUT, validation.dict())
+    await publish_event(EVENT_TOPIC_OUT, validation.dict())
     return validation
