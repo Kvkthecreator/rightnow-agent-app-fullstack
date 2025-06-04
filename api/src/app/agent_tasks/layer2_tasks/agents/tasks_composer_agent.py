@@ -1,5 +1,4 @@
 import uuid, json, asyncpg, os, openai, datetime, asyncio, sys
-from typing import List
 from app.event_bus import emit as publish_event
 from ..schemas import ComposeRequest, TaskBriefDraft
 from ..utils.prompt_builder import build_prompt
@@ -14,19 +13,25 @@ async def compose(req: ComposeRequest) -> TaskBriefDraft:
 
     conn = await asyncpg.connect(db_url)
     try:
-        # Get context blocks
-        # Fetch context blocks including new schema fields
-        block_fields = "id, label, type, content, update_policy, feedback_score, last_used_successfully_at"
-        if req.block_ids:
-            rows = await conn.fetch(
-                f"SELECT {block_fields} FROM context_blocks WHERE id = ANY($1::uuid[])",
-                req.block_ids,
+        # 1. auto-select blocks: core (manual) + top-3 relevant auto blocks
+        rows = await conn.fetch(
+            """
+            with core as (
+              select * from context_blocks
+              where user_id=$1 and type = any($2::text[])
+            ),
+            extras as (
+              select * from context_blocks
+              where user_id=$1 and type <> all($2::text[])
+              order by importance desc limit 3
             )
-        else:
-            rows = await conn.fetch(
-                f"SELECT {block_fields} FROM context_blocks WHERE user_id = $1 ORDER BY importance DESC LIMIT 5",
-                req.user_id,
-            )
+            select id,label,type,content from core
+            union all
+            select id,label,type,content from extras
+            """,
+            req.user_id,
+            ["mission_statement","audience_profile","strategic_goal","tone_style"],
+        )
         print(f"[debug] Using {len(rows)} context blocks")
 
         prompt = build_prompt(req.user_intent, req.sub_instructions, rows, req.file_urls)
@@ -65,6 +70,13 @@ async def compose(req: ComposeRequest) -> TaskBriefDraft:
         )
         print(f"[debug] Inserted brief: {brief_id}")
 
+        # 3b. link blocks → brief
+        await conn.executemany(
+            "insert into block_brief_link(id,block_id,task_brief_id,transformation) "
+            "values (gen_random_uuid(),$1,$2,'used-as-is')",
+            [(r["id"], brief_id) for r in rows],
+        )
+
     finally:
         await conn.close()
 
@@ -91,7 +103,6 @@ if __name__ == "__main__":
         "user_id": "demo",
         "user_intent": "Launch a spring sale campaign on social media.",
         "sub_instructions": "",
-        "file_urls": [],
-        "block_ids": []
+        "file_urls": []
     }
     asyncio.run(compose(ComposeRequest(**payload)))
