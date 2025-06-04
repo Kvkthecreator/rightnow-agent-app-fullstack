@@ -1,4 +1,4 @@
-# api/src/app/agent_tasks/layer1_infra/schemas.py
+"""Pydantic models for Layer-1 infrastructure agents."""
 
 from pydantic import BaseModel
 from typing import List
@@ -17,3 +17,9 @@ class UsageReport(BaseModel):
     stale_ids: List[str]
     unused_ids: List[str]
     generated_at: datetime
+
+class RefreshReport(BaseModel):
+    refreshed_ids: List[str]
+    proposed_ids: List[str]
+    generated_at: datetime
+
