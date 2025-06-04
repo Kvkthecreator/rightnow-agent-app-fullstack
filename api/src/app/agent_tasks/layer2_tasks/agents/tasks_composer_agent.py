@@ -5,10 +5,11 @@ Pulls the four core manual blocks + top-3 auto blocks by usage,
 creates a Task Brief draft, links blocks, emits event.
 """
 
-import os, json, asyncpg, uuid
-from datetime import datetime, timezone
+import os, json, asyncpg, uuid, datetime, asyncio, sys
+from datetime import timezone
 from app.event_bus import publish_event
-from ..schemas import TaskBriefDraft
+from ..schemas import ComposeRequest, TaskBriefDraft
+from ..utils.prompt_builder import build_prompt
 
 DB_URL = os.getenv("DATABASE_URL")
 
@@ -78,3 +79,13 @@ async def run(
 
     await publish_event("brief.draft_created", json.loads(draft.json()))
     return draft
+
+# CLI helper
+if __name__ == "__main__":
+    payload = json.loads(sys.stdin.read()) if not sys.stdin.isatty() else {
+        "user_id": "demo",
+        "user_intent": "Launch a spring sale campaign on social media.",
+        "sub_instructions": "",
+        "file_urls": []
+    }
+    asyncio.run(run(**payload))
