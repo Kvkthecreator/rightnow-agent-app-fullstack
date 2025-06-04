@@ -15,14 +15,16 @@ async def compose(req: ComposeRequest) -> TaskBriefDraft:
     conn = await asyncpg.connect(db_url)
     try:
         # Get context blocks
+        # Fetch context blocks including new schema fields
+        block_fields = "id, label, type, content, update_policy, feedback_score, last_used_successfully_at"
         if req.block_ids:
             rows = await conn.fetch(
-                "SELECT id, label, type, content FROM context_blocks WHERE id = ANY($1::uuid[])",
+                f"SELECT {block_fields} FROM context_blocks WHERE id = ANY($1::uuid[])",
                 req.block_ids,
             )
         else:
             rows = await conn.fetch(
-                "SELECT id, label, type, content FROM context_blocks WHERE user_id = $1 ORDER BY importance DESC LIMIT 5",
+                f"SELECT {block_fields} FROM context_blocks WHERE user_id = $1 ORDER BY importance DESC LIMIT 5",
                 req.user_id,
             )
         print(f"[debug] Using {len(rows)} context blocks")
@@ -41,21 +43,24 @@ async def compose(req: ComposeRequest) -> TaskBriefDraft:
         brief_id = str(uuid.uuid4())
         now = datetime.datetime.utcnow()
 
-        # Insert draft into DB
+        # Prepare core context snapshot
+        core_snapshot = {"block_ids": [r["id"] for r in rows]}
+        # Insert draft into DB matching updated schema
         await conn.execute(
             """
             INSERT INTO public.task_briefs (
                 id, user_id, intent, sub_instructions, media,
-                block_ids, status, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                compilation_mode, core_context_snapshot, is_draft, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             """,
             brief_id,
             req.user_id,
             req.user_intent,
             req.sub_instructions,
             req.file_urls,
-            [r["id"] for r in rows],
-            "draft",
+            req.compilation_mode,
+            core_snapshot,
+            True,
             now,
         )
         print(f"[debug] Inserted brief: {brief_id}")
@@ -70,6 +75,8 @@ async def compose(req: ComposeRequest) -> TaskBriefDraft:
         sub_instructions=req.sub_instructions,
         file_urls=req.file_urls,
         block_ids=[r["id"] for r in rows],
+        compilation_mode=req.compilation_mode,
+        core_context_snapshot=core_snapshot,
         outline=outline,
         created_at=now,
     )

@@ -10,6 +10,7 @@ class ComposeRequest(BaseModel):
     sub_instructions: Optional[str] = ""
     file_urls: List[str] = Field(default_factory=list)
     block_ids: List[str] = Field(default_factory=list)   # optional manual override
+    compilation_mode: Optional[str] = None
 
 class BriefBlockRef(BaseModel):
     id: str
@@ -24,6 +25,8 @@ class TaskBriefDraft(BaseModel):
     sub_instructions: str
     file_urls: List[str]
     block_ids: List[str]
+    compilation_mode: Optional[str] = None
+    core_context_snapshot: Optional[dict] = None
     outline: str
     created_at: datetime
 

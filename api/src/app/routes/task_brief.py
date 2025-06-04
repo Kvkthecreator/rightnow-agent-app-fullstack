@@ -15,21 +15,14 @@ class MediaItem(BaseModel):
     image_url: str
     description: str
 
-class ProfileCoreData(BaseModel):
-    display_name: Optional[str]
-    brand_or_company: Optional[str]
-    sns_links: Optional[Dict[str, str]]
-    tone_preferences: Optional[str]
-    logo_url: Optional[str]
-    locale: Optional[str]
-
 class TaskBrief(BaseModel):
     id: Optional[str]
     user_id: str
     intent: str
     sub_instructions: Optional[str]
+    compilation_mode: Optional[str]
     media: Optional[List[MediaItem]]
-    core_profile_data: Optional[ProfileCoreData]
+    core_context_snapshot: Optional[dict]
     created_at: Optional[datetime]
 
 @router.post("/", response_model=TaskBrief, status_code=201)
