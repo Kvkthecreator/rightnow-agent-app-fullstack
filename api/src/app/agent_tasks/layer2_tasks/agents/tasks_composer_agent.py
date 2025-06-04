@@ -7,7 +7,7 @@ creates a Task Brief draft, links blocks, emits event.
 
 import os, json, asyncpg, uuid, datetime, asyncio, sys
 from datetime import timezone
-from app.event_bus import publish_event
+from app.supabase_helpers import publish_event
 from ..schemas import ComposeRequest, TaskBriefDraft
 from ..utils.prompt_builder import build_prompt
 
