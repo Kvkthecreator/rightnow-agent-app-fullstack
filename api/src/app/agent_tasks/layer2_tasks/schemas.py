@@ -9,7 +9,6 @@ class ComposeRequest(BaseModel):
     user_intent: str
     sub_instructions: Optional[str] = ""
     file_urls: List[str] = Field(default_factory=list)
-    block_ids: List[str] = Field(default_factory=list)   # optional manual override
     compilation_mode: Optional[str] = None
 
 class BriefBlockRef(BaseModel):
