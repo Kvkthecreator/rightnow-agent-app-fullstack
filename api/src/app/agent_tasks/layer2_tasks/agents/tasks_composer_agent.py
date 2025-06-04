@@ -1,100 +1,83 @@
-import uuid, json, asyncpg, os, openai, datetime, asyncio, sys
-from app.event_bus import emit as publish_event
+"""
+Composer v0
+-----------
+Pulls the four core manual blocks + top-3 auto blocks by usage,
+creates a Task Brief draft, links blocks, emits event.
+"""
+
+import os, json, asyncpg, uuid, datetime, asyncio, sys
+from datetime import timezone
+from app.event_bus import publish_event
 from ..schemas import ComposeRequest, TaskBriefDraft
 from ..utils.prompt_builder import build_prompt
 
-EVENT_TOPIC = "brief.draft_created"
-openai.api_key = os.getenv("OPENAI_API_KEY")
+DB_URL = os.getenv("DATABASE_URL")
 
-async def compose(req: ComposeRequest) -> TaskBriefDraft:
-    db_url = os.getenv("DATABASE_URL")
-    print("[debug] DATABASE_URL =", db_url)
-    print("[debug] Compose input:", req.model_dump())
+CORE_TYPES = (
+    'mission_statement',
+    'audience_profile',
+    'strategic_goal',
+    'tone_style',
+)
 
-    conn = await asyncpg.connect(db_url)
-    try:
-        # 1. auto-select blocks: core (manual) + top-3 relevant auto blocks
-        rows = await conn.fetch(
-            """
-            with core as (
-              select * from context_blocks
-              where user_id=$1 and type = any($2::text[])
-            ),
-            extras as (
-              select * from context_blocks
-              where user_id=$1 and type <> all($2::text[])
-              order by importance desc limit 3
-            )
-            select id,label,type,content from core
-            union all
-            select id,label,type,content from extras
-            """,
-            req.user_id,
-            ["mission_statement","audience_profile","strategic_goal","tone_style"],
-        )
-        print(f"[debug] Using {len(rows)} context blocks")
+SQL_CORE = f"""
+select * from context_blocks
+where type = any($1::text[])
+  and user_id = $2
+  and status = 'active'
+"""
 
-        prompt = build_prompt(req.user_intent, req.sub_instructions, rows, req.file_urls)
+SQL_TOP3 = """
+select * from view_block_usage_summary
+where user_id = $1
+  and block_id not in (select id from core)
+order by brief_count desc
+limit 3
+"""
 
-        # Generate outline
-        resp = await openai.ChatCompletion.acreate(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-        )
-        outline = resp.choices[0].message.content.strip()
-        print("[debug] Generated outline:", outline[:160], "...")
+async def run(
+    user_id: str,
+    *,
+    intent: str,
+    sub_instructions: str = "",
+    file_urls=None,
+) -> TaskBriefDraft:
+    file_urls = file_urls or []
+    async with asyncpg.connect(DB_URL) as conn:
+        core_blocks = await conn.fetch(SQL_CORE, CORE_TYPES, user_id)
+        top3_blocks = await conn.fetch(SQL_TOP3, user_id)
+
+        blocks = list(core_blocks) + list(top3_blocks)
+        block_ids = [str(r["id"]) for r in blocks]
 
         brief_id = str(uuid.uuid4())
-        now = datetime.datetime.utcnow()
+        draft = TaskBriefDraft(
+            brief_id=brief_id,
+            user_intent=intent,
+            sub_instructions=sub_instructions,
+            file_urls=file_urls,
+            block_ids=block_ids,
+            outline="",
+            created_at=datetime.now(timezone.utc),
+        )
 
-        # Prepare core context snapshot
-        core_snapshot = {"block_ids": [r["id"] for r in rows]}
-        # Insert draft into DB matching updated schema
         await conn.execute(
-            """
-            INSERT INTO public.task_briefs (
-                id, user_id, intent, sub_instructions, media,
-                compilation_mode, core_context_snapshot, is_draft, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            """,
+            "insert into task_briefs(id,user_id,intent,sub_instructions,media,is_draft)"
+            " values($1,$2,$3,$4,$5,'t')",
             brief_id,
-            req.user_id,
-            req.user_intent,
-            req.sub_instructions,
-            req.file_urls,
-            req.compilation_mode,
-            core_snapshot,
-            True,
-            now,
+            user_id,
+            intent,
+            sub_instructions,
+            json.dumps(file_urls),
         )
-        print(f"[debug] Inserted brief: {brief_id}")
 
-        # 3b. link blocks → brief
         await conn.executemany(
-            "insert into block_brief_link(id,block_id,task_brief_id,transformation) "
-            "values (gen_random_uuid(),$1,$2,'used-as-is')",
-            [(r["id"], brief_id) for r in rows],
+            "insert into block_brief_link(id,block_id,task_brief_id,transformation)"
+            " values(gen_random_uuid(), $1, $2, 'source')",
+            [(bid, brief_id) for bid in block_ids],
         )
 
-    finally:
-        await conn.close()
-
-    draft = TaskBriefDraft(
-        brief_id=brief_id,
-        user_id=req.user_id,
-        user_intent=req.user_intent,
-        sub_instructions=req.sub_instructions,
-        file_urls=req.file_urls,
-        block_ids=[r["id"] for r in rows],
-        compilation_mode=req.compilation_mode,
-        core_context_snapshot=core_snapshot,
-        outline=outline,
-        created_at=now,
-    )
-
-    await publish_event(EVENT_TOPIC, json.loads(draft.json()))
-    print("[debug] Event published")
+    await publish_event("brief.draft_created", json.loads(draft.json()))
     return draft
 
 # CLI helper
@@ -105,4 +88,4 @@ if __name__ == "__main__":
         "sub_instructions": "",
         "file_urls": []
     }
-    asyncio.run(compose(ComposeRequest(**payload)))
+    asyncio.run(run(**payload))

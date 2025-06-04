@@ -1,85 +1,78 @@
-#api/src/app/agent_tasks/orchestration/orch_block_manager_agent.py
+"""Orchestrator that watches Layer-1 events and queues block changes."""
 
-#This version never exits—ideal for a background worker.
-#If you want a one-shot runner, wrap it in asyncio.wait_for(run(), timeout=10).
-
+import os
 import json
 import asyncio
 import asyncpg
 from datetime import datetime, timezone
+from typing import Dict, Any
 
-from .rules.block_crud_rules import BLOCK_CRUD_RULES
-from app.event_bus import subscribe, emit, DB_URL
-from app.supabase_helpers import publish_event  # reuse insert helper
+from app.event_bus import subscribe
+from app.supabase_helpers import publish_event
 
-AUDIT_TOPIC  = "block.audit_report"
-USAGE_TOPIC  = "block.usage_report"
-QUEUE_TABLE  = "public.block_change_queue"
+DB_URL = os.getenv("DATABASE_URL")
 
-async def _handle_audit(event_payload):
-    for dup in event_payload["duplicate_labels"]:
-        # decide a merge proposal
-        rule = BLOCK_CRUD_RULES.get("tone", BLOCK_CRUD_RULES["*"])
-        proposed = {
-            "label": dup["label"],
-            "merged_from": dup["block_ids"],
-        }
-        await _enqueue(
-            action="merge",
-            block_id=dup["block_ids"][0],
-            proposed_data=proposed,
-            source_event=AUDIT_TOPIC,
-            reason="Duplicate label"
-        )
+QUEUE_SQL = """
+insert into block_change_queue
+    (id, action, block_id, proposed_data, source_event, status, reason)
+values
+    (gen_random_uuid(),
+     $1::proposal_action_enum,
+     $2::uuid,
+     $3::jsonb,
+     $4,
+     'pending',
+     $5)
+"""
 
-async def _handle_usage(event_payload):
-    for bid in event_payload["stale_ids"]:
-        rule = BLOCK_CRUD_RULES.get("*")
-        if rule["allow_auto_update"]:
-            await _enqueue(
+async def _queue(
+    conn: asyncpg.Connection,
+    action: str,
+    block_id: str,
+    proposed_data: Dict[str, Any],
+    source_event: str,
+    reason: str,
+) -> None:
+    await conn.execute(
+        QUEUE_SQL,
+        action,
+        block_id,
+        json.dumps(proposed_data),
+        source_event,
+        reason,
+    )
+
+async def run() -> None:
+    """Entry point used by orchestration_runner."""
+    print("🚀 orch_block_manager_agent running …")
+    async with asyncpg.create_pool(DB_URL) as pool:
+        async for evt in subscribe(["block.audit_report", "block.usage_report"]):
+            async with pool.acquire() as conn:
+                await _handle_event(conn, evt)
+
+async def _handle_event(conn: asyncpg.Connection, evt) -> None:
+    topic = evt.topic
+    payload = evt.payload
+    if topic == "block.audit_report":
+        for dup in payload.get("duplicate_labels", []):
+            await _queue(
+                conn,
+                action="merge",
+                block_id=dup["block_ids"][0],
+                proposed_data={"block_ids": dup["block_ids"]},
+                source_event=topic,
+                reason="duplicate_labels",
+            )
+    elif topic == "block.usage_report":
+        for stale_id in payload.get("stale_blocks", []):
+            await _queue(
+                conn,
                 action="update",
-                block_id=bid,
-                proposed_data={"meta_refreshable": True},
-                source_event=USAGE_TOPIC,
-                reason="Stale >30d"
-            )
-    for bid in event_payload["unused_ids"]:
-        rule = BLOCK_CRUD_RULES.get("*")
-        if rule["allow_auto_delete"]:
-            await _enqueue(
-                action="delete",
-                block_id=bid,
-                proposed_data=None,
-                source_event=USAGE_TOPIC,
-                reason="Unused >45d"
+                block_id=stale_id,
+                proposed_data={"status": "inactive"},
+                source_event=topic,
+                reason="stale_block",
             )
 
-async def _enqueue(action, block_id, proposed_data, source_event, reason):
-    conn = await asyncpg.connect(DB_URL)
-    try:
-        await conn.execute(
-            f"""
-            insert into {QUEUE_TABLE} (action, block_id, proposed_data, source_event, reason)
-            values ($1, $2, $3, $4, $5)
-            """,
-            action, block_id, json.dumps(proposed_data) if proposed_data else None,
-            source_event, reason
-        )
-    finally:
-        await conn.close()
-
-async def run():
-    """Long-running listener; orchestration_runner will await this forever."""
-    async with subscribe([AUDIT_TOPIC, USAGE_TOPIC]) as q:
-        while True:
-            evt = await q.get()
-            if evt.topic == AUDIT_TOPIC:
-                await _handle_audit(evt.payload)
-            elif evt.topic == USAGE_TOPIC:
-                await _handle_usage(evt.payload)
-            # keep loop alive
-
-# convenience for manual debugging
 if __name__ == "__main__":
     asyncio.run(run())
-
