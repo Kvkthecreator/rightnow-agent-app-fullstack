@@ -16,8 +16,6 @@ from .agent_tasks.layer2_tasks.agents.tasks_composer_agent import run as compose
 from .agent_tasks.layer2_tasks.agents.tasks_editor_agent import edit as editor_run
 from .agent_tasks.layer2_tasks.agents.tasks_validator_agent import validate as validate_run
 from .agent_tasks.layer2_tasks.registry import get_missing_fields
-
-# 0603 for layer2 agents (above fastapi, Depends import as well)
 from .agent_tasks.layer2_tasks.schemas import ComposeRequest
 from .agent_tasks.layer2_tasks.utils.output_utils import build_payload
 from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
@@ -41,8 +39,6 @@ async def compose_brief(req: ComposeRequest):
 
     return {"brief_id": draft.brief_id, "validated": True}
 
-
-# 0603 for layer2 agents (above fastapi, Depends import as well)
 
 AGENT_REGISTRY = {
     "strategy": strategy,
