@@ -1,13 +1,16 @@
 """Validate task briefs before execution."""
 
-from ..schemas import TaskBriefEdited, TaskBriefValidation
-from app.event_bus import DB_URL
-from app.supabase_helpers import publish_event
-import asyncpg
 import datetime
 
-EVENT_TOPIC_IN  = "brief.edited"
+import asyncpg
+
+from app.event_bus import DB_URL, publish_event
+
+from ..schemas import TaskBriefEdited, TaskBriefValidation
+
+EVENT_TOPIC_IN = "brief.edited"
 EVENT_TOPIC_OUT = "brief.validated"
+
 
 async def validate(brief: TaskBriefEdited) -> TaskBriefValidation:
     errors = []

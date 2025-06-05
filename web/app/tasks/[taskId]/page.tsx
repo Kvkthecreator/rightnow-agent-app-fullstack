@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabaseClient";
 
 
-export default function Page({ params }: { params: any }) {
+export default function Page({ params }: any) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const taskTypeId = params.taskId;
