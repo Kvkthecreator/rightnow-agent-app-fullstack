@@ -1,3 +1,5 @@
+//web/app/profile/page.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -39,23 +41,23 @@ export default function ProfilePage() {
       return;
     }
     (async () => {
-      // TODO: replace direct Supabase call with getBlocks()
       const { data, error } = await getBlocks(session.user.id);
-      if (error || !data) {
+      const profile = data?.[0];
+      if (error || !profile) {
         router.replace("/blocks/setup");
         return;
       }
-      setProfile(data);
+      setProfile(profile);
       const { data: secs, error: secErr } = await supabase
         .from("profile_report_sections")
         .select("*")
-        .eq("profile_id", data.id)
+        .eq("profile_id", profile.id)
         .order("order_index", { ascending: true });
       if (!secErr && secs) setSections(secs as Section[]);
     })();
   }, [session, isLoading]);
 
-  if (isLoading || !session) return null;
+  if (isLoading || !session || !profile) return null;
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 px-4 py-6">
@@ -66,12 +68,12 @@ export default function ProfilePage() {
         </Button>
       </div>
       <Card className="space-y-4">
-        <InputInline label="Display Name" value={profile?.display_name || ""} readOnly />
-        <InputInline label="Brand/Company" value={profile?.brand_or_company || ""} readOnly />
-        <InputInline label="SNS Links" value={JSON.stringify(profile?.sns_links || {})} readOnly />
-        <InputInline label="Tone Preferences" value={profile?.tone_preferences || ""} readOnly />
-        <InputInline label="Locale" value={profile?.locale || ""} readOnly />
-        {profile?.logo_url && (
+        <InputInline label="Display Name" value={profile.display_name || ""} readOnly />
+        <InputInline label="Brand/Company" value={profile.brand_or_company || ""} readOnly />
+        <InputInline label="SNS Links" value={JSON.stringify(profile.sns_links || {})} readOnly />
+        <InputInline label="Tone Preferences" value={profile.tone_preferences || ""} readOnly />
+        <InputInline label="Locale" value={profile.locale || ""} readOnly />
+        {profile.logo_url && (
           <img src={profile.logo_url} alt="Logo" className="w-24 h-24 object-contain rounded" />
         )}
       </Card>
