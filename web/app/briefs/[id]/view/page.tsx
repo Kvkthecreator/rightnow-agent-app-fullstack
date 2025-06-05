@@ -30,18 +30,24 @@ export default function BriefView({ params }: any) {
       <p><b>Intent:</b> {brief.intent}</p>
       {brief.sub_instructions && <p><b>Sub-instructions:</b> {brief.sub_instructions}</p>}
       <pre className="bg-gray-50 p-4 rounded">{JSON.stringify(brief.core_context_snapshot, null, 2)}</pre>
-      {!brief.config && (
+
+      <div className="flex gap-4">
         <Button
-          onClick={async () => {
-            const res = await fetch(`/api/brief/${brief.id}/config`);
-            const cfg = await res.json();
-            navigator.clipboard.writeText(JSON.stringify(cfg, null, 2));
-            alert("Config copied to clipboard!");
-          }}
+          onClick={() =>
+            window.open(`/api/brief/${brief.id}/config/download?format=md`)
+          }
         >
-          Generate Config
+          Download .md
         </Button>
-      )}
+        <Button
+          variant="secondary"
+          onClick={() =>
+            window.open(`/api/brief/${brief.id}/config/download?format=json`)
+          }
+        >
+          Download .json
+        </Button>
+      </div>
     </div>
   );
 }
