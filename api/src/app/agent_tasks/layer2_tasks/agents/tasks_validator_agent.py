@@ -1,4 +1,4 @@
-#api/src/app/agent_tasks/layer2_tasks/agents/tasks_validator_agent.py
+"""Validate task briefs before execution."""
 
 from ..schemas import TaskBriefEdited, TaskBriefValidation
 from app.event_bus import DB_URL
@@ -15,23 +15,19 @@ async def validate(brief: TaskBriefEdited) -> TaskBriefValidation:
         errors.append("Duplicate block IDs referenced.")
     if len(brief.outline.split()) > 500:
         errors.append("Outline exceeds 500 words.")
-    CORE = {
-        "mission_statement",
-        "audience_profile",
-        "strategic_goal",
-        "tone_style",
-    }
-    # map block_id → type fetched lazily (one round-trip)
-    if CORE:
-        conn = await asyncpg.connect(DB_URL)
-        types_in_brief = await conn.fetch(
-            "select type from context_blocks where id = any($1::uuid[])",
-            brief.block_ids,
-        )
-        await conn.close()
-        missing = CORE - {r["type"] for r in types_in_brief}
-        if missing:
-            errors.append(f"Missing required core blocks: {', '.join(missing)}")
+    CORE_BLOCK_TYPES = {"topic", "intent", "reference", "style_guide"}
+    conn = await asyncpg.connect(DB_URL)
+    rows = await conn.fetch(
+        "select type from block_brief_link bl "
+        "join context_blocks cb on cb.id = bl.block_id "
+        "where bl.task_brief_id = $1 "
+        "and cb.is_core_block is true",
+        brief.brief_id,
+    )
+    await conn.close()
+    missing = CORE_BLOCK_TYPES - {r["type"] for r in rows}
+    if missing:
+        errors.append(f"Core blocks missing: {', '.join(missing)}")
     ok = len(errors) == 0
     validation = TaskBriefValidation(
         brief_id=brief.brief_id,
