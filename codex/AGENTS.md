@@ -61,7 +61,7 @@ This document defines the key agents within the Context OS backend. Each agent p
 
 - New row in `task_briefs`:
   - `core_context_snapshot` (from blocks)
-  - `title`, `summary`, `instructions`, `output_expectation`
+  - `intent`, `sub_instructions`, `media`
   - `is_draft = true`
 - Emits `brief.draft_created` event
 
@@ -78,17 +78,28 @@ This document defines the key agents within the Context OS backend. Each agent p
 ## Shared Schema Fields (Reference)
 
 ### `context_blocks`
-- `id`, `title`, `body`
-- `type` (`tone`, `audience`, `mission`, etc.)
-- `update_policy` (`manual`, `auto`)
-- `meta_tags`, `meta_context_scope`, `meta_agent_notes`
-- `meta_refreshable`, `meta_derived_from`
-- `data_type`, `is_draft`
+- `id`, `label`, `content`, `type`, `source`, `version`
+- `file_ids[]`, `status`, `importance`, `is_core_block`, `is_auto_generated`, `requires_user_review`
+- Metadata:
+  - `meta_tags[]`, `meta_context_scope`, `meta_agent_notes`, `meta_derived_from`
+  - `meta_refreshable`, `meta_locale`, `meta_visibility`
+  - `meta_emotional_tone[]`, `meta_embedding`
+- Scoring & usage:
+  - `feedback_score`, `last_used_successfully_at`, `last_refreshed_at`
+- Control fields:
+  - `update_policy` (`manual`, `auto`)
 
 ### `task_briefs`
-- `id`, `title`, `summary`
-- `task_type`, `block_ids`, `core_context_snapshot`
-- `compilation_mode`, `output_expectation`, `is_draft`
+- `id`, `user_id`, `intent`, `sub_instructions`, `media`
+- `core_context_snapshot`, `core_profile_data`
+- `is_draft`, `is_published`, `is_locked`
+- `meta_emotional_tone[]`, `meta_scope`, `meta_audience`
+- `compilation_mode`, `updated_at`, `created_at`
+
+### `block_brief_link`
+- `block_id`, `task_brief_id`
+- `transformation`
+- `created_at`
 
 ---
 
@@ -97,4 +108,3 @@ This document defines the key agents within the Context OS backend. Each agent p
 - Agents should emit standardized events (`block.updated`, `brief.draft_created`) via webhook.
 - Agent behavior is influenced by `update_policy`, `task_type`, and system configuration (e.g. `compilation_mode`).
 - Codex tasks can reference this file to understand and modify agent behavior intelligently.
-
