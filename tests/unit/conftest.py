@@ -1,6 +1,7 @@
 # tests/conftest.py
 import asyncio
 import pytest
+import pytest_asyncio
 import asyncpg
 import os
 
@@ -11,7 +12,7 @@ def event_loop():
     """Allow pytest-asyncio to use a session-scoped event loop."""
     return asyncio.get_event_loop()
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def postgres_clean():
     """Returns a live DB connection, and truncates target tables before use."""
     conn = await asyncpg.connect(DB_URL)

@@ -40,7 +40,7 @@ export default function BriefView({ params }: any) {
           Download .md
         </Button>
         <Button
-          variant="secondary"
+          variant="outline"
           onClick={() =>
             window.open(`/api/brief/${brief.id}/config/download?format=json`)
           }
