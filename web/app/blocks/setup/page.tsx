@@ -27,6 +27,8 @@ export default function BlockSetupPage() {
   const stepInfo = CORE_BLOCKS_SETUP[step];
 
   async function handleNext() {
+    if (!session?.user) return;
+
     setSaving(true);
     await createBlock({
       user_id: session.user.id,
@@ -39,6 +41,7 @@ export default function BlockSetupPage() {
     setSaving(false);
     setLabel("");
     setContent("");
+
     if (step + 1 < CORE_BLOCKS_SETUP.length) {
       setStep(step + 1);
     } else {
