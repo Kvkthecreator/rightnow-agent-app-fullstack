@@ -1,5 +1,7 @@
 import json
 from datetime import datetime
+import asyncpg
+from .event_bus import DB_URL
 
 from agents import Runner
 from fastapi import APIRouter, HTTPException, Request
@@ -267,3 +269,20 @@ async def run_agent_direct(req: Request):
     )
     log_agent_message(task_id, user_id, agent.name, msg)
     return {"ok": True, "task_id": task_id}
+
+
+@router.get("/brief/{brief_id}/config")
+async def get_brief_config(brief_id: str):
+    row = None
+    conn = await asyncpg.connect(DB_URL)
+    try:
+        row = await conn.fetchrow(
+            "select config_json from brief_configs where brief_id=$1 order by version desc limit 1",
+            brief_id,
+        )
+    finally:
+        await conn.close()
+
+    if not row:
+        raise HTTPException(404, "Config not generated yet")
+    return row["config_json"]

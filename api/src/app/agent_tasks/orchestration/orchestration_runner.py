@@ -6,13 +6,17 @@ import asyncio
 from app.agent_tasks.layer1_infra.agents.infra_analyzer_agent import run as run_analyzer
 from app.agent_tasks.layer1_infra.agents.infra_observer_agent import run as run_observer
 from app.agent_tasks.orchestration.orch_block_manager_agent import run as run_block_manager
+from app.agent_tasks.orchestration.config_listener import run as run_config_listener
 
 async def run_all():
     # fire-and-forget Layer-1 checks
     await run_analyzer()
     await run_observer()
-    # start the manager listener (runs forever)
-    await run_block_manager()
+    # start the manager listener and config listener concurrently
+    await asyncio.gather(
+        run_block_manager(),
+        run_config_listener(),
+    )
 
 if __name__ == "__main__":
     asyncio.run(run_all())
