@@ -1,48 +1,45 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabaseClient";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// You can add types here later if you generate them
-export function createClient() {
-  return createSupabaseClient(supabaseUrl, supabaseKey);
-}
-
-export interface BlockData {
-  id?: string;
+export interface BlockInsert {
   user_id: string;
-  display_name: string;
-  brand_or_company: string;
-  sns_links?: {
-    primary: string;
-    handle: string;
-    others: string[];
-  };
-  tone_preferences?: string;
-  locale?: string;
-  logo_url?: string;
+  type: string;
+  label: string;
+  content: string;
+  update_policy?: "manual" | "auto";
+  is_core_block?: boolean;
+  file_ids?: string[];
 }
 
-// Fetch existing context block for a user
-export async function getBlocks(userId: string) {
+export async function fetchBlocks(userId: string, coreOnly = false) {
   const supabase = createClient();
-  const { data, error } = await (supabase
-    .from("context_blocks") as ReturnType<typeof supabase["from"]>)
+  let query = supabase
+    .from("context_blocks")
     .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
+    .eq("user_id", userId);
+  if (coreOnly) {
+    query = query.eq("is_core_block", true);
+  }
+  const { data, error } = await query.order("created_at", { ascending: false });
   return { data, error };
 }
 
-// Create or update a context block (upsert)
-export async function createBlock(block: BlockData) {
-  const supabase = createClient();
+export const getBlocks = fetchBlocks;
 
-  const { data, error } = await (supabase
-    .from("context_blocks") as ReturnType<typeof supabase["from"]>)
-    .upsert(block, { onConflict: "user_id" })
+export async function createBlock(block: BlockInsert) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("context_blocks")
+    .insert(block)
     .select()
     .single();
-
   return { data, error };
+}
+
+export async function toggleAuto(id: string, enable: boolean) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("context_blocks")
+    .update({ update_policy: enable ? "auto" : "manual" })
+    .eq("id", id);
+  return { error };
 }

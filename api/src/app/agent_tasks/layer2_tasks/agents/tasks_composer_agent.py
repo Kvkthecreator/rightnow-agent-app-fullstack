@@ -13,18 +13,19 @@ from ..utils.prompt_builder import build_prompt
 
 DB_URL = os.getenv("DATABASE_URL")
 
-CORE_TYPES = (
-    'mission_statement',
-    'audience_profile',
-    'strategic_goal',
-    'tone_style',
+CORE_BLOCK_TYPES = (
+    "topic",
+    "intent",
+    "reference",
+    "style_guide",
 )
 
-SQL_CORE = f"""
+SQL_CORE = """
 select * from context_blocks
-where type = any($1::text[])
-  and user_id = $2
+where user_id = $1
+  and is_core_block is true
   and status = 'active'
+order by created_at
 """
 
 SQL_TOP3 = """
@@ -44,7 +45,7 @@ async def run(
 ) -> TaskBriefDraft:
     file_urls = file_urls or []
     async with asyncpg.connect(DB_URL) as conn:
-        core_blocks = await conn.fetch(SQL_CORE, CORE_TYPES, user_id)
+        core_blocks = await conn.fetch(SQL_CORE, user_id)
         top3_blocks = await conn.fetch(SQL_TOP3, user_id)
 
         blocks = list(core_blocks) + list(top3_blocks)
