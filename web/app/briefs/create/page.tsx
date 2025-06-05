@@ -44,30 +44,30 @@ export default function CreateBriefPage() {
   }, [user]);
 
   const handleSubmit = async () => {
-    if (!intent.trim() || !contextBlockId || !briefTypeId) {
-      alert("Please fill all required fields.");
+    if (!intent.trim()) {
+      alert("Intent required");
       return;
     }
 
-    const { data, error } = await supabase
-      .from("task_briefs")
-      .insert({
-        user_id: user?.id,
-        intent,
-        sub_instructions: subInstructions || "",
+    const res = await fetch("/api/brief/compose", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user!.id,
+        user_intent: intent,
+        sub_instructions,
         file_urls: media,
-        context_block_id: contextBlockId,
-        task_brief_type_id: briefTypeId,
-      })
-      .select()
-      .single();
+        compilation_mode: "structured",
+      }),
+    });
 
-    if (error) {
-      console.error("Brief creation failed:", error);
-      alert("Error creating brief");
-    } else {
-      router.push(`/briefs/${data.id}/view`);
+    if (!res.ok) {
+      const { detail } = await res.json();
+      alert(`Compose failed: ${detail}`);
+      return;
     }
+    const { brief_id } = await res.json();
+    router.push(`/briefs/${brief_id}/view`);
   };
 
   if (!user) return null;
