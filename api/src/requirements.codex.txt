@@ -1,4 +1,4 @@
-// ✅ Updated requirements.codex.txt for Codex-safe installs
+# ✅ Updated requirements.codex.txt for Codex-safe installs
 
 # Codex/CI-safe version of requirements.txt
 # Uses prebuilt .whl to avoid editable GitHub installs
