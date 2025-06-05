@@ -29,12 +29,12 @@ export default function StepNav({
           Back
         </Button>
         {currentStep < totalSteps ? (
-          <Button onClick={onNext} size="md">
-            Next
+          <Button onClick={onNext} size="md" disabled={loading}>
+            {loading ? "Saving..." : "Save & Next"}
           </Button>
         ) : (
           <Button onClick={onGenerate} size="md" disabled={loading}>
-            {loading ? "Generating..." : "Generate Report"}
+            {loading ? "Saving..." : "Finish"}
           </Button>
         )}
       </div>
