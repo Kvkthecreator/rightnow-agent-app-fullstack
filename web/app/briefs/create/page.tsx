@@ -55,7 +55,7 @@ export default function CreateBriefPage() {
       body: JSON.stringify({
         user_id: user!.id,
         user_intent: intent,
-        sub_instructions,
+        sub_instructions: subInstructions,
         file_urls: media,
         compilation_mode: "structured",
       }),

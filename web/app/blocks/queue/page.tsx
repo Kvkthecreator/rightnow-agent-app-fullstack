@@ -78,8 +78,8 @@ export default function BlockQueuePage() {
                 </pre>
               </div>
               <div className="space-y-2">
-                <Button variant="success" onClick={() => handle(row.id, "approved")}>Approve</Button>
-                <Button variant="destructive" onClick={() => handle(row.id, "rejected")}>Reject</Button>
+                <Button onClick={() => handle(row.id, "approved")}>Approve</Button>
+                <Button variant="outline" onClick={() => handle(row.id, "rejected")}>Reject</Button>
               </div>
             </li>
           ))}

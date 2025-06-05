@@ -1,6 +1,6 @@
 // web/app/briefs/[id]/page.tsx
 
-export default function BriefDetailPage({ params }: { params: { id: string } }) {
+export default function BriefDetailPage({ params }: any) {
   return (
     <div className="p-6">
       <h1 className="text-xl font-bold">📝 Brief Detail</h1>

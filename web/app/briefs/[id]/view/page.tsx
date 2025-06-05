@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 
-export default function BriefView({ params }: { params: { id: string } }) {
+export default function BriefView({ params }: any) {
   const supabase = createClient();
   const [brief, setBrief] = useState<any>(null);
   const router = useRouter();
