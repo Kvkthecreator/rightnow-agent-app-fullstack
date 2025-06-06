@@ -47,6 +47,22 @@ export default function BriefView({ params }: any) {
         >
           Download .json
         </Button>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            const res = await fetch(`/api/brief/${brief.id}/export/google`, {
+              method: "POST",
+            });
+            if (res.ok) {
+              const { url } = await res.json();
+              window.open(url, "_blank");
+            } else if (res.status === 400) {
+              alert("Connect Google first in Settings → Integrations");
+            }
+          }}
+        >
+          Export → Google Docs
+        </Button>
       </div>
     </div>
   );

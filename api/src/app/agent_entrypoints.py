@@ -22,6 +22,7 @@ from .agent_tasks.layer2_tasks.utils.output_utils import build_payload
 from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
 from .agent_tasks.layer2_tasks.utils.task_utils import create_task_and_session
 from .agent_tasks.layer3_config.utils.config_to_md import render_markdown
+from .agent_tasks.layer3_config.adapters.google_exporter import export_to_doc
 
 router = APIRouter()
 
@@ -313,3 +314,13 @@ async def download_config(brief_id: str, format: str = "md"):
         )
     else:
         raise HTTPException(400, "format must be 'md' or 'json'")
+
+
+@router.post("/brief/{brief_id}/export/google")
+async def export_google_doc(brief_id: str):
+    """Export latest config to Google Docs."""
+    try:
+        link = await export_to_doc("demo-user", brief_id, supabase)
+        return {"url": link}
+    except RuntimeError as e:
+        raise HTTPException(400, str(e))
