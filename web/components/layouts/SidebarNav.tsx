@@ -9,7 +9,7 @@ function getNavItems(): NavItem[] {
     : [...baseItems, ...briefItems];
 }
 
-const navItems = getNavItems();
+  const navItems = getNavItems();
 import UserNav from "@/components/UserNav";
 
 interface NavItem {
@@ -82,7 +82,7 @@ export default function SidebarNav({
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {navItems.map((item) => {
             const active = pathname?.startsWith(item.href);
-            return (
+}
               <Link
                 key={item.href}
                 href={item.href}
