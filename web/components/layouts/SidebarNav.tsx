@@ -3,9 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, Clipboard, FileText, LibraryIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
+function getNavItems(): NavItem[] {
+  return process.env.NEXT_PUBLIC_NEXT_DUMP_FLOW
+    ? [...baseItems, ...basketItems]
+    : [...baseItems, ...briefItems];
+}
+
+const navItems = getNavItems();
 import UserNav from "@/components/UserNav";
 
 interface NavItem {
