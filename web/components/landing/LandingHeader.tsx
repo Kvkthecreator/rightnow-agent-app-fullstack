@@ -6,7 +6,7 @@ export default function LandingHeader() {
     <header className="w-full py-4 px-5 flex justify-between items-center bg-white">
       <div className="text-xl font-medium">
         <Link href="/" className="text-black hover:text-black/80 transition-colors">
-          rightNOW
+          yarnnn
         </Link>
       </div>
       <nav className="flex items-center gap-8">

@@ -21,8 +21,8 @@ export default function Logo({
   width = 32,
   height = 32,
   className = '',
-  alt = 'rightnow logo',
+  alt = 'yarn logo',
 }: LogoProps) {
-  const src = `/assets/logos/rightnow-logo-${variant}.png`;
+  const src = `/assets/logos/yarn-logo-${variant}.png`;
   return <Image src={src} alt={alt} width={width} height={height} className={className} />;
 }

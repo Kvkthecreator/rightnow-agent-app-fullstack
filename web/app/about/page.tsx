@@ -10,10 +10,10 @@ export default function HomePage() {
       <main>
         <section className="w-full max-w-[1200px] mx-auto px-4 py-[120px]">
           <h1 className="text-foreground text-4xl md:text-6xl font-bold tracking-tight leading-tight text-left">
-            "you don’t need a marketing team<br />
-            you need marketing agents" <br />
+            "manage your memory<br />
+            working with AI" <br />
             <br />
-            rightNOW
+            yarnnn
           </h1>
         </section>
         <AgentsTeaserSection />
