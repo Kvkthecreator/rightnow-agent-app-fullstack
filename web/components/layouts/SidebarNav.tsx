@@ -1,7 +1,9 @@
 "use client";
+
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, Menu, Clipboard, FileText, LibraryIcon } from "lucide-react";
+import { Home, User, Clipboard, FileText, LibraryIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import UserNav from "@/components/UserNav";
@@ -12,17 +14,10 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const baseItems: NavItem[] = [
-  { title: "Dashboard", href: "/dashboard", icon: Home },
-  { title: "Blocks", href: "/blocks", icon: LibraryIcon },
-];
 
 const basketItems: NavItem[] = [
   { title: "Baskets", href: "/baskets/new", icon: FileText },
   { title: "Integrations", href: "/integrations", icon: Clipboard },
-];
-
-const briefItems: NavItem[] = [
   { title: "Briefs", href: "/briefs/create", icon: FileText },
   { title: "Tasks", href: "/tasks", icon: Clipboard },
   { title: "Creations", href: "/creations", icon: User },
@@ -33,13 +28,14 @@ const navItems: NavItem[] = process.env.NEXT_PUBLIC_NEXT_DUMP_FLOW
   : [...baseItems, ...briefItems];
 
 interface SidebarNavProps {
-  /** Collapse sidebar width on desktop */
   collapsed?: boolean;
-  /** Toggle collapse state (desktop) */
   onCollapseToggle?: () => void;
 }
 
-export default function SidebarNav({ collapsed = false, onCollapseToggle }: SidebarNavProps) {
+export default function SidebarNav({
+  collapsed = false,
+  onCollapseToggle,
+}: SidebarNavProps) {
   const pathname = usePathname();
 
   return (
@@ -50,7 +46,7 @@ export default function SidebarNav({ collapsed = false, onCollapseToggle }: Side
       )}
     >
       <div className="flex flex-col h-full">
-        {/* Sidebar header: collapse toggle and app title */}
+        {/* Sidebar header: toggle button with logo */}
         <div className="flex items-center p-4 border-b border-border">
           {onCollapseToggle && (
             <Button
@@ -59,16 +55,25 @@ export default function SidebarNav({ collapsed = false, onCollapseToggle }: Side
               className="p-2"
               onClick={onCollapseToggle}
             >
-              <Menu className="h-5 w-5" />
+              <Image
+                src="/assets/logos/yarn-logo-light.png"
+                alt="Toggle sidebar"
+                width={24}
+                height={24}
+                className="h-6 w-6"
+              />
             </Button>
           )}
-          <div className="w-full py-4 px-5 flex justify-between items-center bg-white" />
           {!collapsed && (
-            <Link href="/" className="text-black hover:text-black/80 transition-colors">
-              rightNOW
+            <Link
+              href="/"
+              className="flex items-center gap-2 ml-2 text-black hover:text-black/80 transition-colors"
+            >
+              <span className="font-semibold text-lg">Yarnnn</span>
             </Link>
           )}
         </div>
+
         {/* Navigation items */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {navItems.map((item) => {
@@ -91,6 +96,7 @@ export default function SidebarNav({ collapsed = false, onCollapseToggle }: Side
             );
           })}
         </div>
+
         {/* Sidebar footer: user menu */}
         <div
           className={cn(
