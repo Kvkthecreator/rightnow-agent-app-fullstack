@@ -12,13 +12,25 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const navItems: NavItem[] = [
+const baseItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
-  { title: "Blocks",    href: "/blocks",    icon: LibraryIcon },
-  { title: "Briefs",    href: "/briefs/create", icon: FileText },
-  { title: "Tasks",     href: "/tasks",     icon: Clipboard },
+  { title: "Blocks", href: "/blocks", icon: LibraryIcon },
+];
+
+const basketItems: NavItem[] = [
+  { title: "Baskets", href: "/baskets/new", icon: FileText },
+  { title: "Integrations", href: "/integrations", icon: Clipboard },
+];
+
+const briefItems: NavItem[] = [
+  { title: "Briefs", href: "/briefs/create", icon: FileText },
+  { title: "Tasks", href: "/tasks", icon: Clipboard },
   { title: "Creations", href: "/creations", icon: User },
 ];
+
+const navItems: NavItem[] = process.env.NEXT_PUBLIC_NEXT_DUMP_FLOW
+  ? [...baseItems, ...basketItems]
+  : [...baseItems, ...briefItems];
 
 interface SidebarNavProps {
   /** Collapse sidebar width on desktop */

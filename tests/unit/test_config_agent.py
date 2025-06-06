@@ -1,8 +1,7 @@
-import asyncpg
 import pytest
 
 from app.agent_tasks.layer3_config.agents.config_agent import generate
-from app.event_bus import DB_URL
+
 
 @pytest.mark.asyncio
 async def test_generate_inserts_config(postgres_clean):
@@ -17,6 +16,6 @@ async def test_generate_inserts_config(postgres_clean):
 
     cfg = await generate(brief_id, user_id)
     assert cfg["brief_id"] == brief_id
-    row = await conn.fetchrow("select * from brief_configs where brief_id=$1", brief_id)
+    row = await conn.fetchrow("select * from basket_configs where basket_id=$1", brief_id)
     assert row is not None
 

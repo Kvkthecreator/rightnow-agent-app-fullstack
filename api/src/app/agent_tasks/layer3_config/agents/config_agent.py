@@ -1,8 +1,8 @@
-import asyncpg
-import os
 import json
+import os
 import uuid
-from datetime import datetime, timezone
+
+import asyncpg
 
 DB_URL = os.getenv("DATABASE_URL")
 
@@ -30,6 +30,13 @@ async def generate(brief_id: str, user_id: str):
                 "instructions": "Follow the brief to deliver output.",
             },
         }
+        await conn.execute(
+            "insert into basket_configs(id,basket_id,platform,type,title,external_url,generated_by_agent,version) values($1,$2,'google_docs','draft',$3,$4,true,1)",
+            str(uuid.uuid4()),
+            brief_id,
+            f"Draft - {brief['intent'][:30]}",
+            '',
+        )
         await conn.execute(
             "insert into brief_configs(id,brief_id,user_id,config_json) values($1,$2,$3,$4)",
             str(uuid.uuid4()),
