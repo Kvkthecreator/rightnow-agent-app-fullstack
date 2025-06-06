@@ -66,9 +66,10 @@ app.add_middleware(
 )
 
 # Mount agent entrypoint handlers
-from .agent_entrypoints import run_agent, run_agent_direct
+from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
 app.post("/agent")(run_agent)
 app.post("/agent/direct")(run_agent_direct)
+app.include_router(agent_router)
 
 # Mount task-types routes
 app.include_router(task_types_router)

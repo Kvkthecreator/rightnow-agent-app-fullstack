@@ -1,8 +1,9 @@
 import json
 from datetime import datetime
 
+
 from agents import Runner
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from .agent_tasks.holding.competitor_agent import competitor_agent as competitor
 from .agent_tasks.holding.content_agent import content
@@ -20,6 +21,8 @@ from .agent_tasks.layer2_tasks.schemas import ComposeRequest
 from .agent_tasks.layer2_tasks.utils.output_utils import build_payload
 from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
 from .agent_tasks.layer2_tasks.utils.task_utils import create_task_and_session
+from .agent_tasks.layer3_config.utils.config_to_md import render_markdown
+from .agent_tasks.layer3_config.adapters.google_exporter import export_to_doc
 
 router = APIRouter()
 
@@ -267,3 +270,57 @@ async def run_agent_direct(req: Request):
     )
     log_agent_message(task_id, user_id, agent.name, msg)
     return {"ok": True, "task_id": task_id}
+
+
+@router.get("/brief/{brief_id}/config")
+async def get_brief_config(brief_id: str):
+    row = await supabase.fetchrow(
+        "select config_json from brief_configs where brief_id=$1 order by version desc limit 1",
+        brief_id,
+    )
+    if not row:
+        raise HTTPException(404, "Config not generated yet")
+    return row["config_json"]
+
+
+@router.get("/brief/{brief_id}/config/download")
+async def download_config(brief_id: str, format: str = "md"):
+    """Download latest brief_config as .md or .json attachment."""
+    row = await supabase.fetchrow(
+        "select config_json from brief_configs where brief_id=$1 order by version desc limit 1",
+        brief_id,
+    )
+    if not row:
+        raise HTTPException(404, "Config not generated yet")
+
+    cfg = row["config_json"]
+
+    if format == "json":
+        return Response(
+            content=json.dumps(cfg, indent=2),
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="brief_{brief_id}.json"'
+            },
+        )
+    elif format == "md":
+        md = render_markdown(cfg)
+        return Response(
+            content=md,
+            media_type="text/markdown",
+            headers={
+                "Content-Disposition": f'attachment; filename="brief_{brief_id}.md"'
+            },
+        )
+    else:
+        raise HTTPException(400, "format must be 'md' or 'json'")
+
+
+@router.post("/brief/{brief_id}/export/google")
+async def export_google_doc(brief_id: str):
+    """Export latest config to Google Docs."""
+    try:
+        link = await export_to_doc("demo-user", brief_id, supabase)
+        return {"url": link}
+    except RuntimeError as e:
+        raise HTTPException(400, str(e))
