@@ -42,6 +42,7 @@ from .agent_tasks.layer1_infra.utils.normalize_output import normalize_output
 from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
 from .routes.task_types import router as task_types_router
 from .routes.task_brief import router as task_brief_router
+from .routes.baskets import router as basket_router
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
@@ -75,6 +76,8 @@ app.include_router(agent_router)
 app.include_router(task_types_router)
 # Mount task-brief routes
 app.include_router(task_brief_router)
+# Mount basket routes
+app.include_router(basket_router)
 
 
 

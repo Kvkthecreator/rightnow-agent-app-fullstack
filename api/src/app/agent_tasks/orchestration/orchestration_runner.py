@@ -8,6 +8,7 @@ from app.agent_tasks.layer1_infra.agents.infra_observer_agent import run as run_
 from app.agent_tasks.orchestration.orch_block_manager_agent import run as run_block_manager
 from app.agent_tasks.orchestration.config_listener import run as run_config_listener
 from app.agent_tasks.orchestration.thread_parser_listener import run as run_thread_parser
+from app.agent_tasks.orchestration.orch_basket_composer_agent import run as run_basket_composer
 
 async def run_all():
     # fire-and-forget Layer-1 checks
@@ -18,6 +19,7 @@ async def run_all():
         run_block_manager(),
         run_config_listener(),
         run_thread_parser(),
+        run_basket_composer(),
     )
 
 if __name__ == "__main__":
