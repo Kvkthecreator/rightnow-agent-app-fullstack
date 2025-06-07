@@ -5,7 +5,7 @@ export default function LandingHeader() {
   return (
     <header className="w-full py-4 px-5 flex justify-between items-center bg-white">
       <div className="text-xl">
-        <Link href="/" className="text-black hover:text-black/80 transition-colors font-pacifico">
+        <Link href="/" className="text-black hover:text-black/80 transition-colors font-brand">
           yarnnn
         </Link>
       </div>
