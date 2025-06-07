@@ -17,7 +17,7 @@ export default function QueueLink() {
   }, []);
 
   return (
-    <Link href="/blocks/queue" className="relative">
+    <Link href="/queue" className="relative">
       Queue
       {count > 0 && (
         <span className="absolute -right-3 -top-2 rounded-full bg-red-600 text-white text-xs px-1">

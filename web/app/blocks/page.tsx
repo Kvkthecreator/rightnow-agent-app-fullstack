@@ -19,8 +19,7 @@ export default function BlocksPage() {
   useEffect(() => {
     if (isLoading) return;
     if (!session) {
-      localStorage.setItem("postLoginRedirect", window.location.pathname);
-      router.replace("/login");
+      router.replace("/about");
       return;
     }
     (async () => {
