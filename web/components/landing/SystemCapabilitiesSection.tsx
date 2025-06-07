@@ -4,7 +4,7 @@ export default function SystemCapabilitiesSection() {
   return (
     <section className="max-w-[1200px] mx-auto px-4 py-16 sm:px-6 lg:px-8">
       <div className="border-t border-gray-200 pt-16">
-        <h2 className="text-4xl md:text-6xl font-normal mb-16">🧶 What yarnnn gives you</h2>
+        <h2 className="text-4xl md:text-6xl font-normal mb-16">Core Services</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* 1. Memory OS */}

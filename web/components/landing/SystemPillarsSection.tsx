@@ -7,8 +7,8 @@ export default function SystemPillarsSection() {
       <div className="w-full h-px bg-black mb-8" />
 
       {/* Headline */}
-      <h2 className="text-2xl md:text-5xl font-normal text-center mb-4">
-        🧶 What happens after you drop your thought
+      <h2 className="text-2xl md:text-5xl font-normal mb-4">
+        What happens after you drop your thought?
       </h2>
       <p className="text-lg text-center mb-12">
         Once you create a basket, yarnnn starts turning your input into a structured memory thread.
