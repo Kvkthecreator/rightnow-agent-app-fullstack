@@ -49,8 +49,9 @@ const config: Config = {
         "chart-5": "var(--chart-5)",
       },
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
-        brand: ["var(--font-pacifico)", "cursive"],
+        sans: ["var(--font-geist-sans)", "sans-serif"],   // ✅ Geist Sans (default)
+        mono: ["var(--font-geist-mono)", "monospace"],    // ✅ Geist Mono
+        brand: ["var(--font-pacifico)", "cursive"],       // ✅ Pacifico for logo/brand
       },
       borderRadius: {
         sm: "0.375rem",

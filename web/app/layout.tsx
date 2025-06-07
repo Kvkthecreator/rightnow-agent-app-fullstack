@@ -5,19 +5,19 @@ import SupabaseProvider from "@/components/SupabaseProvider";
 
 // Font setup
 const geistSans = Geist({
-  variable: "--font-geist-sans",
   subsets: ["latin"],
+  variable: "--font-geist-sans",
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
+  variable: "--font-geist-mono",
 });
 
 const pacifico = Pacifico({
-  variable: "--font-pacifico",
   subsets: ["latin"],
   weight: "400",
+  variable: "--font-pacifico",
 });
 
 // Metadata
@@ -29,7 +29,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Root Layout
 export default function RootLayout({
   children,
 }: {
@@ -41,9 +40,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable}`}
     >
       <body className="antialiased font-sans">
-        <SupabaseProvider>
-          {children}
-        </SupabaseProvider>
+        <SupabaseProvider>{children}</SupabaseProvider>
       </body>
     </html>
   );
