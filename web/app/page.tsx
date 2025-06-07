@@ -20,14 +20,21 @@ export default function LandingPage() {
                 alt="yarn logo"
                 className="w-32 h-32 mb-6 object-contain"
               />
-              <h1 className="text-3xl md:text-5xl font-bold mb-6">
-                weave your thoughts<br />using AI
+              <h1 className="text-3xl md:text-5xl font-bold mb-4">
+                weave your thoughts<br />
+                with a memory operating system<br />
+                designed for working with AI
               </h1>
+              <p className="text-lg leading-relaxed mb-6 max-w-xl">
+                start each idea with a simple dump.
+                yarnnn turns it into a structured thread —
+                a living memory powered by reusable blocks and context-aware agents.
+              </p>
               <Link
-                href="/blocks/setup"
+                href="/basket/create"
                 className="inline-block px-8 py-4 border border-foreground text-foreground rounded-md hover:bg-black hover:text-white transition"
               >
-                Create Your Starter Kit
+                drop your first thought
               </Link>
             </div>
         </div>
@@ -39,23 +46,20 @@ export default function LandingPage() {
           {/* Description + Feature Icons */}
           <section id="benefits" className="px-6 py-12 border-b grid grid-cols-1 md:grid-cols-2 gap-10">
             <p className="text-lg leading-relaxed">
-              Discover your unique niche, captivate your audience with our personalized Starter Kit.
+              yarnnn helps you organize evolving projects, reuse your thinking, and get context-aware assistance.
             </p>
             <div className="space-y-10">
               <div className="flex items-center gap-4">
-                <MicrophoneStage size={40} />
-                <span className="text-sm">Personal brand voice</span>
+                <span className="text-xl">🧺</span>
+                <span className="text-sm">One basket = one focused context thread</span>
               </div>
               <div className="flex items-center gap-4">
-                <ArrowsOutCardinal size={40} />
-                <span className="text-sm">Growth direction</span>
+                <span className="text-xl">◾</span>
+                <span className="text-sm">Blocks store brand tone, strategy, goals</span>
               </div>
               <div className="flex items-center gap-4">
-                <Butterfly size={40} />
-                <span className="text-sm">
-                  free, no login required<br />
-                  <em className="text-xs">*limited time only during beta</em>
-                </span>
+                <span className="text-xl">🪄</span>
+                <span className="text-sm">Get help that understands your memory</span>
               </div>
             </div>
           </section>
