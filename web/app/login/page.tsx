@@ -37,8 +37,12 @@ export default function LoginPage() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-muted p-4">
       {/* Branding */}
       <div className="flex items-center space-x-2 mb-6">
-        <span className="text-3xl">🚀</span>
-        <span className="text-2xl font-pacifico">yarnnn</span>
+        <img
+          src="/assets/logos/yarn-logo-light.png"
+          alt="yarnnn logo"
+          className="h-8 w-8"
+        />
+        <span className="text-2xl font-brand">yarnnn</span>
       </div>
       {/* Login Card */}
       <div className="w-full max-w-sm rounded-lg shadow-sm p-6 bg-card">
