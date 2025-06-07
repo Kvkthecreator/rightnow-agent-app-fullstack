@@ -7,6 +7,7 @@ from app.agent_tasks.layer1_infra.agents.infra_analyzer_agent import run as run_
 from app.agent_tasks.layer1_infra.agents.infra_observer_agent import run as run_observer
 from app.agent_tasks.orchestration.orch_block_manager_agent import run as run_block_manager
 from app.agent_tasks.orchestration.config_listener import run as run_config_listener
+from app.agent_tasks.orchestration.thread_parser_listener import run as run_thread_parser
 
 async def run_all():
     # fire-and-forget Layer-1 checks
@@ -16,6 +17,7 @@ async def run_all():
     await asyncio.gather(
         run_block_manager(),
         run_config_listener(),
+        run_thread_parser(),
     )
 
 if __name__ == "__main__":

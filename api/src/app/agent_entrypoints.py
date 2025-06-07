@@ -1,6 +1,7 @@
+import asyncio
 import json
+import uuid
 from datetime import datetime
-
 
 from agents import Runner
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -21,8 +22,9 @@ from .agent_tasks.layer2_tasks.schemas import ComposeRequest
 from .agent_tasks.layer2_tasks.utils.output_utils import build_payload
 from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
 from .agent_tasks.layer2_tasks.utils.task_utils import create_task_and_session
-from .agent_tasks.layer3_config.utils.config_to_md import render_markdown
 from .agent_tasks.layer3_config.adapters.google_exporter import export_to_doc
+from .agent_tasks.layer3_config.utils.config_to_md import render_markdown
+from .agent_tasks.orchestration.thread_parser_listener import handle_new_basket
 
 router = APIRouter()
 
@@ -324,3 +326,46 @@ async def export_google_doc(brief_id: str):
         return {"url": link}
     except RuntimeError as e:
         raise HTTPException(400, str(e))
+
+
+@router.post("/baskets/create")
+async def create_basket(req: Request):
+    """Accept BasketInputPayload and return a new basket id."""
+    payload = await req.json()
+    basket_id = str(uuid.uuid4())
+    supabase.table("baskets").insert(
+        {"id": basket_id, "intent_summary": payload.get("intent_summary"), "status": "draft"}
+    ).execute()
+    if payload.get("input_text"):
+        supabase.table("basket_threads").insert(
+            {"basket_id": basket_id, "content": payload["input_text"], "source": "user_dump"}
+        ).execute()
+
+    asyncio.create_task(handle_new_basket(basket_id, payload))
+    return {"basket_id": basket_id}
+
+
+@router.get("/baskets/{basket_id}")
+async def get_basket(basket_id: str):
+    """Return basket details."""
+    row = (
+        supabase.table("baskets").select("*").eq("id", basket_id).single().execute()
+    )
+    basket = row.data if not row.error else None
+    links = (
+        supabase.from_("block_brief_link")
+        .select("context_blocks(id,label,type)")
+        .eq("task_brief_id", basket_id)
+        .execute()
+    )
+    blocks = [l["context_blocks"] for l in (links.data or [])]
+    cfgs = (
+        supabase.table("basket_configs").select("*").eq("basket_id", basket_id).execute()
+    )
+    return {
+        "id": basket_id,
+        "status": basket.get("status") if basket else None,
+        "intent_summary": basket.get("intent_summary") if basket else None,
+        "blocks": blocks,
+        "configs": cfgs.data or [],
+    }
