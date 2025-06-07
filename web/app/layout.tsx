@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
 import "./globals.css";
 import SupabaseProvider from "@/components/SupabaseProvider";
-import QueueLink from "@/components/QueueLink";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,14 +32,6 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SupabaseProvider>
-          <header className="p-4 border-b">
-            <nav className="flex items-center gap-6 text-sm">
-              <Link href="/dashboard">Dashboard</Link>
-              <Link href="/baskets/new">Baskets</Link>
-              <Link href="/blocks">Blocks</Link>
-              <QueueLink />
-            </nav>
-          </header>
           {children}
         </SupabaseProvider>
       </body>

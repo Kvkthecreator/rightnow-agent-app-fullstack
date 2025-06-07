@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Home, Clipboard, FileText, LibraryIcon } from "lucide-react";
+import { Home, Clipboard, FileText, LibraryIcon, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import UserNav from "@/components/UserNav";
@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
   { title: "Baskets", href: "/baskets/new", icon: FileText },
   { title: "Blocks", href: "/blocks", icon: LibraryIcon },
+  { title: "Queue", href: "/blocks/queue", icon: ListChecks },
   { title: "Integrations", href: "/integrations", icon: Clipboard },
 ];
 

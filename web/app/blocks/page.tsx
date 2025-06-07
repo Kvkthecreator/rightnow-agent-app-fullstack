@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSessionContext } from "@supabase/auth-helpers-react";
-import Shell from "@/components/layouts/Shell";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import BlockCard, { Block } from "@/components/blocks/BlockCard";
@@ -62,8 +61,7 @@ export default function BlocksPage() {
   if (isLoading) return null;
 
   return (
-    <Shell>
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">🧱 Context Blocks</h1>
           <div className="flex items-center space-x-2">
@@ -102,7 +100,6 @@ export default function BlocksPage() {
           onOpenChange={setShowModal}
           onCreate={handleCreate}
         />
-      </div>
-    </Shell>
+    </div>
   );
 }
