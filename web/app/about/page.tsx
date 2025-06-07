@@ -1,7 +1,7 @@
 import LandingHeader from "@/components/landing/LandingHeader";
 import LandingFooter from "@/components/landing/LandingFooter";
-import ServicesSection from "@/components/landing/ServicesSection";
-import AgentsTeaserSection from "@/components/landing/AgentsTeaserSection";
+import SystemCapabilitiesSection from "@/components/landing/SystemCapabilitiesSection";
+import SystemPillarsSection from "@/components/landing/SystemPillarsSection";
 import Brand from "@/components/Brand";
 
 export default function HomePage() {
@@ -25,8 +25,8 @@ export default function HomePage() {
                         Inside, yarnnn helps you organize, reflect, and act — with context-aware agents always ready to assist.
                     </p>
                 </section>
-                <AgentsTeaserSection />
-                <ServicesSection />
+                <SystemPillarsSection />
+                <SystemCapabilitiesSection />
                 <footer className="px-4 py-12 text-center text-sm text-muted-foreground">
                     Our mission is to help async thinkers and independent creators
                     work with clarity and continuity — powered by thoughtful memory design.
