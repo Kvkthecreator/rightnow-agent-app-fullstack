@@ -1,16 +1,14 @@
+//web/components/layouts/SidebarNav.tsx
 "use client";
-import React from "react";
 
+import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-function getNavItems(): NavItem[] {
-  return process.env.NEXT_PUBLIC_NEXT_DUMP_FLOW
-    ? [...baseItems, ...basketItems]
-    : [...baseItems, ...briefItems];
-}
 
-  const navItems = getNavItems();
+import { Home, User, Clipboard, FileText, LibraryIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/Button";
 import UserNav from "@/components/UserNav";
 
 interface NavItem {
@@ -19,6 +17,16 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
+const baseItems: NavItem[] = [
+  { title: "Dashboard", href: "/dashboard", icon: Home },
+  { title: "Blocks", href: "/blocks", icon: LibraryIcon },
+];
+
+const briefItems: NavItem[] = [
+  { title: "Briefs", href: "/briefs/create", icon: FileText },
+  { title: "Tasks", href: "/tasks", icon: Clipboard },
+  { title: "Creations", href: "/creations", icon: User },
+];
 
 const basketItems: NavItem[] = [
   { title: "Baskets", href: "/baskets/new", icon: FileText },
@@ -28,9 +36,10 @@ const basketItems: NavItem[] = [
   { title: "Creations", href: "/creations", icon: User },
 ];
 
-const navItems: NavItem[] = process.env.NEXT_PUBLIC_NEXT_DUMP_FLOW
-  ? [...baseItems, ...basketItems]
-  : [...baseItems, ...briefItems];
+const getNavItems = (): NavItem[] =>
+  process.env.NEXT_PUBLIC_NEXT_DUMP_FLOW === "true"
+    ? [...baseItems, ...basketItems]
+    : [...baseItems, ...briefItems];
 
 interface SidebarNavProps {
   collapsed?: boolean;
@@ -42,6 +51,7 @@ export default function SidebarNav({
   onCollapseToggle,
 }: SidebarNavProps) {
   const pathname = usePathname();
+  const navItems = getNavItems();
 
   return (
     <nav
@@ -51,7 +61,7 @@ export default function SidebarNav({
       )}
     >
       <div className="flex flex-col h-full">
-          <div className="w-full py-4 px-5 flex justify-between items-center bg-white"></div>
+        <div className="w-full py-4 px-5 flex justify-between items-center bg-white" />
         <div className="flex items-center p-4 border-b border-border">
           {onCollapseToggle && (
             <Button
@@ -83,7 +93,7 @@ export default function SidebarNav({
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {navItems.map((item) => {
             const active = pathname?.startsWith(item.href);
-}
+            return (
               <Link
                 key={item.href}
                 href={item.href}
