@@ -77,8 +77,8 @@ export default function LandingPage() {
           {/* Mission Statement */}
           <section className="px-6 py-12 border-t border-b">
             <p className="text-xl md:text-2xl max-w-3xl mx-auto text-center">
-              our aim is to help evolve upcoming artists and creators from part-time to full-time,
-              from local to global, from unknown to stardom
+              🧶 helps you work with clarity 
+              one thought at a time
             </p>
           </section>
         </div>
