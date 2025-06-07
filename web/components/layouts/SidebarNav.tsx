@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Home, User, Clipboard, FileText, LibraryIcon } from "lucide-react";
+import { Home, Clipboard, FileText, LibraryIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import UserNav from "@/components/UserNav";
@@ -17,29 +17,12 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const baseItems: NavItem[] = [
+const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
-  { title: "Blocks", href: "/blocks", icon: LibraryIcon },
-];
-
-const briefItems: NavItem[] = [
-  { title: "Briefs", href: "/briefs/create", icon: FileText },
-  { title: "Tasks", href: "/tasks", icon: Clipboard },
-  { title: "Creations", href: "/creations", icon: User },
-];
-
-const basketItems: NavItem[] = [
   { title: "Baskets", href: "/baskets/new", icon: FileText },
+  { title: "Blocks", href: "/blocks", icon: LibraryIcon },
   { title: "Integrations", href: "/integrations", icon: Clipboard },
-  { title: "Briefs", href: "/briefs/create", icon: FileText },
-  { title: "Tasks", href: "/tasks", icon: Clipboard },
-  { title: "Creations", href: "/creations", icon: User },
 ];
-
-const getNavItems = (): NavItem[] =>
-  process.env.NEXT_PUBLIC_NEXT_DUMP_FLOW === "true"
-    ? [...baseItems, ...basketItems]
-    : [...baseItems, ...briefItems];
 
 interface SidebarNavProps {
   collapsed?: boolean;
@@ -51,7 +34,7 @@ export default function SidebarNav({
   onCollapseToggle,
 }: SidebarNavProps) {
   const pathname = usePathname();
-  const navItems = getNavItems();
+  // Navigation items are defined statically above
 
   return (
     <nav
