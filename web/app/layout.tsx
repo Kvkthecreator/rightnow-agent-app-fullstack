@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "rightNOW",
-  description: "you need marketing agents, not a marketing team!",
+  title: "Yarnnn",
+  description: "weave your ideas with AI",
   icons: {
     // Favicon placed in public/favicon.svg
     icon: '/favicon.svg',
@@ -36,17 +36,9 @@ export default function RootLayout({
         <SupabaseProvider>
           <header className="p-4 border-b">
             <nav className="flex items-center gap-6 text-sm">
-              {process.env.NEXT_PUBLIC_NEXT_DUMP_FLOW ? (
-                <>
-                  <Link href="/baskets/new">Baskets</Link>
-                  <Link href="/blocks">Blocks</Link>
-                </>
-              ) : (
-                <>
-                  <Link href="/briefs">Briefs</Link>
-                  <Link href="/blocks">Blocks</Link>
-                </>
-              )}
+              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/baskets/new">Baskets</Link>
+              <Link href="/blocks">Blocks</Link>
               <QueueLink />
             </nav>
           </header>

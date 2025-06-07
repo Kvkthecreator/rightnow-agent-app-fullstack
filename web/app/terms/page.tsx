@@ -14,7 +14,7 @@ export default function Page() {
         <p><strong>Effective Date: March 28th, 2025</strong></p>
 
         <p>
-          Welcome to rightNOW. By using our app or site, you agree to these Terms of Service.
+          Welcome to Yarnnn. By using our app or site, you agree to these Terms of Service.
           If you disagree, do not use the services.
         </p>
 
@@ -60,7 +60,7 @@ export default function Page() {
 
         <h2>6. Disclaimers</h2>
         <p>
-          rightNOW is provided "as is" with no warranties. We do our best to ensure reliability
+          Yarnnn is provided "as is" with no warranties. We do our best to ensure reliability
           but offer no uptime guarantees.
         </p>
 
