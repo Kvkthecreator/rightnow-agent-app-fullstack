@@ -39,7 +39,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable}`}
     >
-      <body className="antialiased font-sans">
+      <body className="antialiased">
         <SupabaseProvider>{children}</SupabaseProvider>
       </body>
     </html>
