@@ -19,7 +19,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
-  { title: "Baskets", href: "/baskets/new", icon: FileText },
+  { title: "Baskets", href: "/baskets/create", icon: FileText },
   { title: "Blocks", href: "/blocks", icon: LibraryIcon },
   { title: "Integrations", href: "/integrations", icon: Clipboard },
 ];
@@ -67,7 +67,7 @@ export default function SidebarNav({
               href="/"
               className="flex items-center gap-2 ml-2 text-black hover:text-black/80 transition-colors"
             >
-              <span className="font-semibold text-lg">Yarnnn</span>
+              <span className="font-pacifico text-lg">yarnnn</span>
             </Link>
           )}
         </div>
