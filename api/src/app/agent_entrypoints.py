@@ -24,7 +24,10 @@ from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
 from .agent_tasks.layer2_tasks.utils.task_utils import create_task_and_session
 from .agent_tasks.layer3_config.adapters.google_exporter import export_to_doc
 from .agent_tasks.layer3_config.utils.config_to_md import render_markdown
-from .agent_tasks.orchestration.thread_parser_listener import handle_new_basket
+from .agent_tasks.orchestration.thread_parser_listener import (
+    handle_new_basket,
+    handle_update_basket,
+)
 
 router = APIRouter()
 
@@ -301,18 +304,14 @@ async def download_config(brief_id: str, format: str = "md"):
         return Response(
             content=json.dumps(cfg, indent=2),
             media_type="application/json",
-            headers={
-                "Content-Disposition": f'attachment; filename="brief_{brief_id}.json"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="brief_{brief_id}.json"'},
         )
     elif format == "md":
         md = render_markdown(cfg)
         return Response(
             content=md,
             media_type="text/markdown",
-            headers={
-                "Content-Disposition": f'attachment; filename="brief_{brief_id}.md"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="brief_{brief_id}.md"'},
         )
     else:
         raise HTTPException(400, "format must be 'md' or 'json'")
@@ -324,8 +323,8 @@ async def export_google_doc(brief_id: str):
     try:
         link = await export_to_doc("demo-user", brief_id, supabase)
         return {"url": link}
-    except RuntimeError as e:
-        raise HTTPException(400, str(e))
+    except RuntimeError as err:
+        raise HTTPException(400, str(err)) from err
 
 
 @router.post("/baskets/create")
@@ -348,9 +347,7 @@ async def create_basket(req: Request):
 @router.get("/baskets/{basket_id}")
 async def get_basket(basket_id: str):
     """Return basket details."""
-    row = (
-        supabase.table("baskets").select("*").eq("id", basket_id).single().execute()
-    )
+    row = supabase.table("baskets").select("*").eq("id", basket_id).single().execute()
     basket = row.data if not row.error else None
     links = (
         supabase.from_("block_brief_link")
@@ -358,10 +355,8 @@ async def get_basket(basket_id: str):
         .eq("task_brief_id", basket_id)
         .execute()
     )
-    blocks = [l["context_blocks"] for l in (links.data or [])]
-    cfgs = (
-        supabase.table("basket_configs").select("*").eq("basket_id", basket_id).execute()
-    )
+    blocks = [row["context_blocks"] for row in (links.data or [])]
+    cfgs = supabase.table("basket_configs").select("*").eq("basket_id", basket_id).execute()
     return {
         "id": basket_id,
         "status": basket.get("status") if basket else None,
@@ -369,3 +364,16 @@ async def get_basket(basket_id: str):
         "blocks": blocks,
         "configs": cfgs.data or [],
     }
+
+
+@router.post("/baskets/{basket_id}/work")
+async def update_basket(basket_id: str, req: Request):
+    """Add new context to an existing basket."""
+    payload = await req.json()
+    if payload.get("input_text"):
+        supabase.table("basket_threads").insert(
+            {"basket_id": basket_id, "content": payload["input_text"], "source": "user_dump"}
+        ).execute()
+
+    asyncio.create_task(handle_update_basket(basket_id, payload))
+    return {"basket_id": basket_id}

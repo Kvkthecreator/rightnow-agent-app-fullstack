@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
+import Link from "next/link";
 
 export default function BasketDetailPage({ params }: any) {
   const supabase = createClient();
@@ -44,6 +45,9 @@ export default function BasketDetailPage({ params }: any) {
           ))}
         </ul>
       </section>
+      <Button asChild>
+        <Link href={`/baskets/${params.id}/work`}>Add to Basket</Link>
+      </Button>
     </div>
   );
 }
