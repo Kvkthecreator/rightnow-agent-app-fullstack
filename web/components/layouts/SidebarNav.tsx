@@ -50,7 +50,7 @@ export default function SidebarNav({
       )}
     >
       <div className="flex flex-col h-full">
-        {/* Sidebar header: toggle button with logo */}
+          <div className="w-full py-4 px-5 flex justify-between items-center bg-white"></div>
         <div className="flex items-center p-4 border-b border-border">
           {onCollapseToggle && (
             <Button
