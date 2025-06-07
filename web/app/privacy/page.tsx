@@ -14,7 +14,7 @@ export default function Page() {
         <p><strong>Effective Date: March 25th, 2025</strong></p>
 
         <p>
-          This Privacy Policy outlines how Yarnnn ("we", "our", or "us") accesses, uses,
+          This Privacy Policy outlines how <span className="font-pacifico">yarnnn</span> ("we", "our", or "us") accesses, uses,
           and protects your information when you authorize the application to connect
           with your Google account.
         </p>
@@ -44,7 +44,7 @@ export default function Page() {
             https://myaccount.google.com/permissions
           </a>
           <br />
-          Revoking disables Gmail-related features in Yarnnn.
+          Revoking disables Gmail-related features in <span className="font-pacifico">yarnnn</span>.
         </p>
 
         <h2>4. Data Security</h2>

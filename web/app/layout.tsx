@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Pacifico } from "next/font/google";
 import "./globals.css";
 import SupabaseProvider from "@/components/SupabaseProvider";
 
+// Font setup
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -13,24 +14,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const pacifico = Pacifico({
+  variable: "--font-pacifico",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+// Metadata
 export const metadata: Metadata = {
-  title: "Yarnnn",
+  title: "yarnnn",
   description: "weave your ideas with AI",
   icons: {
-    // Favicon placed in public/favicon.svg
-    icon: '/favicon.svg',
+    icon: "/favicon.svg",
   },
 };
 
-
+// Root Layout
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable}`}
+    >
+      <body className="antialiased font-sans">
         <SupabaseProvider>
           {children}
         </SupabaseProvider>
@@ -38,4 +48,3 @@ export default function RootLayout({
     </html>
   );
 }
-

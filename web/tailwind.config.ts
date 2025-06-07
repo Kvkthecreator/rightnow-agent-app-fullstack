@@ -50,6 +50,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["Inter", "sans-serif"],
+        pacifico: ["var(--font-pacifico)", "cursive"],
       },
       borderRadius: {
         sm: "0.375rem",

@@ -38,7 +38,7 @@ export default function LoginPage() {
       {/* Branding */}
       <div className="flex items-center space-x-2 mb-6">
         <span className="text-3xl">🚀</span>
-        <span className="text-2xl font-bold">rgtNOW</span>
+        <span className="text-2xl font-pacifico">yarnnn</span>
       </div>
       {/* Login Card */}
       <div className="w-full max-w-sm rounded-lg shadow-sm p-6 bg-card">
