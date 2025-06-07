@@ -14,7 +14,7 @@ export default function Page() {
         <p><strong>Effective Date: March 28th, 2025</strong></p>
 
         <p>
-          Welcome to <span className="font-pacifico">yarnnn</span>. By using our app or site, you agree to these Terms of Service.
+          Welcome to <span className="font-brand">yarnnn</span>. By using our app or site, you agree to these Terms of Service.
           If you disagree, do not use the services.
         </p>
 
@@ -60,7 +60,7 @@ export default function Page() {
 
         <h2>6. Disclaimers</h2>
         <p>
-          <span className="font-pacifico">yarnnn</span> is provided "as is" with no warranties. We do our best to ensure reliability
+          <span className="font-brand">yarnnn</span> is provided "as is" with no warranties. We do our best to ensure reliability
           but offer no uptime guarantees.
         </p>
 
