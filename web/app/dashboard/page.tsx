@@ -18,8 +18,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (isLoading) return;
     if (!session) {
-      localStorage.setItem("postLoginRedirect", window.location.pathname);
-      router.replace("/login");
+      router.replace("/about");
     }
   }, [session, isLoading, router]);
 

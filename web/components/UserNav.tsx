@@ -29,7 +29,7 @@ export default function UserNav({ compact = false }: UserNavProps) {
       if (session?.user) {
         setUser({ email: session.user.email || "" });
       } else {
-        router.replace("/login");
+        router.replace("/about");
       }
     });
   }, [supabase, router]);
@@ -44,7 +44,7 @@ export default function UserNav({ compact = false }: UserNavProps) {
         setUser({ email: session.user.email || "" });
       } else {
         setUser(null);
-        router.replace("/login");
+        router.replace("/about");
       }
     });
     return () => {
@@ -68,7 +68,7 @@ export default function UserNav({ compact = false }: UserNavProps) {
     if (error) {
       console.error("Error signing out:", error.message);
     }
-    router.replace("/login");
+    router.replace("/about");
   };
 
   if (!user) {

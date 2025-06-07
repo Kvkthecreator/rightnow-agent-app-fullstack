@@ -19,10 +19,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
-  { title: "Baskets", href: "/baskets/create", icon: FileText },
+  { title: "Baskets", href: "/baskets", icon: FileText },
+  { title: "New Basket", href: "/basket/create", icon: FileText },
   { title: "Blocks", href: "/blocks", icon: LibraryIcon },
-  { title: "Queue", href: "/blocks/queue", icon: ListChecks },
-  { title: "Integrations", href: "/integrations", icon: Clipboard },
+  { title: "Queue", href: "/queue", icon: ListChecks },
 ];
 
 interface SidebarNavProps {

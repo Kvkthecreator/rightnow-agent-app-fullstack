@@ -11,14 +11,22 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const checkSession = async () => {
-      // In Supabase JS v2+, getSession() is all you need.
       const { data, error } = await supabase.auth.getSession();
       if (error || !data?.session) {
         setError("Authentication failed. Please try logging in again.");
         setTimeout(() => router.replace("/login"), 1500);
         return;
       }
-      router.replace("/profile");
+      const { data: baskets } = await supabase
+        .from('baskets')
+        .select('id')
+        .eq('user_id', data.session.user.id)
+        .limit(1);
+      if (!baskets || baskets.length === 0) {
+        router.replace('/basket/create');
+      } else {
+        router.replace('/dashboard');
+      }
     };
     checkSession();
   }, [router, supabase]);

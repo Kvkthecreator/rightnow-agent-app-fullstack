@@ -14,8 +14,7 @@ export default function CreationsPage() {
   useEffect(() => {
     if (isLoading) return;
     if (!session) {
-      localStorage.setItem("postLoginRedirect", window.location.pathname);
-      router.replace("/login");
+      router.replace("/about");
     }
   }, [isLoading, session, router]);
 

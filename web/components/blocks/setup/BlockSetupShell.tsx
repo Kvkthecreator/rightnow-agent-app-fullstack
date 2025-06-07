@@ -35,7 +35,7 @@ export default function BlockSetupShell() {
 
   if (sessionLoading) return null;
   if (!session?.user) {
-    router.replace("/login");
+    router.replace("/about");
     return null;
   }
 

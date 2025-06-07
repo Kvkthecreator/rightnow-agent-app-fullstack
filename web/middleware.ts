@@ -6,24 +6,23 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
 
-  // Supabase session detection using helper
   const supabase = createMiddlewareClient({ req, res });
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const protectedPaths = ['/dashboard'];
-  const isProtected = protectedPaths.some((path) =>
+  const publicPaths = ['/', '/about', '/landing', '/login', '/auth'];
+  const isPublic = publicPaths.some((path) =>
     req.nextUrl.pathname.startsWith(path)
   );
 
-  if (isProtected && !session) {
-    return NextResponse.redirect(new URL('/login', req.url));
+  if (!session && !isPublic) {
+    return NextResponse.redirect(new URL('/about', req.url));
   }
 
   return res;
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: '/((?!_next|favicon.ico|api).*)',
 };
