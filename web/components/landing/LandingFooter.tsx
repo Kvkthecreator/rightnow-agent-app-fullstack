@@ -10,7 +10,6 @@ export default function LandingFooter() {
                 {/* Logo/Icon and Brand */}
                 <div className="flex flex-col items-start gap-2">
                     <div className="flex items-center gap-3">
-                        <ArrowElbowRight size={28} className="text-black" />
                         <Brand className="" width={120} height={32} />
                     </div>
                     <div className="flex gap-4 text-sm">
