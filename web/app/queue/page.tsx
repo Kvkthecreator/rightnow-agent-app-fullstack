@@ -14,6 +14,7 @@ interface QueueRow {
   block_id: string;
   proposed_data: any;
   created_at: string;
+  source_scope?: string;
   context_blocks?: { label: string };
 }
 
@@ -21,6 +22,7 @@ export default function BlockQueuePage() {
   const supabase = createClient();
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'basket' | 'agent' | 'profile'>('all');
 
   // fetch queue rows + block labels in one call
   const fetchRows = async () => {
@@ -32,7 +34,7 @@ export default function BlockQueuePage() {
       const { data: raw } = await supabase
         .from("block_change_queue")
         .select(
-          "id,action,block_id,proposed_data,created_at,context_blocks(label)"
+          "id,action,block_id,proposed_data,source_scope,created_at,context_blocks(label)"
         )
         .eq("status", "pending")
         .order("created_at");
@@ -58,15 +60,38 @@ export default function BlockQueuePage() {
         <h1 className="text-2xl font-bold">Pending Block Updates</h1>
         {loading && <p>Loading…</p>}
         {!loading && rows.length === 0 && <p>No pending changes 🎉</p>}
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-muted-foreground">Filter:</label>
+          <select
+            className="border rounded p-1 text-sm"
+            value={scopeFilter}
+            onChange={(e) => setScopeFilter(e.target.value as any)}
+          >
+            <option value="all">All</option>
+            <option value="basket">Basket</option>
+            <option value="profile">Profile</option>
+            <option value="agent">Agent</option>
+          </select>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          These are AI-suggested updates. Approve, reject, or ignore.
+        </p>
         <ul className="space-y-4">
-          {rows.map((row) => (
+          {rows
+            .filter((r) => scopeFilter === "all" || r.source_scope === scopeFilter)
+            .map((row) => (
             <li
               key={row.id}
               className="border rounded p-4 flex justify-between items-start gap-4"
             >
               <div className="grow">
-                <h3 className="font-medium">
+                <h3 className="font-medium flex items-center gap-2">
                   {row.context_blocks?.label || row.block_id.slice(0, 8)}
+                  {row.source_scope && (
+                    <span className="text-xs px-2 py-0.5 bg-muted rounded border">
+                      {row.source_scope}
+                    </span>
+                  )}
                 </h3>
                 <p className="text-xs text-gray-500">
                   {row.action.toUpperCase()} · {new Date(row.created_at).toLocaleString()}

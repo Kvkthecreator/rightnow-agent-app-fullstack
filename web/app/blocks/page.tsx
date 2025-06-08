@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import BlockCard, { Block } from "@/components/blocks/BlockCard";
 import BlockCreateModal from "@/components/blocks/BlockCreateModal";
+import EmptyBlockState from "@/components/EmptyBlockState";
 import { fetchBlocks, createBlock, toggleAuto } from "@/lib/supabase/blocks";
 
 export default function BlocksPage() {
@@ -15,6 +16,7 @@ export default function BlocksPage() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'core'>('all');
+  const [scope, setScope] = useState<'user' | 'agent' | 'all'>('user');
 
   useEffect(() => {
     if (isLoading) return;
@@ -23,10 +25,20 @@ export default function BlocksPage() {
       return;
     }
     (async () => {
-      const { data } = await fetchBlocks(session.user.id, filter === 'core');
+      const scopeList =
+        scope === 'user'
+          ? ['basket', 'profile']
+          : scope === 'agent'
+          ? ['agent']
+          : [];
+      const { data } = await fetchBlocks(
+        session.user.id,
+        filter === 'core',
+        scopeList
+      );
       if (data) setBlocks(data as any);
     })();
-  }, [session, isLoading, router, filter]);
+  }, [session, isLoading, router, filter, scope]);
 
   async function handleCreate(data: {
     type: string;
@@ -59,10 +71,28 @@ export default function BlocksPage() {
 
   if (isLoading) return null;
 
+  const groups = blocks.reduce<Record<string, Block[]>>((acc, b) => {
+    const key = b.meta_scope || "other";
+    acc[key] = acc[key] || [];
+    acc[key].push(b);
+    return acc;
+  }, {});
+
+  const labels: Record<string, string> = {
+    basket: "📦 From Basket",
+    profile: "👤 Profile Setup",
+    agent: "🤖 Agent Inference",
+    global: "🌐 Global",
+    other: "Other",
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">🧱 Context Blocks</h1>
+          <div>
+            <h1 className="text-2xl font-bold">🧱 Context Blocks</h1>
+            <p className="text-sm text-muted-foreground">Advanced Settings</p>
+          </div>
           <div className="flex items-center space-x-2">
             <Button
               size="sm"
@@ -78,6 +108,15 @@ export default function BlocksPage() {
             >
               Core
             </Button>
+            <select
+              className="border rounded px-2 py-1 text-sm"
+              value={scope}
+              onChange={(e) => setScope(e.target.value as any)}
+            >
+              <option value="user">User</option>
+              <option value="agent">Agent</option>
+              <option value="all">All</option>
+            </select>
             <Button onClick={() => setShowModal(true)}>+ Create Block</Button>
           </div>
         </div>
@@ -86,13 +125,28 @@ export default function BlocksPage() {
             Modular context units like tone, audience and positioning.
           </p>
         </Card>
-        <div className="space-y-4">
-          {blocks
-            .filter((b) => (filter === "core" ? b.is_core_block : true))
-            .map((b) => (
-              <BlockCard key={b.id} block={b} onToggleAuto={handleToggle} />
+        {blocks.length === 0 ? (
+          <EmptyBlockState />
+        ) : (
+          <div className="space-y-6">
+            {Object.entries(groups).map(([k, arr]) => (
+              <div key={k} className="space-y-2">
+                <h3 className="font-medium">{labels[k]}</h3>
+                <div className="space-y-2">
+                  {arr
+                    .filter((b) => (filter === "core" ? b.is_core_block : true))
+                    .map((b) => (
+                      <BlockCard
+                        key={b.id}
+                        block={b}
+                        onToggleAuto={handleToggle}
+                      />
+                    ))}
+                </div>
+              </div>
             ))}
-        </div>
+          </div>
+        )}
         {/* TODO: pending review queue and diff view */}
         <BlockCreateModal
           open={showModal}

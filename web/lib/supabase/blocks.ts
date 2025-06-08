@@ -12,12 +12,19 @@ export interface BlockInsert {
   file_ids?: string[];
 }
 
-export async function fetchBlocks(userId: string, coreOnly = false) {
+export async function fetchBlocks(
+  userId: string,
+  coreOnly = false,
+  scopes: string[] = ["basket", "profile"]
+) {
   const supabase = createClient();
   let query = supabase
     .from("context_blocks")
     .select("*")
     .eq("user_id", userId);
+  if (scopes.length > 0) {
+    query = query.in("meta_scope", scopes);
+  }
   if (coreOnly) {
     query = query.eq("is_core_block", true);
   }

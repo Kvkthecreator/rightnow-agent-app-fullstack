@@ -9,13 +9,18 @@ import Brand from "@/components/Brand";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 
-const navItems = [
+const baseItems = [
   { href: "/dashboard", label: "🧶 Dashboard" },
   { href: "/baskets", label: "🧺 Baskets" },
   { href: "/basket/create", label: "➕ New Basket" },
+];
+
+const advancedItems = [
   { href: "/blocks", label: "◾ Blocks" },
   { href: "/queue", label: "🪄 Queue" },
 ];
+
+const showAdvanced = process.env.NEXT_PUBLIC_ADVANCED_UI === "true";
 
 const Sidebar = () => {
   const [open, setOpen] = useState(false);
@@ -60,7 +65,7 @@ const Sidebar = () => {
               <Brand className="w-8 h-8 hover:opacity-80 transition" />
             </Link>
             <nav className="flex flex-col space-y-2 text-sm">
-              {navItems.map((item) => (
+              {baseItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -74,6 +79,29 @@ const Sidebar = () => {
                   {item.label}
                 </Link>
               ))}
+              {showAdvanced && (
+                <details className="mt-4">
+                  <summary className="cursor-pointer px-3 py-2 text-muted-foreground hover:text-foreground rounded-md">
+                    Advanced
+                  </summary>
+                  <div className="ml-2 mt-2 flex flex-col space-y-2">
+                    {advancedItems.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={clsx(
+                          "rounded-md px-3 py-2 transition hover:bg-muted hover:text-foreground",
+                          pathname === item.href
+                            ? "bg-muted text-foreground font-medium"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </details>
+              )}
             </nav>
           </div>
 
