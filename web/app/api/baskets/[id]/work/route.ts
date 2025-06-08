@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const body = await request.text();
+export async function POST(req: NextRequest, context: any) {
+  const { id } = context.params;
+  const body = await req.text();
   const headers: HeadersInit = { "Content-Type": "application/json" };
-  const auth = request.headers.get("authorization");
+  const auth = req.headers.get("authorization");
   if (auth) headers["Authorization"] = auth;
-  const cookie = request.headers.get("cookie");
+  const cookie = req.headers.get("cookie");
   if (cookie) headers["cookie"] = cookie;
 
-  const upstream = `${process.env.BACKEND_URL}/baskets/${params.id}/work`;
+  const upstream = `${process.env.BACKEND_URL}/baskets/${id}/work`;
   const res = await fetch(upstream, {
     method: "POST",
     headers,
