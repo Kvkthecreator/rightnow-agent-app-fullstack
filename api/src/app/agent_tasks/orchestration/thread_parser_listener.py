@@ -36,6 +36,15 @@ async def handle_new_basket(basket_id: str, payload: Any) -> None:
                     )
                     await conn.execute(
                         (
+                            "insert into block_files(id,user_id,file_url,label,associated_block_id,is_primary,storage_domain) "
+                            "values(gen_random_uuid(),'demo-user',$1,$2,$3,true,'block-files')"
+                        ),
+                        f,
+                        f.split("/")[-1][:50],
+                        bid,
+                    )
+                    await conn.execute(
+                        (
                             "insert into block_brief_link(id,block_id,task_brief_id,transformation) "
                             "values(gen_random_uuid(),$1,$2,'source')"
                         ),
@@ -93,6 +102,15 @@ async def handle_update_basket(basket_id: str, payload: Any) -> None:
                         t,
                         f.split("/")[-1][:50],
                         f,
+                    )
+                    await conn.execute(
+                        (
+                            "insert into block_files(id,user_id,file_url,label,associated_block_id,is_primary,storage_domain) "
+                            "values(gen_random_uuid(),'demo-user',$1,$2,$3,true,'block-files')"
+                        ),
+                        f,
+                        f.split("/")[-1][:50],
+                        bid,
                     )
                     await conn.execute(
                         (
