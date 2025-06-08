@@ -17,7 +17,7 @@ export default function Page() {
                 </p>
 
                 <p>
-                    This Privacy Policy outlines how <Brand /> ("we", "our", or
+                    This Privacy Policy outlines how <Brand /> yarnnn ("we", "our", or
                     "us") accesses, uses, and protects your information when you
                     authorize the application to connect with your Google
                     account.

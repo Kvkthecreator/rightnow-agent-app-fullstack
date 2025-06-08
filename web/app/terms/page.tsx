@@ -17,7 +17,7 @@ export default function Page() {
                 </p>
 
                 <p>
-                    Welcome to <Brand className="" />. By using our app or site,
+                    Welcome to <Brand className="" /> yarnnn. By using our app or site,
                     you agree to these Terms of Service. If you disagree, do not
                     use the services.
                 </p>
