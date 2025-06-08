@@ -120,6 +120,22 @@
         @apply bg-background text-foreground font-sans;
     }
 }
+@font-face {
+  font-family: 'Pacifico';
+  src: url('/fonts/Pacifico-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-pacifico: 'Pacifico', cursive;
+}
+
+.font-brand {
+  font-family: var(--font-pacifico), cursive;
+}
+
 
 /* Temporary debug class to verify Pacifico font */
 .debug-brand {
