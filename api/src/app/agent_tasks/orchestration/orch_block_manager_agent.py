@@ -59,7 +59,7 @@ async def _handle_event(conn: asyncpg.Connection, evt) -> None:
                 conn,
                 action="merge",
                 block_id=dup["block_ids"][0],
-                proposed_data={"block_ids": dup["block_ids"]},
+                proposed_data={"block_ids": dup["block_ids"], "update_policy": "auto"},
                 source_event=topic,
                 reason="duplicate_labels",
             )
