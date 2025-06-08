@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const body = await request.text();
   const headers: HeadersInit = { "Content-Type": "application/json" };
   const auth = request.headers.get("authorization");
