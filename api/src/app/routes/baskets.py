@@ -1,7 +1,7 @@
 """API routes for Basket management."""
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
@@ -15,6 +15,7 @@ class BasketCreate(BaseModel):
     insight: Optional[str] = None
     details: Optional[str] = None
     file_ids: Optional[List[str]] = None
+    blocks: Optional[List[Dict[str, Any]]] = None
 
 class BasketUpdate(BaseModel):
     input_text: Optional[str] = None
@@ -38,6 +39,41 @@ async def create_basket(payload: BasketCreate):
     ).execute()
     if resp.error:
         raise HTTPException(status_code=500, detail=resp.error.message)
+
+    inserted_block_ids: List[str] = []
+    for blk in payload.blocks or []:
+        block_id = str(uuid.uuid4())
+        data = {
+            "id": block_id,
+            "type": blk.get("type"),
+            "label": blk.get("label"),
+            "content": blk.get("content"),
+            "is_primary": blk.get("is_primary", True),
+            "meta_scope": "basket",
+            "status": "active",
+        }
+        if blk.get("source"):
+            data["source"] = blk["source"]
+        supabase.table("context_blocks").insert(data).execute()
+        if blk.get("type") == "reference":
+            supabase.table("block_files").insert(
+                {
+                    "file_url": blk.get("content"),
+                    "label": blk.get("label"),
+                    "associated_block_id": block_id,
+                    "storage_domain": "block-files",
+                    "is_primary": True,
+                }
+            ).execute()
+        supabase.table("block_brief_link").insert(
+            {
+                "id": str(uuid.uuid4()),
+                "block_id": block_id,
+                "task_brief_id": basket_id,
+                "transformation": "source",
+            }
+        ).execute()
+        inserted_block_ids.append(block_id)
     if payload.details:
         supabase.table("basket_threads").insert(
             {"basket_id": basket_id, "content": payload.details, "source": "user_dump"}
