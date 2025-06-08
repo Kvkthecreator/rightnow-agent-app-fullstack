@@ -1,10 +1,10 @@
 "use client";
-import BasketInputPanel from "@/components/BasketInputPanel";
+import BasketCreateForm from "@/components/baskets/BasketCreateForm";
 
 export default function BasketNewPage() {
   return (
     <div className="max-w-xl mx-auto p-6">
-      <BasketInputPanel mode="create" />
+      <BasketCreateForm onSubmit={(blocks) => console.log(blocks)} />
     </div>
   );
 }

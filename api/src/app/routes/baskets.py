@@ -10,7 +10,9 @@ from ..supabase_helpers import publish_event
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 
 class BasketCreate(BaseModel):
+    topic: str
     intent: str
+    insight: Optional[str] = None
     details: Optional[str] = None
     file_ids: Optional[List[str]] = None
 
@@ -26,7 +28,9 @@ async def create_basket(payload: BasketCreate):
     resp = supabase.table("baskets").insert(
         {
             "id": basket_id,
+            "topic": payload.topic,
             "intent_summary": payload.intent,
+            "insight": payload.insight,
             "details": payload.details,
             "file_ids": payload.file_ids or [],
             "status": "draft",
@@ -42,7 +46,9 @@ async def create_basket(payload: BasketCreate):
         "basket.compose_request",
         {
             "basket_id": basket_id,
+            "topic": payload.topic,
             "intent": payload.intent,
+            "insight": payload.insight,
             "details": payload.details,
             "file_ids": payload.file_ids or [],
         },
