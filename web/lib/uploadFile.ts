@@ -13,9 +13,10 @@ import { createClient } from "@/lib/supabaseClient";
 export async function uploadFile(
   file: File,
   path: string,
-  bucket: string = "task-briefs"
+  bucket: string = "block-files"
 ): Promise<string> {
   const supabase = createClient();
+  const storageDomain = "block-files";
 
   // Validate file type and size
   const maxSizeMB = 5;
@@ -35,7 +36,9 @@ export async function uploadFile(
     console.error(`[uploadFile] upload error in bucket "${bucket}":`, error);
     const statusCode = (error as any)?.status;
     if (statusCode === 404) {
-      throw new Error(`Storage bucket "${bucket}" not found.`);
+      throw new Error(
+        "Upload failed — check that 'block-files' bucket exists and is public"
+      );
     }
     throw new Error(`File upload failed: ${(error as any)?.message || "Unknown error"}`);
   }
