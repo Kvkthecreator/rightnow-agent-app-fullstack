@@ -64,3 +64,16 @@ export function buildContextBlocks(values: BasketValues): ContextBlock[] {
 
   return blocks;
 }
+
+import { apiPost } from "../api";
+
+export async function createBasket(values: BasketValues): Promise<{ id: string }> {
+  const blocks = buildContextBlocks(values);
+  const payload = {
+    topic: values.topic,
+    intent: values.intent,
+    insight: values.insight,
+    blocks,
+  };
+  return apiPost<{ id: string }>("/api/baskets", payload);
+}

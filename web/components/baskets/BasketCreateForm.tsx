@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { UploadArea } from "@/components/ui/UploadArea";
-import { buildContextBlocks } from "@/lib/baskets/submit";
+import { createBasket } from "@/lib/baskets/submit";
+import { useRouter } from "next/navigation";
 
 interface Props {
-  onSubmit?: (blocks: any[]) => void;
+  onSuccess?: (id: string) => void;
 }
 
-export default function BasketCreateForm({ onSubmit }: Props) {
+export default function BasketCreateForm({ onSuccess }: Props) {
   const [intent, setIntent] = useState("");
   const [objective, setObjective] = useState("");
   const [insight, setInsight] = useState("");
@@ -19,15 +20,29 @@ export default function BasketCreateForm({ onSubmit }: Props) {
   const addRef = (url: string) => setRefs((r) => (r.length < 3 ? [...r, url] : r));
   const removeRef = (url: string) => setRefs((r) => r.filter((u) => u !== url));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const blocks = buildContextBlocks({
-      topic: intent,
-      intent: objective,
-      insight,
-      references: refs,
-    });
-    onSubmit?.(blocks);
+    setLoading(true);
+    setError(null);
+    try {
+      const { id } = await createBasket({
+        topic: intent,
+        intent: objective,
+        insight,
+        references: refs,
+      });
+      onSuccess?.(id);
+      router.push(`/baskets/${id}/work`);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to create basket");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -96,8 +111,11 @@ export default function BasketCreateForm({ onSubmit }: Props) {
               rows={3}
             />
           </div>
-          <Button type="submit" className="w-full">
-            Create Basket
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Creating…" : "Create Basket"}
           </Button>
         </form>
       </CardContent>
