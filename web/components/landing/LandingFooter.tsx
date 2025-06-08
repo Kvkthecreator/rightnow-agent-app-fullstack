@@ -10,7 +10,7 @@ export default function LandingFooter() {
                 {/* Logo/Icon and Brand */}
                 <div className="flex flex-col items-start gap-2">
                     <div className="flex items-center gap-3">
-                        <Brand className="" width={120} height={32} />
+                        <div className="font-brand mb-1">yarnnn</div>
                     </div>
                     <div className="flex gap-4 text-sm">
                         <Link href="/privacy" className="hover:underline">
