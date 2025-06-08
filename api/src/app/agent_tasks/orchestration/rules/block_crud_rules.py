@@ -13,6 +13,12 @@ BLOCK_CRUD_RULES = {
         "allow_auto_delete": False,
         "requires_approval": True,
     },
+    "*_basket": {
+        "allow_auto_create": False,
+        "allow_auto_update": False,
+        "allow_auto_delete": False,
+        "requires_approval": True,
+    },
     "campaign_goal": {
         "allow_auto_create": False,
         "allow_auto_update": False,

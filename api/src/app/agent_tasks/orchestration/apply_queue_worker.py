@@ -14,10 +14,11 @@ from datetime import datetime, timezone
 DB_URL = os.getenv("DATABASE_URL")
 
 SELECT_PENDING = """
-select *
-from block_change_queue
-where status in ('pending','approved')
-order by created_at
+select q.*, cb.meta_scope, cb.update_policy
+from block_change_queue q
+join context_blocks cb on cb.id = q.block_id
+where q.status in ('pending','approved')
+order by q.created_at
 """
 
 APPLY_UPDATE = """
@@ -52,6 +53,14 @@ async def run_once() -> None:
             block_id = row["block_id"]
             proposed = row["proposed_data"]
             try:
+                if row["meta_scope"] == "basket" or row["update_policy"] == "manual":
+                    await conn.execute(
+                        UPDATE_QUEUE_STATUS,
+                        row["id"],
+                        "skipped",
+                        "::basket_scope",
+                    )
+                    continue
                 applied = await conn.fetchrow(
                     APPLY_UPDATE,
                     block_id,

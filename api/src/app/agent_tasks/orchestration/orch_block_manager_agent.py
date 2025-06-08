@@ -14,15 +14,16 @@ DB_URL = os.getenv("DATABASE_URL")
 
 QUEUE_SQL = """
 insert into block_change_queue
-    (id, action, block_id, proposed_data, source_event, status, reason)
+    (id, action, block_id, proposed_data, source_event, source_scope, status, reason)
 values
     (gen_random_uuid(),
      $1::proposal_action_enum,
      $2::uuid,
      $3::jsonb,
      $4,
+     $5,
      'pending',
-     $5)
+     $6)
 """
 
 async def _queue(
@@ -31,6 +32,7 @@ async def _queue(
     block_id: str,
     proposed_data: Dict[str, Any],
     source_event: str,
+    source_scope: str,
     reason: str,
 ) -> None:
     await conn.execute(
@@ -39,6 +41,7 @@ async def _queue(
         block_id,
         json.dumps(proposed_data),
         source_event,
+        source_scope,
         reason,
     )
 
@@ -55,22 +58,32 @@ async def _handle_event(conn: asyncpg.Connection, evt) -> None:
     payload = evt.payload
     if topic == "block.audit_report":
         for dup in payload.get("duplicate_labels", []):
+            scope = await conn.fetchval(
+                "select meta_scope from context_blocks where id=$1",
+                dup["block_ids"][0],
+            )
             await _queue(
                 conn,
                 action="merge",
                 block_id=dup["block_ids"][0],
                 proposed_data={"block_ids": dup["block_ids"], "update_policy": "auto"},
                 source_event=topic,
+                source_scope=scope or "unknown",
                 reason="duplicate_labels",
             )
     elif topic == "block.usage_report":
         for stale_id in payload.get("stale_blocks", []):
+            scope = await conn.fetchval(
+                "select meta_scope from context_blocks where id=$1",
+                stale_id,
+            )
             await _queue(
                 conn,
                 action="update",
                 block_id=stale_id,
                 proposed_data={"status": "inactive"},
                 source_event=topic,
+                source_scope=scope or "unknown",
                 reason="stale_block",
             )
 
