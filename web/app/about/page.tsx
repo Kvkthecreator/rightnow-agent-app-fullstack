@@ -11,7 +11,9 @@ export default function HomePage() {
             <main>
                 <section className="w-full max-w-[1200px] mx-auto px-4 py-[120px] space-y-6">
                     <h1 className="text-foreground text-4xl md:text-6xl font-bold tracking-tight leading-tight text-left">
-                        yarnnn is your memory operating system
+                        <div className="font-brand text-3xl md:text-7xl">yarnnn</div>
+                        <br />
+                        is your memory operating system
                         <br />
                         for async thinkers and creative builders
                     </h1>

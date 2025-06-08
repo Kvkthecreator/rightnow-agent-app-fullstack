@@ -37,11 +37,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center justify-center min-h-screen bg-muted p-4">
             {/* Branding */}
             <div className="flex items-center space-x-2 mb-6">
-                <img
-                    src="/assets/logos/yarn-logo-light.png"
-                    alt="yarnnn logo"
-                    className="h-8 w-8"
-                />
+
                 <Brand className="text-2xl" />
             </div>
             {/* Login Card */}
@@ -53,7 +49,7 @@ export default function LoginPage() {
                     <div className="flex items-center">
                         <div className="h-px flex-1 bg-gray-200" />
                         <span className="px-2 text-sm text-gray-500">
-                            Or continue with
+                            continue with
                         </span>
                         <div className="h-px flex-1 bg-gray-200" />
                     </div>

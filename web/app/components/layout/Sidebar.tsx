@@ -1,35 +1,88 @@
+// web/app/components/layout/Sidebar.tsx
+
+"use client";
+
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { X } from "lucide-react";
+import Brand from "@/components/Brand";
+import { usePathname } from "next/navigation";
+import clsx from "clsx";
+
+const navItems = [
+  { href: "/dashboard", label: "🧶 Dashboard" },
+  { href: "/baskets", label: "🧺 Baskets" },
+  { href: "/basket/create", label: "➕ New Basket" },
+  { href: "/blocks", label: "◾ Blocks" },
+  { href: "/queue", label: "🪄 Queue" },
+];
 
 const Sidebar = () => {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <>
-      {/* Mobile Toggle Button */}
+      {/* Mobile Toggle Button w/ Brand logo */}
       <div className="md:hidden p-4">
-        <button onClick={() => setOpen(!open)}>
-          {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        <button
+          onClick={() => setOpen(!open)}
+          className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shadow-sm hover:bg-muted transition"
+        >
+          {open ? (
+            <X className="w-5 h-5 text-foreground" />
+          ) : (
+            <Brand className="w-5 h-5" />
+          )}
         </button>
       </div>
 
-      {/* Overlay */}
+      {/* Mobile Overlay */}
       {open && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-30" onClick={() => setOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setOpen(false)}
+        />
       )}
 
-      {/* Sidebar Content */}
-      <aside className={`fixed top-0 left-0 h-full bg-white shadow z-40 transform ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 transition-transform duration-200 w-64 md:relative md:block`}>
-        <div className="p-4 space-y-4">
-          <div className="text-xl font-semibold">yarnnn</div>
-          <nav className="flex flex-col space-y-2">
-            <Link href="/dashboard">🏠 Dashboard</Link>
-            <Link href="/baskets">🧺 Baskets</Link>
-            <Link href="/baskets/new">📄 New Basket</Link>
-            <Link href="/blocks">📚 Blocks</Link>
-            <Link href="/queue">🪄 Queue</Link>
-          </nav>
+      {/* Sidebar */}
+      <aside
+        className={clsx(
+          "fixed top-0 left-0 z-40 h-screen w-64 bg-background border-r border-border shadow-md transform transition-transform duration-200 ease-in-out",
+          open ? "translate-x-0" : "-translate-x-full",
+          "md:translate-x-0 md:relative md:block"
+        )}
+      >
+        <div className="h-full flex flex-col justify-between p-4">
+          {/* Top: Brand + Nav */}
+          <div className="space-y-6">
+            <Link href="/" className="hidden md:block">
+              <Brand className="w-8 h-8 hover:opacity-80 transition" />
+            </Link>
+            <nav className="flex flex-col space-y-2 text-sm">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={clsx(
+                    "rounded-md px-3 py-2 transition hover:bg-muted hover:text-foreground",
+                    pathname === item.href
+                      ? "bg-muted text-foreground font-medium"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+
+          {/* Bottom: Email */}
+          <div className="text-sm text-muted-foreground border-t border-border pt-4">
+            <div className="px-3 py-2 rounded-md bg-muted/40 hover:bg-muted transition cursor-pointer">
+              seulkim88@gmail.com
+            </div>
+          </div>
         </div>
       </aside>
     </>

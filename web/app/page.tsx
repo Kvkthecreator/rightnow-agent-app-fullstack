@@ -15,20 +15,21 @@ export default function LandingPage() {
           <div className="relative z-10">
             <LandingHeader />
             <div className="max-w-[1200px] mx-auto px-4 py-24 flex flex-col items-start">
-              <img
-                src="/assets/logos/yarn-logo-light.png"
-                alt="yarn logo"
-                className="w-32 h-32 mb-6 object-contain"
-              />
+              <br />
+              <div className="font-brand text-3xl md:text-7xl">yarnnn</div>
+              <br />
+              <br />
               <h1 className="text-3xl md:text-5xl font-bold mb-4">
-                weave your thoughts<br />
-                with a memory operating system<br />
-                designed for working with AI
+                memory operating system<br />
+                <br />                
+                to weave your thoughts<br />
               </h1>
+              <br />
               <p className="text-lg leading-relaxed mb-6 max-w-xl">
-                start each idea with a simple dump.
-                yarnnn turns it into a structured thread —
-                a living memory powered by reusable blocks and context-aware agents.
+                designed for working with AI
+                start ideas with a simple dump.
+                yarnnn turns it into a structured,
+                living memory powered by "context blocks" and "task baskets".
               </p>
               <Link
                 href="/basket/create"
@@ -68,7 +69,7 @@ export default function LandingPage() {
           <section className="px-6 py-6 text-right">
             <Link
               href="/about"
-              className="text-sm underline underline-offset-2 hover:text-black/70 transition"
+              className="text-md underline underline-offset-2 hover:text-black/70 transition"
             >
               About &rarr;
             </Link>
@@ -77,7 +78,7 @@ export default function LandingPage() {
           {/* Mission Statement */}
           <section className="px-6 py-12 border-t border-b">
             <p className="text-xl md:text-2xl max-w-3xl mx-auto text-center">
-              🧶 helps you work with clarity 
+              🧶 work with clarity 
               one thought at a time
             </p>
           </section>
