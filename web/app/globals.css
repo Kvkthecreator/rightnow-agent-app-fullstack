@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@font-face {
+  font-family: 'Pacifico';
+  src: url('/fonts/Pacifico-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -45,6 +53,7 @@
 
 :root {
   --radius: 0.75rem;
+  --font-pacifico: 'Pacifico', cursive;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -112,6 +121,9 @@
   --sidebar-ring: oklch(0.552 0.016 285.938);
 }
 
+.font-brand {
+  font-family: var(--font-pacifico), cursive;
+}
 
 @layer base {
   * {

@@ -8,7 +8,7 @@ export default function LandingFooter() {
         {/* Logo/Icon and Brand */}
         <div className="flex items-center gap-3">
           <ArrowElbowRight size={28} className="text-black" />
-          <span className="text-lg font-pacifico tracking-tight">yarnnn</span>
+          <span className="text-lg font-brand tracking-tight">yarnnn</span>
         </div>
 
         {/* Office & Contact */}

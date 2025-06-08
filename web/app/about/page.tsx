@@ -13,7 +13,7 @@ export default function HomePage() {
             "manage your memory<br />
             working with AI" <br />
             <br />
-            <span className="font-pacifico">yarnnn</span>
+            <span className="font-brand">yarnnn</span>
           </h1>
         </section>
         <AgentsTeaserSection />

@@ -68,7 +68,7 @@ export default function SidebarNav({
               href="/"
               className="flex items-center gap-2 ml-2 text-black hover:text-black/80 transition-colors"
             >
-              <span className="font-pacifico text-lg">yarnnn</span>
+              <span className="font-brand text-lg">yarnnn</span>
             </Link>
           )}
         </div>
