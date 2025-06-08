@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  req: NextRequest,
+  context: any
+) {
+  const id = context.params.id;
   const headers: HeadersInit = {};
-  const auth = request.headers.get("authorization");
+  const auth = req.headers.get("authorization");
   if (auth) headers["Authorization"] = auth;
-  const cookie = request.headers.get("cookie");
+  const cookie = req.headers.get("cookie");
   if (cookie) headers["cookie"] = cookie;
 
-  const upstream = `${process.env.BACKEND_URL}/baskets/${params.id}`;
+  const upstream = `${process.env.BACKEND_URL}/baskets/${id}`;
   const res = await fetch(upstream, { headers, cache: "no-store" });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
