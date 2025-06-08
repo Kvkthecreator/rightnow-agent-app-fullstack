@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { ArrowElbowRight } from "phosphor-react";
 import Brand from "@/components/Brand";
 
@@ -7,9 +8,19 @@ export default function LandingFooter() {
         <footer className="bg-white text-black border-t border-neutral-200 py-8 px-4">
             <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
                 {/* Logo/Icon and Brand */}
-                <div className="flex items-center gap-3">
-                    <ArrowElbowRight size={28} className="text-black" />
-                    <Brand className="text-lg tracking-tight" />
+                <div className="flex flex-col items-start gap-2">
+                    <div className="flex items-center gap-3">
+                        <ArrowElbowRight size={28} className="text-black" />
+                        <Brand className="" width={120} height={32} />
+                    </div>
+                    <div className="flex gap-4 text-sm">
+                        <Link href="/privacy" className="hover:underline">
+                            Privacy
+                        </Link>
+                        <Link href="/terms" className="hover:underline">
+                            Terms
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Office & Contact */}
