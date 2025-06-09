@@ -15,12 +15,7 @@ const baseItems = [
     { href: "/basket/create", label: "➕ New Basket" },
 ];
 
-const advancedItems = [
-    { href: "/blocks", label: "◾ Blocks" },
-    { href: "/queue", label: "🪄 Queue" },
-];
-
-const showAdvanced = process.env.NEXT_PUBLIC_ADVANCED_UI === "true";
+// Advanced items removed. Only showing Blocks link.
 
 const Sidebar = () => {
     const [open, setOpen] = useState(false);
@@ -80,29 +75,17 @@ const Sidebar = () => {
                                 </Link>
                             ))}
                         </nav>
-                        {showAdvanced && (
-                            <details className="mt-6">
-                                <summary className="cursor-pointer px-3 py-2 text-muted-foreground hover:text-foreground rounded-md">
-                                    Advanced
-                                </summary>
-                                <div className="ml-2 mt-2 flex flex-col space-y-2">
-                                    {advancedItems.map((item) => (
-                                        <Link
-                                            key={item.href}
-                                            href={item.href}
-                                            className={clsx(
-                                                "rounded-md px-3 py-2 transition hover:bg-muted hover:text-foreground",
-                                                pathname === item.href
-                                                    ? "bg-muted text-foreground font-medium"
-                                                    : "text-muted-foreground",
-                                            )}
-                                        >
-                                            {item.label}
-                                        </Link>
-                                    ))}
-                                </div>
-                            </details>
-                        )}
+                        <Link
+                            href="/blocks"
+                            className={clsx(
+                                "mt-6 rounded-md px-3 py-2 transition hover:bg-muted hover:text-foreground",
+                                pathname === "/blocks"
+                                    ? "bg-muted text-foreground font-medium"
+                                    : "text-muted-foreground"
+                            )}
+                        >
+                            ◾ Blocks
+                        </Link>
                     </div>
 
                     {/* Bottom: Email */}
