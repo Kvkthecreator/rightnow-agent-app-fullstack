@@ -6,8 +6,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
 import Brand from "@/components/Brand";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
+import { createClient } from "@/lib/supabaseClient";
 
 const baseItems = [
     { href: "/dashboard", label: "🧶 Dashboard" },
@@ -20,6 +21,17 @@ const baseItems = [
 const Sidebar = () => {
     const [open, setOpen] = useState(false);
     const pathname = usePathname();
+    const router = useRouter();
+    const supabase = createClient();
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        router.push("/");
+    };
+
+    const handleSettings = () => {
+        router.push("/settings");
+    };
 
     return (
         <>
@@ -48,9 +60,9 @@ const Sidebar = () => {
             {/* Sidebar */}
             <aside
                 className={clsx(
-                    "fixed top-0 left-0 z-40 h-screen w-64 bg-background border-r border-border shadow-md transform transition-transform duration-200 ease-in-out",
+                    "fixed top-0 left-0 z-40 h-screen w-64 max-w-[80%] bg-background/90 backdrop-blur-md border-r border-border shadow-md transform transition-transform duration-200 ease-in-out",
                     open ? "translate-x-0" : "-translate-x-full",
-                    "md:translate-x-0 md:relative md:block md:min-h-screen",
+                    "md:translate-x-0 md:relative md:block md:min-h-screen"
                 )}
             >
                 <div className="h-full flex flex-col justify-between py-6 px-4">
@@ -68,7 +80,7 @@ const Sidebar = () => {
                                         "rounded-md px-3 py-2 transition hover:bg-muted hover:text-foreground",
                                         pathname === item.href
                                             ? "bg-muted text-foreground font-medium"
-                                            : "text-muted-foreground",
+                                            : "text-muted-foreground"
                                     )}
                                 >
                                     {item.label}
@@ -90,9 +102,15 @@ const Sidebar = () => {
 
                     {/* Bottom: Email */}
                     <div className="text-sm text-muted-foreground border-t border-border pt-4">
-                        <div className="px-3 py-2 rounded-md bg-muted/40 hover:bg-muted transition cursor-pointer">
-                            seulkim88@gmail.com
-                        </div>
+                        <details className="group px-3 py-2 rounded-md bg-muted/40 hover:bg-muted transition cursor-pointer">
+                            <summary className="list-none text-sm text-muted-foreground hover:text-foreground">
+                                seulkim88@gmail.com
+                            </summary>
+                            <div className="mt-2 ml-2 flex flex-col space-y-1 text-sm text-muted-foreground">
+                                <button onClick={handleSettings}>⚙️ Settings</button>
+                                <button onClick={handleLogout}>🔓 Sign Out</button>
+                            </div>
+                        </details>
                     </div>
                 </div>
             </aside>
