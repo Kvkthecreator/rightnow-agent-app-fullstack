@@ -1,8 +1,10 @@
 import { buildContextBlocks } from '../../web/lib/baskets/submit';
 
 describe('basket block builder', () => {
-  it('requires topic, intent and reference', () => {
+  it('requires topic and intent', () => {
     expect(() => buildContextBlocks({topic:'',intent:'',references:[]})).toThrow();
+    expect(() => buildContextBlocks({topic:'t',intent:'',references:[]})).toThrow();
+    expect(() => buildContextBlocks({topic:'t',intent:'i',references:[]})).not.toThrow();
   });
 
   it('creates four blocks when all fields provided', () => {
