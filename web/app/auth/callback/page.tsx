@@ -23,7 +23,7 @@ export default function AuthCallbackPage() {
         .eq('user_id', data.session.user.id)
         .limit(1);
       if (!baskets || baskets.length === 0) {
-        router.replace('/basket/create');
+        router.replace('/baskets/create');
       } else {
         router.replace('/dashboard');
       }

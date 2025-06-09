@@ -24,7 +24,7 @@ export default function BasketsPage() {
           title="\uD83D\uDC4B Welcome! Let\u2019s start your first basket \u2014 it only takes a minute."
           action={(
             <Button asChild>
-              <Link href="/basket/create">Create Basket</Link>
+              <Link href="/baskets/create">Create Basket</Link>
             </Button>
           )}
         />
