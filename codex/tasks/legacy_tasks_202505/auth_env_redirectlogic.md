@@ -25,7 +25,7 @@ After session is restored, use router.push('/profile') (or desired route) to nav
 For local dev:
 Confirm that .env.local has NEXT_PUBLIC_SITE_URL=http://localhost:3000
 For production:
-Confirm that Vercel envs have NEXT_PUBLIC_SITE_URL=https://rgtnow.com
+Confirm that Vercel envs have NEXT_PUBLIC_SITE_URL=https://yarnnn.com
 Example Implementation:
 (Update as needed to match your app structure and hooks)
 // app/auth/callback/page.tsx

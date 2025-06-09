@@ -72,6 +72,6 @@ NEXT_PUBLIC_SUPABASE_URL=https://xyzcompany.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 On your production host (e.g., Vercel), set the same variables in the project settings:
-  • `BACKEND_URL` → your Render backend URL (e.g. `https://rightnow-agent-app-fullstack.onrender.com`)
+  • `BACKEND_URL` → your Render backend URL (e.g. `https://yarnnn.com`)
   • `NEXT_PUBLIC_SUPABASE_URL` → your Supabase project URL
   • `SUPABASE_SERVICE_ROLE_KEY` → your Supabase service role secret

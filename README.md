@@ -15,7 +15,7 @@ npm run dev
 
 Make sure your `/web/.env.local` is set:
 ```
-NEXT_PUBLIC_API_URL=https://rightnow-agent-app-fullstack.onrender.com
+NEXT_PUBLIC_API_URL=https://yarnnn.com
 ```
 
 ### 🧪 To Run Backend (only if modifying Python code)
@@ -66,7 +66,7 @@ This app uses a hosted architecture for backend and database, simplifying local 
 | Component     | Run Locally? | Hosted?                              |
 |---------------|--------------|---------------------------------------|
 | Frontend (Next.js) | ✅ Yes       | Vercel                              |
-| Backend (FastAPI)  | ❌ Default  | [Render](https://rightnow-agent-app-fullstack.onrender.com) |
+| Backend (FastAPI)  | ❌ Default  | [Render](https://yarnnn.com) |
 | Database (Supabase) | ❌         | Supabase                            |
 
 ---

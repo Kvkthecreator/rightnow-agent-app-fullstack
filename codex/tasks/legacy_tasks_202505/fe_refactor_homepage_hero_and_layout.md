@@ -84,7 +84,7 @@ Company logo
 Center:
 
 CONTACT  
-contactus@rgtnow.com
+contactus@yarnnn.com
 Right:
 links for privacy policy and services page
 🔧 Requirements

@@ -48,8 +48,8 @@ Create a new landing page at: /web/app/index/page.tsx
 #### 3. Footer
 - “powered using OpenAI” text
 - Two text links:
-  - https://www.rgtnow.com/privacy
-  - https://www.rgtnow.com/services
+  - https://yarnnn.com/privacy
+  - https://yarnnn.com/services
 
 ### Styling Notes
 - Use Tailwind utility classes.

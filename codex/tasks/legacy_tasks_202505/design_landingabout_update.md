@@ -68,7 +68,7 @@ the same for the footer design code below, apply ONLY for the index and about pa
                 <div class="self-stretch flex flex-col justify-start items-start gap-7">
                     <div class="self-stretch justify-start text-black text-xl font-normal font-['Instrument_Sans'] leading-tight">CONTACT</div>
                     <div class="self-stretch flex flex-col justify-start items-start gap-2.5">
-                        <div class="self-stretch justify-start text-black text-xl font-normal font-['Instrument_Sans'] leading-tight">contactus@rgtnow.com</div>
+                        <div class="self-stretch justify-start text-black text-xl font-normal font-['Instrument_Sans'] leading-tight">contactus@yarnnn.com</div>
                     </div>
                 </div>
             </div>

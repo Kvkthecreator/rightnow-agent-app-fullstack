@@ -1,6 +1,6 @@
 ## codex/tasks/debug_agentrouting.md
 
-❌ 404 Error: POST https://rightnow-agent-app-fullstack.onrender.com/agent
+❌ 404 Error: POST https://yarnnn.com/agent
 
 🔎 Cause:
 Render shows the service is running, but the /agent route is returning 404.
@@ -45,10 +45,10 @@ Make sure:
 agent_router is correctly defined and used
 There's a @agent_router.post("") → not @agent_router.post("/agent") (you only want the base /agent once)
 ✅ Step 4: Try hitting this POST again:
-POST https://rightnow-agent-app-fullstack.onrender.com/agent
+POST https://yarnnn.com/agent
 If still 404, test with a different route like:
 
-GET https://rightnow-agent-app-fullstack.onrender.com/docs
+GET https://yarnnn.com/docs
 That should show your OpenAPI docs and confirm what routes are available.
 
 🔧 If Still Broken
