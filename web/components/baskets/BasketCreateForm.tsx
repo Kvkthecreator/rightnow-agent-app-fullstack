@@ -45,15 +45,9 @@ export default function BasketCreateForm({ onSuccess }: Props) {
   };
 
   return (
-    <Card className="mt-8 mx-auto max-w-2xl">
+    <Card className="w-full">
       <CardContent className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold">What are we working on?</h2>
-            <p className="text-sm text-muted-foreground">
-              Start with a short, descriptive task or request.
-            </p>
-          </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Intent</label>
             <Input

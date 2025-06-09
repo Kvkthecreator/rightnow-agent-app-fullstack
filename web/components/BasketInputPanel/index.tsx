@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import React, { useState } from "react";
+import { toast } from "react-hot-toast";
 import type { BasketInputPayload } from "./types";
 
 interface BasketInputPanelProps {
@@ -19,16 +20,14 @@ export default function BasketInputPanel({ mode = "create", basketId, initial }:
   const { inputText, setInputText, intent, setIntent } = useBasketInput(initial);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!intent.trim()) {
-      setError("Intent is required");
+      toast.error("Intent is required");
       return;
     }
     setLoading(true);
-    setError(null);
     const res = await fetch("/api/baskets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -39,14 +38,14 @@ export default function BasketInputPanel({ mode = "create", basketId, initial }:
       const { id } = await res.json();
       router.push(`/baskets/${id}/work`);
     } else {
-      setError("Failed to create basket");
+      toast.error("Basket creation failed. Please check your inputs.");
     }
   }
 
   async function handleUpdate() {
     if (!basketId) return;
     if (!intent.trim()) {
-      setError("Intent is required");
+      toast.error("Intent is required");
       return;
     }
     await fetch(`/api/baskets/${basketId}/work`, {
@@ -89,7 +88,6 @@ export default function BasketInputPanel({ mode = "create", basketId, initial }:
           <UploadButton onUpload={() => {}} />
         </div>
         <PreviewDrawer />
-        {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="pt-2">
           {mode === "create" ? (
             <Button type="submit" disabled={loading}>
