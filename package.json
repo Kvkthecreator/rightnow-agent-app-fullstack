@@ -8,5 +8,8 @@
     "jest-environment-jsdom": "^30.0.0-beta.3",
     "ts-jest": "^29.3.4",
     "ts-node": "^10.9.2"
+  },
+  "dependencies": {
+    "react-hot-toast": "^2.5.2"
   }
 }
