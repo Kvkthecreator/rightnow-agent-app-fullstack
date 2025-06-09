@@ -152,3 +152,5 @@ openai_agents/
 # Python
 /api/.venv/
 /api/poetry.lock
+# Playwright auth sessions
+storageState.json
