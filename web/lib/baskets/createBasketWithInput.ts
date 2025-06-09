@@ -4,7 +4,7 @@ import { apiPost } from "@/lib/api";
 
 export interface BasketInputPayload {
   text: string;
-  files?: File[];
+  files?: (File | string)[];
 }
 
 export async function createBasketWithInput({ text, files = [] }: BasketInputPayload) {
@@ -17,10 +17,21 @@ export async function createBasketWithInput({ text, files = [] }: BasketInputPay
   const uploadedUrls: string[] = [];
   const fileIds: string[] = [];
 
-  for (const file of files) {
-    const filename = `${Date.now()}-${file.name}`;
-    const path = `dump_${userId}/${filename}`;
-    const url = await uploadFile(file, path, "basket-dumps");
+  for (const item of files) {
+    let url: string;
+    let name: string;
+    let size = 0;
+
+    if (item instanceof File) {
+      const filename = `${Date.now()}-${item.name}`;
+      url = await uploadFile(item, `dump_${userId}/${filename}`, "basket-dumps");
+      name = item.name;
+      size = item.size;
+    } else {
+      url = item;
+      name = item.split("/").pop() || "file";
+    }
+
     uploadedUrls.push(url);
 
     const { data, error } = await supabase
@@ -28,8 +39,8 @@ export async function createBasketWithInput({ text, files = [] }: BasketInputPay
       .insert({
         user_id: userId,
         file_url: url,
-        file_name: file.name,
-        size_bytes: file.size,
+        file_name: name,
+        size_bytes: size,
         storage_domain: "basket-dumps",
       })
       .select("id")

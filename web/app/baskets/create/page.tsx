@@ -9,7 +9,7 @@ import { toast } from "react-hot-toast";
 
 export default function BasketCreatePage() {
   const [text, setText] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<(File | string)[]>([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -40,7 +40,7 @@ export default function BasketCreatePage() {
       <DumpArea
         text={text}
         onTextChange={setText}
-        onFilesChange={setFiles}
+        onFilesChange={(vals) => setFiles(vals)}
       />
 
       <div className="pt-2">
