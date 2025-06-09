@@ -26,7 +26,10 @@ export default function LoginPage() {
         const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
-            options: { redirectTo },
+            options: {
+                redirectTo,
+                queryParams: { prompt: "select_account" },
+            },
         });
         if (error) {
             console.error("Error logging in with Google:", error.message);
