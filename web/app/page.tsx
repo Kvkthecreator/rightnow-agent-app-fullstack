@@ -32,7 +32,7 @@ export default function LandingPage() {
                 living memory powered by "context blocks" and "task baskets".
               </p>
               <Link
-                href="/basket/create"
+                href="/baskets/create"
                 className="inline-block px-8 py-4 border border-foreground text-foreground rounded-md hover:bg-black hover:text-white transition"
               >
                 drop your first thought

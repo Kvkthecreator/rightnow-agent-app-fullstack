@@ -4,30 +4,24 @@ import { useState } from "react";
 import DumpArea from "@/components/ui/DumpArea";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
-import { createBasketFromDump } from "@/lib/baskets/createFromDump";
+import { createBasketWithInput } from "@/lib/baskets/createBasketWithInput";
 import { toast } from "react-hot-toast";
 
-export default function BasketNewPage() {
+export default function BasketCreatePage() {
   const [text, setText] = useState("");
-  const [files, setFiles] = useState<string[]>([]);
-  const [links, setLinks] = useState<string[]>([]);
+  const [files, setFiles] = useState<(File | string)[]>([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async () => {
-    if (!text.trim() && files.length === 0 && links.length === 0) {
+    if (!text.trim() && files.length === 0) {
       toast.error("Please provide some content for the dump");
       return;
     }
-
     setLoading(true);
     try {
-      const { id } = await createBasketFromDump({
-        textDump: text,
-        files,
-        links,
-      });
-      router.push(`/baskets/${id}`);
+      const basket = await createBasketWithInput({ text, files });
+      router.push(`/baskets/${basket.id}/work`);
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to create basket");
@@ -39,29 +33,18 @@ export default function BasketNewPage() {
   return (
     <main className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          🧠 Dump your thoughts here
-        </h1>
-        <p className="text-muted-foreground">
-          Paste chats, upload images/docs, or drop links.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">🧠 Dump your thoughts here</h1>
+        <p className="text-muted-foreground">Paste chats and upload reference files.</p>
       </div>
 
       <DumpArea
         text={text}
         onTextChange={setText}
-        files={files}
-        onFilesChange={setFiles}
-        links={links}
-        onLinksChange={setLinks}
+        onFilesChange={(vals) => setFiles(vals)}
       />
 
       <div className="pt-2">
-        <Button
-          className="w-full"
-          onClick={handleSubmit}
-          disabled={loading}
-        >
+        <Button className="w-full" onClick={handleSubmit} disabled={loading}>
           {loading ? "Creating…" : "Create Basket"}
         </Button>
       </div>
