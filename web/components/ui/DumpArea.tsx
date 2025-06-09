@@ -15,6 +15,15 @@ export interface DumpAreaProps {
   onFilesChange?: (v: string[]) => void;
   links?: string[];
   onLinksChange?: (v: string[]) => void;
+  /** Basket this dump area is associated with, if any */
+  basketId?: string;
+  /** Pre-populated text when used in append mode */
+  initialText?: string;
+  /**
+   * How the dump area should behave when submitting content.
+   * "create" indicates a new basket dump, "append" adds to an existing one.
+   */
+  mode?: "create" | "append";
 }
 
 export default function DumpArea({
@@ -24,8 +33,11 @@ export default function DumpArea({
   onFilesChange,
   links: linksProp,
   onLinksChange,
+  basketId, // currently unused but reserved for future API calls
+  initialText,
+  mode = "create",
 }: DumpAreaProps = {}) {
-  const [text, setText] = useState(textProp || "");
+  const [text, setText] = useState(textProp ?? initialText ?? "");
   const [files, setFiles] = useState<string[]>(filesProp || []);
   const [links, setLinks] = useState<string[]>(linksProp || []);
 

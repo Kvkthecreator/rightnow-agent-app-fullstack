@@ -1,6 +1,9 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import BasketInputPanel from "@/components/BasketInputPanel";
+import DumpArea from "@/components/ui/DumpArea";
+import BasketInputLog from "@/components/BasketInputLog"; // to be implemented
+import ParsedBlockList from "@/components/ParsedBlockList"; // to be implemented
 
 export default function BasketWorkPage({ params }: any) {
   const [basket, setBasket] = useState<any>(null);
@@ -19,13 +22,31 @@ export default function BasketWorkPage({ params }: any) {
   if (!basket) return <p className="p-4">Loading…</p>;
 
   return (
-    <div className="p-6 space-y-4">
-      <h1 className="text-xl font-bold">Work on Basket</h1>
-      <BasketInputPanel
-        mode="edit"
-        basketId={params.id}
-        initial={{ intent_summary: basket.intent_summary }}
-      />
+    <div className="p-6 space-y-8 max-w-5xl mx-auto">
+      <div>
+        <h1 className="text-2xl font-bold">🧶 {basket.intent_summary || "Untitled Basket"}</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Paste, upload, and Yarnnn will remember it all.
+        </p>
+      </div>
+
+      <section>
+        <DumpArea
+          basketId={params.id}
+          initialText={basket.raw_dump || ""}
+          mode="append"
+        />
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold">🕓 Recent Inputs</h2>
+        <BasketInputLog basketId={params.id} />
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold">🧩 Context Blocks</h2>
+        <ParsedBlockList basketId={params.id} />
+      </section>
     </div>
   );
 }
