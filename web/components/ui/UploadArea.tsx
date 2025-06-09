@@ -37,7 +37,7 @@ interface FileMeta {
 
 export function UploadArea({
   prefix,
-  bucket = "task-media",
+  bucket = "basket-dumps",
   maxFiles,
   onUpload,
   maxSizeMB = 5,
