@@ -13,6 +13,7 @@ export async function createBasketWithInput({ text, files = [] }: BasketInputPay
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) throw new Error("Not authenticated");
   const userId = userData.user.id;
+  const intent = text.split("\n")[0]?.slice(0, 100) || null;
 
   const uploadedUrls: string[] = [];
   const fileIds: string[] = [];
@@ -54,6 +55,7 @@ export async function createBasketWithInput({ text, files = [] }: BasketInputPay
     .insert({
       user_id: userId,
       raw_dump: text,
+      intent,
       media: uploadedUrls,
       is_draft: true,
     })
