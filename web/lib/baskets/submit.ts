@@ -4,14 +4,15 @@ export interface BasketValues {
   topic: string;
   intent: string;
   insight?: string;
-  references?: string[];
+  reference_file_ids?: string[];
 }
 
 export interface ContextBlock {
   id?: string;
   type: "topic" | "intent" | "reference" | "insight";
   label: string;
-  content: string;
+  content?: string;
+  file_ids?: string[];
   is_primary: boolean;
   meta_scope: "basket";
   source?: string;
@@ -26,7 +27,7 @@ export function buildContextBlocks(values: BasketValues): ContextBlock[] {
 
   blocks.push({
     type: "topic",
-    label: values.topic.slice(0, 50),
+    label: "What are we working on?",
     content: values.topic,
     is_primary: true,
     meta_scope: "basket",
@@ -34,27 +35,27 @@ export function buildContextBlocks(values: BasketValues): ContextBlock[] {
 
   blocks.push({
     type: "intent",
-    label: values.intent.slice(0, 50),
+    label: "Intent",
     content: values.intent,
     is_primary: true,
     meta_scope: "basket",
   });
 
-  (values.references || []).forEach((url) => {
+  if (values.reference_file_ids && values.reference_file_ids.length) {
     blocks.push({
       type: "reference",
-      label: url.split("/").pop() || "file",
-      content: url,
+      label: "reference files",
       is_primary: true,
       meta_scope: "basket",
       source: "user_upload",
+      file_ids: values.reference_file_ids,
     });
-  });
+  }
 
   if (values.insight && values.insight.trim()) {
     blocks.push({
       type: "insight",
-      label: values.insight.slice(0, 50),
+      label: "Insight",
       content: values.insight,
       is_primary: true,
       meta_scope: "basket",
@@ -67,12 +68,11 @@ export function buildContextBlocks(values: BasketValues): ContextBlock[] {
 import { apiPost } from "../api";
 
 export async function createBasket(values: BasketValues): Promise<{ id: string }> {
-  const blocks = buildContextBlocks(values);
   const payload = {
     topic: values.topic,
     intent: values.intent,
     insight: values.insight,
-    blocks,
+    reference_file_ids: values.reference_file_ids,
   };
   return apiPost<{ id: string }>("/api/baskets", payload);
 }

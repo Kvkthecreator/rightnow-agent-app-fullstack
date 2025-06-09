@@ -2,9 +2,9 @@ import { buildContextBlocks } from '../../web/lib/baskets/submit';
 
 describe('basket block builder', () => {
   it('requires topic and intent', () => {
-    expect(() => buildContextBlocks({topic:'',intent:'',references:[]})).toThrow();
-    expect(() => buildContextBlocks({topic:'t',intent:'',references:[]})).toThrow();
-    expect(() => buildContextBlocks({topic:'t',intent:'i',references:[]})).not.toThrow();
+    expect(() => buildContextBlocks({topic:'',intent:'',reference_file_ids:[]})).toThrow();
+    expect(() => buildContextBlocks({topic:'t',intent:'',reference_file_ids:[]})).toThrow();
+    expect(() => buildContextBlocks({topic:'t',intent:'i',reference_file_ids:[]})).not.toThrow();
   });
 
   it('creates four blocks when all fields provided', () => {
@@ -12,7 +12,7 @@ describe('basket block builder', () => {
       topic: 't',
       intent: 'i',
       insight: 'n',
-      references: ['file1']
+      reference_file_ids: ['file1']
     });
     expect(blocks.length).toBe(3 + 1); // topic, intent, reference, insight
   });

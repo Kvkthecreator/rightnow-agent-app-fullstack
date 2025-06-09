@@ -1,6 +1,6 @@
 """API routes for Basket management."""
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import uuid
 
@@ -13,9 +13,7 @@ class BasketCreate(BaseModel):
     topic: str
     intent: str
     insight: Optional[str] = None
-    details: Optional[str] = None
-    file_ids: Optional[List[str]] = None
-    blocks: Optional[List[Dict[str, Any]]] = None
+    reference_file_ids: List[str] = Field(default_factory=list)
 
 class BasketUpdate(BaseModel):
     input_text: Optional[str] = None
@@ -30,53 +28,70 @@ async def create_basket(payload: BasketCreate):
         {
             "id": basket_id,
             "topic": payload.topic,
-            "intent_summary": payload.intent,
-            "insight": payload.insight,
-            "details": payload.details,
-            "file_ids": payload.file_ids or [],
+            "intent": payload.intent,
             "status": "draft",
         }
     ).execute()
     if resp.error:
         raise HTTPException(status_code=500, detail=resp.error.message)
 
-    inserted_block_ids: List[str] = []
-    for blk in payload.blocks or []:
-        block_id = str(uuid.uuid4())
-        data = {
-            "id": block_id,
-            "type": blk.get("type"),
-            "label": blk.get("label"),
-            "content": blk.get("content"),
-            "is_primary": blk.get("is_primary", True),
+    blocks: List[Dict[str, Any]] = [
+        {
+            "id": str(uuid.uuid4()),
+            "type": "topic",
+            "label": "What are we working on?",
+            "content": payload.topic,
+            "is_primary": True,
             "meta_scope": "basket",
             "status": "active",
-        }
-        if blk.get("source"):
-            data["source"] = blk["source"]
-        supabase.table("context_blocks").insert(data).execute()
-        if blk.get("type") == "reference":
-            supabase.table("block_files").insert(
-                {
-                    "file_url": blk.get("content"),
-                    "label": blk.get("label"),
-                    "associated_block_id": block_id,
-                    "storage_domain": "block-files",
-                    "is_primary": True,
-                }
-            ).execute()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "type": "intent",
+            "label": "Intent",
+            "content": payload.intent,
+            "is_primary": True,
+            "meta_scope": "basket",
+            "status": "active",
+        },
+    ]
+
+    if payload.insight:
+        blocks.append(
+            {
+                "id": str(uuid.uuid4()),
+                "type": "insight",
+                "label": "Insight",
+                "content": payload.insight,
+                "is_primary": True,
+                "meta_scope": "basket",
+                "status": "active",
+            }
+        )
+
+    if payload.reference_file_ids:
+        blocks.append(
+            {
+                "id": str(uuid.uuid4()),
+                "type": "reference",
+                "label": "reference files",
+                "file_ids": payload.reference_file_ids,
+                "source": "user_upload",
+                "is_primary": True,
+                "meta_scope": "basket",
+                "status": "active",
+            }
+        )
+
+    for blk in blocks:
+        supabase.table("context_blocks").insert(blk).execute()
         supabase.table("block_brief_link").insert(
             {
                 "id": str(uuid.uuid4()),
-                "block_id": block_id,
+                "block_id": blk["id"],
                 "task_brief_id": basket_id,
                 "transformation": "source",
             }
-        ).execute()
-        inserted_block_ids.append(block_id)
-    if payload.details:
-        supabase.table("basket_threads").insert(
-            {"basket_id": basket_id, "content": payload.details, "source": "user_dump"}
         ).execute()
     await publish_event(
         "basket.compose_request",
@@ -85,8 +100,7 @@ async def create_basket(payload: BasketCreate):
             "topic": payload.topic,
             "intent": payload.intent,
             "insight": payload.insight,
-            "details": payload.details,
-            "file_ids": payload.file_ids or [],
+            "file_ids": payload.reference_file_ids,
         },
     )
     return {"id": basket_id}
