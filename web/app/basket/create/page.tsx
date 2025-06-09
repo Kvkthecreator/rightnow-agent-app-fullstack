@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import DumpArea from "@/components/ui/DumpArea";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +19,7 @@ export default function BasketNewPage() {
       toast.error("Please provide some content for the dump");
       return;
     }
+
     setLoading(true);
     try {
       const { id } = await createBasketFromDump({
@@ -35,7 +37,16 @@ export default function BasketNewPage() {
   };
 
   return (
-    <div className="px-6 py-10 space-y-4">
+    <main className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          🧠 Dump your thoughts here
+        </h1>
+        <p className="text-muted-foreground">
+          Paste chats, upload images/docs, or drop links.
+        </p>
+      </div>
+
       <DumpArea
         text={text}
         onTextChange={setText}
@@ -44,11 +55,16 @@ export default function BasketNewPage() {
         links={links}
         onLinksChange={setLinks}
       />
-      <div className="max-w-3xl mx-auto">
-        <Button className="w-full" onClick={handleSubmit} disabled={loading}>
+
+      <div className="pt-2">
+        <Button
+          className="w-full"
+          onClick={handleSubmit}
+          disabled={loading}
+        >
           {loading ? "Creating…" : "Create Basket"}
         </Button>
       </div>
-    </div>
+    </main>
   );
 }
