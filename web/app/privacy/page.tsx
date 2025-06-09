@@ -63,8 +63,8 @@ export default function Page() {
                 <h2>5. Contact Us</h2>
                 <p>
                     📧{" "}
-                    <a href="mailto:contactus@rgtnow.com">
-                        contactus@rgtnow.com
+                    <a href="mailto:contactus@yarnnn.com">
+                        contactus@yarnnn.com
                     </a>
                 </p>
             </div>

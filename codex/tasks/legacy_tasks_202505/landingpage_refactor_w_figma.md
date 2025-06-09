@@ -76,7 +76,7 @@ export default function LandingPage() {
           <p className="font-medium">OFFICE</p>
           <p>Seoul, South Korea</p>
           <p className="font-medium pt-4">CONTACT</p>
-          <p>contactus@rgtnow.com</p>
+          <p>contactus@yarnnn.com</p>
         </div>
         <div className="space-y-2">
           <p className="font-medium">SOCIAL</p>

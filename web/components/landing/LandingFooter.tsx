@@ -33,7 +33,7 @@ export default function LandingFooter() {
                     <div>
                         <div className="font-medium mb-1">Contact</div>
                         <div className="text-neutral-700">
-                            contactus@rgtnow.com
+                            contactus@yarnnn.com
                         </div>
                     </div>
                 </div>

@@ -30,7 +30,7 @@ Create two new pages:
 
 ### Content:
 Replace any occurrence of "HelpMeAI" with "rightNOW"
-Replace contact email with: contactus@rgtnow.com
+Replace contact email with: contactus@yarnnn.com
 Keep links to Google OAuth permission page intact
 
 ### Optional UI:
@@ -65,7 +65,7 @@ Revoking disables Gmail-related features in rightNOW.
 We use OAuth2 and do not store credentials or Gmail data. All communication with Google APIs is encrypted.
 
 **5. Contact Us**
-📧 contactus@rgtnow.com
+📧 contactus@yarnnn.com
 
 ---
 
@@ -105,7 +105,7 @@ We may suspend or terminate access for violating these terms.
 rightNOW is provided "as is" with no warranties. We do our best to ensure reliability but offer no uptime guarantees.
 
 **7. Contact**
-📧 contactus@rgtnow.com
+📧 contactus@yarnnn.com
 ```
 
 ---
