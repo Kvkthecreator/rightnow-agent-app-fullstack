@@ -8,10 +8,26 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Textarea } from "@/components/ui/Textarea";
 import { Badge } from "@/components/ui/Badge";
 
-export default function DumpArea() {
-  const [text, setText] = useState("");
-  const [files, setFiles] = useState<string[]>([]);
-  const [links, setLinks] = useState<string[]>([]);
+export interface DumpAreaProps {
+  text?: string;
+  onTextChange?: (v: string) => void;
+  files?: string[];
+  onFilesChange?: (v: string[]) => void;
+  links?: string[];
+  onLinksChange?: (v: string[]) => void;
+}
+
+export default function DumpArea({
+  text: textProp,
+  onTextChange,
+  files: filesProp,
+  onFilesChange,
+  links: linksProp,
+  onLinksChange,
+}: DumpAreaProps = {}) {
+  const [text, setText] = useState(textProp || "");
+  const [files, setFiles] = useState<string[]>(filesProp || []);
+  const [links, setLinks] = useState<string[]>(linksProp || []);
 
   return (
     <Card className="p-4 w-full max-w-3xl mx-auto mt-6">
@@ -28,7 +44,10 @@ export default function DumpArea() {
           <Textarea
             id="dump-text"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              onTextChange?.(e.target.value);
+            }}
             placeholder="e.g. ChatGPT said to run a 7-day campaign..."
             rows={6}
           />
@@ -39,7 +58,11 @@ export default function DumpArea() {
           <UploadArea
             prefix="dump"
             maxFiles={5}
-            onUpload={(url) => setFiles((prev) => [...prev, url])}
+            onUpload={(url) => {
+              const next = [...files, url];
+              setFiles(next);
+              onFilesChange?.(next);
+            }}
             preview
             enableDrop
             showPreviewGrid
@@ -67,7 +90,9 @@ export default function DumpArea() {
                 e.preventDefault();
                 const url = (e.target as HTMLInputElement).value.trim();
                 if (url) {
-                  setLinks([...links, url]);
+                  const next = [...links, url];
+                  setLinks(next);
+                  onLinksChange?.(next);
                   (e.target as HTMLInputElement).value = "";
                 }
               }
