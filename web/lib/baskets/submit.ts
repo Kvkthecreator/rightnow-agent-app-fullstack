@@ -4,7 +4,7 @@ export interface BasketValues {
   topic: string;
   intent: string;
   insight?: string;
-  references: string[];
+  references?: string[];
 }
 
 export interface ContextBlock {
@@ -21,7 +21,6 @@ export interface ContextBlock {
 export function buildContextBlocks(values: BasketValues): ContextBlock[] {
   if (!values.topic.trim()) throw new Error("Topic required");
   if (!values.intent.trim()) throw new Error("Intent required");
-  if (values.references.length === 0) throw new Error("At least one reference required");
 
   const blocks: ContextBlock[] = [];
 
@@ -41,7 +40,7 @@ export function buildContextBlocks(values: BasketValues): ContextBlock[] {
     meta_scope: "basket",
   });
 
-  values.references.forEach((url) => {
+  (values.references || []).forEach((url) => {
     blocks.push({
       type: "reference",
       label: url.split("/").pop() || "file",

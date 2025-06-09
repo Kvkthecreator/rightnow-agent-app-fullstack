@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { UploadArea } from "@/components/ui/UploadArea";
 import { createBasket } from "@/lib/baskets/submit";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 interface Props {
   onSuccess?: (id: string) => void;
@@ -21,13 +22,11 @@ export default function BasketCreateForm({ onSuccess }: Props) {
   const removeRef = (url: string) => setRefs((r) => r.filter((u) => u !== url));
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
     try {
       const { id } = await createBasket({
         topic: intent,
@@ -39,7 +38,7 @@ export default function BasketCreateForm({ onSuccess }: Props) {
       router.push(`/baskets/${id}/work`);
     } catch (err) {
       console.error(err);
-      setError("Failed to create basket");
+      toast.error("Basket creation failed. Please check required fields.");
     } finally {
       setLoading(false);
     }
@@ -50,7 +49,7 @@ export default function BasketCreateForm({ onSuccess }: Props) {
       <CardContent className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <h2 className="text-2xl font-semibold">What are we working on?</h2>
+            <h2 className="text-xl font-semibold">What are we working on?</h2>
             <p className="text-sm text-muted-foreground">
               Start with a short, descriptive task or request.
             </p>
@@ -111,9 +110,6 @@ export default function BasketCreateForm({ onSuccess }: Props) {
               rows={3}
             />
           </div>
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creating…" : "Create Basket"}
           </Button>
