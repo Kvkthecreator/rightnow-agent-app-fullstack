@@ -110,8 +110,19 @@ async def create_basket(payload: BasketCreate):
 async def get_basket(basket_id: str):
     """Fetch a basket with its blocks and configs."""
     supabase = get_supabase()
-    row = supabase.table("baskets").select("*").eq("id", basket_id).single().execute()
-    if row.error or not row.data:
+    try:
+        basket_resp = (
+            supabase
+            .table("baskets")
+            .select("*")
+            .eq("id", str(basket_id))
+            .maybe_single()
+            .execute()
+        )
+    except Exception:
+        raise HTTPException(status_code=500, detail="Supabase error")
+
+    if basket_resp.data is None:
         raise HTTPException(status_code=404, detail="Basket not found")
     links = (
         supabase.from_("block_brief_link")
@@ -125,8 +136,8 @@ async def get_basket(basket_id: str):
     )
     return {
         "id": basket_id,
-        "status": row.data.get("status"),
-        "intent_summary": row.data.get("intent_summary"),
+        "status": basket_resp.data.get("status"),
+        "intent_summary": basket_resp.data.get("intent_summary"),
         "blocks": blocks,
         "configs": cfgs.data or [],
     }
