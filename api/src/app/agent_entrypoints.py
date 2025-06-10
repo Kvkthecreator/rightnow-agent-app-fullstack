@@ -24,10 +24,7 @@ from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
 from .agent_tasks.layer2_tasks.utils.task_utils import create_task_and_session
 from .agent_tasks.layer3_config.adapters.google_exporter import export_to_doc
 from .agent_tasks.layer3_config.utils.config_to_md import render_markdown
-from .agent_tasks.orchestration.thread_parser_listener import (
-    handle_new_basket,
-    handle_update_basket,
-)
+from .agent_tasks.orchestration.thread_parser_listener import handle_new_basket
 
 router = APIRouter()
 
