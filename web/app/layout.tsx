@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Pacifico } from "next/font/google";
 import "./globals.css";
 import SupabaseProvider from "@/components/SupabaseProvider";
 import { Toaster } from "react-hot-toast";
+import AppLayout from "@/components/layout/AppLayout";
 
 // Font setup
 const geistSans = Geist({
@@ -41,7 +42,9 @@ export default function RootLayout({
       className={`${geistSans?.variable || ""} ${geistMono?.variable || ""} ${pacifico?.variable || ""}`}
     >
       <body className="antialiased min-h-screen">
-        <SupabaseProvider>{children}</SupabaseProvider>
+        <AppLayout>
+          <SupabaseProvider>{children}</SupabaseProvider>
+        </AppLayout>
         <Toaster position="top-right" />
       </body>
     </html>
