@@ -4,9 +4,15 @@ import { useEffect, useState } from "react";
 import DumpArea from "@/components/ui/DumpArea";
 import BasketInputLog from "@/components/BasketInputLog"; // to be implemented
 import ParsedBlockList from "@/components/ParsedBlockList"; // to be implemented
+import { ScopedDropZone } from "@/components/drop/ScopedDropZone";
 
 export default function BasketWorkPage({ params }: any) {
   const [basket, setBasket] = useState<any>(null);
+
+  const handleFileDrop = (files: File[]) => {
+    console.log("\ud83d\udcbe Basket Work dropped files:", files);
+    // TODO: Route files to thread or chat upload system
+  };
 
   useEffect(() => {
     const fetchBasket = async () => {
@@ -22,7 +28,8 @@ export default function BasketWorkPage({ params }: any) {
   if (!basket) return <p className="p-4">Loading…</p>;
 
   return (
-    <div className="p-6 space-y-8 max-w-5xl mx-auto">
+    <ScopedDropZone onFilesDropped={handleFileDrop}>
+      <div className="p-6 space-y-8 max-w-5xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold">🧶 {basket.intent_summary || "Untitled Basket"}</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -48,5 +55,6 @@ export default function BasketWorkPage({ params }: any) {
         <ParsedBlockList basketId={params.id} />
       </section>
     </div>
+    </ScopedDropZone>
   );
 }
