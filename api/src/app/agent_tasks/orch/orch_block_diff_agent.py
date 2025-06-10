@@ -1,12 +1,12 @@
 """Compare newly parsed context blocks with existing ones."""
 
-from typing import List, Optional, Literal
 from difflib import SequenceMatcher
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
-from .orch_basket_parser_agent import ContextBlock, run as parse_blocks
 from ..layer1_infra.utils.supabase_helpers import get_supabase
+from .orch_basket_parser_agent import ContextBlock, run as parse_blocks
 
 
 class DiffBlock(BaseModel):
@@ -26,7 +26,7 @@ def _similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, _normalize(a), _normalize(b)).ratio()
 
 
-def run(basket_id: str) -> List[DiffBlock]:
+def run(basket_id: str) -> list[DiffBlock]:
     """Reparse basket artifacts and diff against stored context blocks."""
 
     supabase = get_supabase()
@@ -45,12 +45,17 @@ def run(basket_id: str) -> List[DiffBlock]:
 
     new_blocks = parse_blocks(basket_id, artifacts, user_id)
 
-    # fetch existing blocks
-    blk_resp = supabase.table("context_blocks").select("*").eq("basket_id", basket_id).execute()
-    old_data = blk_resp.data or []
+    # fetch existing blocks linked to this basket
+    blk_resp = (
+        supabase.from_("block_brief_link")
+        .select("context_blocks(*)")
+        .eq("task_brief_id", basket_id)
+        .execute()
+    )
+    old_data = [r["context_blocks"] for r in (blk_resp.data or [])]
     old_blocks = [ContextBlock(**b) for b in old_data]
 
-    diffs: List[DiffBlock] = []
+    diffs: list[DiffBlock] = []
     used_old_ids = set()
 
     for nb in new_blocks:
@@ -67,7 +72,12 @@ def run(basket_id: str) -> List[DiffBlock]:
             used_old_ids.add(best_match.id)
             if _normalize(nb.content or "") != _normalize(best_match.content or ""):
                 diffs.append(
-                    DiffBlock(type="modified", new_block=nb, old_block=best_match, reason="content changed")
+                    DiffBlock(
+                        type="modified",
+                        new_block=nb,
+                        old_block=best_match,
+                        reason="content changed",
+                    )
                 )
             else:
                 diffs.append(DiffBlock(type="unchanged", new_block=nb, old_block=best_match))
