@@ -11,7 +11,7 @@ async def handle_event(event: dict[str, Any]) -> dict[str, Any]:
 
     if "record" in event:
         record = event["record"]
-    elif "input" in event and "input_id" in event["input"]:
+    elif isinstance(event, dict) and "input" in event and "input_id" in event["input"]:
         input_id = event["input"]["input_id"]
         resp = supabase.table("basket_inputs").select("*").eq("id", input_id).single().execute()
         if not resp.data:
