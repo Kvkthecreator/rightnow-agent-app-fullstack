@@ -6,12 +6,18 @@ import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { createBasketWithInput } from "@/lib/baskets/createBasketWithInput";
 import { toast } from "react-hot-toast";
+import { ScopedDropZone } from "@/components/drop/ScopedDropZone";
 
 export default function BasketCreatePage() {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<(File | string)[]>([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  const handleFileDrop = (files: File[]) => {
+    console.log("\ud83d\udcbe Basket Create dropped files:", files);
+    // TODO: Route files to UploadArea or task context
+  };
 
   const handleSubmit = async () => {
     if (!text.trim() && files.length === 0) {
@@ -31,7 +37,8 @@ export default function BasketCreatePage() {
   };
 
   return (
-    <main className="p-6 max-w-4xl mx-auto space-y-6">
+    <ScopedDropZone onFilesDropped={handleFileDrop}>
+      <main className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">🧠 Dump your thoughts here</h1>
         <p className="text-muted-foreground">Paste chats and upload reference files.</p>
@@ -49,5 +56,6 @@ export default function BasketCreatePage() {
         </Button>
       </div>
     </main>
+    </ScopedDropZone>
   );
 }
