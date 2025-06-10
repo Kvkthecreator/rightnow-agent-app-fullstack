@@ -1,52 +1,29 @@
-from typing import Any, Dict, List
-import uuid
+from typing import Any
 
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
-from ..agent_tasks.orch.orch_basket_parser_agent import run as parse_blocks
+from ..agent_tasks.orch.apply_diff_blocks import apply_diffs
+from ..agent_tasks.orch.orch_block_diff_agent import run as diff_blocks
 
 
-def _fetch_artifacts(supabase, basket_id: str) -> List[Dict[str, Any]]:
-    resp = (
-        supabase.table("dump_artifacts")
-        .select("*")
-        .eq("basket_id", basket_id)
-        .execute()
-    )
-    return resp.data or []
-
-
-def _fetch_basket_user(supabase, basket_id: str) -> str:
-    resp = (
-        supabase.table("baskets")
-        .select("user_id")
-        .eq("id", basket_id)
-        .maybe_single()
-        .execute()
-    )
-    if not resp.data:
-        raise ValueError("basket not found")
-    return resp.data["user_id"]
-
-
-async def handle_event(event: Dict[str, Any]) -> Dict[str, Any]:
+async def handle_event(event: dict[str, Any]) -> dict[str, Any]:
     """Handle `basket_inputs.created` events from Supabase."""
     supabase = get_supabase()
-    basket_id = event.get("record", {}).get("basket_id")
-    if not basket_id:
-        raise ValueError("basket_id missing from event payload")
 
-    user_id = _fetch_basket_user(supabase, basket_id)
-    artifacts = _fetch_artifacts(supabase, basket_id)
+    if "record" in event:
+        record = event["record"]
+    elif "input" in event and "input_id" in event["input"]:
+        input_id = event["input"]["input_id"]
+        resp = supabase.table("basket_inputs").select("*").eq("id", input_id).single().execute()
+        if not resp.data:
+            raise ValueError("Invalid input_id: unable to fetch basket input")
+        record = resp.data
+    else:
+        raise ValueError("Invalid event: missing record or input_id")
 
-    blocks = parse_blocks(basket_id, artifacts, user_id)
+    basket_id = record["basket_id"]
 
-    count = 0
-    for block in blocks:
-        data = block.model_dump()
-        if not data.get("id"):
-            data["id"] = str(uuid.uuid4())
-        supabase.table("context_blocks").insert(data).execute()
-        count += 1
+    diffs = diff_blocks(basket_id)
 
-    print(f"Inserted {count} context_blocks for basket {basket_id}")
-    return {"status": "parsed", "count": count}
+    result = await apply_diffs(basket_id=basket_id, diffs=diffs, dry_run=False)
+
+    return {"status": "parsed_and_applied", "basket_id": basket_id, "result": result}
