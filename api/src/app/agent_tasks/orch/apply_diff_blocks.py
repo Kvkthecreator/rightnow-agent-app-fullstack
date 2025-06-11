@@ -16,22 +16,8 @@ def serialize_block(block: ContextBlock) -> dict:
 async def apply_diffs(
     basket_id: str, diffs: list[DiffBlock], dry_run: bool = False
 ) -> dict[str, int]:
-    """Apply DiffBlock changes to the context_blocks table.
+    """Apply DiffBlock changes to the context_blocks table."""
 
-    Parameters
-    ----------
-    basket_id: str
-        Identifier for the basket the diffs belong to.
-    diffs: List[DiffBlock]
-        Diff results from ``orch_block_diff_agent``.
-    dry_run: bool, optional
-        If True, only log actions without persisting changes.
-
-    Returns
-    -------
-    dict
-        Summary of operations performed.
-    """
     supabase = get_supabase()
 
     added = modified = unchanged = 0
@@ -54,6 +40,7 @@ async def apply_diffs(
                             "transformation": "source",
                         }
                     ).execute()
+
         elif diff.type == "modified":
             modified += 1
             if diff.old_block and diff.old_block.id:
@@ -66,6 +53,7 @@ async def apply_diffs(
                         .eq("id", diff.old_block.id)
                         .execute()
                     )
+
         else:
             unchanged += 1
 
