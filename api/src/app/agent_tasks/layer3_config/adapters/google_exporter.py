@@ -1,10 +1,14 @@
-import httpx
-import json
 import datetime
 
-from ..utils.config_to_md import render_markdown
-from app.integrations.google_client import refresh_token, DOCS_ENDPOINT
+import httpx
+from utils.logged_agent import logged
 
+from app.integrations.google_client import DOCS_ENDPOINT, refresh_token
+
+from ..utils.config_to_md import render_markdown
+
+
+@logged("google_exporter")
 async def export_to_doc(user_id: str, brief_id: str, supabase):
     # fetch latest config and integration
     cfg_row = (
@@ -63,6 +67,10 @@ async def export_to_doc(user_id: str, brief_id: str, supabase):
                 json={"requests": [{"insertText": {"location": {"index": 1}, "text": md}}]},
             )
             link = f"https://docs.google.com/document/d/{doc_id}/edit"
-            await supabase.from_("brief_configs").update({"external_url": link}).eq("id", cfg_row["id"])
+            (
+                await supabase.from_("brief_configs")
+                .update({"external_url": link})
+                .eq("id", cfg_row["id"])
+            )
 
     return link

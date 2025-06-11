@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import asyncpg
 from schemas.research import ResearchIn, ResearchOut
 from schemas.validators import validates
+from utils.logged_agent import logged
 
 from app.event_bus import DB_URL
 from app.supabase_helpers import publish_event
@@ -28,6 +29,7 @@ where id = any($1::uuid[])
 
 EVENT_TOPIC = "block.refresh_report"
 
+@logged("infra_research_agent")
 @validates(ResearchIn)
 async def run(_: ResearchIn) -> ResearchOut:
     """Called by orchestration_runner."""

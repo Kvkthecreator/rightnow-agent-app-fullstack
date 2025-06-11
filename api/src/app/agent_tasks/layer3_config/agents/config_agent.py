@@ -5,9 +5,11 @@ import uuid
 import asyncpg
 from schemas.config import ConfigIn, ConfigOut
 from schemas.validators import validates
+from utils.logged_agent import logged
 
 DB_URL = os.getenv("DATABASE_URL")
 
+@logged("config_agent")
 @validates(ConfigIn)
 async def generate(payload: ConfigIn) -> ConfigOut:
     brief_id = payload.brief_id

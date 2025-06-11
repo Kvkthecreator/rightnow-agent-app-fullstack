@@ -14,36 +14,32 @@
 #     uvicorn src.app.agent_server:app --host 0.0.0.0 --port $PORT
 
 from __future__ import annotations
+
 import os
 import sys
-import json
-import urllib.request
-import traceback
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from datetime import datetime
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
 # FastAPI and CORS imports
-from fastapi import FastAPI, HTTPException, Depends
 import logging
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-
 # Authentication helper and output normalization
-from .agent_tasks.layer1_infra.utils.auth_helpers import current_user_id
-from .agent_tasks.layer1_infra.utils.normalize_output import normalize_output
-# Task routing for execution
-from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
-from .routes.task_types import router as task_types_router
-from .routes.task_brief import router as task_brief_router
-from .routes.baskets import router as basket_router
 from .routes.agent_run import router as agent_run_router
+from .routes.baskets import router as basket_router
+from .routes.debug import router as debug_router
+from .routes.task_brief import router as task_brief_router
+
+# Task routing for execution
+from .routes.task_types import router as task_types_router
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
@@ -68,7 +64,8 @@ app.add_middleware(
 )
 
 # Mount agent entrypoint handlers
-from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
+from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct  # noqa: E402
+
 app.post("/agent")(run_agent)
 app.post("/agent/direct")(run_agent_direct)
 app.include_router(agent_router)
@@ -81,6 +78,7 @@ app.include_router(task_brief_router)
 app.include_router(basket_router)
 # Agent-run proxy route
 app.include_router(agent_run_router)
+app.include_router(debug_router)
 
 
 
