@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
-from ..utils.db import json_safe
+from src.utils.db import json_safe
 
 router = APIRouter(prefix="/task-brief", tags=["task-brief"])
 
