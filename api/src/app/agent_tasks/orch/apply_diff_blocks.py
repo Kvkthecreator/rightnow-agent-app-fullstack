@@ -23,7 +23,9 @@ async def apply_diffs(
             if dry_run:
                 print(f"[dry-run] insert block: {diff.new_block.label}")
             else:
-                safe_block = serialize_block(diff.new_block)
+                safe_block = diff.new_block.model_dump(exclude_none=True)
+                #  🔗 write FK for fast look-ups
+                safe_block["basket_id"] = basket_id
                 resp = supabase.table("context_blocks").insert(safe_block).execute()
                 if resp.data and resp.data[0].get("id"):
                     supabase.table("block_brief_link").insert(

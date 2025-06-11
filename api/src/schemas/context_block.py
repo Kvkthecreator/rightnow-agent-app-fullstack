@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Optional
 from uuid import UUID
 
 from pydantic import Field
@@ -30,6 +31,9 @@ class ContextBlock(BaseSchema):
     meta_tags: list[str] | None = None
     meta_emotional_tone: list[str] | None = None
     meta_locale: str | None = None
+    tags: Optional[list[str]] = None
+    # link straight back to its basket (added 2024-06-11)
+    basket_id: Optional[UUID] = None
 
     def model_dump(self, *, mode: str = "python", exclude_none: bool = False) -> dict:
         """Compatibility wrapper for Pydantic v1."""
