@@ -1,13 +1,16 @@
 #api/src/app/agent_tasks/layer1_infra/agents/infra_observer_agent.py
 
 """Layer-1 observer: flags stale or unused context blocks."""
-import json
 from datetime import datetime, timezone
+
 import asyncpg
+from schemas.usage import UsageIn, UsageOut
+from schemas.validators import validates
+
+from app.event_bus import DB_URL
+from app.supabase_helpers import publish_event
 
 from ..schemas import UsageReport
-from app.supabase_helpers import publish_event
-from app.event_bus import DB_URL
 
 STALE_SQL = """
 select id::text
@@ -28,7 +31,8 @@ where h.block_id is null;
 EVENT_TOPIC = "block.usage_report"
 
 
-async def run() -> UsageReport:
+@validates(UsageIn)
+async def run(_: UsageIn) -> UsageOut:
     """Called by orchestration_runner."""
     conn = await asyncpg.connect(DB_URL)
     try:
@@ -44,5 +48,5 @@ async def run() -> UsageReport:
     )
 
     # emit the event
-    await publish_event(EVENT_TOPIC, json.loads(report.json()))
-    return report
+    await publish_event(EVENT_TOPIC, report.model_dump(mode="json"))
+    return UsageOut(**report.model_dump())

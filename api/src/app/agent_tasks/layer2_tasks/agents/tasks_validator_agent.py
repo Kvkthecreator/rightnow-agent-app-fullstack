@@ -3,6 +3,7 @@
 import datetime
 
 import asyncpg
+from schemas.validators import validates
 
 from app.event_bus import DB_URL, publish_event
 
@@ -12,6 +13,7 @@ EVENT_TOPIC_IN = "brief.edited"
 EVENT_TOPIC_OUT = "brief.validated"
 
 
+@validates(TaskBriefEdited)
 async def validate(brief: TaskBriefEdited) -> TaskBriefValidation:
     errors = []
     if len(set(brief.block_ids)) != len(brief.block_ids):
@@ -38,5 +40,5 @@ async def validate(brief: TaskBriefEdited) -> TaskBriefValidation:
         errors=errors,
         checked_at=datetime.datetime.utcnow(),
     )
-    await publish_event(EVENT_TOPIC_OUT, validation.dict())
+    await publish_event(EVENT_TOPIC_OUT, validation.model_dump(mode="json"))
     return validation

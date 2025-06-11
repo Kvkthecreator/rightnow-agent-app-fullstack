@@ -1,0 +1,7 @@
+-r src/requirements.codex.txt
+pytest
+pytest-asyncio
+pytest-mock
+ruff
+pre-commit
+

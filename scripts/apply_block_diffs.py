@@ -4,9 +4,9 @@ import argparse
 import asyncio
 
 from app.agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
+from app.agent_tasks.orch.apply_diff_blocks import apply_diffs
 from app.agent_tasks.orch.orch_basket_parser_agent import run as parse_blocks
 from app.agent_tasks.orch.orch_block_diff_agent import run as diff_blocks
-from app.agent_tasks.orch.apply_diff_blocks import apply_diffs
 
 
 def main() -> None:
@@ -37,7 +37,7 @@ def main() -> None:
     user_id = user_resp.data["user_id"] if user_resp.data else None
 
     # Parse blocks (result not used here but mimics pipeline step)
-    parse_blocks(args.basket_id, artifacts, user_id)
+    _ = parse_blocks(args.basket_id, artifacts, user_id).blocks
 
     diffs = diff_blocks(args.basket_id)
     result = asyncio.run(apply_diffs(args.basket_id, diffs, dry_run=args.dry_run))

@@ -1,23 +1,24 @@
 #api/src/app/agent_tasks/layer2_tasks/schemas.py
 
-from pydantic import BaseModel, Field
+from schemas.base import BaseSchema
+from pydantic import Field
 from typing import List, Optional
 from datetime import datetime
 
-class ComposeRequest(BaseModel):
+class ComposeRequest(BaseSchema):
     user_id: str
     user_intent: str
     sub_instructions: Optional[str] = ""
     file_urls: List[str] = Field(default_factory=list)
     compilation_mode: Optional[str] = None
 
-class BriefBlockRef(BaseModel):
+class BriefBlockRef(BaseSchema):
     id: str
     label: str
     type: str
     importance: str = "medium"
 
-class TaskBriefDraft(BaseModel):
+class TaskBriefDraft(BaseSchema):
     brief_id: str
     user_id: str
     user_intent: str
@@ -32,7 +33,7 @@ class TaskBriefDraft(BaseModel):
 class TaskBriefEdited(TaskBriefDraft):
     edits_log: List[str] = Field(default_factory=list)
 
-class TaskBriefValidation(BaseModel):
+class TaskBriefValidation(BaseSchema):
     brief_id: str
     ok: bool
     errors: List[str] = []

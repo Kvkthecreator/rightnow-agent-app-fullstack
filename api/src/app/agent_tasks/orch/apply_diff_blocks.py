@@ -1,16 +1,11 @@
-from datetime import datetime
+from schemas.block_diff import DiffBlock
+from schemas.dump_parser import ContextBlock
 
 from ..layer1_infra.utils.supabase_helpers import get_supabase
-from .orch_basket_parser_agent import ContextBlock
-from .orch_block_diff_agent import DiffBlock
 
 
 def serialize_block(block: ContextBlock) -> dict:
-    data = block.model_dump()
-    for key, value in data.items():
-        if isinstance(value, datetime):
-            data[key] = value.isoformat()
-    return data
+    return block.model_dump(mode="json")
 
 
 async def apply_diffs(
