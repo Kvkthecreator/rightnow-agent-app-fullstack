@@ -1,13 +1,16 @@
 """Layer-1 research agent: refreshes refreshable context blocks."""
 
-import json
 from datetime import datetime, timezone
+
 import asyncpg
+from schemas.research import ResearchIn, ResearchOut
+from schemas.validators import validates
+
+from app.event_bus import DB_URL
+from app.supabase_helpers import publish_event
 
 from ..schemas import RefreshReport
-from app.supabase_helpers import publish_event
-from app.event_bus import DB_URL
-from ..utils.block_policy import is_auto, insert_revision
+from ..utils.block_policy import insert_revision, is_auto
 
 FIND_REFRESHABLE_SQL = """
 select id::text
@@ -25,7 +28,8 @@ where id = any($1::uuid[])
 
 EVENT_TOPIC = "block.refresh_report"
 
-async def run() -> RefreshReport:
+@validates(ResearchIn)
+async def run(_: ResearchIn) -> ResearchOut:
     """Called by orchestration_runner."""
     conn = await asyncpg.connect(DB_URL)
     refreshed = []
@@ -60,6 +64,6 @@ async def run() -> RefreshReport:
         generated_at=datetime.now(timezone.utc),
     )
 
-    await publish_event(EVENT_TOPIC, json.loads(report.json()))
-    return report
+    await publish_event(EVENT_TOPIC, report.model_dump(mode="json"))
+    return ResearchOut(**report.model_dump())
 

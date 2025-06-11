@@ -1,11 +1,15 @@
 # api/src/app/agent_tasks/layer1_infra/agents/infra_analyzer_agent.py
-import json
 from datetime import datetime, timezone
+
 import asyncpg
-from ..schemas import AuditReport, DuplicateLabel
+from schemas.audit import AuditIn, AuditOut
+from schemas.validators import validates
+
+from app.event_bus import DB_URL  # reuse same URL
 from app.supabase_helpers import publish_event
-from app.event_bus import DB_URL   # reuse same URL
-from ..utils.block_policy import is_auto, insert_revision
+
+from ..schemas import AuditReport, DuplicateLabel
+from ..utils.block_policy import insert_revision, is_auto
 
 DUPLICATE_CHECK_SQL = """
 with dupes as (
@@ -21,7 +25,8 @@ select norm_label, ids from dupes;
 
 EVENT_TOPIC = "block.audit_report"
 
-async def run():
+@validates(AuditIn)
+async def run(_: AuditIn) -> AuditOut:
     """Main entry for orchestration_runner."""
     conn = await asyncpg.connect(DB_URL)
     try:
@@ -43,7 +48,10 @@ async def run():
             primary_id = dup.block_ids[0]
             if await is_auto(conn, primary_id):
                 await conn.execute(
-                    "update context_blocks set content = content || ' [Merged duplicate]' where id=$1",
+                    (
+                        "update context_blocks set content = content || "
+                        "' [Merged duplicate]' where id=$1"
+                    ),
                     primary_id,
                 )
                 await insert_revision(
@@ -52,18 +60,18 @@ async def run():
                     prev_content="<merged>",
                     new_content="<merged>",
                     changed_by="agent:infra_analyzer",
-                    proposal_event=dup.dict(),
+                    proposal_event=dup.model_dump(mode="json"),
                 )
-                await publish_event("block.auto_updated", dup.dict())
+                await publish_event("block.auto_updated", dup.model_dump(mode="json"))
             else:
-                await publish_event("block.update_suggested", dup.dict())
+                await publish_event("block.update_suggested", dup.model_dump(mode="json"))
 
     finally:
         await conn.close()
 
     # always emit audit_report for dashboards
-    await publish_event(EVENT_TOPIC, json.loads(report.json()))
-    return report  # useful for tests
+    await publish_event(EVENT_TOPIC, report.model_dump(mode="json"))
+    return AuditOut(**report.model_dump())
 
 if __name__ == "__main__":
     print("✅ Infra analyzer agent loaded successfully.")

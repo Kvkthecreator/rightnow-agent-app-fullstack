@@ -5,11 +5,20 @@ Pulls the four core manual blocks + top-3 auto blocks by usage,
 creates a Task Brief draft, links blocks, emits event.
 """
 
-import os, json, asyncpg, uuid, datetime, asyncio, sys
+import asyncio
+import datetime
+import json
+import os
+import sys
+import uuid
 from datetime import timezone
+
+import asyncpg
+from schemas.validators import validates
+
 from app.supabase_helpers import publish_event
+
 from ..schemas import ComposeRequest, TaskBriefDraft
-from ..utils.prompt_builder import build_prompt
 
 DB_URL = os.getenv("DATABASE_URL")
 
@@ -36,14 +45,12 @@ order by brief_count desc
 limit 3
 """
 
-async def run(
-    user_id: str,
-    *,
-    intent: str,
-    sub_instructions: str = "",
-    file_urls=None,
-) -> TaskBriefDraft:
-    file_urls = file_urls or []
+@validates(ComposeRequest)
+async def run(payload: ComposeRequest) -> TaskBriefDraft:
+    user_id = payload.user_id
+    intent = payload.user_intent
+    sub_instructions = payload.sub_instructions
+    file_urls = payload.file_urls or []
     async with asyncpg.connect(DB_URL) as conn:
         core_blocks = await conn.fetch(SQL_CORE, user_id)
         top3_blocks = await conn.fetch(SQL_TOP3, user_id)
@@ -78,7 +85,7 @@ async def run(
             [(bid, brief_id) for bid in block_ids],
         )
 
-    await publish_event("brief.draft_created", json.loads(draft.json()))
+    await publish_event("brief.draft_created", draft.model_dump(mode="json"))
     return draft
 
 # CLI helper
@@ -89,4 +96,4 @@ if __name__ == "__main__":
         "sub_instructions": "",
         "file_urls": []
     }
-    asyncio.run(run(**payload))
+    asyncio.run(run(payload))

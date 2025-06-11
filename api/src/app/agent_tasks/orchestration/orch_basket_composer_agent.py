@@ -1,10 +1,15 @@
 """Orchestrator that composes a brief when a basket is created."""
 import asyncio
 import json
+
 import asyncpg
-from app.event_bus import subscribe, DB_URL
-from app.supabase_helpers import publish_event
+from schemas.basket_composer import BasketComposerIn, BasketComposerOut
+from schemas.validators import validates
+
 from app.agent_tasks.layer2_tasks.agents.tasks_composer_agent import run as compose_run
+from app.event_bus import DB_URL, subscribe
+from app.supabase_helpers import publish_event
+
 
 async def _handle_event(evt) -> None:
     payload = evt.payload
@@ -22,10 +27,12 @@ async def _handle_event(evt) -> None:
         )
     await publish_event("basket.composed", {"basket_id": payload["basket_id"]})
 
-async def run() -> None:
+@validates(BasketComposerIn)
+async def run(_: BasketComposerIn) -> BasketComposerOut:
     print("🚀 orch_basket_composer_agent running …")
     async for evt in subscribe(["basket.compose_request"]):
         await _handle_event(evt)
+    return BasketComposerOut(status="completed")
 
 if __name__ == "__main__":
     asyncio.run(run())

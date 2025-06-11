@@ -1,21 +1,12 @@
 """Compare newly parsed context blocks with existing ones."""
 
 from difflib import SequenceMatcher
-from typing import Literal, Optional
 
-from pydantic import BaseModel
+from schemas.block_diff import DiffBlock
+from schemas.dump_parser import ContextBlock
 
 from ..layer1_infra.utils.supabase_helpers import get_supabase
-from .orch_basket_parser_agent import ContextBlock, run as parse_blocks
-
-
-class DiffBlock(BaseModel):
-    """Diff result for a context block."""
-
-    type: Literal["added", "modified", "unchanged"]
-    new_block: ContextBlock
-    old_block: Optional[ContextBlock] = None
-    reason: Optional[str] = None
+from .orch_basket_parser_agent import run as parse_blocks
 
 
 def _normalize(text: str) -> str:
@@ -53,7 +44,7 @@ def run(basket_id: str) -> list[DiffBlock]:
         if row.get("content"):
             artifacts.append({"type": "text", "content": row["content"], "file_id": None})
 
-    new_blocks = parse_blocks(basket_id, artifacts, user_id)
+    new_blocks = parse_blocks(basket_id, artifacts, user_id).blocks
 
     # fetch existing blocks linked to this basket
     blk_resp = (

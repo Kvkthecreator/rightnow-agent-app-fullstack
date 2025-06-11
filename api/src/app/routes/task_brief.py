@@ -1,13 +1,13 @@
 """
 API routes for TaskBrief CRUD operations.
 """
+from datetime import datetime
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List, Dict
-from datetime import datetime
 
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
-
 
 router = APIRouter(prefix="/task-brief", tags=["task-brief"])
 
@@ -21,7 +21,7 @@ class TaskBrief(BaseModel):
     intent: str
     sub_instructions: Optional[str]
     compilation_mode: Optional[str]
-    media: Optional[List[MediaItem]]
+    media: Optional[list[MediaItem]]
     core_context_snapshot: Optional[dict]
     created_at: Optional[datetime]
 
@@ -29,7 +29,7 @@ class TaskBrief(BaseModel):
 async def create_task_brief(task_brief: TaskBrief):
     """Create a new TaskBrief entry in Supabase and return it."""
     supabase = get_supabase()
-    payload = task_brief.model_dump(exclude_unset=True, exclude={"id", "created_at"})
+    payload = task_brief.model_dump(mode="json", exclude_unset=True, exclude={"id", "created_at"})
     resp = supabase.table("task_briefs").insert(payload).execute()
     if resp.error or not resp.data:
         detail = resp.error.message if resp.error else "Failed to insert task_brief"

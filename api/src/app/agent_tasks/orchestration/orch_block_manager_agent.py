@@ -1,14 +1,15 @@
 """Orchestrator that watches Layer-1 events and queues block changes."""
 
-import os
-import json
 import asyncio
+import json
+import os
+from typing import Any
+
 import asyncpg
-from datetime import datetime, timezone
-from typing import Dict, Any
+from schemas.block_manager import BlockManagerIn, BlockManagerOut
+from schemas.validators import validates
 
 from app.event_bus import subscribe
-from app.supabase_helpers import publish_event
 
 DB_URL = os.getenv("DATABASE_URL")
 
@@ -30,7 +31,7 @@ async def _queue(
     conn: asyncpg.Connection,
     action: str,
     block_id: str,
-    proposed_data: Dict[str, Any],
+    proposed_data: dict[str, Any],
     source_event: str,
     source_scope: str,
     reason: str,
@@ -45,13 +46,15 @@ async def _queue(
         reason,
     )
 
-async def run() -> None:
+@validates(BlockManagerIn)
+async def run(_: BlockManagerIn) -> BlockManagerOut:
     """Entry point used by orchestration_runner."""
     print("🚀 orch_block_manager_agent running …")
     async with asyncpg.create_pool(DB_URL) as pool:
         async for evt in subscribe(["block.audit_report", "block.usage_report"]):
             async with pool.acquire() as conn:
                 await _handle_event(conn, evt)
+    return BlockManagerOut(status="completed")
 
 async def _handle_event(conn: asyncpg.Connection, evt) -> None:
     topic = evt.topic

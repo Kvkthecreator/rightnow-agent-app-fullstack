@@ -1,30 +1,13 @@
 """Parse basket-level inputs into ``ContextBlock`` rows."""
 
-from datetime import datetime, timezone
-from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from schemas.dump_parser import ContextBlock, DumpParserOut
 
 
-class ContextBlock(BaseModel):
-    """Representation of a context block record."""
-
-    id: Optional[str] = None
-    user_id: str
-    label: str
-    content: Optional[str] = None
-    file_ids: Optional[List[str]] = None
-    type: str = "text"
-    source: str = "parser"
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    is_primary: bool = True
-    meta_scope: str = "basket"
-
-
-def run(basket_id: str, artifacts: List[dict], user_id: str) -> List[ContextBlock]:
+def run(basket_id: str, artifacts: list[dict], user_id: str) -> DumpParserOut:
     """Naively parse text artifacts into ``ContextBlock`` rows."""
 
-    def _split_text(text: str) -> List[str]:
+    def _split_text(text: str) -> list[str]:
         """Return list of paragraphs or bullet points from raw text."""
         if not text:
             return []
@@ -42,7 +25,7 @@ def run(basket_id: str, artifacts: List[dict], user_id: str) -> List[ContextBloc
             return points
         return [p.strip() for p in stripped.split("\n\n") if p.strip()]
 
-    blocks: List[ContextBlock] = []
+    blocks: list[ContextBlock] = []
 
     for art in artifacts:
         if art.get("type") != "text":
@@ -58,4 +41,4 @@ def run(basket_id: str, artifacts: List[dict], user_id: str) -> List[ContextBloc
             )
             blocks.append(block)
 
-    return blocks
+    return DumpParserOut(blocks=blocks)
