@@ -24,6 +24,6 @@ async def handle_event(event: dict[str, Any]) -> dict[str, Any]:
 
     diffs = diff_blocks(basket_id)
 
-    result = await apply_diffs(basket_id=basket_id, diffs=diffs, dry_run=False)
+    await apply_diffs(basket_id=basket_id, diffs=diffs, dry_run=False)
 
-    return {"status": "parsed_and_applied", "basket_id": basket_id, "result": result}
+    return {"status": "diff_applied", "added": sum(1 for d in diffs if d.type == "added")}
