@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import asyncpg
 from schemas.audit import AuditIn, AuditOut
 from schemas.validators import validates
+from utils.logged_agent import logged
 
 from app.event_bus import DB_URL  # reuse same URL
 from app.supabase_helpers import publish_event
@@ -25,6 +26,7 @@ select norm_label, ids from dupes;
 
 EVENT_TOPIC = "block.audit_report"
 
+@logged("infra_analyzer_agent")
 @validates(AuditIn)
 async def run(_: AuditIn) -> AuditOut:
     """Main entry for orchestration_runner."""

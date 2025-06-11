@@ -8,6 +8,7 @@ from typing import Any
 import asyncpg
 from schemas.block_manager import BlockManagerIn, BlockManagerOut
 from schemas.validators import validates
+from utils.logged_agent import logged
 
 from app.event_bus import subscribe
 
@@ -46,6 +47,7 @@ async def _queue(
         reason,
     )
 
+@logged("orch_block_manager_agent")
 @validates(BlockManagerIn)
 async def run(_: BlockManagerIn) -> BlockManagerOut:
     """Entry point used by orchestration_runner."""

@@ -4,6 +4,7 @@ import datetime
 
 import asyncpg
 from schemas.validators import validates
+from utils.logged_agent import logged
 
 from app.event_bus import DB_URL, publish_event
 
@@ -13,6 +14,7 @@ EVENT_TOPIC_IN = "brief.edited"
 EVENT_TOPIC_OUT = "brief.validated"
 
 
+@logged("tasks_validator_agent")
 @validates(TaskBriefEdited)
 async def validate(brief: TaskBriefEdited) -> TaskBriefValidation:
     errors = []

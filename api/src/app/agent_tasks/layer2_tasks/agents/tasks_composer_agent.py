@@ -15,6 +15,7 @@ from datetime import timezone
 
 import asyncpg
 from schemas.validators import validates
+from utils.logged_agent import logged
 
 from app.supabase_helpers import publish_event
 
@@ -45,6 +46,7 @@ order by brief_count desc
 limit 3
 """
 
+@logged("tasks_composer_agent")
 @validates(ComposeRequest)
 async def run(payload: ComposeRequest) -> TaskBriefDraft:
     user_id = payload.user_id

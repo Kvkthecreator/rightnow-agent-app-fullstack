@@ -1,6 +1,7 @@
 #api/src/app/agent_tasks/layer2_tasks/agents/tasks_editor_agent.py
 
 from schemas.validators import validates
+from utils.logged_agent import logged
 
 from app.supabase_helpers import publish_event
 
@@ -9,6 +10,7 @@ from ..schemas import TaskBriefDraft, TaskBriefEdited
 EVENT_TOPIC_IN  = "brief.draft_created"
 EVENT_TOPIC_OUT = "brief.edited"
 
+@logged("tasks_editor_agent")
 @validates(TaskBriefDraft)
 async def edit(draft: TaskBriefDraft) -> TaskBriefEdited:
     edited = TaskBriefEdited(**draft.model_dump(), edits_log=[])
