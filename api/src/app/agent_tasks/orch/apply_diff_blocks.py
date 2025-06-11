@@ -1,5 +1,6 @@
 from schemas.block_diff import DiffBlock
 from schemas.dump_parser import ContextBlock
+from utils.db import json_safe
 
 from ..layer1_infra.utils.supabase_helpers import get_supabase
 
@@ -40,14 +41,16 @@ async def apply_diffs(
                 safe_block = new_block.model_dump(exclude_none=True)
                 #  🔗 write FK for fast look-ups
                 safe_block["basket_id"] = basket_id
-                resp = supabase.table("context_blocks").insert(safe_block).execute()
+                resp = supabase.table("context_blocks").insert(json_safe(safe_block)).execute()
                 if resp.data and resp.data[0].get("id"):
                     supabase.table("block_brief_link").insert(
-                        {
-                            "block_id": resp.data[0]["id"],
-                            "task_brief_id": basket_id,
-                            "transformation": "source",
-                        }
+                        json_safe(
+                            {
+                                "block_id": resp.data[0]["id"],
+                                "task_brief_id": basket_id,
+                                "transformation": "source",
+                            }
+                        )
                     ).execute()
 
         elif diff.type == "modified":
@@ -59,7 +62,7 @@ async def apply_diffs(
                     safe_block = serialize_block(new_block)
                     (
                         supabase.table("context_blocks")
-                        .update(safe_block)
+                        .update(json_safe(safe_block))
                         .eq("id", old_block.id)
                         .execute()
                     )

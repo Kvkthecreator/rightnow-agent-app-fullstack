@@ -3,7 +3,10 @@ from typing import Any, Literal
 
 from supabase import create_client
 
+from .db import json_safe
+
 supabase = create_client(getenv("SUPABASE_URL"), getenv("SUPABASE_ANON_KEY"))
+
 
 async def log_event(
     *,
@@ -14,11 +17,12 @@ async def log_event(
 ) -> None:
     # fast, fire-and-forget; no await on the returned promise
     supabase.table("agent_events").insert(
-        {
-            "basket_id": basket_id,
-            "agent": agent,
-            "phase": phase,
-            "payload": payload,
-        }
+        json_safe(
+            {
+                "basket_id": basket_id,
+                "agent": agent,
+                "phase": phase,
+                "payload": payload,
+            }
+        )
     ).execute()
-

@@ -1,6 +1,4 @@
-import asyncio
 import json
-import uuid
 from datetime import datetime
 
 from agents import Runner
@@ -24,6 +22,7 @@ from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
 from .agent_tasks.layer2_tasks.utils.task_utils import create_task_and_session
 from .agent_tasks.layer3_config.adapters.google_exporter import export_to_doc
 from .agent_tasks.layer3_config.utils.config_to_md import render_markdown
+from .utils.db import json_safe
 
 router = APIRouter()
 
@@ -57,14 +56,16 @@ AGENT_REGISTRY = {
 def log_agent_message(task_id, user_id, agent_type, message):
     try:
         supabase.table("agent_messages").insert(
-            {
-                "task_id": task_id,
-                "user_id": user_id,
-                "agent_type": agent_type,
-                "message_type": message.get("type", "text"),
-                "message_content": message,
-                "created_at": datetime.utcnow().isoformat(),
-            }
+            json_safe(
+                {
+                    "task_id": task_id,
+                    "user_id": user_id,
+                    "agent_type": agent_type,
+                    "message_type": message.get("type", "text"),
+                    "message_content": message,
+                    "created_at": datetime.utcnow().isoformat(),
+                }
+            )
         ).execute()
     except Exception as e:
         print(f"[warn] Failed to log message to agent_messages: {e}")
@@ -98,7 +99,7 @@ async def run_agent(req: Request):
 
     missing_fields = get_missing_fields(task_type_id, collected_inputs)
     try:
-        supabase.table("agent_sessions").update({"inputs": collected_inputs}).eq(
+        supabase.table("agent_sessions").update(json_safe({"inputs": collected_inputs})).eq(
             "id", task_id
         ).execute()
     except Exception:
@@ -172,7 +173,7 @@ async def run_agent(req: Request):
         question = parsed.get("message")
         try:
             supabase.table("agent_sessions").update(
-                {"inputs": collected_inputs, "pending_field": field}
+                json_safe({"inputs": collected_inputs, "pending_field": field})
             ).eq("id", task_id).execute()
         except Exception:
             print(f"[warn] Could not persist pending_field for task_id={task_id}")
@@ -191,9 +192,9 @@ async def run_agent(req: Request):
         agent_type = parsed.get("agent_type")
         inputs = parsed.get("input", {})
         try:
-            supabase.table("agent_sessions").update({"status": "dispatched", "inputs": inputs}).eq(
-                "id", task_id
-            ).execute()
+            supabase.table("agent_sessions").update(
+                json_safe({"status": "dispatched", "inputs": inputs})
+            ).eq("id", task_id).execute()
         except Exception:
             print(f"Warning: failed to update session status to dispatched for task_id={task_id}")
 
@@ -212,7 +213,7 @@ async def run_agent(req: Request):
         )
         log_agent_message(task_id, user_id, agent_type, final_payload["message"])
         try:
-            supabase.table("agent_sessions").update({"status": "completed"}).eq(
+            supabase.table("agent_sessions").update(json_safe({"status": "completed"})).eq(
                 "id", task_id
             ).execute()
         except Exception:
@@ -321,5 +322,3 @@ async def export_google_doc(brief_id: str):
         return {"url": link}
     except RuntimeError as err:
         raise HTTPException(400, str(err)) from err
-
-

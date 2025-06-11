@@ -1,6 +1,7 @@
 import datetime
 
 import httpx
+from utils.db import json_safe
 from utils.logged_agent import logged
 
 from app.integrations.google_client import DOCS_ENDPOINT, refresh_token
@@ -69,7 +70,7 @@ async def export_to_doc(user_id: str, brief_id: str, supabase):
             link = f"https://docs.google.com/document/d/{doc_id}/edit"
             (
                 await supabase.from_("brief_configs")
-                .update({"external_url": link})
+                .update(json_safe({"external_url": link}))
                 .eq("id", cfg_row["id"])
             )
 
