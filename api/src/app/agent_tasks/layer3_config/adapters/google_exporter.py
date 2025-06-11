@@ -6,7 +6,7 @@ from utils.logged_agent import logged
 
 from app.integrations.google_client import DOCS_ENDPOINT, refresh_token
 
-from ..utils.config_to_md import render_markdown
+from src.app.agent_tasks.layer3_config.utils.config_to_md import render_markdown
 
 
 @logged("google_exporter")

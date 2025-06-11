@@ -11,7 +11,7 @@ from app.event_bus import DB_URL
 from app.supabase_helpers import publish_event
 
 from ..schemas import RefreshReport
-from ..utils.block_policy import insert_revision, is_auto
+from src.app.agent_tasks.layer1_infra.utils.block_policy import insert_revision, is_auto
 
 FIND_REFRESHABLE_SQL = """
 select id::text
