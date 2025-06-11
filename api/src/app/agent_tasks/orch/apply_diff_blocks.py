@@ -5,7 +5,8 @@ from ..layer1_infra.utils.supabase_helpers import get_supabase
 
 
 def serialize_block(block: ContextBlock) -> dict:
-    return block.model_dump(mode="json")
+    """Serialize a block, skipping unset optional fields."""
+    return block.model_dump(mode="json", exclude_none=True)
 
 
 async def apply_diffs(
@@ -22,11 +23,8 @@ async def apply_diffs(
             if dry_run:
                 print(f"[dry-run] insert block: {diff.new_block.label}")
             else:
-                resp = (
-                    supabase.table("context_blocks")
-                    .insert(serialize_block(diff.new_block))
-                    .execute()
-                )
+                safe_block = serialize_block(diff.new_block)
+                resp = supabase.table("context_blocks").insert(safe_block).execute()
                 if resp.data and resp.data[0].get("id"):
                     supabase.table("block_brief_link").insert(
                         {
@@ -42,9 +40,10 @@ async def apply_diffs(
                 if dry_run:
                     print(f"[dry-run] update block {diff.old_block.id}")
                 else:
+                    safe_block = serialize_block(diff.new_block)
                     (
                         supabase.table("context_blocks")
-                        .update(serialize_block(diff.new_block))
+                        .update(safe_block)
                         .eq("id", diff.old_block.id)
                         .execute()
                     )

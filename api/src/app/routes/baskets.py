@@ -1,41 +1,51 @@
 """API routes for Basket management."""
+
+import uuid
+from typing import Any, Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
-import uuid
+from schemas.context_block import ContextBlock
 
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
 from ..supabase_helpers import publish_event
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 
+
 class BasketCreate(BaseModel):
     topic: str
     intent: str
     insight: Optional[str] = None
-    reference_file_ids: List[str] = Field(default_factory=list)
+    reference_file_ids: list[str] = Field(default_factory=list)
+
 
 class BasketUpdate(BaseModel):
     input_text: Optional[str] = None
     intent_summary: Optional[str] = None
+
 
 @router.post("/", status_code=201)
 async def create_basket(payload: BasketCreate):
     """Create a new basket and emit compose request."""
     supabase = get_supabase()
     basket_id = str(uuid.uuid4())
-    resp = supabase.table("baskets").insert(
-        {
-            "id": basket_id,
-            "topic": payload.topic,
-            "intent": payload.intent,
-            "status": "draft",
-        }
-    ).execute()
+    resp = (
+        supabase.table("baskets")
+        .insert(
+            {
+                "id": basket_id,
+                "topic": payload.topic,
+                "intent": payload.intent,
+                "status": "draft",
+            }
+        )
+        .execute()
+    )
     if resp.error:
         raise HTTPException(status_code=500, detail=resp.error.message)
 
-    blocks: List[Dict[str, Any]] = [
+    blocks: list[dict[str, Any]] = [
         {
             "id": str(uuid.uuid4()),
             "type": "topic",
@@ -84,7 +94,8 @@ async def create_basket(payload: BasketCreate):
         )
 
     for blk in blocks:
-        supabase.table("context_blocks").insert(blk).execute()
+        safe_block = ContextBlock.model_validate(blk).model_dump(mode="json", exclude_none=True)
+        supabase.table("context_blocks").insert(safe_block).execute()
         supabase.table("block_brief_link").insert(
             {
                 "id": str(uuid.uuid4()),
@@ -112,15 +123,10 @@ async def get_basket(basket_id: str):
     supabase = get_supabase()
     try:
         basket_resp = (
-            supabase
-            .table("baskets")
-            .select("*")
-            .eq("id", str(basket_id))
-            .maybe_single()
-            .execute()
+            supabase.table("baskets").select("*").eq("id", str(basket_id)).maybe_single().execute()
         )
-    except Exception:
-        raise HTTPException(status_code=500, detail="Supabase error")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Supabase error") from exc
 
     if basket_resp.data is None:
         raise HTTPException(status_code=404, detail="Basket not found")
@@ -131,9 +137,7 @@ async def get_basket(basket_id: str):
         .execute()
     )
     blocks = [r["context_blocks"] for r in (links.data or [])]
-    cfgs = (
-        supabase.table("basket_configs").select("*").eq("basket_id", basket_id).execute()
-    )
+    cfgs = supabase.table("basket_configs").select("*").eq("basket_id", basket_id).execute()
     return {
         "id": basket_id,
         "status": basket_resp.data.get("status"),

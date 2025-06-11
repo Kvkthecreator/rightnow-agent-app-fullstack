@@ -8,6 +8,7 @@ from schemas.basket_composer import BasketComposerIn
 from schemas.block_diff import BlockDiffIn
 from schemas.block_manager import BlockManagerIn
 from schemas.config import ConfigIn
+from schemas.context_block import ContextBlock
 from schemas.dump_parser import DumpParserIn
 from schemas.research import ResearchIn
 from schemas.usage import UsageIn
@@ -57,3 +58,15 @@ def test_round_trip_compose_request():
             "file_urls": [],
         }
     )
+
+
+def test_optional_fields_skip():
+    raw = {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "label": "t",
+        "content": "c",
+    }
+    data = ContextBlock.model_validate(raw)
+    out = data.model_dump(mode="json", exclude_none=True)
+    assert "meta_scope" not in out
