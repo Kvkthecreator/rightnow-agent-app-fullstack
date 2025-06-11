@@ -1,110 +1,91 @@
 # AGENTS.md
 
-This document defines the key agents within the Context OS backend. Each agent performs a specific reasoning, enrichment, or orchestration task. Use this as a reference for development, testing, or creating new agents.
+This document outlines the agent system architecture behind **yarnnn**, our context-first execution platform.
+
+It is intentionally focused on what **does not change** — the roles, structure, and system philosophy — rather than volatile implementation details. Treat this as a durable map for contributors, agent designers, and system maintainers.
 
 ---
 
-## 🧠 Agent: `orch_block_manager_agent`
 
-**File**: `api/agents/orch_block_manager_agent.py`  
-**Role**: Classifies, enriches, and maintains `context_blocks` to ensure structured, reusable brand context.  
-**Schema Target**: `context_blocks`
+## 💡 Philosophy
 
-### 🧩 Responsibilities
+yarnnn is built on a wedge: **from ongoing dumps to evolving memory**.
 
-- Automatically tag and enrich new or updated context blocks
-- Populate metadata fields such as:
-  - `meta_tags` (e.g., "tone", "mission", "audience")
-  - `meta_context_scope` (e.g., "global", "campaign-specific")
-  - `meta_agent_notes` (agent-generated notes)
-  - `meta_refreshable`, `meta_derived_from`
-- Respect `update_policy` field:
-  - `manual`: skip automatic updates
-  - `auto`: allow enrichment/refinement
+Our users — indie builders, creative solopreneurs, and freelance marketers — are already using tools like ChatGPT. What they lack is a system that keeps up with them: something that **remembers, organizes, and grows** with everything they share.
 
-### 🔄 Trigger Events
+At the core of yarnnn is a **persistent contextual memory**. As users continuously drop ideas, links, and fragments, yarnnn parses and structures them into reusable blocks — creating a long-term memory layer that supports future tasks like content creation, strategy, or analysis.
 
-- `block.created`
-- `block.updated`
+Unlike one-off chats or static notes, yarnnn is **live**, **structured**, and **designed to stay with you** — providing durable context that evolves alongside your work.
 
-### ✅ Output
-
-- Update to `context_blocks` row:
-  - New metadata fields
-  - Optional structure fix (formatting, normalization)
-  - JSON patch style output (or full object replacement)
 
 ---
 
-## 🧾 Agent: `orch_brief_composer_agent`
+## 🧱 Core Architecture Layers (Stable)
 
-**File**: `api/agents/orch_brief_composer_agent.py`  
-**Role**: Synthesizes a new `task_brief` based on selected context blocks and user intent.  
-**Schema Target**: `task_briefs`
+The yarnnn system is divided into **three persistent structural layers**:
 
-### 🧩 Responsibilities
+| Layer      | Role                                                                 |
+|------------|----------------------------------------------------------------------|
+| **Frontend (Vercel + Next.js)**   | User interaction, task input, chat UI, and live rendering of agent messages |
+| **Middleware (Codex)**            | Developer-facing automation, task scaffolding, Codex agent integration       |
+| **Backend (FastAPI + Supabase)**  | Agent orchestration, database logic, and persistent memory (context blocks, briefs, sessions) |
 
-- Accept input:
-  - `block_ids` (selected from context)
-  - `task_type` (what the user wants to do)
-  - `compilation_mode` (e.g., `exploratory`, `structured`)
-- Generate:
-  - Title, summary
-  - Proposed action steps
-  - Clarification or confirmation needs (if any)
-
-### 🔄 Trigger Events
-
-- `brief.compose_request`
-
-### ✅ Output
-
-- New row in `task_briefs`:
-  - `core_context_snapshot` (from blocks)
-  - `intent`, `sub_instructions`, `media`
-  - `is_draft = true`
-- Emits `brief.draft_created` event
+> These layers are fixed — even as individual components evolve, their responsibilities stay the same.
 
 ---
 
-## 🧪 Agent: `orch_brief_validator_agent` (Planned)
+## 🧠 Agent System Overview
 
-**Role**: Validates and optionally adjusts a task brief before final submission.  
-**Stage**: Optional refinement agent post-creation.  
-**Status**: ✴️ Planned, not yet implemented.
+Agents in yarnnn are organized by **function**, not task. They are composable modules aligned to backend responsibilities:
 
----
+| Category         | Description                                                                            |
+|------------------|----------------------------------------------------------------------------------------|
+| `orch_*` agents  | Orchestration agents that manage flows (e.g., block classification, brief composition) |
+| `tasks_*` agents | Executable agents that perform reasoning on a goal (e.g., strategy, competitor, content) |
+| `infra_*` agents | Maintenance agents that audit, clean, or refresh stored context blocks                |
 
-## Shared Schema Fields (Reference)
-
-### `context_blocks`
-- `id`, `label`, `content`, `type`, `source`, `version`
-- `file_ids[]`, `status`, `importance`, `is_core_block`, `is_auto_generated`, `requires_user_review`
-- Metadata:
-  - `meta_tags[]`, `meta_context_scope`, `meta_agent_notes`, `meta_derived_from`
-  - `meta_refreshable`, `meta_locale`, `meta_visibility`
-  - `meta_emotional_tone[]`, `meta_embedding`
-- Scoring & usage:
-  - `feedback_score`, `last_used_successfully_at`, `last_refreshed_at`
-- Control fields:
-  - `update_policy` (`manual`, `auto`)
-
-### `task_briefs`
-- `id`, `user_id`, `intent`, `sub_instructions`, `media`
-- `core_context_snapshot`, `core_profile_data`
-- `is_draft`, `is_published`, `is_locked`
-- `meta_emotional_tone[]`, `meta_scope`, `meta_audience`
-- `compilation_mode`, `updated_at`, `created_at`
-
-### `block_brief_link`
-- `block_id`, `task_brief_id`
-- `transformation`
-- `created_at`
+> This naming convention is stable and used throughout the backend codebase.
 
 ---
 
-## Notes
+## 🗂️ Folder Structure (Directional & Durable)
 
-- Agents should emit standardized events (`block.updated`, `brief.draft_created`) via webhook.
-- Agent behavior is influenced by `update_policy`, `task_type`, and system configuration (e.g. `compilation_mode`).
-- Codex tasks can reference this file to understand and modify agent behavior intelligently.
+This structure reflects our long-term architectural commitments:
+
+```text
+/api/src/app/
+├── agent_tasks/
+│   ├── orch/         → Orchestration agents (e.g., block manager, brief composer)
+│   ├── tasks/        → Domain-specific task agents
+│   ├── infra/        → System hygiene agents
+│   └── shared/       → Prompt templates, common agent utilities
+├── middleware/
+│   └── codex/        → Codex task registry and execution layer
+├── util/             → Supabase helpers, task utils
+└── constants.py      → Shared schema constants and enums
+
+/web/
+├── app/
+│   ├── baskets/      → Initial dump flow
+│   ├── blocks/       → Context memory browser
+│   ├── tasks/        → Structured briefs and agent sessions
+│   └── components/   → Shared input UI (dump area, upload, etc.)
+└── lib/
+    ├── supabaseClient.ts
+    └── agents/       → Triggers and helper logic for agent execution
+
+
+---
+
+## 🔖 Conventions That Don’t Change
+
+- All agents use the `*_agent.py` suffix
+- Naming is always prefixed by purpose: `orch_`, `tasks_`, `infra_`
+- Orchestration always starts at `/api/agent`, no matter the task
+- Supabase remains our single source of truth
+- Codex will continue to support dev workflows via declarative task files
+
+---
+
+> For evolving task logic, see `codex/PRD/agent_flows.md` and `task_types/`
+> This document is meant to remain consistent even as tools and flows evolve.
