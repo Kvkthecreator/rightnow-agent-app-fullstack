@@ -1,5 +1,16 @@
+from datetime import datetime
+
 from ..layer1_infra.utils.supabase_helpers import get_supabase
+from .orch_basket_parser_agent import ContextBlock
 from .orch_block_diff_agent import DiffBlock
+
+
+def serialize_block(block: ContextBlock) -> dict:
+    data = block.model_dump()
+    for key, value in data.items():
+        if isinstance(value, datetime):
+            data[key] = value.isoformat()
+    return data
 
 
 async def apply_diffs(
@@ -31,7 +42,9 @@ async def apply_diffs(
                 print(f"[dry-run] insert block: {diff.new_block.label}")
             else:
                 resp = (
-                    supabase.table("context_blocks").insert(diff.new_block.model_dump()).execute()
+                    supabase.table("context_blocks")
+                    .insert(serialize_block(diff.new_block))
+                    .execute()
                 )
                 if resp.data and resp.data[0].get("id"):
                     supabase.table("block_brief_link").insert(
@@ -47,9 +60,12 @@ async def apply_diffs(
                 if dry_run:
                     print(f"[dry-run] update block {diff.old_block.id}")
                 else:
-                    supabase.table("context_blocks").update(diff.new_block.model_dump()).eq(
-                        "id", diff.old_block.id
-                    ).execute()
+                    (
+                        supabase.table("context_blocks")
+                        .update(serialize_block(diff.new_block))
+                        .eq("id", diff.old_block.id)
+                        .execute()
+                    )
         else:
             unchanged += 1
 
