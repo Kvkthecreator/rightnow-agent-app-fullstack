@@ -22,6 +22,7 @@ const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -99,6 +100,9 @@ const Sidebar = () => {
                 <button onClick={handleLogout}>🔓 Sign Out</button>
               </div>
             </details>
+            {showHint && (
+              <p className="mt-4 text-xs hidden md:block">⇧ V to quick-dump into this basket</p>
+            )}
           </div>
         </div>
       </aside>
