@@ -9,6 +9,7 @@ from schemas.context_block import ContextBlock
 
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
 from ..supabase_helpers import publish_event
+from ..utils.db import json_safe
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 
@@ -33,12 +34,14 @@ async def create_basket(payload: BasketCreate):
     resp = (
         supabase.table("baskets")
         .insert(
-            {
-                "id": basket_id,
-                "topic": payload.topic,
-                "intent": payload.intent,
-                "status": "draft",
-            }
+            json_safe(
+                {
+                    "id": basket_id,
+                    "topic": payload.topic,
+                    "intent": payload.intent,
+                    "status": "draft",
+                }
+            )
         )
         .execute()
     )
@@ -95,14 +98,16 @@ async def create_basket(payload: BasketCreate):
 
     for blk in blocks:
         safe_block = ContextBlock.model_validate(blk).model_dump(mode="json", exclude_none=True)
-        supabase.table("context_blocks").insert(safe_block).execute()
+        supabase.table("context_blocks").insert(json_safe(safe_block)).execute()
         supabase.table("block_brief_link").insert(
-            {
-                "id": str(uuid.uuid4()),
-                "block_id": blk["id"],
-                "task_brief_id": basket_id,
-                "transformation": "source",
-            }
+            json_safe(
+                {
+                    "id": str(uuid.uuid4()),
+                    "block_id": blk["id"],
+                    "task_brief_id": basket_id,
+                    "transformation": "source",
+                }
+            )
         ).execute()
     await publish_event(
         "basket.compose_request",
@@ -153,7 +158,13 @@ async def update_basket(basket_id: str, payload: BasketUpdate):
     supabase = get_supabase()
     if payload.input_text:
         supabase.table("basket_threads").insert(
-            {"basket_id": basket_id, "content": payload.input_text, "source": "user_dump"}
+            json_safe(
+                {
+                    "basket_id": basket_id,
+                    "content": payload.input_text,
+                    "source": "user_dump",
+                }
+            )
         ).execute()
     await publish_event(
         "basket.compose_request",
