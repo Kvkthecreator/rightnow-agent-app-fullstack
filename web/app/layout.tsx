@@ -4,6 +4,9 @@ import "./globals.css";
 import SupabaseProvider from "@/components/SupabaseProvider";
 import { Toaster } from "react-hot-toast";
 import AppLayout from "@/components/layout/AppLayout";
+import DumpModal from "@/components/DumpModal";
+import useDumpHotkey from "@/lib/hooks/useDumpHotkey";
+import { BasketProvider } from "@/lib/context/BasketContext";
 
 // Font setup
 const geistSans = Geist({
@@ -36,15 +39,19 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  useDumpHotkey();
   return (
     <html
       lang="en"
       className={`${geistSans?.variable || ""} ${geistMono?.variable || ""} ${pacifico?.variable || ""}`}
     >
       <body className="antialiased min-h-screen">
-        <AppLayout>
-          <SupabaseProvider>{children}</SupabaseProvider>
-        </AppLayout>
+        <BasketProvider>
+          <AppLayout>
+            <SupabaseProvider>{children}</SupabaseProvider>
+          </AppLayout>
+          <DumpModal />
+        </BasketProvider>
         <Toaster position="top-right" />
       </body>
     </html>
