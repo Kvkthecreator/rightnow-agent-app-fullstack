@@ -18,12 +18,26 @@ async def apply_diffs(
 
     added = modified = unchanged = 0
     for diff in diffs:
+        # handle legacy dicts
+        new_block = (
+            diff.new_block
+            if isinstance(diff.new_block, ContextBlock)
+            else ContextBlock.model_validate(diff.new_block)
+        )
+        old_block = None
+        if diff.old_block:
+            old_block = (
+                diff.old_block
+                if isinstance(diff.old_block, ContextBlock)
+                else ContextBlock.model_validate(diff.old_block)
+            )
+
         if diff.type == "added":
             added += 1
             if dry_run:
-                print(f"[dry-run] insert block: {diff.new_block.label}")
+                print(f"[dry-run] insert block: {new_block.label}")
             else:
-                safe_block = diff.new_block.model_dump(exclude_none=True)
+                safe_block = new_block.model_dump(exclude_none=True)
                 #  🔗 write FK for fast look-ups
                 safe_block["basket_id"] = basket_id
                 resp = supabase.table("context_blocks").insert(safe_block).execute()
@@ -38,15 +52,15 @@ async def apply_diffs(
 
         elif diff.type == "modified":
             modified += 1
-            if diff.old_block and diff.old_block.id:
+            if old_block and old_block.id:
                 if dry_run:
-                    print(f"[dry-run] update block {diff.old_block.id}")
+                    print(f"[dry-run] update block {old_block.id}")
                 else:
-                    safe_block = serialize_block(diff.new_block)
+                    safe_block = serialize_block(new_block)
                     (
                         supabase.table("context_blocks")
                         .update(safe_block)
-                        .eq("id", diff.old_block.id)
+                        .eq("id", old_block.id)
                         .execute()
                     )
 

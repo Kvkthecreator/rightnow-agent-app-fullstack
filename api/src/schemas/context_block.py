@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Optional
 from uuid import UUID
 
@@ -34,6 +34,13 @@ class ContextBlock(BaseSchema):
     tags: Optional[list[str]] = None
     # link straight back to its basket (added 2024-06-11)
     basket_id: Optional[UUID] = None
+
+    # --- pydantic-v1 JSON compat -----------------
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            date: lambda v: v.isoformat(),
+        }
 
     def model_dump(self, *, mode: str = "python", exclude_none: bool = False) -> dict:
         """Compatibility wrapper for Pydantic v1."""
