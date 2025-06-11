@@ -39,9 +39,19 @@ def run(basket_id: str) -> list[DiffBlock]:
         raise ValueError("basket not found")
     user_id = basket_resp.data["user_id"]
 
-    # fetch artifacts
-    art_resp = supabase.table("dump_artifacts").select("*").eq("basket_id", basket_id).execute()
-    artifacts = art_resp.data or []
+    # fetch inputs as artifacts
+    inp_resp = (
+        supabase.table("basket_inputs")
+        .select("content,file_ids")
+        .eq("basket_id", basket_id)
+        .execute()
+    )
+    inputs = inp_resp.data or []
+
+    artifacts = []
+    for row in inputs:
+        if row.get("content"):
+            artifacts.append({"type": "text", "content": row["content"], "file_id": None})
 
     new_blocks = parse_blocks(basket_id, artifacts, user_id)
 
