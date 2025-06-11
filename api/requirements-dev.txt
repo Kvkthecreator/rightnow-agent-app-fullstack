@@ -1,3 +1,4 @@
+-e ./libs/openai_agents
 -r src/requirements.codex.txt
 pytest
 pytest-asyncio
