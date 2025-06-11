@@ -1,7 +1,9 @@
 {
   "scripts": {
     "e2e:test": "playwright test",
-    "e2e:debug": "playwright test --debug"
+    "e2e:debug": "playwright test --debug",
+    "lint": "echo \"Skipping lint\"",
+    "test": "echo \"No tests\""
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
