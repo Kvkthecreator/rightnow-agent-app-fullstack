@@ -1,10 +1,5 @@
-"""
-/api/baskets/{basket_id}/blocks  –  list live blocks for a basket
-"""
-
 from fastapi import APIRouter
-
-from app.utils.supabase_client import supabase
+from app.utils.supabase_client import supabase  # ✅ Correct import for Render deployment
 
 router = APIRouter(prefix="/api", tags=["blocks"])
 
@@ -21,4 +16,3 @@ def list_blocks(basket_id: str):
         .execute()
     )
     return resp.data  # type: ignore[attr-defined]
-
