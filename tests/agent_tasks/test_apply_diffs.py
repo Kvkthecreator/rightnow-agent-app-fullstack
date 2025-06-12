@@ -75,10 +75,12 @@ def test_apply_diffs_inserts_datetime(monkeypatch):
     spec.loader.exec_module(module)
     apply_diffs = module.apply_diffs
 
+    orig_model_dump = ContextBlock.model_dump
+
     monkeypatch.setattr(
         ContextBlock,
         "model_dump",
-        lambda self, exclude_none=False: self.dict(),
+        lambda self, *a, **k: orig_model_dump(self, *a, **k),
         raising=False,
     )
     block = ContextBlock(user_id="u", label="l", content="c", created_at=datetime.utcnow())

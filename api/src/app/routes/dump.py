@@ -66,6 +66,21 @@ async def upload_dump(
 
     intent, conf = extract_intent(raw)
 
+    # --- DB inserts ----------------------------------------------------
+    # 1) commit row
+    commit_resp = (
+        supabase.table("dump_commits")
+        .insert(
+            {
+                "basket_id": basket_id,
+                "user_id": user_id,
+                "summary": raw[:120],
+            }
+        )
+        .execute()
+    )
+    commit_id = commit_resp.data[0]["id"]  # type: ignore[index]
+
     input_id = _insert_basket_input(basket_id, raw, intent, conf)
     chunk_ids: list[str] = []
     warning = None
@@ -73,7 +88,12 @@ async def upload_dump(
     if len(blocks) > 100:
         warning = "too_many_blocks"
     for chunk in blocks:
-        chunk_ids.append(_insert_draft_block(user_id, basket_id, input_id, chunk))
+        block_id = _insert_draft_block(user_id, basket_id, input_id, chunk)
+        # Tag with commit_id
+        supabase.table("context_blocks").update({"commit_id": commit_id}).eq(
+            "id", block_id
+        ).execute()
+        chunk_ids.append(block_id)
 
     if warning:
         supabase.table("basket_inputs").update({"warning_flag": True}).eq("id", input_id).execute()
@@ -83,6 +103,7 @@ async def upload_dump(
         "chunk_ids": chunk_ids,
         "intent": intent,
         "confidence": conf,
+        "commit_id": commit_id,
     }
     if warning:
         response["warning"] = warning
