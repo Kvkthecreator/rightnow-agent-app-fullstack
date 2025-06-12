@@ -1,6 +1,6 @@
 from typing import Any
 
-from utils.logged_agent import logged
+from src.utils.logged_agent import logged
 
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
 from ..agent_tasks.orch.apply_diff_blocks import apply_diffs
