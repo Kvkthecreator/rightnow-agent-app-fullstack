@@ -15,7 +15,14 @@ const baseItems = [
   { href: "/blocks", label: "◾ Blocks" }, // 🧩 Moved here
 ];
 
-const Sidebar = () => {
+import { X } from "lucide-react";
+
+interface SidebarProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+const Sidebar = ({ open, onClose }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -31,14 +38,20 @@ const Sidebar = () => {
   };
 
   return (
-    <>
-      {/* Sidebar */}
-      <aside
-        className={clsx(
-          "fixed top-0 left-0 z-40 h-screen w-64 max-w-[80%] bg-background/90 backdrop-blur-md border-r border-border shadow-md md:relative md:block md:min-h-screen"
-        )}
+    <aside
+      className={clsx(
+        "fixed top-0 left-0 z-50 h-screen w-64 bg-background border-r border-border shadow-md transform transition-transform md:relative md:translate-x-0 md:block md:min-h-screen",
+        open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      )}
+    >
+      <button
+        className="absolute top-3 left-3 md:hidden p-1 rounded-md hover:bg-muted"
+        onClick={onClose}
+        aria-label="Close sidebar"
       >
-        <div className="h-full flex flex-col justify-between py-6 px-4">
+        <X className="h-5 w-5" />
+      </button>
+      <div className="h-full flex flex-col justify-between py-6 px-4">
           {/* Top: Brand + Nav */}
           <div className="space-y-6">
             <div className="font-brand text-xl tracking-tight pb-2 mb-2 border-b border-border">yarnnn</div>
@@ -76,8 +89,7 @@ const Sidebar = () => {
             )}
           </div>
         </div>
-      </aside>
-    </>
+    </aside>
   );
 };
 

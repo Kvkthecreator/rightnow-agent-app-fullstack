@@ -49,15 +49,15 @@ export default function BasketsPage() {
   const pageData = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-start flex-wrap gap-4">
-        <div>
+    <div className="p-4 space-y-6">
+      <div className="max-w-screen-xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="space-y-1">
           <h1 className="text-2xl font-bold">🧺 My Baskets</h1>
           <p className="text-sm text-muted-foreground">
             Lightweight containers for your tasks, context, and thoughts
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
           <Button asChild>
             <Link href="/baskets/create">+ Create Basket</Link>
           </Button>
@@ -92,9 +92,11 @@ export default function BasketsPage() {
           }
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 justify-center">
           {pageData.map((b) => (
-            <BasketCard key={b.id} basket={b} />
+            <div key={b.id} className="max-w-[680px] w-full mx-auto">
+              <BasketCard basket={b} />
+            </div>
           ))}
         </div>
       )}

@@ -29,7 +29,7 @@ export default function BasketWorkPage({ params }: any) {
 
   return (
     <ScopedDropZone onFilesDropped={handleFileDrop}>
-      <div className="p-6 space-y-8 max-w-5xl mx-auto">
+      <div className="max-w-2xl mx-auto p-4 space-y-8">
       <div>
         <h1 className="text-2xl font-bold">🧶 {basket.intent_summary || "Untitled Basket"}</h1>
         <p className="text-sm text-muted-foreground mt-1">
