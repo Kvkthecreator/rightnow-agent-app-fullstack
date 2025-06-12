@@ -1,5 +1,10 @@
-"""
-Shim so 'src.app.utils' resolves in Render production.
-Re-exports supabase_client from the real utils package.
-"""
-from ...utils.supabase_client import supabase_client  # type: ignore F401
+"""Shim so `src.app.utils.supabase_client` can be imported."""
+
+import sys
+from importlib import import_module
+
+_real = import_module("api.src.utils.supabase_client")
+
+supabase_client = _real  # type: ignore
+
+sys.modules[__name__ + ".supabase_client"] = _real
