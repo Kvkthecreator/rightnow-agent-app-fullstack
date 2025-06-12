@@ -2,10 +2,8 @@
 
 "use client";
 
-import { useState } from "react";
+
 import Link from "next/link";
-import { X } from "lucide-react";
-import Brand from "@/components/Brand";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabaseClient";
@@ -18,7 +16,6 @@ const baseItems = [
 ];
 
 const Sidebar = () => {
-  const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -35,42 +32,16 @@ const Sidebar = () => {
 
   return (
     <>
-      {/* Mobile Toggle Button w/ Brand logo */}
-      <div className="md:hidden p-4">
-        <button
-          onClick={() => setOpen(!open)}
-          className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shadow-sm hover:bg-muted transition"
-        >
-          {open ? (
-            <X className="w-5 h-5 text-foreground" />
-          ) : (
-            <Brand className="w-5 h-5" />
-          )}
-        </button>
-      </div>
-
-      {/* Mobile Overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
-          onClick={() => setOpen(false)}
-        />
-      )}
-
       {/* Sidebar */}
       <aside
         className={clsx(
-          "fixed top-0 left-0 z-40 h-screen w-64 max-w-[80%] bg-background/90 backdrop-blur-md border-r border-border shadow-md transform transition-transform duration-200 ease-in-out",
-          open ? "translate-x-0" : "-translate-x-full",
-          "md:translate-x-0 md:relative md:block md:min-h-screen"
+          "fixed top-0 left-0 z-40 h-screen w-64 max-w-[80%] bg-background/90 backdrop-blur-md border-r border-border shadow-md md:relative md:block md:min-h-screen"
         )}
       >
         <div className="h-full flex flex-col justify-between py-6 px-4">
           {/* Top: Brand + Nav */}
           <div className="space-y-6">
-            <Link href="/" className="hidden md:block mt-6">
-              <Brand className="w-8 h-8 hover:opacity-80 transition" />
-            </Link>
+            <div className="font-brand text-xl tracking-tight pb-2 mb-2 border-b border-border">yarnnn</div>
             <nav className="flex flex-col space-y-2 text-sm">
               {baseItems.map((item) => (
                 <Link
