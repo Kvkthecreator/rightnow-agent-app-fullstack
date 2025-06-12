@@ -3,7 +3,12 @@
 """
 
 from fastapi import APIRouter, Query
-from utils.supabase_client import supabase_client as supabase
+from importlib import import_module
+
+try:  # noqa: WPS501
+    supabase = import_module("src.utils.supabase_client").supabase_client
+except ModuleNotFoundError:  # pragma: no cover - local test path
+    supabase = import_module("utils.supabase_client").supabase_client
 
 router = APIRouter(prefix="/api", tags=["commits"])
 

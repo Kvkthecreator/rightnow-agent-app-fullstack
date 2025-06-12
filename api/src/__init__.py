@@ -1,4 +1,2 @@
-"""
-Package root for API source code.
-"""
-# Ensures `/api/src` is recognized as a Python package for deployment.
+# Makes 'src' a Python package so Render's
+# start-command 'uvicorn src.app.agent_server:app' works.
