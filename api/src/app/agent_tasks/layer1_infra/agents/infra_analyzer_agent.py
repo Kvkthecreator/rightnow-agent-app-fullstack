@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import asyncpg
 from schemas.audit import AuditIn, AuditOut
 from schemas.validators import validates
-from utils.logged_agent import logged
+from src.utils.logged_agent import logged
 
 from app.event_bus import DB_URL  # reuse same URL
 from app.supabase_helpers import publish_event

@@ -1,8 +1,8 @@
 import datetime
 
 import httpx
-from utils.db import json_safe
-from utils.logged_agent import logged
+from src.utils.db import json_safe
+from src.utils.logged_agent import logged
 
 from app.integrations.google_client import DOCS_ENDPOINT, refresh_token
 

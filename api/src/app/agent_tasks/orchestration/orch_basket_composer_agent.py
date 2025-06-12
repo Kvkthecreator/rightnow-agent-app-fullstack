@@ -5,7 +5,7 @@ import json
 import asyncpg
 from schemas.basket_composer import BasketComposerIn, BasketComposerOut
 from schemas.validators import validates
-from utils.logged_agent import logged
+from src.utils.logged_agent import logged
 
 from app.agent_tasks.layer2_tasks.agents.tasks_composer_agent import run as compose_run
 from app.event_bus import DB_URL, subscribe
