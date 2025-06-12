@@ -23,6 +23,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -37,6 +38,7 @@ from .ingestion.job_listener import start_background_worker
 # Authentication helper and output normalization
 from .routes.agent_run import router as agent_run_router
 from .routes.baskets import router as basket_router
+from .routes.commits import router as commits_router
 from .routes.debug import router as debug_router
 from .routes.dump import router as dump_router
 from .routes.task_brief import router as task_brief_router
@@ -52,12 +54,16 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 app = FastAPI(title="RightNow Agent Server")
 start_background_worker()
 app.include_router(dump_router)
+app.include_router(commits_router)
 # Logger for instrumentation
 logger = logging.getLogger("uvicorn.error")
+
+
 @app.get("/", include_in_schema=False)
 async def root():  # pragma: no cover
     """Health-check endpoint."""
     return {"status": "ok"}
+
 
 # Allow CORS from any origin (adjust in production)
 app.add_middleware(
@@ -84,6 +90,3 @@ app.include_router(basket_router)
 # Agent-run proxy route
 app.include_router(agent_run_router)
 app.include_router(debug_router)
-
-
-

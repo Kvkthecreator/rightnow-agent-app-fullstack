@@ -1,4 +1,6 @@
 import os
+import types
+import uuid
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -15,11 +17,29 @@ client = TestClient(app)
 
 
 class _Stub:
-    def insert(self, *_a, **_kw):
-        return self
+    def __init__(self):
+        self.rows = []
+
+    def insert(self, obj):
+        if "id" not in obj:
+            obj["id"] = str(uuid.uuid4())
+        self.rows.append(obj)
+        return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[obj]))
+
+    def update(self, *_a, **_kw):
+        def _eq(*_a, **_kw):
+            return types.SimpleNamespace(execute=lambda: None)
+
+        return types.SimpleNamespace(eq=_eq)
+
+    def select(self):  # noqa: D401
+        return types.SimpleNamespace(data=self.rows)
 
     def execute(self):
-        return {}
+        return types.SimpleNamespace(data=self.rows)
+
+    def eq(self, *_a, **_kw):  # noqa: D401
+        return self
 
 
 def _mock_supabase():
@@ -53,13 +73,19 @@ def test_dump_guardrail(monkeypatch):
             self.rows = []
 
         def insert(self, obj):
+            if "id" not in obj:
+                obj["id"] = str(uuid.uuid4())
             self.rows.append(obj)
-            return self
+            return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[obj]))
 
         def update(self, obj):
             for r in self.rows:
                 r.update(obj)
-            return self
+
+            def _eq(*_a, **_kw):
+                return types.SimpleNamespace(execute=lambda: None)
+
+            return types.SimpleNamespace(eq=_eq)
 
         def select(self):  # noqa: D401
             return self
@@ -81,6 +107,7 @@ def test_dump_guardrail(monkeypatch):
         return {
             "basket_inputs": inputs,
             "context_blocks": blocks,
+            "dump_commits": _Stub(),
             "basket_blocks": _Stub(),
             "ingestion_jobs": _Stub(),
         }[name]
