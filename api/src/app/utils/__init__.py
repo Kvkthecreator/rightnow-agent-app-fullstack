@@ -3,7 +3,7 @@
 import sys
 from importlib import import_module
 
-_real = import_module("api.src.utils.supabase_client")
+_real = import_module("src.utils.supabase_client")
 
 supabase_client = _real  # type: ignore
 
