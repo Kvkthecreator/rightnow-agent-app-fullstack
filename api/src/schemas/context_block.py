@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone, date
-from typing import Optional
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 from pydantic import Field
@@ -31,9 +30,9 @@ class ContextBlock(BaseSchema):
     meta_tags: list[str] | None = None
     meta_emotional_tone: list[str] | None = None
     meta_locale: str | None = None
-    tags: Optional[list[str]] = None
+    tags: list[str] | None = None
     # link straight back to its basket (added 2024-06-11)
-    basket_id: Optional[UUID] = None
+    basket_id: UUID | None = None
 
     # --- pydantic-v1 JSON compat -----------------
     class Config:
@@ -42,6 +41,19 @@ class ContextBlock(BaseSchema):
             date: lambda v: v.isoformat(),
         }
 
-    def model_dump(self, *, mode: str = "python", exclude_none: bool = False) -> dict:
-        """Compatibility wrapper for Pydantic v1."""
-        return self.dict(exclude_none=exclude_none)
+    def model_dump(
+        self,
+        *,
+        mode: str = "python",
+        exclude_none: bool = False,
+        **_: None,
+    ) -> dict:
+        """Compatibility wrapper for Pydantic v1 without recursion."""
+        data = self.__dict__.copy()
+        if exclude_none:
+            data = {k: v for k, v in data.items() if v is not None}
+        return data
+
+    def dict(self, *args, **kwargs):  # type: ignore[override]
+        """Backwards compatibility for tests expecting BaseModel.dict."""
+        return self.model_dump(**kwargs)
