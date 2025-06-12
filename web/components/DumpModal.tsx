@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/Card";
-import DumpArea from "@/components/ui/DumpArea";
+import SmartDropZone from "@/components/SmartDropZone";
+import ThumbnailStrip from "@/components/ThumbnailStrip";
 import { Button } from "@/components/ui/Button";
 import { createBasketWithInput } from "@/lib/baskets/createBasketWithInput";
 import { createDump } from "@/lib/baskets/createDump";
@@ -22,7 +23,7 @@ export default function DumpModal({ basketId: propBasketId, initialOpen = false 
   const [open, setOpen] = useState(initialOpen);
   const [basketId, setBasketId] = useState<string | null>(propBasketId ?? null);
   const [text, setText] = useState("");
-  const [files, setFiles] = useState<(File | string)[]>([]);
+  const [images, setImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => setOpen(initialOpen), [initialOpen]);
@@ -39,23 +40,23 @@ export default function DumpModal({ basketId: propBasketId, initialOpen = false 
   }, []);
 
   const handleSubmit = async () => {
-    if (!text.trim() && files.length === 0) {
+    if (!text.trim() && images.length === 0) {
       toast.error("Please provide some content for the dump");
       return;
     }
     setLoading(true);
     try {
       if (basketId) {
-        await createDump({ basketId, text, files });
+        await createDump({ basketId, text, images });
         toast.success("Dump added");
       } else {
-        const basket = await createBasketWithInput({ text, files });
+        const basket = await createBasketWithInput({ text, files: images });
         toast.success("Basket created");
         window.location.href = `/baskets/${basket.id}/work`;
       }
       setOpen(false);
       setText("");
-      setFiles([]);
+      setImages([]);
     } catch (err) {
       console.error(err);
       toast.error("Failed to save dump");
@@ -68,13 +69,22 @@ export default function DumpModal({ basketId: propBasketId, initialOpen = false 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
         <Card className="max-w-2xl p-8 mx-auto">
-          <CardContent className="space-y-6 p-0">
-            <h1 className="text-2xl font-semibold">What are we working on?</h1>
-            <DumpArea text={text} onTextChange={setText} onFilesChange={setFiles} />
+          <CardContent className="space-y-4 p-0">
+            <h2 className="text-xl font-medium">Drop it. We’ll remember.</h2>
+            <p className="text-xs text-muted-foreground">
+              Paste or drag text / screenshots. • Shortcut ⌘/Ctrl + Shift + V
+            </p>
+            <SmartDropZone
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onImages={(f) => setImages((prev) => [...prev, ...f])}
+              rows={5}
+            />
+            {images.length > 0 && <ThumbnailStrip files={images} />}
             <div className="flex justify-end space-x-2 pt-4">
               <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
               <Button onClick={handleSubmit} disabled={loading}>
-                {loading ? (basketId ? "Adding…" : "Creating…") : basketId ? "Add Dump" : "Create Basket"}
+                {loading ? (basketId ? "Adding…" : "Creating…") : "Save to Basket ↵"}
               </Button>
             </div>
           </CardContent>

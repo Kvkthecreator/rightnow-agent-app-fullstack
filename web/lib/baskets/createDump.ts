@@ -5,29 +5,22 @@ import { apiPost } from "@/lib/api";
 export interface DumpInput {
   basketId: string;
   text: string;
-  files?: (File | string)[];
+  images?: File[];
 }
 
-export async function createDump({ basketId, text, files = [] }: DumpInput) {
+export async function createDump({ basketId, text, images = [] }: DumpInput) {
   const supabase = createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) throw new Error("Not authenticated");
   const userId = userData.user.id;
 
   const fileIds: string[] = [];
-  for (const item of files) {
-    let url: string;
-    let name: string;
-    let size = 0;
-    if (item instanceof File) {
-      const filename = `${Date.now()}-${item.name}`;
-      url = await uploadFile(item, `dump_${userId}/${filename}`, "basket-dumps");
-      name = item.name;
-      size = item.size;
-    } else {
-      url = item;
-      name = item.split("/").pop() || "file";
-    }
+  const uploadedUrls: string[] = [];
+  for (const item of images) {
+    const filename = `${Date.now()}-${item.name}`;
+    const url = await uploadFile(item, `dump_${userId}/${filename}`, "basket-dumps");
+    const name = item.name;
+    const size = item.size;
     const { data, error } = await supabase
       .from("block_files")
       .insert({
@@ -41,6 +34,7 @@ export async function createDump({ basketId, text, files = [] }: DumpInput) {
       .single();
     if (error) throw new Error(error.message);
     if (data) fileIds.push(data.id);
+    uploadedUrls.push(url);
   }
 
   const { data: input, error: inputErr } = await supabase
@@ -59,7 +53,7 @@ export async function createDump({ basketId, text, files = [] }: DumpInput) {
   await apiPost("/api/agent-run", {
     agent: "orch_block_manager_agent",
     event: "basket_inputs.created",
-    input: { input_id: input.id },
+    input: { input_id: input.id, uploaded_images: uploadedUrls },
   });
 
   return input;
