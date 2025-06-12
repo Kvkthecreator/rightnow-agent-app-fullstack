@@ -1,5 +1,4 @@
 import { BasketProvider } from "@/lib/context/BasketContext";
-import Shell from "@/components/layouts/Shell";
 
 export default async function BasketLayout({
   children,
@@ -10,8 +9,6 @@ export default async function BasketLayout({
 }) {
   const { id } = await params;
   return (
-    <BasketProvider initialId={id}>
-      <Shell>{children}</Shell>
-    </BasketProvider>
+    <BasketProvider initialId={id}>{children}</BasketProvider>
   );
 }
