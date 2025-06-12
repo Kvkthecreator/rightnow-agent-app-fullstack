@@ -47,8 +47,14 @@ export default function DumpModal({ basketId: propBasketId, initialOpen = false 
     setLoading(true);
     try {
       if (basketId) {
-        await createDump({ basketId, text, images });
+        const resp = await createDump({ basketId, text, images });
         toast.success("Dump added");
+        if (resp?.warning === "too_many_blocks") {
+          toast(
+            (t) => <span>Large dump detected — consider splitting.</span>,
+            { icon: "⚠️" }
+          );
+        }
       } else {
         const basket = await createBasketWithInput({ text, files: images });
         toast.success("Basket created");

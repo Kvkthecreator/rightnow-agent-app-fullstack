@@ -23,6 +23,8 @@ test.describe('Basket Creation Flow', () => {
     await page.waitForURL('**/baskets/*/work', { timeout: 5000 });
 
     // Confirm the new basket work page is visible
-    await expect(page.getByText('Work on Basket')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /Blocks/i })
+    ).toBeVisible();
   });
 });

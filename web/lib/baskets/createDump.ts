@@ -1,60 +1,22 @@
-import { createClient } from "@/lib/supabaseClient";
-import { uploadFile } from "@/lib/uploadFile";
-import { apiPost } from "@/lib/api";
+import { postDump } from "./dumpApi";
+import { createClient } from "@supabase/supabase-js";
 
-export interface DumpInput {
+export interface CreateDumpArgs {
   basketId: string;
-  text: string;
+  text?: string;
   images?: File[];
+  userId?: string; // optional, will fetch from supabase session if absent
 }
 
-export async function createDump({ basketId, text, images = [] }: DumpInput) {
-  const supabase = createClient();
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData?.user) throw new Error("Not authenticated");
-  const userId = userData.user.id;
-
-  const fileIds: string[] = [];
-  const uploadedUrls: string[] = [];
-  for (const item of images) {
-    const filename = `${Date.now()}-${item.name}`;
-    const url = await uploadFile(item, `dump_${userId}/${filename}`, "basket-dumps");
-    const name = item.name;
-    const size = item.size;
-    const { data, error } = await supabase
-      .from("block_files")
-      .insert({
-        user_id: userId,
-        file_url: url,
-        file_name: name,
-        size_bytes: size,
-        storage_domain: "basket-dumps",
-      })
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-    if (data) fileIds.push(data.id);
-    uploadedUrls.push(url);
+export async function createDump({ basketId, text, images = [], userId }: CreateDumpArgs) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+  let uid = userId;
+  if (!uid) {
+    const { data } = await supabase.auth.getSession();
+    uid = data.session?.user.id ?? "";
   }
-
-  const { data: input, error: inputErr } = await supabase
-    .from("basket_inputs")
-    .insert({
-      basket_id: basketId,
-      content: text,
-      file_ids: fileIds,
-      source: "user",
-    })
-    .select("id")
-    .single();
-
-  if (inputErr || !input) throw new Error(inputErr?.message || "input insert failed");
-
-  await apiPost("/api/agent-run", {
-    agent: "orch_block_manager_agent",
-    event: "basket_inputs.created",
-    input: { input_id: input.id, uploaded_images: uploadedUrls },
-  });
-
-  return input;
+  return await postDump({ basketId, userId: uid, text, images });
 }
