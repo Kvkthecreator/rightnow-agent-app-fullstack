@@ -3,7 +3,7 @@
 """
 
 from fastapi import APIRouter, Query
-from utils.supabase_client import supabase_client as supabase
+from ..utils.supabase_client import supabase_client as supabase
 
 router = APIRouter(prefix="/api", tags=["commits"])
 

@@ -5,7 +5,7 @@
 import uuid
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
-from utils.supabase_client import supabase_client as supabase
+from ..utils.supabase_client import supabase_client as supabase
 
 from app.ingestion.intent import extract_intent
 from app.ingestion.splitter import parse_blocks

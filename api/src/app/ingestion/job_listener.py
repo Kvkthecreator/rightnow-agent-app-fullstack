@@ -13,7 +13,7 @@ import threading
 import time
 from typing import Any
 
-from utils.supabase_client import supabase_client as supabase
+from ..utils.supabase_client import supabase_client as supabase
 
 POLL_INTERVAL = float(os.getenv("INGESTION_POLL_INTERVAL", "2"))
 

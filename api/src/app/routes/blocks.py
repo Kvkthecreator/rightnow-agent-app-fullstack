@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.utils.supabase_client import supabase  # ✅ Correct import for Render deployment
+from ..utils.supabase_client import supabase_client as supabase
 
 router = APIRouter(prefix="/api", tags=["blocks"])
 
