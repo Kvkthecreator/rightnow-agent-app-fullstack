@@ -4,8 +4,14 @@
  * Simple wrapper for GET requests to the backend API.
  * Uses the Next.js rewrite from /api to the configured API base.
  */
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "";
+
+function withBase(path: string) {
+  return path.startsWith("/api") && API_BASE ? `${API_BASE}${path}` : path;
+}
+
 export async function apiGet<T = any>(path: string): Promise<T> {
-  const res = await fetch(path);
+  const res = await fetch(withBase(path));
   // Handle non-OK responses
   if (!res.ok) {
     console.error(`[apiGet] Non-OK response (${res.status}) for ${path}`);
@@ -24,7 +30,7 @@ export async function apiGet<T = any>(path: string): Promise<T> {
 }
 
 export async function apiPost<T = any>(path: string, body: any): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(withBase(path), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
