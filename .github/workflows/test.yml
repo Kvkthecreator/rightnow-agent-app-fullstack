@@ -8,6 +8,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: "https://test.supabase.co"
+      SUPABASE_SERVICE_ROLE_KEY: "test-role-key"
     steps:
       - name: Checkout
         uses: actions/checkout@v3
