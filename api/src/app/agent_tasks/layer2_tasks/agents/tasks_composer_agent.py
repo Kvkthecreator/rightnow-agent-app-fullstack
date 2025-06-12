@@ -15,7 +15,7 @@ from datetime import timezone
 
 import asyncpg
 from schemas.validators import validates
-from utils.logged_agent import logged
+from src.utils.logged_agent import logged
 
 from app.supabase_helpers import publish_event
 

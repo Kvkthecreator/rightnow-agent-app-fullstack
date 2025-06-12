@@ -5,7 +5,7 @@ import uuid
 import asyncpg
 from schemas.config import ConfigIn, ConfigOut
 from schemas.validators import validates
-from utils.logged_agent import logged
+from src.utils.logged_agent import logged
 
 DB_URL = os.getenv("DATABASE_URL")
 

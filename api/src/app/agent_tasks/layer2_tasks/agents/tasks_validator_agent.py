@@ -4,7 +4,7 @@ import datetime
 
 import asyncpg
 from schemas.validators import validates
-from utils.logged_agent import logged
+from src.utils.logged_agent import logged
 
 from app.event_bus import DB_URL, publish_event
 

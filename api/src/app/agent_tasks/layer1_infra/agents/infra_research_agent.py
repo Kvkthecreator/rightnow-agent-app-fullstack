@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import asyncpg
 from schemas.research import ResearchIn, ResearchOut
 from schemas.validators import validates
-from utils.logged_agent import logged
+from src.utils.logged_agent import logged
 
 from app.event_bus import DB_URL
 from app.supabase_helpers import publish_event

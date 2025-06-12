@@ -1,6 +1,6 @@
 from functools import wraps
 
-from utils.event_log import log_event
+from src.utils.event_log import log_event
 
 
 def logged(agent_name: str):

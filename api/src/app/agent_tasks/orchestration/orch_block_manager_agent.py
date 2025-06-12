@@ -8,7 +8,7 @@ from typing import Any
 import asyncpg
 from schemas.block_manager import BlockManagerIn, BlockManagerOut
 from schemas.validators import validates
-from utils.logged_agent import logged
+from src.utils.logged_agent import logged
 
 from app.event_bus import subscribe
 

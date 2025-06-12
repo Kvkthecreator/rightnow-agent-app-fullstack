@@ -1,7 +1,7 @@
 #api/src/app/agent_tasks/layer2_tasks/agents/tasks_editor_agent.py
 
 from schemas.validators import validates
-from utils.logged_agent import logged
+from src.utils.logged_agent import logged
 
 from app.supabase_helpers import publish_event
 

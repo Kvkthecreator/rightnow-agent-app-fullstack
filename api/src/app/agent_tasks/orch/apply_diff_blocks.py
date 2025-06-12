@@ -1,6 +1,6 @@
 from schemas.block_diff import DiffBlock
 from schemas.dump_parser import ContextBlock
-from utils.db import json_safe
+from src.utils.db import json_safe
 
 from ..layer1_infra.utils.supabase_helpers import get_supabase
 
