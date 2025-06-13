@@ -39,6 +39,7 @@ from .ingestion.job_listener import start_background_worker
 from .routes.agent_run import router as agent_run_router
 from .routes.baskets import router as basket_router
 from .routes.blocks import router as blocks_router
+from .routes.change_queue import router as change_queue_router
 from .routes.commits import router as commits_router
 from .routes.debug import router as debug_router
 from .routes.dump import router as dump_router
@@ -57,6 +58,7 @@ start_background_worker()
 app.include_router(dump_router)
 app.include_router(commits_router)
 app.include_router(blocks_router)
+app.include_router(change_queue_router)
 # Logger for instrumentation
 logger = logging.getLogger("uvicorn.error")
 
