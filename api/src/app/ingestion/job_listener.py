@@ -2,7 +2,7 @@
 
 This v0.1 worker polls the ``ingestion_jobs`` table every few seconds and
 finalises draft blocks. When a job is processed the corresponding draft block
-is updated with placeholder metadata, linked to ``basket_blocks`` and the job
+is updated with placeholder metadata, linked to ``block_brief_link`` and the job
 row removed.
 """
 
@@ -53,14 +53,14 @@ def _process_job(job: dict[str, Any]) -> None:
 
     basket_id = block["basket_id"]
     existing = (
-        supabase.table("basket_blocks")
+        supabase.table("block_brief_link")
         .select("block_id")
         .eq("basket_id", basket_id)
         .eq("block_id", block_id)
         .execute()
     )
     if not getattr(existing, "data", []):
-        supabase.table("basket_blocks").insert(
+        supabase.table("block_brief_link").insert(
             {"basket_id": basket_id, "block_id": block_id}
         ).execute()
 

@@ -13,11 +13,11 @@ def list_blocks(basket_id: str):
     try:
         resp = (
             supabase.table("context_blocks")
-            .select("id,label,type,updated_at,commit_id")
+            .select("id,label,type,created_at as updated_at,commit_id")
             .eq("basket_id", basket_id)
             .eq("is_draft", False)
             .eq("is_superseded", False)
-            .order("updated_at", desc=True)
+            .order("created_at", desc=True)
             .execute()
         )
         return resp.data  # type: ignore[attr-defined]

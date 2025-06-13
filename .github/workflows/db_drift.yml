@@ -1,0 +1,71 @@
+name: DB Drift Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=5
+    env:
+      PYTHONPATH: ${{ github.workspace }}/api
+      TESTING: "1"
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/app
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        working-directory: api
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          TESTING: "1"
+        run: PYTHONPATH=api pytest -q
+
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h localhost -p 5432; do sleep 2; done
+
+      - name: Apply migrations
+        working-directory: api
+        run: alembic upgrade head
+
+      - name: Dump local schema
+        run: pg_dump --schema=public --no-owner --no-privileges $DATABASE_URL > local.sql
+
+      - name: Dump Supabase schema
+        run: pg_dump --schema=public --no-owner --no-privileges $SUPABASE_URL > remote.sql
+
+      - name: Check drift with migra
+        run: |
+          set +e
+          migra remote.sql local.sql > drift.txt
+          if [ -s drift.txt ]; then
+            cat drift.txt
+            exit 1
+          fi
+
+      - name: Run sqlfluff
+        run: |
+          sqlfluff lint api/**/*.py web/**/*.{ts,tsx}
