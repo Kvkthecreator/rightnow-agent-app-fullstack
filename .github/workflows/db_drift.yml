@@ -19,11 +19,11 @@ jobs:
         options: >-
           --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=5
     env:
+      PYTHONPATH: ${{ github.workspace }}/api
+      TESTING: "1"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/app
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      PYTHONPATH: ${{ github.workspace }}/api
-      TESTING: "1"
 
     steps:
       - uses: actions/checkout@v3
