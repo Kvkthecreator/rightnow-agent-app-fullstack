@@ -36,6 +36,10 @@ uvicorn app.agent_server:app --reload
 ```
 
 Set `NEXT_PUBLIC_API_BASE` in `web/.env.local` to point to your backend instance.
+After updating the variable, redeploy the Next.js frontend so runtime route handlers
+pick up the new value. You can verify the configuration by requesting
+`/api/baskets/<id>/change-queue`; the backend logs should show a GET request and
+a non-500 response.
 
 The `/agent` endpoint handles agent requests and is stable across deployments.
 

@@ -75,3 +75,6 @@ On your production host (e.g., Vercel), set the same variables in the project se
   • `NEXT_PUBLIC_API_BASE` → your Render backend URL (e.g. `https://yarnnn.com`)
   • `NEXT_PUBLIC_SUPABASE_URL` → your Supabase project URL
   • `SUPABASE_SERVICE_ROLE_KEY` → your Supabase service role secret
+After updating `NEXT_PUBLIC_API_BASE`, redeploy the frontend so route handlers
+use the new value. You can confirm by requesting `/api/baskets/<id>/change-queue`
+and checking that the backend logs show a GET request without a 500 error.
