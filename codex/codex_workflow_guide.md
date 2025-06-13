@@ -47,6 +47,10 @@ codex
 
 ### 5. **Test Locally**
 - Run `npm run dev` or `uvicorn` as needed
+- Always use the Makefile to run backend tests:
+```bash
+make test  # sets PYTHONPATH correctly for /api tests
+```
 - Ensure frontend ↔ backend calls still succeed
 
 ### 6. **Commit and Push**
