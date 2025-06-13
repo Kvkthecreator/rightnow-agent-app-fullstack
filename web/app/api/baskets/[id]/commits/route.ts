@@ -1,17 +1,17 @@
-import { getSupabaseAdmin } from '@/lib/supabaseServerClient';
+import { createServerClient } from '@/lib/supabase/server';
 
 // GET /api/baskets/:id/commits
 export async function GET(
   request: Request,
   context: { params: { id: string } }
 ): Promise<Response> {
-  const { params } = context;
-  const supabase = getSupabaseAdmin();
+  const supabase = createServerClient();
+  const { id } = context.params;
 
   const { data, error } = await supabase
     .from('basket_commits')
     .select('*')
-    .eq('basket_id', params.id)
+    .eq('basket_id', id)
     .order('created_at', { ascending: false });
 
   if (error) {
