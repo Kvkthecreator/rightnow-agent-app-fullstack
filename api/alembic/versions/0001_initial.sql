@@ -1,0 +1,2 @@
+-- baseline schema – generated from LIVE_SCHEMA_SNAPSHOT
+-- (Codex: paste full create table statements)
