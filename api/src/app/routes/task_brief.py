@@ -5,6 +5,7 @@ API routes for TaskBrief CRUD operations.
 from datetime import datetime
 from typing import Optional
 
+import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from src.utils.db import json_safe
@@ -12,6 +13,8 @@ from src.utils.db import json_safe
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
 
 router = APIRouter(prefix="/task-brief", tags=["task-brief"])
+
+logger = logging.getLogger("uvicorn.error")
 
 
 class MediaItem(BaseModel):
@@ -35,18 +38,26 @@ async def create_task_brief(task_brief: TaskBrief):
     """Create a new TaskBrief entry in Supabase and return it."""
     supabase = get_supabase()
     payload = task_brief.model_dump(mode="json", exclude_unset=True, exclude={"id", "created_at"})
-    resp = supabase.table("task_briefs").insert(json_safe(payload)).execute()
-    if resp.error or not resp.data:
-        detail = resp.error.message if resp.error else "Failed to insert task_brief"
-        raise HTTPException(status_code=500, detail=detail)
-    return resp.data[0]
+    try:
+        resp = supabase.table("task_briefs").insert(json_safe(payload)).execute()
+        if resp.error or not resp.data:
+            detail = resp.error.message if resp.error else "Failed to insert task_brief"
+            raise HTTPException(status_code=500, detail=detail)
+        return resp.data[0]
+    except Exception:
+        logger.exception("create_task_brief failed")
+        raise HTTPException(status_code=500, detail="internal error")
 
 
 @router.get("/{brief_id}", response_model=TaskBrief)
 async def get_task_brief(brief_id: str):
     """Fetch a TaskBrief by ID."""
     supabase = get_supabase()
-    resp = supabase.table("task_briefs").select("*").eq("id", brief_id).single().execute()
-    if resp.error or not resp.data:
-        raise HTTPException(status_code=404, detail="TaskBrief not found")
-    return resp.data
+    try:
+        resp = supabase.table("task_briefs").select("*").eq("id", brief_id).single().execute()
+        if resp.error or not resp.data:
+            raise HTTPException(status_code=404, detail="TaskBrief not found")
+        return resp.data
+    except Exception:
+        logger.exception("get_task_brief failed")
+        raise HTTPException(status_code=500, detail="internal error")

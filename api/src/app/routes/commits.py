@@ -2,37 +2,44 @@
 /api/baskets/{basket_id}/commits
 """
 
-from fastapi import APIRouter, Query
+import logging
+from fastapi import APIRouter, HTTPException, Query
 
 from ..utils.supabase_client import supabase_client as supabase
 
 router = APIRouter(prefix="/api", tags=["commits"])
 
+logger = logging.getLogger("uvicorn.error")
+
 
 def _commit_stats(cid: str) -> tuple[int | None, int | None, int | None]:
-    new_blocks = (
-        supabase.table("context_blocks")
-        .select("id", count="exact")
-        .eq("commit_id", cid)
-        .execute()
-        .count  # type: ignore[attr-defined]
-    )
-    supersedes = (
-        supabase.table("block_change_queue")
-        .select("id", count="exact")
-        .eq("commit_id", cid)
-        .execute()
-        .count  # type: ignore[attr-defined]
-    )
-    edited_blocks = (
-        supabase.table("context_blocks")
-        .select("id", count="exact")
-        .eq("commit_id", cid)
-        .gt("version", 1)
-        .execute()
-        .count  # type: ignore[attr-defined]
-    )
-    return new_blocks, edited_blocks, supersedes
+    try:
+        new_blocks = (
+            supabase.table("context_blocks")
+            .select("id", count="exact")
+            .eq("commit_id", cid)
+            .execute()
+            .count  # type: ignore[attr-defined]
+        )
+        supersedes = (
+            supabase.table("block_change_queue")
+            .select("id", count="exact")
+            .eq("commit_id", cid)
+            .execute()
+            .count  # type: ignore[attr-defined]
+        )
+        edited_blocks = (
+            supabase.table("context_blocks")
+            .select("id", count="exact")
+            .eq("commit_id", cid)
+            .gt("version", 1)
+            .execute()
+            .count  # type: ignore[attr-defined]
+        )
+        return new_blocks, edited_blocks, supersedes
+    except Exception:
+        logger.exception("_commit_stats failed")
+        raise HTTPException(status_code=500, detail="internal error")
 
 
 @router.get("/baskets/{basket_id}/commits")
@@ -41,25 +48,29 @@ def list_commits(
     limit: int = Query(20, le=100),
     offset: int = 0,
 ) -> list[dict]:
-    resp = (
-        supabase.table("dump_commits")
-        .select("*")
-        .eq("basket_id", basket_id)
-        .order("created_at", desc=True)
-        .range(offset, offset + limit - 1)
-        .execute()
-    )
-    commits = []
-    for row in resp.data:  # type: ignore[attr-defined]
-        nb, eb, sp = _commit_stats(row["id"])
-        commits.append(
-            {
-                "id": row["id"],
-                "created_at": row["created_at"],
-                "summary": row["summary"],
-                "new_blocks": nb,
-                "edited_blocks": eb,
-                "supersedes": sp,
-            }
+    try:
+        resp = (
+            supabase.table("dump_commits")
+            .select("*")
+            .eq("basket_id", basket_id)
+            .order("created_at", desc=True)
+            .range(offset, offset + limit - 1)
+            .execute()
         )
-    return commits
+        commits = []
+        for row in resp.data:  # type: ignore[attr-defined]
+            nb, eb, sp = _commit_stats(row["id"])
+            commits.append(
+                {
+                    "id": row["id"],
+                    "created_at": row["created_at"],
+                    "summary": row["summary"],
+                    "new_blocks": nb,
+                    "edited_blocks": eb,
+                    "supersedes": sp,
+                }
+            )
+        return commits
+    except Exception:
+        logger.exception("list_commits failed")
+        raise HTTPException(status_code=500, detail="internal error")

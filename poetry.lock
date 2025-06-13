@@ -2432,4 +2432,4 @@ voice = ["numpy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<4.0"
-content-hash = "d23ce2a21a6f8c7b3dbdab9eaf6fd9c2aa379e8f44bba9c15b5427e61d534b5a"
+content-hash = "f15cd806786d732feb452238de15fbb56eb196f676db3481c682ab75f62e95c9"
