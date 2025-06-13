@@ -39,11 +39,9 @@ jobs:
         run: echo "PYTHONPATH=$PYTHONPATH:${{ github.workspace }}/api" >> $GITHUB_ENV
 
       - name: Run tests
-        run: |
-          pushd api
-          pip install -r requirements.txt
-          popd
-          pytest -q
+        env:
+          TESTING: "1"
+        run: pytest -q
 
       - name: Wait for Postgres
         run: |
