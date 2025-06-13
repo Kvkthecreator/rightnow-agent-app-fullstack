@@ -34,9 +34,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python deps
+        working-directory: api
         run: |
           pip install -r requirements.txt
-          pip install -r api/src/requirements.codex.txt
 
       - name: Run tests
         run: pytest -q
