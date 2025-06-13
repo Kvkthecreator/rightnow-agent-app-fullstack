@@ -35,6 +35,16 @@ jobs:
         run: |
           pip install alembic psycopg2-binary migra sqlfluff
 
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=$PYTHONPATH:${{ github.workspace }}/api" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          pushd api
+          pip install -r requirements.txt
+          popd
+          pytest -q
+
       - name: Wait for Postgres
         run: |
           until pg_isready -h localhost -p 5432; do sleep 2; done
