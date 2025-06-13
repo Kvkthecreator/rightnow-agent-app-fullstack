@@ -22,6 +22,8 @@ jobs:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/app
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PYTHONPATH: ${{ github.workspace }}/api
+      TESTING: "1"
 
     steps:
       - uses: actions/checkout@v3
@@ -36,12 +38,7 @@ jobs:
           pip install -r requirements.txt
           pip install -r api/src/requirements.codex.txt
 
-      - name: Set PYTHONPATH
-        run: echo "PYTHONPATH=$PYTHONPATH:${{ github.workspace }}/api" >> $GITHUB_ENV
-
       - name: Run tests
-        env:
-          TESTING: "1"
         run: pytest -q
 
       - name: Wait for Postgres
