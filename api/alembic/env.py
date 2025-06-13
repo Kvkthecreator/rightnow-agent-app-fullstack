@@ -6,6 +6,8 @@ import os, sys
 # Provide a sane default if DATABASE_URL is missing (local dev)
 fallback_url = "postgresql://postgres:postgres@localhost:5432/app"
 url = os.getenv("DATABASE_URL", fallback_url)
+if url.startswith("postgres://"):
+    url = url.replace("postgres://", "postgresql://", 1)
 from alembic import context
 context.config.set_main_option("sqlalchemy.url", url)
 

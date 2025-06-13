@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Python deps
         run: |
-          pip install alembic migra sqlfluff
+          pip install alembic psycopg2-binary migra sqlfluff
 
       - name: Wait for Postgres
         run: |
