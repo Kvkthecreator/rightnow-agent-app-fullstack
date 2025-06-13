@@ -18,6 +18,8 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+      - name: Install API package
+        run: pip install -e api
       - name: Run contract & unit tests
         run: |
           pushd api
