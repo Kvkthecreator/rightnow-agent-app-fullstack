@@ -108,7 +108,7 @@ def test_dump_guardrail(monkeypatch):
             "basket_inputs": inputs,
             "context_blocks": blocks,
             "dump_commits": _Stub(),
-            "basket_blocks": _Stub(),
+            "block_brief_link": _Stub(),
             "ingestion_jobs": _Stub(),
         }[name]
 
