@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   const cookie = request.headers.get("cookie");
   if (cookie) headers["cookie"] = cookie;
   // Backend URL
-  const upstream = `${process.env.BACKEND_URL}/agent`;
+  const upstream = `${process.env.NEXT_PUBLIC_API_BASE}/agent`;
   const res = await fetch(upstream, {
     method: "POST",
     headers,

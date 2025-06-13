@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   const cookie = request.headers.get("cookie");
   if (cookie) headers["cookie"] = cookie;
 
-  const upstream = `${process.env.BACKEND_URL}/baskets`;
+  const upstream = `${process.env.NEXT_PUBLIC_API_BASE}/baskets`;
   const res = await fetch(upstream, {
     method: "POST",
     headers,

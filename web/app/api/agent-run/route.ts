@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   if (cookie) headers["cookie"] = cookie;               // pass Supabase session cookie
 
   // ③ proxy to backend
-  const upstream = `${process.env.BACKEND_URL}/agent-run`;
+  const upstream = `${process.env.NEXT_PUBLIC_API_BASE}/agent-run`;
   const res = await fetch(upstream, {
     method: "POST",
     headers,

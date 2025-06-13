@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
   const updated = { ...data.inputs, [field]: value };
 
-  await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/agent`, {
+  await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/agent`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

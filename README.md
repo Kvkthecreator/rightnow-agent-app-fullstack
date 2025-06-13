@@ -15,7 +15,7 @@ npm run dev
 
 Make sure your `/web/.env.local` is set:
 ```
-NEXT_PUBLIC_API_URL=https://yarnnn.com
+NEXT_PUBLIC_API_BASE=https://yarnnn.com
 ```
 
 ### 🧪 To Run Backend (only if modifying Python code)

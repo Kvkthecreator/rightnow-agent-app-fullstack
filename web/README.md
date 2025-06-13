@@ -65,13 +65,13 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 To configure your local development and production environments, create a `.env.local` file in the `web/` directory with the following variables:
 ```env
 # URL of your Render-hosted FastAPI backend for agent-run and task-types
-BACKEND_URL=http://localhost:10000
+NEXT_PUBLIC_API_BASE=http://localhost:10000
 # Supabase REST API URL (public)
 NEXT_PUBLIC_SUPABASE_URL=https://xyzcompany.supabase.co
 # Supabase Service Role Key (server only!)
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 On your production host (e.g., Vercel), set the same variables in the project settings:
-  • `BACKEND_URL` → your Render backend URL (e.g. `https://yarnnn.com`)
+  • `NEXT_PUBLIC_API_BASE` → your Render backend URL (e.g. `https://yarnnn.com`)
   • `NEXT_PUBLIC_SUPABASE_URL` → your Supabase project URL
   • `SUPABASE_SERVICE_ROLE_KEY` → your Supabase service role secret
