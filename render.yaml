@@ -4,7 +4,7 @@ services:
     name: rightnow-api-old
     env: python
     buildCommand: pip install -r api/requirements.txt
-    startCommand: uvicorn api.main:app --host 0.0.0.0 --port 10000
+    startCommand: uvicorn src.app.agent_server:app --host 0.0.0.0 --port 10000 --log-level debug
     root: api/
     autoDeploy: false
 
@@ -12,7 +12,7 @@ services:
     name: rightnow-api
     env: python
     buildCommand: pip install -r api/requirements.txt
-    startCommand: uvicorn api.main:app --host 0.0.0.0 --port 10000
+    startCommand: uvicorn src.app.agent_server:app --host 0.0.0.0 --port 10000 --log-level debug
     root: api/
     envVars:
       - key: OPENAI_API_KEY

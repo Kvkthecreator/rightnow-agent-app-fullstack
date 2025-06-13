@@ -3,6 +3,7 @@
 import uuid
 from typing import Any, Optional
 
+import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from schemas.context_block import ContextBlock
@@ -12,6 +13,8 @@ from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
 from ..supabase_helpers import publish_event
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
+
+logger = logging.getLogger("uvicorn.error")
 
 
 class BasketCreate(BaseModel):
@@ -31,20 +34,24 @@ async def create_basket(payload: BasketCreate):
     """Create a new basket and emit compose request."""
     supabase = get_supabase()
     basket_id = str(uuid.uuid4())
-    resp = (
-        supabase.table("baskets")
-        .insert(
-            json_safe(
-                {
-                    "id": basket_id,
-                    "topic": payload.topic,
-                    "intent": payload.intent,
-                    "status": "draft",
-                }
+    try:
+        resp = (
+            supabase.table("baskets")
+            .insert(
+                json_safe(
+                    {
+                        "id": basket_id,
+                        "topic": payload.topic,
+                        "intent": payload.intent,
+                        "status": "draft",
+                    }
+                )
             )
+            .execute()
         )
-        .execute()
-    )
+    except Exception:
+        logger.exception("create_basket failed")
+        raise HTTPException(status_code=500, detail="internal error")
     if resp.error:
         raise HTTPException(status_code=500, detail=resp.error.message)
 
@@ -98,17 +105,21 @@ async def create_basket(payload: BasketCreate):
 
     for blk in blocks:
         safe_block = ContextBlock.model_validate(blk).model_dump(mode="json", exclude_none=True)
-        supabase.table("context_blocks").insert(json_safe(safe_block)).execute()
-        supabase.table("block_brief_link").insert(
-            json_safe(
-                {
-                    "id": str(uuid.uuid4()),
-                    "block_id": blk["id"],
-                    "task_brief_id": basket_id,
-                    "transformation": "source",
-                }
-            )
-        ).execute()
+        try:
+            supabase.table("context_blocks").insert(json_safe(safe_block)).execute()
+            supabase.table("block_brief_link").insert(
+                json_safe(
+                    {
+                        "id": str(uuid.uuid4()),
+                        "block_id": blk["id"],
+                        "task_brief_id": basket_id,
+                        "transformation": "source",
+                    }
+                )
+            ).execute()
+        except Exception:
+            logger.exception("block insertion failed")
+            raise HTTPException(status_code=500, detail="internal error")
     await publish_event(
         "basket.compose_request",
         {
@@ -131,18 +142,23 @@ async def get_basket(basket_id: str):
             supabase.table("baskets").select("*").eq("id", str(basket_id)).maybe_single().execute()
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail="Supabase error") from exc
+        logger.exception("get_basket failed")
+        raise HTTPException(status_code=500, detail="internal error") from exc
 
     if basket_resp.data is None:
         raise HTTPException(status_code=404, detail="Basket not found")
-    links = (
-        supabase.from_("block_brief_link")
-        .select("context_blocks(id,label,type)")
-        .eq("task_brief_id", basket_id)
-        .execute()
-    )
-    blocks = [r["context_blocks"] for r in (links.data or [])]
-    cfgs = supabase.table("basket_configs").select("*").eq("basket_id", basket_id).execute()
+    try:
+        links = (
+            supabase.from_("block_brief_link")
+            .select("context_blocks(id,label,type)")
+            .eq("task_brief_id", basket_id)
+            .execute()
+        )
+        blocks = [r["context_blocks"] for r in (links.data or [])]
+        cfgs = supabase.table("basket_configs").select("*").eq("basket_id", basket_id).execute()
+    except Exception:
+        logger.exception("get_basket related queries failed")
+        raise HTTPException(status_code=500, detail="internal error")
     return {
         "id": basket_id,
         "status": basket_resp.data.get("status"),
@@ -156,16 +172,20 @@ async def get_basket(basket_id: str):
 async def update_basket(basket_id: str, payload: BasketUpdate):
     """Add new context to an existing basket and trigger composer."""
     supabase = get_supabase()
-    if payload.input_text:
-        supabase.table("basket_threads").insert(
-            json_safe(
-                {
-                    "basket_id": basket_id,
-                    "content": payload.input_text,
-                    "source": "user_dump",
-                }
-            )
-        ).execute()
+    try:
+        if payload.input_text:
+            supabase.table("basket_threads").insert(
+                json_safe(
+                    {
+                        "basket_id": basket_id,
+                        "content": payload.input_text,
+                        "source": "user_dump",
+                    }
+                )
+            ).execute()
+    except Exception:
+        logger.exception("update_basket failed")
+        raise HTTPException(status_code=500, detail="internal error")
     await publish_event(
         "basket.compose_request",
         {
