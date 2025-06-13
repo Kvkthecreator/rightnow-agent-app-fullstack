@@ -208,8 +208,6 @@
 │       ├── 20250514095801_create_profile_report_sections.sql
 │       ├── 20250514111003_add_sns_url_to_profiles.sql
 │       ├── 20250519120000_update_profiles_schema.sql
-│       ├── 20250522130000_create_reports.sql
-│       ├── 20250528_create_profile_core_data.sql
 │       └── 20250528_create_task_briefs.sql
 ├── tests
 │   ├── __init__.py

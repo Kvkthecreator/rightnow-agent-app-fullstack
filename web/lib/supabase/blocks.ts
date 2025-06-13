@@ -32,13 +32,6 @@ export async function fetchBlocks(
   return { data, error };
 }
 
-export const getBlocks = fetchBlocks;
-
-export async function getSingleProfile(userId: string) {
-  const { data, error } = await fetchBlocks(userId, true); // Assuming coreOnly = true for profile context
-  if (error || !data || data.length === 0) return { data: null, error };
-  return { data: data[0], error: null };
-}
 
 export async function createBlock(block: BlockInsert) {
   const supabase = createClient();

@@ -67,15 +67,6 @@
 | deployment_configs            | format                 | text                     |
 | deployment_configs            | custom_notes           | text                     |
 | deployment_configs            | created_at             | timestamp with time zone |
-| profile_core_data             | id                     | uuid                     |
-| profile_core_data             | user_id                | uuid                     |
-| profile_core_data             | display_name           | text                     |
-| profile_core_data             | brand_or_company       | text                     |
-| profile_core_data             | sns_links              | jsonb                    |
-| profile_core_data             | tone_preferences       | text                     |
-| profile_core_data             | logo_url               | text                     |
-| profile_core_data             | locale                 | text                     |
-| profile_core_data             | updated_at             | timestamp with time zone |
 | task_brief_outputs            | id                     | uuid                     |
 | task_brief_outputs            | task_brief_id          | uuid                     |
 | task_brief_outputs            | config_id              | uuid                     |
