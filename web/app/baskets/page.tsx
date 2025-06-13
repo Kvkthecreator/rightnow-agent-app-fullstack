@@ -3,8 +3,16 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/EmptyState";
 import BasketCard from "@/components/BasketCard";
+import PageHeader from "@/components/page/PageHeader";
 import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
 
 export default function BasketsPage() {
@@ -50,37 +58,36 @@ export default function BasketsPage() {
 
   return (
     <div className="p-4 space-y-6">
-      <div className="max-w-screen-xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">🧺 My Baskets</h1>
-          <p className="text-sm text-muted-foreground">
-            Lightweight containers for your tasks, context, and thoughts
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
-          <Button asChild>
-            <Link href="/baskets/create">+ Create Basket</Link>
-          </Button>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
-          >
-            <option value="updated">Last updated</option>
-            <option value="created">Created</option>
-            <option value="alpha">A–Z</option>
-          </select>
-          <Input
-            className="h-9 text-sm"
-            placeholder="Search"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-      </div>
+      <PageHeader
+        emoji="🧺"
+        title="My Baskets"
+        description="Lightweight containers for your tasks, context, and thoughts"
+        actions={
+          <>
+            <Button variant="default">+ Create Basket</Button>
+            <Select value={sort} onValueChange={(v) => setSort(v)}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Last updated" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="updated">Last updated</SelectItem>
+                <SelectItem value="created">Date created</SelectItem>
+                <SelectItem value="alpha">A–Z</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="text"
+              placeholder="Search"
+              className="w-full sm:w-[200px]"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+          </>
+        }
+      />
 
       {pageData.length === 0 ? (
         <EmptyState
@@ -92,11 +99,9 @@ export default function BasketsPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 justify-center">
+        <div className="flex flex-col gap-y-4">
           {pageData.map((b) => (
-            <div key={b.id} className="max-w-[680px] w-full mx-auto">
-              <BasketCard basket={b} />
-            </div>
+            <BasketCard key={b.id} basket={b} />
           ))}
         </div>
       )}
