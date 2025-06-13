@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function BlocksList({ basketId, highlightCommitId }: Props) {
-  const { blocks, isLoading } = useBlocks(basketId);
+  const { blocks, isLoading, error } = useBlocks(basketId);
 
   if (isLoading) {
     return (
@@ -19,6 +19,12 @@ export default function BlocksList({ basketId, highlightCommitId }: Props) {
           <li key={idx} className="border rounded-md p-3 h-8" />
         ))}
       </ul>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-sm text-red-600">Failed to load blocks</div>
     );
   }
 
