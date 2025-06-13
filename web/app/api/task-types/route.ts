@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
-  // Determine API base URL, falling back to public env var if needed
-  const baseUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;
+  // Determine API base URL from env
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE;
   if (!baseUrl) {
     return NextResponse.json(
-      { error: 'Missing BACKEND_URL or NEXT_PUBLIC_API_URL environment variable' },
+      { error: 'Missing NEXT_PUBLIC_API_BASE environment variable' },
       { status: 500 }
     );
   }
