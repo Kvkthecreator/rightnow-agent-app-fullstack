@@ -1,7 +1,8 @@
 #api/src/app/agent_tasks/layer2_tasks/utils/prompt_builder.py
 
 import textwrap
-from typing import List, Dict
+from typing import Dict, List
+
 
 def build_prompt(user_intent: str,
                  sub_instructions: str,

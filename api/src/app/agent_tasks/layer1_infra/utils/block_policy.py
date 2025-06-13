@@ -1,5 +1,6 @@
 import asyncpg
 
+
 # helper shared by all layer-1 agents
 # ----------------------------------
 async def is_auto(conn: asyncpg.Connection, block_id: str) -> bool:

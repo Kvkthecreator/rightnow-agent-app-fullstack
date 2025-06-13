@@ -4,9 +4,11 @@ Module: agent_tasks.middleware.output_utils
 Provides utilities for building and flattening webhook payloads for agent tasks.
 """
 import json
-from pathlib import Path
 from datetime import datetime
-from jsonschema import validate, ValidationError
+from pathlib import Path
+
+from jsonschema import ValidationError, validate
+
 from ..registry import get_task_def
 
 SCHEMA_DIR = Path(__file__).parents[2] / "registry" / "validator_schemas"

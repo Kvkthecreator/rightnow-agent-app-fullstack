@@ -4,13 +4,13 @@ from datetime import datetime, timezone
 import asyncpg
 from schemas.audit import AuditIn, AuditOut
 from schemas.validators import validates
+from src.app.agent_tasks.layer1_infra.utils.block_policy import insert_revision, is_auto
 from src.utils.logged_agent import logged
 
 from app.event_bus import DB_URL  # reuse same URL
 from app.supabase_helpers import publish_event
 
 from ..schemas import AuditReport, DuplicateLabel
-from src.app.agent_tasks.layer1_infra.utils.block_policy import insert_revision, is_auto
 
 DUPLICATE_CHECK_SQL = """
 with dupes as (

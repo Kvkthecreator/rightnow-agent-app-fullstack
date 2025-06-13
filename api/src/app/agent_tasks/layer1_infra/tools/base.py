@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
+
 class Tool(ABC):
     slug: str  # e.g. "mcp" or "web_search"
 

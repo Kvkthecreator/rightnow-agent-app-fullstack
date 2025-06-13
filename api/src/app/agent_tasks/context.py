@@ -6,6 +6,7 @@ for given user_id from Supabase.
 """
 from ..util.supabase_helpers import supabase
 
+
 def get_full_profile_context(user_id: str) -> dict:
     """
     Retrieves full profile context for the given user.

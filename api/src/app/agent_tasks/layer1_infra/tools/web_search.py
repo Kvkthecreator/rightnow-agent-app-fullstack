@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
-import httpx
+
 from .base import Tool
+
 
 class Client(Tool):
     slug = "web_search"

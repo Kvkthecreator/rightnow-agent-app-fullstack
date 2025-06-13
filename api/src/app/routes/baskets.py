@@ -6,10 +6,10 @@ from typing import Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from schemas.context_block import ContextBlock
+from src.utils.db import json_safe
 
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
 from ..supabase_helpers import publish_event
-from src.utils.db import json_safe
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 

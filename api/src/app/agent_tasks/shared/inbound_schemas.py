@@ -1,5 +1,7 @@
-from typing import Literal, Optional, Dict, Union
+from typing import Dict, Literal, Optional, Union
+
 from pydantic import BaseModel, Field
+
 
 class NewTask(BaseModel):
     action: Literal["new_task"]

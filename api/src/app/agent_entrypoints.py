@@ -3,6 +3,7 @@ from datetime import datetime
 
 from agents import Runner
 from fastapi import APIRouter, HTTPException, Request, Response
+from src.utils.db import json_safe
 
 from .agent_tasks.holding.competitor_agent import competitor_agent as competitor
 from .agent_tasks.holding.content_agent import content
@@ -22,7 +23,6 @@ from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
 from .agent_tasks.layer2_tasks.utils.task_utils import create_task_and_session
 from .agent_tasks.layer3_config.adapters.google_exporter import export_to_doc
 from .agent_tasks.layer3_config.utils.config_to_md import render_markdown
-from src.utils.db import json_safe
 
 router = APIRouter()
 

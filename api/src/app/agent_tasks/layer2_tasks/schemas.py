@@ -1,9 +1,11 @@
 #api/src/app/agent_tasks/layer2_tasks/schemas.py
 
-from schemas.base import BaseSchema
-from pydantic import Field
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import Field
+from schemas.base import BaseSchema
+
 
 class ComposeRequest(BaseSchema):
     user_id: str

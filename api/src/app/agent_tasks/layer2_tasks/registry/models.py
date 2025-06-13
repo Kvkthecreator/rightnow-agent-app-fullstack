@@ -1,6 +1,8 @@
 """Pydantic models for task registry"""
-from pydantic import BaseModel
 from typing import List, Literal, Optional
+
+from pydantic import BaseModel
+
 
 class InputField(BaseModel):
     name: str

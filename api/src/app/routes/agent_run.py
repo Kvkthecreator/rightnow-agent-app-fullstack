@@ -1,6 +1,8 @@
 import logging
-from fastapi import APIRouter, Body, Request
+
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+
 from ..events.on_input_created import handle_event
 
 logger = logging.getLogger("uvicorn.error")

@@ -1,8 +1,8 @@
 # api/src/core/task_registry/providers/file.py
 
 """File-based provider loading task types from JSON seed."""
-from pathlib import Path
 import json
+from pathlib import Path
 from typing import List, Optional
 
 from ..models import TaskType

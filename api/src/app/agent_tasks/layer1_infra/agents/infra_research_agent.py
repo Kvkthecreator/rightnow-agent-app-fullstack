@@ -5,13 +5,13 @@ from datetime import datetime, timezone
 import asyncpg
 from schemas.research import ResearchIn, ResearchOut
 from schemas.validators import validates
+from src.app.agent_tasks.layer1_infra.utils.block_policy import insert_revision, is_auto
 from src.utils.logged_agent import logged
 
 from app.event_bus import DB_URL
 from app.supabase_helpers import publish_event
 
 from ..schemas import RefreshReport
-from src.app.agent_tasks.layer1_infra.utils.block_policy import insert_revision, is_auto
 
 FIND_REFRESHABLE_SQL = """
 select id::text

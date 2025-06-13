@@ -3,9 +3,9 @@
 import os
 import uuid
 
-from supabase import Client, create_client
-
 from src.utils.db import json_safe
+
+from supabase import Client, create_client
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")

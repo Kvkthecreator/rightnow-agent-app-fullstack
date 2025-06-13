@@ -1,8 +1,10 @@
 """Pydantic models for Layer-1 infrastructure agents."""
 
-from schemas.base import BaseSchema
-from typing import List
 from datetime import datetime
+from typing import List
+
+from schemas.base import BaseSchema
+
 
 class DuplicateLabel(BaseSchema):
     label: str

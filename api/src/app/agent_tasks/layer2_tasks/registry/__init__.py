@@ -6,6 +6,7 @@ Loads the core seed JSON file once at import time and parses entries into Pydant
 """
 import json
 from pathlib import Path
+
 from .models import TaskType
 
 # Path to the JSON seed file in core/seed
@@ -33,7 +34,7 @@ def get_all_task_types() -> list[TaskType]:  # noqa: E305
 def get_task_def(task_id: str) -> TaskType | None:  # noqa: E305
     """Retrieve a TaskType by ID, or None if not found."""
     return next((t for t in _TASK_TYPES if t.id == task_id), None)
- 
+
 def get_missing_fields(task_type_id: str, provided_data: dict) -> list[str]:  # noqa: E305
     """
     Returns the names of input_fields for the given task_type_id

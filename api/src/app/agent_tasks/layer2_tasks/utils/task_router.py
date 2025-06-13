@@ -3,13 +3,15 @@ Module: agent_tasks.middleware.task_router
 
 Routes tasks to their assigned agents and validates their outputs.
 """
-from .prompt_builder import build_agent_prompt
-from ..registry import get_all_task_types, get_task_def
 import logging
+
+from ..registry import get_all_task_types, get_task_def
+from .prompt_builder import build_agent_prompt
 
 # Logger for instrumentation
 logger = logging.getLogger("uvicorn.error")
 from agents import Runner
+
 
 def validate_output(raw_output: dict, output_type: str) -> dict:
     """

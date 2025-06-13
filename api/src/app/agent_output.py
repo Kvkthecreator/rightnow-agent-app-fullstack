@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from typing import Any
 
+from agents.strict_schema import ensure_strict_json_schema
+from agents.tracing import SpanError
+from agents.util import _error_tracing, _json
 from pydantic import BaseModel, TypeAdapter
 from typing_extensions import TypedDict, get_args, get_origin
 
 from .exceptions import ModelBehaviorError, UserError
-from agents.strict_schema import ensure_strict_json_schema
-from agents.tracing import SpanError
-from agents.util import _error_tracing, _json
 
 _WRAPPER_DICT_KEY = "response"
 
@@ -146,14 +146,12 @@ def _type_to_str(t: type[Any]) -> str:
 # ─────────────────────────────────────────────────────────────
 # Additional output schemas (Phase α)
 # ─────────────────────────────────────────────────────────────
-from typing import List, Union
-from pydantic import BaseModel
 
 class ProfileFieldOut(BaseModel):
     field_name:            str
     field_value:           str | list[str] | int | bool
     clarification_prompt:  str | None = None   # ← NEW, optional
-    
+
 class ClarificationOut(BaseModel):
     """Prompt asking the user for missing info."""
     prompt: str

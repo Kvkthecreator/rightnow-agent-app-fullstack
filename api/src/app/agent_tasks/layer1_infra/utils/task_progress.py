@@ -3,7 +3,8 @@ Utility: task_progress
 
 Helper to track task progress and identify missing input fields for a given task type.
 """
-from ...layer2_tasks.registry.models import TaskType, InputField
+from ...layer2_tasks.registry.models import InputField, TaskType
+
 
 def get_missing_fields(task_type: TaskType, current_inputs: dict) -> list[InputField]:
     """
@@ -16,7 +17,7 @@ def get_missing_fields(task_type: TaskType, current_inputs: dict) -> list[InputF
         if value is None or (isinstance(value, str) and not value.strip()) or (isinstance(value, (list, dict)) and not value):
             missing.append(field)
     return missing
- 
+
 def is_ready_to_dispatch(task_type_id: str, inputs: dict) -> bool:
     """
     Return True if no required input_fields are missing for the given task_type_id.

@@ -1,10 +1,13 @@
 """
 Utilities for authentication dependencies.
 """
-from fastapi import HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import os
+
+import jwt
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
 from supabase import create_client
-import os, jwt
 
 # Set up Bearer token dependency and Supabase admin client
 bearer = HTTPBearer()

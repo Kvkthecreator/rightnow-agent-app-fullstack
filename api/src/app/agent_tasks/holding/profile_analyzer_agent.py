@@ -3,12 +3,13 @@ Module: agent_tasks.profile_analyzer_agent
 
 Defines the Profile Analyzer agent and its data models (input/output schemas).
 """
-from agents import Agent
-from agents.model_settings import ModelSettings
-from agents import WebSearchTool
-from pydantic import BaseModel
 from typing import List
+
+from agents import Agent, WebSearchTool
+from agents.model_settings import ModelSettings
+from pydantic import BaseModel
 from typing_extensions import TypedDict
+
 
 class ProfileModel(BaseModel):
     display_name: str
