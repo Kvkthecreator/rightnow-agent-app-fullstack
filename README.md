@@ -1,6 +1,6 @@
-# 🧶 Yarnnn Monorepo
+# 🧶 yarnnn Monorepo
 
-Yarnnn is a context-first OS for solo builders and creative professionals. It organizes scattered ideas into reusable outputs through persistent context.
+yarnnn is a context-first OS for solo builders and creative professionals. It organizes scattered ideas into reusable outputs through persistent context.
 
 ## Architecture
 
