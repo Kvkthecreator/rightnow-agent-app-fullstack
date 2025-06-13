@@ -1,7 +1,7 @@
 # 🤖 Codex Development Workflow Guide
-
+this is NOT for the codex cloud. strictly for local CLI version.
 This document defines the structured way of working with the Codex CLI and Git to drive modular improvements in this project. It ensures changes are scoped, testable, and documented, while keeping the main branch stable.
-
+this is NOT for the codex cloud. strictly for local CLI version.
 ---
 
 ## 📌 Purpose
