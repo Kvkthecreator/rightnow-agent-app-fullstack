@@ -7,7 +7,7 @@ export async function GET(request: NextRequest, context: any) {
   const { id } = context.params;
 
   const { data, error } = await supabase
-    .from('basket_commits')
+    .from('dump_commits')
     .select('*')
     .eq('basket_id', id)
     .order('created_at', { ascending: false });
