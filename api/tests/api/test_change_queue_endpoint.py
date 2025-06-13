@@ -12,7 +12,7 @@ os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "d.e.f")
 from app.routes.change_queue import router as queue_router
 
 app = FastAPI()
-app.include_router(queue_router)
+app.include_router(queue_router, prefix="/api")
 client = TestClient(app)
 
 
