@@ -8,6 +8,10 @@ export interface BasketInputPayload {
 }
 
 export async function createBasketWithInput({ text, files = [] }: BasketInputPayload) {
+  if (!text.trim() && files.length === 0) {
+    throw new Error("createBasketWithInput called with empty input.");
+  }
+
   const supabase = createClient();
 
   const { data: userData } = await supabase.auth.getUser();
