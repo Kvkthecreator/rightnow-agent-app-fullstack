@@ -40,8 +40,9 @@ jobs:
 
       - name: Run tests
         env:
+          PYTHONPATH: api/src
           TESTING: "1"
-        run: PYTHONPATH=api pytest -q
+        run: pytest -q
 
       - name: Wait for Postgres
         run: |
