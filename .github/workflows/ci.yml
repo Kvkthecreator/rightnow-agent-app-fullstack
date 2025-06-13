@@ -1,16 +1,40 @@
-# ✅ Codex will generate this file after checking:
-# - python version from pyproject.toml
-# - use of poetry
-# - presence of ruff for linting
-# - pytest or make test usage
-# - whether env vars are required for tests
+name: CI - API Tests
 
-# 🚀 After introspection, Codex will scaffold:
-# - Setup Python
-# - Install poetry
-# - Cache dependencies
-# - Run tests using correct commands
-# - Optionally run lint step if present
-# - Trigger only when relevant files change (api/**, tests/**, .github/workflows/**)
+on:
+  push:
+    paths:
+      - 'api/**'
+      - 'tests/**'
+      - 'setup.py'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'tests/**'
+      - 'setup.py'
+      - '.github/workflows/ci.yml'
 
-# Codex: Begin with environment scan before writing CI config.
+jobs:
+  test-api:
+    runs-on: ubuntu-latest
+    name: Run API Tests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies + src in editable mode
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]  # editable install via setup.py
+          pip install pytest
+
+      - name: Run Pytest
+        run: pytest -q --tb=short
+
+      # Optional: Add linting step here later if needed
