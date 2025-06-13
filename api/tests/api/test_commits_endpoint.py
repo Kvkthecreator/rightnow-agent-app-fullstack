@@ -11,7 +11,7 @@ os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "d.e.f")
 from app.routes.commits import router as commits_router
 
 app = FastAPI()
-app.include_router(commits_router)
+app.include_router(commits_router, prefix="/api")
 
 client = TestClient(app)
 

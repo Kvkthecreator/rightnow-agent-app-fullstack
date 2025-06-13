@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 
 from ..utils.supabase_client import supabase_client as supabase
 
-router = APIRouter(prefix="/api", tags=["change-queue"])
+router = APIRouter(tags=["change-queue"])
 
 logger = logging.getLogger("uvicorn.error")
 

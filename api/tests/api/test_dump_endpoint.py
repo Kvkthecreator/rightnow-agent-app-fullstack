@@ -11,7 +11,7 @@ os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "d.e.f")
 from app.routes.dump import router as dump_router
 
 app = FastAPI()
-app.include_router(dump_router)
+app.include_router(dump_router, prefix="/api")
 
 client = TestClient(app)
 

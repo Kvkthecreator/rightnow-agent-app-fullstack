@@ -14,7 +14,7 @@ from ..utils.supabase_client import supabase_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
 
-router = APIRouter(prefix="/api", tags=["dump"])
+router = APIRouter(tags=["dump"])
 
 _ALLOWED_MIME = {"text/plain", "text/markdown"}
 

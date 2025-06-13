@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from ..utils.supabase_client import supabase_client as supabase
 
-router = APIRouter(prefix="/api", tags=["commits"])
+router = APIRouter(tags=["commits"])
 
 logger = logging.getLogger("uvicorn.error")
 

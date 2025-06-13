@@ -12,7 +12,7 @@ os.environ.setdefault("SUPABASE_ANON_KEY", "a.b.c")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "d.e.f")
 
 app = FastAPI()
-app.include_router(dump_router)
+app.include_router(dump_router, prefix="/api")
 
 client = TestClient(app)
 
