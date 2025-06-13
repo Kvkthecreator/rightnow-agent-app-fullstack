@@ -10,10 +10,17 @@ interface Props {
 }
 
 export default function CommitTimeline({ basketId, onSelect }: Props) {
-  const { commits, isLoading } = useCommits(basketId);
+  const { commits, isLoading, error } = useCommits(basketId);
 
   if (isLoading) {
     return <aside className="p-4 w-52 text-sm text-muted-foreground">Loading…</aside>;
+  }
+  if (error) {
+    return (
+      <aside className="p-4 w-52 text-sm text-red-600">
+        Failed to load commits
+      </aside>
+    );
   }
   return (
     <aside className="p-4 w-60 border-r bg-background/50 overflow-y-auto">
