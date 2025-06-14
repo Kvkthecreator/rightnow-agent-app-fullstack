@@ -21,3 +21,8 @@ mcp>=1.6.0,<2; python_version >= "3.10"
 supabase
 jsonschema>=4.21
 asyncpg>=0.29.0
+
+# Phase 1 testing dependencies
+httpx
+supabase
+
