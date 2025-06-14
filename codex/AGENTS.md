@@ -80,8 +80,8 @@ Enable future modular reuse without fragmenting the core memory stream
 
 # 🚀 Future Evolution: The Block Economy
 Phase 1 focuses on manual promotion + assistive guidance — creating Blocks only when the user chooses or accepts a suggestion.
-However, Yarnnn’s architecture is designed for future growth:
+However, yarnnn’s architecture is designed for future growth:
 To support a richer block economy that helps users manage evolving memory at scale.
 To enable agents to suggest, cluster, or recommend consolidation of blocks or memory segments, while keeping the user in control.
 To provide nuanced logic distinguishing between manually promoted blocks and system-suggested candidates — always transparently surfaced, never silently modified.
-This direction ensures that as memory complexity grows, Yarnnn continues to help users preserve clarity without adding cognitive burden.
+This direction ensures that as memory complexity grows, yarnnn continues to help users preserve clarity without adding cognitive burden.
