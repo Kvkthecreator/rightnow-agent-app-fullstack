@@ -20,6 +20,8 @@ export default function NarrativeView({ basketId }: Props) {
   const { blocks } = useBlocks(basketId);
   const { highlights } = useHighlights(basketId);
 
+  const [hasSelection, setHasSelection] = React.useState(false);
+
   const handlePromote = async () => {
     const sel = window.getSelection()?.toString().trim();
     if (!sel) return;
@@ -32,6 +34,15 @@ export default function NarrativeView({ basketId }: Props) {
     });
     toast.success("Promoted to block");
   };
+
+  React.useEffect(() => {
+    const handleSelection = () => {
+      const sel = window.getSelection()?.toString().trim();
+      setHasSelection(!!sel);
+    };
+    document.addEventListener("selectionchange", handleSelection);
+    return () => document.removeEventListener("selectionchange", handleSelection);
+  }, []);
 
   const highlightMap = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -79,14 +90,21 @@ export default function NarrativeView({ basketId }: Props) {
         size="sm"
         aria-label="Promote selected text"
         className="text-xs"
+        disabled={!hasSelection}
       >
         Promote Selection
       </Button>
       {inputs.map((i) => (
         <article key={i.id} className="prose max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers}>
-            {i.content}
-          </ReactMarkdown>
+          {typeof i?.content === "string" && i.content.trim() ? (
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers}>
+              {i.content}
+            </ReactMarkdown>
+          ) : (
+            <p className="text-sm italic text-muted-foreground">
+              No narrative available.
+            </p>
+          )}
         </article>
       ))}
     </div>
