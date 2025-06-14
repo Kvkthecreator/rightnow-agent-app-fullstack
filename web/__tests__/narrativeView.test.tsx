@@ -58,3 +58,14 @@ it("handles empty inputs gracefully", async () => {
   );
   expect(await screen.findByText(/no narrative available/i)).toBeInTheDocument();
 });
+
+it("handles malformed input without crashing", async () => {
+  // @ts-expect-error deliberately pass bad value
+  mockUseInputs.mockReturnValueOnce({ inputs: [{ id: "i3", content: undefined }], isLoading: false });
+  render(
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <NarrativeView basketId="b1" />
+    </SWRConfig>,
+  );
+  expect(await screen.findByText(/no narrative available/i)).toBeInTheDocument();
+});
