@@ -21,10 +21,8 @@ class ContextBlock(BaseSchema):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_primary: bool = True
 
-    # Fields not yet persisted in the DB
+    # Optional DB fields
     update_policy: str | None = None
-    is_core_block: bool | None = None
-    associated_block_id: str | None = None
     meta_scope: str | None = None
     meta_context_scope: str | None = None
     meta_tags: list[str] | None = None
@@ -33,6 +31,9 @@ class ContextBlock(BaseSchema):
     tags: list[str] | None = None
     # link straight back to its basket (added 2024-06-11)
     basket_id: UUID | None = None
+    is_draft: bool | None = None
+    commit_id: UUID | None = None
+    updated_at: datetime | None = None
 
     # --- pydantic-v1 JSON compat -----------------
     class Config:

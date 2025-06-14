@@ -45,28 +45,9 @@ async def run(_: AuditIn) -> AuditOut:
             generated_at=datetime.now(timezone.utc).isoformat(),
         )
 
-        # auto-apply or enqueue
+        # Phase 1: only emit suggestions, never auto-update
         for dup in dupes:
-            primary_id = dup.block_ids[0]
-            if await is_auto(conn, primary_id):
-                await conn.execute(
-                    (
-                        "update context_blocks set content = content || "
-                        "' [Merged duplicate]' where id=$1"
-                    ),
-                    primary_id,
-                )
-                await insert_revision(
-                    conn,
-                    primary_id,
-                    prev_content="<merged>",
-                    new_content="<merged>",
-                    changed_by="agent:infra_analyzer",
-                    proposal_event=dup.model_dump(mode="json"),
-                )
-                await publish_event("block.auto_updated", dup.model_dump(mode="json"))
-            else:
-                await publish_event("block.update_suggested", dup.model_dump(mode="json"))
+            await publish_event("block.update_suggested", dup.model_dump(mode="json"))
 
     finally:
         await conn.close()

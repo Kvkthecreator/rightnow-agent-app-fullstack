@@ -43,10 +43,8 @@ from .routes.change_queue import router as change_queue_router
 from .routes.commits import router as commits_router
 from .routes.debug import router as debug_router
 from .routes.dump import router as dump_router
-from .routes.task_brief import router as task_brief_router
-
-# Task routing for execution
-from .routes.task_types import router as task_types_router
+from .routes.inputs import router as inputs_router
+# Task Brief and task-type routes are disabled for Phase 1
 
 # Agent handlers
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
@@ -68,9 +66,8 @@ api.include_router(dump_router, prefix="/api")
 api.include_router(commits_router, prefix="/api")
 api.include_router(blocks_router, prefix="/api")
 api.include_router(change_queue_router, prefix="/api")
-api.include_router(task_types_router, prefix="/api")
-api.include_router(task_brief_router, prefix="/api")
 api.include_router(basket_router, prefix="/api")
+api.include_router(inputs_router, prefix="/api")
 api.include_router(debug_router, prefix="/api")
 api.include_router(agent_router, prefix="/api")
 

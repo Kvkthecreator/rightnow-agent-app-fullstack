@@ -1,5 +1,6 @@
 import os
 import sys
+import pytest
 from datetime import datetime
 from uuid import uuid4
 
@@ -9,8 +10,7 @@ import importlib.util
 from pathlib import Path
 from types import ModuleType
 
-from schemas.block_diff import DiffBlock
-from schemas.dump_parser import ContextBlock
+pytest.skip("legacy diff logic removed", allow_module_level=True)
 
 MODULE_PATH = (
     Path(__file__).resolve().parents[2]

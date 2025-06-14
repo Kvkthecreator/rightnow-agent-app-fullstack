@@ -7,7 +7,6 @@ import asyncio
 
 from app.agent_tasks.layer1_infra.agents.infra_analyzer_agent import run as run_analyzer
 from app.agent_tasks.layer1_infra.agents.infra_observer_agent import run as run_observer
-from app.agent_tasks.orchestration.orch_basket_composer_agent import run as run_basket_composer
 from app.agent_tasks.orchestration.orch_block_manager_agent import run as run_block_manager
 
 
@@ -18,7 +17,6 @@ async def run_all():
     # start the manager listener and config listener concurrently
     await asyncio.gather(
         run_block_manager({}),
-        run_basket_composer({}),
     )
 
 if __name__ == "__main__":
