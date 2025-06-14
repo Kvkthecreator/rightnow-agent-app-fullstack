@@ -16,13 +16,12 @@ mypy:
 	uv run mypy .
 
 .PHONY: tests
-tests: 
-	uv run pytest 
+tests:
+	PYTHONPATH=api/src uv run pytest
 
 .PHONY: coverage
 coverage:
-	
-	uv run coverage run -m pytest
+	PYTHONPATH=api/src uv run coverage run -m pytest
 	uv run coverage xml -o coverage.xml
 	uv run coverage report -m --fail-under=95
 

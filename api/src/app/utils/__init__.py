@@ -1,10 +1,8 @@
-"""Shim so `src.app.utils.supabase_client` can be imported."""
+"""Provide access to the shared ``supabase_client`` utilities."""
 
-import sys
-from importlib import import_module
+from utils import supabase_client as _real
 
-_real = import_module("src.utils.supabase_client")
+supabase_client = _real  # re-export for backwards compatibility
 
-supabase_client = _real  # type: ignore
+__all__ = ["supabase_client"]
 
-sys.modules[__name__ + ".supabase_client"] = _real

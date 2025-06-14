@@ -7,19 +7,9 @@ and when all fields are gathered, dispatches to a downstream specialist agent.
 """
 from agents import Agent
 
-from ...holding.competitor_agent import competitor_agent
-from ...holding.content_agent import content
-from ...holding.feedback_agent import feedback
-from ...holding.repurpose_agent import repurpose
-from ...holding.strategy_agent import strategy
 
-AGENTS = {
-    "strategy": strategy,
-    "content": content,
-    "repurpose": repurpose,
-    "feedback": feedback,
-    "competitor": competitor_agent,
-}
+
+AGENTS: dict[str, Agent] = {}
 
 manager = Agent(
     name="manager",
