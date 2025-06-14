@@ -33,6 +33,9 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# Task Brief and task-type routes are disabled for Phase 1
+# Agent handlers
+from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
 from .ingestion.job_listener import start_background_worker
 
 # Route modules
@@ -43,10 +46,7 @@ from .routes.commits import router as commits_router
 from .routes.debug import router as debug_router
 from .routes.dump import router as dump_router
 from .routes.inputs import router as inputs_router
-# Task Brief and task-type routes are disabled for Phase 1
-
-# Agent handlers
-from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
+from .routes.phase1_routes import router as phase1_router
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
@@ -68,16 +68,20 @@ api.include_router(basket_router, prefix="/api")
 api.include_router(inputs_router, prefix="/api")
 api.include_router(debug_router, prefix="/api")
 api.include_router(agent_router, prefix="/api")
+api.include_router(phase1_router, prefix="/api")
 
 # Agent entrypoints with API prefix
+
 
 @api.post("/api/agent")
 async def api_run_agent(request):
     return await run_agent(request)
 
+
 @api.post("/api/agent/direct")
 async def api_run_agent_direct(request):
     return await run_agent_direct(request)
+
 
 # Mount the grouped API to root
 app.mount("", api)
