@@ -62,7 +62,7 @@ export default function NarrativeView({ basketId }: Props) {
           return (
             <>
               {txt.slice(0, idx)}
-                <span
+              <span
                 className="underline decoration-dotted decoration-yellow-600 underline-offset-2"
                 title={tip}
                 aria-label={tip}
@@ -77,6 +77,26 @@ export default function NarrativeView({ basketId }: Props) {
       return <>{txt}</>;
     },
   } as any;
+
+  const SafeMarkdown: React.FC<{ content: string }> = ({ content }) => {
+    try {
+      return (
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={renderers}
+        >
+          {content}
+        </ReactMarkdown>
+      );
+    } catch (err) {
+      console.error("Markdown render error", err);
+      return (
+        <p className="text-sm italic text-muted-foreground">
+          Failed to render content.
+        </p>
+      );
+    }
+  };
 
   if (isLoading) return <div className="p-6 text-sm">Loading…</div>;
   if (error) return <div className="p-6 text-sm text-red-500">Failed to load narrative.</div>;
@@ -97,9 +117,7 @@ export default function NarrativeView({ basketId }: Props) {
       {inputs.map((i) => (
         <article key={i.id} className="prose max-w-none">
           {typeof i?.content === "string" && i.content.trim() ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers}>
-              {i.content}
-            </ReactMarkdown>
+            <SafeMarkdown content={i.content} />
           ) : (
             <p className="text-sm italic text-muted-foreground">
               No narrative available.
