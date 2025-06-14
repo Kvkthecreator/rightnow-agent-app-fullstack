@@ -5,12 +5,6 @@ from agents import Runner
 from fastapi import APIRouter, HTTPException, Request, Response
 from src.utils.db import json_safe
 
-from .agent_tasks.holding.competitor_agent import competitor_agent as competitor
-from .agent_tasks.holding.content_agent import content
-from .agent_tasks.holding.feedback_agent import feedback
-from .agent_tasks.holding.profile_analyzer_agent import profile_analyzer_agent as profile_analyzer
-from .agent_tasks.holding.repurpose_agent import repurpose
-from .agent_tasks.holding.strategy_agent import strategy
 from .agent_tasks.layer1_infra.agents.infra_manager_agent import manager
 from .agent_tasks.layer1_infra.utils.supabase_helpers import supabase
 from .agent_tasks.layer2_tasks.agents.tasks_composer_agent import run as compose_run
@@ -44,12 +38,7 @@ async def compose_brief(req: ComposeRequest):
 
 
 AGENT_REGISTRY = {
-    "strategy": strategy,
-    "content": content,
-    "feedback": feedback,
-    "repurpose": repurpose,
-    "profile_analyzer": profile_analyzer,
-    "competitor": competitor,
+    "manager": manager,
 }
 
 
