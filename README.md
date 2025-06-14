@@ -1,62 +1,54 @@
-# 🧶 yarnnn Monorepo
+# 🧶 yarnnn Monorepo  
 
-yarnnn is a context-first OS for solo builders and creative professionals. It organizes scattered ideas into reusable outputs through persistent context.
+yarnnn is a **context-first memory OS** for solo builders and creative professionals. It helps you preserve, defend, and evolve your scattered ideas — turning them into reusable outputs through persistent context.
 
-## Architecture
+---
+
+## Architecture  
 
 The project is structured into layers that remain consistent even as implementation details evolve:
 
 | Layer | Concept | Purpose |
-|-------|---------|---------|
-| 🧺 0 | Baskets | Workspace for context and goals |
-| ◾ 1 | Blocks  | Reusable building blocks |
-| 🤖 2 | Agents  | Modules that act on baskets and blocks |
+|--------|---------|---------|
+| 🧺 0 | Baskets | Canonical memory stream (narrative-first workspace) |
+| ◾ 1 | Blocks | User-promoted or suggested reusable memory modules |
+| 🤖 2 | Agents | Assistive modules that help evolve, defend, and reason over memory |
 
 These layers map to a simple architecture:
 
-- **Frontend**: Next.js on Vercel
-- **Backend**: FastAPI on Render with Supabase
-- **Codex**: Developer automation and task scaffolding
+- **Frontend**: Next.js on Vercel — narrative rendering, inline promotion actions
+- **Backend**: FastAPI on Render + Supabase — memory persistence, agent orchestration
+- **Codex**: Developer automation, task scaffolding, and codebase evolution  
 
-## Local Development
+> See `codex/AGENTS.md` for durable design principles, including Phase 1 focus and future-ready block economy direction.
+
+---
+
+## Local Development  
 
 Most tasks require only the frontend:
 
-```bash
 ./start-dev.sh
-```
-
 If you need to work on the backend:
 
-```bash
 cd api
 source $(poetry env info --path)/bin/activate
 export PYTHONPATH=src
 uvicorn app.agent_server:app --reload
-```
+Set NEXT_PUBLIC_API_BASE in web/.env.local to point to your backend instance.
+After updating the variable, redeploy the Next.js frontend so runtime route handlers pick up the new value.
+You can verify the configuration by requesting /api/baskets/<id>/change-queue; the backend logs should show a GET request and a non-500 response.
 
-Set `NEXT_PUBLIC_API_BASE` in `web/.env.local` to point to your backend instance.
-After updating the variable, redeploy the Next.js frontend so runtime route handlers
-pick up the new value. You can verify the configuration by requesting
-`/api/baskets/<id>/change-queue`; the backend logs should show a GET request and
-a non-500 response.
-
-The `/agent` endpoint handles agent requests and is stable across deployments.
+The /agent endpoint handles agent requests and remains stable across deployments.
 
 ## Repository Layout
 
-```
 api/   FastAPI backend
 web/   Next.js frontend
 codex/ Codex automation tasks
-```
+Quick Summary
 
-See `codex/AGENTS.md` for stable architecture details.
-
-## Quick Summary
-
-| Component | Local | Hosted |
-|-----------|-------|-------|
-| Frontend | ✅ | Vercel |
-| Backend  | optional | Render |
-| DB/Auth  | Hosted only | Supabase |
+Component	Local	Hosted
+Frontend	✅	Vercel
+Backend	optional	Render
+DB/Auth	Hosted only	Supabase

@@ -1,91 +1,87 @@
 # AGENTS.md
 
-This document outlines the agent system architecture behind **yarnnn**, our context-first execution platform.
+This document outlines the agent system architecture behind yarnnn, our contextual memory platform.
 
-It is intentionally focused on what **does not change** — the roles, structure, and system philosophy — rather than volatile implementation details. Treat this as a durable map for contributors, agent designers, and system maintainers.
+It focuses on durable design principles — the roles, structure, and philosophy that guide our system — so contributors, agent designers, and maintainers work from a shared, long-term map.
 
----
+# 💡 Philosophy
 
+yarnnn is built on a wedge: from ongoing dumps to evolving memory — preserved as familiar narrative, defended through user-curated Blocks.
 
-## 💡 Philosophy
+Our users — indie builders, creative solopreneurs, and freelance marketers — are already generating ideas and drafts using LLMs like ChatGPT. What they lack is a system that helps them see, defend, and evolve their thoughts without fragmentation or cognitive overload.
 
-yarnnn is built on a wedge: **from ongoing dumps to evolving memory**.
+yarnnn’s promise is simple:
 
-Our users — indie builders, creative solopreneurs, and freelance marketers — are already using tools like ChatGPT. What they lack is a system that keeps up with them: something that **remembers, organizes, and grows** with everything they share.
+Preserve the user’s original narrative as the canonical memory stream (the basket).
+Empower users to curate and defend key parts of that memory by promoting narrative sections into Blocks.
+Assist users gently — agents highlight contradictions, redundancies, or opportunities for modularity without ever modifying or fragmenting memory silently.
+Blocks are not the primary outcome of ingestion. They are downstream artifacts — created on demand, by user choice or accepted suggestion, to protect and reuse what matters.
 
-At the core of yarnnn is a **persistent contextual memory**. As users continuously drop ideas, links, and fragments, yarnnn parses and structures them into reusable blocks — creating a long-term memory layer that supports future tasks like content creation, strategy, or analysis.
+# 🧱 Core Architecture Layers (Stable)
 
-Unlike one-off chats or static notes, yarnnn is **live**, **structured**, and **designed to stay with you** — providing durable context that evolves alongside your work.
+The yarnnn system is divided into three persistent structural layers:
 
+Layer	Role
+Frontend (Vercel + Next.js)	User interaction, task input, live rendering of the evolving memory narrative, inline promote actions
+Middleware (Codex)	Developer automation, task scaffolding, Codex integration for codebase evolution
+Backend (FastAPI + Supabase)	Agent orchestration, database logic, and persistent memory (baskets, promoted blocks, briefs as needed)
+These layers are fixed — their responsibilities remain stable even as system features evolve.
 
----
+# 🧠 Agent System Overview
 
-## 🧱 Core Architecture Layers (Stable)
+Agents are organized by function, not task type. They are composable modules that support yarnnn’s core promise:
 
-The yarnnn system is divided into **three persistent structural layers**:
+Category	Description
+orch_* agents	Orchestration agents that manage narrative assist flows (e.g., highlight contradictions, suggest promotions)
+tasks_* agents	Reasoning agents that operate on downstream goals (e.g., brief composition, strategy)
+infra_* agents	Maintenance agents that audit, clean, or refresh underlying data (e.g., basket integrity, block map consistency)
+Naming conventions (orch_, tasks_, infra_) remain stable across the codebase.
 
-| Layer      | Role                                                                 |
-|------------|----------------------------------------------------------------------|
-| **Frontend (Vercel + Next.js)**   | User interaction, task input, chat UI, and live rendering of agent messages |
-| **Middleware (Codex)**            | Developer-facing automation, task scaffolding, Codex agent integration       |
-| **Backend (FastAPI + Supabase)**  | Agent orchestration, database logic, and persistent memory (context blocks, briefs, sessions) |
+# 🗂️ Folder Structure (Directional & Durable)
 
-> These layers are fixed — even as individual components evolve, their responsibilities stay the same.
-
----
-
-## 🧠 Agent System Overview
-
-Agents in yarnnn are organized by **function**, not task. They are composable modules aligned to backend responsibilities:
-
-| Category         | Description                                                                            |
-|------------------|----------------------------------------------------------------------------------------|
-| `orch_*` agents  | Orchestration agents that manage flows (e.g., block classification, brief composition) |
-| `tasks_*` agents | Executable agents that perform reasoning on a goal (e.g., strategy, competitor, content) |
-| `infra_*` agents | Maintenance agents that audit, clean, or refresh stored context blocks                |
-
-> This naming convention is stable and used throughout the backend codebase.
-
----
-
-## 🗂️ Folder Structure (Directional & Durable)
-
-This structure reflects our long-term architectural commitments:
-
-```text
 /api/src/app/
 ├── agent_tasks/
-│   ├── orch/         → Orchestration agents (e.g., block manager, brief composer)
-│   ├── tasks/        → Domain-specific task agents
-│   ├── infra/        → System hygiene agents
-│   └── shared/       → Prompt templates, common agent utilities
+│   ├── orch/         → Narrative orchestration agents (assist, highlight, nudge)
+│   ├── tasks/        → Domain-specific reasoning agents
+│   ├── infra/        → Maintenance / hygiene agents
+│   └── shared/       → Prompt templates, agent utilities
 ├── middleware/
-│   └── codex/        → Codex task registry and execution layer
-├── util/             → Supabase helpers, task utils
+│   └── codex/        → Codex task registry and automation layer
+├── util/             → Supabase helpers, task utilities
 └── constants.py      → Shared schema constants and enums
 
 /web/
 ├── app/
-│   ├── baskets/      → Initial dump flow
-│   ├── blocks/       → Context memory browser
-│   ├── tasks/        → Structured briefs and agent sessions
-│   └── components/   → Shared input UI (dump area, upload, etc.)
+│   ├── baskets/      → Memory narrative workspace
+│   ├── blocks/       → User-promoted context modules (browser, reuse)
+│   ├── tasks/        → Structured briefs and task outputs
+│   └── components/   → Shared inputs (dump area, promote buttons, etc.)
 └── lib/
     ├── supabaseClient.ts
-    └── agents/       → Triggers and helper logic for agent execution
+    └── agents/       → Agent trigger logic, API helpers
 
+# 🔖 Conventions That Don’t Change
 
----
+All agents use the *_agent.py suffix
+Naming is always prefixed by purpose: orch_, tasks_, infra_
+Orchestration always starts at /api/agent, no matter the flow
+Supabase remains the single source of truth for memory data
+Codex supports dev workflows via declarative task files
+This document reflects Phase 1’s focus on narrative-first preservation, downstream modularity on demand, and assistive—not intrusive—agents. It should remain durable as we evolve.
 
-## 🔖 Conventions That Don’t Change
+# 📝 Summary
 
-- All agents use the `*_agent.py` suffix
-- Naming is always prefixed by purpose: `orch_`, `tasks_`, `infra_`
-- Orchestration always starts at `/api/agent`, no matter the task
-- Supabase remains our single source of truth
-- Codex will continue to support dev workflows via declarative task files
+yarnnn’s agents exist to:
 
----
+Preserve narrative-first memory
+Empower manual promotion to Block
+Assist users with gentle, transparent guidance
+Enable future modular reuse without fragmenting the core memory stream
 
-> For evolving task logic, see `codex/PRD/agent_flows.md` and `task_types/`
-> This document is meant to remain consistent even as tools and flows evolve.
+# 🚀 Future Evolution: The Block Economy
+Phase 1 focuses on manual promotion + assistive guidance — creating Blocks only when the user chooses or accepts a suggestion.
+However, Yarnnn’s architecture is designed for future growth:
+To support a richer block economy that helps users manage evolving memory at scale.
+To enable agents to suggest, cluster, or recommend consolidation of blocks or memory segments, while keeping the user in control.
+To provide nuanced logic distinguishing between manually promoted blocks and system-suggested candidates — always transparently surfaced, never silently modified.
+This direction ensures that as memory complexity grows, Yarnnn continues to help users preserve clarity without adding cognitive burden.
