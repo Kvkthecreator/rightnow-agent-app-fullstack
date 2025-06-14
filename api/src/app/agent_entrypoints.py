@@ -6,35 +6,24 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from src.utils.db import json_safe
 
 from .agent_tasks.layer1_infra.agents.infra_manager_agent import manager
-from .agent_tasks.layer1_infra.utils.supabase_helpers import supabase
-from .agent_tasks.layer2_tasks.agents.tasks_composer_agent import run as compose_run
-from .agent_tasks.layer2_tasks.agents.tasks_editor_agent import edit as editor_run
-from .agent_tasks.layer2_tasks.agents.tasks_validator_agent import validate as validate_run
-from .agent_tasks.layer2_tasks.registry import get_missing_fields
-from .agent_tasks.layer2_tasks.schemas import ComposeRequest
-from .agent_tasks.layer2_tasks.utils.output_utils import build_payload
-from .agent_tasks.layer2_tasks.utils.task_router import route_and_validate_task
-from .agent_tasks.layer2_tasks.utils.task_utils import create_task_and_session
-from .agent_tasks.layer3_config.adapters.google_exporter import export_to_doc
-from .agent_tasks.layer3_config.utils.config_to_md import render_markdown
+from .agent_tasks.layer1_infra.utils.supabase_helpers import (
+    supabase,
+    create_task_and_session,
+)
+
+# Phase 1 stubs
+def build_payload(*, task_id: str, user_id: str, agent_type: str, message: dict, reason: str, trace: list) -> dict:
+    """Simplified payload helper retained for logging."""
+    return {
+        "task_id": task_id,
+        "user_id": user_id,
+        "agent_type": agent_type,
+        "message": message,
+        "reason": reason,
+        "trace": trace,
+    }
 
 router = APIRouter()
-
-
-@router.post("/brief/compose")
-async def compose_brief(req: ComposeRequest):
-    # 1 Compose
-    draft = await compose_run(req)
-
-    # 2 Editor (pass-through v0)
-    edited = await editor_run(draft)
-
-    # 3 Validator
-    report = await validate_run(edited)
-    if not report.ok:
-        raise HTTPException(status_code=400, detail=report.errors)
-
-    return {"brief_id": draft.brief_id, "validated": True}
 
 
 AGENT_REGISTRY = {
@@ -86,29 +75,12 @@ async def run_agent(req: Request):
             },
         )
 
-    missing_fields = get_missing_fields(task_type_id, collected_inputs)
     try:
         supabase.table("agent_sessions").update(json_safe({"inputs": collected_inputs})).eq(
             "id", task_id
         ).execute()
     except Exception:
         print(f"Warning: failed to persist inputs for task_id={task_id}")
-
-    status_payload = build_payload(
-        task_id=task_id,
-        user_id=user_id,
-        agent_type="manager",
-        message={
-            "type": "system",
-            "content": {
-                "provided_fields": list(collected_inputs.keys()),
-                "missing_fields": missing_fields,
-            },
-        },
-        reason="input_status",
-        trace=[],
-    )
-    log_agent_message(task_id, user_id, "manager", status_payload["message"])
 
     try:
         result = await Runner.run(
@@ -178,35 +150,24 @@ async def run_agent(req: Request):
         return {"ok": True, "task_id": task_id}
 
     if msg_type == "structured":
-        agent_type = parsed.get("agent_type")
+        agent_type = parsed.get("agent_type") or "specialist"
         inputs = parsed.get("input", {})
         try:
             supabase.table("agent_sessions").update(
-                json_safe({"status": "dispatched", "inputs": inputs})
+                json_safe({"status": "completed", "inputs": inputs})
             ).eq("id", task_id).execute()
         except Exception:
-            print(f"Warning: failed to update session status to dispatched for task_id={task_id}")
+            print(f"Warning: failed to update session status for task_id={task_id}")
 
-        spec_result = await route_and_validate_task(
-            task_type_id, {"task_id": task_id, "user_id": user_id}, inputs
-        )
-        output_type = spec_result.get("output_type")
-        validated_data = spec_result.get("validated_output")
-        final_payload = build_payload(
+        payload = build_payload(
             task_id=task_id,
             user_id=user_id,
             agent_type=agent_type,
-            message={"type": "structured", "output_type": output_type, "data": validated_data},
+            message={"type": "structured", "data": inputs},
             reason="completion",
-            trace=spec_result.get("trace", []),
+            trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
         )
-        log_agent_message(task_id, user_id, agent_type, final_payload["message"])
-        try:
-            supabase.table("agent_sessions").update(json_safe({"status": "completed"})).eq(
-                "id", task_id
-            ).execute()
-        except Exception:
-            print(f"Warning: failed to update session status to completed for task_id={task_id}")
+        log_agent_message(task_id, user_id, agent_type, payload["message"])
         return {"ok": True, "task_id": task_id}
 
     fallback_payload = build_payload(
@@ -263,51 +224,3 @@ async def run_agent_direct(req: Request):
     return {"ok": True, "task_id": task_id}
 
 
-@router.get("/brief/{brief_id}/config")
-async def get_brief_config(brief_id: str):
-    row = await supabase.fetchrow(
-        "select config_json from brief_configs where brief_id=$1 order by version desc limit 1",
-        brief_id,
-    )
-    if not row:
-        raise HTTPException(404, "Config not generated yet")
-    return row["config_json"]
-
-
-@router.get("/brief/{brief_id}/config/download")
-async def download_config(brief_id: str, format: str = "md"):
-    """Download latest brief_config as .md or .json attachment."""
-    row = await supabase.fetchrow(
-        "select config_json from brief_configs where brief_id=$1 order by version desc limit 1",
-        brief_id,
-    )
-    if not row:
-        raise HTTPException(404, "Config not generated yet")
-
-    cfg = row["config_json"]
-
-    if format == "json":
-        return Response(
-            content=json.dumps(cfg, indent=2),
-            media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="brief_{brief_id}.json"'},
-        )
-    elif format == "md":
-        md = render_markdown(cfg)
-        return Response(
-            content=md,
-            media_type="text/markdown",
-            headers={"Content-Disposition": f'attachment; filename="brief_{brief_id}.md"'},
-        )
-    else:
-        raise HTTPException(400, "format must be 'md' or 'json'")
-
-
-@router.post("/brief/{brief_id}/export/google")
-async def export_google_doc(brief_id: str):
-    """Export latest config to Google Docs."""
-    try:
-        link = await export_to_doc("demo-user", brief_id, supabase)
-        return {"url": link}
-    except RuntimeError as err:
-        raise HTTPException(400, str(err)) from err
