@@ -1,12 +1,14 @@
 """API route for listing available task types."""
 from fastapi import APIRouter
 
-from ..agent_tasks.layer2_tasks.registry import get_all_task_types
+# Phase 1 stub: no task types registered
+def get_all_task_types() -> list[dict]:
+    return []
 
 router = APIRouter(prefix="/task-types", tags=["task-types"])
 
 
 @router.get("/", response_model=list[dict])
 async def list_all():
-    """Return all registered TaskTypes."""
-    return [t.model_dump(mode="json") for t in get_all_task_types()]
+    """Return all registered TaskTypes. Phase 1 returns an empty list."""
+    return get_all_task_types()
