@@ -36,7 +36,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from .ingestion.job_listener import start_background_worker
 
 # Route modules
-from .routes.agent_run import router as agent_run_router
 from .routes.baskets import router as basket_router
 from .routes.blocks import router as blocks_router
 from .routes.change_queue import router as change_queue_router
@@ -61,7 +60,6 @@ start_background_worker()
 api = FastAPI()
 
 # Route group under /api
-api.include_router(agent_run_router, prefix="/api")
 api.include_router(dump_router, prefix="/api")
 api.include_router(commits_router, prefix="/api")
 api.include_router(blocks_router, prefix="/api")
