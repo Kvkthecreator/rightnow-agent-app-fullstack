@@ -1,8 +1,6 @@
-"""Provide access to the shared ``supabase_client`` utilities."""
+"""Utility helpers for the application layer."""
 
-from utils import supabase_client as _real
-
-supabase_client = _real  # re-export for backwards compatibility
+from .supabase_client import supabase_client
 
 __all__ = ["supabase_client"]
 

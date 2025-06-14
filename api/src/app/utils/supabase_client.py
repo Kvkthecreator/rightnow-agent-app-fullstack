@@ -1,12 +1,16 @@
-"""
-Proxy shim so `import src.app.utils.supabase_client` works when Render
-starts the server with:
-    uvicorn src.app.agent_server:app
-It forwards every public name to the real supabase_client module
-located at api/src/utils/supabase_client.py
-"""
+"""Local Supabase client used by application routes and tasks."""
 
-# Proxy to the real supabase_client module in ``src.utils``
-from utils.supabase_client import supabase_client
+import os
+
+from supabase import create_client
+
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    raise RuntimeError("Supabase env vars missing")
+
+supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 __all__ = ["supabase_client"]
