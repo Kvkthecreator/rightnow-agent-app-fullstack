@@ -4,16 +4,15 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api/src"))
 
 from schemas.audit import AuditIn
-from schemas.basket_composer import BasketComposerIn
-from schemas.block_diff import BlockDiffIn
 from schemas.block_manager import BlockManagerIn
 from schemas.config import ConfigIn
 from schemas.context_block import ContextBlock
 from schemas.dump_parser import DumpParserIn
+from schemas.dump import DumpOut
+from schemas.basket import BasketOut
 from schemas.research import ResearchIn
 from schemas.usage import UsageIn
 
-from app.agent_tasks.layer2_tasks.schemas import ComposeRequest
 
 
 def test_round_trip_dump_parser():
@@ -21,16 +20,8 @@ def test_round_trip_dump_parser():
     DumpParserIn.model_validate(payload)
 
 
-def test_round_trip_block_diff():
-    BlockDiffIn.model_validate({"basket_id": "b" * 32})
-
-
 def test_round_trip_block_manager():
     BlockManagerIn.model_validate({})
-
-
-def test_round_trip_basket_composer():
-    BasketComposerIn.model_validate({})
 
 
 def test_round_trip_research():
@@ -49,15 +40,30 @@ def test_round_trip_config():
     ConfigIn.model_validate({"brief_id": "a" * 32, "user_id": "u"})
 
 
-def test_round_trip_compose_request():
-    ComposeRequest.model_validate(
+def test_round_trip_dump_out():
+    DumpOut.model_validate(
         {
-            "user_id": "u",
-            "user_intent": "test",
-            "sub_instructions": "",
-            "file_urls": [],
+            "input_id": "00000000-0000-0000-0000-000000000000",
+            "chunk_ids": ["00000000-0000-0000-0000-000000000001"],
+            "intent": "note",
+            "confidence": 0.5,
+            "commit_id": "00000000-0000-0000-0000-000000000002",
         }
     )
+
+
+def test_round_trip_basket_out():
+    BasketOut.model_validate(
+        {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "status": "draft",
+            "intent_summary": "demo",
+            "blocks": [],
+            "configs": [],
+        }
+    )
+
+
 
 
 def test_optional_fields_skip():
