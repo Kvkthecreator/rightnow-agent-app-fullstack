@@ -1,89 +1,42 @@
+/* updated landing page */
+
 "use client";
 
+import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowsOutCardinal, Butterfly, MicrophoneStage } from 'phosphor-react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import BackgroundPaths from '@/components/BackgroundPaths';
 
+export const metadata: Metadata = {
+  title: 'yarnnn — from ideas to evolving memory',
+  description:
+    'Dump as you go, and we keep up. Yarnnn weaves your scattered thoughts into reusable context blocks and evolving briefs.',
+};
+
 export default function LandingPage() {
   return (
     <>
-      {/* Animated BG behind just the header and hero */}
       <section className="relative overflow-hidden min-h-[500px]">
         <BackgroundPaths />
-          <div className="relative z-10">
-            <LandingHeader />
-            <div className="max-w-[1200px] mx-auto px-4 py-24 flex flex-col items-start">
-              <br />
-              <div className="font-brand text-3xl md:text-7xl">yarnnn</div>
-              <br />
-              <br />
-              <h1 className="text-3xl md:text-5xl font-bold mb-4">
-                memory operating system<br />
-                <br />                
-                to weave your thoughts<br />
-              </h1>
-              <br />
-              <p className="text-lg leading-relaxed mb-6 max-w-xl">
-                designed for working with AI
-                start ideas with a simple dump.
-                yarnnn turns it into a structured,
-                living memory powered by "context blocks" and "task baskets".
-              </p>
-              <Link
-                href="/baskets/create"
-                className="inline-block px-8 py-4 border border-foreground text-foreground rounded-md hover:bg-black hover:text-white transition"
-              >
-                drop your first thought
+        <div className="relative z-10">
+          <LandingHeader />
+          <div className="max-w-[1200px] mx-auto px-4 py-24 flex flex-col items-start">
+            <div className="font-brand text-4xl md:text-7xl">yarnnn</div>
+            <div className="mt-6 text-xl md:text-2xl max-w-[800px]">
+              From scattered ideas to evolving memory — Yarnnn helps indie builders and creatives preserve their narrative and defend what matters.
+            </div>
+            <div className="mt-4 text-md md:text-lg max-w-[800px]">
+              Yarnnn lets you dump freely into baskets, promote what matters into blocks, and receive gentle agent assistance — without fragmentation or cognitive overload.
+            </div>
+            <div className="mt-6">
+              <Link href="/baskets" className="inline-block bg-black text-white rounded-xl px-6 py-3 text-lg">
+                Start your basket
               </Link>
             </div>
+          </div>
         </div>
       </section>
-
-      {/* Main content - no animated background */}
-      <main className="bg-background text-foreground flex flex-col">
-        <div className="max-w-[1200px] mx-auto px-4 w-full">
-          {/* Description + Feature Icons */}
-          <section id="benefits" className="px-6 py-12 border-b grid grid-cols-1 md:grid-cols-2 gap-10">
-            <p className="text-lg leading-relaxed">
-              yarnnn helps you organize evolving projects, reuse your thinking, and get context-aware assistance.
-            </p>
-            <div className="space-y-10">
-              <div className="flex items-center gap-4">
-                <span className="text-xl">🧺</span>
-                <span className="text-sm">One basket = one focused context thread</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-xl">◾</span>
-                <span className="text-sm">Blocks store brand tone, strategy, goals</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-xl">🪄</span>
-                <span className="text-sm">Get help that understands your memory</span>
-              </div>
-            </div>
-          </section>
-
-          {/* CTA */}
-          <section className="px-6 py-6 text-right">
-            <Link
-              href="/about"
-              className="text-md underline underline-offset-2 hover:text-black/70 transition"
-            >
-              About &rarr;
-            </Link>
-          </section>
-
-          {/* Mission Statement */}
-          <section className="px-6 py-12 border-t border-b">
-            <p className="text-xl md:text-2xl max-w-3xl mx-auto text-center">
-              🧶 work with clarity 
-              one thought at a time
-            </p>
-          </section>
-        </div>
-      </main>
       <LandingFooter />
     </>
   );
