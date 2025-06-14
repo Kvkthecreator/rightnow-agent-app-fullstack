@@ -3,11 +3,13 @@ import NarrativeView from "@/components/work/NarrativeView";
 import { SWRConfig } from "swr";
 import React from "react";
 
+const mockUseInputs = vi.fn(() => ({
+  inputs: [{ id: "i1", content: "# Hello world" }],
+  isLoading: false,
+}));
+
 vi.mock("@/lib/baskets/useInputs", () => ({
-  useInputs: () => ({
-    inputs: [{ id: "i1", content: "# Hello world" }],
-    isLoading: false,
-  }),
+  useInputs: () => mockUseInputs(),
 }));
 vi.mock("@/lib/baskets/useBlocks", () => ({
   useBlocks: () => ({
@@ -45,4 +47,14 @@ it("shows highlight indicator", async () => {
     </SWRConfig>,
   );
   expect(await screen.findByTitle(/possible_redundancy/i)).toBeInTheDocument();
+});
+
+it("handles empty inputs gracefully", async () => {
+  mockUseInputs.mockReturnValueOnce({ inputs: [{ id: "i2", content: "" }], isLoading: false });
+  render(
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <NarrativeView basketId="b1" />
+    </SWRConfig>,
+  );
+  expect(await screen.findByText(/no narrative available/i)).toBeInTheDocument();
 });
