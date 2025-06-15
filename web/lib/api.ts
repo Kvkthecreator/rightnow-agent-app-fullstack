@@ -14,7 +14,7 @@ export async function apiGet<T = any>(path: string): Promise<T> {
   const res = await fetch(withBase(path));
   // Handle non-OK responses
   if (!res.ok) {
-    console.error(`[apiGet] Non-OK response (${res.status}) for ${path}`);
+    console.warn(`[apiGet] Non-OK response (${res.status}) for ${path}`);
     throw new Error(`API error: ${res.status}`);
   }
   try {
@@ -24,7 +24,7 @@ export async function apiGet<T = any>(path: string): Promise<T> {
     }
     return data as T;
   } catch (err) {
-    console.error(`[apiGet] Failed to parse JSON from ${path}:`, err);
+    console.warn(`[apiGet] Failed to parse JSON from ${path}:`, err);
     throw err;
   }
 }
