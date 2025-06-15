@@ -37,6 +37,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Agent handlers
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
 from .ingestion.job_listener import start_background_worker
+from .routes.agent_run import router as agent_run_router
 
 # Route modules
 from .routes.baskets import router as basket_router
@@ -69,6 +70,7 @@ api.include_router(inputs_router, prefix="/api")
 api.include_router(debug_router, prefix="/api")
 api.include_router(agent_router, prefix="/api")
 api.include_router(phase1_router, prefix="/api")
+api.include_router(agent_run_router, prefix="/api")
 
 # Agent entrypoints with API prefix
 

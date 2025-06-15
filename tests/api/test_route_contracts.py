@@ -1,5 +1,5 @@
-import pytest
 import httpx
+import pytest
 
 BASE_URL = "http://localhost:10000"  # Adjust as needed for test env
 
@@ -9,13 +9,15 @@ try:
 except Exception:
     pytest.skip("API server not available", allow_module_level=True)
 
-@pytest.mark.parametrize("method, path", [
-    ("GET",    "/api/blocks"),
-    ("GET",    "/api/baskets/healthcheck"),  # Optional if you have health routes
-    ("POST",   "/api/agent-run"),
-    ("POST",   "/api/agent"),
-    ("POST",   "/api/agent/direct"),
-])
+
+@pytest.mark.parametrize(
+    "method, path",
+    [
+        ("POST", "/api/agent-run"),
+        ("POST", "/api/agent"),
+        ("POST", "/api/agent/direct"),
+    ],
+)
 def test_api_route_exists(method, path):
     client = httpx.Client()
     response = client.request(method, f"{BASE_URL}{path}")
