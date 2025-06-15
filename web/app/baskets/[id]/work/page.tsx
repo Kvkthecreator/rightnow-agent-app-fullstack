@@ -5,14 +5,10 @@ import BlocksWorkspace from "@/components/work/BlocksWorkspace";
 import NarrativeView from "@/components/work/NarrativeView";
 import { useInputs } from "@/lib/baskets/useInputs";
 
-export default function BasketWorkPage({
-  params
-}: {
-  params: { id: string };
-}) {
+export default function BasketWorkPage({ params }: any) {
   const basketId = params.id;
   const [selectedCommitId, setSelectedCommitId] = useState<string | null>(null);
-  const { data: inputs, isLoading, error } = useInputs(basketId);
+  const { inputs, isLoading, error } = useInputs(basketId);
 
   return (
     <div className="flex flex-col md:flex-row h-screen">
