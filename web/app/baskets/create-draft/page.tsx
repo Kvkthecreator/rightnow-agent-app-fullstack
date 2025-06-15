@@ -1,4 +1,4 @@
-/* Yarnnn Basket Create Draft Page */
+/* Yarnnn Basket Create Draft Page - fixed UploadArea props */
 
 "use client";
 
@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
-import { UploadArea } from "@/components/baskets/UploadArea"; // assume you have this or scaffold a simple placeholder
+import { UploadArea } from "@/components/baskets/UploadArea";
 
 export default function BasketCreateDraftPage() {
   const [dumpText, setDumpText] = useState("");
@@ -32,7 +32,11 @@ export default function BasketCreateDraftPage() {
         readOnly={submitted}
       />
 
-      <UploadArea />
+      <UploadArea
+        prefix="basket-draft"
+        maxFiles={5}
+        onUpload={(url) => console.log("Uploaded files:", url)}
+      />
 
       <div className="flex flex-col gap-2">
         <Input
