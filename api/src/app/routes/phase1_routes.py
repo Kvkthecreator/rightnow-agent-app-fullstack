@@ -42,7 +42,7 @@ async def create_basket_input(input: BasketInputIn):
         raise HTTPException(status_code=500, detail=f"Insertion failed: {e}") from e
 
 
-# TODO: Phase 2 feature — promote context blocks API
+# TODO(phase2): Currently unused. Remove or connect if frontend adopts this route.
 @router.post("/context-blocks", response_model=ContextBlockOut)
 async def promote_context_block(block: ContextBlockIn):
     block_id = str(uuid4())
@@ -63,7 +63,7 @@ async def promote_context_block(block: ContextBlockIn):
         raise HTTPException(status_code=500, detail=f"Insertion failed: {e}") from e
 
 
-# TODO: Phase 2 feature — highlight suggestion API
+# TODO(phase2): Currently unused. Remove or connect if frontend adopts this route.
 @router.get("/basket-inputs/{input_id}/highlight-suggestions")
 async def get_highlight_suggestions(input_id: str):
     # Dummy placeholder, to be replaced with logic if highlight implemented

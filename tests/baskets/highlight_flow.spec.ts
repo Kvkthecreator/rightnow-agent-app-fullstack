@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.use({ storageState: "storageState.json" });
 
-test.skip("basic promote and highlight flow", async ({ page }) => {
+test("basic promote and highlight flow", async ({ page }) => {
     await page.route("**/api/baskets/1/inputs", async (route) => {
         await route.fulfill({
             status: 200,

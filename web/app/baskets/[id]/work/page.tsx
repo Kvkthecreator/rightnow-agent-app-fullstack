@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import CommitTimeline from "@/components/timeline/CommitTimeline";
 import BlocksWorkspace from "@/components/work/BlocksWorkspace";
@@ -19,10 +20,7 @@ export default function BasketWorkPage({ params }: PageProps) {
       <CommitTimeline basketId={basketId} onSelect={setSelectedCommitId} />
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         <NarrativeView input={inputs?.[0]} />
-        <BlocksWorkspace
-          basketId={basketId}
-          highlightCommitId={selectedCommitId}
-        />
+        <BlocksWorkspace basketId={basketId} highlightCommitId={selectedCommitId} />
       </div>
     </div>
   );
