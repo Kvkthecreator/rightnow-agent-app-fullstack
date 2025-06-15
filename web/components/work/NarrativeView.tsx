@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -15,9 +15,16 @@ export default function NarrativeView({ input }: NarrativeViewProps) {
     return <p className="text-muted-foreground italic">No narrative available.</p>;
   }
 
-  return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-      {content}
-    </ReactMarkdown>
-  );
+  const rendered = useMemo(() => {
+    try {
+      return (
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      );
+    } catch (err) {
+      console.error("Markdown render failed", err);
+      return <p className="text-red-600">Failed to render narrative content.</p>;
+    }
+  }, [content]);
+
+  return rendered;
 }
