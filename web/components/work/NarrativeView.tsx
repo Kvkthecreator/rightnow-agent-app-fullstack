@@ -10,12 +10,14 @@ type NarrativeViewProps = {
 
 export default function NarrativeView({ input }: NarrativeViewProps) {
   if (!input || !input.content || input.content.trim() === "") {
-    return <p className="text-muted-foreground italic">No narrative available.</p>;
+    return (
+      <p className="text-muted-foreground italic">No narrative available.</p>
+    );
   }
 
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-      {input.content}
-    </ReactMarkdown>
+    <article className="prose max-w-none">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{input.content}</ReactMarkdown>
+    </article>
   );
 }
