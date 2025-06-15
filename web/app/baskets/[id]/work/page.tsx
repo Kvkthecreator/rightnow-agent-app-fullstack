@@ -6,11 +6,11 @@ import BlocksWorkspace from "@/components/work/BlocksWorkspace";
 import NarrativeView from "@/components/work/NarrativeView";
 import { useInputs } from "@/lib/baskets/useInputs";
 
-type PageProps = {
+export default function BasketWorkPage({
+  params
+}: {
   params: { id: string };
-};
-
-export default function BasketWorkPage({ params }: PageProps) {
+}) {
   const basketId = params.id;
   const [selectedCommitId, setSelectedCommitId] = useState<string | null>(null);
   const { data: inputs, isLoading, error } = useInputs(basketId);
