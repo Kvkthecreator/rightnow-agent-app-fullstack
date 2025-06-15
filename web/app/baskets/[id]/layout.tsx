@@ -1,12 +1,12 @@
 import { BasketProvider } from "@/lib/context/BasketContext";
 
-export default function BasketLayout({
+export default async function BasketLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params;
+  const { id } = await params;
   return <BasketProvider initialId={id}>{children}</BasketProvider>;
 }
