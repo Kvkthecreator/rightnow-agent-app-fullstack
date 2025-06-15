@@ -39,7 +39,6 @@ export default function UserNav({ compact = false }: UserNavProps) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[Auth]", event, session);
       if (session?.user) {
         setUser({ email: session.user.email || "" });
       } else {
