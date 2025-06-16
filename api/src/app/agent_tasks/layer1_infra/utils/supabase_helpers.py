@@ -5,15 +5,15 @@ from uuid import uuid4
 from datetime import datetime
 from src.utils.db import json_safe
 
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_ANON_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
     raise RuntimeError(
-        "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set in the environment; otherwise Supabase cannot be initialised."
+        "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in the environment; otherwise Supabase cannot be initialised."
     )
 
-supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 def get_supabase() -> 'Client':
     """

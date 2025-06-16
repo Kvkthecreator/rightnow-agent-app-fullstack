@@ -5,8 +5,8 @@ import uuid
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("NEXT_PUBLIC_SUPABASE_URL", "http://localhost")
-os.environ.setdefault("NEXT_PUBLIC_SUPABASE_ANON_KEY", "a.b.c")
+os.environ.setdefault("SUPABASE_URL", "http://localhost")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "svc.key")
 from app.routes.commits import router as commits_router
 
 app = FastAPI()

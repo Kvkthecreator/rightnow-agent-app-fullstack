@@ -5,7 +5,7 @@ from supabase import create_client
 
 from .db import json_safe
 
-supabase = create_client(getenv("SUPABASE_URL"), getenv("SUPABASE_ANON_KEY"))
+supabase = create_client(getenv("SUPABASE_URL"), getenv("SUPABASE_SERVICE_ROLE_KEY"))
 
 
 async def log_event(
