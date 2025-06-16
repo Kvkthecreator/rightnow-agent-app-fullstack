@@ -5,7 +5,9 @@ from fastapi import APIRouter, HTTPException
 
 from supabase import create_client
 
-supabase = create_client(getenv("SUPABASE_URL"), getenv("SUPABASE_ANON_KEY"))
+supabase = create_client(
+    getenv("NEXT_PUBLIC_SUPABASE_URL"), getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+)
 router = APIRouter(prefix="/debug", tags=["debug"])
 
 logger = logging.getLogger("uvicorn.error")

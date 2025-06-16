@@ -104,6 +104,15 @@ All parsing and block promotion happen *after* basket creation, as part of the a
 
 ---
 
+## 🔧 Required Environment Variables
+
+Set the following variables in `.env.local` and your deployment provider so basket creation and file uploads work:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+---
+
 ## 📌 Usage
 
 This document serves as the canonical reference for basket creation flows.  
