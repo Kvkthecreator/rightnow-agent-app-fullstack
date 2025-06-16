@@ -5,8 +5,8 @@ export default async function BasketLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { id: string };
+  params: any;
 }) {
-  const { id } = params;
+  const { id } = params as { id: string };
   return <BasketProvider initialBasketId={id}>{children}</BasketProvider>;
 }
