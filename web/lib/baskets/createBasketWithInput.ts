@@ -7,6 +7,9 @@ export interface BasketInputPayload {
   files?: (File | string)[];
 }
 
+// createBasketWithInput handles the "input" domain of basket creation.
+// It uploads files, inserts them into block_files with required metadata,
+// then creates the basket + initial input record.
 export async function createBasketWithInput({ text, files = [] }: BasketInputPayload) {
   if (!text.trim() && files.length === 0) {
     throw new Error("createBasketWithInput called with empty input.");
@@ -28,8 +31,13 @@ export async function createBasketWithInput({ text, files = [] }: BasketInputPay
     let size = 0;
 
     if (item instanceof File) {
+      // Upload raw files using the canonical bucket used for block creation.
       const filename = `${Date.now()}-${item.name}`;
-      url = await uploadFile(item, `dump_${userId}/${filename}`, "basket-dumps");
+      url = await uploadFile(
+        item,
+        `dump_${userId}/${filename}`,
+        "block-files",
+      );
       name = item.name;
       size = item.size;
     } else {
@@ -45,8 +53,9 @@ export async function createBasketWithInput({ text, files = [] }: BasketInputPay
         user_id: userId,
         file_url: url,
         file_name: name,
+        label: name, // block_files.label is required
         size_bytes: size,
-        storage_domain: "basket-dumps",
+        storage_domain: "block-files",
       })
       .select("id")
       .single();
