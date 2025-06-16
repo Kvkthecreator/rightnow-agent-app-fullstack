@@ -12,8 +12,8 @@ from supabase import create_client
 # Set up Bearer token dependency and Supabase admin client
 bearer = HTTPBearer()
 SUPA = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    os.getenv("NEXT_PUBLIC_SUPABASE_URL"),
+    os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 )
 
 async def current_user_id(
