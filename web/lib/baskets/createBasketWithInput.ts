@@ -7,9 +7,10 @@ export interface BasketInputPayload {
   files?: (File | string)[];
 }
 
-// createBasketWithInput handles the "input" domain of basket creation.
-// It uploads files, inserts them into block_files with required metadata,
-// then creates the basket + initial input record.
+// createBasketWithInput belongs to **Domain 2 — Actual Creation + Agent Trigger**
+// of the basket lifecycle. It persists the basket and input records and
+// kicks off downstream orchestration.
+// Files are uploaded and inserted into `block_files` along the way.
 export async function createBasketWithInput({ text, files = [] }: BasketInputPayload) {
   if (!text.trim() && files.length === 0) {
     throw new Error("createBasketWithInput called with empty input.");
@@ -20,6 +21,9 @@ export async function createBasketWithInput({ text, files = [] }: BasketInputPay
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) throw new Error("Not authenticated");
   const userId = userData.user.id;
+  // Capture the first line as an "intent" snippet. This is lightweight metadata
+  // saved with the basket for later enrichment. It does not alter the original
+  // text and is not considered parsing or transformation.
   const intent = text.split("\n")[0]?.slice(0, 100) || null;
 
   const uploadedUrls: string[] = [];
