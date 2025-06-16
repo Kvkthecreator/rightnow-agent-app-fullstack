@@ -1,4 +1,4 @@
-BASKET_AND_BLOCK_MODEL.md
+# BASKET_AND_BLOCK_MODEL.md
 
 Yarnnn Canonical Model — Basket, Block, and Their Interactions
 
