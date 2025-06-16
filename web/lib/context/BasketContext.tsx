@@ -11,8 +11,8 @@ const BasketContext = createContext<BasketCtx>({
   setCurrentBasketId: () => {},
 });
 
-export function BasketProvider({ children, initialId }: { children: React.ReactNode; initialId?: string | null }) {
-  const [currentBasketId, setCurrentBasketId] = useState<string | null>(initialId ?? null);
+export function BasketProvider({ children, initialBasketId }: { children: React.ReactNode; initialBasketId?: string | null }) {
+  const [currentBasketId, setCurrentBasketId] = useState<string | null>(initialBasketId ?? null);
   return (
     <BasketContext.Provider value={{ currentBasketId, setCurrentBasketId }}>
       {children}

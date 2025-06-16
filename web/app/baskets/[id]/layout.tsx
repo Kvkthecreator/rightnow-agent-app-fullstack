@@ -1,6 +1,6 @@
 import { BasketProvider } from "@/lib/context/BasketContext";
 
-export default function BasketLayout({
+export default async function BasketLayout({
   children,
   params,
 }: {
@@ -8,5 +8,5 @@ export default function BasketLayout({
   params: { id: string };
 }) {
   const { id } = params;
-  return <BasketProvider initialId={id}>{children}</BasketProvider>;
+  return <BasketProvider initialBasketId={id}>{children}</BasketProvider>;
 }

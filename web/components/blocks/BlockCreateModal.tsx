@@ -55,6 +55,7 @@ export default function BlockCreateModal({ open, onOpenChange, onCreate }: Props
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Block</DialogTitle>
+          <DialogDescription>Provide details for the new block.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
