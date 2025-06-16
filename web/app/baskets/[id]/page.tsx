@@ -28,7 +28,7 @@ export default function BasketDetailPage({ params }: any) {
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">Basket Detail</h1>
-      <p><b>Intent:</b> {basket.intent_summary}</p>
+      <p><b>Name:</b> {basket.name}</p>
       <section>
         <h2 className="font-semibold">Blocks</h2>
         <ul className="list-disc pl-5 text-sm">

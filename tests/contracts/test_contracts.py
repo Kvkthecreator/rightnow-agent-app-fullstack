@@ -57,7 +57,10 @@ def test_round_trip_basket_out():
         {
             "id": "00000000-0000-0000-0000-000000000000",
             "status": "draft",
-            "intent_summary": "demo",
+            "name": "demo",
+            "raw_dump": "demo text",
+            "tags": ["t"],
+            "commentary": None,
             "blocks": [],
             "configs": [],
         }
@@ -69,8 +72,8 @@ def test_round_trip_basket_out():
 def test_optional_fields_skip():
     raw = {
         "id": "00000000-0000-0000-0000-000000000000",
-        "user_id": "00000000-0000-0000-0000-000000000001",
-        "label": "t",
+        "basket_id": "00000000-0000-0000-0000-000000000001",
+        "type": "content",
         "content": "c",
     }
     data = ContextBlock.model_validate(raw)
