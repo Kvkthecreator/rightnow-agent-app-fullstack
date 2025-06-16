@@ -7,6 +7,8 @@ export interface BasketOverview {
   status: string | null;
   tags: string[] | null;
   commentary: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   blocks_count?: number | null;
 }
 
@@ -15,7 +17,7 @@ export async function getAllBaskets(): Promise<BasketOverview[]> {
   const { data, error } = await supabase
     .from("baskets")
     .select(
-      "id,name,raw_dump,status,tags,commentary,context_blocks(count)"
+      "id,name,raw_dump,status,tags,commentary,created_at,updated_at,context_blocks(count)"
     )
     .order("id", { ascending: false });
   if (error) throw new Error(error.message);
@@ -26,6 +28,8 @@ export async function getAllBaskets(): Promise<BasketOverview[]> {
     status: b.status,
     tags: b.tags,
     commentary: b.commentary,
+    created_at: b.created_at,
+    updated_at: b.updated_at,
     blocks_count: b.context_blocks?.[0]?.count ?? 0,
   }));
 }
