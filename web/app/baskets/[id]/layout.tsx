@@ -1,6 +1,6 @@
 import { BasketProvider } from "@/lib/context/BasketContext";
 
-export default async function BasketLayout({
+export default function BasketLayout({
   children,
   params,
 }: {
