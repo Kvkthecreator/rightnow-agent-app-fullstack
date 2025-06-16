@@ -41,8 +41,9 @@ async def create_basket(payload: BasketCreate):
                 json_safe(
                     {
                         "id": basket_id,
-                        "topic": payload.topic,
-                        "intent": payload.intent,
+                        "user_id": "demo-user",
+                        "name": payload.topic,
+                        "raw_dump": payload.topic,
                         "status": "draft",
                     }
                 )
@@ -107,16 +108,6 @@ async def create_basket(payload: BasketCreate):
         safe_block = ContextBlock.model_validate(blk).model_dump(mode="json", exclude_none=True)
         try:
             supabase.table("context_blocks").insert(json_safe(safe_block)).execute()
-            supabase.table("block_brief_link").insert(
-                json_safe(
-                    {
-                        "id": str(uuid.uuid4()),
-                        "block_id": blk["id"],
-                        "task_brief_id": basket_id,
-                        "transformation": "source",
-                    }
-                )
-            ).execute()
         except Exception:
             logger.exception("block insertion failed")
             raise HTTPException(status_code=500, detail="internal error")
@@ -148,13 +139,14 @@ async def get_basket(basket_id: str):
     if basket_resp.data is None:
         raise HTTPException(status_code=404, detail="Basket not found")
     try:
-        links = (
-            supabase.from_("block_brief_link")
-            .select("context_blocks(id,label,type)")
-            .eq("task_brief_id", basket_id)
+        blk_resp = (
+            supabase.table("context_blocks")
+            .select("id,type,content,order,meta_tags,origin,status")
+            .eq("basket_id", basket_id)
+            .order("order")
             .execute()
         )
-        blocks = [r["context_blocks"] for r in (links.data or [])]
+        blocks = blk_resp.data or []
         cfgs = supabase.table("basket_configs").select("*").eq("basket_id", basket_id).execute()
     except Exception:
         logger.exception("get_basket related queries failed")
@@ -162,7 +154,10 @@ async def get_basket(basket_id: str):
     return {
         "id": basket_id,
         "status": basket_resp.data.get("status"),
-        "intent_summary": basket_resp.data.get("intent_summary"),
+        "name": basket_resp.data.get("name"),
+        "raw_dump": basket_resp.data.get("raw_dump"),
+        "tags": basket_resp.data.get("tags"),
+        "commentary": basket_resp.data.get("commentary"),
         "blocks": blocks,
         "configs": cfgs.data or [],
     }

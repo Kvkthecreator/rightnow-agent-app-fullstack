@@ -7,6 +7,6 @@ from schemas.context_block import ContextBlock
 
 
 def test_basket_id_pass_through():
-    b = ContextBlock(label="demo", content="x", user_id="u", basket_id=uuid4())
+    b = ContextBlock(type="content", content="x", basket_id=uuid4())
     dumped = b.model_dump(exclude_none=True)
     assert "basket_id" in dumped

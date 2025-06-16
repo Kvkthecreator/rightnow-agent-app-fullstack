@@ -30,12 +30,11 @@ export default function BasketsPage() {
     const term = search.toLowerCase();
     let arr = baskets.filter(
       (b) =>
-        b.intent_summary?.toLowerCase().includes(term) ||
-        b.raw_dump?.toLowerCase().includes(term)
+        b.name?.toLowerCase().includes(term) || b.raw_dump?.toLowerCase().includes(term)
     );
     if (sort === "alpha") {
       arr = [...arr].sort((a, b) =>
-        (a.intent_summary || "").localeCompare(b.intent_summary || "")
+        (a.name || "").localeCompare(b.name || "")
       );
     } else if (sort === "created") {
       arr = [...arr].sort(

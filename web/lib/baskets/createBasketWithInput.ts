@@ -24,7 +24,7 @@ export async function createBasketWithInput({ text, files = [] }: BasketInputPay
   // Capture the first line as an "intent" snippet. This is lightweight metadata
   // saved with the basket for later enrichment. It does not alter the original
   // text and is not considered parsing or transformation.
-  const intent = text.split("\n")[0]?.slice(0, 100) || null;
+  const name = text.split("\n")[0]?.slice(0, 100) || null;
 
   const uploadedUrls: string[] = [];
   const fileIds: string[] = [];
@@ -72,9 +72,9 @@ export async function createBasketWithInput({ text, files = [] }: BasketInputPay
     .insert({
       user_id: userId,
       raw_dump: text,
-      intent,
-      media: uploadedUrls,
-      is_draft: true,
+      name,
+      status: "draft",
+      tags: [],
     })
     .select()
     .single();

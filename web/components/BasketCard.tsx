@@ -5,7 +5,7 @@ import { formatDistanceToNow, format } from "date-fns";
 export interface BasketCardProps {
   basket: {
     id: string;
-    intent_summary?: string | null;
+    name?: string | null;
     raw_dump?: string | null;
     updated_at?: string | null;
     created_at?: string | null;
@@ -29,7 +29,7 @@ export default function BasketCard({ basket }: BasketCardProps) {
     >
       <div className="flex justify-between">
         <h3 className="text-md font-semibold truncate">
-          🧺 {basket.intent_summary || "Untitled Basket"}
+          🧺 {basket.name || "Untitled Basket"}
         </h3>
         {updated && (
           <span className="text-xs text-muted-foreground">Updated {updated}</span>
