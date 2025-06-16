@@ -1,6 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabaseClient";
@@ -55,6 +62,7 @@ export default function BlockCreateModal({ open, onOpenChange, onCreate }: Props
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Block</DialogTitle>
+          <DialogDescription>Provide details for the new block.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>

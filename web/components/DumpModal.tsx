@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/Card";
 import SmartDropZone from "@/components/SmartDropZone";
 import ThumbnailStrip from "@/components/ThumbnailStrip";
@@ -74,12 +80,14 @@ export default function DumpModal({ basketId: propBasketId, initialOpen = false 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New Dump</DialogTitle>
+          <DialogDescription>
+            Paste or drag text or screenshots. Shortcut ⌘/Ctrl + Shift + V
+          </DialogDescription>
+        </DialogHeader>
         <Card className="max-w-2xl p-8 mx-auto">
           <CardContent className="space-y-4 p-0">
-            <h2 className="text-xl font-medium">Drop it. We’ll remember.</h2>
-            <p className="text-xs text-muted-foreground">
-              Paste or drag text / screenshots. • Shortcut ⌘/Ctrl + Shift + V
-            </p>
             <SmartDropZone
               value={text}
               onChange={(e) => setText(e.target.value)}
