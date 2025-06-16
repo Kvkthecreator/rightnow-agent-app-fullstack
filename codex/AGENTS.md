@@ -67,6 +67,7 @@ Naming is always prefixed by purpose: orch_, tasks_, infra_
 Orchestration always starts at /api/agent, no matter the flow
 Supabase remains the single source of truth for memory data
 Codex supports dev workflows via declarative task files
+Supabase environment variables must follow [docs/env_supabase_reference.md](../docs/env_supabase_reference.md)
 This document reflects Phase 1’s focus on narrative-first preservation, downstream modularity on demand, and assistive—not intrusive—agents. It should remain durable as we evolve.
 
 # 📝 Summary

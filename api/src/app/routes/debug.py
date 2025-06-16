@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from supabase import create_client
 
 supabase = create_client(
-    getenv("NEXT_PUBLIC_SUPABASE_URL"), getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    getenv("SUPABASE_URL"), getenv("SUPABASE_SERVICE_ROLE_KEY")
 )
 router = APIRouter(prefix="/debug", tags=["debug"])
 
