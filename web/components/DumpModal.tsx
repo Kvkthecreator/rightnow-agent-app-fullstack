@@ -14,6 +14,7 @@ import ThumbnailStrip from "@/components/ThumbnailStrip";
 import { Button } from "@/components/ui/Button";
 import { createBasketWithInput } from "@/lib/baskets/createBasketWithInput";
 import { createDump } from "@/lib/baskets/createDump";
+import { createClient } from "@/lib/supabaseClient";
 import { toast } from "react-hot-toast";
 
 export interface DumpModalProps {
@@ -62,7 +63,17 @@ export default function DumpModal({ basketId: propBasketId, initialOpen = false 
           );
         }
       } else {
-        const basket = await createBasketWithInput({ text, files: images });
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        const userId = data?.user?.id;
+        if (!userId) throw new Error("Not authenticated");
+
+        const basket = await createBasketWithInput({
+          userId,
+          text,
+          files: images,
+          basketName: text.split("\n")[0]?.slice(0, 100) || null,
+        });
         toast.success("Basket created");
         window.location.href = `/baskets/${basket.id}/work`;
       }
