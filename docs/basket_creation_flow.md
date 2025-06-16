@@ -7,26 +7,39 @@ This document defines the canonical domains and flow for basket creation in Yarn
 ## 1️⃣ Create Basket — Inputs (Input Domain)
 
 👑 **Purpose:**  
-Collect and validate user intent in a single input unit.
+Faithfully collect and validate a single, atomic user intent submission — referred to as the *input unit*.
 
 ✅ **What the user provides:**  
 - A text dump (typed or pasted into the textarea; required)  
-- Zero or more file uploads (currently images; optional, max N files)  
+- Zero or more file uploads (currently images; optional, up to defined limit)  
 - An optional basket name  
 
 ✅ **What happens in this domain:**  
-- Uploads files to storage (e.g. Supabase storage, returns URLs)  
+- Accepts the user’s raw dump exactly as provided (including any Markdown syntax the user included — no modification or prettification is applied)  
+- Accepts file uploads, uploads them to storage (e.g. Supabase bucket), and retrieves file URLs  
 - Validates that required text is provided  
-- Prepares the full input payload (text + file URLs + optional name)  
+- Prepares the full input payload:
+  - `text_dump` (raw text dump)
+  - `file_urls` (uploaded file references)
+  - `basket_name` (if provided)
+
+✅ **Markdown handling:**  
+- The input domain preserves Markdown syntax provided by the user.  
+- It does not insert or modify Markdown syntax.
+- Prettification and Markdown rendering are responsibilities of the workspace view, not the input domain.
 
 ❌ **What this domain does *not* handle:**  
-- Creating basket records  
-- Creating input records  
+- Creating `baskets` or `basket_inputs` records  
 - Triggering agents  
-- Creating or promoting blocks  
+- Parsing or transforming input text  
+- Creating, modifying, or promoting blocks  
 
 👉 **Key principle:**  
-The input domain ensures we collect one atomic input unit per basket — the user’s intent as a single cohesive submission.
+The input domain is focused on faithful capture of the user's intent as a single cohesive input unit — no transformation, no structural enrichment.
+
+👉 **Design note:**  
+Input fields are designed to pass through Markdown-friendly text without interference. The NarrativeView or workspace display applies Markdown rendering at the appropriate time.
+
 
 ---
 
