@@ -1,7 +1,8 @@
-import { uploadFile } from "@/lib/storage";
-import { supabase } from "@/lib/supabaseClient";
+import { uploadFile } from "@/lib/uploadFile";
+import { createClient } from "@/lib/supabaseClient";
 
 export async function createBasketWithInput({ userId, text, files, basketName }) {
+  const supabase = createClient();
   // 1️⃣ Core basket creation
   const { data: basket, error: basketError } = await supabase
     .from("baskets")

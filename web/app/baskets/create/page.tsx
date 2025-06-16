@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import SmartDropZone from "@/components/SmartDropZone";
 import { UploadArea } from "@/components/baskets/UploadArea";
 import { createBasketWithInput } from "@/lib/baskets/createBasketWithInput";
+import { createClient } from "@/lib/supabaseClient";
 import { toast } from "react-hot-toast";
 
 export default function BasketCreatePage() {
@@ -31,10 +32,17 @@ export default function BasketCreatePage() {
     if (!dumpText.trim()) return;
     setSubmitting(true);
     try {
-      const basket = await createBasketWithInput({ text: dumpText, files });
-      if (name.trim()) {
-        // optional: update basket name if API exists
-      }
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      const userId = data?.user?.id;
+      if (!userId) throw new Error("Not authenticated");
+
+      const basket = await createBasketWithInput({
+        userId,
+        text: dumpText,
+        files,
+        basketName: name,
+      });
       window.location.href = `/baskets/${basket.id}/work`;
     } catch (err) {
       console.error(err);
