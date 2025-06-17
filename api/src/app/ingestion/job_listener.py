@@ -8,12 +8,17 @@ row removed.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
 from typing import Any
 
-from ..utils.supabase_client import supabase_client as supabase
+from ..utils.supabase_client import (
+    SUPABASE_SERVICE_ROLE_KEY,
+    _decode_key_role,
+    supabase_client as supabase,
+)
 
 POLL_INTERVAL = float(os.getenv("INGESTION_POLL_INTERVAL", "2"))
 
@@ -21,12 +26,7 @@ POLL_INTERVAL = float(os.getenv("INGESTION_POLL_INTERVAL", "2"))
 def _fetch_jobs(limit: int = 10) -> list[dict[str, Any]]:
     """Return queued jobs from Supabase."""
 
-    resp = (
-        supabase.table("ingestion_jobs")
-        .select("*")
-        .limit(limit)
-        .execute()
-    )
+    resp = supabase.table("ingestion_jobs").select("*").limit(limit).execute()
     return getattr(resp, "data", [])  # type: ignore[no-any-return]
 
 
@@ -35,9 +35,7 @@ def _process_job(job: dict[str, Any]) -> None:
 
     block_id = job["draft_block_id"]
 
-    blk_resp = (
-        supabase.table("context_blocks").select("*").eq("id", block_id).execute()
-    )
+    blk_resp = supabase.table("context_blocks").select("*").eq("id", block_id).execute()
     blocks = getattr(blk_resp, "data", [])
     if not blocks:
         supabase.table("ingestion_jobs").delete().eq("id", job["id"]).execute()
@@ -87,9 +85,19 @@ def _worker_loop() -> None:
             time.sleep(POLL_INTERVAL)
 
 
+logger = logging.getLogger(__name__)
+
+
 def start_background_worker() -> None:
     """Launch the ingestion worker thread."""
 
+    role = _decode_key_role(SUPABASE_SERVICE_ROLE_KEY)
+    logger.info("[SUPABASE DEBUG] Loaded Supabase key role: %s", role)
+    if role != "service_role":
+        logger.error(
+            "[SUPABASE ERROR] Invalid key role loaded: %s. This may cause permission errors.",
+            role,
+        )
+
     thread = threading.Thread(target=_worker_loop, daemon=True)
     thread.start()
-
