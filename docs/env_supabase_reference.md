@@ -46,3 +46,4 @@ If you see errors like `permission denied for schema public`, double-check that
 `SUPABASE_SERVICE_ROLE_KEY` is set correctly and that the service role has
 sufficient privileges. These errors typically mean the backend is using the
 anon key or an incorrect role.
+
