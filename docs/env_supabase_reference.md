@@ -47,3 +47,16 @@ If you see errors like `permission denied for schema public`, double-check that
 sufficient privileges. These errors typically mean the backend is using the
 anon key or an incorrect role.
 
+## Runtime Role Validation
+
+The ingestion worker decodes the `SUPABASE_SERVICE_ROLE_KEY` at startup and logs
+the `role` claim. You should see a log line similar to:
+
+```
+[SUPABASE DEBUG] Loaded Supabase key role: service_role
+```
+
+If the logged role is anything other than `service_role`, the backend will lack
+the required permissions and will raise errors like `permission denied for schem
+a public`.
+
