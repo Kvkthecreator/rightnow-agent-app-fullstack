@@ -39,3 +39,11 @@ These are only used on the server and **must never** be exposed to client code.
 ```
 
 This file is the single source of truth for Supabase environment variable usage.
+
+## Troubleshooting
+
+If you see errors like `permission denied for schema public`, double-check that
+`SUPABASE_SERVICE_ROLE_KEY` is set correctly and that the service role has
+sufficient privileges. These errors typically mean the backend is using the
+anon key or an incorrect role.
+
