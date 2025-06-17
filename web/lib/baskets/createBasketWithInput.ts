@@ -1,5 +1,6 @@
 import { uploadFile } from "@/lib/uploadFile";
 import { createClient } from "@/lib/supabaseClient";
+import { apiPost } from "@/lib/api";
 
 export interface CreateBasketArgs {
   userId: string;
@@ -14,21 +15,12 @@ export async function createBasketWithInput({
   basketName,
 }: CreateBasketArgs) {
   const supabase = createClient();
-  // 1️⃣ Core basket creation
-  const { data: basket, error: basketError } = await supabase
-    .from("baskets")
-    .insert({ user_id: userId, name: basketName })
-    .select("*")
-    .single();
-  if (basketError) throw basketError;
-
-  const { error: inputError } = await supabase
-    .from("basket_inputs")
-    .insert({
-      basket_id: basket.id,
-      text_dump: text,
-    });
-  if (inputError) throw inputError;
+  // 1️⃣ Core basket creation via privileged API route
+  const basket = await apiPost<{ id: string }>("/api/baskets/create-with-input", {
+    userId,
+    text,
+    basketName,
+  });
 
   // 2️⃣ File sidecar: decoupled, fail-safe
   if (files?.length) {

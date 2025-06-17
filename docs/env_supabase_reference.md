@@ -26,6 +26,7 @@ These are only used on the server and **must never** be exposed to client code.
 - Backend modules should authenticate with `SUPABASE_SERVICE_ROLE_KEY`.
 - Frontend modules should use `NEXT_PUBLIC_SUPABASE_ANON_KEY` only.
 - Write RLS policies assuming the anon key for clients and the service role key for servers.
+- Basket creation requests **must** go through a server route that attaches the service role key. Do not insert into `baskets` from browser code.
 
 ## Deployment checklist
 
