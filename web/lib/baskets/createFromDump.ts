@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabaseClient";
 import { uploadFile } from "@/lib/uploadFile";
 import { triggerBlockParser } from "@/lib/agents/triggerBlockParser";
+import { apiPost } from "@/lib/api";
 
 export interface DumpPayload {
   textDump: string;
@@ -50,20 +51,10 @@ export async function createBasketFromDump({
     uploaded.push({ file_url: url, file_name: name, size_bytes: size });
   }
 
-  const { data: basket, error: basketErr } = await supabase
-    .from("baskets")
-    .insert({
-      user_id: userId,
-      raw_dump: textDump,
-      intent: null,
-      media: uploaded,
-      is_draft: true,
-    })
-    .select("id")
-    .single();
-
-  if (basketErr) throw new Error(basketErr.message);
-  const basketId = basket!.id as string;
+  const { id: basketId } = await apiPost<{ id: string }>(
+    "/api/baskets/create-with-input",
+    { userId, text: textDump, basketName: null },
+  );
 
   await supabase.from("basket_inputs").insert({
     basket_id: basketId,
