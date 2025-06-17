@@ -7,14 +7,10 @@ import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from supabase import create_client
+from app.utils.supabase_client import supabase_client as SUPA
 
 # Set up Bearer token dependency and Supabase admin client
 bearer = HTTPBearer()
-SUPA = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-)
 
 async def current_user_id(
     creds: HTTPAuthorizationCredentials = Depends(bearer),

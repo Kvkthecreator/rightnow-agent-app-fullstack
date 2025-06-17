@@ -26,6 +26,8 @@ async def test_log_insert(monkeypatch):
 
     supabase_mod = importlib.import_module("supabase")
     monkeypatch.setattr(supabase_mod, "create_client", lambda *a, **k: StubClient())
+    if "app.utils.supabase_client" in sys.modules:
+        del sys.modules["app.utils.supabase_client"]
     event_log = importlib.import_module("utils.event_log")
 
     await event_log.log_event(basket_id="b", agent="a", phase="start", payload={})

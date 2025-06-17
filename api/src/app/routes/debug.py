@@ -1,13 +1,8 @@
 import logging
-from os import getenv
 
 from fastapi import APIRouter, HTTPException
 
-from supabase import create_client
-
-supabase = create_client(
-    getenv("SUPABASE_URL"), getenv("SUPABASE_SERVICE_ROLE_KEY")
-)
+from app.utils.supabase_client import supabase_client as supabase
 router = APIRouter(prefix="/debug", tags=["debug"])
 
 logger = logging.getLogger("uvicorn.error")

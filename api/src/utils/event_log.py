@@ -1,11 +1,7 @@
-from os import getenv
 from typing import Any, Literal
 
-from supabase import create_client
-
 from .db import json_safe
-
-supabase = create_client(getenv("SUPABASE_URL"), getenv("SUPABASE_SERVICE_ROLE_KEY"))
+from app.utils.supabase_client import supabase_client as supabase
 
 
 async def log_event(

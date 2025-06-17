@@ -1,25 +1,10 @@
-import os
-
-from supabase import create_client
 from uuid import uuid4
 from datetime import datetime
+
 from src.utils.db import json_safe
+from app.utils.supabase_client import get_supabase
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-    raise RuntimeError(
-        "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in the environment; otherwise Supabase cannot be initialised."
-    )
-
-supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
-def get_supabase() -> 'Client':
-    """
-    Return the initialized Supabase client.
-    """
-    return supabase
+supabase = get_supabase()
 
 def get_collected_fields(user_id: str, task_id: str) -> dict:
     """
