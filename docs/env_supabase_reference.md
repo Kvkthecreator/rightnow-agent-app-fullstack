@@ -50,10 +50,11 @@ anon key or an incorrect role.
 ## Runtime Role Validation
 
 The ingestion worker decodes the `SUPABASE_SERVICE_ROLE_KEY` at startup and logs
-the `role` claim. You should see a log line similar to:
+the `role` claim. At startup you should see debug lines similar to:
 
 ```
-[SUPABASE DEBUG] Loaded Supabase key role: service_role
+[DEBUG] Ingestion worker startup check: decoding Supabase key role.
+[SUPABASE DEBUG] Loaded Supabase key role at runtime: service_role
 ```
 
 If the logged role is anything other than `service_role`, the backend will lack
