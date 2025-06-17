@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 
 from app.routes.dump import router as dump_router
 
-os.environ.setdefault("NEXT_PUBLIC_SUPABASE_URL", "http://localhost")
-os.environ.setdefault("NEXT_PUBLIC_SUPABASE_ANON_KEY", "a.b.c")
+os.environ.setdefault("SUPABASE_URL", "http://localhost")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "svc.key")
 
 app = FastAPI()
 app.include_router(dump_router, prefix="/api")
