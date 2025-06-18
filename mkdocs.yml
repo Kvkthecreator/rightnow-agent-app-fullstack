@@ -65,7 +65,6 @@ plugins:
                 - multi_agent.md
                 - models.md
                 - config.md
-                - env_supabase_reference.md
                 - visualization.md
                 - Voice agents:
                     - voice/quickstart.md
@@ -143,7 +142,6 @@ plugins:
                 - multi_agent.md
                 - models.md
                 - config.md
-                - env_supabase_reference.md
                 - visualization.md
                 - 音声エージェント:
                     - voice/quickstart.md

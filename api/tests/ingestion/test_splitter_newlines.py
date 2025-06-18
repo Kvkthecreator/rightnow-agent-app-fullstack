@@ -1,6 +1,6 @@
 import pytest
 
-from app.ingestion.splitter import (  # noqa: E402,F401
+from app.agent_tasks.shared.splitter import (  # noqa: E402,F401
     hash_block,
     normalise_newlines,
     parse_blocks,
