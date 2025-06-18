@@ -20,7 +20,7 @@ def get_basket_snapshot(basket_id: str) -> dict:
     try:
         dumps_resp = (
             supabase.table("raw_dumps")
-            .select("id,content,created_at")
+            .select("id,body_md,created_at")
             .eq("basket_id", basket_id)
             .order("created_at")
             .execute()
@@ -32,9 +32,9 @@ def get_basket_snapshot(basket_id: str) -> dict:
             .order("order")
             .execute()
         )
-    except Exception:
+    except Exception as err:
         logger.exception("get_basket_snapshot failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err
 
     raw_dumps = dumps_resp.data or []
     blocks = block_resp.data or []

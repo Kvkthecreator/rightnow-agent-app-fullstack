@@ -37,12 +37,18 @@ def test_snapshot_empty(monkeypatch):
     monkeypatch.setattr("app.routes.basket_snapshot.supabase", fake)
     res = client.get("/api/baskets/b1/snapshot")
     assert res.status_code == 200
-    assert res.json() == {"basket_id": "b1", "raw_dumps": [], "blocks": []}
+    assert res.json() == {
+        "basket_id": "b1",
+        "raw_dump": "",
+        "accepted_blocks": [],
+        "locked_blocks": [],
+        "constants": [],
+    }
 
 
 def test_snapshot_filters(monkeypatch):
     store = {
-        "raw_dumps": [{"id": "r1", "content": "d"}],
+        "raw_dumps": [{"id": "r1", "body_md": "d", "created_at": "t"}],
         "context_blocks": [
             {"id": "b1", "state": "ACCEPTED"},
             {"id": "b2", "state": "PROPOSED"},
@@ -55,5 +61,6 @@ def test_snapshot_filters(monkeypatch):
     assert res.status_code == 200
     body = res.json()
     assert body["basket_id"] == "b2"
-    assert body["raw_dumps"] == [{"id": "r1", "content": "d"}]
-    assert len(body["blocks"]) == 2
+    assert body["raw_dump"] == "d"
+    assert len(body["accepted_blocks"]) == 1
+    assert len(body["locked_blocks"]) == 1
