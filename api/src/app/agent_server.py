@@ -36,9 +36,10 @@ from fastapi.middleware.cors import CORSMiddleware
 # Task Brief and task-type routes are disabled for Phase 1
 # Agent handlers
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
-from .ingestion.job_listener import start_background_worker
 from .routes.agent_run import router as agent_run_router
+from .routes.agents import router as agents_router
 from .routes.basket_snapshot import router as snapshot_router
+
 
 # Route modules
 from .routes.baskets import router as basket_router
@@ -73,6 +74,7 @@ api.include_router(debug_router, prefix="/api")
 api.include_router(agent_router, prefix="/api")
 api.include_router(phase1_router, prefix="/api")
 api.include_router(agent_run_router, prefix="/api")
+api.include_router(agents_router, prefix="/api")
 
 # Agent entrypoints with API prefix
 
