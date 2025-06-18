@@ -32,7 +32,9 @@ def _fake_table(name, store):
                 return types.SimpleNamespace(
                     execute=lambda: _resp(),
                     order=lambda *a2, **k2: types.SimpleNamespace(
-                        range=lambda *a3, **k3: types.SimpleNamespace(execute=lambda: _resp())
+                        range=lambda *a3, **k3: types.SimpleNamespace(
+                            execute=lambda: _resp()
+                        )
                     ),
                     gt=lambda *a2, **k2: types.SimpleNamespace(execute=lambda: _resp()),
                 )
@@ -50,10 +52,14 @@ def _fake_table(name, store):
         )
 
     def range(*a, **k):
-        return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=store[name]))
+        return types.SimpleNamespace(
+            execute=lambda: types.SimpleNamespace(data=store[name])
+        )
 
     def gt(*a, **k):
-        return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(count=len(store[name])))
+        return types.SimpleNamespace(
+            execute=lambda: types.SimpleNamespace(count=len(store[name]))
+        )
 
     return types.SimpleNamespace(
         insert=insert,

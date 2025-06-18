@@ -4,12 +4,15 @@ import asyncio
 import time
 from collections.abc import Sequence
 
+from agents import Runner, RunResult, custom_span, gen_trace_id, trace
 from rich.console import Console
 
-from agents import Runner, RunResult, custom_span, gen_trace_id, trace
-
 from .agents.financials_agent import financials_agent
-from .agents.planner_agent import FinancialSearchItem, FinancialSearchPlan, planner_agent
+from .agents.planner_agent import (
+    FinancialSearchItem,
+    FinancialSearchPlan,
+    planner_agent,
+)
 from .agents.risk_agent import risk_agent
 from .agents.search_agent import search_agent
 from .agents.verifier_agent import VerificationResult, verifier_agent
@@ -42,7 +45,9 @@ class FinancialResearchManager:
                 is_done=True,
                 hide_checkmark=True,
             )
-            self.printer.update_item("start", "Starting financial research...", is_done=True)
+            self.printer.update_item(
+                "start", "Starting financial research...", is_done=True
+            )
             search_plan = await self._plan_searches(query)
             search_results = await self._perform_searches(search_plan)
             report = await self._write_report(query, search_results)
@@ -71,10 +76,14 @@ class FinancialResearchManager:
         )
         return result.final_output_as(FinancialSearchPlan)
 
-    async def _perform_searches(self, search_plan: FinancialSearchPlan) -> Sequence[str]:
+    async def _perform_searches(
+        self, search_plan: FinancialSearchPlan
+    ) -> Sequence[str]:
         with custom_span("Search the web"):
             self.printer.update_item("searching", "Searching...")
-            tasks = [asyncio.create_task(self._search(item)) for item in search_plan.searches]
+            tasks = [
+                asyncio.create_task(self._search(item)) for item in search_plan.searches
+            ]
             results: list[str] = []
             num_completed = 0
             for task in asyncio.as_completed(tasks):
@@ -96,7 +105,9 @@ class FinancialResearchManager:
         except Exception:
             return None
 
-    async def _write_report(self, query: str, search_results: Sequence[str]) -> FinancialReportData:
+    async def _write_report(
+        self, query: str, search_results: Sequence[str]
+    ) -> FinancialReportData:
         # Expose the specialist analysts as tools so the writer can invoke them inline
         # and still produce the final FinancialReportData output.
         fundamentals_tool = financials_agent.as_tool(
@@ -111,7 +122,9 @@ class FinancialResearchManager:
         )
         writer_with_tools = writer_agent.clone(tools=[fundamentals_tool, risk_tool])
         self.printer.update_item("writing", "Thinking about report...")
-        input_data = f"Original query: {query}\nSummarized search results: {search_results}"
+        input_data = (
+            f"Original query: {query}\nSummarized search results: {search_results}"
+        )
         result = Runner.run_streamed(writer_with_tools, input_data)
         update_messages = [
             "Planning report structure...",

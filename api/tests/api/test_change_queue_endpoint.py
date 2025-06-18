@@ -50,7 +50,9 @@ def test_change_queue_count(monkeypatch):
     bid = "b1"
     block_id = str(uuid.uuid4())
     fake.table("context_blocks").insert({"id": block_id, "basket_id": bid})
-    fake.table("block_change_queue").insert({"id": "q1", "block_id": block_id, "status": "pending"})
+    fake.table("block_change_queue").insert(
+        {"id": "q1", "block_id": block_id, "status": "pending"}
+    )
 
     res = client.get(f"/api/baskets/{bid}/change-queue")
     assert res.status_code == 200

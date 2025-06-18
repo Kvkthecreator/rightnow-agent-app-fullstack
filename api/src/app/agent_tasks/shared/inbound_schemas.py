@@ -10,10 +10,12 @@ class NewTask(BaseModel):
     params: Dict = Field(default_factory=dict)
     first_agent: Optional[str] = "auto"
 
+
 class NewMessage(BaseModel):
     action: Literal["new_message"]
     task_id: str
     message: str
     agent_session_id: Optional[str] = None
+
 
 Inbound = Union[NewTask, NewMessage]

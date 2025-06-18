@@ -1,7 +1,8 @@
 from typing import Any, Literal
 
-from .db import json_safe
 from app.utils.supabase_client import supabase_client as supabase
+
+from .db import json_safe
 
 
 async def log_event(

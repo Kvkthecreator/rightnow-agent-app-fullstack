@@ -1,5 +1,6 @@
 import os
 import types
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -18,11 +19,15 @@ def _fake_table(name, store):
         class Q:
             def eq(self, *a, **k):
                 return self
+
             def order(self, *a, **k):
                 return self
+
             def execute(self):
                 return types.SimpleNamespace(data=store.get(name, []))
+
         return Q()
+
     return types.SimpleNamespace(select=select)
 
 

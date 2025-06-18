@@ -2,17 +2,26 @@ import json
 from datetime import datetime
 
 from agents import Runner
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request
 from src.utils.db import json_safe
 
 from .agent_tasks.layer1_infra.agents.infra_manager_agent import manager
 from .agent_tasks.layer1_infra.utils.supabase_helpers import (
-    supabase,
     create_task_and_session,
+    supabase,
 )
 
+
 # Phase 1 stubs
-def build_payload(*, task_id: str, user_id: str, agent_type: str, message: dict, reason: str, trace: list) -> dict:
+def build_payload(
+    *,
+    task_id: str,
+    user_id: str,
+    agent_type: str,
+    message: dict,
+    reason: str,
+    trace: list,
+) -> dict:
     """Simplified payload helper retained for logging."""
     return {
         "task_id": task_id,
@@ -22,6 +31,7 @@ def build_payload(*, task_id: str, user_id: str, agent_type: str, message: dict,
         "reason": reason,
         "trace": trace,
     }
+
 
 router = APIRouter()
 
@@ -76,9 +86,9 @@ async def run_agent(req: Request):
         )
 
     try:
-        supabase.table("agent_sessions").update(json_safe({"inputs": collected_inputs})).eq(
-            "id", task_id
-        ).execute()
+        supabase.table("agent_sessions").update(
+            json_safe({"inputs": collected_inputs})
+        ).eq("id", task_id).execute()
     except Exception:
         print(f"Warning: failed to persist inputs for task_id={task_id}")
 
@@ -198,7 +208,11 @@ async def run_agent_direct(req: Request):
         task_id = create_task_and_session(user_id, agent.name)
 
     prompt = data.get("prompt") or data.get("message") or ""
-    context = {"task_id": task_id, "user_id": user_id, "profile_data": data.get("profile_data")}
+    context = {
+        "task_id": task_id,
+        "user_id": user_id,
+        "profile_data": data.get("profile_data"),
+    }
 
     result = await Runner.run(agent, input=prompt, context=context, max_turns=12)
     raw = result.final_output.strip()
@@ -222,5 +236,3 @@ async def run_agent_direct(req: Request):
     )
     log_agent_message(task_id, user_id, agent.name, msg)
     return {"ok": True, "task_id": task_id}
-
-

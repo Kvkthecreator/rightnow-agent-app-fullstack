@@ -75,7 +75,9 @@ def test_dump_guardrail(monkeypatch):
             if "id" not in obj:
                 obj["id"] = str(uuid.uuid4())
             self.rows.append(obj)
-            return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[obj]))
+            return types.SimpleNamespace(
+                execute=lambda: types.SimpleNamespace(data=[obj])
+            )
 
         def update(self, obj):
             for r in self.rows:

@@ -3,6 +3,7 @@
 """
 
 import logging
+
 from fastapi import APIRouter, HTTPException, Query
 
 from ..utils.supabase_client import supabase_client as supabase

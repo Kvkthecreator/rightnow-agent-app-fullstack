@@ -25,7 +25,9 @@ def _record_audio(screen: curses.window) -> npt.NDArray[np.float32]:
             audio_buffer.append(indata.copy())
 
     # Open the audio stream with the callback.
-    with sd.InputStream(samplerate=24000, channels=1, dtype=np.float32, callback=_audio_callback):
+    with sd.InputStream(
+        samplerate=24000, channels=1, dtype=np.float32, callback=_audio_callback
+    ):
         while True:
             key = screen.getch()
             if key == ord(" "):

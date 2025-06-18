@@ -117,7 +117,9 @@ async def upload_dump(
 
     if warning:
         try:
-            supabase.table("basket_inputs").update({"warning_flag": True}).eq("id", input_id).execute()
+            supabase.table("basket_inputs").update({"warning_flag": True}).eq(
+                "id", input_id
+            ).execute()
         except Exception:
             logger.exception("warning flag update failed")
             raise HTTPException(status_code=500, detail="internal error")

@@ -10,11 +10,11 @@ from app.ingestion.splitter import (  # noqa: E402,F401
 @pytest.mark.parametrize(
     "raw",
     [
-        "a\n\nb",                # LF
-        "a\r\n\r\nb",          # CRLF
-        "a\r\n\n b",            # mixed with space indent
-        "a\n \n\nb",            # indented blank line
-        "a\n\n\n b",            # triple blank
+        "a\n\nb",  # LF
+        "a\r\n\r\nb",  # CRLF
+        "a\r\n\n b",  # mixed with space indent
+        "a\n \n\nb",  # indented blank line
+        "a\n\n\n b",  # triple blank
     ],
 )
 def test_split_into_two_blocks(raw):

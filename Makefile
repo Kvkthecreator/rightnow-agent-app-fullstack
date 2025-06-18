@@ -3,13 +3,12 @@ sync:
 	uv sync --all-extras --all-packages --group dev
 
 .PHONY: format
-format: 
-	uv run ruff format
-	uv run ruff check --fix
+format:
+        uv run black .
 
 .PHONY: lint
-lint: 
-	uv run ruff check
+lint:
+        uv run ruff check
 
 .PHONY: mypy
 mypy: 

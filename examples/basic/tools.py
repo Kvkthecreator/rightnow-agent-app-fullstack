@@ -1,8 +1,7 @@
 import asyncio
 
-from pydantic import BaseModel
-
 from agents import Agent, Runner, function_tool
+from pydantic import BaseModel
 
 
 class Weather(BaseModel):
