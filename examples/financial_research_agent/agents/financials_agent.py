@@ -1,6 +1,5 @@
-from pydantic import BaseModel
-
 from agents import Agent
+from pydantic import BaseModel
 
 # A sub‑agent focused on analyzing a company's fundamentals.
 FINANCIALS_PROMPT = (

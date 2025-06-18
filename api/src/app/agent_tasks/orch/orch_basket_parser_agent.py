@@ -1,6 +1,5 @@
 """Parse basket-level inputs into ``ContextBlock`` rows."""
 
-
 from schemas.dump_parser import ContextBlock, DumpParserOut
 
 

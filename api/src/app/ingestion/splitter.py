@@ -9,6 +9,7 @@ Ingestion splitter utilities (v0.1).
 Designed to be format-agnostic: higher-level plugins (image OCR,
 PDF extraction) can feed their text output into ``parse_blocks``.
 """
+
 import hashlib
 import re
 
@@ -18,6 +19,7 @@ _BLANK_LINE_RE = re.compile(r"\r?\n\s*\r?\n+")
 # ---------------------------------------------------------------------
 # Public helpers
 # ---------------------------------------------------------------------
+
 
 def normalise_newlines(text: str) -> str:
     """Convert CRLF / CR / LFCR to LF only."""

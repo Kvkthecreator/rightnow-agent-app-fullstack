@@ -21,7 +21,9 @@ def main() -> None:
             "associated_text": row.get("meta_notes"),
             "file_id": None,
         }
-        supabase.table("dump_artifacts").insert(artifact, ignore_duplicates=True).execute()
+        supabase.table("dump_artifacts").insert(
+            artifact, ignore_duplicates=True
+        ).execute()
         migrated += 1
 
     print(f"Migrated {migrated} rows.")

@@ -97,4 +97,3 @@ def test_process_once(monkeypatch):
     assert blocks[0]["is_draft"] is False
 
     assert fake.table("ingestion_jobs").select().data == []
-

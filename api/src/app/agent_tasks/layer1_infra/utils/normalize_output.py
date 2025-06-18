@@ -4,6 +4,7 @@ import re
 # Regex to detect fenced code blocks (optional 'json' tag)
 FENCE = re.compile(r"^```(?:json)?\s*([\s\S]+?)\s*```$", re.I)
 
+
 def normalize_output(raw):
     """
     Ensure output is always a dict or list. If raw is a string,

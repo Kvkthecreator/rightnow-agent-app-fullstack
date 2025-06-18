@@ -3,9 +3,8 @@ from __future__ import annotations
 import asyncio
 import time
 
-from rich.console import Console
-
 from agents import Runner, custom_span, gen_trace_id, trace
+from rich.console import Console
 
 from .agents.planner_agent import WebSearchItem, WebSearchPlan, planner_agent
 from .agents.search_agent import search_agent
@@ -66,7 +65,9 @@ class ResearchManager:
         with custom_span("Search the web"):
             self.printer.update_item("searching", "Searching...")
             num_completed = 0
-            tasks = [asyncio.create_task(self._search(item)) for item in search_plan.searches]
+            tasks = [
+                asyncio.create_task(self._search(item)) for item in search_plan.searches
+            ]
             results = []
             for task in asyncio.as_completed(tasks):
                 result = await task

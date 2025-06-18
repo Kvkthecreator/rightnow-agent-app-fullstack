@@ -4,15 +4,14 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api/src"))
 
 from schemas.audit import AuditIn
+from schemas.basket import BasketOut
 from schemas.block_manager import BlockManagerIn
 from schemas.config import ConfigIn
 from schemas.context_block import ContextBlock
-from schemas.dump_parser import DumpParserIn
 from schemas.dump import DumpOut
-from schemas.basket import BasketOut
+from schemas.dump_parser import DumpParserIn
 from schemas.research import ResearchIn
 from schemas.usage import UsageIn
-
 
 
 def test_round_trip_dump_parser():
@@ -65,8 +64,6 @@ def test_round_trip_basket_out():
             "configs": [],
         }
     )
-
-
 
 
 def test_optional_fields_skip():

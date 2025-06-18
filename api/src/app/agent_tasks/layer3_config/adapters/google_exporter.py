@@ -64,7 +64,9 @@ async def export_to_doc(user_id: str, brief_id: str, supabase):
             await cli.post(
                 f"{DOCS_ENDPOINT}/{doc_id}:batchUpdate",
                 headers=headers,
-                json={"requests": [{"insertText": {"location": {"index": 1}, "text": md}}]},
+                json={
+                    "requests": [{"insertText": {"location": {"index": 1}, "text": md}}]
+                },
             )
             link = f"https://docs.google.com/document/d/{doc_id}/edit"
             (

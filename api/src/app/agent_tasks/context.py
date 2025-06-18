@@ -4,6 +4,7 @@ Module: agent_tasks.context
 Provides utility to load full profile context (profile row + report sections)
 for given user_id from Supabase.
 """
+
 from ..util.supabase_helpers import supabase
 
 
@@ -36,8 +37,7 @@ def get_full_profile_context(user_id: str) -> dict:
         profile_id = profile.get("id")
         if profile_id:
             sec_res = (
-                supabase
-                .table("profile_report_sections")
+                supabase.table("profile_report_sections")
                 .select("*")
                 .eq("profile_id", profile_id)
                 .order("order_index", {"ascending": True})
@@ -45,11 +45,14 @@ def get_full_profile_context(user_id: str) -> dict:
             )
             report_sections = sec_res.data or []
     except Exception as e:
-        print(f"[Context] Error loading report sections for profile {profile.get('id')}: {e}")
+        print(
+            f"[Context] Error loading report sections for profile {profile.get('id')}: {e}"
+        )
 
     # Future: expand context with analytics, campaign history, etc.
 
     return {"profile": profile, "report_sections": report_sections}
+
 
 # Sample return structure:
 # {

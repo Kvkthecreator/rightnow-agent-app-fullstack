@@ -1,9 +1,8 @@
 import asyncio
 import uuid
 
-from openai.types.responses import ResponseContentPartDoneEvent, ResponseTextDeltaEvent
-
 from agents import Agent, RawResponsesStreamEvent, Runner, TResponseInputItem, trace
+from openai.types.responses import ResponseContentPartDoneEvent, ResponseTextDeltaEvent
 
 """
 This example shows the handoffs/routing pattern. The triage agent receives the first message, and

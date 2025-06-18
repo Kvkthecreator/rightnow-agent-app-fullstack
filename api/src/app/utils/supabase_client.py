@@ -31,6 +31,7 @@ def get_supabase() -> "Client":
     """Return the singleton service role client."""
     return supabase_client
 
+
 SUPABASE_KEY_ROLE = _decode_key_role(SUPABASE_SERVICE_ROLE_KEY)
 logger.info("[SUPABASE DEBUG] Loaded Supabase key role: %s", SUPABASE_KEY_ROLE)
 if SUPABASE_KEY_ROLE != "service_role":

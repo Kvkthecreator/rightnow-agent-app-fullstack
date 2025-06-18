@@ -29,6 +29,7 @@ where id = any($1::uuid[])
 
 EVENT_TOPIC = "block.refresh_report"
 
+
 @logged("infra_research_agent")
 @validates(ResearchIn)
 async def run(_: ResearchIn) -> ResearchOut:
@@ -68,4 +69,3 @@ async def run(_: ResearchIn) -> ResearchOut:
 
     await publish_event(EVENT_TOPIC, report.model_dump(mode="json"))
     return ResearchOut(**report.model_dump())
-

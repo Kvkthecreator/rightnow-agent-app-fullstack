@@ -104,7 +104,9 @@ class AgentOutputSchema:
                 _error_tracing.attach_error_to_current_span(
                     SpanError(
                         message="Invalid JSON",
-                        data={"details": f"Could not find key {_WRAPPER_DICT_KEY} in JSON"},
+                        data={
+                            "details": f"Could not find key {_WRAPPER_DICT_KEY} in JSON"
+                        },
                     )
                 )
                 raise ModelBehaviorError(
@@ -143,18 +145,23 @@ def _type_to_str(t: type[Any]) -> str:
     else:
         return str(t)
 
+
 # ─────────────────────────────────────────────────────────────
 # Additional output schemas (Phase α)
 # ─────────────────────────────────────────────────────────────
 
+
 class ProfileFieldOut(BaseModel):
-    field_name:            str
-    field_value:           str | list[str] | int | bool
-    clarification_prompt:  str | None = None   # ← NEW, optional
+    field_name: str
+    field_value: str | list[str] | int | bool
+    clarification_prompt: str | None = None  # ← NEW, optional
+
 
 class ClarificationOut(BaseModel):
     """Prompt asking the user for missing info."""
+
     prompt: str
+
 
 # Ensure __all__ exists, then extend it
 try:
@@ -162,8 +169,9 @@ try:
 except NameError:
     __all__ = []
 
-__all__.extend([
-    "ProfileFieldOut",
-    "ClarificationOut",
-])
-
+__all__.extend(
+    [
+        "ProfileFieldOut",
+        "ClarificationOut",
+    ]
+)

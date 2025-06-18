@@ -1,9 +1,7 @@
 """Orchestrator that watches Layer-1 events and queues block changes."""
 
 import asyncio
-import json
 import os
-from typing import Any
 
 import asyncpg
 from schemas.block_manager import BlockManagerIn, BlockManagerOut
@@ -49,6 +47,7 @@ DB_URL = os.getenv("DATABASE_URL")
 #         reason,
 #     )
 
+
 @logged("orch_block_manager_agent")
 @validates(BlockManagerIn)
 async def run(_: BlockManagerIn) -> BlockManagerOut:
@@ -59,6 +58,7 @@ async def run(_: BlockManagerIn) -> BlockManagerOut:
             async with pool.acquire() as conn:
                 await _handle_event(conn, evt)
     return BlockManagerOut(status="completed")
+
 
 async def _handle_event(conn: asyncpg.Connection, evt) -> None:
     topic = evt.topic
@@ -83,6 +83,7 @@ async def _handle_event(conn: asyncpg.Connection, evt) -> None:
                     "reason": "stale_block",
                 },
             )
+
 
 if __name__ == "__main__":
     asyncio.run(run())

@@ -33,4 +33,3 @@ async def test_log_insert(monkeypatch):
     await event_log.log_event(basket_id="b", agent="a", phase="start", payload={})
     assert records["agent"] == "a"
     assert records["phase"] == "start"
-

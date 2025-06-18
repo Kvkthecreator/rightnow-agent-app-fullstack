@@ -38,6 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
 from .ingestion.job_listener import start_background_worker
 from .routes.agent_run import router as agent_run_router
+from .routes.basket_snapshot import router as snapshot_router
 
 # Route modules
 from .routes.baskets import router as basket_router
@@ -48,7 +49,6 @@ from .routes.debug import router as debug_router
 from .routes.dump import router as dump_router
 from .routes.inputs import router as inputs_router
 from .routes.phase1_routes import router as phase1_router
-from .routes.basket_snapshot import router as snapshot_router
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")

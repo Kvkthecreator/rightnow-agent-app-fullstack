@@ -5,9 +5,8 @@ Manager Agent for Clarification-First Flow.
 It accepts initial task_type and user input, iteratively clarifies missing fields,
 and when all fields are gathered, dispatches to a downstream specialist agent.
 """
+
 from agents import Agent
-
-
 
 AGENTS: dict[str, Agent] = {}
 
@@ -28,5 +27,5 @@ Output formats (exact JSON, no additional text):
   { "type": "clarification", "field": "<field_name>", "message": "<clarification question>" }
 - Dispatch step (all inputs gathered):
   { "type": "structured", "agent_type": "<agent_type>", "task_type_id": "<task_type_id>", "input": { <field_name>: <value>, ... } }
-"""
+""",
 )
