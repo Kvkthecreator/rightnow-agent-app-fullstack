@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 import asyncpg
 from schemas.audit import AuditIn, AuditOut
 from schemas.validators import validates
-from src.app.agent_tasks.layer1_infra.utils.block_policy import insert_revision, is_auto
 from src.utils.logged_agent import logged
 
 from app.event_bus import DB_URL  # reuse same URL
@@ -25,6 +24,7 @@ select norm_label, ids from dupes;
 """
 
 EVENT_TOPIC = "block.audit_report"
+
 
 @logged("infra_analyzer_agent")
 @validates(AuditIn)
@@ -55,6 +55,7 @@ async def run(_: AuditIn) -> AuditOut:
     # always emit audit_report for dashboards
     await publish_event(EVENT_TOPIC, report.model_dump(mode="json"))
     return AuditOut(**report.model_dump())
+
 
 if __name__ == "__main__":
     print("✅ Infra analyzer agent loaded successfully.")

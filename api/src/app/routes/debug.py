@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.utils.supabase_client import supabase_client as supabase
+
 router = APIRouter(prefix="/debug", tags=["debug"])
 
 logger = logging.getLogger("uvicorn.error")
@@ -22,4 +23,3 @@ async def get_trace(basket_id: str):
     except Exception:
         logger.exception("get_trace failed")
         raise HTTPException(status_code=500, detail="internal error")
-

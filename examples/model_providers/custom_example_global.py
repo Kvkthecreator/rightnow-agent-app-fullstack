@@ -1,8 +1,6 @@
 import asyncio
 import os
 
-from openai import AsyncOpenAI
-
 from agents import (
     Agent,
     Runner,
@@ -11,6 +9,7 @@ from agents import (
     set_default_openai_client,
     set_tracing_disabled,
 )
+from openai import AsyncOpenAI
 
 BASE_URL = os.getenv("EXAMPLE_BASE_URL") or ""
 API_KEY = os.getenv("EXAMPLE_API_KEY") or ""

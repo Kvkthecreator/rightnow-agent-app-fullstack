@@ -1,6 +1,5 @@
-from pydantic import BaseModel
-
 from agents import Agent
+from pydantic import BaseModel
 
 # Generate a plan of searches to ground the financial analysis.
 # For a given financial question or company, we want to search for

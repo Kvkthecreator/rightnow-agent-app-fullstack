@@ -35,7 +35,9 @@ async def create_basket_input(input: BasketInputIn):
     input_id = str(uuid4())
     try:
         supabase.table("basket_inputs").insert(
-            json_safe({"id": input_id, "basket_id": input.basket_id, "content": input.content})
+            json_safe(
+                {"id": input_id, "basket_id": input.basket_id, "content": input.content}
+            )
         ).execute()
         return {"input_id": input_id}
     except Exception as e:  # noqa: B904

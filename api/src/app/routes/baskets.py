@@ -1,9 +1,9 @@
 """API routes for Basket management."""
 
+import logging
 import uuid
 from typing import Any, Optional
 
-import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from schemas.context_block import ContextBlock
@@ -105,7 +105,9 @@ async def create_basket(payload: BasketCreate):
         )
 
     for blk in blocks:
-        safe_block = ContextBlock.model_validate(blk).model_dump(mode="json", exclude_none=True)
+        safe_block = ContextBlock.model_validate(blk).model_dump(
+            mode="json", exclude_none=True
+        )
         try:
             supabase.table("context_blocks").insert(json_safe(safe_block)).execute()
         except Exception:
@@ -130,7 +132,11 @@ async def get_basket(basket_id: str):
     supabase = get_supabase()
     try:
         basket_resp = (
-            supabase.table("baskets").select("*").eq("id", str(basket_id)).maybe_single().execute()
+            supabase.table("baskets")
+            .select("*")
+            .eq("id", str(basket_id))
+            .maybe_single()
+            .execute()
         )
     except Exception as exc:
         logger.exception("get_basket failed")
@@ -147,7 +153,12 @@ async def get_basket(basket_id: str):
             .execute()
         )
         blocks = blk_resp.data or []
-        cfgs = supabase.table("basket_configs").select("*").eq("basket_id", basket_id).execute()
+        cfgs = (
+            supabase.table("basket_configs")
+            .select("*")
+            .eq("basket_id", basket_id)
+            .execute()
+        )
     except Exception:
         logger.exception("get_basket related queries failed")
         raise HTTPException(status_code=500, detail="internal error")

@@ -1,9 +1,12 @@
 """API route for listing available task types."""
+
 from fastapi import APIRouter
+
 
 # Phase 1 stub: no task types registered
 def get_all_task_types() -> list[dict]:
     return []
+
 
 router = APIRouter(prefix="/task-types", tags=["task-types"])
 

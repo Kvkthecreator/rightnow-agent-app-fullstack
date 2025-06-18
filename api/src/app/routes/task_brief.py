@@ -2,10 +2,10 @@
 API routes for TaskBrief CRUD operations.
 """
 
+import logging
 from datetime import datetime
 from typing import Optional
 
-import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from src.utils.db import json_safe
@@ -37,7 +37,9 @@ class TaskBrief(BaseModel):
 async def create_task_brief(task_brief: TaskBrief):
     """Create a new TaskBrief entry in Supabase and return it."""
     supabase = get_supabase()
-    payload = task_brief.model_dump(mode="json", exclude_unset=True, exclude={"id", "created_at"})
+    payload = task_brief.model_dump(
+        mode="json", exclude_unset=True, exclude={"id", "created_at"}
+    )
     try:
         resp = supabase.table("task_briefs").insert(json_safe(payload)).execute()
         if resp.error or not resp.data:
@@ -54,7 +56,13 @@ async def get_task_brief(brief_id: str):
     """Fetch a TaskBrief by ID."""
     supabase = get_supabase()
     try:
-        resp = supabase.table("task_briefs").select("*").eq("id", brief_id).single().execute()
+        resp = (
+            supabase.table("task_briefs")
+            .select("*")
+            .eq("id", brief_id)
+            .single()
+            .execute()
+        )
         if resp.error or not resp.data:
             raise HTTPException(status_code=404, detail="TaskBrief not found")
         return resp.data

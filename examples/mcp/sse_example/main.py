@@ -46,7 +46,9 @@ async def main():
     ) as server:
         trace_id = gen_trace_id()
         with trace(workflow_name="SSE Example", trace_id=trace_id):
-            print(f"View trace: https://platform.openai.com/traces/trace?trace_id={trace_id}\n")
+            print(
+                f"View trace: https://platform.openai.com/traces/trace?trace_id={trace_id}\n"
+            )
             await run(server)
 
 

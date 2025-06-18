@@ -23,7 +23,9 @@ async def emit(topic: str, payload: dict) -> None:
     conn = await asyncpg.connect(DB_URL)
     try:
         await conn.execute(
-            "insert into public.events(topic, payload) values($1, $2)", topic, json.dumps(payload)
+            "insert into public.events(topic, payload) values($1, $2)",
+            topic,
+            json.dumps(payload),
         )
     finally:
         await conn.close()
@@ -46,7 +48,8 @@ async def subscribe(topics: list[str]):
     q: asyncio.Queue[Event] = asyncio.Queue()
     conn = await asyncpg.connect(DB_URL)
     await conn.add_listener(
-        LISTEN_CHANNEL, lambda *_, payload: asyncio.create_task(_dispatch(payload, topics, q))
+        LISTEN_CHANNEL,
+        lambda *_, payload: asyncio.create_task(_dispatch(payload, topics, q)),
     )
     try:
         yield q

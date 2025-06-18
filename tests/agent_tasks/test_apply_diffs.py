@@ -1,10 +1,12 @@
 import os
+
 # This legacy test suite is skipped and should not count toward coverage.
 if False:  # pragma: no cover
     import sys
-    import pytest
     from datetime import datetime
     from uuid import uuid4
+
+    import pytest
 
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api/src"))
 
@@ -24,7 +26,6 @@ if False:  # pragma: no cover
         / "apply_diff_blocks.py"
     )
 
-
     class StubTable:
         def __init__(self):
             self.records = []
@@ -43,7 +44,6 @@ if False:  # pragma: no cover
         def execute(self):
             return type("Resp", (), {"data": [{"id": str(uuid4())}]})()
 
-
     class StubClient:
         def __init__(self):
             self.table_calls = []
@@ -54,11 +54,11 @@ if False:  # pragma: no cover
             tbl = self.tables.setdefault(name, StubTable())
             return tbl
 
-
     def test_apply_diffs_inserts_datetime(monkeypatch):
         stub = StubClient()
         monkeypatch.setattr(
-            "app.agent_tasks.layer1_infra.utils.supabase_helpers.get_supabase", lambda: stub
+            "app.agent_tasks.layer1_infra.utils.supabase_helpers.get_supabase",
+            lambda: stub,
         )
 
         spec = importlib.util.spec_from_file_location(
@@ -67,8 +67,12 @@ if False:  # pragma: no cover
         )
         module = importlib.util.module_from_spec(spec)
         sys.modules.setdefault("app", ModuleType("app")).__path__ = []
-        sys.modules.setdefault("app.agent_tasks", ModuleType("app.agent_tasks")).__path__ = []
-        sys.modules.setdefault("app.agent_tasks.orch", ModuleType("app.agent_tasks.orch")).__path__ = []
+        sys.modules.setdefault(
+            "app.agent_tasks", ModuleType("app.agent_tasks")
+        ).__path__ = []
+        sys.modules.setdefault(
+            "app.agent_tasks.orch", ModuleType("app.agent_tasks.orch")
+        ).__path__ = []
         helper_mod = ModuleType("supabase_helpers")
         helper_mod.get_supabase = lambda: stub
         sys.modules["app.agent_tasks.layer1_infra.utils.supabase_helpers"] = helper_mod
@@ -85,7 +89,9 @@ if False:  # pragma: no cover
             lambda self, *a, **k: orig_model_dump(self, *a, **k),
             raising=False,
         )
-        block = ContextBlock(user_id="u", label="l", content="c", created_at=datetime.utcnow())
+        block = ContextBlock(
+            user_id="u", label="l", content="c", created_at=datetime.utcnow()
+        )
         diff = DiffBlock(type="added", new_block=block)
 
         import asyncio

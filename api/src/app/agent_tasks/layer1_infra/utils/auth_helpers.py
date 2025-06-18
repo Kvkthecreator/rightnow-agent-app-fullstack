@@ -1,16 +1,14 @@
 """
 Utilities for authentication dependencies.
 """
-import os
 
 import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.utils.supabase_client import supabase_client as SUPA
-
 # Set up Bearer token dependency and Supabase admin client
 bearer = HTTPBearer()
+
 
 async def current_user_id(
     creds: HTTPAuthorizationCredentials = Depends(bearer),
@@ -26,5 +24,7 @@ async def current_user_id(
         if not user_id:
             raise KeyError
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
+        raise HTTPException(
+            status_code=401, detail="Invalid or missing authentication token"
+        )
     return user_id

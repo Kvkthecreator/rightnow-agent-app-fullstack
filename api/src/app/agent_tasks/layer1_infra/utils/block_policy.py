@@ -10,6 +10,7 @@ async def is_auto(conn: asyncpg.Connection, block_id: str) -> bool:
     )
     return bool(row and row["update_policy"] == "auto")
 
+
 async def insert_revision(
     conn: asyncpg.Connection,
     block_id: str,
@@ -30,4 +31,3 @@ async def insert_revision(
         changed_by,
         proposal_event,
     )
-

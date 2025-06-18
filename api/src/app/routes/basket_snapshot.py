@@ -1,11 +1,13 @@
 """Snapshot route for basket narrative."""
+
 from __future__ import annotations
 
 import logging
+
 from fastapi import APIRouter, HTTPException
 
-from ..utils.supabase_client import supabase_client as supabase
 from ..util.snapshot_assembler import assemble_snapshot
+from ..utils.supabase_client import supabase_client as supabase
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 

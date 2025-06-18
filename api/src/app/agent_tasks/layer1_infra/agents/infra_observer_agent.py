@@ -1,4 +1,4 @@
-#api/src/app/agent_tasks/layer1_infra/agents/infra_observer_agent.py
+# api/src/app/agent_tasks/layer1_infra/agents/infra_observer_agent.py
 
 """Layer-1 observer: flags stale or unused context blocks."""
 from datetime import datetime, timezone

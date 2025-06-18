@@ -35,4 +35,3 @@ def logged(agent_name: str):
         return wrapper
 
     return decorator
-

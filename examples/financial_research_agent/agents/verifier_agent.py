@@ -1,6 +1,5 @@
-from pydantic import BaseModel
-
 from agents import Agent
+from pydantic import BaseModel
 
 # Agent to sanity‑check a synthesized report for consistency and recall.
 # This can be used to flag potential gaps or obvious mistakes.

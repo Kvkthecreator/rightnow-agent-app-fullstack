@@ -45,13 +45,17 @@ async def main():
     ) as server:
         trace_id = gen_trace_id()
         with trace(workflow_name="MCP Filesystem Example", trace_id=trace_id):
-            print(f"View trace: https://platform.openai.com/traces/trace?trace_id={trace_id}\n")
+            print(
+                f"View trace: https://platform.openai.com/traces/trace?trace_id={trace_id}\n"
+            )
             await run(server)
 
 
 if __name__ == "__main__":
     # Let's make sure the user has npx installed
     if not shutil.which("npx"):
-        raise RuntimeError("npx is not installed. Please install it with `npm install -g npx`.")
+        raise RuntimeError(
+            "npx is not installed. Please install it with `npm install -g npx`."
+        )
 
     asyncio.run(main())

@@ -14,7 +14,11 @@ class Client(Tool):
         # TODO: plug real API key / endpoint.
         # This stub returns dummy search results.
         results: List[Dict[str, Any]] = [
-            {"title": f"Result {i}", "url": f"https://example.com/{i}", "snippet": "..."}
+            {
+                "title": f"Result {i}",
+                "url": f"https://example.com/{i}",
+                "snippet": "...",
+            }
             for i in range(1, num_results + 1)
         ]
         return {"results": results}

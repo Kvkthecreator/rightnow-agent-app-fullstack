@@ -3,8 +3,6 @@ from __future__ import annotations
 import asyncio
 import os
 
-from openai import AsyncOpenAI
-
 from agents import (
     Agent,
     Model,
@@ -15,6 +13,7 @@ from agents import (
     function_tool,
     set_tracing_disabled,
 )
+from openai import AsyncOpenAI
 
 BASE_URL = os.getenv("EXAMPLE_BASE_URL") or ""
 API_KEY = os.getenv("EXAMPLE_API_KEY") or ""
@@ -42,7 +41,9 @@ set_tracing_disabled(disabled=True)
 
 class CustomModelProvider(ModelProvider):
     def get_model(self, model_name: str | None) -> Model:
-        return OpenAIChatCompletionsModel(model=model_name or MODEL_NAME, openai_client=client)
+        return OpenAIChatCompletionsModel(
+            model=model_name or MODEL_NAME, openai_client=client
+        )
 
 
 CUSTOM_MODEL_PROVIDER = CustomModelProvider()
@@ -55,7 +56,11 @@ def get_weather(city: str):
 
 
 async def main():
-    agent = Agent(name="Assistant", instructions="You only respond in haikus.", tools=[get_weather])
+    agent = Agent(
+        name="Assistant",
+        instructions="You only respond in haikus.",
+        tools=[get_weather],
+    )
 
     # This will use the custom model provider
     result = await Runner.run(

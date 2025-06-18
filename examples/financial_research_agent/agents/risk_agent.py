@@ -1,6 +1,5 @@
-from pydantic import BaseModel
-
 from agents import Agent
+from pydantic import BaseModel
 
 # A sub‑agent specializing in identifying risk factors or concerns.
 RISK_PROMPT = (
