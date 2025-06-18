@@ -29,11 +29,20 @@ class BasketCreatePayload(BaseModel):
 async def create_basket(payload: BasketCreatePayload):
     logger.info("[basket_new] payload: %s", payload.model_dump())
     basket_id = str(uuid4())
+    raw_id = str(uuid4())
 
     try:
         resp = (
             supabase.table("baskets")
-            .insert(as_json({"id": basket_id, "name": payload.basket_name}))
+            .insert(
+                as_json(
+                    {
+                        "id": basket_id,
+                        "name": payload.basket_name,
+                        "raw_dump_id": raw_id,
+                    }
+                )
+            )
             .execute()
         )
     except Exception as err:
@@ -49,7 +58,7 @@ async def create_basket(payload: BasketCreatePayload):
             .insert(
                 as_json(
                     {
-                        "id": str(uuid4()),
+                        "id": raw_id,
                         "basket_id": basket_id,
                         "body_md": payload.text_dump,
                         "file_refs": payload.file_urls or [],
