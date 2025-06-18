@@ -234,37 +234,40 @@ CREATE TYPE auth.one_time_token_type AS ENUM (
 
 
 --
--- Name: basket_status_enum; Type: TYPE; Schema: public; Owner: -
+-- Name: basket_state; Type: TYPE; Schema: public; Owner: -
 --
 
-CREATE TYPE public.basket_status_enum AS ENUM (
-    'draft',
-    'in_progress',
-    'complete',
-    'archived'
+CREATE TYPE public.basket_state AS ENUM (
+    'INIT',
+    'ACTIVE',
+    'ARCHIVED',
+    'DEPRECATED'
 );
 
 
 --
--- Name: block_status_enum; Type: TYPE; Schema: public; Owner: -
+-- Name: block_state; Type: TYPE; Schema: public; Owner: -
 --
 
-CREATE TYPE public.block_status_enum AS ENUM (
-    'proposed',
-    'approved',
-    'rejected',
-    'locked'
+CREATE TYPE public.block_state AS ENUM (
+    'PROPOSED',
+    'ACCEPTED',
+    'LOCKED',
+    'CONSTANT',
+    'SUPERSEDED',
+    'REJECTED'
 );
 
 
 --
--- Name: block_type_enum; Type: TYPE; Schema: public; Owner: -
+-- Name: scope_level; Type: TYPE; Schema: public; Owner: -
 --
 
-CREATE TYPE public.block_type_enum AS ENUM (
-    'content',
-    'metadata',
-    'commentary'
+CREATE TYPE public.scope_level AS ENUM (
+    'LOCAL',
+    'WORKSPACE',
+    'ORG',
+    'GLOBAL'
 );
 
 
@@ -730,6 +733,51 @@ CREATE FUNCTION pgbouncer.get_auth(p_usename text) RETURNS TABLE(username text, 
       WHERE rolname=$1 and rolcanlogin;
   END;
   $_$;
+
+
+--
+-- Name: check_block_depth(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_block_depth() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE depth int := 0; cursor_id uuid;
+BEGIN
+  cursor_id := NEW.parent_block_id;
+  WHILE cursor_id IS NOT NULL LOOP
+    depth := depth + 1;
+    IF depth > 2 THEN
+      RAISE EXCEPTION 'Hierarchy depth > 2';
+    END IF;
+    SELECT parent_block_id INTO cursor_id FROM blocks WHERE id = cursor_id;
+  END LOOP;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: prevent_lock_vs_constant(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.prevent_lock_vs_constant() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.state = 'LOCKED' THEN
+    PERFORM 1 FROM blocks
+      WHERE semantic_type = NEW.semantic_type
+        AND scope IS NOT NULL          -- a Constant
+        AND state = 'CONSTANT'
+        AND basket_id = NEW.basket_id; -- same workspace implied
+    IF FOUND THEN
+      RAISE EXCEPTION 'LOCK_CONFLICT_CONSTANT';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
 
 --
@@ -2492,29 +2540,71 @@ COMMENT ON COLUMN auth.users.is_sso_user IS 'Auth: Set this column to true when 
 
 CREATE TABLE public.baskets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    user_id uuid NOT NULL,
     name text,
-    raw_dump text NOT NULL,
-    status public.basket_status_enum DEFAULT 'draft'::public.basket_status_enum NOT NULL,
-    tags text[],
-    commentary text,
+    raw_dump_id uuid,
+    state public.basket_state DEFAULT 'INIT'::public.basket_state NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
 --
--- Name: context_blocks; Type: TABLE; Schema: public; Owner: -
+-- Name: blocks; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.context_blocks (
+CREATE TABLE public.blocks (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
-    type public.block_type_enum NOT NULL,
-    content text NOT NULL,
-    status public.block_status_enum DEFAULT 'proposed'::public.block_status_enum NOT NULL,
-    "order" integer,
-    meta_tags text[],
-    origin text
+    parent_block_id uuid,
+    semantic_type text NOT NULL,
+    content text,
+    version integer DEFAULT 1 NOT NULL,
+    state public.block_state DEFAULT 'PROPOSED'::public.block_state NOT NULL,
+    scope public.scope_level,
+    canonical_value text,
+    origin_ref uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state)))
+);
+
+
+--
+-- Name: events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.events (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid,
+    block_id uuid,
+    kind text,
+    payload jsonb,
+    ts timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: raw_dumps; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.raw_dumps (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid,
+    body_md text,
+    file_refs jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.revisions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid,
+    actor_id uuid,
+    summary text,
+    diff_json jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -2900,11 +2990,35 @@ ALTER TABLE ONLY public.baskets
 
 
 --
--- Name: context_blocks context_blocks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: blocks blocks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.context_blocks
-    ADD CONSTRAINT context_blocks_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.blocks
+    ADD CONSTRAINT blocks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: events events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.events
+    ADD CONSTRAINT events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: raw_dumps raw_dumps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.raw_dumps
+    ADD CONSTRAINT raw_dumps_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: revisions revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.revisions
+    ADD CONSTRAINT revisions_pkey PRIMARY KEY (id);
 
 
 --
@@ -3361,6 +3475,20 @@ CREATE UNIQUE INDEX objects_bucket_id_level_idx ON storage.objects USING btree (
 
 
 --
+-- Name: blocks trg_block_depth; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
+
+
+--
+-- Name: blocks trg_lock_constant; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
+
+
+--
 -- Name: subscription tr_check_filters; Type: TRIGGER; Schema: realtime; Owner: -
 --
 
@@ -3505,11 +3633,59 @@ ALTER TABLE ONLY auth.sso_domains
 
 
 --
--- Name: context_blocks context_blocks_basket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: blocks blocks_basket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.context_blocks
-    ADD CONSTRAINT context_blocks_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.blocks
+    ADD CONSTRAINT blocks_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+
+
+--
+-- Name: blocks blocks_parent_block_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.blocks
+    ADD CONSTRAINT blocks_parent_block_id_fkey FOREIGN KEY (parent_block_id) REFERENCES public.blocks(id);
+
+
+--
+-- Name: events events_basket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.events
+    ADD CONSTRAINT events_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+
+
+--
+-- Name: events events_block_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.events
+    ADD CONSTRAINT events_block_id_fkey FOREIGN KEY (block_id) REFERENCES public.blocks(id);
+
+
+--
+-- Name: baskets fk_raw_dump; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.baskets
+    ADD CONSTRAINT fk_raw_dump FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
+
+
+--
+-- Name: raw_dumps raw_dumps_basket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.raw_dumps
+    ADD CONSTRAINT raw_dumps_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+
+
+--
+-- Name: revisions revisions_basket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.revisions
+    ADD CONSTRAINT revisions_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 
 
 --
