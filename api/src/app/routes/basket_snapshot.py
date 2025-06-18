@@ -26,10 +26,11 @@ def get_basket_snapshot(basket_id: str) -> dict:
             .execute()
         )
         block_resp = (
-            supabase.table("context_blocks")
-            .select("id,type,content,state,order")
+            supabase.table("blocks")
+            .select(
+                "id,semantic_type,content,state,scope,canonical_value"
+            )
             .eq("basket_id", basket_id)
-            .order("order")
             .execute()
         )
     except Exception as err:
@@ -39,4 +40,4 @@ def get_basket_snapshot(basket_id: str) -> dict:
     raw_dumps = dumps_resp.data or []
     blocks = block_resp.data or []
     snapshot = assemble_snapshot(raw_dumps, blocks)
-    return {"basket_id": basket_id, **snapshot}
+    return snapshot

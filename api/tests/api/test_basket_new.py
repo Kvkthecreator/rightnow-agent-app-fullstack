@@ -16,6 +16,7 @@ client = TestClient(app)
 
 def _fake_table(name, store):
     def insert(row):
+        store["calls"].append(name)
         store[name].append(row)
         return types.SimpleNamespace(
             execute=lambda: types.SimpleNamespace(data=[row], error=None)
@@ -36,7 +37,7 @@ def _error_table(name):
 
 
 def test_basket_new(monkeypatch):
-    store = {"baskets": [], "raw_dumps": []}
+    store = {"baskets": [], "raw_dumps": [], "calls": []}
     fake = types.SimpleNamespace(table=lambda n: _fake_table(n, store))
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
@@ -49,10 +50,11 @@ def test_basket_new(monkeypatch):
     assert body["basket_id"]
     assert len(store["baskets"]) == 1
     assert len(store["raw_dumps"]) == 1
+    assert store["calls"] == ["raw_dumps", "baskets"]
 
 
 def test_basket_new_minimal(monkeypatch):
-    store = {"baskets": [], "raw_dumps": []}
+    store = {"baskets": [], "raw_dumps": [], "calls": []}
     fake = types.SimpleNamespace(table=lambda n: _fake_table(n, store))
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
@@ -62,6 +64,7 @@ def test_basket_new_minimal(monkeypatch):
     assert len(body["basket_id"]) > 0
     assert len(store["baskets"]) == 1
     assert len(store["raw_dumps"]) == 1
+    assert store["calls"] == ["raw_dumps", "baskets"]
 
 
 def test_basket_new_error(monkeypatch):

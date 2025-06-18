@@ -40,7 +40,7 @@ def _table(name, store):
 
 
 def test_snapshot_after_creation(monkeypatch):
-    store = {"baskets": [], "raw_dumps": [], "context_blocks": []}
+    store = {"baskets": [], "raw_dumps": [], "blocks": []}
     fake = types.SimpleNamespace(table=lambda n: _table(n, store))
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
     monkeypatch.setattr("app.routes.basket_snapshot.supabase", fake)
