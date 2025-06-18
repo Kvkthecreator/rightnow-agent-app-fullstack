@@ -1,4 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Block, Basket, Event } from '../dbTypes';
+
+type Database = {
+  Block: Block;
+  Basket: Basket;
+  Event: Event;
+};
 
 export function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -10,7 +17,7 @@ export function createServerClient() {
     );
   }
 
-  return createClient(supabaseUrl, anonKey, {
+  return createClient<Database>(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

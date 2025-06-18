@@ -1,4 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Block, Basket, Event } from '../dbTypes';
+
+type Database = {
+  Block: Block;
+  Basket: Basket;
+  Event: Event;
+};
 
 export function createServiceRoleClient() {
   const url = process.env.SUPABASE_URL;
@@ -8,5 +15,5 @@ export function createServiceRoleClient() {
     throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   }
 
-  return createClient(url, key, { auth: { persistSession: false } });
+  return createClient<Database>(url, key, { auth: { persistSession: false } });
 }
