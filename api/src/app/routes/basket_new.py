@@ -5,7 +5,7 @@ from uuid import uuid4
 from ..utils.supabase_client import supabase_client as supabase
 from ..util.db import json_safe
 
-router = APIRouter(prefix="/api/baskets", tags=["baskets"])
+router = APIRouter(prefix="/baskets", tags=["baskets"])
 
 
 class BasketCreatePayload(BaseModel):
