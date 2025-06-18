@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from uuid import uuid4
 
 from ..utils.supabase_client import supabase_client as supabase
-from utils.db import json_safe
+from ..util.db import json_safe
 
 router = APIRouter(prefix="/api/baskets", tags=["baskets"])
 
