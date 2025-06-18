@@ -28,7 +28,7 @@ def test_basket_new(monkeypatch):
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
     resp = client.post(
-        "/api/baskets/new",
+        "/baskets/new",
         json={"text_dump": "hello", "file_urls": ["f"], "basket_name": "test"},
     )
     assert resp.status_code == 201

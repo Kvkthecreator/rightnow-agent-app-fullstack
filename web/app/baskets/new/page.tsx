@@ -13,7 +13,7 @@ export default function NewBasketPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleCreate = async () => {
-    if (!text.trim()) return;
+    if (!text.trim()) { alert("Please enter some text 😊"); return; }
     setSubmitting(true);
     try {
       const { id } = await createBasketNew({ text, files });

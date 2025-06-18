@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from uuid import uuid4
 
 from ..utils.supabase_client import supabase_client as supabase
@@ -9,9 +9,12 @@ router = APIRouter(prefix="/baskets", tags=["baskets"])
 
 
 class BasketCreatePayload(BaseModel):
-    text_dump: str
+    text_dump: str = Field(..., alias="text")
     file_urls: list[str] | None = None
     basket_name: str | None = None
+
+    class Config:
+        allow_population_by_field_name = True
 
 
 @router.post("/new", status_code=201)
