@@ -11,7 +11,7 @@ router = APIRouter(prefix="/baskets", tags=["baskets"])
 
 
 class BasketCreatePayload(BaseModel):
-    text_dump: str = Field(..., alias="text", description="text_dump required")
+    text_dump: str = Field(..., alias="text_dump")
     file_urls: list[str] | None = None
     basket_name: str | None = None
 
