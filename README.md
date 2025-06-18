@@ -41,6 +41,9 @@ You can verify the configuration by requesting /api/baskets/<id>/change-queue; t
 
 The /agent endpoint handles agent requests and remains stable across deployments.
 
+When deploying on Render, ensure the `SUPABASE_SERVICE_ROLE_KEY` environment
+variable is set. Without it, Supabase requests will fail.
+
 ## Repository Layout
 
 api/   FastAPI backend
