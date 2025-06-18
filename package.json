@@ -3,7 +3,8 @@
     "e2e:test": "playwright test",
     "e2e:debug": "playwright test --debug",
     "lint": "echo \"Skipping lint\"",
-    "test": "echo \"No tests\""
+    "test": "echo \"No tests\"",
+    "codegen:supabase": "python scripts/gen_pydantic.py"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
