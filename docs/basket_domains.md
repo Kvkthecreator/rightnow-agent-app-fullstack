@@ -1,4 +1,6 @@
+# docs/BASKET_DOMAINS.md
 # yarnnn Basket Lifecycle Domains
+*** → For schema & authority rules see **Basket–Block–Lock–Constant Contract v1 *** 
 
 This document defines the canonical domains and flow for basket-related processes in yarnnn. It serves as the source of truth for architecture, implementation, and documentation alignment.
 
@@ -79,7 +81,6 @@ This document defines the canonical domains and flow for basket-related processe
 
 ## 🔄 **Simple Flow Diagram**
 
-```mermaid
 flowchart LR
   A([Create Basket Inputs])
   B([Create Basket + Trigger Agent])

@@ -1,3 +1,4 @@
+# docs/BASKET_MANAGEMENT_FLOW.md
 # Yarnnn Basket Management Flow — Canonical Baseline
 
 This document defines the canonical flow for managing, enriching, and evolving a basket after it has been created. It provides a stable reference for architecture, implementation, and Codex task alignment.

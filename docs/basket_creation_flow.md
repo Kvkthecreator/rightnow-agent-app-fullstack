@@ -1,118 +1,102 @@
+# docs/basket_creation_flow.md
 # Yarnnn Basket Creation Flow — Canonical Baseline
 
-This document defines the canonical domains and flow for basket creation in Yarnnn. It provides a stable reference for architecture, implementation, and Codex tasks.
+**Version 1.0 — aligned with Basket–Block–Lock–Constant Contract v1**
+
+This document defines the canonical *process* (Domains 1 & 2) for basket creation. Schema and authority rules live in **Basket–Block–Lock–Constant Contract v1**.
 
 ---
 
-## 1️⃣ Create Basket — Inputs (Input Domain)
+## 1️⃣ Create Basket — Inputs (Input Domain)
 
-👑 **Purpose:**  
-Faithfully collect and validate a single, atomic user intent submission — referred to as the *input unit*.
+👑 **Purpose**  Faithfully capture a single, atomic user intent submission (*input unit*).
 
-✅ **What the user provides:**  
-- A text dump (typed or pasted into the textarea; required)  
-- Zero or more file uploads (currently images; optional, up to defined limit)  
-- An optional basket name  
+### What the user provides
 
-✅ **What happens in this domain:**  
-- Accepts the user’s raw dump exactly as provided (including any Markdown syntax the user included — no modification or prettification is applied)  
-- Accepts file uploads, uploads them to storage (e.g. Supabase bucket), and retrieves file URLs  
-- Validates that required text is provided  
-- Prepares the full input payload:
-  - `text_dump` (raw text dump)
-  - `file_urls` (uploaded file references)
-  - `basket_name` (if provided)
+* Raw text dump (**required**)
+* Zero or more file uploads (images for now)
+* Optional basket name
 
-✅ **Markdown handling:**  
-- The input domain preserves Markdown syntax provided by the user.  
-- It does not insert or modify Markdown syntax.
-- Prettification and Markdown rendering are responsibilities of the workspace view, not the input domain.
+### What happens in this domain
 
-❌ **What this domain does *not* handle:**  
-- Creating `baskets` or `basket_inputs` records  
-- Triggering agents  
-- Parsing or transforming input text  
-- Creating, modifying, or promoting blocks  
+1. Validate that text is present.
+2. Upload files → get `file_urls` from Supabase.
+3. Prepare **payload**:
 
-👉 **Key principle:**  
-The input domain is focused on faithful capture of the user's intent as a single cohesive input unit — no transformation, no structural enrichment.
+   ```json
+   {
+     "text_dump": "...",
+     "file_urls": ["..."],
+     "basket_name": "..."
+   }
+   ```
 
-👉 **Design note:**  
-Input fields are designed to pass through Markdown-friendly text without interference. The NarrativeView or workspace display applies Markdown rendering at the appropriate time.
+### Markdown handling
 
+*Pass‑through only.* Rendering happens later in the work page.
 
----
+### What this domain **does not** handle
 
-## 2️⃣ Create Basket — Actual Creation + Agent Trigger (Creation Domain)
+* Creating `baskets` or **`raw_dumps`** rows
+* Triggering agents
+* Parsing / block creation
 
-👑 **Purpose:**  
-Persist the basket + input to the database and initiate downstream orchestration.
-
-✅ **What happens in this domain:**  
-- Creates a `baskets` record  
-- Creates a `basket_inputs` record linking text + uploaded file URLs  
-- Triggers orchestration agent(s) (e.g. `orch_block_manager_agent`)  
-- Publishes events (e.g. `basket.compose_request`)  
-
-❌ **What this domain does *not* handle:**  
-- Direct block creation  
-- Block parsing  
-- Change queue management  
-
-👉 **Key principle:**  
-Basket creation records and orchestration triggers are transactional; agents handle content parsing + enrichment separately.
+👉 Key principle  **No transformation, only faithful capture.**
 
 ---
 
-## 3️⃣ Agent Work (Post-Creation)
+## 2️⃣ Create Basket — Persistence & Agent Trigger (Creation Domain)
 
-👑 **Purpose:**  
-Enrich and evolve the basket by parsing inputs and promoting blocks.
+👑 **Purpose**  Persist the basket + input and kick off downstream orchestration.
 
-✅ **What happens:**  
-- Parses input text + files  
-- Creates context blocks as appropriate  
-- Populates change queue  
-- Updates commit log  
+### What happens in this domain
 
-👉 **Key principle:**  
-All parsing and block promotion happen *after* basket creation, as part of the agent enrichment domain.
+* Insert into `baskets` (state =`INIT`).
+* Insert immutable **`raw_dumps`** row linking text + `file_refs`.
+* Fire event `basket.compose_request` → launches `orch_block_manager_agent`.
 
----
+### What this domain **does not** handle
 
-## 4️⃣ Current Supported Modalities
+* Block parsing or promotion
+* Change‑queue management
 
-- Text dump: string (required)  
-- Image files: 0 or more (optional)
-
-👉 These form one cohesive input unit at basket creation.
+👉 Key principle  Basket persistence is transactional; enrichment belongs to Agent Work.
 
 ---
 
-## 5️⃣ Design Philosophy
+## 3️⃣ Agent Work (post‑creation) — *See Basket Management Flow*
 
-- Basket creation represents a single, atomic user intent submission.  
-- Multi-modal support means text + files together form the input unit — no splitting during creation.  
-- Parsing + block creation are agent responsibilities, not basket creation responsibilities.
+Once the basket exists, agents parse, propose blocks, populate the change queue, and write **Revisions**/**Events**.
 
 ---
 
-## 6️⃣ Future Modality Extensions
+## 4️⃣ Current modalities
 
-- New modalities (e.g. audio, rich text, links) extend the input model without changing the flow.
-- Basket creation will continue to handle one cohesive input unit per submission.
-
----
-
-## 🔧 Required Environment Variables
-
-Basket creation relies on the frontend Supabase keys. See [env_supabase_reference.md](env_supabase_reference.md) for the canonical list and guidance.
+* Text dump (string, required)
+* Images (0‑N)
 
 ---
 
-## 📌 Usage
+## 5️⃣ Design philosophy
 
-This document serves as the canonical reference for basket creation flows.  
-All architecture, PRs, Codex tasks, and reviews must align to this structure.  
-Edit this file only in the case of major architectural changes.
+* Creation = single atomic submission.
+* Text + files are inseparable at creation time.
+* Structure emerges later via agents and user approval.
 
+---
+
+## 6️⃣ Future modality extensions
+
+Audio, links, rich text, etc. extend the payload but keep the same two‑domain flow.
+
+---
+
+## 🔧 Required environment variables
+
+Frontend needs Supabase anon & upload keys — see **env\_supabase\_reference.md**.
+
+---
+
+## 📌 Usage
+
+All PRs and Codex tasks touching basket creation **must** align with this flow *and* the authority contract. Edits require architectural review.

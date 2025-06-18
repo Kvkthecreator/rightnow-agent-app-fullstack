@@ -1,88 +1,102 @@
 # AGENTS.md
 
-This document outlines the agent system architecture behind yarnnn, our contextual memory platform.
+# yarnnn Agent System — Canonical Overview
 
-It focuses on durable design principles — the roles, structure, and philosophy that guide our system — so contributors, agent designers, and maintainers work from a shared, long-term map.
+**Version 1.0 — aligned with Basket–Block–Lock–Constant Contract v1**
 
-# 💡 Philosophy
+This document explains the philosophy, roles, and durable folder layout of Yarnnn’s agent layer. It references—but does not duplicate—the “rule‑of‑law” data contract.
 
-yarnnn is built on a wedge: from ongoing dumps to evolving memory — preserved as familiar narrative, defended through user-curated Blocks.
+---
 
-Our users — indie builders, creative solopreneurs, and freelance marketers — are already generating ideas and drafts using LLMs like ChatGPT. What they lack is a system that helps them see, defend, and evolve their thoughts without fragmentation or cognitive overload.
+## 💡 1 Philosophy
 
-yarnnn’s promise is simple:
+1. **Narrative‑first preservation** The immutable **Raw Dump** is sacrosanct.
+2. **User‑controlled structure** Blocks (□/■/🔒/★) are promoted only by user acceptance.
+3. **Assist, don’t overwrite** Agents propose, highlight, and validate—never silently modify content.
 
-Preserve the user’s original narrative as the canonical memory stream (the basket).
-Empower users to curate and defend key parts of that memory by promoting narrative sections into Blocks.
-Assist users gently — agents highlight contradictions, redundancies, or opportunities for modularity without ever modifying or fragmenting memory silently.
-Blocks are not the primary outcome of ingestion. They are downstream artifacts — created on demand, by user choice or accepted suggestion, to protect and reuse what matters.
+Outcome: indie builders & marketers see their thoughts evolve from chaos → clarity without hidden mutations.
 
-# 🧱 Core Architecture Layers (Stable)
+---
 
-The yarnnn system is divided into three persistent structural layers:
+## 🧱 2 Stable architecture layers
 
-Layer	Role
-Frontend (Vercel + Next.js)	User interaction, task input, live rendering of the evolving memory narrative, inline promote actions
-Middleware (Codex)	Developer automation, task scaffolding, Codex integration for codebase evolution
-Backend (FastAPI + Supabase)	Agent orchestration, database logic, and persistent memory (baskets, promoted blocks, briefs as needed)
-These layers are fixed — their responsibilities remain stable even as system features evolve.
+| Layer | Role | Tech |  |
+| --- | --- | --- | --- |
+| **Frontend** | Capture dumps, render narrative, surface change queue | Next.js + Vercel |  |
+| **Middleware** | Codex task registry & DX automation | Custom | *codex* tasks |
+| **Backend** | Orchestrate agents, enforce contract, write **Revisions**/**Events** | FastAPI + Supabase |  |
 
-# 🧠 Agent System Overview
+None of these roles move even as features expand.
 
-Agents are organized by function, not task type. They are composable modules that support yarnnn’s core promise:
+---
 
-Category	Description
-orch_* agents	Orchestration agents that manage narrative assist flows (e.g., highlight contradictions, suggest promotions)
-tasks_* agents	Reasoning agents that operate on downstream goals (e.g., brief composition, strategy)
-infra_* agents	Maintenance agents that audit, clean, or refresh underlying data (e.g., basket integrity, block map consistency)
-Naming conventions (orch_, tasks_, infra_) remain stable across the codebase.
+## 🧠 3 Agent categories & naming
 
-# 🗂️ Folder Structure (Directional & Durable)
+| Prefix | Category | Purpose |
+| --- | --- | --- |
+| `orch_` | **Orchestration agents** | Drive Domain 4 flows: parse Raw Dump → propose □ **PROPOSED** blocks; run validators; post violations |
+| `tasks_` | **Goal agents** | Produce independent deliverables (e.g. marketing brief) using the current `/snapshot` truth |
+| `infra_` | **Maintenance agents** | Enforce invariants (depth guard, Lock ↔ Constant conflicts, orphan checks) |
 
+*All agent files end with **`_agent.py`**.*
+
+---
+
+## 🗂️ 4 Folder skeleton (durable)
+
+```
 /api/src/app/
-├── agent_tasks/
-│   ├── orch/         → Narrative orchestration agents (assist, highlight, nudge)
-│   ├── tasks/        → Domain-specific reasoning agents
-│   ├── infra/        → Maintenance / hygiene agents
-│   └── shared/       → Prompt templates, agent utilities
-├── middleware/
-│   └── codex/        → Codex task registry and automation layer
-├── util/             → Supabase helpers, task utilities
-└── constants.py      → Shared schema constants and enums
-
+  └── agent_tasks/
+        ├── orch/
+        ├── tasks/
+        ├── infra/
+        └── shared/
+  └── middleware/codex/
+  └── util/
 /web/
-├── app/
-│   ├── baskets/      → Memory narrative workspace
-│   ├── blocks/       → User-promoted context modules (browser, reuse)
-│   ├── tasks/        → Structured briefs and task outputs
-│   └── components/   → Shared inputs (dump area, promote buttons, etc.)
-└── lib/
-    ├── supabaseClient.ts
-    └── agents/       → Agent trigger logic, API helpers
+  └── app/baskets/
+  └── app/blocks/
+  └── app/tasks/
+  └── components/
+  └── lib/supabaseClient.ts
+  └── lib/agents/   # calls orchestrators, shows badges
 
-# 🔖 Conventions That Don’t Change
+```
 
-All agents use the *_agent.py suffix
-Naming is always prefixed by purpose: orch_, tasks_, infra_
-Orchestration always starts at /api/agent, no matter the flow
-Supabase remains the single source of truth for memory data
-Codex supports dev workflows via declarative task files
-Supabase environment variables must follow [docs/env_supabase_reference.md](../docs/env_supabase_reference.md)
-This document reflects Phase 1’s focus on narrative-first preservation, downstream modularity on demand, and assistive—not intrusive—agents. It should remain durable as we evolve.
+Folder names are contract‑level constants; changing them requires updating this doc.
 
-# 📝 Summary
+---
 
-yarnnn’s agents exist to:
+## 🔖 5 Unchanging conventions
 
-Preserve narrative-first memory
-Empower manual promotion to Block
-Assist users with gentle, transparent guidance
-Enable future modular reuse without fragmenting the core memory stream
+1. Supabase is **single source of truth**; agents write via stored procedures or typed repos.
+2. Every mutation creates: • **Revision** (commit‑like) • One or more **Event** rows.
+3. Authority ladder is enforced by **infra_cil_validator_agent** (CIL badges).
+4. Env vars conform to `docs/env_supabase_reference.md`.
 
-# 🚀 Future Evolution: The Block Economy
-Phase 1 focuses on manual promotion + assistive guidance — creating Blocks only when the user chooses or accepts a suggestion.
-However, yarnnn’s architecture is designed for future growth:
-To support a richer block economy that helps users manage evolving memory at scale.
-To enable agents to suggest, cluster, or recommend consolidation of blocks or memory segments, while keeping the user in control.
-To provide nuanced logic distinguishing between manually promoted blocks and system-suggested candidates — always transparently surfaced, never silently modified.
-This direction ensures that as memory complexity grows, yarnnn continues to help users preserve clarity without adding cognitive burden.
+---
+
+## 📝 6 Agent life‑cycle cheat‑sheet
+
+```
+User dumps → orch_block_manager_agent
+               ├─ parse & propose Blocks  (state=PROPOSED)
+               └─ run CIL → attach VIOLATION badges
+User approves   → state=ACCEPTED (■)
+User locks      → state=LOCKED   (🔒)
+Admin promotes  → state=CONSTANT (★, scope set)
+infra_consistency_agent nightly scan → SUPERSEDE stale Locks / depth guard
+
+```
+
+*No agent edits Raw Dump; all authority checks route through the ladder.*
+
+---
+
+## 🚀 7 Future evolution (Block economy)
+
+Phase 1: manual promotion + CIL Phase 2: agents cluster Blocks, suggest namespace mergers, but still only propose. Phase 3: merge queue & real‑time collaboration; contract remains stable.
+
+---
+
+*Last updated 2025‑06‑18 — first aligned release.*
