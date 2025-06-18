@@ -1,11 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Block, Basket, Event } from '../dbTypes';
-
-type Database = {
-  Block: Block;
-  Basket: Basket;
-  Event: Event;
-};
+import type { Database } from '../dbTypes';
 
 export function createServiceRoleClient() {
   const url = process.env.SUPABASE_URL;

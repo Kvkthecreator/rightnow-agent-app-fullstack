@@ -1,11 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Block, Basket, Event } from '../dbTypes';
-
-type Database = {
-  Block: Block;
-  Basket: Basket;
-  Event: Event;
-};
+import type { Database } from '../dbTypes';
 
 export function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
