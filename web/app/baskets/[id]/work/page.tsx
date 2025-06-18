@@ -22,12 +22,11 @@ export default function BasketWorkPage({ params }: any) {
   if (error) return <div className="p-6 text-red-600">Failed to load basket.</div>;
 
   const raw = data?.raw_dump ?? "";
-  const blocks = data?.blocks ?? [];
 
   const grouped = {
-    CONSTANT: blocks.filter((b: any) => b.state === "CONSTANT"),
-    LOCKED: blocks.filter((b: any) => b.state === "LOCKED"),
-    ACCEPTED: blocks.filter((b: any) => b.state === "ACCEPTED"),
+    CONSTANT: data?.constants ?? [],
+    LOCKED: data?.locked_blocks ?? [],
+    ACCEPTED: data?.accepted_blocks ?? [],
   };
 
   return (

@@ -16,7 +16,7 @@ export default function NewBasketPage() {
     if (!text.trim()) { alert("Please enter some text 😊"); return; }
     setSubmitting(true);
     try {
-      const { id } = await createBasketNew({ text, files });
+      const { id } = await createBasketNew({ text_dump: text, files });
       router.push(`/baskets/${id}/work`);
     } catch (err) {
       console.error(err);
