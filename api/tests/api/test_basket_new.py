@@ -29,10 +29,23 @@ def test_basket_new(monkeypatch):
 
     resp = client.post(
         "/api/baskets/new",
-        json={"text": "hello", "file_urls": ["f"], "basket_name": "test"},
+        json={"text_dump": "hello", "file_urls": ["f"], "basket_name": "test"},
     )
     assert resp.status_code == 201
     body = resp.json()
     assert body["basket_id"]
+    assert len(store["baskets"]) == 1
+    assert len(store["raw_dumps"]) == 1
+
+
+def test_basket_new_minimal(monkeypatch):
+    store = {"baskets": [], "raw_dumps": []}
+    fake = types.SimpleNamespace(table=lambda n: _fake_table(n, store))
+    monkeypatch.setattr("app.routes.basket_new.supabase", fake)
+
+    resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
+    assert resp.status_code == 201
+    body = resp.json()
+    assert len(body["basket_id"]) > 0
     assert len(store["baskets"]) == 1
     assert len(store["raw_dumps"]) == 1

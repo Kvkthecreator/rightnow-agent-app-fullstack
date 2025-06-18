@@ -16,6 +16,9 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+-- Remove obsolete view used by early prototypes
+DROP VIEW IF EXISTS context_blocks;
+
 --
 -- Name: auth; Type: SCHEMA; Schema: -; Owner: -
 --
