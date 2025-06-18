@@ -59,13 +59,6 @@ CREATE SCHEMA pgbouncer;
 
 
 --
--- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON SCHEMA public IS '';
-
-
---
 -- Name: realtime; Type: SCHEMA; Schema: -; Owner: -
 --
 
@@ -101,24 +94,10 @@ CREATE EXTENSION IF NOT EXISTS pg_graphql WITH SCHEMA graphql;
 
 
 --
--- Name: EXTENSION pg_graphql; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pg_graphql IS 'pg_graphql: GraphQL support';
-
-
---
 -- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
 --
 
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA extensions;
-
-
---
--- Name: EXTENSION pg_stat_statements; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pg_stat_statements IS 'track planning and execution statistics of all SQL statements executed';
 
 
 --
@@ -129,24 +108,10 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 
 --
--- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
-
-
---
 -- Name: pgjwt; Type: EXTENSION; Schema: -; Owner: -
 --
 
 CREATE EXTENSION IF NOT EXISTS pgjwt WITH SCHEMA extensions;
-
-
---
--- Name: EXTENSION pgjwt; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pgjwt IS 'JSON Web Token API for Postgresql';
 
 
 --
@@ -157,24 +122,10 @@ CREATE EXTENSION IF NOT EXISTS supabase_vault WITH SCHEMA vault;
 
 
 --
--- Name: EXTENSION supabase_vault; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION supabase_vault IS 'Supabase Vault Extension';
-
-
---
 -- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
 --
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
-
-
---
--- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
 
 
 --
@@ -352,13 +303,6 @@ $$;
 
 
 --
--- Name: FUNCTION email(); Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON FUNCTION auth.email() IS 'Deprecated. Use auth.jwt() -> ''email'' instead.';
-
-
---
 -- Name: jwt(); Type: FUNCTION; Schema: auth; Owner: -
 --
 
@@ -389,13 +333,6 @@ $$;
 
 
 --
--- Name: FUNCTION role(); Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON FUNCTION auth.role() IS 'Deprecated. Use auth.jwt() -> ''role'' instead.';
-
-
---
 -- Name: uid(); Type: FUNCTION; Schema: auth; Owner: -
 --
 
@@ -408,13 +345,6 @@ CREATE FUNCTION auth.uid() RETURNS uuid
     (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
   )::uuid
 $$;
-
-
---
--- Name: FUNCTION uid(); Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON FUNCTION auth.uid() IS 'Deprecated. Use auth.jwt() -> ''sub'' instead.';
 
 
 --
@@ -452,13 +382,6 @@ BEGIN
   END IF;
 END;
 $$;
-
-
---
--- Name: FUNCTION grant_pg_cron_access(); Type: COMMENT; Schema: extensions; Owner: -
---
-
-COMMENT ON FUNCTION extensions.grant_pg_cron_access() IS 'Grants access to pg_cron';
 
 
 --
@@ -520,13 +443,6 @@ $_$;
 
 
 --
--- Name: FUNCTION grant_pg_graphql_access(); Type: COMMENT; Schema: extensions; Owner: -
---
-
-COMMENT ON FUNCTION extensions.grant_pg_graphql_access() IS 'Grants access to pg_graphql';
-
-
---
 -- Name: grant_pg_net_access(); Type: FUNCTION; Schema: extensions; Owner: -
 --
 
@@ -575,13 +491,6 @@ BEGIN
   END IF;
 END;
 $$;
-
-
---
--- Name: FUNCTION grant_pg_net_access(); Type: COMMENT; Schema: extensions; Owner: -
---
-
-COMMENT ON FUNCTION extensions.grant_pg_net_access() IS 'Grants access to pg_net';
 
 
 --
@@ -703,13 +612,6 @@ CREATE FUNCTION extensions.set_graphql_placeholder() RETURNS event_trigger
 
     END;
 $_$;
-
-
---
--- Name: FUNCTION set_graphql_placeholder(); Type: COMMENT; Schema: extensions; Owner: -
---
-
-COMMENT ON FUNCTION extensions.set_graphql_placeholder() IS 'Reintroduces placeholder function for graphql_public.graphql';
 
 
 --
@@ -2116,13 +2018,6 @@ CREATE TABLE auth.audit_log_entries (
 
 
 --
--- Name: TABLE audit_log_entries; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.audit_log_entries IS 'Auth: Audit trail for user actions.';
-
-
---
 -- Name: flow_state; Type: TABLE; Schema: auth; Owner: -
 --
 
@@ -2143,13 +2038,6 @@ CREATE TABLE auth.flow_state (
 
 
 --
--- Name: TABLE flow_state; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.flow_state IS 'stores metadata for pkce logins';
-
-
---
 -- Name: identities; Type: TABLE; Schema: auth; Owner: -
 --
 
@@ -2167,20 +2055,6 @@ CREATE TABLE auth.identities (
 
 
 --
--- Name: TABLE identities; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.identities IS 'Auth: Stores identities associated to a user.';
-
-
---
--- Name: COLUMN identities.email; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON COLUMN auth.identities.email IS 'Auth: Email is a generated column that references the optional email property in the identity_data';
-
-
---
 -- Name: instances; Type: TABLE; Schema: auth; Owner: -
 --
 
@@ -2191,13 +2065,6 @@ CREATE TABLE auth.instances (
     created_at timestamp with time zone,
     updated_at timestamp with time zone
 );
-
-
---
--- Name: TABLE instances; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.instances IS 'Auth: Manages users across multiple sites.';
 
 
 --
@@ -2214,13 +2081,6 @@ CREATE TABLE auth.mfa_amr_claims (
 
 
 --
--- Name: TABLE mfa_amr_claims; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.mfa_amr_claims IS 'auth: stores authenticator method reference claims for multi factor authentication';
-
-
---
 -- Name: mfa_challenges; Type: TABLE; Schema: auth; Owner: -
 --
 
@@ -2233,13 +2093,6 @@ CREATE TABLE auth.mfa_challenges (
     otp_code text,
     web_authn_session_data jsonb
 );
-
-
---
--- Name: TABLE mfa_challenges; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.mfa_challenges IS 'auth: stores metadata about challenge requests made';
 
 
 --
@@ -2260,13 +2113,6 @@ CREATE TABLE auth.mfa_factors (
     web_authn_credential jsonb,
     web_authn_aaguid uuid
 );
-
-
---
--- Name: TABLE mfa_factors; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.mfa_factors IS 'auth: stores metadata about factors';
 
 
 --
@@ -2300,13 +2146,6 @@ CREATE TABLE auth.refresh_tokens (
     parent character varying(255),
     session_id uuid
 );
-
-
---
--- Name: TABLE refresh_tokens; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.refresh_tokens IS 'Auth: Store of tokens used to refresh JWT tokens once they expire.';
 
 
 --
@@ -2349,13 +2188,6 @@ CREATE TABLE auth.saml_providers (
 
 
 --
--- Name: TABLE saml_providers; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.saml_providers IS 'Auth: Manages SAML Identity Provider connections.';
-
-
---
 -- Name: saml_relay_states; Type: TABLE; Schema: auth; Owner: -
 --
 
@@ -2373,26 +2205,12 @@ CREATE TABLE auth.saml_relay_states (
 
 
 --
--- Name: TABLE saml_relay_states; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.saml_relay_states IS 'Auth: Contains SAML Relay State information for each Service Provider initiated login.';
-
-
---
 -- Name: schema_migrations; Type: TABLE; Schema: auth; Owner: -
 --
 
 CREATE TABLE auth.schema_migrations (
     version character varying(255) NOT NULL
 );
-
-
---
--- Name: TABLE schema_migrations; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.schema_migrations IS 'Auth: Manages updates to the auth system.';
 
 
 --
@@ -2415,20 +2233,6 @@ CREATE TABLE auth.sessions (
 
 
 --
--- Name: TABLE sessions; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.sessions IS 'Auth: Stores session data associated to a user.';
-
-
---
--- Name: COLUMN sessions.not_after; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON COLUMN auth.sessions.not_after IS 'Auth: Not after is a nullable column that contains a timestamp after which the session should be regarded as expired.';
-
-
---
 -- Name: sso_domains; Type: TABLE; Schema: auth; Owner: -
 --
 
@@ -2443,13 +2247,6 @@ CREATE TABLE auth.sso_domains (
 
 
 --
--- Name: TABLE sso_domains; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.sso_domains IS 'Auth: Manages SSO email address domain mapping to an SSO Identity Provider.';
-
-
---
 -- Name: sso_providers; Type: TABLE; Schema: auth; Owner: -
 --
 
@@ -2460,20 +2257,6 @@ CREATE TABLE auth.sso_providers (
     updated_at timestamp with time zone,
     CONSTRAINT "resource_id not empty" CHECK (((resource_id = NULL::text) OR (char_length(resource_id) > 0)))
 );
-
-
---
--- Name: TABLE sso_providers; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.sso_providers IS 'Auth: Manages SSO identity provider information; see saml_providers for SAML.';
-
-
---
--- Name: COLUMN sso_providers.resource_id; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON COLUMN auth.sso_providers.resource_id IS 'Auth: Uniquely identifies a SSO provider according to a user-chosen resource ID (case insensitive), useful in infrastructure as code.';
 
 
 --
@@ -2518,20 +2301,6 @@ CREATE TABLE auth.users (
     is_anonymous boolean DEFAULT false NOT NULL,
     CONSTRAINT users_email_change_confirm_status_check CHECK (((email_change_confirm_status >= 0) AND (email_change_confirm_status <= 2)))
 );
-
-
---
--- Name: TABLE users; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON TABLE auth.users IS 'Auth: Stores user login data within a secure schema.';
-
-
---
--- Name: COLUMN users.is_sso_user; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON COLUMN auth.users.is_sso_user IS 'Auth: Set this column to true when the account comes from SSO. These accounts can have duplicate emails.';
 
 
 --
@@ -2683,13 +2452,6 @@ CREATE TABLE storage.buckets (
 
 
 --
--- Name: COLUMN buckets.owner; Type: COMMENT; Schema: storage; Owner: -
---
-
-COMMENT ON COLUMN storage.buckets.owner IS 'Field is deprecated, use owner_id instead';
-
-
---
 -- Name: migrations; Type: TABLE; Schema: storage; Owner: -
 --
 
@@ -2720,13 +2482,6 @@ CREATE TABLE storage.objects (
     user_metadata jsonb,
     level integer
 );
-
-
---
--- Name: COLUMN objects.owner; Type: COMMENT; Schema: storage; Owner: -
---
-
-COMMENT ON COLUMN storage.objects.owner IS 'Field is deprecated, use owner_id instead';
 
 
 --
@@ -3167,13 +2922,6 @@ CREATE INDEX identities_email_idx ON auth.identities USING btree (email text_pat
 
 
 --
--- Name: INDEX identities_email_idx; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON INDEX auth.identities_email_idx IS 'Auth: Ensures indexed queries on the email column';
-
-
---
 -- Name: identities_user_id_idx; Type: INDEX; Schema: auth; Owner: -
 --
 
@@ -3367,13 +3115,6 @@ CREATE INDEX user_id_created_at_idx ON auth.sessions USING btree (user_id, creat
 --
 
 CREATE UNIQUE INDEX users_email_partial_key ON auth.users USING btree (email) WHERE (is_sso_user = false);
-
-
---
--- Name: INDEX users_email_partial_key; Type: COMMENT; Schema: auth; Owner: -
---
-
-COMMENT ON INDEX auth.users_email_partial_key IS 'Auth: A partial unique index that applies only when is_sso_user is false';
 
 
 --
@@ -3823,6 +3564,78 @@ ALTER TABLE auth.sso_providers ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: baskets Allow anon read baskets; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow anon read baskets" ON public.baskets FOR SELECT USING (true);
+
+
+--
+-- Name: blocks Allow anon read blocks; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow anon read blocks" ON public.blocks FOR SELECT USING (true);
+
+
+--
+-- Name: events Allow anon read events; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow anon read events" ON public.events FOR SELECT USING (true);
+
+
+--
+-- Name: raw_dumps Allow anon read raw_dumps; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow anon read raw_dumps" ON public.raw_dumps FOR SELECT USING (true);
+
+
+--
+-- Name: revisions Allow anon read revisions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow anon read revisions" ON public.revisions FOR SELECT USING (true);
+
+
+--
+-- Name: baskets Service role full access; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Service role full access" ON public.baskets TO service_role USING (true) WITH CHECK (true);
+
+
+--
+-- Name: baskets; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.baskets ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: blocks; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: events; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: raw_dumps; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.raw_dumps ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: revisions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.revisions ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: messages; Type: ROW SECURITY; Schema: realtime; Owner: -
