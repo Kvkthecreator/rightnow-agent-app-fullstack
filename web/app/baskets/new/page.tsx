@@ -13,10 +13,10 @@ export default function NewBasketPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleCreate = async () => {
-    if (!text.trim()) return;
+    if (!text.trim()) { alert("Please enter some text 😊"); return; }
     setSubmitting(true);
     try {
-      const { id } = await createBasketNew({ text, files });
+      const { id } = await createBasketNew({ text_dump: text, files });
       router.push(`/baskets/${id}/work`);
     } catch (err) {
       console.error(err);

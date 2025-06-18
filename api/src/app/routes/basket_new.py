@@ -1,17 +1,21 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from uuid import uuid4
 
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+from pydantic.config import ConfigDict
+
+from ..util.db import as_json
 from ..utils.supabase_client import supabase_client as supabase
-from ..util.db import json_safe
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 
 
 class BasketCreatePayload(BaseModel):
-    text_dump: str
+    text_dump: str = Field(..., alias="text", description="text_dump required")
     file_urls: list[str] | None = None
     basket_name: str | None = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 @router.post("/new", status_code=201)
@@ -19,10 +23,10 @@ async def create_basket(payload: BasketCreatePayload):
     basket_id = str(uuid4())
     try:
         supabase.table("baskets").insert(
-            json_safe({"id": basket_id, "name": payload.basket_name})
+            as_json({"id": basket_id, "name": payload.basket_name})
         ).execute()
         supabase.table("raw_dumps").insert(
-            json_safe(
+            as_json(
                 {
                     "id": str(uuid4()),
                     "basket_id": basket_id,
@@ -31,6 +35,6 @@ async def create_basket(payload: BasketCreatePayload):
                 }
             )
         ).execute()
-    except Exception:
-        raise HTTPException(status_code=500, detail="internal error")
+    except Exception as err:
+        raise HTTPException(status_code=500, detail="internal error") from err
     return {"basket_id": basket_id}

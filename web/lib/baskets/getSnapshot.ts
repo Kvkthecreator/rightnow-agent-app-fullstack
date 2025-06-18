@@ -1,11 +1,17 @@
 import { apiGet } from '@/lib/api';
 
+export interface Block {
+  id: string;
+  content?: string;
+  state: string;
+}
+
 export interface Snapshot {
   basket_id: string;
-  raw_dump: { id: string; content?: string; body_md?: string } | null;
-  constants: { id: string; content?: string }[];
-  locked_blocks: { id: string; content?: string }[];
-  accepted_blocks: { id: string; content?: string }[];
+  raw_dump: string;
+  accepted_blocks: Block[];
+  locked_blocks: Block[];
+  constants: Block[];
 }
 
 export async function getSnapshot(basketId: string): Promise<Snapshot> {

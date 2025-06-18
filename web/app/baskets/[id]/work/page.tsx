@@ -21,7 +21,8 @@ export default function BasketWorkPage({ params }: any) {
   if (isLoading) return <div className="p-6">Loading…</div>;
   if (error) return <div className="p-6 text-red-600">Failed to load basket.</div>;
 
-  const dumps = data?.raw_dump ? [data.raw_dump] : [];
+  const raw = data?.raw_dump ?? "";
+
   const grouped = {
     CONSTANT: data?.constants ?? [],
     LOCKED: data?.locked_blocks ?? [],
@@ -34,11 +35,11 @@ export default function BasketWorkPage({ params }: any) {
 
       <section>
         <h2 className="font-semibold mb-2">Raw Dump</h2>
-        {dumps.map((d: any) => (
-          <ReactMarkdown key={d.id} remarkPlugins={[remarkGfm]} className="prose">
-            {d.content || d.body_md || ""}
+        {raw && (
+          <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose">
+            {raw}
           </ReactMarkdown>
-        ))}
+        )}
       </section>
 
       {(

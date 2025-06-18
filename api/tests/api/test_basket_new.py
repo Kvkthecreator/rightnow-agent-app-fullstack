@@ -10,7 +10,7 @@ os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "svc.key")
 from app.routes.basket_new import router as basket_new_router
 
 app = FastAPI()
-app.include_router(basket_new_router)
+app.include_router(basket_new_router, prefix="/api")
 client = TestClient(app)
 
 
@@ -29,7 +29,7 @@ def test_basket_new(monkeypatch):
 
     resp = client.post(
         "/api/baskets/new",
-        json={"text_dump": "hello", "file_urls": ["f"], "basket_name": "test"},
+        json={"text": "hello", "file_urls": ["f"], "basket_name": "test"},
     )
     assert resp.status_code == 201
     body = resp.json()

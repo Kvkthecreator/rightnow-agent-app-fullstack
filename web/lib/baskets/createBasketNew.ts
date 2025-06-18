@@ -1,7 +1,7 @@
 export interface NewBasketArgs {
-  text: string;
+  text_dump: string;
   files?: string[];
-  name?: string | null;
+  basket_name?: string | null;
 }
 export async function createBasketNew(
   args: NewBasketArgs,
@@ -10,9 +10,9 @@ export async function createBasketNew(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      text_dump: args.text,
+      text_dump: args.text_dump,
       file_urls: args.files ?? [],
-      basket_name: args.name ?? null,
+      basket_name: args.basket_name ?? null,
     }),
   });
   if (res.status !== 201) {
