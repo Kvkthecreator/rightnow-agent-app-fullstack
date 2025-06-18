@@ -7,7 +7,8 @@ def test_assemble_filters_states():
         {"id": "2", "state": "PROPOSED"},
         {"id": "3", "state": "LOCKED"},
     ]
-    raw = ["a"]
+    raw = [{"body_md": "a", "created_at": "t"}]
     snap = assemble_snapshot(raw, blocks)
-    assert len(snap["blocks"]) == 2
-    assert snap["raw_dumps"] == ["a"]
+    assert len(snap["accepted_blocks"]) == 1
+    assert len(snap["locked_blocks"]) == 1
+    assert snap["raw_dump"] == "a"
