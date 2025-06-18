@@ -40,7 +40,6 @@ from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
 from .routes.basket_snapshot import router as snapshot_router
 
-
 # Route modules
 from .routes.baskets import router as basket_router
 from .routes.blocks import router as blocks_router
@@ -57,7 +56,6 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 
 # ── FastAPI app ────────────────────────────────────────────────────────────
 app = FastAPI(title="RightNow Agent Server")
-start_background_worker()
 
 # ── Unified API mounting ────────────────────────────────────────────────
 api = FastAPI()
@@ -94,6 +92,8 @@ app.mount("", api)
 
 # Logger for instrumentation
 logger = logging.getLogger("uvicorn.error")
+if "SUPABASE_SERVICE_ROLE_KEY" not in os.environ:
+    logger.warning("SUPABASE_SERVICE_ROLE_KEY not set; Supabase operations may fail")
 
 
 @app.get("/", include_in_schema=False)
