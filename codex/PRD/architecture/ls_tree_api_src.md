@@ -24,7 +24,6 @@
 │   │   ├── event_bus.py
 │   │   ├── events
 │   │   ├── exceptions.py
-│   │   ├── ingestion
 │   │   ├── integrations
 │   │   ├── routes
 │   │   ├── supabase_helpers.py
@@ -60,7 +59,6 @@
     │   └── test_dump_endpoint.py
     └── ingestion
         ├── __init__.py
-        ├── test_job_listener.py
         └── test_splitter_newlines.py
 
-19 directories, 44 files
+17 directories, 47 files
