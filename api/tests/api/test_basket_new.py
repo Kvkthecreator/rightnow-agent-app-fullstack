@@ -17,7 +17,20 @@ client = TestClient(app)
 def _fake_table(name, store):
     def insert(row):
         store[name].append(row)
-        return types.SimpleNamespace(execute=lambda: None)
+        return types.SimpleNamespace(
+            execute=lambda: types.SimpleNamespace(data=[row], error=None)
+        )
+
+    return types.SimpleNamespace(insert=insert)
+
+
+def _error_table(name):
+    def insert(_row):
+        return types.SimpleNamespace(
+            execute=lambda: types.SimpleNamespace(
+                data=None, error=types.SimpleNamespace(message=f"{name} fail")
+            )
+        )
 
     return types.SimpleNamespace(insert=insert)
 
@@ -49,3 +62,15 @@ def test_basket_new_minimal(monkeypatch):
     assert len(body["basket_id"]) > 0
     assert len(store["baskets"]) == 1
     assert len(store["raw_dumps"]) == 1
+
+
+def test_basket_new_error(monkeypatch):
+    fake = types.SimpleNamespace(table=_error_table)
+    monkeypatch.setattr("app.routes.basket_new.supabase", fake)
+
+    resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
+    assert resp.status_code == 500
+    assert (
+        "baskets fail" in resp.json()["detail"]
+        or "raw_dumps fail" in resp.json()["detail"]
+    )
