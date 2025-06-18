@@ -40,7 +40,9 @@ class StubClient:
 def _setup_supabase(monkeypatch):
     records = {}
     supabase_mod = importlib.import_module("supabase")
-    monkeypatch.setattr(supabase_mod, "create_client", lambda *a, **k: StubClient(records))
+    monkeypatch.setattr(
+        supabase_mod, "create_client", lambda *a, **k: StubClient(records)
+    )
     monkeypatch.setenv("SUPABASE_URL", "http://example.com")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "key")
     if "app.utils.supabase_client" in sys.modules:
@@ -51,6 +53,7 @@ def _setup_supabase(monkeypatch):
 def test_orch_run_creates_block_and_revision(monkeypatch):
     records = _setup_supabase(monkeypatch)
     from pathlib import Path
+
     spec = importlib.util.spec_from_file_location(
         "orch_block_manager_agent",
         Path(__file__).resolve().parents[2]
@@ -72,25 +75,32 @@ def test_orch_run_creates_block_and_revision(monkeypatch):
 def test_infra_route_ok(monkeypatch):
     records = _setup_supabase(monkeypatch)
     from pathlib import Path
+
     base = Path(__file__).resolve().parents[2]
 
     orch_spec = importlib.util.spec_from_file_location(
         "app.agent_tasks.orch.orch_block_manager_agent",
-        base / "api" / "src" / "app" / "agent_tasks" / "orch" / "orch_block_manager_agent.py",
+        base
+        / "api"
+        / "src"
+        / "app"
+        / "agent_tasks"
+        / "orch"
+        / "orch_block_manager_agent.py",
     )
     orch_mod = importlib.util.module_from_spec(orch_spec)
     assert orch_spec and orch_spec.loader
     orch_spec.loader.exec_module(orch_mod)
 
-    import types
-    dummy_diff = types.ModuleType("app.agent_tasks.orch.orch_block_diff_agent")
-    dummy_diff.run = lambda *a, **k: None
-    sys.modules["app.agent_tasks.orch.orch_block_diff_agent"] = dummy_diff
-    sys.modules.setdefault("schemas.block_diff", types.ModuleType("schemas.block_diff"))
-
     infra_spec = importlib.util.spec_from_file_location(
         "app.agent_tasks.infra.infra_cil_validator_agent",
-        base / "api" / "src" / "app" / "agent_tasks" / "infra" / "infra_cil_validator_agent.py",
+        base
+        / "api"
+        / "src"
+        / "app"
+        / "agent_tasks"
+        / "infra"
+        / "infra_cil_validator_agent.py",
     )
     infra_mod = importlib.util.module_from_spec(infra_spec)
     assert infra_spec and infra_spec.loader
