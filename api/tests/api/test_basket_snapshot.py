@@ -32,13 +32,12 @@ def _fake_table(name, store):
 
 
 def test_snapshot_empty(monkeypatch):
-    store = {"raw_dumps": [], "context_blocks": []}
+    store = {"raw_dumps": [], "blocks": []}
     fake = types.SimpleNamespace(table=lambda n: _fake_table(n, store))
     monkeypatch.setattr("app.routes.basket_snapshot.supabase", fake)
     res = client.get("/api/baskets/b1/snapshot")
     assert res.status_code == 200
     assert res.json() == {
-        "basket_id": "b1",
         "raw_dump": "",
         "accepted_blocks": [],
         "locked_blocks": [],
@@ -49,7 +48,7 @@ def test_snapshot_empty(monkeypatch):
 def test_snapshot_filters(monkeypatch):
     store = {
         "raw_dumps": [{"id": "r1", "body_md": "d", "created_at": "t"}],
-        "context_blocks": [
+        "blocks": [
             {"id": "b1", "state": "ACCEPTED"},
             {"id": "b2", "state": "PROPOSED"},
             {"id": "b3", "state": "LOCKED"},
@@ -60,7 +59,6 @@ def test_snapshot_filters(monkeypatch):
     res = client.get("/api/baskets/b2/snapshot")
     assert res.status_code == 200
     body = res.json()
-    assert body["basket_id"] == "b2"
     assert body["raw_dump"] == "d"
     assert len(body["accepted_blocks"]) == 1
     assert len(body["locked_blocks"]) == 1

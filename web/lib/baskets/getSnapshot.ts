@@ -3,11 +3,13 @@ import { apiGet } from '@/lib/api';
 export interface Block {
   id: string;
   content?: string;
+  semantic_type?: string;
   state: string;
+  scope?: string;
+  canonical_value?: string;
 }
 
 export interface Snapshot {
-  basket_id: string;
   raw_dump: string;
   accepted_blocks: Block[];
   locked_blocks: Block[];
