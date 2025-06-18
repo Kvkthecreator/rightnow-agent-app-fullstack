@@ -3,11 +3,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import useSWR from "swr";
 import { apiPost, apiGet } from "@/lib/api";
+import type { Snapshot } from "@/lib/baskets/getSnapshot";
 import { Button } from "@/components/ui/Button";
 
 export default function BasketWorkPage({ params }: any) {
   const id = params.id as string;
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR<Snapshot>(
     `/api/baskets/${id}/snapshot`,
     apiGet
   );
@@ -20,13 +21,11 @@ export default function BasketWorkPage({ params }: any) {
   if (isLoading) return <div className="p-6">Loading…</div>;
   if (error) return <div className="p-6 text-red-600">Failed to load basket.</div>;
 
-  const dumps = data?.raw_dumps ?? [];
-  const blocks = data?.blocks ?? [];
-
+  const dumps = data?.raw_dump ? [data.raw_dump] : [];
   const grouped = {
-    CONSTANT: blocks.filter((b: any) => b.state === "CONSTANT"),
-    LOCKED: blocks.filter((b: any) => b.state === "LOCKED"),
-    ACCEPTED: blocks.filter((b: any) => b.state === "ACCEPTED"),
+    CONSTANT: data?.constants ?? [],
+    LOCKED: data?.locked_blocks ?? [],
+    ACCEPTED: data?.accepted_blocks ?? [],
   };
 
   return (
