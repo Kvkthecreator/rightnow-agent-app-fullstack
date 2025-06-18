@@ -72,7 +72,7 @@ Folder names are contract‑level constants; changing them requires updating thi
 1. Supabase is **single source of truth**; agents write via stored procedures or typed repos.
 2. Every mutation creates: • **Revision** (commit‑like) • One or more **Event** rows.
 3. Authority ladder is enforced by **infra_cil_validator_agent** (CIL badges).
-4. Env vars conform to `docs/env_supabase_reference.md`.
+4. Env vars conform to the root [`.env.template`](../.env.template).
 
 ---
 
