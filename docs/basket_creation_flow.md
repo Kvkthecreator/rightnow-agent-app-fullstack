@@ -21,3 +21,7 @@
 
 📌 Modalities are additive — their failure or delay does not block base basket creation.  
 📌 Future modalities (e.g. audio) follow this same pattern, no further doc changes expected.
+
+## 🔧 Required Environment Variables
+
+Basket creation relies on the Supabase keys. See [`.env.template`](../.env.template) for the canonical list and guidance.

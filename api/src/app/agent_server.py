@@ -36,7 +36,6 @@ from fastapi.middleware.cors import CORSMiddleware
 # Task Brief and task-type routes are disabled for Phase 1
 # Agent handlers
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
-from .ingestion.job_listener import start_background_worker
 from .routes.agent_run import router as agent_run_router
 
 # Route modules
@@ -56,7 +55,6 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 
 # ── FastAPI app ────────────────────────────────────────────────────────────
 app = FastAPI(title="RightNow Agent Server")
-start_background_worker()
 
 # ── Unified API mounting ────────────────────────────────────────────────
 api = FastAPI()
