@@ -1,34 +1,60 @@
 "use client";
-
-import { useState } from "react";
-import CommitTimeline from "@/components/timeline/CommitTimeline";
-import BlocksWorkspace from "@/components/work/BlocksWorkspace";
-import NarrativeView from "@/components/work/NarrativeView";
-import { useInputs } from "@/lib/baskets/useInputs";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import useSWR from "swr";
+import { apiPost, apiGet } from "@/lib/api";
+import type { Snapshot } from "@/lib/baskets/getSnapshot";
+import { Button } from "@/components/ui/Button";
 
 export default function BasketWorkPage({ params }: any) {
-  const basketId = params.id;
-  const [selectedCommitId, setSelectedCommitId] = useState<string | null>(null);
-  const { inputs, isLoading, error } = useInputs(basketId);
+  const id = params.id as string;
+  const { data, error, isLoading, mutate } = useSWR<Snapshot>(
+    `/api/baskets/${id}/snapshot`,
+    apiGet
+  );
 
-  if (isLoading) {
-    return <div className="p-6">Loading…</div>;
-  }
+  const runBlockifier = async () => {
+    await apiPost(`/api/agents/orch_block_manager/run`, { basket_id: id });
+    mutate();
+  };
 
-  if (error) {
-    return <div className="p-6 text-red-600">Failed to load basket.</div>;
-  }
+  if (isLoading) return <div className="p-6">Loading…</div>;
+  if (error) return <div className="p-6 text-red-600">Failed to load basket.</div>;
+
+  const dumps = data?.raw_dump ? [data.raw_dump] : [];
+  const grouped = {
+    CONSTANT: data?.constants ?? [],
+    LOCKED: data?.locked_blocks ?? [],
+    ACCEPTED: data?.accepted_blocks ?? [],
+  };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen">
-      <CommitTimeline basketId={basketId} onSelect={setSelectedCommitId} />
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        <NarrativeView input={inputs?.[0]} />
-        <BlocksWorkspace
-          basketId={basketId}
-          highlightCommitId={selectedCommitId}
-        />
-      </div>
+    <div className="max-w-3xl mx-auto p-6 space-y-6">
+      <Button onClick={runBlockifier}>Run Blockifier</Button>
+
+      <section>
+        <h2 className="font-semibold mb-2">Raw Dump</h2>
+        {dumps.map((d: any) => (
+          <ReactMarkdown key={d.id} remarkPlugins={[remarkGfm]} className="prose">
+            {d.content || d.body_md || ""}
+          </ReactMarkdown>
+        ))}
+      </section>
+
+      {(
+        Object.entries(grouped) as ["CONSTANT" | "LOCKED" | "ACCEPTED", any[]][]
+      ).map(([state, arr]) => (
+        <section key={state}>
+          <h3 className="font-semibold text-lg">
+            {state === "CONSTANT" ? "★" : state === "LOCKED" ? "🔒" : "■"} {state}
+          </h3>
+          <ul className="list-disc pl-5 text-sm space-y-1">
+            {arr.map((b) => (
+              <li key={b.id}>{b.content}</li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }

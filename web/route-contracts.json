@@ -14,5 +14,8 @@
   "/api/manager-chat",
   "/api/summarize-session",
   "/api/system-check",
-  "/api/task-types"
+  "/api/task-types",
+  "/api/baskets/new",
+  "/api/baskets/[id]/snapshot",
+  "/api/agents/[name]/run"
 ]
