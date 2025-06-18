@@ -58,39 +58,36 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 # ── FastAPI app ────────────────────────────────────────────────────────────
 app = FastAPI(title="RightNow Agent Server")
 
-# ── Unified API mounting ────────────────────────────────────────────────
-api = FastAPI()
+routers = (
+    dump_router,
+    commits_router,
+    blocks_router,
+    change_queue_router,
+    basket_router,
+    basket_new_router,
+    snapshot_router,
+    inputs_router,
+    debug_router,
+    agent_router,
+    agent_run_router,
+    agents_router,
+    phase1_router,
+)
 
-# Route group under /api
-api.include_router(dump_router, prefix="/api")
-api.include_router(commits_router, prefix="/api")
-api.include_router(blocks_router, prefix="/api")
-api.include_router(change_queue_router, prefix="/api")
-api.include_router(basket_router, prefix="/api")
-api.include_router(snapshot_router, prefix="/api")
-api.include_router(inputs_router, prefix="/api")
-api.include_router(debug_router, prefix="/api")
-api.include_router(agent_router, prefix="/api")
-api.include_router(phase1_router, prefix="/api")
-api.include_router(agent_run_router, prefix="/api")
-api.include_router(agents_router, prefix="/api")
+for r in routers:
+    app.include_router(r, prefix="/api")
 
 # Agent entrypoints with API prefix
 
 
-@api.post("/api/agent")
+@app.post("/api/agent")
 async def api_run_agent(request):
     return await run_agent(request)
 
 
-@api.post("/api/agent/direct")
+@app.post("/api/agent/direct")
 async def api_run_agent_direct(request):
     return await run_agent_direct(request)
-
-
-# Mount the grouped API to root
-app.mount("", api)
-app.include_router(basket_new_router)
 
 # Logger for instrumentation
 logger = logging.getLogger("uvicorn.error")
@@ -99,7 +96,7 @@ if "SUPABASE_SERVICE_ROLE_KEY" not in os.environ:
 
 
 @app.get("/", include_in_schema=False)
-async def root():  # pragma: no cover
+async def health():  # pragma: no cover
     return {"status": "ok"}
 
 
