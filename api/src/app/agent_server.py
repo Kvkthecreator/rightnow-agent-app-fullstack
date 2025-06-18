@@ -49,6 +49,7 @@ from .routes.debug import router as debug_router
 from .routes.dump import router as dump_router
 from .routes.inputs import router as inputs_router
 from .routes.phase1_routes import router as phase1_router
+from .routes.basket_new import router as basket_new_router
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
@@ -89,6 +90,7 @@ async def api_run_agent_direct(request):
 
 # Mount the grouped API to root
 app.mount("", api)
+app.include_router(basket_new_router)
 
 # Logger for instrumentation
 logger = logging.getLogger("uvicorn.error")
