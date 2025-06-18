@@ -48,6 +48,7 @@ from .routes.debug import router as debug_router
 from .routes.dump import router as dump_router
 from .routes.inputs import router as inputs_router
 from .routes.phase1_routes import router as phase1_router
+from .routes.basket_snapshot import router as snapshot_router
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
@@ -66,6 +67,7 @@ api.include_router(commits_router, prefix="/api")
 api.include_router(blocks_router, prefix="/api")
 api.include_router(change_queue_router, prefix="/api")
 api.include_router(basket_router, prefix="/api")
+api.include_router(snapshot_router, prefix="/api")
 api.include_router(inputs_router, prefix="/api")
 api.include_router(debug_router, prefix="/api")
 api.include_router(agent_router, prefix="/api")
