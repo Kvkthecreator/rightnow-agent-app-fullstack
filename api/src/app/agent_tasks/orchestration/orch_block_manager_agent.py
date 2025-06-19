@@ -57,7 +57,7 @@ async def run(_: BlockManagerIn) -> BlockManagerOut:
         async for evt in subscribe(["block.audit_report", "block.usage_report"]):
             async with pool.acquire() as conn:
                 await _handle_event(conn, evt)
-    return BlockManagerOut(status="completed")
+    return BlockManagerOut(state="completed")
 
 
 async def _handle_event(conn: asyncpg.Connection, evt) -> None:
@@ -79,7 +79,7 @@ async def _handle_event(conn: asyncpg.Connection, evt) -> None:
                 "block.update_suggested",
                 {
                     "block_id": stale_id,
-                    "proposed": {"status": "inactive"},
+                    "proposed": {"state": "inactive"},
                     "reason": "stale_block",
                 },
             )

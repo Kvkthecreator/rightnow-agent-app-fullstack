@@ -15,7 +15,7 @@ def run(basket_id: UUID) -> dict:
                 "basket_id": str(basket_id),
                 "type": "placeholder",
                 "content": "pending proposal",
-                "status": "proposed",
+                "state": "PROPOSED",
             }
         )
     ).execute()
