@@ -2312,7 +2312,8 @@ CREATE TABLE public.baskets (
     name text,
     raw_dump_id uuid,
     state public.basket_state DEFAULT 'INIT'::public.basket_state NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    user_id uuid DEFAULT auth.uid() NOT NULL
 );
 
 
@@ -3406,6 +3407,14 @@ ALTER TABLE ONLY public.events
 
 
 --
+-- Name: baskets fk_baskets_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.baskets
+    ADD CONSTRAINT fk_baskets_user FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: baskets fk_raw_dump; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3636,6 +3645,49 @@ ALTER TABLE public.raw_dumps ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.revisions ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: baskets select_own_baskets; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_own_baskets ON public.baskets FOR SELECT TO authenticated USING ((user_id = auth.uid()));
+
+
+--
+-- Name: blocks select_own_blocks; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_own_blocks ON public.blocks FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM public.baskets b
+  WHERE ((b.id = blocks.basket_id) AND (b.user_id = auth.uid())))));
+
+
+--
+-- Name: events select_own_events; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_own_events ON public.events FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM public.baskets b
+  WHERE ((b.id = events.basket_id) AND (b.user_id = auth.uid())))));
+
+
+--
+-- Name: raw_dumps select_own_raw_dumps; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_own_raw_dumps ON public.raw_dumps FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM public.baskets b
+  WHERE ((b.id = raw_dumps.basket_id) AND (b.user_id = auth.uid())))));
+
+
+--
+-- Name: revisions select_own_revisions; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_own_revisions ON public.revisions FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM public.baskets b
+  WHERE ((b.id = revisions.basket_id) AND (b.user_id = auth.uid())))));
+
 
 --
 -- Name: raw_dumps service role ALL access; Type: POLICY; Schema: public; Owner: -
