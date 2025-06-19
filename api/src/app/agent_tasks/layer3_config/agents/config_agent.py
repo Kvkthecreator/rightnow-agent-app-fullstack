@@ -21,7 +21,7 @@ async def generate(payload: ConfigIn) -> ConfigOut:
             brief_id,
         )
         blocks = await conn.fetch(
-            "select cb.type, cb.content "
+            "select cb.semantic_type, cb.content "
             "from block_brief_link bl join blocks cb on cb.id=bl.block_id "
             "where bl.task_brief_id=$1",
             brief_id,

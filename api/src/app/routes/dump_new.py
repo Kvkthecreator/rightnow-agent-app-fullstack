@@ -34,8 +34,10 @@ async def create_dump(p: DumpPayload):
         )
         .execute()
     )
-    if resp.error:
-        raise HTTPException(500, resp.error.message)
+    if getattr(resp, "status_code", 200) >= 400 or getattr(resp, "error", None):
+        err = getattr(resp, "error", None)
+        detail = err.message if getattr(err, "message", None) else str(err or resp)
+        raise HTTPException(500, detail)
 
     supabase.table("events").insert(
         as_json(

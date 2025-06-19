@@ -53,8 +53,9 @@ async def create_basket(payload: BasketCreate):
     except Exception as err:
         logger.exception("create_basket failed")
         raise HTTPException(status_code=500, detail="internal error") from err
-    if resp.error:
-        raise HTTPException(status_code=500, detail=resp.error.message)
+    if getattr(resp, "status_code", 200) >= 400 or getattr(resp, "error", None):
+        detail = getattr(resp, "error", resp)
+        raise HTTPException(status_code=500, detail=str(detail))
 
     blocks: list[dict[str, Any]] = [
         {

@@ -42,13 +42,18 @@ async def create_task_brief(task_brief: TaskBrief):
     )
     try:
         resp = supabase.table("task_briefs").insert(json_safe(payload)).execute()
-        if resp.error or not resp.data:
-            detail = resp.error.message if resp.error else "Failed to insert task_brief"
+        status = getattr(resp, "status_code", 200)
+        if status >= 400 or getattr(resp, "error", None) or not resp.data:
+            detail = (
+                str(getattr(resp, "error", resp))
+                if status >= 400
+                else "Failed to insert task_brief"
+            )
             raise HTTPException(status_code=500, detail=detail)
         return resp.data[0]
-    except Exception:
+    except Exception as err:
         logger.exception("create_task_brief failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err
 
 
 @router.get("/{brief_id}", response_model=TaskBrief)
@@ -63,9 +68,10 @@ async def get_task_brief(brief_id: str):
             .single()
             .execute()
         )
-        if resp.error or not resp.data:
+        status = getattr(resp, "status_code", 200)
+        if status >= 400 or getattr(resp, "error", None) or not resp.data:
             raise HTTPException(status_code=404, detail="TaskBrief not found")
         return resp.data
-    except Exception:
+    except Exception as err:
         logger.exception("get_task_brief failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err
