@@ -34,9 +34,6 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
     router.push("/");
   };
 
-  const handleSettings = () => {
-    router.push("/settings");
-  };
 
   return (
     <aside
@@ -81,7 +78,6 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
                 seulkim88@gmail.com
               </summary>
               <div className="mt-2 ml-2 flex flex-col space-y-1 text-sm text-muted-foreground">
-                <button onClick={handleSettings}>⚙️ Settings</button>
                 <button onClick={handleLogout}>🔓 Sign Out</button>
               </div>
             </details>
