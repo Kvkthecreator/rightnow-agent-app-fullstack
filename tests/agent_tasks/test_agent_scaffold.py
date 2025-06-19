@@ -10,11 +10,21 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
+class StubResponse:
+    def __init__(self, data, status_code=200):
+        self.data = data
+        self.status_code = status_code
+
+    def json(self):  # pragma: no cover - simple stub
+        return {"data": self.data}
+
+
 class StubTable:
     def __init__(self, records, name):
         self.records = records
         self.name = name
         self.filters = {}
+        self.status_code = 200
 
     def insert(self, data):
         self.records.setdefault(self.name, []).append(data)
@@ -32,7 +42,7 @@ class StubTable:
         rows = self.records.get(self.name, [])
         for col, val in self.filters.items():
             rows = [r for r in rows if r.get(col) == val]
-        return type("Resp", (), {"data": rows, "error": None})()
+        return StubResponse(rows, self.status_code)
 
 
 class StubClient:

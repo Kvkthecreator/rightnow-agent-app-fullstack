@@ -17,14 +17,21 @@ export async function getAllBaskets(): Promise<BasketOverview[]> {
   const { data, error } = await supabase
     .from("baskets")
     .select(
-      `id,name,raw_dump_id,status,tags,commentary,created_at,updated_at,blocks(count),raw_dumps(body_md)`
+      `
+        id,
+        name,
+        created_at,
+        raw_dump:raw_dump_id (
+          body_md
+        )
+      `
     )
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((b: any) => ({
     id: b.id,
     name: b.name,
-    raw_dump_body: b.raw_dumps?.body_md ?? null,
+    raw_dump_body: b.raw_dump?.body_md ?? null,
     status: b.status,
     tags: b.tags,
     commentary: b.commentary,

@@ -1,15 +1,27 @@
 import importlib
 from pathlib import Path
 from uuid import uuid4
+import types
+import sys
+import os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+asyncpg_stub = types.SimpleNamespace(Connection=object)
+sys.modules.setdefault("asyncpg", asyncpg_stub)
 
 from tests.agent_tasks.test_agent_scaffold import _setup_supabase
 
 
 def test_run_agent_inserts_block(monkeypatch):
     records = _setup_supabase(monkeypatch)
+    for mod in ["app.routes.agents", "app.agent_tasks.orch.orch_block_manager_agent"]:
+        if mod in sys.modules:
+            del sys.modules[mod]
     base = Path(__file__).resolve().parents[3]
 
     # Load agent and router modules after patching Supabase
