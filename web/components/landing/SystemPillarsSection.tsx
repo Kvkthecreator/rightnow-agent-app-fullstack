@@ -17,44 +17,40 @@ export default function SystemPillarsSection() {
 
       {/* Features (4 columns on desktop, 2 on tablet, 1 on mobile) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10">
-        {/* 1. From dump to direction */}
+        {/* 1. Preserve Your Narrative */}
         <div>
           <h3 className="text-neutral-500 text-base md:text-xl font-normal mb-2 flex items-center gap-1">
-            <span role="img" aria-label="basket">🧺</span> From dump to direction
+            <span role="img" aria-label="scroll">📜</span> Preserve Your Narrative
           </h3>
           <p className="text-black text-base md:text-lg font-normal leading-relaxed">
-            Your raw thought is interpreted into a working intent, suggested title, and summary.<br />
-            You start messy — yarnnn gives it form.
+            Your raw dumps from any LLM are rendered as a beautiful, high-fidelity narrative. No fragmentation, no data loss—your original context is always preserved and respected.
           </p>
         </div>
-        {/* 2. Context made reusable */}
+        {/* 2. Promote Your Truth */}
         <div>
           <h3 className="text-neutral-500 text-base md:text-xl font-normal mb-2 flex items-center gap-1">
-            <span role="img" aria-label="puzzle">🧩</span> Context made reusable
+            <span role="img" aria-label="check">✅</span> Promote Your Truth
           </h3>
           <p className="text-black text-base md:text-lg font-normal leading-relaxed">
-            Key fragments — tone, goals, references, insights — are saved as reusable blocks.<br />
-            They’re ready to reappear whenever relevant in future work.
+            Select any part of your narrative—a decision, a style guide, a key insight—and promote it to a Block. You are in full control of what becomes a reusable piece of your memory.
           </p>
         </div>
-        {/* 3. From idea to output */}
+        {/* 3. Lock In Your Canon */}
         <div>
           <h3 className="text-neutral-500 text-base md:text-xl font-normal mb-2 flex items-center gap-1">
-            <span role="img" aria-label="paperclip">📎</span> From idea to output
+            <span role="img" aria-label="lock">🔒</span> Lock In Your Canon
           </h3>
           <p className="text-black text-base md:text-lg font-normal leading-relaxed">
-            Your structured context becomes something usable: a Notion brief, synced doc, or shareable strategy.<br />
-            No extra formatting needed.
+            Elevate a Block to a Locked state. This becomes your canonical truth. Our agents will now actively defend this context, highlighting any future inputs that contradict it.
           </p>
         </div>
-        {/* 4. Long-term continuity (coming soon) */}
+        {/* 4. Evolve with Confidence */}
         <div>
           <h3 className="text-neutral-500 text-base md:text-xl font-normal mb-2 flex items-center gap-1">
-            <span role="img" aria-label="repeat">🔁</span> Long-term continuity <span className="text-xs">(coming soon)</span>
+            <span role="img" aria-label="shield">🛡️</span> Evolve with Confidence
           </h3>
           <p className="text-black text-base md:text-lg font-normal leading-relaxed">
-            yarnnn helps you reconnect past threads across baskets.<br />
-            So you don’t lose context — even months later.
+            With your core context defended, you can freely explore new ideas. Our agents assist by flagging redundancies and contradictions, helping your memory grow clearer—not messier.
           </p>
         </div>
       </div>

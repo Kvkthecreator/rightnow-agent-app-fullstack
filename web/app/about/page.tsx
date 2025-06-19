@@ -1,5 +1,3 @@
-/* updated about page */
-
 "use client";
 
 import Head from 'next/head';
@@ -13,8 +11,8 @@ export default function AboutPage() {
   return (
     <>
       <Head>
-        <title>About yarnnn — memory OS for indie builders</title>
-        <meta name="description" content="Learn about yarnnn: a context OS that helps indie builders and creatives preserve clarity and defend their narrative without cognitive overload." />
+        <title>About yarnnn — A Memory That Defends</title>
+        <meta name="description" content="Learn how yarnnn's unique \"Lock In\" mechanism and narrative-first design help you achieve contextual integrity in your work with AI." />
         <meta name="keywords" content="yarnnn, about yarnnn, context OS, memory OS, indie builder tools, creative tools" />
         <meta property="og:title" content="About yarnnn — memory OS for indie builders" />
         <meta property="og:description" content="Learn how yarnnn helps you preserve clarity in your evolving ideas and memory." />
@@ -26,21 +24,19 @@ export default function AboutPage() {
       <main>
         <section className="w-full max-w-[1200px] mx-auto px-4 py-[120px] space-y-6">
           <h1 className="text-foreground text-4xl md:text-6xl font-bold tracking-tight leading-tight text-left">
-            <div className="font-brand text-3xl md:text-7xl">yarnnn</div>
-            <br />
-            your context OS for narrative-first memory
+            A memory that defends, not just remembers.
           </h1>
           <p className="text-lg leading-relaxed max-w-2xl">
-            yarnnn is a memory operating system for indie builders, solopreneurs, and creatives who need clarity without cognitive overload. Baskets preserve your raw narrative. Blocks protect reusable context. Agents assist gently — surfacing contradictions or modularity without silent changes.
+            In the age of AI, our greatest challenge isn't generating ideas—it's maintaining clarity. LLM chats quickly become a sea of repetition and contradiction. You're forced to become a context janitor, constantly reminding the AI of what you've already decided.
           </p>
           <p className="text-lg leading-relaxed max-w-2xl">
-            Built for the future of the block economy, yarnnn helps you defend and evolve your memory — one thought at a time.
+            yarnnn ends that cycle. It’s an opinionated memory system built on a simple principle: <strong>your context should be defended.</strong> By allowing you to <strong>Lock In</strong> core decisions as canonical truth, Yarnnn gives you the power to evolve your ideas with confidence and integrity.
           </p>
         </section>
         <SystemPillarsSection />
         <SystemCapabilitiesSection />
         <footer className="px-4 py-12 text-center text-sm text-muted-foreground">
-          our mission: help indie thinkers work with clarity and continuity — powered by thoughtful memory design.
+          Our mission: to empower thinkers with a tool that defends contextual integrity, turning chaotic conversations into a reliable source of truth.
         </footer>
       </main>
       <LandingFooter />

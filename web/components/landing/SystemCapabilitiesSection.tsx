@@ -7,35 +7,33 @@ export default function SystemCapabilitiesSection() {
         <h2 className="text-4xl md:text-6xl font-normal mb-16">Core Services</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* 1. Memory OS */}
+          {/* 1. Living Memory */}
           <div className="flex flex-col">
             <h3 className="text-xl md:text-2xl font-normal mb-4 flex items-center gap-1">
-              <span role="img" aria-label="box">📦</span> Memory OS
+              <span role="img" aria-label="box">📦</span> Living Memory
             </h3>
             <p className="text-base md:text-lg">
-              Everything you add becomes a living memory — saved, searchable, and enriched behind the scenes.
+              Unlike a static document, your yarnnn basket is a dynamic workspace. Your narrative evolves with each dump, while your Locked context provides a stable foundation.
             </p>
           </div>
 
-          {/* 2. Threaded Projects */}
+          {/* 2. Contextual Integrity */}
           <div className="flex flex-col">
             <h3 className="text-xl md:text-2xl font-normal mb-4 flex items-center gap-1">
-              <span role="img" aria-label="needle">🪡</span> Threaded Projects
+              <span role="img" aria-label="shield">🛡️</span> Contextual Integrity
             </h3>
             <p className="text-base md:text-lg">
-              Your tasks, goals, and context aren’t just stored — they grow.
-              yarnnn threads together structure and meaning as you go.
+              Our core promise. Gentle, agent-powered assistance ensures your canonical decisions are defended, giving you a reliable source of truth for all downstream work.
             </p>
           </div>
 
-          {/* 3. Built for integrations (coming soon) */}
+          {/* 3. Portable Context (coming soon) */}
           <div className="flex flex-col">
             <h3 className="text-xl md:text-2xl font-normal mb-4 flex items-center gap-1">
-              <span role="img" aria-label="globe">🌐</span> Built for integrations <span className="text-xs">(coming soon)</span>
+              <span role="img" aria-label="globe">🌐</span> Portable Context <span className="text-xs">(coming soon)</span>
             </h3>
             <p className="text-base md:text-lg">
-              yarnnn works alongside your tools, not instead of them.
-              Google Docs, Notion, and more coming soon.
+              Your Locked Blocks are designed for reuse. Soon, you'll be able to export them as prompts or pipe them into Notion, briefs, and other tools in your stack.
             </p>
           </div>
         </div>
