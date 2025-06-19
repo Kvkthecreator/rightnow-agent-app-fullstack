@@ -6,7 +6,7 @@ export interface BasketCardProps {
   basket: {
     id: string;
     name?: string | null;
-    raw_dump?: string | null;
+    raw_dump_body?: string | null;
     updated_at?: string | null;
     created_at?: string | null;
     blocks_count?: number | null;
@@ -21,7 +21,8 @@ export default function BasketCard({ basket }: BasketCardProps) {
   const created = basket.created_at
     ? format(new Date(basket.created_at), "PPP")
     : "";
-  const preview = basket.raw_dump?.slice(0, 150) || "No dump yet. Add something?";
+  const preview =
+    basket.raw_dump_body?.slice(0, 150) || "No dump yet. Add something?";
   return (
     <div
       className="rounded-md border p-4 hover:bg-muted cursor-pointer"

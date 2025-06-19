@@ -39,8 +39,8 @@ export default function BasketsPage() {
     const term = search.toLowerCase();
     let arr = baskets.filter(
       (b) =>
-        b.name?.toLowerCase().includes(term) || 
-        b.raw_dump?.toLowerCase().includes(term)
+        b.name?.toLowerCase().includes(term) ||
+        b.raw_dump_body?.toLowerCase().includes(term)
     );
     if (sort === "alpha") {
       arr = [...arr].sort((a, b) =>
