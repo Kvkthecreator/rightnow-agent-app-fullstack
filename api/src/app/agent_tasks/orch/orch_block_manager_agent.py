@@ -23,8 +23,8 @@ def run(basket_id: UUID) -> dict:
         )
         .execute()
     )
-    if res.error:  # type: ignore[attr-defined]
-        raise RuntimeError(res.error.message)
+    if getattr(res, "status_code", 200) >= 300 or getattr(res, "error", None):
+        raise RuntimeError(str(getattr(res, "error", res)))
 
     res = (
         supabase.table("block_revisions")
@@ -41,8 +41,8 @@ def run(basket_id: UUID) -> dict:
         )
         .execute()
     )
-    if res.error:  # type: ignore[attr-defined]
-        raise RuntimeError(res.error.message)
+    if getattr(res, "status_code", 200) >= 300 or getattr(res, "error", None):
+        raise RuntimeError(str(getattr(res, "error", res)))
 
     res = (
         supabase.table("events")
@@ -58,7 +58,7 @@ def run(basket_id: UUID) -> dict:
         )
         .execute()
     )
-    if res.error:  # type: ignore[attr-defined]
-        raise RuntimeError(res.error.message)
+    if getattr(res, "status_code", 200) >= 300 or getattr(res, "error", None):
+        raise RuntimeError(str(getattr(res, "error", res)))
 
     return {"proposed": 1}
