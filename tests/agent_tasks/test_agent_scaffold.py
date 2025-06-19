@@ -14,6 +14,7 @@ class StubTable:
     def __init__(self, records, name):
         self.records = records
         self.name = name
+        self.filters = {}
 
     def insert(self, data):
         self.records.setdefault(self.name, []).append(data)
@@ -23,10 +24,15 @@ class StubTable:
         return self
 
     def eq(self, *a, **k):
+        if a:
+            self.filters[a[0]] = a[1]
         return self
 
     def execute(self):
-        return type("Resp", (), {"data": []})()
+        rows = self.records.get(self.name, [])
+        for col, val in self.filters.items():
+            rows = [r for r in rows if r.get(col) == val]
+        return type("Resp", (), {"data": rows, "error": None})()
 
 
 class StubClient:
@@ -119,10 +125,12 @@ def test_infra_route_ok(monkeypatch):
     app.include_router(router_mod.router, prefix="/api")
     client = TestClient(app)
 
+    bid = str(uuid4())
+    records["baskets"] = [{"id": bid}]
     resp = client.post(
         "/api/agents/infra_cil_validator/run",
-        json={"basket_id": str(uuid4())},
+        json={"basket_id": bid},
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
-    assert records == {}  # validator is no-op
+    assert records == {"baskets": [{"id": bid}]}  # validator is no-op
