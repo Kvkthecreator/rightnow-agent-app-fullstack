@@ -5,7 +5,7 @@ import SmartDropZone from "@/components/SmartDropZone";
 import { UploadArea } from "@/components/baskets/UploadArea";
 import { createBasketNew } from "@/lib/baskets/createBasketNew";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/Card";
+import PageHeader from "@/components/page/PageHeader";
 
 export default function NewBasketPage() {
   const router = useRouter();
@@ -35,20 +35,11 @@ export default function NewBasketPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">🆕 Create New Basket</h1>
-          <p className="text-sm text-muted-foreground">
-            Begin a fresh container for your ideas and files
-          </p>
-        </div>
-      </div>
-
-      <Card>
-        <p className="text-sm text-muted-foreground">
-          Add a text dump and optional files to start your basket.
-        </p>
-      </Card>
+      <PageHeader
+        emoji="🆕"
+        title="Create New Basket"
+        description="Begin a fresh container for your ideas and files"
+      />
 
       <div className="space-y-4">
         <SmartDropZone
