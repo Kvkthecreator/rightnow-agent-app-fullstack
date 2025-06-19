@@ -93,7 +93,7 @@ export default function BasketsPage() {
           title="No baskets found"
           action={
             <Button asChild>
-              <Link href="/baskets/create">Create Basket</Link>
+              <Link href="/baskets/new">Create Basket</Link>
             </Button>
           }
         />

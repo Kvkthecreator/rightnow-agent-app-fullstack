@@ -2,7 +2,7 @@
 
 This flow captures the core yarnnn wedge: turning ongoing user dumps into structured memory.
 
-1. User lands on `/baskets/create`
+1. User lands on `/baskets/new`
 2. Enters raw input:
    - Freeform text dump
    - Uploaded files

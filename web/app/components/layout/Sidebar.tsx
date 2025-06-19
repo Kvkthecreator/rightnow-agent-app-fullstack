@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabaseClient";
 const baseItems = [
   { href: "/dashboard", label: "🧶 Dashboard" },
   { href: "/baskets", label: "🧺 Baskets" },
-  { href: "/baskets/create", label: "➕ New Basket" },
+  { href: "/baskets/new", label: "➕ New Basket" },
   { href: "/blocks", label: "◾ Blocks" }, // 🧩 Moved here
   { href: "/settings", label: "⚙️ Settings" },
 ];
