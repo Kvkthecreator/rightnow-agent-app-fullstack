@@ -14,6 +14,7 @@ export interface Snapshot {
   accepted_blocks: Block[];
   locked_blocks: Block[];
   constants: Block[];
+  proposed_blocks: Block[];
 }
 
 export async function getSnapshot(basketId: string): Promise<Snapshot> {

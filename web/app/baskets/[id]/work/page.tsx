@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { apiPost, apiGet } from "@/lib/api";
 import type { Snapshot } from "@/lib/baskets/getSnapshot";
 import { Button } from "@/components/ui/Button";
+import { toast } from "react-hot-toast";
 
 export default function BasketWorkPage({ params }: any) {
   const id = params.id as string;
@@ -14,8 +15,13 @@ export default function BasketWorkPage({ params }: any) {
   );
 
   const runBlockifier = async () => {
-    await apiPost(`/api/agents/orch_block_manager/run`, { basket_id: id });
-    mutate();
+    try {
+      await apiPost(`/api/agents/orch_block_manager/run`, { basket_id: id });
+      toast.success("Parsing complete");
+      mutate();
+    } catch (err) {
+      toast.error("Failed to run Blockifier");
+    }
   };
 
   if (isLoading) return <div className="p-6">Loading…</div>;
@@ -27,6 +33,7 @@ export default function BasketWorkPage({ params }: any) {
     CONSTANT: data?.constants ?? [],
     LOCKED: data?.locked_blocks ?? [],
     ACCEPTED: data?.accepted_blocks ?? [],
+    PROPOSED: data?.proposed_blocks ?? [],
   };
 
   return (
@@ -43,11 +50,21 @@ export default function BasketWorkPage({ params }: any) {
       </section>
 
       {(
-        Object.entries(grouped) as ["CONSTANT" | "LOCKED" | "ACCEPTED", any[]][]
+        Object.entries(grouped) as [
+          "CONSTANT" | "LOCKED" | "ACCEPTED" | "PROPOSED",
+          any[],
+        ][]
       ).map(([state, arr]) => (
         <section key={state}>
           <h3 className="font-semibold text-lg">
-            {state === "CONSTANT" ? "★" : state === "LOCKED" ? "🔒" : "■"} {state}
+            {state === "CONSTANT"
+              ? "★"
+              : state === "LOCKED"
+              ? "🔒"
+              : state === "ACCEPTED"
+              ? "■"
+              : "□"}{" "}
+            {state}
           </h3>
           <ul className="list-disc pl-5 text-sm space-y-1">
             {arr.map((b) => (

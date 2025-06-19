@@ -8,39 +8,57 @@ from app.utils.supabase_client import supabase_client as supabase
 def run(basket_id: UUID) -> dict:
     """Insert a placeholder block then record a revision and event."""
     block_id = str(uuid4())
-    supabase.table("blocks").insert(
-        json_safe(
-            {
-                "id": block_id,
-                "basket_id": str(basket_id),
-                "type": "placeholder",
-                "content": "pending proposal",
-                "state": "PROPOSED",
-            }
+    res = (
+        supabase.table("blocks")
+        .insert(
+            json_safe(
+                {
+                    "id": block_id,
+                    "basket_id": str(basket_id),
+                    "semantic_type": "placeholder",
+                    "content": "pending proposal",
+                    "state": "PROPOSED",
+                }
+            )
         )
-    ).execute()
+        .execute()
+    )
+    if res.error:  # type: ignore[attr-defined]
+        raise RuntimeError(res.error.message)
 
-    supabase.table("block_revisions").insert(
-        json_safe(
-            {
-                "block_id": block_id,
-                "prev_content": None,
-                "new_content": "pending proposal",
-                "changed_by": "orch_block_manager_agent",
-                "proposal_event": {},
-            }
+    res = (
+        supabase.table("block_revisions")
+        .insert(
+            json_safe(
+                {
+                    "block_id": block_id,
+                    "prev_content": None,
+                    "new_content": "pending proposal",
+                    "changed_by": "orch_block_manager_agent",
+                    "proposal_event": {},
+                }
+            )
         )
-    ).execute()
+        .execute()
+    )
+    if res.error:  # type: ignore[attr-defined]
+        raise RuntimeError(res.error.message)
 
-    supabase.table("events").insert(
-        json_safe(
-            {
-                "basket_id": str(basket_id),
-                "block_id": block_id,
-                "kind": "orch_block_manager.proposed",
-                "payload": {},
-            }
+    res = (
+        supabase.table("events")
+        .insert(
+            json_safe(
+                {
+                    "basket_id": str(basket_id),
+                    "block_id": block_id,
+                    "kind": "orch_block_manager.proposed",
+                    "payload": {},
+                }
+            )
         )
-    ).execute()
+        .execute()
+    )
+    if res.error:  # type: ignore[attr-defined]
+        raise RuntimeError(res.error.message)
 
-    return {"block_id": block_id}
+    return {"proposed": 1}
