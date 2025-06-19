@@ -16,9 +16,6 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
--- Remove obsolete view used by early prototypes
-DROP VIEW IF EXISTS context_blocks;
-
 --
 -- Name: auth; Type: SCHEMA; Schema: -; Owner: -
 --
@@ -3639,6 +3636,27 @@ ALTER TABLE public.raw_dumps ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.revisions ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: raw_dumps service role ALL access; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "service role ALL access" ON public.raw_dumps TO service_role USING (true) WITH CHECK (true);
+
+
+--
+-- Name: baskets service role full access; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "service role full access" ON public.baskets TO service_role USING (true);
+
+
+--
+-- Name: raw_dumps service role full access; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "service role full access" ON public.raw_dumps TO service_role USING (true);
+
 
 --
 -- Name: messages; Type: ROW SECURITY; Schema: realtime; Owner: -
