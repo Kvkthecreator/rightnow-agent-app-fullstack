@@ -17,7 +17,7 @@ export async function getBriefTypes() {
 export async function getContextBlocks(user_id: string) {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("context_blocks")
+    .from("blocks")
     .select("*")
     .eq("user_id", user_id)
     .order("created_at", { ascending: false });

@@ -7,5 +7,5 @@ from src.utils.logged_agent import logged
 
 @logged("on_input_created")
 async def handle_event(event: dict[str, Any]) -> dict[str, Any]:
-    """Placeholder handler for `basket_inputs.created` events."""
+    """Placeholder handler for `raw_dumps.created` events."""
     return {"status": "ok"}

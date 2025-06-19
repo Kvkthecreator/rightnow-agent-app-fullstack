@@ -12,36 +12,27 @@ import { Card, CardContent } from "@/components/ui/Card";
 import SmartDropZone from "@/components/SmartDropZone";
 import ThumbnailStrip from "@/components/ThumbnailStrip";
 import { Button } from "@/components/ui/Button";
-import { createBasketWithInput } from "@/lib/baskets/createBasketWithInput";
-import { createDump } from "@/lib/baskets/createDump";
-import { createClient } from "@/lib/supabaseClient";
+import { createDump } from "@/lib/dumps/createDump";
 import { toast } from "react-hot-toast";
 
 export interface DumpModalProps {
-  basketId?: string | null;
+  basketId: string;
   initialOpen?: boolean;
 }
 
-export function openDumpModal({ basketId }: { basketId?: string | null } = {}) {
-  window.dispatchEvent(new CustomEvent("open-dump-modal", { detail: { basketId } }));
+export function openDumpModal() {
+  window.dispatchEvent(new Event("open-dump-modal"));
 }
 
-export default function DumpModal({ basketId: propBasketId, initialOpen = false }: DumpModalProps) {
+export default function DumpModal({ basketId, initialOpen = false }: DumpModalProps) {
   const [open, setOpen] = useState(initialOpen);
-  const [basketId, setBasketId] = useState<string | null>(propBasketId ?? null);
   const [text, setText] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => setOpen(initialOpen), [initialOpen]);
-  useEffect(() => setBasketId(propBasketId ?? null), [propBasketId]);
-
   useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail || {};
-      setBasketId(detail.basketId ?? null);
-      setOpen(true);
-    };
+    const handler = () => setOpen(true);
     window.addEventListener("open-dump-modal", handler);
     return () => window.removeEventListener("open-dump-modal", handler);
   }, []);
@@ -53,30 +44,8 @@ export default function DumpModal({ basketId: propBasketId, initialOpen = false 
     }
     setLoading(true);
     try {
-      if (basketId) {
-        const resp = await createDump({ basketId, text, images });
-        toast.success("Dump added");
-        if (resp?.warning === "too_many_blocks") {
-          toast(
-            (t) => <span>Large dump detected — consider splitting.</span>,
-            { icon: "⚠️" }
-          );
-        }
-      } else {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
-        const userId = data?.user?.id;
-        if (!userId) throw new Error("Not authenticated");
-
-        const basket = await createBasketWithInput({
-          userId,
-          text,
-          files: images,
-          basketName: text.split("\n")[0]?.slice(0, 100) || null,
-        });
-        toast.success("Basket created");
-        window.location.href = `/baskets/${basket.id}/work`;
-      }
+      await createDump(basketId, text, []);
+      toast.success("Dump saved ✓");
       setOpen(false);
       setText("");
       setImages([]);

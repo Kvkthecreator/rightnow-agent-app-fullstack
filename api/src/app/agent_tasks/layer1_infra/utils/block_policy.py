@@ -5,7 +5,7 @@ import asyncpg
 # ----------------------------------
 async def is_auto(conn: asyncpg.Connection, block_id: str) -> bool:
     row = await conn.fetchrow(
-        "select update_policy from public.context_blocks where id=$1",
+        "select update_policy from public.blocks where id=$1",
         block_id,
     )
     return bool(row and row["update_policy"] == "auto")

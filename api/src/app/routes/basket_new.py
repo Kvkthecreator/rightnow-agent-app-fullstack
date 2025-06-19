@@ -1,8 +1,11 @@
 import logging
+from uuid import uuid4
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
+from ..util.db import as_json
 from ..utils.supabase_client import (
     SUPABASE_KEY_ROLE,
     supabase_client as supabase,
@@ -15,7 +18,7 @@ logger.info("[basket_new] Supabase role: %s", SUPABASE_KEY_ROLE)
 
 
 class BasketCreatePayload(BaseModel):
-    text_dump: str = Field(..., alias="text_dump")
+    text_dump: str | None = Field(None, alias="text_dump")
     file_urls: list[str] | None = None
     basket_name: str | None = None
 
@@ -24,25 +27,41 @@ class BasketCreatePayload(BaseModel):
 
 @router.post("/new", status_code=201)
 async def create_basket(payload: BasketCreatePayload):
-    logger.info("[basket_new] payload: %s", payload.model_dump())
+    logger.info("[basket_new] payload: %s", payload.dict())
 
+    basket_id = str(uuid4())
     try:
         resp = (
-            supabase.rpc(
-                "create_basket_with_dump",
-                {
-                    "p_name": payload.basket_name,
-                    "p_body_md": payload.text_dump,
-                },
-            ).execute()
+            supabase.table("baskets")
+            .insert(as_json({"id": basket_id, "name": payload.basket_name}))
+            .execute()
         )
     except Exception as err:
-        logger.exception("create_basket_with_dump RPC failed")
+        logger.exception("basket insertion failed")
         raise HTTPException(status_code=500, detail="internal error") from err
-
     if resp.error:
-        logger.error("create_basket_with_dump RPC error: %s", resp.error.message)
         raise HTTPException(status_code=500, detail=resp.error.message)
 
-    result = resp.data
-    return {"basket_id": result[0]["basket_id"]}
+    if payload.text_dump:
+        dump_id = str(uuid4())
+        dr = (
+            supabase.table("raw_dumps")
+            .insert(
+                as_json(
+                    {
+                        "id": dump_id,
+                        "basket_id": basket_id,
+                        "body_md": payload.text_dump,
+                        "file_refs": payload.file_urls or [],
+                    }
+                )
+            )
+            .execute()
+        )
+        if dr.error:
+            raise HTTPException(status_code=500, detail=dr.error.message)
+        supabase.table("baskets").update({"raw_dump_id": dump_id}).eq(
+            "id", basket_id
+        ).execute()
+
+    return {"basket_id": basket_id}

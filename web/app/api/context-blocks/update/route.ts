@@ -16,7 +16,7 @@ export async function PUT(req: NextRequest) {
 
   const supabase = createServiceRoleClient();
   const { error } = await supabase
-    .from("context_blocks")
+    .from("blocks")
     .update(updates)
     .eq("id", id);
   if (error) {

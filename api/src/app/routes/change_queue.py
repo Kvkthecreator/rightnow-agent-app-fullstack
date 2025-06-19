@@ -14,7 +14,7 @@ def pending_change_count(basket_id: str, status: str | None = None) -> dict:
     """Return count of block changes for a basket filtered by status."""
     try:
         blocks_resp = (
-            supabase.table("context_blocks")
+            supabase.table("blocks")
             .select("id")
             .eq("basket_id", basket_id)
             .execute()
@@ -31,6 +31,6 @@ def pending_change_count(basket_id: str, status: str | None = None) -> dict:
             query = query.eq("status", status)
         resp = query.execute()
         return {"count": resp.count or 0}
-    except Exception:
+    except Exception as err:
         logger.exception("pending_change_count failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err

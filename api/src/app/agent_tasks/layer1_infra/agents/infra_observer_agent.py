@@ -15,14 +15,14 @@ from ..schemas import UsageReport
 
 STALE_SQL = """
 select id::text
-from public.context_blocks
+from public.blocks
 where (last_refreshed_at is null
        or last_refreshed_at < (now() - interval '30 days'));
 """
 
 UNUSED_SQL = """
 select cb.id::text
-from public.context_blocks cb
+from public.blocks cb
 left join public.block_usage_history h
        on h.block_id = cb.id
        and h.used_at > (now() - interval '45 days')

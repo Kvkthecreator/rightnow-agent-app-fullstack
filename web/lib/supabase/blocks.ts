@@ -20,7 +20,7 @@ export async function fetchBlocks(
 ) {
   const supabase = createClient();
   let query = supabase
-    .from("context_blocks")
+    .from("blocks")
     .select("*")
     .eq("user_id", userId);
   if (scopes.length > 0) {

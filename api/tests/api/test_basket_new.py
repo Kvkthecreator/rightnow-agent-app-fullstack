@@ -16,34 +16,45 @@ client = TestClient(app)
 
 
 def _fake_supabase(store):
-    def rpc(name, params):
-        store["calls"].append(name)
+    def table(name: str):
+        def insert(row: dict):
+            row = {**row}
+            if "id" not in row:
+                row["id"] = str(uuid.uuid4())
+            store[name].append(row)
+            return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[row], error=None))
 
-        def execute():
-            bid = str(uuid.uuid4())
-            did = str(uuid.uuid4())
-            store["baskets"].append({"id": bid, "raw_dump_id": did})
-            store["raw_dumps"].append({"id": did, "basket_id": bid})
-            return types.SimpleNamespace(data=[{"basket_id": bid}], error=None)
+        def update(obj: dict):
+            for r in store[name]:
+                r.update(obj)
+            def eq(*_a):
+                return types.SimpleNamespace(execute=lambda: None)
+            return types.SimpleNamespace(eq=eq)
 
-        return types.SimpleNamespace(execute=execute)
+        return types.SimpleNamespace(insert=insert, update=update)
 
-    return types.SimpleNamespace(rpc=rpc)
+    return types.SimpleNamespace(table=table)
 
 
 def _error_supabase():
-    def rpc(name, _params):
-        return types.SimpleNamespace(
-            execute=lambda: types.SimpleNamespace(
-                data=None, error=types.SimpleNamespace(message=f"{name} fail")
+    def table(name: str):
+        def insert(_row):
+            return types.SimpleNamespace(
+                execute=lambda: types.SimpleNamespace(data=None, error=types.SimpleNamespace(message=f"{name} insert fail"))
             )
-        )
 
-    return types.SimpleNamespace(rpc=rpc)
+        def update(_obj):
+            def eq(*_a):
+                return types.SimpleNamespace(execute=lambda: None)
+            return types.SimpleNamespace(eq=eq)
+
+        return types.SimpleNamespace(insert=insert, update=update)
+
+    return types.SimpleNamespace(table=table)
 
 
 def test_basket_new(monkeypatch):
-    store = {"baskets": [], "raw_dumps": [], "calls": []}
+    store = {"baskets": [], "raw_dumps": []}
     fake = _fake_supabase(store)
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
@@ -57,13 +68,11 @@ def test_basket_new(monkeypatch):
     assert len(store["baskets"]) == 1
     assert len(store["raw_dumps"]) == 1
     assert store["baskets"][0]["id"] == body["basket_id"]
-    assert store["baskets"][0]["raw_dump_id"] == store["raw_dumps"][0]["id"]
     assert store["raw_dumps"][0]["basket_id"] == body["basket_id"]
-    assert store["calls"] == ["create_basket_with_dump"]
 
 
 def test_basket_new_minimal(monkeypatch):
-    store = {"baskets": [], "raw_dumps": [], "calls": []}
+    store = {"baskets": [], "raw_dumps": []}
     fake = _fake_supabase(store)
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
@@ -74,9 +83,7 @@ def test_basket_new_minimal(monkeypatch):
     assert len(store["baskets"]) == 1
     assert len(store["raw_dumps"]) == 1
     assert store["baskets"][0]["id"] == body["basket_id"]
-    assert store["baskets"][0]["raw_dump_id"] == store["raw_dumps"][0]["id"]
     assert store["raw_dumps"][0]["basket_id"] == body["basket_id"]
-    assert store["calls"] == ["create_basket_with_dump"]
 
 
 def test_basket_new_error(monkeypatch):
@@ -85,4 +92,4 @@ def test_basket_new_error(monkeypatch):
 
     resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
     assert resp.status_code == 500
-    assert "create_basket_with_dump fail" in resp.json()["detail"]
+    assert "insert fail" in resp.json()["detail"]

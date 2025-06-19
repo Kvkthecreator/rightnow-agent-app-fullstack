@@ -16,7 +16,7 @@ with dupes as (
   select lower(label) as norm_label,
          array_agg(id) as ids,
          count(*) as cnt
-  from public.context_blocks
+  from public.blocks
   group by lower(label)
   having count(*) > 1
 )

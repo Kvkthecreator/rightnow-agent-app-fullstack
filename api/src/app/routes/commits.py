@@ -16,7 +16,7 @@ logger = logging.getLogger("uvicorn.error")
 def _commit_stats(cid: str) -> tuple[int | None, int | None, int | None]:
     try:
         new_blocks = (
-            supabase.table("context_blocks")
+            supabase.table("blocks")
             .select("id", count="exact")
             .eq("commit_id", cid)
             .execute()
@@ -30,7 +30,7 @@ def _commit_stats(cid: str) -> tuple[int | None, int | None, int | None]:
             .count  # type: ignore[attr-defined]
         )
         edited_blocks = (
-            supabase.table("context_blocks")
+            supabase.table("blocks")
             .select("id", count="exact")
             .eq("commit_id", cid)
             .gt("version", 1)
@@ -38,9 +38,9 @@ def _commit_stats(cid: str) -> tuple[int | None, int | None, int | None]:
             .count  # type: ignore[attr-defined]
         )
         return new_blocks, edited_blocks, supersedes
-    except Exception:
+    except Exception as err:
         logger.exception("_commit_stats failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err
 
 
 @router.get("/baskets/{basket_id}/commits")
@@ -72,6 +72,6 @@ def list_commits(
                 }
             )
         return commits
-    except Exception:
+    except Exception as err:
         logger.exception("list_commits failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err

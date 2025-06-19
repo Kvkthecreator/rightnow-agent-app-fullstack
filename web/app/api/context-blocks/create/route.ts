@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
-    .from("context_blocks")
+    .from("blocks")
     .insert(payload)
     .select()
     .single();

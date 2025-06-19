@@ -15,7 +15,7 @@ interface QueueRow {
   proposed_data: any;
   created_at: string;
   source_scope?: string;
-  context_blocks?: { label: string };
+  blocks?: { label: string };
 }
 
 export default function BlockQueuePage() {
@@ -34,7 +34,7 @@ export default function BlockQueuePage() {
       const { data: raw } = await supabase
         .from("block_change_queue")
         .select(
-          "id,action,block_id,proposed_data,source_scope,created_at,context_blocks(label)"
+          "id,action,block_id,proposed_data,source_scope,created_at,blocks(label)"
         )
         .eq("status", "pending")
         .order("created_at");
@@ -86,7 +86,7 @@ export default function BlockQueuePage() {
             >
               <div className="grow">
                 <h3 className="font-medium flex items-center gap-2">
-                  {row.context_blocks?.label || row.block_id.slice(0, 8)}
+                  {row.blocks?.label || row.block_id.slice(0, 8)}
                   {row.source_scope && (
                     <span className="text-xs px-2 py-0.5 bg-muted rounded border">
                       {row.source_scope}

@@ -68,7 +68,7 @@ def test_orch_run_creates_block_and_revision(monkeypatch):
     assert spec and spec.loader
     spec.loader.exec_module(module)
     module.run(uuid4())
-    assert "context_blocks" in records
+    assert "blocks" in records
     assert "block_revisions" in records
 
 
