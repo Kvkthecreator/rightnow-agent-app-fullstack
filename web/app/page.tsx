@@ -1,5 +1,3 @@
-/* updated landing page */
-
 "use client";
 
 import Head from 'next/head';
