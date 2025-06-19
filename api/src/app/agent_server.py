@@ -38,6 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
+from .routes.basket_new import router as basket_new_router
 from .routes.basket_snapshot import router as snapshot_router
 
 # Route modules
@@ -46,10 +47,9 @@ from .routes.blocks import router as blocks_router
 from .routes.change_queue import router as change_queue_router
 from .routes.commits import router as commits_router
 from .routes.debug import router as debug_router
-from .routes.dump import router as dump_router
+from .routes.dump_new import router as dump_new_router
 from .routes.inputs import router as inputs_router
 from .routes.phase1_routes import router as phase1_router
-from .routes.basket_new import router as basket_new_router
 
 # ── Environment variable for Bubble webhook URL
 CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
@@ -59,7 +59,7 @@ CHAT_URL = os.getenv("BUBBLE_CHAT_URL")
 app = FastAPI(title="RightNow Agent Server")
 
 routers = (
-    dump_router,
+    dump_new_router,
     commits_router,
     blocks_router,
     change_queue_router,

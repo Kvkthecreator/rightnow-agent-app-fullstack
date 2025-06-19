@@ -35,7 +35,7 @@ export default function BlockCreateModal({ open, onOpenChange, onCreate }: Props
     if (!open) return;
     const supabase = createClient();
     supabase
-      .from("context_blocks")
+      .from("blocks")
       .select("type")
       .then(({ data }) => {
         if (data) {

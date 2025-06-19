@@ -14,16 +14,16 @@ def list_inputs(basket_id: str) -> list[dict]:
     """Return raw text dumps for a basket ordered by time."""
     try:
         resp = (
-            supabase.table("basket_inputs")
+            supabase.table("raw_dumps")
             .select("id,content,created_at")
             .eq("basket_id", basket_id)
             .order("created_at")
             .execute()
         )
         return resp.data or []  # type: ignore[attr-defined]
-    except Exception:
+    except Exception as err:
         logger.exception("list_inputs failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err
 
 
 @router.get("/baskets/{basket_id}/input-highlights")
@@ -31,16 +31,15 @@ def highlight_inputs(basket_id: str) -> list[dict]:
     """Return highlight suggestions comparing inputs to promoted blocks."""
     try:
         in_resp = (
-            supabase.table("basket_inputs")
+            supabase.table("raw_dumps")
             .select("id,content")
             .eq("basket_id", basket_id)
             .execute()
         )
         blk_resp = (
-            supabase.table("context_blocks")
+            supabase.table("blocks")
             .select("id,label,content")
             .eq("basket_id", basket_id)
-            .eq("is_draft", False)
             .execute()
         )
         inputs = in_resp.data or []
@@ -60,6 +59,6 @@ def highlight_inputs(basket_id: str) -> list[dict]:
                         }
                     )
         return suggestions
-    except Exception:
+    except Exception as err:
         logger.exception("highlight_inputs failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err

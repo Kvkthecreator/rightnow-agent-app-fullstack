@@ -50,9 +50,9 @@ async def create_basket(payload: BasketCreate):
             )
             .execute()
         )
-    except Exception:
+    except Exception as err:
         logger.exception("create_basket failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err
     if resp.error:
         raise HTTPException(status_code=500, detail=resp.error.message)
 
@@ -109,10 +109,10 @@ async def create_basket(payload: BasketCreate):
             mode="json", exclude_none=True
         )
         try:
-            supabase.table("context_blocks").insert(json_safe(safe_block)).execute()
-        except Exception:
+            supabase.table("blocks").insert(json_safe(safe_block)).execute()
+        except Exception as err:
             logger.exception("block insertion failed")
-            raise HTTPException(status_code=500, detail="internal error")
+            raise HTTPException(status_code=500, detail="internal error") from err
     await publish_event(
         "basket.compose_request",
         {
@@ -146,7 +146,7 @@ async def get_basket(basket_id: str):
         raise HTTPException(status_code=404, detail="Basket not found")
     try:
         blk_resp = (
-            supabase.table("context_blocks")
+            supabase.table("blocks")
             .select("id,type,content,order,meta_tags,origin,status")
             .eq("basket_id", basket_id)
             .order("order")
@@ -159,9 +159,9 @@ async def get_basket(basket_id: str):
             .eq("basket_id", basket_id)
             .execute()
         )
-    except Exception:
+    except Exception as err:
         logger.exception("get_basket related queries failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err
     return {
         "id": basket_id,
         "status": basket_resp.data.get("status"),
@@ -189,9 +189,9 @@ async def update_basket(basket_id: str, payload: BasketUpdate):
                     }
                 )
             ).execute()
-    except Exception:
+    except Exception as err:
         logger.exception("update_basket failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err
     await publish_event(
         "basket.compose_request",
         {

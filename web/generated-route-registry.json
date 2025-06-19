@@ -8,7 +8,6 @@
   "/api/baskets/[id]/change-queue",
   "/api/baskets/[id]/commits",
   "/api/baskets/[id]/work",
-  "/api/baskets/create-with-input",
   "/api/context-blocks/create",
   "/api/context-blocks/update",
   "/api/manager-chat",

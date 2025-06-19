@@ -9,7 +9,7 @@ Agents:
 
 ### infra_analyzer_agent
 
-*Checks deterministic integrity of `context_blocks`.  
+*Checks deterministic integrity of `blocks` table.
 v0.1 only detects duplicate labels (case-insensitive).*
 
 Event emitted: **block.audit_report**

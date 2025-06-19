@@ -16,6 +16,13 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+-- DROP obsolete objects
+DROP VIEW IF EXISTS context_blocks CASCADE;
+DROP FUNCTION IF EXISTS create_basket_with_dump(text,text);
+
+-- baskets.raw_dump_id becomes NULLABLE
+ALTER TABLE baskets ALTER COLUMN raw_dump_id DROP NOT NULL;
+
 --
 -- Name: auth; Type: SCHEMA; Schema: -; Owner: -
 --

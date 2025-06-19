@@ -13,13 +13,13 @@ logger = logging.getLogger("uvicorn.error")
 def list_blocks(basket_id: str):
     try:
         resp = (
-            supabase.table("context_blocks")
+            supabase.table("blocks")
             .select("id,type,content,order,meta_tags,origin,status")
             .eq("basket_id", basket_id)
             .order("order")
             .execute()
         )
         return resp.data  # type: ignore[attr-defined]
-    except Exception:
+    except Exception as err:
         logger.exception("list_blocks failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err

@@ -18,7 +18,7 @@ export default function useDumpHotkey() {
       if (!currentBasketId) {
         toast("Open a basket first to dump");
       } else {
-        openDumpModal({ basketId: currentBasketId });
+        openDumpModal();
       }
     };
     window.addEventListener("keydown", handler);

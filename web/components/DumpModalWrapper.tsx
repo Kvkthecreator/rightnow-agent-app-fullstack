@@ -2,8 +2,11 @@
 
 import DumpModal from './DumpModal';
 import useDumpHotkey from '@/lib/hooks/useDumpHotkey';
+import { useBasket } from '@/lib/context/BasketContext';
 
 export default function DumpModalWrapper() {
+  const { currentBasketId } = useBasket();
   useDumpHotkey();
-  return <DumpModal />;
+  if (!currentBasketId) return null;
+  return <DumpModal basketId={currentBasketId} />;
 }

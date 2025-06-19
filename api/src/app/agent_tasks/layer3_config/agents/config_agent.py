@@ -22,7 +22,7 @@ async def generate(payload: ConfigIn) -> ConfigOut:
         )
         blocks = await conn.fetch(
             "select cb.type, cb.content "
-            "from block_brief_link bl join context_blocks cb on cb.id=bl.block_id "
+            "from block_brief_link bl join blocks cb on cb.id=bl.block_id "
             "where bl.task_brief_id=$1",
             brief_id,
         )

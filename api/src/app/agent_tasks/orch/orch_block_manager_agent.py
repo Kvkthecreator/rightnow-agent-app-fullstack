@@ -1,13 +1,14 @@
 from uuid import UUID, uuid4
 
 from src.utils.db import json_safe
+
 from app.utils.supabase_client import supabase_client as supabase
 
 
 def run(basket_id: UUID) -> dict:
     """Insert a placeholder block then record a revision and event."""
     block_id = str(uuid4())
-    supabase.table("context_blocks").insert(
+    supabase.table("blocks").insert(
         json_safe(
             {
                 "id": block_id,

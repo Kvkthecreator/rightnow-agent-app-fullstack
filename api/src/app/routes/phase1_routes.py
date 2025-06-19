@@ -34,7 +34,7 @@ class ContextBlockOut(BaseModel):
 async def create_basket_input(input: BasketInputIn):
     input_id = str(uuid4())
     try:
-        supabase.table("basket_inputs").insert(
+        supabase.table("raw_dumps").insert(
             json_safe(
                 {"id": input_id, "basket_id": input.basket_id, "content": input.content}
             )
@@ -49,7 +49,7 @@ async def create_basket_input(input: BasketInputIn):
 async def promote_context_block(block: ContextBlockIn):
     block_id = str(uuid4())
     try:
-        supabase.table("context_blocks").insert(
+        supabase.table("blocks").insert(
             json_safe(
                 {
                     "id": block_id,

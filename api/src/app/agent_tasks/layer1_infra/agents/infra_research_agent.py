@@ -15,14 +15,14 @@ from ..schemas import RefreshReport
 
 FIND_REFRESHABLE_SQL = """
 select id::text
-from public.context_blocks
+from public.blocks
 where meta_refreshable
   and (last_refreshed_at is null
        or last_refreshed_at < (now() - interval '7 days'));
 """
 
 STAMP_SQL = """
-update public.context_blocks
+update public.blocks
 set last_refreshed_at = now()
 where id = any($1::uuid[])
 """
