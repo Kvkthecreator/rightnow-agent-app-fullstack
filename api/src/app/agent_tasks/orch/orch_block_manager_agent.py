@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID, uuid4
 
 from src.utils.db import json_safe
@@ -5,7 +6,7 @@ from src.utils.db import json_safe
 from app.utils.supabase_client import supabase_client as supabase
 
 
-def run(basket_id: UUID) -> dict:
+def run(basket_id: UUID) -> dict[str, Any]:
     """Insert a placeholder block then record a revision and event."""
     block_id = str(uuid4())
     res = (
@@ -23,8 +24,8 @@ def run(basket_id: UUID) -> dict:
         )
         .execute()
     )
-    if getattr(res, "status_code", 200) >= 300 or getattr(res, "error", None):
-        raise RuntimeError(str(getattr(res, "error", res)))
+    if res.status_code >= 400:
+        raise RuntimeError(f"Supabase error: {res.json()}")
 
     res = (
         supabase.table("block_revisions")
@@ -41,8 +42,8 @@ def run(basket_id: UUID) -> dict:
         )
         .execute()
     )
-    if getattr(res, "status_code", 200) >= 300 or getattr(res, "error", None):
-        raise RuntimeError(str(getattr(res, "error", res)))
+    if res.status_code >= 400:
+        raise RuntimeError(f"Supabase error: {res.json()}")
 
     res = (
         supabase.table("events")
@@ -58,7 +59,6 @@ def run(basket_id: UUID) -> dict:
         )
         .execute()
     )
-    if getattr(res, "status_code", 200) >= 300 or getattr(res, "error", None):
-        raise RuntimeError(str(getattr(res, "error", res)))
-
-    return {"proposed": 1}
+    if res.status_code >= 400:
+        raise RuntimeError(f"Supabase error: {res.json()}")
+    return {"inserted": len(res.data)}
