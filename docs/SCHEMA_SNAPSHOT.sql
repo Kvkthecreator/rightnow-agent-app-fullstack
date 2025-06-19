@@ -16,13 +16,6 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
--- DROP obsolete objects
-DROP VIEW IF EXISTS context_blocks CASCADE;
-DROP FUNCTION IF EXISTS create_basket_with_dump(text,text);
-
--- baskets.raw_dump_id becomes NULLABLE
-ALTER TABLE baskets ALTER COLUMN raw_dump_id DROP NOT NULL;
-
 --
 -- Name: auth; Type: SCHEMA; Schema: -; Owner: -
 --
@@ -3417,7 +3410,7 @@ ALTER TABLE ONLY public.events
 --
 
 ALTER TABLE ONLY public.baskets
-    ADD CONSTRAINT fk_raw_dump FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
+    ADD CONSTRAINT fk_raw_dump FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id) DEFERRABLE INITIALLY DEFERRED;
 
 
 --
