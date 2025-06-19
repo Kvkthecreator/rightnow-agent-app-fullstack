@@ -12,7 +12,7 @@ export default function AboutPage() {
     <>
       <Head>
         <title>About yarnnn — A Memory That Defends</title>
-        <meta name="description" content="Learn how yarnnn's unique 'lock In' mechanism and narrative-first design help you achieve contextual integrity in your work with AI." />
+        <meta name="description" content="Learn how yarnnn's unique lock in mechanism and narrative-first design help you achieve contextual integrity in your work with AI." />
         <meta name="keywords" content="yarnnn, about yarnnn, context OS, memory OS, indie builder tools, creative tools" />
         <meta property="og:title" content="About yarnnn — memory OS for indie builders" />
         <meta property="og:description" content="Learn how yarnnn helps you preserve clarity in your evolving ideas and memory." />
