@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSessionContext } from "@supabase/auth-helpers-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
@@ -10,12 +12,14 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import BasketCard from "@/components/BasketCard";
-import PageHeader from "@/components/page/PageHeader";
 import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
 
 export default function BasketsPage() {
+  const { session, isLoading } = useSessionContext();
+  const router = useRouter();
   const [baskets, setBaskets] = useState<BasketOverview[]>([]);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("updated");
@@ -23,14 +27,20 @@ export default function BasketsPage() {
   const pageSize = 10;
 
   useEffect(() => {
+    if (isLoading) return;
+    if (!session) {
+      router.replace("/about");
+      return;
+    }
     getAllBaskets().then(setBaskets).catch(console.error);
-  }, []);
+  }, [session, isLoading, router]);
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     let arr = baskets.filter(
       (b) =>
-        b.name?.toLowerCase().includes(term) || b.raw_dump?.toLowerCase().includes(term)
+        b.name?.toLowerCase().includes(term) || 
+        b.raw_dump?.toLowerCase().includes(term)
     );
     if (sort === "alpha") {
       arr = [...arr].sort((a, b) =>
@@ -55,50 +65,56 @@ export default function BasketsPage() {
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageData = filtered.slice((page - 1) * pageSize, page * pageSize);
 
+  if (isLoading) return null;
+
   return (
-    <div className="p-4 space-y-6">
-      <PageHeader
-        emoji="🧺"
-        title="My Baskets"
-        description="Lightweight containers for your tasks, context, and thoughts"
-        actions={
-          <>
-            <Button variant="default">+ Create Basket</Button>
-            <Select value={sort} onValueChange={(v) => setSort(v)}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Last updated" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="updated">Last updated</SelectItem>
-                <SelectItem value="created">Date created</SelectItem>
-                <SelectItem value="alpha">A–Z</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input
-              type="text"
-              placeholder="Search"
-              className="w-full sm:w-[200px]"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-            />
-          </>
-        }
-      />
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">🧺 My Baskets</h1>
+          <p className="text-sm text-muted-foreground">
+            Lightweight containers for your tasks, context, and thoughts
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href="/baskets/new">+ Create Basket</Link>
+          </Button>
+          <Select value={sort} onValueChange={(v) => setSort(v)}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="updated">Last updated</SelectItem>
+              <SelectItem value="created">Date created</SelectItem>
+              <SelectItem value="alpha">A–Z</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            type="text"
+            placeholder="Search"
+            className="w-[150px]"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+      </div>
+
+      <Card>
+        <p className="text-sm text-muted-foreground">
+          Organize your work into modular containers for easy management.
+        </p>
+      </Card>
 
       {pageData.length === 0 ? (
-        <EmptyState
-          title="No baskets found"
-          action={
-            <Button asChild>
-              <Link href="/baskets/new">Create Basket</Link>
-            </Button>
-          }
-        />
+        <div className="p-8 text-center text-muted-foreground">
+          No baskets found. You can create a new one to get started.
+        </div>
       ) : (
-        <div className="flex flex-col gap-y-4">
+        <div className="space-y-4">
           {pageData.map((b) => (
             <BasketCard key={b.id} basket={b} />
           ))}
@@ -119,7 +135,9 @@ export default function BasketsPage() {
             <button
               key={n}
               onClick={() => setPage(n)}
-              className={`px-2 text-sm rounded ${n === page ? "font-semibold" : "text-muted-foreground"}`}
+              className={`px-2 text-sm rounded ${
+                n === page ? "font-semibold" : "text-muted-foreground"
+              }`}
             >
               {n}
             </button>

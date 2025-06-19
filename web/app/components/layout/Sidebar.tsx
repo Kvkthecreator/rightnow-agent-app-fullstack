@@ -1,22 +1,19 @@
-// web/app/components/layout/Sidebar.tsx
-
 "use client";
-
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { createClient } from "@/lib/supabaseClient";
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 
 const baseItems = [
   { href: "/dashboard", label: "🧶 Dashboard" },
   { href: "/baskets", label: "🧺 Baskets" },
   { href: "/baskets/new", label: "➕ New Basket" },
-  { href: "/blocks", label: "◾ Blocks" }, // 🧩 Moved here
+  { href: "/blocks", label: "◾ Blocks" },
   { href: "/settings", label: "⚙️ Settings" },
 ];
-
-import { X } from "lucide-react";
 
 interface SidebarProps {
   open: boolean;
@@ -27,13 +24,35 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUserEmail(session?.user?.email || null);
+    };
+    getSession();
+  }, [supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/");
   };
 
+  const handleBrandClick = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.user) {
+      router.push("/dashboard");
+    } else {
+      router.push("/");
+    }
+  };
+
+  const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
 
   return (
     <aside
@@ -50,42 +69,55 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
         <X className="h-5 w-5" />
       </button>
       <div className="h-full flex flex-col justify-between py-6 px-4">
-          {/* Top: Brand + Nav */}
-          <div className="space-y-6">
-            <div className="font-brand text-xl tracking-tight pb-2 mb-2 border-b border-border">yarnnn</div>
-            <nav className="flex flex-col space-y-2 text-sm">
-              {baseItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={clsx(
-                    "rounded-md px-3 py-2 transition hover:bg-muted hover:text-foreground",
-                    pathname === item.href
-                      ? "bg-muted text-foreground font-medium"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+        {/* Top: Brand + Nav */}
+        <div className="space-y-6">
+          <div className="flex justify-center">
+            <button
+              onClick={handleBrandClick}
+              className="font-brand text-xl tracking-tight hover:underline"
+            >
+              yarnnn
+            </button>
           </div>
+          <nav className="flex flex-col space-y-2 text-sm">
+            {baseItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={clsx(
+                  "rounded-md px-3 py-2 transition hover:bg-muted hover:text-foreground",
+                  pathname === item.href
+                    ? "bg-muted text-foreground font-medium"
+                    : "text-muted-foreground"
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
 
-          {/* Bottom: Email / User Menu */}
-          <div className="text-sm text-muted-foreground border-t border-border pt-4">
+        {/* Bottom: Email / User Menu */}
+        <div className="text-sm text-muted-foreground border-t border-border pt-4">
+          {userEmail ? (
             <details className="group px-3 py-2 rounded-md bg-muted/40 hover:bg-muted transition cursor-pointer">
               <summary className="list-none text-sm text-muted-foreground hover:text-foreground">
-                seulkim88@gmail.com
+                {userEmail}
               </summary>
               <div className="mt-2 ml-2 flex flex-col space-y-1 text-sm text-muted-foreground">
                 <button onClick={handleLogout}>🔓 Sign Out</button>
               </div>
             </details>
-            {showHint && (
-              <p className="mt-4 text-xs hidden md:block">⇧ V to quick-dump into this basket</p>
-            )}
-          </div>
+          ) : (
+            <p className="px-3 py-2">Not signed in</p>
+          )}
+          {showHint && (
+            <p className="mt-4 text-xs hidden md:block">
+              ⇧ V to quick-dump into this basket
+            </p>
+          )}
         </div>
+      </div>
     </aside>
   );
 };
