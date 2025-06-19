@@ -3,24 +3,45 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fetchMockPreferences, saveMockPreferences, Preferences } from "@/lib/mocks/settings";
+import {
+  fetchMockPreferences,
+  saveMockPreferences,
+  Preferences,
+} from "@/lib/mocks/settings";
 import toast from "react-hot-toast";
 
 export default function PreferencesTab() {
   const [prefs, setPrefs] = useState<Preferences | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchMockPreferences().then(setPrefs);
+    async function load() {
+      try {
+        const data = await fetchMockPreferences();
+        setPrefs(data);
+      } catch (err) {
+        console.error("Failed to load preferences", err);
+        setError("Failed to load preferences");
+      }
+    }
+    load();
   }, []);
 
+  if (error) return <div>{error}</div>;
   if (!prefs) return <div>Loading...</div>;
 
   const handleSave = async () => {
     setSaving(true);
-    await saveMockPreferences(prefs);
-    setSaving(false);
-    toast.success("Saved (mock)");
+    try {
+      await saveMockPreferences(prefs);
+      toast.success("Saved (mock)");
+    } catch (err) {
+      console.error("Failed to save preferences", err);
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
