@@ -13,6 +13,7 @@ const baseItems = [
   { href: "/baskets", label: "🧺 Baskets" },
   { href: "/baskets/create", label: "➕ New Basket" },
   { href: "/blocks", label: "◾ Blocks" }, // 🧩 Moved here
+  { href: "/settings", label: "⚙️ Settings" },
 ];
 
 import { X } from "lucide-react";
