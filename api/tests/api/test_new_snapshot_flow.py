@@ -1,5 +1,6 @@
 import os
 import types
+import uuid
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -16,32 +17,40 @@ app.include_router(snapshot_router, prefix="/api")
 client = TestClient(app)
 
 
-def _table(name, store):
-    def insert(row):
-        store[name].append(row)
-        return types.SimpleNamespace(
-            execute=lambda: types.SimpleNamespace(data=[row], error=None)
-        )
+def _supabase(store):
+    def rpc(func, params):
+        bid = str(uuid.uuid4())
+        did = str(uuid.uuid4())
+        store["baskets"].append({"id": bid, "raw_dump_id": did})
+        store["raw_dumps"].append({"id": did, "basket_id": bid, "body_md": params["p_body_md"]})
+        return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[{"basket_id": bid}], error=None))
 
-    def select(*args, **kwargs):
-        class Q:
-            def eq(self, *a, **k):
-                return self
+    def table(name):
+        def insert(row):
+            store[name].append(row)
+            return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[row], error=None))
 
-            def order(self, *a, **k):
-                return self
+        def select(*_a, **_k):
+            class Q:
+                def eq(self, *_a, **_k):
+                    return self
 
-            def execute(self):
-                return types.SimpleNamespace(data=store.get(name, []))
+                def order(self, *_a, **_k):
+                    return self
 
-        return Q()
+                def execute(self):
+                    return types.SimpleNamespace(data=store.get(name, []))
 
-    return types.SimpleNamespace(insert=insert, select=select)
+            return Q()
+
+        return types.SimpleNamespace(insert=insert, select=select)
+
+    return types.SimpleNamespace(table=table, rpc=rpc)
 
 
 def test_snapshot_after_creation(monkeypatch):
     store = {"baskets": [], "raw_dumps": [], "blocks": []}
-    fake = types.SimpleNamespace(table=lambda n: _table(n, store))
+    fake = _supabase(store)
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
     monkeypatch.setattr("app.routes.basket_snapshot.supabase", fake)
 
