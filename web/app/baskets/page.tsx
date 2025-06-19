@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import BasketCard from "@/components/BasketCard";
 import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
+import PageHeader from "@/components/page/PageHeader";
 
 export default function BasketsPage() {
   const { session, isLoading } = useSessionContext();
@@ -69,39 +70,38 @@ export default function BasketsPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">🧺 My Baskets</h1>
-          <p className="text-sm text-muted-foreground">
-            Lightweight containers for your tasks, context, and thoughts
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild>
-            <Link href="/baskets/new">+ Create Basket</Link>
-          </Button>
-          <Select value={sort} onValueChange={(v) => setSort(v)}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="updated">Last updated</SelectItem>
-              <SelectItem value="created">Date created</SelectItem>
-              <SelectItem value="alpha">A–Z</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input
-            type="text"
-            placeholder="Search"
-            className="w-[150px]"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-      </div>
+      <PageHeader
+        emoji="🧺"
+        title="My Baskets"
+        description="Lightweight containers for your tasks, context, and thoughts"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href="/baskets/new">+ Create Basket</Link>
+            </Button>
+            <Select value={sort} onValueChange={(v) => setSort(v)}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="updated">Last updated</SelectItem>
+                <SelectItem value="created">Date created</SelectItem>
+                <SelectItem value="alpha">A–Z</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="text"
+              placeholder="Search"
+              className="w-[150px]"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+        }
+      />
 
       <Card>
         <p className="text-sm text-muted-foreground">

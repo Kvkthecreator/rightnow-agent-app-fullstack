@@ -20,8 +20,14 @@ export async function getAllBaskets(): Promise<BasketOverview[]> {
       `
         id,
         name,
+        status,
+        tags,
+        commentary,
         created_at,
+        updated_at,
+        blocks(count),
         raw_dump:raw_dump_id (
+          id,
           body_md
         )
       `
