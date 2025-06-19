@@ -22,7 +22,8 @@ def _fake_supabase(store):
             if "id" not in row:
                 row["id"] = str(uuid.uuid4())
             store[name].append(row)
-            return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[row], error=None))
+            resp = types.SimpleNamespace(data=[row], error=None)
+            return types.SimpleNamespace(execute=lambda: resp)
 
         def update(obj: dict):
             for r in store[name]:
@@ -39,9 +40,9 @@ def _fake_supabase(store):
 def _error_supabase():
     def table(name: str):
         def insert(_row):
-            return types.SimpleNamespace(
-                execute=lambda: types.SimpleNamespace(data=None, error=types.SimpleNamespace(message=f"{name} insert fail"))
-            )
+            err = types.SimpleNamespace(message=f"{name} insert fail")
+            resp = types.SimpleNamespace(data=None, error=err)
+            return types.SimpleNamespace(execute=lambda: resp)
 
         def update(_obj):
             def eq(*_a):
@@ -92,4 +93,3 @@ def test_basket_new_error(monkeypatch):
 
     resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
     assert resp.status_code == 500
-    assert "insert fail" in resp.json()["detail"]

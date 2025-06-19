@@ -6,4 +6,4 @@ class BlockManagerIn(BaseSchema):
 
 
 class BlockManagerOut(BaseSchema):
-    status: str
+    state: str

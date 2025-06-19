@@ -14,7 +14,7 @@ def list_blocks(basket_id: str):
     try:
         resp = (
             supabase.table("blocks")
-            .select("id,type,content,order,meta_tags,origin,status")
+            .select("id,type,content,order,meta_tags,origin,state")
             .eq("basket_id", basket_id)
             .order("order")
             .execute()

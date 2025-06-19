@@ -23,6 +23,9 @@ def _fake_table(name, store):
             def order(self, *a, **k):
                 return self
 
+            def in_(self, *a, **k):
+                return self
+
             def execute(self):
                 return types.SimpleNamespace(data=store.get(name, []))
 

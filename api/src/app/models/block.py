@@ -1,20 +1,30 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
-from typing import Optional
 
 from pydantic import BaseModel
 
+block_state = Literal[
+    "PROPOSED",
+    "ACCEPTED",
+    "LOCKED",
+    "CONSTANT",
+    "SUPERSEDED",
+    "REJECTED",
+]
+
+
 class Block(BaseModel):
     id: UUID
-    basket_id: Optional[UUID] = None
-    parent_block_id: Optional[UUID] = None
+    basket_id: UUID | None = None
+    parent_block_id: UUID | None = None
     semantic_type: str
-    content: Optional[str] = None
+    content: str | None = None
     version: int
-    state: str
-    scope: Optional[str] = None
-    canonical_value: Optional[str] = None
-    origin_ref: Optional[UUID] = None
+    state: block_state
+    scope: str | None = None
+    canonical_value: str | None = None
+    origin_ref: UUID | None = None
     created_at: datetime

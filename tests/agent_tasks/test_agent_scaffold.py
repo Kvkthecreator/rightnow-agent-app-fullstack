@@ -70,6 +70,7 @@ def test_orch_run_creates_block_and_revision(monkeypatch):
     module.run(uuid4())
     assert "blocks" in records
     assert "block_revisions" in records
+    assert records["blocks"][0]["state"] == "PROPOSED"
 
 
 def test_infra_route_ok(monkeypatch):

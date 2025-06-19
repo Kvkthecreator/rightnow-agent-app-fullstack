@@ -23,12 +23,22 @@ def _supabase(store):
         did = str(uuid.uuid4())
         store["baskets"].append({"id": bid, "raw_dump_id": did})
         store["raw_dumps"].append({"id": did, "basket_id": bid, "body_md": params["p_body_md"]})
-        return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[{"basket_id": bid}], error=None))
+        resp = types.SimpleNamespace(data=[{"basket_id": bid}], error=None)
+        return types.SimpleNamespace(execute=lambda: resp)
 
     def table(name):
         def insert(row):
             store[name].append(row)
-            return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[row], error=None))
+            resp = types.SimpleNamespace(data=[row], error=None)
+            return types.SimpleNamespace(execute=lambda: resp)
+
+        def update(obj: dict):
+            for r in store[name]:
+                r.update(obj)
+            def eq(*_a, **_k):
+                resp = types.SimpleNamespace(data=None, error=None)
+                return types.SimpleNamespace(execute=lambda: resp)
+            return types.SimpleNamespace(eq=eq)
 
         def select(*_a, **_k):
             class Q:
@@ -38,12 +48,15 @@ def _supabase(store):
                 def order(self, *_a, **_k):
                     return self
 
+                def in_(self, *_a, **_k):
+                    return self
+
                 def execute(self):
                     return types.SimpleNamespace(data=store.get(name, []))
 
             return Q()
 
-        return types.SimpleNamespace(insert=insert, select=select)
+        return types.SimpleNamespace(insert=insert, select=select, update=update)
 
     return types.SimpleNamespace(table=table, rpc=rpc)
 
