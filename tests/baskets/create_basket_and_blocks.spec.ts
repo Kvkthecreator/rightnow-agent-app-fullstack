@@ -6,7 +6,7 @@ test.describe('Basket Creation Flow', () => {
 
   test('should create a basket and redirect to work page', async ({ page }) => {
     // Open the local basket creation page
-    await page.goto('http://localhost:3000/baskets/create');
+    await page.goto('http://localhost:3000/baskets/new');
 
     // Fill in raw text dump
     await page.getByPlaceholder('Drop it').fill(
