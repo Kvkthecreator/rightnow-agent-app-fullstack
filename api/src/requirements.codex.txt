@@ -4,7 +4,7 @@
 # GitHub install with a pre-built wheel to keep Codex/CI fast and hermetic.
 # Keep it deduplicated and alphabetised where sensible.
 
-api/libs/openai_agents-0.0.17-py3-none-any.whl
+../libs/openai_agents-0.0.17-py3-none-any.whl
 
 # ── Core runtime ────────────────────────────────────────────────
 asyncpg>=0.29.0
