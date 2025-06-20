@@ -2325,7 +2325,6 @@ CREATE TABLE auth.users (
 CREATE TABLE public.baskets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name text,
-    raw_dump_id uuid,
     state public.basket_state DEFAULT 'INIT'::public.basket_state NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     user_id uuid DEFAULT auth.uid() NOT NULL
@@ -2403,7 +2402,7 @@ CREATE VIEW public.v_basket_overview AS
     rd.body_md AS raw_dump_body,
     b.created_at
    FROM (public.baskets b
-     LEFT JOIN public.raw_dumps rd ON ((rd.id = b.raw_dump_id)))
+     LEFT JOIN public.raw_dumps rd ON ((rd.basket_id = b.id)))
   WHERE (b.state <> 'DEPRECATED'::public.basket_state);
 
 
@@ -3455,14 +3454,6 @@ ALTER TABLE ONLY public.events
 
 ALTER TABLE ONLY public.baskets
     ADD CONSTRAINT fk_baskets_user FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
-
---
--- Name: baskets fk_raw_dump; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.baskets
-    ADD CONSTRAINT fk_raw_dump FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id) DEFERRABLE INITIALLY DEFERRED;
 
 
 --

@@ -33,7 +33,7 @@ export default function BasketsPage() {
       router.replace("/about");
       return;
     }
-    getAllBaskets(session.user).then(setBaskets).catch(console.error);
+    getAllBaskets().then(setBaskets).catch(console.error);
   }, [session, isLoading, router]);
 
   const filtered = useMemo(() => {
