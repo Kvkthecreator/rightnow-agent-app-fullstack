@@ -3736,20 +3736,6 @@ ALTER TABLE auth.sso_providers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
 
 --
--- Name: baskets Allow anon read baskets; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Allow anon read baskets" ON public.baskets FOR SELECT USING (true);
-
-
---
--- Name: blocks Allow anon read blocks; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Allow anon read blocks" ON public.blocks FOR SELECT USING (true);
-
-
---
 -- Name: events Allow anon read events; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -3768,13 +3754,6 @@ CREATE POLICY "Allow anon read raw_dumps" ON public.raw_dumps FOR SELECT USING (
 --
 
 CREATE POLICY "Allow anon read revisions" ON public.revisions FOR SELECT USING (true);
-
-
---
--- Name: baskets Owner CRUD; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "Owner CRUD" ON public.baskets USING ((auth.uid() = user_id));
 
 
 --
@@ -3892,22 +3871,6 @@ ALTER TABLE public.raw_dumps ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.revisions ENABLE ROW LEVEL SECURITY;
-
---
--- Name: baskets select_own_baskets; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY select_own_baskets ON public.baskets FOR SELECT TO authenticated USING ((user_id = auth.uid()));
-
-
---
--- Name: blocks select_own_blocks; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY select_own_blocks ON public.blocks FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
-   FROM public.baskets b
-  WHERE ((b.id = blocks.basket_id) AND (b.user_id = auth.uid())))));
-
 
 --
 -- Name: events select_own_events; Type: POLICY; Schema: public; Owner: -
