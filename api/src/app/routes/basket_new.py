@@ -17,7 +17,7 @@ from uuid import uuid4
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Depends
-from supabase_py.lib.auth_helpers import get_user
+from supabase.lib.auth_helpers import get_user
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
