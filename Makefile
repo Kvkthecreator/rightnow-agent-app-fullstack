@@ -4,11 +4,11 @@ sync:
 
 .PHONY: format
 format:
-        uv run black .
+	uv run black .
 
 .PHONY: lint
 lint:
-        uv run ruff check
+	uv run ruff check
 
 .PHONY: mypy
 mypy: 
