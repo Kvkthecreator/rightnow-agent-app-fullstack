@@ -12,12 +12,13 @@
 
 👑 **Purpose:** Persist basket and input, trigger orchestration agent.
 
-✅ **What happens:**  
-- Basket and input records inserted.  
-- Orchestration fires.  
+✅ **What happens:**
+- **Step 1 → raw_dump insert** (immutable capture)  
+- **Step 2 → basket insert** (FK `raw_dump_id` now satisfied)  
+- Orchestration agent fires.
 - Modality sidecar handling continues independently.
 
 ## Design Comments
 
-📌 Modalities are additive — their failure or delay does not block base basket creation.  
+📌 Modalities are additive — their failure or delay does _not_ block base basket creation.
 📌 Future modalities (e.g. audio) follow this same pattern, no further doc changes expected.

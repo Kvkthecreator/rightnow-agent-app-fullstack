@@ -1,22 +1,30 @@
-# ✅ Updated requirements.codex.txt for Codex-safe installs
+# ✅ requirements.codex.txt – Codex/CI-safe install list
+#
+# This list mirrors api/src/requirements.txt but replaces the editable
+# GitHub install with a pre-built wheel to keep Codex/CI fast and hermetic.
+# Keep it deduplicated and alphabetised where sensible.
 
-# Codex/CI-safe version of requirements.txt
-# Uses prebuilt .whl to avoid editable GitHub installs
+api/libs/openai_agents-0.0.17-py3-none-any.whl
 
-./libs/openai_agents-0.0.17-py3-none-any.whl
+# ── Core runtime ────────────────────────────────────────────────
+asyncpg>=0.29.0
+fastapi>=0.110.0
+httpx>=0.27.0
 openai>=1.66.5
 pydantic>=2.10,<3
-fastapi>=0.110.0
 python-dotenv>=0.20.0,<1
-uvicorn>=0.34.0
 requests>=2.0,<3
-httpx>=0.27.0
-griffe>=1.5.6,<2
 typing-extensions>=4.12.2,<5
-types-requests>=2.0,<3
-mkdocs-static-i18n>=1.3.0
-mcp>=1.6.0,<2; python_version >= "3.10"
-supabase-py>=2.1.0
+uvicorn>=0.34.0
+
+# ── Supabase / storage ──────────────────────────────────────────
+supabase-py==2.0.3
+
+# ── Validation / schema ────────────────────────────────────────
 jsonschema>=4.21
-asyncpg>=0.29.0
-httpx>=0.27.0
+
+# ── Docs & tooling ─────────────────────────────────────────────
+griffe>=1.5.6,<2
+mcp>=1.6.0,<2; python_version >= "3.10"
+mkdocs-static-i18n>=1.3.0
+types-requests>=2.0,<3
