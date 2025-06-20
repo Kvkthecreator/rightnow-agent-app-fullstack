@@ -12,11 +12,11 @@ export async function createBasketNew(
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const uid = data.session?.user.id;
   if (uid) headers['X-User-Id'] = uid;
-  const payload = { text_dump: args.text_dump, file_urls: args.file_urls ?? [] };
+  const body = { text_dump: args.text_dump, file_urls: args.file_urls ?? [] };
   const res = await fetch(`${base}/api/baskets/new`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
   if (res.status !== 201) {
     const text = await res.text();

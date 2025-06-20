@@ -107,7 +107,7 @@ export function UploadArea({
         const interval = window.setInterval(() => {
           setFiles((prevFiles) =>
             prevFiles.map((f) =>
-              f.id === id && f.state === "uploading"
+              f.id === id && f.status === "uploading"
                 ? { ...f, progress: Math.min(f.progress + Math.random() * 10, 90) }
                 : f
             )
@@ -197,13 +197,13 @@ export function UploadArea({
                 <div className="mt-1 w-full bg-muted h-1 rounded overflow-hidden">
                   <div
                     className={cn(
-                      f.state === "error" ? "bg-destructive" : "bg-primary"
+                      f.status === "error" ? "bg-destructive" : "bg-primary"
                     )}
                     style={{ width: `${f.progress}%` }}
                   />
                 </div>
               )}
-              {removable && f.state === "done" && (
+              {removable && f.status === "done" && (
                 <button
                   type="button"
                   onClick={() => removeFile(f.id)}
@@ -212,7 +212,7 @@ export function UploadArea({
                   ×
                 </button>
               )}
-              {f.state === "error" && (
+              {f.status === "error" && (
                 <p className="text-xs text-destructive">{f.errorMsg}</p>
               )}
             </div>
