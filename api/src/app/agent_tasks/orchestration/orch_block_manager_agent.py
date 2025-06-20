@@ -9,7 +9,7 @@ from schemas.validators import validates
 from src.utils.logged_agent import logged
 
 from app.event_bus import subscribe
-from app.supabase_helpers import publish_event
+from app.event_bus import publish_event
 
 DB_URL = os.getenv("DATABASE_URL")
 
