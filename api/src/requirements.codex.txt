@@ -1,10 +1,6 @@
 # ✅ requirements.codex.txt – Codex/CI-safe install list
-#
-# This list mirrors api/src/requirements.txt but replaces the editable
-# GitHub install with a pre-built wheel to keep Codex/CI fast and hermetic.
-# Keep it deduplicated and alphabetised where sensible.
 
-../libs/openai_agents-0.0.17-py3-none-any.whl
+git+https://github.com/openai/openai-agents-python.git@91c62c1dea97d02ad4974947e572d634d42496d1#egg=openai-agents
 
 # ── Core runtime ────────────────────────────────────────────────
 asyncpg>=0.29.0
@@ -18,7 +14,7 @@ typing-extensions>=4.12.2,<5
 uvicorn>=0.34.0
 
 # ── Supabase / storage ──────────────────────────────────────────
-git+https://github.com/supabase-community/supabase-py.git@main#egg=supabase
+git+https://github.com/supabase-community/supabase-py.git@0f3250a085a78280076738f6541fcf034a7de381#egg=supabase
 
 # ── Validation / schema ────────────────────────────────────────
 jsonschema>=4.21
