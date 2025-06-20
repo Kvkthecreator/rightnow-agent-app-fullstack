@@ -683,6 +683,21 @@ $$;
 
 
 --
+-- Name: set_basket_user_id(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.set_basket_user_id() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  if new.user_id is null then
+    new.user_id := auth.uid();
+  end if;
+  return new;
+end $$;
+
+
+--
 -- Name: apply_rls(jsonb, integer); Type: FUNCTION; Schema: realtime; Owner: -
 --
 
@@ -2379,6 +2394,20 @@ CREATE TABLE public.revisions (
 
 
 --
+-- Name: v_basket_overview; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_basket_overview AS
+ SELECT b.id,
+    COALESCE(b.name, 'Untitled'::text) AS name,
+    rd.body_md AS raw_dump_body,
+    b.created_at
+   FROM (public.baskets b
+     LEFT JOIN public.raw_dumps rd ON ((rd.id = b.raw_dump_id)))
+  WHERE (b.state <> 'DEPRECATED'::public.basket_state);
+
+
+--
 -- Name: messages; Type: TABLE; Schema: realtime; Owner: -
 --
 
@@ -3140,6 +3169,13 @@ CREATE INDEX users_is_anonymous_idx ON auth.users USING btree (is_anonymous);
 
 
 --
+-- Name: baskets_user_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX baskets_user_idx ON public.baskets USING btree (user_id);
+
+
+--
 -- Name: ix_realtime_subscription_entity; Type: INDEX; Schema: realtime; Owner: -
 --
 
@@ -3228,6 +3264,13 @@ CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH
 --
 
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
+
+
+--
+-- Name: baskets trg_set_basket_user_id; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
 
 
 --
@@ -3607,6 +3650,13 @@ CREATE POLICY "Allow anon read raw_dumps" ON public.raw_dumps FOR SELECT USING (
 --
 
 CREATE POLICY "Allow anon read revisions" ON public.revisions FOR SELECT USING (true);
+
+
+--
+-- Name: baskets Owner CRUD; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Owner CRUD" ON public.baskets USING ((auth.uid() = user_id));
 
 
 --
