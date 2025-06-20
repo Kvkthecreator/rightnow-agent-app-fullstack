@@ -2,6 +2,9 @@
 
 Creates a new basket and saves context blocks + file references.
 
+## Expected Headers
+`sb-access-token`: Supabase session JWT (determines workspace context)
+
 ## Expected Payload
 ```json
 {

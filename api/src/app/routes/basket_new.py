@@ -18,6 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Depends
 from app.utils.auth_helpers import get_user
+from ..supabase_helpers import get_or_create_workspace
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
@@ -50,38 +51,28 @@ async def create_basket(
     payload: BasketCreatePayload,
     user=Depends(get_user),
 ):
-    """
-    1. Insert a Basket (state=INIT).
-    2. If text provided → insert RawDump then PATCH basket.raw_dump_id.
-    """
+    """Create a new basket tied to the caller's workspace."""
 
     log.info("[basket_new] payload: %s", payload.model_dump())
 
-    basket_id = str(uuid4())
+    workspace_id = get_or_create_workspace(supabase, user["id"])
 
-    basket_row = {"id": basket_id, "name": payload.basket_name}
+    dump_resp = supabase.table("raw_dumps").insert(
+        {
+            "body_md": payload.text_dump or "",
+            "file_refs": payload.file_urls or [],
+            "workspace_id": workspace_id,
+        }
+    ).execute()
+    dump_id = dump_resp.data[0]["id"]
 
-    # 1️⃣  create the basket row
-    try:
-        supabase.table("baskets").insert(as_json(basket_row)).execute()
-    except Exception as exc:
-        log.exception("basket insertion failed")
-        raise HTTPException(status_code=500, detail="internal error") from exc
+    basket_resp = supabase.table("baskets").insert(
+        {
+            "name": payload.basket_name,
+            "raw_dump_id": dump_id,
+            "workspace_id": workspace_id,
+        }
+    ).execute()
+    basket_id = basket_resp.data[0]["id"]
 
-    # 2️⃣  optional raw-dump
-    if payload.text_dump:
-        dump_id = str(uuid4())
-        try:
-            supabase.table("raw_dumps").insert(
-                as_json({
-                    "id": dump_id,
-                    "basket_id": basket_id,
-                    "body_md": payload.text_dump,
-                    "file_refs": payload.file_urls or [],
-                })
-            ).execute()
-        except Exception as exc:
-            log.exception("raw_dumps insertion or patch failed")
-            raise HTTPException(status_code=500, detail="internal error") from exc
-
-    return {"basket_id": basket_id}
+    return {"id": basket_id}

@@ -25,6 +25,8 @@ export interface Database {
           state: string;
           created_at: string;
           user_id: string;
+          raw_dump_id: string;
+          workspace_id: string;
         }
       }
       events: {
