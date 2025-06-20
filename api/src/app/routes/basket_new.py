@@ -16,7 +16,7 @@ import logging
 from uuid import uuid4
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
@@ -28,25 +28,6 @@ router = APIRouter(prefix="/baskets", tags=["baskets"])
 log = logging.getLogger("uvicorn.error")
 log.info("[basket_new] Supabase role: %s", SUPABASE_KEY_ROLE)
 
-
-# --------------------------------------------------------------------------- #
-# helpers
-# --------------------------------------------------------------------------- #
-def _raise_if_supabase_error(resp: Any, ctx: str) -> None:
-    """
-    Handle both response shapes that supabase-py can return:
-
-    ─ Newer (>1.2)  : APIResponse(data=[...], status_code=201, count=None)
-    ─ Older (≤1.1)  : Response(data=[...], error=None)
-
-    If status ≥400 or resp.error is truthy → raise 500.
-    """
-    if hasattr(resp, "error") and resp.error:  # legacy shape
-        raise HTTPException(status_code=500, detail=f"{ctx}: {resp.error.message}")
-
-    status = getattr(resp, "status_code", 200)
-    if status >= 400:
-        raise HTTPException(status_code=500, detail=f"{ctx}: status={status}")
 
 
 # --------------------------------------------------------------------------- #
@@ -64,7 +45,10 @@ class BasketCreatePayload(BaseModel):
 # route
 # --------------------------------------------------------------------------- #
 @router.post("/new", status_code=201)
-async def create_basket(payload: BasketCreatePayload):
+async def create_basket(
+    payload: BasketCreatePayload,
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+):
     """
     1. Insert a Basket (state=INIT).
     2. If text provided → insert RawDump then PATCH basket.raw_dump_id.
@@ -74,47 +58,27 @@ async def create_basket(payload: BasketCreatePayload):
 
     basket_id = str(uuid4())
 
-    # 1️⃣  create the basket row (raw_dump_id will be NULL for the moment)
+    # 1️⃣  create the basket row
     try:
-        r1 = (
-            supabase.table("baskets")
-            .insert(as_json({"id": basket_id, "name": payload.basket_name}))
-            .execute()
-        )
-        _raise_if_supabase_error(r1, "basket insert")
+        supabase.table("baskets").insert(
+            as_json({"id": basket_id, "name": payload.basket_name, "user_id": user_id})
+        ).execute()
     except Exception as exc:
         log.exception("basket insertion failed")
         raise HTTPException(status_code=500, detail="internal error") from exc
 
-    # 2️⃣  optional raw-dump (+ back-patch basket)
+    # 2️⃣  optional raw-dump
     if payload.text_dump:
         dump_id = str(uuid4())
         try:
-            r2 = (
-                supabase.table("raw_dumps")
-                .insert(
-                    as_json(
-                        {
-                            "id": dump_id,
-                            "basket_id": basket_id,
-                            "body_md": payload.text_dump,
-                            "file_refs": payload.file_urls or [],
-                        }
-                    )
-                )
-                .execute()
-            )
-            _raise_if_supabase_error(r2, "raw_dumps insert")
-
-            # back-patch basket.raw_dump_id  (FK is now nullable, so two-phase is safe)
-            r3 = (
-                supabase.table("baskets")
-                .update({"raw_dump_id": dump_id})
-                .eq("id", basket_id)
-                .execute()
-            )
-            _raise_if_supabase_error(r3, "basket patch raw_dump_id")
-
+            supabase.table("raw_dumps").insert(
+                as_json({
+                    "id": dump_id,
+                    "basket_id": basket_id,
+                    "body_md": payload.text_dump,
+                    "file_refs": payload.file_urls or [],
+                })
+            ).execute()
         except Exception as exc:
             log.exception("raw_dumps insertion or patch failed")
             raise HTTPException(status_code=500, detail="internal error") from exc

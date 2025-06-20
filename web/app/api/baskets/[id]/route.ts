@@ -14,5 +14,5 @@ export async function GET(
   const upstream = `${process.env.NEXT_PUBLIC_API_BASE}/baskets/${id}`;
   const res = await fetch(upstream, { headers, cache: "no-store" });
   const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  return NextResponse.json(data, { status: res.state });
 }

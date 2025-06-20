@@ -30,7 +30,7 @@ export async function postDump({
   const res = await fetch("/api/dump", { method: "POST", body: form });
   if (!res.ok) {
     const msg = await res.text();
-    throw new Error(msg || `Dump upload failed (${res.status})`);
+    throw new Error(msg || `Dump upload failed (${res.state})`);
   }
   return (await res.json()) as DumpResponse;
 }
