@@ -2325,9 +2325,11 @@ CREATE TABLE auth.users (
 CREATE TABLE public.baskets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name text,
+    raw_dump_id uuid,
     state public.basket_state DEFAULT 'INIT'::public.basket_state NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    user_id uuid DEFAULT auth.uid() NOT NULL
+    user_id uuid DEFAULT auth.uid() NOT NULL,
+    workspace_id uuid NOT NULL
 );
 
 
@@ -2347,6 +2349,7 @@ CREATE TABLE public.blocks (
     canonical_value text,
     origin_ref uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    workspace_id uuid NOT NULL,
     CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state)))
 );
 
@@ -2402,8 +2405,53 @@ CREATE VIEW public.v_basket_overview AS
     rd.body_md AS raw_dump_body,
     b.created_at
    FROM (public.baskets b
-     LEFT JOIN public.raw_dumps rd ON ((rd.basket_id = b.id)))
+     LEFT JOIN public.raw_dumps rd ON ((rd.id = b.raw_dump_id)))
   WHERE (b.state <> 'DEPRECATED'::public.basket_state);
+
+
+--
+-- Name: workspace_memberships; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workspace_memberships (
+    id bigint NOT NULL,
+    workspace_id uuid,
+    user_id uuid,
+    role text DEFAULT 'member'::text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: workspace_memberships_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.workspace_memberships_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: workspace_memberships_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.workspace_memberships_id_seq OWNED BY public.workspace_memberships.id;
+
+
+--
+-- Name: workspaces; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workspaces (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    owner_id uuid,
+    name text NOT NULL,
+    is_demo boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now()
+);
 
 
 --
@@ -2587,6 +2635,13 @@ CREATE TABLE supabase_migrations.seed_files (
 --
 
 ALTER TABLE ONLY auth.refresh_tokens ALTER COLUMN id SET DEFAULT nextval('auth.refresh_tokens_id_seq'::regclass);
+
+
+--
+-- Name: workspace_memberships id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workspace_memberships ALTER COLUMN id SET DEFAULT nextval('public.workspace_memberships_id_seq'::regclass);
 
 
 --
@@ -2803,6 +2858,30 @@ ALTER TABLE ONLY public.raw_dumps
 
 ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workspace_memberships workspace_memberships_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workspace_memberships
+    ADD CONSTRAINT workspace_memberships_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workspace_memberships workspace_memberships_workspace_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workspace_memberships
+    ADD CONSTRAINT workspace_memberships_workspace_id_user_id_key UNIQUE (workspace_id, user_id);
+
+
+--
+-- Name: workspaces workspaces_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workspaces
+    ADD CONSTRAINT workspaces_pkey PRIMARY KEY (id);
 
 
 --
@@ -3449,11 +3528,35 @@ ALTER TABLE ONLY public.events
 
 
 --
+-- Name: baskets fk_basket_workspace; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.baskets
+    ADD CONSTRAINT fk_basket_workspace FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+
+
+--
 -- Name: baskets fk_baskets_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.baskets
     ADD CONSTRAINT fk_baskets_user FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: blocks fk_block_workspace; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.blocks
+    ADD CONSTRAINT fk_block_workspace FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+
+
+--
+-- Name: baskets fk_raw_dump; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.baskets
+    ADD CONSTRAINT fk_raw_dump FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id) DEFERRABLE INITIALLY DEFERRED;
 
 
 --
@@ -3470,6 +3573,30 @@ ALTER TABLE ONLY public.raw_dumps
 
 ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workspace_memberships workspace_memberships_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workspace_memberships
+    ADD CONSTRAINT workspace_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workspace_memberships workspace_memberships_workspace_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workspace_memberships
+    ADD CONSTRAINT workspace_memberships_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workspaces workspaces_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workspaces
+    ADD CONSTRAINT workspaces_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
 
 --
@@ -3658,10 +3785,82 @@ CREATE POLICY "Service role full access" ON public.baskets TO service_role USING
 
 
 --
+-- Name: baskets basket_member_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY basket_member_delete ON public.baskets FOR DELETE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: baskets basket_member_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY basket_member_insert ON public.baskets FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: baskets basket_member_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY basket_member_read ON public.baskets FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: baskets basket_member_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY basket_member_update ON public.baskets FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
 -- Name: baskets; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
 ALTER TABLE public.baskets ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: blocks block_member_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY block_member_delete ON public.blocks FOR DELETE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: blocks block_member_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY block_member_insert ON public.blocks FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: blocks block_member_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY block_member_read ON public.blocks FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: blocks block_member_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY block_member_update ON public.blocks FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
 
 --
 -- Name: blocks; Type: ROW SECURITY; Schema: public; Owner: -
@@ -3674,6 +3873,13 @@ ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: workspace_memberships member_self_crud; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY member_self_crud ON public.workspace_memberships USING ((user_id = auth.uid()));
+
 
 --
 -- Name: raw_dumps; Type: ROW SECURITY; Schema: public; Owner: -
@@ -3749,6 +3955,41 @@ CREATE POLICY "service role full access" ON public.baskets TO service_role USING
 --
 
 CREATE POLICY "service role full access" ON public.raw_dumps TO service_role USING (true);
+
+
+--
+-- Name: workspace_memberships; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workspace_memberships ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: workspaces; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: workspaces ws_owner_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ws_owner_delete ON public.workspaces FOR DELETE USING ((owner_id = auth.uid()));
+
+
+--
+-- Name: workspaces ws_owner_or_member_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ws_owner_or_member_read ON public.workspaces FOR SELECT USING (((owner_id = auth.uid()) OR (id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid())))));
+
+
+--
+-- Name: workspaces ws_owner_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ws_owner_update ON public.workspaces FOR UPDATE USING ((owner_id = auth.uid()));
 
 
 --
