@@ -13,7 +13,7 @@ Present the current state of the basket to the user.
 ✅ **What happens in this domain:**  
 - Fetch and display:
   - The original input (narrative view)
-  - Context blocks (promoted blocks)
+  - Blocks (promoted blocks)
   - Commit timeline (upload and agent processing history)
   - Pending change queue  
 - Provide a read-only view of the basket’s current structure and content.

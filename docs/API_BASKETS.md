@@ -10,23 +10,23 @@ Creates a new basket and saves context blocks + file references.
   "insight": "Targeting Gen Z, not millennials",
   "blocks": [
     {
-      "type": "topic",
+      "semantic_type": "topic",
       "label": "Launch spring campaign",
       "content": "Launch spring campaign",
       "is_primary": true,
       "meta_scope": "basket"
     },
     {
-      "type": "intent",
+      "semantic_type": "intent",
       "label": "Drive signups",
       "content": "Drive signups via social posts",
       "is_primary": true,
       "meta_scope": "basket"
     },
     {
-      "type": "reference",
+      "semantic_type": "reference",
       "label": "campaign_brief.pdf",
-      "content": "https://xyz.supabase.co/storage/v1/object/public/block-files/...",
+      "content": "https://xyz.supabase.co/storage/v1/object/public/block_files/...",
       "is_primary": true,
       "meta_scope": "basket",
       "source": "user_upload"
@@ -43,5 +43,7 @@ Creates a new basket and saves context blocks + file references.
 ```
 
 ## Notes
-- Uploaded files must already exist in `block-files` bucket before API call
-- Blocks are auto-linked to basket and ready for downstream orchestration
+- Uploaded files must already exist in `block_files` bucket before API call
+- The endpoint first persists the user input to **`raw_dumps`** and then
+  creates the `basket` referencing it via `raw_dump_id` (atomic intent capture).
+- Blocks are auto-linked to the basket and are ready for downstream orchestration
