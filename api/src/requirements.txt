@@ -1,12 +1,8 @@
-#api/src/requirements.txt
+# ✅ requirements.codex.txt – Codex/CI-safe install list
 
-# Use GitHub-based OpenAI Agents SDK
 git+https://github.com/openai/openai-agents-python.git@91c62c1dea97d02ad4974947e572d634d42496d1#egg=openai-agents
 
-# Supabase — pin to working SHA (or your fork if using custom helpers)
-git+https://github.com/supabase-community/supabase-py.git@0f3250a085a78280076738f6541fcf034a7de381#egg=supabase
-
-# Core runtime
+# ── Core runtime ────────────────────────────────────────────────
 asyncpg>=0.29.0
 fastapi>=0.110.0
 httpx>=0.27.0
@@ -17,10 +13,13 @@ requests>=2.0,<3
 typing-extensions>=4.12.2,<5
 uvicorn>=0.34.0
 
-# Validation / schema
+# ── Supabase / storage ──────────────────────────────────────────
+git+https://github.com/supabase-community/supabase-py.git@0f3250a085a78280076738f6541fcf034a7de381#egg=supabase
+
+# ── Validation / schema ────────────────────────────────────────
 jsonschema>=4.21
 
-# Docs & tooling
+# ── Docs & tooling ─────────────────────────────────────────────
 griffe>=1.5.6,<2
 mcp>=1.6.0,<2; python_version >= "3.10"
 mkdocs-static-i18n>=1.3.0
