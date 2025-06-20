@@ -14,5 +14,5 @@ export async function GET(req: NextRequest, ctx: any) {
   if (cookie) headers['cookie'] = cookie;
   const res = await fetch(upstream, { headers, cache: 'no-store' });
   const data = await res.json();
-  return NextResponse.json(data, { status: res.state });
+  return NextResponse.json(data, { status: res.status });
 }

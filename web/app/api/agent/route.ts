@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
     cache: "no-store",
   });
   // Log upstream response status
-  console.log("[🔀 proxy /api/agent] Upstream response status:", res.state);
+  console.log("[🔀 proxy /api/agent] Upstream response status:", res.status);
   const data = await res.json();
   // Log upstream response body
   console.log("[🔀 proxy /api/agent] Upstream response body:", data);
-  return NextResponse.json(data, { status: res.state });
+  return NextResponse.json(data, { status: res.status });
 }

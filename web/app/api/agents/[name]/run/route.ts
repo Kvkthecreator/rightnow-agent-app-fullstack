@@ -15,5 +15,5 @@ export async function POST(req: NextRequest, ctx: any) {
   const upstream = `${base}/agents/${name}/run`;
   const res = await fetch(upstream, { method: 'POST', headers, body, cache: 'no-store' });
   const data = await res.json();
-  return NextResponse.json(data, { status: res.state });
+  return NextResponse.json(data, { status: res.status });
 }

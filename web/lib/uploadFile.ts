@@ -34,7 +34,7 @@ export async function uploadFile(
 
   if (error) {
     console.error(`[uploadFile] upload error in bucket "${bucket}":`, error);
-    const statusCode = (error as any)?.state;
+    const statusCode = (error as any)?.status;
     if (statusCode === 404) {
       throw new Error(
         "Upload failed — check that 'block-files' bucket exists and is public"

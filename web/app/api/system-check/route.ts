@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
           validJson = false;
         }
       }
-      checks.push({ path, status: res.state, validJson });
+      checks.push({ path, status: res.status, validJson });
     } catch {
       checks.push({ path, status: null, validJson: false });
     }

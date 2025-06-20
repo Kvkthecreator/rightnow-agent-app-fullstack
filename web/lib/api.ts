@@ -14,8 +14,8 @@ export async function apiGet<T = any>(path: string): Promise<T> {
   const res = await fetch(withBase(path));
   // Handle non-OK responses
   if (!res.ok) {
-    console.warn(`[apiGet] Non-OK response (${res.state}) for ${path}`);
-    throw new Error(`API error: ${res.state}`);
+    console.warn(`[apiGet] Non-OK response (${res.status}) for ${path}`);
+    throw new Error(`API error: ${res.status}`);
   }
   try {
     const data = await res.json();
@@ -37,7 +37,7 @@ export async function apiPost<T = any>(path: string, body: any): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `apiPost ${path} failed with status ${res.state}`);
+    throw new Error(text || `apiPost ${path} failed with status ${res.status}`);
   }
   return (await res.json()) as T;
 }
@@ -50,7 +50,7 @@ export async function apiPut<T = any>(path: string, body: any): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `apiPut ${path} failed with status ${res.state}`);
+    throw new Error(text || `apiPut ${path} failed with status ${res.status}`);
   }
   return (await res.json()) as T;
 }

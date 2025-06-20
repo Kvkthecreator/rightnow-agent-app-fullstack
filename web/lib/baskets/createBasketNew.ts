@@ -18,10 +18,10 @@ export async function createBasketNew(
     headers,
     body: JSON.stringify(payload),
   });
-  if (res.state !== 201) {
+  if (res.status !== 201) {
     const text = await res.text();
-    throw new Error(text || `createBasketNew failed with ${res.state}`);
+    throw new Error(text || `createBasketNew failed with ${res.status}`);
   }
-  const data = await res.json();
-  return { id: data.basket_id };
+  const payload = await res.json();
+  return { id: payload.basket_id };
 }

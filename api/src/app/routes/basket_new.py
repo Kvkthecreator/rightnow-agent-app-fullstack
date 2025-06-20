@@ -16,7 +16,8 @@ import logging
 from uuid import uuid4
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Depends
+from supabase_py.lib.auth_helpers import get_user
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
@@ -47,7 +48,7 @@ class BasketCreatePayload(BaseModel):
 @router.post("/new", status_code=201)
 async def create_basket(
     payload: BasketCreatePayload,
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user=Depends(get_user),
 ):
     """
     1. Insert a Basket (state=INIT).
@@ -58,11 +59,11 @@ async def create_basket(
 
     basket_id = str(uuid4())
 
+    basket_row = {"id": basket_id, "name": payload.basket_name, "user_id": user.id}
+
     # 1️⃣  create the basket row
     try:
-        supabase.table("baskets").insert(
-            as_json({"id": basket_id, "name": payload.basket_name, "user_id": user_id})
-        ).execute()
+        supabase.table("baskets").insert(as_json(basket_row)).execute()
     except Exception as exc:
         log.exception("basket insertion failed")
         raise HTTPException(status_code=500, detail="internal error") from exc

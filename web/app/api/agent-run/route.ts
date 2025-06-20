@@ -30,5 +30,5 @@ export async function POST(request: NextRequest) {
   });
 
   const json = await res.json();
-  return NextResponse.json(json, { status: res.state });
+  return NextResponse.json(json, { status: res.status });
 }
