@@ -28,4 +28,4 @@ supabase-py>=2.0.3
 
 
 # ── Supabase / storage ──────────────────────────────────────────
-git+https://github.com/supabase-community/supabase-py.git@main#egg=supabase-py
+git+https://github.com/supabase-community/supabase-py.git@main#egg=supabase
