@@ -59,7 +59,7 @@ async def create_basket(
 
     basket_id = str(uuid4())
 
-    basket_row = {"id": basket_id, "name": payload.basket_name, "user_id": user.id}
+    basket_row = {"id": basket_id, "name": payload.basket_name}
 
     # 1️⃣  create the basket row
     try:

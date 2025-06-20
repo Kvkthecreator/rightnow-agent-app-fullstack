@@ -23,7 +23,7 @@ export default function BasketsPage() {
   const router = useRouter();
   const [baskets, setBaskets] = useState<BasketOverview[]>([]);
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("updated");
+  const [sort, setSort] = useState("created");
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -33,7 +33,7 @@ export default function BasketsPage() {
       router.replace("/about");
       return;
     }
-    getAllBaskets(session.user).then(setBaskets).catch(console.error);
+    getAllBaskets().then(setBaskets).catch(console.error);
   }, [session, isLoading, router]);
 
   const filtered = useMemo(() => {
@@ -52,12 +52,6 @@ export default function BasketsPage() {
         (a, b) =>
           new Date(b.created_at || "").getTime() -
           new Date(a.created_at || "").getTime()
-      );
-    } else {
-      arr = [...arr].sort(
-        (a, b) =>
-          new Date(b.updated_at || "").getTime() -
-          new Date(a.updated_at || "").getTime()
       );
     }
     return arr;
@@ -84,7 +78,6 @@ export default function BasketsPage() {
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="updated">Last updated</SelectItem>
                 <SelectItem value="created">Date created</SelectItem>
                 <SelectItem value="alpha">A–Z</SelectItem>
               </SelectContent>

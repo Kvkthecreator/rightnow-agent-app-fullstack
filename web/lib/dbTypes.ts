@@ -22,9 +22,9 @@ export interface Database {
         Row: {
           id: string;
           name: string | null;
-          raw_dump_id: string | null;
           state: string;
           created_at: string;
+          user_id: string;
         }
       }
       events: {
@@ -37,6 +37,16 @@ export interface Database {
           ts: string;
         }
       }
-    }
-  }
+    };
+    Views: {
+      v_basket_overview: {
+        Row: {
+          id: string;
+          name: string | null;
+          raw_dump_body: string | null;
+          created_at: string | null;
+        }
+      }
+    };
+  };
 }

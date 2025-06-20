@@ -7,17 +7,12 @@ export interface BasketCardProps {
     id: string;
     name?: string | null;
     raw_dump_body?: string | null;
-    updated_at?: string | null;
     created_at?: string | null;
-    blocks_count?: number | null;
   };
 }
 
 export default function BasketCard({ basket }: BasketCardProps) {
   const router = useRouter();
-  const updated = basket.updated_at
-    ? formatDistanceToNow(new Date(basket.updated_at), { addSuffix: true })
-    : "";
   const created = basket.created_at
     ? format(new Date(basket.created_at), "PPP")
     : "";
@@ -32,18 +27,13 @@ export default function BasketCard({ basket }: BasketCardProps) {
         <h3 className="text-md font-semibold truncate">
           🧺 {basket.name || "Untitled Basket"}
         </h3>
-        {updated && (
-          <span className="text-xs text-muted-foreground">Updated {updated}</span>
-        )}
       </div>
       {preview && (
         <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
           {preview}
         </p>
       )}
-      <div className="text-xs mt-2 text-muted-foreground">
-        {basket.blocks_count ?? 0} blocks · Created {created}
-      </div>
+      <div className="text-xs mt-2 text-muted-foreground">Created {created}</div>
     </div>
   );
 }
