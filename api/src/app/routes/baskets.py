@@ -10,7 +10,7 @@ from schemas.context_block import ContextBlock
 from src.utils.db import json_safe
 
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
-from ..supabase_helpers import publish_event
+from ..event_bus import publish_event
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 

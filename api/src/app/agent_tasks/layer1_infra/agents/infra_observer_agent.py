@@ -9,7 +9,7 @@ from schemas.validators import validates
 from src.utils.logged_agent import logged
 
 from app.event_bus import DB_URL
-from app.supabase_helpers import publish_event
+from app.event_bus import publish_event
 
 from ..schemas import UsageReport
 
