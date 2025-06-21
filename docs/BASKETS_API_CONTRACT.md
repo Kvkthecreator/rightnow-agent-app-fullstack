@@ -56,6 +56,39 @@ Creates a new basket and its originating raw dump.
   ]
 }
 ```
++Creates a new basket and its originating raw dump.
++
++> **Versioning**
++>
++> * **V1** (legacy) – body **`{ "text_dump": "…" }`** – *still accepted*
++> * **V2** – body described below – **preferred** for all new clients
+
+@@ #### JSON Body
+-```jsonc
+-{  "topic": "Launch spring campaign",
+-   … (see previous version) …
+-}
+-```
++<details><summary><strong>V 2 payload</strong></summary>
++
++```jsonc
++{
++  "topic": "Launch spring campaign",
++  "intent": "Drive sign-ups via socials",
++  "insight": "Target Gen Z",
++  "blocks": [ /* ≤ 25 seed blocks (optional) */ ]
++}
++```
++
++</details>
++
++<details><summary><strong>V 1 payload (legacy – still accepted)</strong></summary>
++
++```json
++{ "text_dump": "free-form markdown or plain text" }
++```
++
++</details>
 
 > **Payload limits**
 >
