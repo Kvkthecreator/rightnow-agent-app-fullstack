@@ -2,6 +2,7 @@
 import { useState } from "react";
 import BlocksList from "./BlocksList";
 import { usePendingChanges } from "@/lib/baskets/usePendingChanges";
+import { fetchWithToken } from "@/lib/fetchWithToken";
 
 interface Props {
     basketId: string;
@@ -16,7 +17,7 @@ export default function BlocksWorkspace({
     const [summary, setSummary] = useState<string | null>(null);
 
     const handleSummarizeSession = async () => {
-        const res = await fetch("/api/summarize-session", {
+        const res = await fetchWithToken("/api/summarize-session", {
             method: "POST",
             body: JSON.stringify({ basket_id: basketId }),
         });
