@@ -4,13 +4,15 @@ import logging
 import uuid
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from schemas.context_block import ContextBlock
 from src.utils.db import json_safe
 
 from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
 from ..event_bus import publish_event
+from ..utils.jwt import verify_jwt
+from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 
@@ -203,3 +205,42 @@ async def update_basket(basket_id: str, payload: BasketUpdate):
         },
     )
     return {"id": basket_id}
+
+
+@router.get("/list", response_model=list[dict])
+def list_baskets(user: dict = Depends(verify_jwt)) -> list[dict]:
+    """Return recent baskets for the caller's workspace."""
+    supabase = get_supabase()
+    workspace_id = get_or_create_workspace(user["user_id"])
+    try:
+        b_resp = (
+            supabase.table("baskets")
+            .select("id,name,raw_dump_id,created_at")
+            .eq("workspace_id", workspace_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        baskets = b_resp.data or []
+        results: list[dict] = []
+        for row in baskets:
+            d_resp = (
+                supabase.table("raw_dumps")
+                .select("body_md")
+                .eq("id", row["raw_dump_id"])
+                .execute()
+            )
+            body_md = None
+            if d_resp.data:
+                body_md = d_resp.data[0].get("body_md")
+            results.append(
+                {
+                    "id": row["id"],
+                    "name": row.get("name"),
+                    "raw_dump_body": body_md,
+                    "created_at": row.get("created_at"),
+                }
+            )
+        return results
+    except Exception as err:  # pragma: no cover
+        logger.exception("list_baskets failed")
+        raise HTTPException(status_code=500, detail="internal error") from err

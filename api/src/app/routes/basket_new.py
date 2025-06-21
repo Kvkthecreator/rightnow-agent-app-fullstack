@@ -6,9 +6,9 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_client as supabase
@@ -43,24 +43,17 @@ class V2Body(BaseModel):
 # ----------------------------------------------------------------
 @router.post("/new", status_code=201, response_model=dict)
 async def create_basket(
-    request: Request,
+    payload: V1Body | V2Body,
     user: Annotated[dict, Depends(verify_jwt)],
 ):
     """
     • If body matches V1 → create basket from *text_dump* (legacy UI).
     • If body matches V2 → create basket + seed blocks (new UI/agents).
     """
-    raw_json = await request.json()
-    print(raw_json)
-    try:
-        body_v1 = V1Body.model_validate(raw_json)
-        mode = "v1"
-    except ValidationError:
-        try:
-            body_v2 = V2Body.model_validate(raw_json)
-            mode = "v2"
-        except ValidationError as e:
-            raise HTTPException(status_code=400, detail=e.errors()) from e
+    print("[create_basket] parsed payload:", payload.model_dump())
+    mode = "v1" if isinstance(payload, V1Body) else "v2"
+    body_v1 = payload if mode == "v1" else None
+    body_v2 = payload if mode == "v2" else None
 
     if mode == "v1" and not body_v1.text_dump.strip():
         raise HTTPException(status_code=400, detail="text_dump is empty")
