@@ -1,4 +1,5 @@
 """Snapshot route for basket narrative (workspace-aware)."""
+
 from __future__ import annotations
 
 import logging
@@ -8,7 +9,7 @@ from ..util.snapshot_assembler import assemble_snapshot
 from ..utils.supabase_client import supabase_client as supabase
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
-logger = logging.getLogger("uvicorn.error")
+log = logging.getLogger("uvicorn.error")
 
 
 @router.get("/{basket_id}/snapshot")
@@ -16,37 +17,44 @@ def get_basket_snapshot(basket_id: str) -> dict:
     """
     Return a read-only snapshot for a basket.
 
-    Flow:
-      1. Fetch the basket (enforces RLS → user must belong to workspace).
-      2. Follow basket.raw_dump_id → fetch the single raw_dump row.
-      3. Fetch constant / locked / accepted blocks for that basket.
-      4. Assemble + return.
+    Expected JSON (matches the old contract):
+
+    {
+      "basket": { … },          # single row
+      "raw_dumps": [ … ],       # *array* (len == 1 today)
+      "blocks": [ … ]           # constant | locked | accepted
+    }
     """
     try:
-        # ── 1. basket row ───────────────────────────────────────────
-        basket_resp = (
+        # ── 1. basket row (RLS will hide others) ──────────────────
+        basket_res = (
             supabase.table("baskets")
-            .select("id, raw_dump_id, name, created_at")
+            .select("id, name, created_at, raw_dump_id")
             .eq("id", basket_id)
             .single()
             .execute()
         )
-        basket = basket_resp.data
-        if basket is None:
+        if basket_res.data is None:
             raise HTTPException(status_code=404, detail="Basket not found")
+        basket = basket_res.data
 
-        # ── 2. raw dump ─────────────────────────────────────────────
-        dump_resp = (
+        # ── 2. the ONE raw_dump referenced by the basket ──────────
+        dump_res = (
             supabase.table("raw_dumps")
             .select("id, body_md, created_at")
             .eq("id", basket["raw_dump_id"])
             .single()
             .execute()
         )
-        raw_dump = dump_resp.data or {}
+        if dump_res.data is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Raw dump not found for basket",
+            )
+        raw_dumps = [dump_res.data]  # keep array shape
 
-        # ── 3. blocks (constant / locked / accepted) ────────────────
-        block_resp = (
+        # ── 3. blocks in constant / locked / accepted state ───────
+        blocks_res = (
             supabase.table("blocks")
             .select(
                 "id, semantic_type, content, state, scope, canonical_value"
@@ -55,15 +63,15 @@ def get_basket_snapshot(basket_id: str) -> dict:
             .in_("state", ["CONSTANT", "LOCKED", "ACCEPTED"])
             .execute()
         )
-        blocks = block_resp.data or []
+        blocks = blocks_res.data or []
 
     except HTTPException:
-        raise  # re-raise 404 unchanged
+        raise
     except Exception:
-        logger.exception("get_basket_snapshot failed")
+        log.exception("get_basket_snapshot failed")
         raise HTTPException(status_code=500, detail="internal error")
 
-    # ── 4. assemble & return ───────────────────────────────────────
-    snapshot = assemble_snapshot([raw_dump], blocks)
-    snapshot["basket"] = basket            # optional, but often useful
+    # ── 4. assemble & return in legacy shape ─────────────────────
+    snapshot = assemble_snapshot(raw_dumps, blocks)  # returns dict
+    snapshot["basket"] = basket
     return snapshot
