@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
+import { fetchWithToken } from "@/lib/fetchWithToken";
 
 export default function BasketDetailPage({ params }: any) {
   const supabase = createClient();
@@ -12,7 +13,7 @@ export default function BasketDetailPage({ params }: any) {
 
   useEffect(() => {
     const fetchBasket = async () => {
-      const res = await fetch(`/api/baskets/${params.id}`);
+      const res = await fetchWithToken(`/api/baskets/${params.id}`);
       if (res.ok) {
         const json = await res.json();
         setBasket(json);

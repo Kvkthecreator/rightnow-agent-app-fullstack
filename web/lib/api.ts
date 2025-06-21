@@ -4,6 +4,7 @@
  * Simple wrapper for GET requests to the backend API.
  * Uses the Next.js rewrite from /api to the configured API base.
  */
+import { fetchWithToken } from "@/lib/fetchWithToken";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "";
 
 function withBase(path: string) {
@@ -11,7 +12,7 @@ function withBase(path: string) {
 }
 
 export async function apiGet<T = any>(path: string): Promise<T> {
-  const res = await fetch(withBase(path));
+  const res = await fetchWithToken(withBase(path));
   // Handle non-OK responses
   if (!res.ok) {
     console.warn(`[apiGet] Non-OK response (${res.status}) for ${path}`);
@@ -30,7 +31,7 @@ export async function apiGet<T = any>(path: string): Promise<T> {
 }
 
 export async function apiPost<T = any>(path: string, body: any): Promise<T> {
-  const res = await fetch(withBase(path), {
+  const res = await fetchWithToken(withBase(path), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -43,7 +44,7 @@ export async function apiPost<T = any>(path: string, body: any): Promise<T> {
 }
 
 export async function apiPut<T = any>(path: string, body: any): Promise<T> {
-  const res = await fetch(withBase(path), {
+  const res = await fetchWithToken(withBase(path), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

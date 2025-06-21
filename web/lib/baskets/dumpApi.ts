@@ -1,4 +1,4 @@
-import { apiPost } from "@/lib/api";
+import { fetchWithToken } from "@/lib/fetchWithToken";
 
 interface PostDumpArgs {
   basketId: string;
@@ -27,7 +27,7 @@ export async function postDump({
   if (text) form.append("text", text);
   for (const img of images) form.append("file", img, img.name);
 
-  const res = await fetch("/api/dump", { method: "POST", body: form });
+  const res = await fetchWithToken("/api/dump", { method: "POST", body: form });
   if (!res.ok) {
     const msg = await res.text();
     throw new Error(msg || `Dump upload failed (${res.status})`);

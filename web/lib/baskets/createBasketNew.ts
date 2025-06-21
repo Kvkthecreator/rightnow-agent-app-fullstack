@@ -3,6 +3,7 @@ export interface NewBasketArgs {
   file_urls?: string[];
 }
 import { createClient } from "@/lib/supabaseClient";
+import { fetchWithToken } from "@/lib/fetchWithToken";
 export async function createBasketNew(
   args: NewBasketArgs,
 ): Promise<{ id: string }> {
@@ -13,7 +14,7 @@ export async function createBasketNew(
   const uid = data.session?.user.id;
   if (uid) headers['X-User-Id'] = uid;
   const body = { text_dump: args.text_dump, file_urls: args.file_urls ?? [] };
-  const res = await fetch(`${base}/api/baskets/new`, {
+  const res = await fetchWithToken(`${base}/api/baskets/new`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
