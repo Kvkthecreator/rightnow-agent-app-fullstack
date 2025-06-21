@@ -61,15 +61,16 @@ def test_basket_new(monkeypatch):
 
     resp = client.post(
         "/api/baskets/new",
-        json={"text_dump": "hello", "file_urls": ["f"], "basket_name": "test"},
+        json={"text_dump": "hello", "file_urls": ["f"]},
     )
     assert resp.status_code == 201
     body = resp.json()
-    assert body["basket_id"]
+    assert body["id"]
     assert len(store["baskets"]) == 1
     assert len(store["raw_dumps"]) == 1
-    assert store["baskets"][0]["id"] == body["basket_id"]
-    assert store["raw_dumps"][0]["basket_id"] == body["basket_id"]
+    assert store["baskets"][0]["id"] == body["id"]
+    assert store["raw_dumps"][0]["basket_id"] == body["id"]
+    assert store["raw_dumps"][0]["file_refs"] == ["f"]
 
 
 def test_basket_new_minimal(monkeypatch):
@@ -80,11 +81,19 @@ def test_basket_new_minimal(monkeypatch):
     resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
     assert resp.status_code == 201
     body = resp.json()
-    assert len(body["basket_id"]) > 0
+    assert len(body["id"]) > 0
     assert len(store["baskets"]) == 1
     assert len(store["raw_dumps"]) == 1
-    assert store["baskets"][0]["id"] == body["basket_id"]
-    assert store["raw_dumps"][0]["basket_id"] == body["basket_id"]
+    assert store["baskets"][0]["id"] == body["id"]
+    assert store["raw_dumps"][0]["basket_id"] == body["id"]
+
+
+def test_basket_new_empty(monkeypatch):
+    fake = _fake_supabase({"baskets": [], "raw_dumps": []})
+    monkeypatch.setattr("app.routes.basket_new.supabase", fake)
+
+    resp = client.post("/api/baskets/new", json={"text_dump": "   "})
+    assert resp.status_code == 400
 
 
 def test_basket_new_error(monkeypatch):
@@ -93,3 +102,4 @@ def test_basket_new_error(monkeypatch):
 
     resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
     assert resp.status_code == 500
+

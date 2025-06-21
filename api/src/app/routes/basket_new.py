@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 
@@ -22,6 +22,7 @@ log = logging.getLogger("uvicorn.error")
 # ----------------------------------------------------------------
 class V1Body(BaseModel):
     text_dump: str = Field(..., min_length=1)
+    file_urls: list[str] = Field(default_factory=list)
 
 class BlockSeed(BaseModel):
     semantic_type: str
@@ -42,13 +43,15 @@ class V2Body(BaseModel):
 # ----------------------------------------------------------------
 @router.post("/new", status_code=201, response_model=dict)
 async def create_basket(
+    request: Request,
     user: Annotated[dict, Depends(verify_jwt)],
-    raw_json: dict,
 ):
     """
     • If body matches V1 → create basket from *text_dump* (legacy UI).
     • If body matches V2 → create basket + seed blocks (new UI/agents).
     """
+    raw_json = await request.json()
+    print(raw_json)
     try:
         body_v1 = V1Body.model_validate(raw_json)
         mode = "v1"
@@ -73,7 +76,7 @@ async def create_basket(
                 .insert(
                     {
                         "body_md": body_v1.text_dump if mode == "v1" else body_v2.topic or "",
-                        "file_refs": [],
+                        "file_refs": body_v1.file_urls if mode == "v1" else [],
                         "workspace_id": workspace_id,
                     }
                 )
