@@ -59,6 +59,9 @@ async def create_basket(
         except ValidationError as e:
             raise HTTPException(status_code=400, detail=e.errors()) from e
 
+    if mode == "v1" and not body_v1.text_dump.strip():
+        raise HTTPException(status_code=400, detail="text_dump is empty")
+
     # workspace is the only source of truth for ownership
     workspace_id = get_or_create_workspace(user["user_id"])
 

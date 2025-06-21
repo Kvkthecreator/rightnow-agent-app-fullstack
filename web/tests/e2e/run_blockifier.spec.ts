@@ -22,7 +22,7 @@ const secondSnapshot = {
 
 test('run blockifier flow', async ({ page }) => {
   let snapCall = 0;
-  await page.route('**/baskets/test-basket/snapshot', async (route) => {
+  await page.route('**/baskets/snapshot/test-basket', async (route) => {
     snapCall += 1;
     await route.fulfill({
       status: 200,

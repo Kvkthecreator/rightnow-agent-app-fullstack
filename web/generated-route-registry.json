@@ -15,6 +15,6 @@
   "/api/system-check",
   "/api/task-types",
   "/api/baskets/new",
-  "/api/baskets/[id]/snapshot",
+  "/api/baskets/snapshot/[id]",
   "/api/agents/[name]/run"
 ]

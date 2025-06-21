@@ -18,6 +18,6 @@ test('dump hotkey saves dump', async ({ page }) => {
   await page.locator('textarea').fill('hello world');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Dump saved')).toBeVisible();
-  const snap = await page.request.get(`/api/baskets/${basketId}/snapshot`);
+  const snap = await page.request.get(`/api/baskets/snapshot/${basketId}`);
   expect(snap.status()).toBe(200);
 });
