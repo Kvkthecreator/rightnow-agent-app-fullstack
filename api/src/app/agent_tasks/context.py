@@ -5,7 +5,7 @@ Provides utility to load full profile context (profile row + report sections)
 for given user_id from Supabase.
 """
 
-from ..util.supabase_helpers import supabase
+from ..utils.supabase_helpers import supabase
 
 
 def get_full_profile_context(user_id: str) -> dict:

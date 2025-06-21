@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+
 def assemble_snapshot(
     raw_dumps: Iterable[dict[str, Any]], blocks: Iterable[dict[str, Any]]
 ) -> dict[str, Any]:

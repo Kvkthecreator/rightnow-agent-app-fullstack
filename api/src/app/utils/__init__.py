@@ -1,5 +1,9 @@
-"""Utility helpers for the application layer."""
+from .db import *  # noqa: F401,F403
+from .jwt import verify_jwt  # noqa: F401
+from .snapshot_assembler import *  # noqa: F401,F403
+from .workspace import *  # noqa: F401,F403
 
-from .supabase_client import supabase_client
-
-__all__ = ["supabase_client"]
+__all__ = [  # keep explicit to silence ruff
+    "verify_jwt",
+    *[n for n in globals() if not n.startswith("_")],
+]

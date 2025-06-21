@@ -10,9 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 
-from ..util.workspace import get_or_create_workspace          # ← fixed import
+from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_client as supabase
-from ..util.jwt import get_current_user                        # helper that injects auth.uid + jwt
+from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 log = logging.getLogger("uvicorn.error")
@@ -42,11 +42,11 @@ class V2Body(BaseModel):
 # ----------------------------------------------------------------
 @router.post("/new", status_code=201, response_model=dict)
 async def create_basket(
-    user: Annotated[dict, Depends(get_current_user)],
+    user: Annotated[dict, Depends(verify_jwt)],
     raw_json: dict,
 ):
     """
-    • If body matches V1 → create basket from *text_dump* (legacy UI).  
+    • If body matches V1 → create basket from *text_dump* (legacy UI).
     • If body matches V2 → create basket + seed blocks (new UI/agents).
     """
     try:
@@ -57,10 +57,10 @@ async def create_basket(
             body_v2 = V2Body.model_validate(raw_json)
             mode = "v2"
         except ValidationError as e:
-            raise HTTPException(status_code=400, detail=e.errors())
+            raise HTTPException(status_code=400, detail=e.errors()) from e
 
     # workspace is the only source of truth for ownership
-    workspace_id = get_or_create_workspace(user["sub"])
+    workspace_id = get_or_create_workspace(user["user_id"])
 
     # single transaction so /work can read the snapshot immediately
     try:
