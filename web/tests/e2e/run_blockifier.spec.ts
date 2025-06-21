@@ -2,22 +2,27 @@ import { test, expect } from '@playwright/test';
 
 // Simulated snapshot responses before and after running Blockifier
 const firstSnapshot = {
-  raw_dump: '# dump',
-  accepted_blocks: [],
-  locked_blocks: [],
-  constants: [],
-  proposed_blocks: [],
+  raw_dump_body: '# dump',
+  file_refs: [],
+  blocks: [],
 };
 const secondSnapshot = {
   ...firstSnapshot,
-  proposed_blocks: [
-    { id: 'p1', content: 'hello', state: 'PROPOSED', semantic_type: 'note' },
+  blocks: [
+    {
+      id: 'p1',
+      content: 'hello',
+      state: 'PROPOSED',
+      semantic_type: 'note',
+      scope: null,
+      canonical_value: null,
+    },
   ],
 };
 
 test('run blockifier flow', async ({ page }) => {
   let snapCall = 0;
-  await page.route('**/api/baskets/test-basket/snapshot', async (route) => {
+  await page.route('**/baskets/test-basket/snapshot', async (route) => {
     snapCall += 1;
     await route.fulfill({
       status: 200,

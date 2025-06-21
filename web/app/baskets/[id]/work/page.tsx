@@ -2,16 +2,17 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import useSWR from "swr";
-import { apiPost, apiGet } from "@/lib/api";
-import type { Snapshot } from "@/lib/baskets/getSnapshot";
+import { apiPost } from "@/lib/api";
+import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
+import { getSnapshot } from "@/lib/baskets/getSnapshot";
 import { Button } from "@/components/ui/Button";
 import { toast } from "react-hot-toast";
 
 export default function BasketWorkPage({ params }: any) {
   const id = params.id as string;
-  const { data, error, isLoading, mutate } = useSWR<Snapshot>(
-    `/api/baskets/${id}/snapshot`,
-    apiGet
+  const { data, error, isLoading, mutate } = useSWR<BasketSnapshot>(
+    id,
+    getSnapshot
   );
 
   const runBlockifier = async () => {
@@ -27,13 +28,13 @@ export default function BasketWorkPage({ params }: any) {
   if (isLoading) return <div className="p-6">Loading…</div>;
   if (error) return <div className="p-6 text-red-600">Failed to load basket.</div>;
 
-  const raw = data?.raw_dump ?? "";
+  const raw = data?.raw_dump_body ?? "";
 
   const grouped = {
-    CONSTANT: data?.constants ?? [],
-    LOCKED: data?.locked_blocks ?? [],
-    ACCEPTED: data?.accepted_blocks ?? [],
-    PROPOSED: data?.proposed_blocks ?? [],
+    CONSTANT: data?.blocks?.filter((b) => b.state === "CONSTANT") ?? [],
+    LOCKED: data?.blocks?.filter((b) => b.state === "LOCKED") ?? [],
+    ACCEPTED: data?.blocks?.filter((b) => b.state === "ACCEPTED") ?? [],
+    PROPOSED: data?.blocks?.filter((b) => b.state === "PROPOSED") ?? [],
   };
 
   return (
