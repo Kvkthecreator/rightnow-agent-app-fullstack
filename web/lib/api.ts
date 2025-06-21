@@ -5,10 +5,10 @@
  * Uses the Next.js rewrite from /api to the configured API base.
  */
 import { fetchWithToken } from "@/lib/fetchWithToken";
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "";
+import { withApiOrigin } from "@/lib/apiOrigin";
 
 function withBase(path: string) {
-  return path.startsWith("/api") && API_BASE ? `${API_BASE}${path}` : path;
+  return withApiOrigin(path);
 }
 
 export async function apiGet<T = any>(path: string): Promise<T> {
