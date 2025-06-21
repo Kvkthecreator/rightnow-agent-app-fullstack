@@ -103,7 +103,7 @@ async def health():  # pragma: no cover
 # Allow CORS from any origin (adjust in production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://www.yarnnn.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
