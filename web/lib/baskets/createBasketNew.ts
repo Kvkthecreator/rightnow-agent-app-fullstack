@@ -6,7 +6,7 @@ import { withApiOrigin } from "@/lib/apiOrigin";
 /** Body accepted by /api/baskets/new (v1 mode) */
 export interface NewBasketArgs {
   /** Free-form markdown or plaintext that seeds the basket */
-  text: string;
+  text_dump: string;
   /** Optional previously-uploaded file URLs (≤ 5) */
   file_urls?: string[];
 }
@@ -24,7 +24,7 @@ export async function createBasketNew(
   if (uid) headers["X-User-Id"] = uid; // FastAPI route ignores it for now
 
   const body = JSON.stringify({
-    text: args.text,                // 🔺 was text_dump
+    text_dump: args.text_dump,
     file_urls: args.file_urls ?? [],
   });
 
@@ -39,7 +39,7 @@ export async function createBasketNew(
     throw new Error((await res.text()) || `createBasketNew failed: ${res.status}`);
   }
 
-  /* ── 4️⃣  FastAPI returns { "basket_id": "<uuid>" } ────────────────────── */
-  const { basket_id } = (await res.json()) as { basket_id: string };
-  return { id: basket_id };
+  /* ── 4️⃣  FastAPI returns { "id": "<uuid>" } ─────────────────────────────── */
+  const { id } = (await res.json()) as { id: string };
+  return { id };
 }
