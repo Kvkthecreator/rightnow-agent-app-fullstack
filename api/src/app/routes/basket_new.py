@@ -55,7 +55,10 @@ async def create_basket(
 
     log.info("[basket_new] payload: %s", payload.model_dump())
 
-    workspace_id = get_or_create_workspace(supabase, user["id"])
+    user_id = getattr(user, "id", None) or user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthenticated")
+    workspace_id = get_or_create_workspace(supabase, user_id)
 
     dump_resp = supabase.table("raw_dumps").insert(
         {
