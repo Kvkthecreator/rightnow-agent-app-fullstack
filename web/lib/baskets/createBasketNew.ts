@@ -14,6 +14,11 @@ export interface NewBasketArgs {
 export async function createBasketNew(
   args: NewBasketArgs,
 ): Promise<{ id: string }> {
+  console.debug("[createBasketNew] text_dump:", args.text_dump);
+  if (!args.text_dump || args.text_dump.trim().length === 0) {
+    console.warn("[createBasketNew] text_dump is empty");
+    throw new Error("text_dump cannot be empty");
+  }
   /* ── 1️⃣  get the caller’s JWT for the backend ─────────────────────────── */
   const supabase = createClient();
   const { data } = await supabase.auth.getSession();

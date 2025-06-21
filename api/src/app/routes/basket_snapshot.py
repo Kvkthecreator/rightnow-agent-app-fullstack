@@ -76,3 +76,9 @@ def get_basket_snapshot(basket_id: str) -> dict:
     snapshot = assemble_snapshot(raw_dumps, blocks)  # returns dict
     snapshot["basket"] = basket
     return snapshot
+
+
+@router.get("/snapshot/{basket_id}")
+def get_basket_snapshot_service(basket_id: str) -> dict:
+    """Expose snapshot via a stable path using the service role."""
+    return get_basket_snapshot(basket_id)

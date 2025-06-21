@@ -6,7 +6,7 @@ export async function GET(req: NextRequest, ctx: any) {
     return NextResponse.json({ error: 'Missing NEXT_PUBLIC_API_BASE' }, { status: 500 });
   }
   const { id } = ctx.params;
-  const upstream = `${baseUrl}/baskets/${id}/snapshot`;
+  const upstream = `${baseUrl}/baskets/snapshot/${id}`;
   const headers: HeadersInit = {};
   const auth = req.headers.get('authorization');
   if (auth) headers['Authorization'] = auth;

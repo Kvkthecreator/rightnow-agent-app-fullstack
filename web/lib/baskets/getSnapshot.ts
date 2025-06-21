@@ -20,11 +20,11 @@ export interface BasketSnapshot {
   }[];
 }
 
-const SNAPSHOT_PATH = "snapshot";               // route segment
+const SNAPSHOT_PREFIX = "/api/baskets/snapshot";
 
 export async function getSnapshot(id: string): Promise<BasketSnapshot> {
   // NOTE: fetchWithToken itself prepends API_ORIGIN, so we pass a bare path.
-  const res = await fetchWithToken(`/api/baskets/${id}/${SNAPSHOT_PATH}`);
+  const res = await fetchWithToken(`${SNAPSHOT_PREFIX}/${id}`);
   if (!res.ok) {
     const msg = await res.text();
     throw new Error(msg || `snapshot fetch failed (${res.status})`);
