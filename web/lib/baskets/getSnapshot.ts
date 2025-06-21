@@ -1,6 +1,5 @@
 // web/lib/baskets/getSnapshot.ts
 import { fetchWithToken } from "@/lib/fetchWithToken";
-import { withApiOrigin } from "@/lib/apiOrigin";
 
 /** Shape returned by /api/baskets/{id}/snapshot */
 export interface BasketSnapshot {
@@ -24,9 +23,8 @@ export interface BasketSnapshot {
 const SNAPSHOT_PATH = "snapshot";               // route segment
 
 export async function getSnapshot(id: string): Promise<BasketSnapshot> {
-  const url = withApiOrigin(`/api/baskets/${id}/${SNAPSHOT_PATH}`);
-
-  const res = await fetchWithToken(url);
+  // NOTE: fetchWithToken itself prepends API_ORIGIN, so we pass a bare path.
+  const res = await fetchWithToken(`/api/baskets/${id}/${SNAPSHOT_PATH}`);
   if (!res.ok) {
     const msg = await res.text();
     throw new Error(msg || `snapshot fetch failed (${res.status})`);
