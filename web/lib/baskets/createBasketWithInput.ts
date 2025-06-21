@@ -1,6 +1,7 @@
 import { uploadFile } from "@/lib/uploadFile";
 import { createClient } from "@/lib/supabaseClient";
-import { apiPost } from "@/lib/api";
+import { fetchWithToken } from "@/lib/fetchWithToken";
+import { withApiOrigin } from "@/lib/apiOrigin";
 
 export interface CreateBasketArgs {
   userId: string;
@@ -16,11 +17,16 @@ export async function createBasketWithInput({
 }: CreateBasketArgs) {
   const supabase = createClient();
   // 1️⃣ Core basket creation via privileged API route
-  const basket = await apiPost<{ id: string }>("/api/baskets/create-with-input", {
-    userId,
-    text,
-    basketName,
+  const resp = await fetchWithToken(withApiOrigin("/api/baskets/new"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text_dump: text, basket_name: basketName }),
   });
+  if (!resp.ok) {
+    const msg = await resp.text();
+    throw new Error(msg || `createBasket failed (${resp.status})`);
+  }
+  const basket = (await resp.json()) as { id: string };
 
   // 2️⃣ File sidecar: decoupled, fail-safe
   if (files?.length) {

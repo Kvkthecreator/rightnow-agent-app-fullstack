@@ -1,5 +1,6 @@
 // web/lib/baskets/getSnapshot.ts
 import { fetchWithToken } from "@/lib/fetchWithToken";
+import { withApiOrigin } from "@/lib/apiOrigin";
 
 /** Shape returned by /api/baskets/{id}/snapshot */
 export interface BasketSnapshot {
@@ -20,11 +21,10 @@ export interface BasketSnapshot {
   }[];
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL!;   // e.g. https://api.yarnnn.com
 const SNAPSHOT_PATH = "snapshot";               // route segment
 
 export async function getSnapshot(id: string): Promise<BasketSnapshot> {
-  const url = `${API}/api/baskets/${id}/${SNAPSHOT_PATH}`;
+  const url = withApiOrigin(`/api/baskets/${id}/${SNAPSHOT_PATH}`);
 
   const res = await fetchWithToken(url);
   if (!res.ok) {
