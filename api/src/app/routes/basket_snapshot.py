@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+
 from fastapi import APIRouter, HTTPException
 
-from ..util.snapshot_assembler import assemble_snapshot
+from ..utils.snapshot_assembler import assemble_snapshot
 from ..utils.supabase_client import supabase_client as supabase
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
@@ -67,9 +68,9 @@ def get_basket_snapshot(basket_id: str) -> dict:
 
     except HTTPException:
         raise
-    except Exception:
+    except Exception as err:
         log.exception("get_basket_snapshot failed")
-        raise HTTPException(status_code=500, detail="internal error")
+        raise HTTPException(status_code=500, detail="internal error") from err
 
     # ── 4. assemble & return in legacy shape ─────────────────────
     snapshot = assemble_snapshot(raw_dumps, blocks)  # returns dict

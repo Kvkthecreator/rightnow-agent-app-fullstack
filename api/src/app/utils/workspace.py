@@ -3,7 +3,7 @@ Utility: look up (or lazily create) the caller’s workspace.
 
 Authoritative rule:
 ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-A user *always* operates inside exactly one workspace.  
+A user *always* operates inside exactly one workspace.
 If they have none, we create one and add the caller as owner/member.
 """
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from ..utils.supabase_client import supabase_client as supabase
+from .supabase_client import supabase_client as supabase
 
 log = logging.getLogger("uvicorn.error")
 
@@ -33,7 +33,7 @@ def get_or_create_workspace(user_id: str) -> str:
             .limit(1)
             .execute()
         )
-    except Exception as err:  # pragma: no cover
+    except Exception:  # pragma: no cover
         log.exception("workspace lookup failed")
         raise
 
@@ -61,7 +61,7 @@ def get_or_create_workspace(user_id: str) -> str:
                     "role": "owner",
                 }
             ).execute()
-    except Exception as err:  # pragma: no cover
+    except Exception:  # pragma: no cover
         log.exception("workspace creation failed")
         raise
 
