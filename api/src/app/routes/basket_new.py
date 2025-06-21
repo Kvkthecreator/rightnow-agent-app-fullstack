@@ -1,173 +1,112 @@
-"""Create-basket endpoint.
-
-* Accepts legacy `{text_dump: …}` payloads (mobile / old web)
-* Accepts V2 payload with topic / intent / insight / blocks
-* Persists everything under the caller’s workspace
-"""
+"""Create-basket endpoint. Supports both the old *text_dump* JSON and the new
+structured payload during the transition window."""
 
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
-from supabase import Client  # type: ignore
 
-from ..utils.supabase_client import supabase_client as supabase        # sync client
-from ..utils.workspace import get_or_create_workspace                  # helper you already have
-from ..auth import get_user                                            # returns dict with "id"
+from ..util.workspace import get_or_create_workspace          # ← fixed import
+from ..utils.supabase_client import supabase_client as supabase
+from ..util.jwt import get_current_user                        # helper that injects auth.uid + jwt
 
-logger = logging.getLogger("uvicorn.error")
 router = APIRouter(prefix="/baskets", tags=["baskets"])
+log = logging.getLogger("uvicorn.error")
 
-# --------------------------------------------------------------------------- #
-# 1. Payload models
-# --------------------------------------------------------------------------- #
-
-
-class BasketCreateLegacy(BaseModel):
-    """The original schema used by old clients."""
-
+# ────────────────────────────────────────────────────────────────
+# 1. Dual-schema body models
+# ----------------------------------------------------------------
+class V1Body(BaseModel):
     text_dump: str = Field(..., min_length=1)
-    file_urls: Optional[List[str]] = None
-    basket_name: Optional[str] = None
 
-
-class SeedBlock(BaseModel):
+class BlockSeed(BaseModel):
     semantic_type: str
-    label: Optional[str] = None
+    label: str | None = None
     content: str
-    is_primary: Optional[bool] = False
-    meta_scope: Optional[str] = "basket"
-    source: Optional[str] = None
+    is_primary: bool | None = None
+    meta_scope: str | None = None
+    source: str | None = None
 
+class V2Body(BaseModel):
+    topic: str | None = None
+    intent: str | None = None
+    insight: str | None = None
+    blocks: list[BlockSeed] = Field(default_factory=list, max_items=25)
 
-class BasketCreateV2(BaseModel):
-    """New, richer schema described in BASKETS_API_CONTRACT.md"""
-
-    topic: str
-    intent: Optional[str] = None
-    insight: Optional[str] = None
-    blocks: Optional[List[SeedBlock]] = None
-
-
-# --------------------------------------------------------------------------- #
-# 2. Route handler
-# --------------------------------------------------------------------------- #
-
-
-@router.post("/new", status_code=201)
-def create_basket(payload: Any, user=Depends(get_user)) -> dict:  # noqa: ANN401 – raw JSON in
-    """Create a new basket (supports legacy + V2 bodies)."""
-    uid: str | None = user.get("id")
-    if not uid:
-        raise HTTPException(status_code=401, detail="unauthenticated")
-
-    # ---------- figure out which schema we received ----------
-    legacy: BasketCreateLegacy | None
-    v2: BasketCreateV2 | None
-
+# ────────────────────────────────────────────────────────────────
+# 2. Endpoint
+# ----------------------------------------------------------------
+@router.post("/new", status_code=201, response_model=dict)
+async def create_basket(
+    user: Annotated[dict, Depends(get_current_user)],
+    raw_json: dict,
+):
+    """
+    • If body matches V1 → create basket from *text_dump* (legacy UI).  
+    • If body matches V2 → create basket + seed blocks (new UI/agents).
+    """
     try:
-        legacy = BasketCreateLegacy.model_validate(payload)
-        v2 = None
-        mode = "legacy"
+        body_v1 = V1Body.model_validate(raw_json)
+        mode = "v1"
     except ValidationError:
-        legacy = None
         try:
-            v2 = BasketCreateV2.model_validate(payload)
+            body_v2 = V2Body.model_validate(raw_json)
             mode = "v2"
-        except ValidationError as ve:
-            logger.info("basket_new: bad request %s", ve)
-            raise HTTPException(status_code=400, detail="invalid payload") from ve
+        except ValidationError as e:
+            raise HTTPException(status_code=400, detail=e.errors())
 
-    # ---------------------------------------------------------
-    # workspace resolution (never None thanks to invariant I-1)
-    ws_id = get_or_create_workspace(supabase, uid)
+    # workspace is the only source of truth for ownership
+    workspace_id = get_or_create_workspace(user["sub"])
 
-    # ---------------------------------------------------------
-    # all writes happen in one transaction
-    # ---------------------------------------------------------
+    # single transaction so /work can read the snapshot immediately
     try:
-        with supabase.postgrest.rpc("pg_temp.start_transaction").execute():  # type: ignore
-            if mode == "legacy":  # ---------------------------------------
-                dump_body = legacy.text_dump
-                dump_id = (
-                    supabase.table("raw_dumps")
-                    .insert(
-                        {
-                            "body_md": dump_body,
-                            "file_refs": legacy.file_urls or [],
-                            "workspace_id": ws_id,
-                        }
-                    )
-                    .execute()
-                    .data[0]["id"]
+        with supabase.transaction() as trx:
+            dump_resp = (
+                trx.table("raw_dumps")
+                .insert(
+                    {
+                        "body_md": body_v1.text_dump if mode == "v1" else body_v2.topic or "",
+                        "file_refs": [],
+                        "workspace_id": workspace_id,
+                    }
                 )
+                .execute()
+            )
+            dump_id = dump_resp.data[0]["id"]
 
-                basket_row = (
-                    supabase.table("baskets")
-                    .insert(
-                        {
-                            "name": legacy.basket_name,
-                            "raw_dump_id": dump_id,
-                            "workspace_id": ws_id,
-                        }
-                    )
-                    .execute()
-                    .data[0]
+            basket_resp = (
+                trx.table("baskets")
+                .insert(
+                    {
+                        "name": body_v2.topic if mode == "v2" else None,
+                        "raw_dump_id": dump_id,
+                        "state": "INIT",
+                        "workspace_id": workspace_id,
+                    }
                 )
+                .execute()
+            )
+            basket_id = basket_resp.data[0]["id"]
 
-            else:  # --------------------------- V2 -----------------------
-                assert v2 is not None  # mypy guard
+            # seed blocks only for V2
+            if mode == "v2" and body_v2.blocks:
+                block_rows = [
+                    {
+                        **blk.model_dump(exclude_none=True),
+                        "basket_id": basket_id,
+                        "workspace_id": workspace_id,
+                        "state": "CONSTANT",
+                    }
+                    for blk in body_v2.blocks
+                ]
+                trx.table("blocks").insert(block_rows).execute()
 
-                dump_id = (
-                    supabase.table("raw_dumps")
-                    .insert(
-                        {
-                            "body_md": v2.topic,
-                            "workspace_id": ws_id,
-                        }
-                    )
-                    .execute()
-                    .data[0]["id"]
-                )
-
-                basket_row = (
-                    supabase.table("baskets")
-                    .insert(
-                        {
-                            "name": v2.topic,
-                            "raw_dump_id": dump_id,
-                            "workspace_id": ws_id,
-                        }
-                    )
-                    .execute()
-                    .data[0]
-                )
-
-                # optional: seed blocks
-                if v2.blocks:
-                    block_rows = [
-                        {
-                            "semantic_type": blk.semantic_type,
-                            "label": blk.label,
-                            "content": blk.content,
-                            "state": "INIT",
-                            "scope": blk.meta_scope,
-                            "canonical_value": blk.content,
-                            "source": blk.source,
-                            "is_primary": blk.is_primary,
-                            "basket_id": basket_row["id"],
-                            "workspace_id": ws_id,
-                        }
-                        for blk in v2.blocks
-                    ]
-                    supabase.table("blocks").insert(block_rows).execute()
-
-            # commit happens automatically when context block exits
-    except Exception as err:
-        logger.exception("basket_new failed")
+    except Exception as err:  # pragma: no cover
+        log.exception("create_basket failed")
         raise HTTPException(status_code=500, detail="internal error") from err
 
-    return {"id": basket_row["id"]}
+    return JSONResponse({"id": basket_id}, status_code=201)
