@@ -2377,7 +2377,8 @@ CREATE TABLE public.raw_dumps (
     basket_id uuid,
     body_md text,
     file_refs jsonb,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    workspace_id uuid NOT NULL
 );
 
 
@@ -3560,6 +3561,14 @@ ALTER TABLE ONLY public.baskets
 
 
 --
+-- Name: raw_dumps fk_rawdump_workspace; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.raw_dumps
+    ADD CONSTRAINT fk_rawdump_workspace FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+
+
+--
 -- Name: raw_dumps raw_dumps_basket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3846,6 +3855,24 @@ CREATE POLICY block_member_update ON public.blocks FOR UPDATE USING ((workspace_
 --
 
 ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: raw_dumps dump_member_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY dump_member_insert ON public.raw_dumps FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: raw_dumps dump_member_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY dump_member_read ON public.raw_dumps FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
 
 --
 -- Name: events; Type: ROW SECURITY; Schema: public; Owner: -
