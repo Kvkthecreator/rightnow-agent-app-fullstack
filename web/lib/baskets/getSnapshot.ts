@@ -29,5 +29,16 @@ export async function getSnapshot(id: string): Promise<BasketSnapshot> {
     const msg = await res.text();
     throw new Error(msg || `snapshot fetch failed (${res.status})`);
   }
-  return (await res.json()) as BasketSnapshot;
+  const payload = (await res.json()) as any;
+  const flatBlocks = [
+    ...(payload.accepted_blocks ?? []),
+    ...(payload.locked_blocks ?? []),
+    ...(payload.constants ?? []),
+  ];
+  return {
+    basket: payload.basket,
+    raw_dump_body: payload.raw_dump,
+    file_refs: payload.file_refs ?? [],
+    blocks: flatBlocks,
+  };
 }

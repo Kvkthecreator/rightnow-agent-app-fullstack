@@ -21,7 +21,7 @@ export default function NewBasketPage() {
     setSubmitting(true);
     try {
       const { id } = await createBasketNew({
-        text,
+        text_dump: text,
         file_urls: files,
       });
       router.push(`/baskets/${id}/work`);
