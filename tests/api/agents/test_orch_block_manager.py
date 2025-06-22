@@ -46,7 +46,7 @@ def test_run_agent_inserts_block(monkeypatch):
 
     basket_id = str(uuid4())
     dump_id = str(uuid4())
-    records["baskets"] = [{"id": basket_id, "raw_dump_id": dump_id}]
+    records["baskets"] = [{"id": basket_id, "raw_dump_id": dump_id, "workspace_id": "ws1"}]
     records["raw_dumps"] = [{"id": dump_id, "basket_id": basket_id, "body_md": "d"}]
 
     resp = client.post("/api/agents/orch_block_manager/run", json={"basket_id": basket_id})

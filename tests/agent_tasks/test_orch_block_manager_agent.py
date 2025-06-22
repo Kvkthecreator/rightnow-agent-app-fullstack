@@ -3,6 +3,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 from tests.agent_tasks.test_agent_scaffold import _setup_supabase
 
 
@@ -64,23 +65,40 @@ def test_run_raises_on_error(monkeypatch):
 
     def bad_table(name: str):
         class Bad:
+            def __init__(self) -> None:
+                self.name = name
+
             def insert(self, data):
                 return self
 
+            def select(self, *a, **k):
+                return self
+
+            def eq(self, *a, **k):
+                return self
+
             def execute(self):
+                if self.name == "baskets":
+                    return type(
+                        "Resp",
+                        (),
+                        {
+                            "data": [{"workspace_id": "ws1"}],
+                            "error": None,
+                        },
+                    )()
                 return type(
                     "Resp",
                     (),
                     {
                         "data": [],
-                        "status_code": 400,
-                        "json": lambda self: {"error": "bad"},
+                        "error": "bad",
                     },
                 )()
 
         return Bad()
 
     monkeypatch.setattr(module, "supabase", type("S", (), {"table": bad_table}))
-    with pytest.raises(RuntimeError):
+    with pytest.raises(HTTPException):
         module.run(basket_id)
 

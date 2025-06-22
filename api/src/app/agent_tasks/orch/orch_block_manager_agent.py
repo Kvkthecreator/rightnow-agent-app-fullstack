@@ -2,13 +2,14 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import logging
+from fastapi import HTTPException
 from postgrest.exceptions import APIError
 
 from src.utils.db import json_safe
 
 from app.utils.supabase_client import supabase_client as supabase
 
-log = logging.getLogger("uvicorn.error")
+logger = logging.getLogger("uvicorn.error")
 
 
 def run(basket_id: UUID) -> dict[str, Any]:
@@ -22,7 +23,7 @@ def run(basket_id: UUID) -> dict[str, Any]:
         )
         workspace_id = ws_res.data[0]["workspace_id"]
     except Exception as err:  # noqa: BLE001
-        log.exception("workspace lookup failed for basket %s", basket_id)
+        logger.exception("workspace lookup failed for basket %s", basket_id)
         raise RuntimeError("workspace lookup failed") from err
 
     block_id = str(uuid4())
@@ -44,14 +45,14 @@ def run(basket_id: UUID) -> dict[str, Any]:
             .execute()
         )
     except APIError as err:
-        log.exception("block insert API error for basket %s", basket_id)
+        logger.exception("block insert API error for basket %s", basket_id)
         raise
     except Exception as err:  # noqa: BLE001
-        log.exception("block insert failed for basket %s", basket_id)
+        logger.exception("block insert failed for basket %s", basket_id)
         raise
-    if res.status_code >= 400:
-        log.error("block insert error: %s", res.json())
-        raise RuntimeError(f"Supabase error: {res.json()}")
+    if res.error:
+        logger.error("block insert failed: %s", res.error)
+        raise HTTPException(status_code=500, detail=str(res.error or res))
 
     try:
         res = (
@@ -71,14 +72,14 @@ def run(basket_id: UUID) -> dict[str, Any]:
             .execute()
         )
     except APIError as err:
-        log.exception("revision insert API error for basket %s", basket_id)
+        logger.exception("revision insert API error for basket %s", basket_id)
         raise
     except Exception as err:  # noqa: BLE001
-        log.exception("revision insert failed for basket %s", basket_id)
+        logger.exception("revision insert failed for basket %s", basket_id)
         raise
-    if res.status_code >= 400:
-        log.error("revision insert error: %s", res.json())
-        raise RuntimeError(f"Supabase error: {res.json()}")
+    if res.error:
+        logger.error("revision insert failed: %s", res.error)
+        raise HTTPException(status_code=500, detail=str(res.error or res))
 
     try:
         res = (
@@ -97,12 +98,12 @@ def run(basket_id: UUID) -> dict[str, Any]:
             .execute()
         )
     except APIError as err:
-        log.exception("event insert API error for basket %s", basket_id)
+        logger.exception("event insert API error for basket %s", basket_id)
         raise
     except Exception as err:  # noqa: BLE001
-        log.exception("event insert failed for basket %s", basket_id)
+        logger.exception("event insert failed for basket %s", basket_id)
         raise
-    if res.status_code >= 400:
-        log.error("event insert error: %s", res.json())
-        raise RuntimeError(f"Supabase error: {res.json()}")
+    if res.error:
+        logger.error("event insert failed: %s", res.error)
+        raise HTTPException(status_code=500, detail=str(res.error or res))
     return {"inserted": len(res.data)}

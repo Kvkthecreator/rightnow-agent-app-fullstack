@@ -26,18 +26,14 @@ def _fake_supabase(store):
                 row["id"] = str(uuid.uuid4())
             store.setdefault(name, []).append(row)
             return types.SimpleNamespace(
-                execute=lambda: types.SimpleNamespace(
-                    data=[row], status_code=200, json=lambda: {"data": [row]}
-                )
+                execute=lambda: types.SimpleNamespace(data=[row], error=None)
             )
 
         def select(_cols="*"):
             def eq(col: str, val: str):
                 items = [r for r in store.get(name, []) if r.get(col) == val]
                 return types.SimpleNamespace(
-                    execute=lambda: types.SimpleNamespace(
-                        data=items, status_code=200, json=lambda: {"data": items}
-                    )
+                    execute=lambda: types.SimpleNamespace(data=items, error=None)
                 )
 
             return types.SimpleNamespace(eq=eq)
@@ -55,7 +51,7 @@ def test_run_blockifier(monkeypatch):
 
     basket_id = str(uuid.uuid4())
     dump_id = str(uuid.uuid4())
-    store["baskets"].append({"id": basket_id, "raw_dump_id": dump_id})
+    store["baskets"].append({"id": basket_id, "raw_dump_id": dump_id, "workspace_id": "ws1"})
     store["raw_dumps"].append({"id": dump_id, "basket_id": basket_id, "body_md": "d"})
 
     resp = client.post("/api/agents/orch_block_manager/run", json={"basket_id": basket_id})

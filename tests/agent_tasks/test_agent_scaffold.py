@@ -11,9 +11,9 @@ from fastapi.testclient import TestClient
 
 
 class StubResponse:
-    def __init__(self, data, status_code=200):
+    def __init__(self, data, error=None):
         self.data = data
-        self.status_code = status_code
+        self.error = error
 
     def json(self):  # pragma: no cover - simple stub
         return {"data": self.data}
@@ -42,7 +42,7 @@ class StubTable:
         rows = self.records.get(self.name, [])
         for col, val in self.filters.items():
             rows = [r for r in rows if r.get(col) == val]
-        return StubResponse(rows, self.status_code)
+        return StubResponse(rows)
 
 
 class StubClient:
