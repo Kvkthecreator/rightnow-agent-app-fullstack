@@ -1,13 +1,14 @@
-# api/src/app/event_bus.py
-
 import asyncio
 import json
 import os
 from contextlib import asynccontextmanager
+import logging
 
 import asyncpg
 
-DATABASE_URL = os.getenv("DATABASE_URL")  # same DSN your server uses
+log = logging.getLogger("uvicorn.error")
+
+DATABASE_URL = os.getenv("EVENT_BUS_DATABASE_URL")  # use dedicated direct connection
 LISTEN_CHANNEL = "bus_any"  # single physical channel
 
 
@@ -20,18 +21,19 @@ class Event:
 # ---------- emitter ---------- #
 async def emit(topic: str, payload: dict) -> None:
     """Insert into events table and rely on trigger to NOTIFY."""
-    conn = await asyncpg.connect(DATABASE_URL)
     try:
+        conn = await asyncpg.connect(DATABASE_URL)
         await conn.execute(
             "insert into public.events(topic, payload) values($1, $2)",
             topic,
             json.dumps(payload),
         )
-    finally:
         await conn.close()
+    except Exception as e:
+        log.exception("Event bus emit failed for topic %s", topic)
+        raise
 
 
-# convenience wrapper used by agent tasks
 async def publish_event(topic: str, payload: dict) -> None:
     await emit(topic, payload)
 
@@ -46,18 +48,25 @@ async def subscribe(topics: list[str]):
                 evt = await queue.get()
     """
     q: asyncio.Queue[Event] = asyncio.Queue()
-    conn = await asyncpg.connect(DATABASE_URL)
-    await conn.add_listener(
-        LISTEN_CHANNEL,
-        lambda *_, payload: asyncio.create_task(_dispatch(payload, topics, q)),
-    )
     try:
+        conn = await asyncpg.connect(DATABASE_URL)
+        await conn.add_listener(
+            LISTEN_CHANNEL,
+            lambda *_, payload: asyncio.create_task(_dispatch(payload, topics, q)),
+        )
         yield q
+    except Exception as e:
+        log.exception("Event bus subscription failed")
+        raise
     finally:
-        await conn.close()
+        if 'conn' in locals():
+            await conn.close()
 
 
 async def _dispatch(raw: str, topics: list[str], q: asyncio.Queue):
-    msg = json.loads(raw)
-    if msg["topic"] in topics:
-        await q.put(Event(msg["topic"], msg["payload"]))
+    try:
+        msg = json.loads(raw)
+        if msg.get("topic") in topics:
+            await q.put(Event(msg["topic"], msg["payload"]))
+    except Exception:
+        log.warning("Failed to dispatch event payload: %s", raw)
