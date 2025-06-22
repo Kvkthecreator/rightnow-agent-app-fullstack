@@ -4,6 +4,7 @@
 import { fetchWithToken } from "@/lib/fetchWithToken";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.yarnnn.com";
+console.log("🌐 [api.ts] Using API_BASE_URL:", API_BASE_URL);
 
 function withBase(path: string) {
   return `${API_BASE_URL}${path}`;
