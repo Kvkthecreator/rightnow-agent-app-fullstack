@@ -4,9 +4,11 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..utils.supabase_client import supabase_client as supabase
+from ..utils.jwt import verify_jwt
+from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(tags=["commits"])
 
@@ -48,12 +50,15 @@ def list_commits(
     basket_id: str,
     limit: int = Query(20, le=100),
     offset: int = 0,
+    user: dict = Depends(verify_jwt),
 ) -> list[dict]:
     try:
+        workspace_id = get_or_create_workspace(user["user_id"])
         resp = (
             supabase.table("dump_commits")
             .select("*")
             .eq("basket_id", basket_id)
+            .eq("workspace_id", workspace_id)
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
             .execute()

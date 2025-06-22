@@ -35,9 +35,16 @@ class BasketUpdate(BaseModel):
 
 
 @router.post("/", status_code=201)
-async def create_basket(payload: BasketCreate):
+async def create_basket(
+    payload: BasketCreate,
+    user: dict = Depends(verify_jwt),
+):
     """Create a new basket and emit compose request."""
     basket_id = str(uuid.uuid4())
+    workspace_id = get_or_create_workspace(user["user_id"])
+    logger.info(
+        "create_basket user=%s workspace=%s", user["user_id"], workspace_id
+    )
     try:
         resp = (
             supabase.table("baskets")
@@ -45,7 +52,8 @@ async def create_basket(payload: BasketCreate):
                 json_safe(
                     {
                         "id": basket_id,
-                        "user_id": "demo-user",
+                        "user_id": user["user_id"],
+                        "workspace_id": workspace_id,
                         "name": payload.topic,
                         "raw_dump": payload.topic,
                         "status": "draft",
@@ -110,6 +118,8 @@ async def create_basket(payload: BasketCreate):
         )
 
     for blk in blocks:
+        blk["workspace_id"] = workspace_id
+        blk["basket_id"] = basket_id
         safe_block = ContextBlock.model_validate(blk).model_dump(
             mode="json", exclude_none=True
         )
@@ -196,13 +206,15 @@ def list_baskets(user: dict = Depends(verify_jwt)) -> list[dict]:
 
 
 @router.get("/{basket_id}")
-async def get_basket(basket_id: str):
+async def get_basket(basket_id: str, user: dict = Depends(verify_jwt)):
     """Fetch a basket with its blocks and configs."""
     try:
+        workspace_id = get_or_create_workspace(user["user_id"])
         basket_resp = (
             supabase.table("baskets")
             .select("*")
             .eq("id", str(basket_id))
+            .eq("workspace_id", workspace_id)
             .maybe_single()
             .execute()
         )
@@ -217,6 +229,7 @@ async def get_basket(basket_id: str):
             supabase.table("blocks")
             .select("id,type,content,order,meta_tags,origin,status")
             .eq("basket_id", basket_id)
+            .eq("workspace_id", workspace_id)
             .order("order")
             .execute()
         )
@@ -225,6 +238,7 @@ async def get_basket(basket_id: str):
             supabase.table("basket_configs")
             .select("*")
             .eq("basket_id", basket_id)
+            .eq("workspace_id", workspace_id)
             .execute()
         )
     except Exception as err:
@@ -243,14 +257,20 @@ async def get_basket(basket_id: str):
 
 
 @router.post("/{basket_id}/work", status_code=202)
-async def update_basket(basket_id: str, payload: BasketUpdate):
+async def update_basket(
+    basket_id: str,
+    payload: BasketUpdate,
+    user: dict = Depends(verify_jwt),
+):
     """Add new context to an existing basket and trigger composer."""
     try:
+        workspace_id = get_or_create_workspace(user["user_id"])
         if payload.input_text:
             supabase.table("basket_threads").insert(
                 json_safe(
                     {
                         "basket_id": basket_id,
+                        "workspace_id": workspace_id,
                         "content": payload.input_text,
                         "source": "user_dump",
                     }

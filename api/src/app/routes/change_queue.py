@@ -1,8 +1,10 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from ..utils.supabase_client import supabase_client as supabase
+from ..utils.jwt import verify_jwt
+from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(tags=["change-queue"])
 
@@ -10,13 +12,19 @@ logger = logging.getLogger("uvicorn.error")
 
 
 @router.get("/baskets/{basket_id}/change-queue")
-def pending_change_count(basket_id: str, status: str | None = None) -> dict:
+def pending_change_count(
+    basket_id: str,
+    status: str | None = None,
+    user: dict = Depends(verify_jwt),
+) -> dict:
     """Return count of block changes for a basket filtered by status."""
     try:
+        workspace_id = get_or_create_workspace(user["user_id"])
         blocks_resp = (
             supabase.table("blocks")
             .select("id")
             .eq("basket_id", basket_id)
+            .eq("workspace_id", workspace_id)
             .execute()
         )
         block_ids = [b["id"] for b in (blocks_resp.data or [])]
