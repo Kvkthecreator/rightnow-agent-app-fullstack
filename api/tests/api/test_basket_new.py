@@ -69,7 +69,7 @@ def test_basket_new(monkeypatch):
     assert len(store["baskets"]) == 1
     assert len(store["raw_dumps"]) == 1
     assert store["baskets"][0]["id"] == body["id"]
-    assert store["raw_dumps"][0]["basket_id"] == body["id"]
+    assert store["baskets"][0]["raw_dump_id"] == store["raw_dumps"][0]["id"]
     assert store["raw_dumps"][0]["file_refs"] == ["f"]
 
 
@@ -85,7 +85,7 @@ def test_basket_new_minimal(monkeypatch):
     assert len(store["baskets"]) == 1
     assert len(store["raw_dumps"]) == 1
     assert store["baskets"][0]["id"] == body["id"]
-    assert store["raw_dumps"][0]["basket_id"] == body["id"]
+    assert store["baskets"][0]["raw_dump_id"] == store["raw_dumps"][0]["id"]
 
 
 def test_basket_new_empty(monkeypatch):
