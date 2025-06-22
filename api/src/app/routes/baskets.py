@@ -18,6 +18,9 @@ router = APIRouter(prefix="/baskets", tags=["baskets"])
 
 logger = logging.getLogger("uvicorn.error")
 
+# Allow tests to monkeypatch the module-level client
+supabase = get_supabase()
+
 
 class BasketCreate(BaseModel):
     topic: str
@@ -34,7 +37,6 @@ class BasketUpdate(BaseModel):
 @router.post("/", status_code=201)
 async def create_basket(payload: BasketCreate):
     """Create a new basket and emit compose request."""
-    supabase = get_supabase()
     basket_id = str(uuid.uuid4())
     try:
         resp = (
@@ -129,10 +131,73 @@ async def create_basket(payload: BasketCreate):
     return {"id": basket_id}
 
 
+@router.get("/list", response_model=list[dict])
+def list_baskets(user: dict = Depends(verify_jwt)) -> list[dict]:
+    """Return recent baskets for the caller's workspace."""
+    workspace_id = get_or_create_workspace(user["user_id"])
+    try:
+        b_resp = (
+            supabase.table("baskets")
+            .select("id,name,raw_dump_id,created_at")
+            .eq("workspace_id", workspace_id)
+            .order("created_at", desc="desc")
+            .execute()
+        )
+
+        logger.debug(
+            "[list_baskets] workspace_id=%s rows=%s",
+            workspace_id,
+            b_resp.data,
+        )
+
+        if getattr(b_resp, "status_code", 200) >= 400 or getattr(b_resp, "error", None):
+            logger.warning("baskets query failed: %s", getattr(b_resp, "error", b_resp))
+            raise HTTPException(status_code=500, detail="internal error")
+
+        baskets = b_resp.data or []
+        results: list[dict] = []
+        for row in baskets:
+            body_md = None
+            raw_dump_id = row.get("raw_dump_id")
+            if raw_dump_id:
+                d_resp = (
+                    supabase.table("raw_dumps")
+                    .select("body_md")
+                    .eq("id", raw_dump_id)
+                    .execute()
+                )
+                if getattr(d_resp, "status_code", 200) >= 400 or getattr(
+                    d_resp, "error", None
+                ):
+                    logger.warning(
+                        "raw_dump lookup failed for %s: %s",
+                        raw_dump_id,
+                        getattr(d_resp, "error", d_resp),
+                    )
+                elif d_resp.data:
+                    if isinstance(d_resp.data, list):
+                        body_md = d_resp.data[0].get("body_md")
+                    else:
+                        body_md = d_resp.data.get("body_md")
+
+            results.append(
+                {
+                    "id": row["id"],
+                    "name": row.get("name"),
+                    "raw_dump_body": body_md,
+                    "created_at": row.get("created_at"),
+                }
+            )
+
+        return results
+    except Exception as err:  # pragma: no cover
+        logger.exception("list_baskets failed")
+        raise HTTPException(status_code=500, detail="internal error") from err
+
+
 @router.get("/{basket_id}")
 async def get_basket(basket_id: str):
     """Fetch a basket with its blocks and configs."""
-    supabase = get_supabase()
     try:
         basket_resp = (
             supabase.table("baskets")
@@ -180,7 +245,6 @@ async def get_basket(basket_id: str):
 @router.post("/{basket_id}/work", status_code=202)
 async def update_basket(basket_id: str, payload: BasketUpdate):
     """Add new context to an existing basket and trigger composer."""
-    supabase = get_supabase()
     try:
         if payload.input_text:
             supabase.table("basket_threads").insert(
@@ -205,42 +269,3 @@ async def update_basket(basket_id: str, payload: BasketUpdate):
         },
     )
     return {"id": basket_id}
-
-
-@router.get("/list", response_model=list[dict])
-def list_baskets(user: dict = Depends(verify_jwt)) -> list[dict]:
-    """Return recent baskets for the caller's workspace."""
-    supabase = get_supabase()
-    workspace_id = get_or_create_workspace(user["user_id"])
-    try:
-        b_resp = (
-            supabase.table("baskets")
-            .select("id,name,raw_dump_id,created_at")
-            .eq("workspace_id", workspace_id)
-            .order("created_at", desc=True)
-            .execute()
-        )
-        baskets = b_resp.data or []
-        results: list[dict] = []
-        for row in baskets:
-            d_resp = (
-                supabase.table("raw_dumps")
-                .select("body_md")
-                .eq("id", row["raw_dump_id"])
-                .execute()
-            )
-            body_md = None
-            if d_resp.data:
-                body_md = d_resp.data[0].get("body_md")
-            results.append(
-                {
-                    "id": row["id"],
-                    "name": row.get("name"),
-                    "raw_dump_body": body_md,
-                    "created_at": row.get("created_at"),
-                }
-            )
-        return results
-    except Exception as err:  # pragma: no cover
-        logger.exception("list_baskets failed")
-        raise HTTPException(status_code=500, detail="internal error") from err
