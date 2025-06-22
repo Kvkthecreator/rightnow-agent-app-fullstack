@@ -11,9 +11,9 @@ from fastapi.testclient import TestClient
 
 
 class StubResponse:
-    def __init__(self, data, error=None):
+    def __init__(self, data, status_code=200):
         self.data = data
-        self.error = error
+        self.status_code = status_code
 
     def json(self):  # pragma: no cover - simple stub
         return {"data": self.data}
@@ -42,7 +42,7 @@ class StubTable:
         rows = self.records.get(self.name, [])
         for col, val in self.filters.items():
             rows = [r for r in rows if r.get(col) == val]
-        return StubResponse(rows)
+        return StubResponse(rows, status_code=self.status_code)
 
 
 class StubClient:
@@ -69,6 +69,8 @@ def _setup_supabase(monkeypatch):
 def test_orch_run_creates_block_and_revision(monkeypatch):
     records = _setup_supabase(monkeypatch)
     from pathlib import Path
+    bid = uuid4()
+    records["baskets"] = [{"id": str(bid), "workspace_id": "ws"}]
 
     spec = importlib.util.spec_from_file_location(
         "orch_block_manager_agent",
@@ -83,7 +85,7 @@ def test_orch_run_creates_block_and_revision(monkeypatch):
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
     spec.loader.exec_module(module)
-    module.run(uuid4())
+    module.run(bid)
     assert "blocks" in records
     assert "block_revisions" in records
     assert records["blocks"][0]["state"] == "PROPOSED"

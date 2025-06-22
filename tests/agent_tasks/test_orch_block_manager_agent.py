@@ -84,7 +84,7 @@ def test_run_raises_on_error(monkeypatch):
                         (),
                         {
                             "data": [{"workspace_id": "ws1"}],
-                            "error": None,
+                            "status_code": 200,
                         },
                     )()
                 return type(
@@ -92,7 +92,7 @@ def test_run_raises_on_error(monkeypatch):
                     (),
                     {
                         "data": [],
-                        "error": "bad",
+                        "status_code": 500,
                     },
                 )()
 
