@@ -4,7 +4,16 @@
 
 👑 **Purpose:** Capture atomic user intent (base text + optional modalities).
 
-✅ **What happens:**  
+Example payload for `/api/baskets/new`:
+
+```json
+{
+  "text_dump": "Launch ideas for Q3",
+  "file_urls": []
+}
+```
+
+✅ **What happens:**
 - Basket + input records are created immediately (resilient core intent capture).  
 - Modalities (e.g. files) are handled in sidecar subflows that do not block basket creation.
 

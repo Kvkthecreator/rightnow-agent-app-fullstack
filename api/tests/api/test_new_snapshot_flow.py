@@ -69,7 +69,7 @@ def test_snapshot_after_creation(monkeypatch):
 
     resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
     assert resp.status_code == 201
-    basket_id = resp.json()["basket_id"]
+    basket_id = resp.json()["id"]
 
     snap = client.get(f"/api/baskets/{basket_id}/snapshot")
     assert snap.status_code == 200
