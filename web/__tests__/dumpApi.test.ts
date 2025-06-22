@@ -1,4 +1,5 @@
 import { postDump } from "@/lib/baskets/dumpApi";
+import { API_BASE_URL } from "@/lib/api";
 
 beforeEach(() => {
   global.fetch = vi.fn().mockResolvedValue({
@@ -21,7 +22,7 @@ it("sends FormData and returns warning", async () => {
   expect(resp.warning).toBe("too_many_blocks");
   // ensure fetch called with FormData
   const call = (global.fetch as any).mock.calls[0];
-  expect(call[0]).toBe("/api/dump");
+  expect(call[0]).toBe(`${API_BASE_URL}/api/dump`);
   expect(call[1].body).toBeInstanceOf(FormData);
 });
 

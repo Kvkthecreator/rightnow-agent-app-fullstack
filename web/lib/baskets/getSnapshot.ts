@@ -1,5 +1,5 @@
 // web/lib/baskets/getSnapshot.ts
-import { fetchWithToken } from "@/lib/fetchWithToken";
+import { apiGet } from "@/lib/api";
 
 /** Shape returned by /api/baskets/{id}/snapshot */
 export interface BasketSnapshot {
@@ -23,13 +23,8 @@ export interface BasketSnapshot {
 const SNAPSHOT_PREFIX = "/api/baskets/snapshot";
 
 export async function getSnapshot(id: string): Promise<BasketSnapshot> {
-  // NOTE: fetchWithToken itself prepends API_ORIGIN, so we pass a bare path.
-  const res = await fetchWithToken(`${SNAPSHOT_PREFIX}/${id}`);
-  if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg || `snapshot fetch failed (${res.status})`);
-  }
-  const payload = (await res.json()) as any;
+  const res = await apiGet<any>(`${SNAPSHOT_PREFIX}/${id}`);
+  const payload = res as any;
   const flatBlocks = [
     ...(payload.accepted_blocks ?? []),
     ...(payload.locked_blocks ?? []),

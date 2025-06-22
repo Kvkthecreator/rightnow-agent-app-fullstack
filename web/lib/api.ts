@@ -3,15 +3,16 @@
  */
 import { fetchWithToken } from "@/lib/fetchWithToken";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.yarnnn.com";
-console.log("🌐 [api.ts] Using API_BASE_URL:", API_BASE_URL);
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.yarnnn.com";
+console.log(`[api.ts] API_BASE_URL resolved to: ${API_BASE_URL}`);
 
-function withBase(path: string) {
+export function apiUrl(path: string) {
   return `${API_BASE_URL}${path}`;
 }
 
 export async function apiGet<T = any>(path: string): Promise<T> {
-  const res = await fetchWithToken(withBase(path));
+  const res = await fetchWithToken(apiUrl(path));
   if (!res.ok) {
     console.warn(`[apiGet] Non-OK response (${res.status}) for ${path}`);
     throw new Error(`API error: ${res.status}`);
@@ -29,7 +30,7 @@ export async function apiGet<T = any>(path: string): Promise<T> {
 }
 
 export async function apiPost<T = any>(path: string, body: any): Promise<T> {
-  const res = await fetchWithToken(withBase(path), {
+  const res = await fetchWithToken(apiUrl(path), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -42,7 +43,7 @@ export async function apiPost<T = any>(path: string, body: any): Promise<T> {
 }
 
 export async function apiPut<T = any>(path: string, body: any): Promise<T> {
-  const res = await fetchWithToken(withBase(path), {
+  const res = await fetchWithToken(apiUrl(path), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
