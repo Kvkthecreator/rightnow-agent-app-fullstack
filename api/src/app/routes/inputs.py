@@ -1,8 +1,10 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from ..utils.supabase_client import supabase_client as supabase
+from ..utils.jwt import verify_jwt
+from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(tags=["inputs"])
 
@@ -10,13 +12,15 @@ logger = logging.getLogger("uvicorn.error")
 
 
 @router.get("/baskets/{basket_id}/inputs")
-def list_inputs(basket_id: str) -> list[dict]:
+def list_inputs(basket_id: str, user: dict = Depends(verify_jwt)) -> list[dict]:
     """Return raw text dumps for a basket ordered by time."""
     try:
+        workspace_id = get_or_create_workspace(user["user_id"])
         resp = (
             supabase.table("raw_dumps")
             .select("id,content,created_at")
             .eq("basket_id", basket_id)
+            .eq("workspace_id", workspace_id)
             .order("created_at")
             .execute()
         )
@@ -27,19 +31,22 @@ def list_inputs(basket_id: str) -> list[dict]:
 
 
 @router.get("/baskets/{basket_id}/input-highlights")
-def highlight_inputs(basket_id: str) -> list[dict]:
+def highlight_inputs(basket_id: str, user: dict = Depends(verify_jwt)) -> list[dict]:
     """Return highlight suggestions comparing inputs to promoted blocks."""
     try:
+        workspace_id = get_or_create_workspace(user["user_id"])
         in_resp = (
             supabase.table("raw_dumps")
             .select("id,content")
             .eq("basket_id", basket_id)
+            .eq("workspace_id", workspace_id)
             .execute()
         )
         blk_resp = (
             supabase.table("blocks")
             .select("id,label,content")
             .eq("basket_id", basket_id)
+            .eq("workspace_id", workspace_id)
             .execute()
         )
         inputs = in_resp.data or []

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..utils.db import as_json
 from ..utils.supabase_client import supabase_client as supabase
+from ..utils.jwt import verify_jwt
+from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(prefix="/dumps", tags=["dumps"])
 
@@ -18,8 +20,9 @@ class DumpPayload(BaseModel):
 
 
 @router.post("/new", status_code=201)
-async def create_dump(p: DumpPayload):
+async def create_dump(p: DumpPayload, user: dict = Depends(verify_jwt)):
     dump_id = str(uuid4())
+    workspace_id = get_or_create_workspace(user["user_id"])
     resp = (
         supabase.table("raw_dumps")
         .insert(
@@ -27,6 +30,7 @@ async def create_dump(p: DumpPayload):
                 {
                     "id": dump_id,
                     "basket_id": str(p.basket_id),
+                    "workspace_id": workspace_id,
                     "body_md": p.text_dump,
                     "file_refs": p.file_urls or [],
                 }
