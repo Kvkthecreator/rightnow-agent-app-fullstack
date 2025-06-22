@@ -12,19 +12,24 @@ from __future__ import annotations
 import logging
 import uuid
 
+from fastapi import HTTPException
 from .supabase_client import supabase_client as supabase
 
 log = logging.getLogger("uvicorn.error")
 
-
 def get_or_create_workspace(user_id: str) -> str:
     """
-    1. Check `workspace_memberships` for an existing membership.
-    2. If absent → create workspace + membership in a single transaction.
-    3. Return the workspace_id.
+    Ensure the user operates in exactly one workspace.
+    If no workspace exists → create one and add membership.
     """
+    # Validate user_id is a UUID
+    try:
+        uuid.UUID(user_id)
+    except ValueError:
+        log.error("Invalid user_id for workspace: %s", user_id)
+        raise HTTPException(status_code=401, detail="Invalid user_id")
 
-    # 1) Existing membership?
+    # Check existing membership
     try:
         query = (
             supabase.table("workspace_memberships")
@@ -33,18 +38,17 @@ def get_or_create_workspace(user_id: str) -> str:
             .limit(1)
             .execute()
         )
-    except Exception:  # pragma: no cover
+    except Exception:
         log.exception("workspace lookup failed")
         raise
 
     if query.data:
         return query.data[0]["workspace_id"]
 
-    # 2) None found → create
+    # Create workspace + membership
     workspace_id = str(uuid.uuid4())
     try:
         with supabase.transaction() as trx:
-            # workspaces
             trx.table("workspaces").insert(
                 {
                     "id": workspace_id,
@@ -53,7 +57,6 @@ def get_or_create_workspace(user_id: str) -> str:
                     "is_demo": False,
                 }
             ).execute()
-            # membership
             trx.table("workspace_memberships").insert(
                 {
                     "workspace_id": workspace_id,
@@ -61,7 +64,7 @@ def get_or_create_workspace(user_id: str) -> str:
                     "role": "owner",
                 }
             ).execute()
-    except Exception:  # pragma: no cover
+    except Exception:
         log.exception("workspace creation failed")
         raise
 
