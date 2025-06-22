@@ -2328,7 +2328,7 @@ CREATE TABLE public.baskets (
     raw_dump_id uuid,
     state public.basket_state DEFAULT 'INIT'::public.basket_state NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    user_id uuid DEFAULT auth.uid() NOT NULL,
+    user_id uuid DEFAULT auth.uid(),
     workspace_id uuid NOT NULL
 );
 
@@ -2397,20 +2397,6 @@ CREATE TABLE public.revisions (
 
 
 --
--- Name: v_basket_overview; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW public.v_basket_overview AS
- SELECT b.id,
-    COALESCE(b.name, 'Untitled'::text) AS name,
-    rd.body_md AS raw_dump_body,
-    b.created_at
-   FROM (public.baskets b
-     LEFT JOIN public.raw_dumps rd ON ((rd.id = b.raw_dump_id)))
-  WHERE (b.state <> 'DEPRECATED'::public.basket_state);
-
-
---
 -- Name: workspace_memberships; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2421,6 +2407,27 @@ CREATE TABLE public.workspace_memberships (
     role text DEFAULT 'member'::text,
     created_at timestamp with time zone DEFAULT now()
 );
+
+
+--
+-- Name: v_basket_overview; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_basket_overview AS
+ SELECT b.id,
+    b.name,
+    b.raw_dump_id,
+    b.state,
+    b.created_at,
+    b.user_id,
+    b.workspace_id,
+    rd.body_md AS raw_dump_body,
+    rd.file_refs
+   FROM (public.baskets b
+     JOIN public.raw_dumps rd ON ((rd.id = b.raw_dump_id)))
+  WHERE (b.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid())));
 
 
 --
