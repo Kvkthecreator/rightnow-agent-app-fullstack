@@ -37,11 +37,12 @@ export default function BasketWorkPage({ params }: any) {
 
   const raw = data?.raw_dump_body ?? "";
 
+  const blocks = data?.blocks ?? [];
   const grouped = {
-    CONSTANT: data?.blocks?.filter((b) => b.state === "CONSTANT") ?? [],
-    LOCKED: data?.blocks?.filter((b) => b.state === "LOCKED") ?? [],
-    ACCEPTED: data?.blocks?.filter((b) => b.state === "ACCEPTED") ?? [],
-    PROPOSED: data?.blocks?.filter((b) => b.state === "PROPOSED") ?? [],
+    CONSTANT: blocks.filter((b) => b.state === "CONSTANT"),
+    LOCKED: blocks.filter((b) => b.state === "LOCKED"),
+    ACCEPTED: blocks.filter((b) => b.state === "ACCEPTED"),
+    PROPOSED: blocks.filter((b) => b.state === "PROPOSED"),
   };
 
   return (
