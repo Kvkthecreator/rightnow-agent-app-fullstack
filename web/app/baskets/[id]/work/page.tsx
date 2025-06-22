@@ -10,8 +10,8 @@ import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { isAuthError } from "@/lib/utils";
 
-export default function BasketWorkPage({ params }: { params: { id: string } }) {
-  const id = params.id;
+export default function BasketWorkPage(props: any) {
+  const id = props?.params?.id as string;
   const router = useRouter();
   const { data, error, isLoading, mutate } = useSWR<BasketSnapshot>(
     id,
