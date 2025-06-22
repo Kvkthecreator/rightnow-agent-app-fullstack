@@ -10,8 +10,8 @@ import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { isAuthError } from "@/lib/utils";
 
-export default function BasketWorkPage({ params }: any) {
-  const id = params.id as string;
+export default function BasketWorkPage({ params }: { params: { id: string } }) {
+  const id = params.id;
   const router = useRouter();
   const { data, error, isLoading, mutate } = useSWR<BasketSnapshot>(
     id,
@@ -32,12 +32,21 @@ export default function BasketWorkPage({ params }: any) {
     }
   };
 
-  if (isLoading) return <div className="p-6">Loading…</div>;
-  if (error) return <div className="p-6 text-red-600">Failed to load basket.</div>;
+  if (isLoading) {
+    return <div className="p-6">Loading…</div>;
+  }
 
-  const raw = data?.raw_dump_body ?? "";
+  if (error || !data) {
+    return (
+      <div className="p-6 text-red-600">
+        Failed to load basket or no data returned.
+      </div>
+    );
+  }
 
-  const blocks = data?.blocks ?? [];
+  const raw = data.raw_dump_body ?? "";
+  const blocks = Array.isArray(data.blocks) ? data.blocks : [];
+
   const grouped = {
     CONSTANT: blocks.filter((b) => b.state === "CONSTANT"),
     LOCKED: blocks.filter((b) => b.state === "LOCKED"),
@@ -51,17 +60,19 @@ export default function BasketWorkPage({ params }: any) {
 
       <section>
         <h2 className="font-semibold mb-2">Raw Dump</h2>
-        {raw && (
+        {raw ? (
           <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose">
             {raw}
           </ReactMarkdown>
+        ) : (
+          <p className="text-gray-500 text-sm">No raw dump content available.</p>
         )}
       </section>
 
       {(
         Object.entries(grouped) as [
           "CONSTANT" | "LOCKED" | "ACCEPTED" | "PROPOSED",
-          any[],
+          typeof blocks
         ][]
       ).map(([state, arr]) => (
         <section key={state}>
@@ -75,11 +86,15 @@ export default function BasketWorkPage({ params }: any) {
               : "□"}{" "}
             {state}
           </h3>
-          <ul className="list-disc pl-5 text-sm space-y-1">
-            {arr.map((b) => (
-              <li key={b.id}>{b.content}</li>
-            ))}
-          </ul>
+          {arr.length > 0 ? (
+            <ul className="list-disc pl-5 text-sm space-y-1">
+              {arr.map((b) => (
+                <li key={b.id}>{b.content}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-400 text-xs">No blocks in this state.</p>
+          )}
         </section>
       ))}
     </div>
