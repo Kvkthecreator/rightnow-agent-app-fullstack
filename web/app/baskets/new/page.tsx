@@ -6,6 +6,7 @@ import { UploadArea } from "@/components/baskets/UploadArea";
 import { createBasketNew } from "@/lib/baskets/createBasketNew";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/page/PageHeader";
+import { isAuthError } from "@/lib/utils";
 
 export default function NewBasketPage() {
   const router = useRouter();
@@ -27,7 +28,11 @@ export default function NewBasketPage() {
       router.push(`/baskets/${id}/work`);
     } catch (err) {
       console.error(err);
-      alert("Failed to create basket");
+      if (isAuthError(err)) {
+        router.push("/login");
+      } else {
+        alert("Failed to create basket");
+      }
     } finally {
       setSubmitting(false);
     }
