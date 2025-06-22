@@ -3780,6 +3780,17 @@ CREATE POLICY "Service role full access" ON public.baskets TO service_role USING
 
 
 --
+-- Name: revisions allow agent insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "allow agent insert" ON public.revisions FOR INSERT TO authenticated WITH CHECK (((basket_id IS NOT NULL) AND (basket_id IN ( SELECT baskets.id
+   FROM public.baskets
+  WHERE (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid())))))));
+
+
+--
 -- Name: baskets basket_member_delete; Type: POLICY; Schema: public; Owner: -
 --
 
