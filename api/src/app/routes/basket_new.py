@@ -41,41 +41,53 @@ async def create_basket(
         raise HTTPException(status_code=400, detail="text_dump is empty")
 
     workspace_id = get_or_create_workspace(user["user_id"])
+    log.info("create_basket user=%s workspace=%s", user["user_id"], workspace_id)
 
+    # Insert raw dump
     try:
-        with supabase.transaction() as trx:
-            dump_resp = (
-                trx.table("raw_dumps")
-                .insert(
-                    {
-                        "body_md": payload.text_dump,
-                        "file_refs": payload.file_urls,
-                        "workspace_id": workspace_id,
-                    }
-                )
-                .execute()
+        dump_resp = (
+            supabase.table("raw_dumps")
+            .insert(
+                {
+                    "body_md": payload.text_dump,
+                    "file_refs": payload.file_urls,
+                    "workspace_id": workspace_id,
+                }
             )
-            raw_dump_id = dump_resp.data[0]["id"]
-            log.info("created raw_dump %s", raw_dump_id)
-
-            basket_resp = (
-                trx.table("baskets")
-                .insert(
-                    {
-                        "raw_dump_id": raw_dump_id,
-                        "workspace_id": workspace_id,
-                        "state": "INIT",
-                    }
-                )
-                .execute()
-            )
-            basket_id = basket_resp.data[0]["id"]
-            log.info("created basket %s", basket_id)
-
-    except Exception as err:  # pragma: no cover
-        log.exception("create_basket failed")
+            .execute()
+        )
+        if getattr(dump_resp, "status_code", 200) >= 400 or getattr(dump_resp, "error", None):
+            detail = getattr(dump_resp, "error", dump_resp)
+            raise HTTPException(status_code=500, detail=str(detail))
+        raw_dump_id = dump_resp.data[0]["id"]
+        log.info("created raw_dump %s", raw_dump_id)
+    except Exception as err:
+        log.exception("create_basket raw_dumps insert failed")
         raise HTTPException(status_code=500, detail="internal error") from err
 
+    # Insert basket
+    try:
+        basket_resp = (
+            supabase.table("baskets")
+            .insert(
+                {
+                    "raw_dump_id": raw_dump_id,
+                    "workspace_id": workspace_id,
+                    "state": "INIT",
+                }
+            )
+            .execute()
+        )
+        if getattr(basket_resp, "status_code", 200) >= 400 or getattr(basket_resp, "error", None):
+            detail = getattr(basket_resp, "error", basket_resp)
+            raise HTTPException(status_code=500, detail=str(detail))
+        basket_id = basket_resp.data[0]["id"]
+        log.info("created basket %s", basket_id)
+    except Exception as err:
+        log.exception("create_basket baskets insert failed")
+        raise HTTPException(status_code=500, detail="internal error") from err
+
+    # Publish event
     try:
         await publish_event(
             "basket.compose_request",
@@ -85,7 +97,7 @@ async def create_basket(
                 "file_urls": payload.file_urls,
             },
         )
-    except Exception:  # pragma: no cover
+    except Exception:
         log.exception("compose_request publish failed")
 
     return JSONResponse({"id": basket_id}, status_code=201)
