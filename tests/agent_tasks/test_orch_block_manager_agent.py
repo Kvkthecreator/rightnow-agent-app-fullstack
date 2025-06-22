@@ -10,8 +10,16 @@ def test_run_proposes_block(monkeypatch):
     records = _setup_supabase(monkeypatch)
     basket_id = uuid4()
     dump_id = uuid4()
-    records["baskets"] = [{"id": str(basket_id), "raw_dump_id": str(dump_id)}]
-    records["raw_dumps"] = [{"id": str(dump_id), "basket_id": str(basket_id), "body_md": "d"}]
+    records["baskets"] = [
+        {
+            "id": str(basket_id),
+            "workspace_id": "ws1",
+            "raw_dump_id": str(dump_id),
+        }
+    ]
+    records["raw_dumps"] = [
+        {"id": str(dump_id), "basket_id": str(basket_id), "body_md": "d"}
+    ]
 
     spec = importlib.util.spec_from_file_location(
         "orch_block_manager_agent",
@@ -29,11 +37,16 @@ def test_run_proposes_block(monkeypatch):
 
     module.run(basket_id)
     assert records["blocks"][0]["state"] == "PROPOSED"
+    assert records["blocks"][0]["workspace_id"] == "ws1"
+    assert records["events"][0]["workspace_id"] == "ws1"
 
 
 def test_run_raises_on_error(monkeypatch):
     records = _setup_supabase(monkeypatch)
     basket_id = uuid4()
+    records["baskets"] = [
+        {"id": str(basket_id), "workspace_id": "ws1"}
+    ]
 
     spec = importlib.util.spec_from_file_location(
         "orch_block_manager_agent",
