@@ -7,7 +7,7 @@ import asyncio
 
 from app.agent_tasks.layer1_infra.agents.infra_analyzer_agent import run as run_analyzer
 from app.agent_tasks.layer1_infra.agents.infra_observer_agent import run as run_observer
-from app.agent_tasks.orchestration.orch_block_manager_agent import (
+from app.agent_tasks.orch.orch_block_manager_agent import (
     run as run_block_manager,
 )
 
