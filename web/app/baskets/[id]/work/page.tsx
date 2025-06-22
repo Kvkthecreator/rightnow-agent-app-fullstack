@@ -7,9 +7,12 @@ import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
 import { getSnapshot } from "@/lib/baskets/getSnapshot";
 import { Button } from "@/components/ui/Button";
 import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { isAuthError } from "@/lib/utils";
 
 export default function BasketWorkPage({ params }: any) {
   const id = params.id as string;
+  const router = useRouter();
   const { data, error, isLoading, mutate } = useSWR<BasketSnapshot>(
     id,
     getSnapshot
@@ -21,7 +24,11 @@ export default function BasketWorkPage({ params }: any) {
       toast.success("Parsing complete");
       mutate();
     } catch (err) {
-      toast.error("Failed to run Blockifier");
+      if (isAuthError(err)) {
+        router.push("/login");
+      } else {
+        toast.error("Failed to run Blockifier");
+      }
     }
   };
 

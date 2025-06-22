@@ -5,8 +5,13 @@ export async function fetchWithToken(
   init: RequestInit = {}
 ) {
   const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   const token = session?.access_token ?? "";
+  if (!token) {
+    throw new Error("No access token found. Please log in to continue.");
+  }
   return fetch(input, {
     ...init,
     headers: {
