@@ -1,19 +1,16 @@
-//web/lib/api.ts
-
 /**
- * Simple wrapper for GET requests to the backend API.
- * Uses the Next.js rewrite from /api to the configured API base.
+ * Simple wrapper for API calls to your FastAPI server at api.yarnnn.com.
  */
 import { fetchWithToken } from "@/lib/fetchWithToken";
-import { withApiOrigin } from "@/lib/apiOrigin";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.yarnnn.com";
 
 function withBase(path: string) {
-  return withApiOrigin(path);
+  return `${API_BASE_URL}${path}`;
 }
 
 export async function apiGet<T = any>(path: string): Promise<T> {
   const res = await fetchWithToken(withBase(path));
-  // Handle non-OK responses
   if (!res.ok) {
     console.warn(`[apiGet] Non-OK response (${res.status}) for ${path}`);
     throw new Error(`API error: ${res.status}`);
