@@ -6,7 +6,7 @@ from schemas.audit import AuditIn, AuditOut
 from schemas.validators import validates
 from src.utils.logged_agent import logged
 
-from app.event_bus import DB_URL  # reuse same URL
+from app.event_bus import DATABASE_URL  # reuse same URL
 from app.event_bus import publish_event
 
 from ..schemas import AuditReport, DuplicateLabel
@@ -30,7 +30,7 @@ EVENT_TOPIC = "block.audit_report"
 @validates(AuditIn)
 async def run(_: AuditIn) -> AuditOut:
     """Main entry for orchestration_runner."""
-    conn = await asyncpg.connect(DB_URL)
+    conn = await asyncpg.connect(DATABASE_URL)
     try:
         rows = await conn.fetch(DUPLICATE_CHECK_SQL)
 

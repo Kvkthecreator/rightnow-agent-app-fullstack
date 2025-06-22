@@ -8,7 +8,7 @@ from schemas.usage import UsageIn, UsageOut
 from schemas.validators import validates
 from src.utils.logged_agent import logged
 
-from app.event_bus import DB_URL
+from app.event_bus import DATABASE_URL
 from app.event_bus import publish_event
 
 from ..schemas import UsageReport
@@ -36,7 +36,7 @@ EVENT_TOPIC = "block.usage_report"
 @validates(UsageIn)
 async def run(_: UsageIn) -> UsageOut:
     """Called by orchestration_runner."""
-    conn = await asyncpg.connect(DB_URL)
+    conn = await asyncpg.connect(DATABASE_URL)
     try:
         stale_rows = await conn.fetch(STALE_SQL)
         unused_rows = await conn.fetch(UNUSED_SQL)

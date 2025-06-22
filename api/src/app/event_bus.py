@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 import asyncpg
 
-DB_URL = os.getenv("DATABASE_URL")  # same DSN your server uses
+DATABASE_URL = os.getenv("DATABASE_URL")  # same DSN your server uses
 LISTEN_CHANNEL = "bus_any"  # single physical channel
 
 
@@ -20,7 +20,7 @@ class Event:
 # ---------- emitter ---------- #
 async def emit(topic: str, payload: dict) -> None:
     """Insert into events table and rely on trigger to NOTIFY."""
-    conn = await asyncpg.connect(DB_URL)
+    conn = await asyncpg.connect(DATABASE_URL)
     try:
         await conn.execute(
             "insert into public.events(topic, payload) values($1, $2)",
@@ -46,7 +46,7 @@ async def subscribe(topics: list[str]):
                 evt = await queue.get()
     """
     q: asyncio.Queue[Event] = asyncio.Queue()
-    conn = await asyncpg.connect(DB_URL)
+    conn = await asyncpg.connect(DATABASE_URL)
     await conn.add_listener(
         LISTEN_CHANNEL,
         lambda *_, payload: asyncio.create_task(_dispatch(payload, topics, q)),

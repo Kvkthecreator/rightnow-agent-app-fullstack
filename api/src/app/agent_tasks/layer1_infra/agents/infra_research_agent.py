@@ -8,7 +8,7 @@ from schemas.validators import validates
 from src.app.agent_tasks.layer1_infra.utils.block_policy import insert_revision, is_auto
 from src.utils.logged_agent import logged
 
-from app.event_bus import DB_URL
+from app.event_bus import DATABASE_URL
 from app.event_bus import publish_event
 
 from ..schemas import RefreshReport
@@ -34,7 +34,7 @@ EVENT_TOPIC = "block.refresh_report"
 @validates(ResearchIn)
 async def run(_: ResearchIn) -> ResearchOut:
     """Called by orchestration_runner."""
-    conn = await asyncpg.connect(DB_URL)
+    conn = await asyncpg.connect(DATABASE_URL)
     refreshed = []
     proposed = []
     try:

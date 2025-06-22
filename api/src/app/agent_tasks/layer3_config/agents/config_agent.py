@@ -7,7 +7,7 @@ from schemas.config import ConfigIn, ConfigOut
 from schemas.validators import validates
 from src.utils.logged_agent import logged
 
-DB_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 @logged("config_agent")
@@ -15,7 +15,7 @@ DB_URL = os.getenv("DATABASE_URL")
 async def generate(payload: ConfigIn) -> ConfigOut:
     brief_id = payload.brief_id
     user_id = payload.user_id
-    async with asyncpg.connect(DB_URL) as conn:
+    async with asyncpg.connect(DATABASE_URL) as conn:
         brief = await conn.fetchrow(
             "select intent, core_context_snapshot from task_briefs where id=$1",
             brief_id,
