@@ -46,7 +46,7 @@ def test_create_and_list_same_user(monkeypatch):
 
     resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
     assert resp.status_code == 201
-    bid = resp.json()["basket_id"]
+    bid = resp.json()["id"]
 
     items = fake.table("baskets").select("*").eq("user_id", "u1").execute()
     assert items.data is not None

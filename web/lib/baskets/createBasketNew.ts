@@ -32,6 +32,7 @@ export async function createBasketNew(
     text_dump: args.text_dump,
     file_urls: args.file_urls ?? [],
   });
+  console.log("[createBasketNew] Payload:", JSON.parse(body));
 
   /* ── 3️⃣  POST to the backend (fetchWithToken adds sb-access-token) ────── */
   const res = await fetchWithToken(apiUrl("/api/baskets/new"), {

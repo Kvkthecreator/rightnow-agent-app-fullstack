@@ -7,20 +7,20 @@ export interface CreateBasketArgs {
   userId: string;
   text: string;
   files?: (File | string)[];
-  basketName?: string | null;
 }
 export async function createBasketWithInput({
   userId,
   text,
   files = [],
-  basketName,
 }: CreateBasketArgs) {
   const supabase = createClient();
   // 1️⃣ Core basket creation via privileged API route
+  const payload = { text_dump: text, file_urls: [] as string[] };
+  console.log("[createBasketWithInput] Payload:", payload);
   const resp = await fetchWithToken(apiUrl("/api/baskets/new"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text_dump: text, basket_name: basketName }),
+    body: JSON.stringify(payload),
   });
   if (!resp.ok) {
     const msg = await resp.text();
