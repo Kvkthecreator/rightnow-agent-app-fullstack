@@ -1,7 +1,7 @@
 // web/lib/baskets/createBasketNew.ts
 import { createClient } from "@/lib/supabaseClient";
 import { fetchWithToken } from "@/lib/fetchWithToken";
-import { withApiOrigin } from "@/lib/apiOrigin";
+import { apiUrl } from "@/lib/api";
 
 /** Body accepted by /api/baskets/new (v1 mode) */
 export interface NewBasketArgs {
@@ -34,7 +34,7 @@ export async function createBasketNew(
   });
 
   /* ── 3️⃣  POST to the backend (fetchWithToken adds sb-access-token) ────── */
-  const res = await fetchWithToken(withApiOrigin("/api/baskets/new"), {
+  const res = await fetchWithToken(apiUrl("/api/baskets/new"), {
     method: "POST",
     headers,
     body,
