@@ -69,6 +69,7 @@ def _setup_supabase(monkeypatch):
 def test_orch_run_creates_block_and_revision(monkeypatch):
     records = _setup_supabase(monkeypatch)
     from pathlib import Path
+
     bid = uuid4()
     records["baskets"] = [{"id": str(bid), "workspace_id": "ws"}]
 
@@ -89,6 +90,8 @@ def test_orch_run_creates_block_and_revision(monkeypatch):
     assert "blocks" in records
     assert "block_revisions" in records
     assert records["blocks"][0]["state"] == "PROPOSED"
+    assert "summary" in records["block_revisions"][0]
+    assert "diff_json" in records["block_revisions"][0]
 
 
 def test_infra_route_ok(monkeypatch):

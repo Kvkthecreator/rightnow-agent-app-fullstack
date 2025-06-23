@@ -8,8 +8,7 @@ from schemas.validators import validates
 from src.app.agent_tasks.layer1_infra.utils.block_policy import insert_revision, is_auto
 from src.utils.logged_agent import logged
 
-from app.event_bus import DATABASE_URL
-from app.event_bus import publish_event
+from app.event_bus import DATABASE_URL, publish_event
 
 from ..schemas import RefreshReport
 
@@ -46,10 +45,8 @@ async def run(_: ResearchIn) -> ResearchOut:
                 await insert_revision(
                     conn,
                     bid,
-                    prev_content="<unchanged>",
-                    new_content="<auto-refresh>",
-                    changed_by="agent:infra_research",
-                    proposal_event={"reason": "auto-refresh"},
+                    diff_json={"prev": "<unchanged>", "new": "<auto-refresh>"},
+                    summary="auto refresh",
                 )
                 refreshed.append(bid)
             else:
