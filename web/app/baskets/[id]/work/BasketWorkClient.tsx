@@ -39,9 +39,7 @@ export default function BasketWorkClient({ id, initialData }: Props) {
 
   if (isLoading) return <div className="p-6">Loading…</div>;
   if (error || !data)
-    return (
-      <div className="p-6 text-red-600">Failed to load basket.</div>
-    );
+    return <div className="p-6 text-red-600">Failed to load basket.</div>;
 
   const { raw_dump_body = "", blocks = [] } = data;
 
@@ -72,12 +70,9 @@ export default function BasketWorkClient({ id, initialData }: Props) {
       {Object.entries(grouped).map(([state, arr]) => (
         <section key={state}>
           <h3 className="font-semibold text-lg">
-            {state === "CONSTANT"
-              ? "★"
-              : state === "LOCKED"
-              ? "🔒"
-              : state === "ACCEPTED"
-              ? "■"
+            {state === "CONSTANT" ? "★"
+              : state === "LOCKED" ? "🔒"
+              : state === "ACCEPTED" ? "■"
               : "□"}{" "}
             {state}
           </h3>
