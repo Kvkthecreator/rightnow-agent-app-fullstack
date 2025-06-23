@@ -17,6 +17,7 @@ def assemble_snapshot(
         "constants": [b for b in blocks if b.get("state") == "CONSTANT"],
         "locked_blocks": [b for b in blocks if b.get("state") == "LOCKED"],
         "accepted_blocks": [b for b in blocks if b.get("state") == "ACCEPTED"],
+        "proposed_blocks": [b for b in blocks if b.get("state") == "PROPOSED"],
     }
 
     return {"raw_dump": latest["body_md"], **grouped}

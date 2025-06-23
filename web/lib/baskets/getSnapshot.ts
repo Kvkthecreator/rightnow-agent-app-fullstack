@@ -34,10 +34,11 @@ export async function getSnapshot(
   const token = session?.access_token ?? "";
   const res = await apiGet<any>(`${SNAPSHOT_PREFIX}/${id}`, token);
   const payload = res as any;
-  const flatBlocks = [
+const flatBlocks = [
     ...(payload.accepted_blocks ?? []),
     ...(payload.locked_blocks ?? []),
     ...(payload.constants ?? []),
+    ...(payload.proposed_blocks ?? []),
   ];
   return {
     basket: payload.basket,
