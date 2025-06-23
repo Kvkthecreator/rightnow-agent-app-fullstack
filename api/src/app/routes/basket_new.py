@@ -43,48 +43,26 @@ async def create_basket(
     workspace_id = get_or_create_workspace(user["user_id"])
     log.info("create_basket user=%s workspace=%s", user["user_id"], workspace_id)
 
-    # Insert raw dump
+    # Atomic creation via stored procedure
     try:
-        dump_resp = (
-            supabase.table("raw_dumps")
-            .insert(
+        rpc_resp = (
+            supabase.rpc(
+                "create_basket_with_dump",
                 {
-                    "body_md": payload.text_dump,
-                    "file_refs": payload.file_urls,
+                    "user_id": user["user_id"],
                     "workspace_id": workspace_id,
-                }
-            )
-            .execute()
+                    "dump_body": payload.text_dump,
+                    "file_urls": payload.file_urls,
+                },
+            ).execute()
         )
-        if getattr(dump_resp, "status_code", 200) >= 400 or getattr(dump_resp, "error", None):
-            detail = getattr(dump_resp, "error", dump_resp)
+        if getattr(rpc_resp, "status_code", 200) >= 400 or getattr(rpc_resp, "error", None):
+            detail = getattr(rpc_resp, "error", rpc_resp)
             raise HTTPException(status_code=500, detail=str(detail))
-        raw_dump_id = dump_resp.data[0]["id"]
-        log.info("created raw_dump %s", raw_dump_id)
-    except Exception as err:
-        log.exception("create_basket raw_dumps insert failed")
-        raise HTTPException(status_code=500, detail="internal error") from err
-
-    # Insert basket
-    try:
-        basket_resp = (
-            supabase.table("baskets")
-            .insert(
-                {
-                    "raw_dump_id": raw_dump_id,
-                    "workspace_id": workspace_id,
-                    "state": "INIT",
-                }
-            )
-            .execute()
-        )
-        if getattr(basket_resp, "status_code", 200) >= 400 or getattr(basket_resp, "error", None):
-            detail = getattr(basket_resp, "error", basket_resp)
-            raise HTTPException(status_code=500, detail=str(detail))
-        basket_id = basket_resp.data[0]["id"]
+        basket_id = rpc_resp.data[0]["basket_id"]
         log.info("created basket %s", basket_id)
     except Exception as err:
-        log.exception("create_basket baskets insert failed")
+        log.exception("create_basket rpc failed")
         raise HTTPException(status_code=500, detail="internal error") from err
 
     # Publish event

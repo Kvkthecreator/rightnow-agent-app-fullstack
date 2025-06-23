@@ -16,42 +16,31 @@ client = TestClient(app)
 
 
 def _fake_supabase(store):
-    def table(name: str):
-        def insert(row: dict):
-            row = {**row}
-            if "id" not in row:
-                row["id"] = str(uuid.uuid4())
-            store[name].append(row)
-            resp = types.SimpleNamespace(data=[row], error=None)
-            return types.SimpleNamespace(execute=lambda: resp)
+    def rpc(_func: str, params: dict):
+        bid = str(uuid.uuid4())
+        did = str(uuid.uuid4())
+        store.setdefault("baskets", []).append({"id": bid, "raw_dump_id": did})
+        store.setdefault("raw_dumps", []).append(
+            {
+                "id": did,
+                "basket_id": bid,
+                "body_md": params["dump_body"],
+                "file_refs": params.get("file_urls", []),
+            }
+        )
+        resp = types.SimpleNamespace(data=[{"basket_id": bid}], error=None)
+        return types.SimpleNamespace(execute=lambda: resp)
 
-        def update(obj: dict):
-            for r in store[name]:
-                r.update(obj)
-            def eq(*_a):
-                return types.SimpleNamespace(execute=lambda: None)
-            return types.SimpleNamespace(eq=eq)
-
-        return types.SimpleNamespace(insert=insert, update=update)
-
-    return types.SimpleNamespace(table=table)
+    return types.SimpleNamespace(rpc=rpc)
 
 
 def _error_supabase():
-    def table(name: str):
-        def insert(_row):
-            err = types.SimpleNamespace(message=f"{name} insert fail")
-            resp = types.SimpleNamespace(data=None, error=err)
-            return types.SimpleNamespace(execute=lambda: resp)
+    def rpc(_func: str, _params: dict):
+        err = types.SimpleNamespace(message="rpc fail")
+        resp = types.SimpleNamespace(data=None, error=err)
+        return types.SimpleNamespace(execute=lambda: resp)
 
-        def update(_obj):
-            def eq(*_a):
-                return types.SimpleNamespace(execute=lambda: None)
-            return types.SimpleNamespace(eq=eq)
-
-        return types.SimpleNamespace(insert=insert, update=update)
-
-    return types.SimpleNamespace(table=table)
+    return types.SimpleNamespace(rpc=rpc)
 
 
 def test_basket_new(monkeypatch):
@@ -70,6 +59,8 @@ def test_basket_new(monkeypatch):
     assert len(store["raw_dumps"]) == 1
     assert store["baskets"][0]["id"] == body["id"]
     assert store["baskets"][0]["raw_dump_id"] == store["raw_dumps"][0]["id"]
+    assert store["raw_dumps"][0]["basket_id"] == body["id"]
+    assert store["raw_dumps"][0]["body_md"] == "hello"
     assert store["raw_dumps"][0]["file_refs"] == ["f"]
 
 
@@ -86,8 +77,8 @@ def test_basket_new_minimal(monkeypatch):
     assert len(store["raw_dumps"]) == 1
     assert store["baskets"][0]["id"] == body["id"]
     assert store["baskets"][0]["raw_dump_id"] == store["raw_dumps"][0]["id"]
-
-
+    assert store["raw_dumps"][0]["basket_id"] == body["id"]
+    assert store["raw_dumps"][0]["body_md"] == "hello"
 def test_basket_new_empty(monkeypatch):
     fake = _fake_supabase({"baskets": [], "raw_dumps": []})
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
