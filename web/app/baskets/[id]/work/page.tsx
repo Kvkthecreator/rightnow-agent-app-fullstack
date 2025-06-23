@@ -1,4 +1,3 @@
-// web/app/baskets/[id]/work/page.tsx
 import { getSnapshot } from "@/lib/baskets/getSnapshot";
 import { cookies } from "next/headers";
 import BasketWorkClient from "./BasketWorkClient";
@@ -13,10 +12,13 @@ export default async function BasketWorkPage({ params }: PageProps) {
   // Unwrap the promise that Next hands us
   const { id } = await params;
 
-  const supabase = createServerSupabaseClient(cookies());
+  const cookieStore = await cookies();
+  const supabase = createServerSupabaseClient(cookieStore);
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
+
   const token = session?.access_token;
   if (!token) {
     return <div className="p-6 text-red-600">Not authenticated</div>;
