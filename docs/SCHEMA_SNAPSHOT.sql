@@ -660,6 +660,35 @@ $$;
 
 
 --
+-- Name: create_basket_with_dump(text, jsonb, uuid, uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.create_basket_with_dump(dump_body text, file_urls jsonb, user_id uuid, workspace_id uuid) RETURNS TABLE(basket_id uuid)
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  v_basket_id uuid;
+  v_dump_id uuid;
+begin
+  insert into baskets (workspace_id, user_id)
+    values (workspace_id, user_id)
+    returning id into v_basket_id;
+
+  insert into raw_dumps (basket_id, body_md, file_refs, workspace_id)
+    values (v_basket_id, dump_body, coalesce(file_urls, '[]'::jsonb), workspace_id)
+    returning id into v_dump_id;
+
+  update baskets
+     set raw_dump_id = v_dump_id
+   where id = v_basket_id;
+
+  return query select v_basket_id;
+end;
+$$;
+
+
+--
 -- Name: prevent_lock_vs_constant(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2334,6 +2363,21 @@ CREATE TABLE public.baskets (
 
 
 --
+-- Name: block_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.block_revisions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    block_id uuid,
+    workspace_id uuid,
+    actor_id uuid,
+    summary text,
+    diff_json jsonb,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
 -- Name: blocks; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2834,6 +2878,14 @@ ALTER TABLE ONLY auth.users
 
 ALTER TABLE ONLY public.baskets
     ADD CONSTRAINT baskets_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: block_revisions block_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.block_revisions
+    ADD CONSTRAINT block_revisions_pkey PRIMARY KEY (id);
 
 
 --
@@ -3504,6 +3556,30 @@ ALTER TABLE ONLY auth.sso_domains
 
 
 --
+-- Name: block_revisions block_revisions_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.block_revisions
+    ADD CONSTRAINT block_revisions_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id);
+
+
+--
+-- Name: block_revisions block_revisions_block_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.block_revisions
+    ADD CONSTRAINT block_revisions_block_id_fkey FOREIGN KEY (block_id) REFERENCES public.blocks(id) ON DELETE CASCADE;
+
+
+--
+-- Name: block_revisions block_revisions_workspace_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.block_revisions
+    ADD CONSTRAINT block_revisions_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+
+
+--
 -- Name: blocks blocks_basket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3869,6 +3945,12 @@ CREATE POLICY block_member_update ON public.blocks FOR UPDATE USING ((workspace_
 
 
 --
+-- Name: block_revisions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.block_revisions ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: blocks; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -3910,6 +3992,38 @@ CREATE POLICY member_self_crud ON public.workspace_memberships USING ((user_id =
 --
 
 ALTER TABLE public.raw_dumps ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: block_revisions revision_member_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY revision_member_delete ON public.block_revisions FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
+
+--
+-- Name: block_revisions revision_member_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY revision_member_insert ON public.block_revisions FOR INSERT WITH CHECK (true);
+
+
+--
+-- Name: block_revisions revision_member_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY revision_member_read ON public.block_revisions FOR SELECT USING (true);
+
+
+--
+-- Name: block_revisions revision_member_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY revision_member_update ON public.block_revisions FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
 
 --
 -- Name: revisions; Type: ROW SECURITY; Schema: public; Owner: -
