@@ -10,8 +10,8 @@ import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { isAuthError } from "@/lib/utils";
 
-export default function BasketWorkPage(props: any) {
-  const id = props?.params?.id as string;
+export default function BasketWorkPage({ params }: { params: { id: string } }) {
+  const id = params.id;
   const router = useRouter();
   const { data, error, isLoading, mutate } = useSWR<BasketSnapshot>(
     id,
@@ -44,14 +44,14 @@ export default function BasketWorkPage(props: any) {
     );
   }
 
-  const raw = data.raw_dump_body ?? "";
+  const raw = typeof data.raw_dump_body === "string" ? data.raw_dump_body : "";
   const blocks = Array.isArray(data.blocks) ? data.blocks : [];
 
   const grouped = {
-    CONSTANT: blocks.filter((b) => b.state === "CONSTANT"),
-    LOCKED: blocks.filter((b) => b.state === "LOCKED"),
-    ACCEPTED: blocks.filter((b) => b.state === "ACCEPTED"),
-    PROPOSED: blocks.filter((b) => b.state === "PROPOSED"),
+    CONSTANT: blocks.filter((b) => b?.state === "CONSTANT"),
+    LOCKED: blocks.filter((b) => b?.state === "LOCKED"),
+    ACCEPTED: blocks.filter((b) => b?.state === "ACCEPTED"),
+    PROPOSED: blocks.filter((b) => b?.state === "PROPOSED"),
   };
 
   return (
@@ -69,12 +69,7 @@ export default function BasketWorkPage(props: any) {
         )}
       </section>
 
-      {(
-        Object.entries(grouped) as [
-          "CONSTANT" | "LOCKED" | "ACCEPTED" | "PROPOSED",
-          typeof blocks
-        ][]
-      ).map(([state, arr]) => (
+      {Object.entries(grouped).map(([state, arr]) => (
         <section key={state}>
           <h3 className="font-semibold text-lg">
             {state === "CONSTANT"
@@ -89,7 +84,7 @@ export default function BasketWorkPage(props: any) {
           {arr.length > 0 ? (
             <ul className="list-disc pl-5 text-sm space-y-1">
               {arr.map((b) => (
-                <li key={b.id}>{b.content}</li>
+                <li key={b.id}>{b.content ?? "No content"}</li>
               ))}
             </ul>
           ) : (
