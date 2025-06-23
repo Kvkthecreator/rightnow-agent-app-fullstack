@@ -11,7 +11,7 @@ export async function GET(
   const cookie = req.headers.get("cookie");
   if (cookie) headers["cookie"] = cookie;
 
-  const upstream = `${process.env.NEXT_PUBLIC_API_BASE}/baskets/${id}`;
+  const upstream = `${process.env.NEXT_PUBLIC_API_BASE_URL}/baskets/${id}`;
   const res = await fetch(upstream, { headers, cache: "no-store" });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
