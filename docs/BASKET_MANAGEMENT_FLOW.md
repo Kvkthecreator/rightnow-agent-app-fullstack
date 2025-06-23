@@ -5,6 +5,14 @@ This document defines the canonical flow for managing, enriching, and evolving a
 
 ---
 
+### ⚙️ Data-integrity rules
+* **raw_dumps.basket_id** — **required**. FK → `baskets.id` (`ON DELETE CASCADE`).
+  Deleting a basket automatically deletes all associated raw dumps.
+* **baskets.raw_dump_id** — optional pointer to the “initial” dump.
+  FK rule: `ON DELETE SET NULL` (so removing the dump doesn’t break the basket).
+
+
+
 ## 1️⃣ Baskets/[id]/work — Display Domain
 
 👑 **Purpose:**  

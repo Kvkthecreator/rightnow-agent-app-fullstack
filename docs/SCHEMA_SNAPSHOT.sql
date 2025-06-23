@@ -2374,7 +2374,7 @@ CREATE TABLE public.events (
 
 CREATE TABLE public.raw_dumps (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    basket_id uuid,
+    basket_id uuid NOT NULL,
     body_md text,
     file_refs jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
