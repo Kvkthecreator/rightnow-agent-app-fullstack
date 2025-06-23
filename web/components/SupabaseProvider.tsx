@@ -2,7 +2,7 @@
 
 import { ReactNode, useState } from "react";
 import { SessionContextProvider } from "@supabase/auth-helpers-react";
-import { createClient } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 
 interface SupabaseProviderProps {
   children: ReactNode;
@@ -12,7 +12,7 @@ interface SupabaseProviderProps {
  * SupabaseProvider wraps the app with SessionContextProvider for Supabase auth.
  */
 export default function SupabaseProvider({ children }: SupabaseProviderProps) {
-  const [supabaseClient] = useState(() => createClient());
+  const [supabaseClient] = useState(() => supabase);
   return (
     <SessionContextProvider supabaseClient={supabaseClient}>
       {children}

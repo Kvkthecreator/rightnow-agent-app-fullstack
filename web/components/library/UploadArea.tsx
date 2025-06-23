@@ -4,7 +4,7 @@
 
 import { useState, useRef } from "react";
 import { useSessionContext } from "@supabase/auth-helpers-react";
-import { createClient } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { insertBlockFile } from "@/lib/insertBlockFile";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/library/progress";
@@ -13,7 +13,6 @@ export function UploadArea({ onUpload }: { onUpload: () => void }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
   const { session } = useSessionContext();
 
   const handleFiles = async (files: FileList) => {

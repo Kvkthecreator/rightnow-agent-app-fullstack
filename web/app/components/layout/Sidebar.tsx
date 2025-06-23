@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
-import { createClient } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
@@ -23,7 +23,6 @@ interface SidebarProps {
 const Sidebar = ({ open, onClose }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {

@@ -1,7 +1,6 @@
 import { getSnapshot } from "@/lib/baskets/getSnapshot";
-import { cookies } from "next/headers";
 import BasketWorkClient from "./BasketWorkClient";
-import { createServerSupabaseClient } from "@/lib/supabaseClient";
+import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 
 // Match Next 15's PageProps expectation: `params` is a Promise.
 interface PageProps {
@@ -12,8 +11,7 @@ export default async function BasketWorkPage({ params }: PageProps) {
   // Unwrap the promise that Next hands us
   const { id } = await params;
 
-  const cookieStore = await cookies();
-  const supabase = createServerSupabaseClient(cookieStore);
+  const supabase = createServerSupabaseClient();
 
   const {
     data: { session },

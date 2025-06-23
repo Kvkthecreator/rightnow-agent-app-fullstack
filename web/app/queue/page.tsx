@@ -5,7 +5,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 
 interface QueueRow {
@@ -19,7 +19,6 @@ interface QueueRow {
 }
 
 export default function BlockQueuePage() {
-  const supabase = createClient();
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'basket' | 'agent' | 'profile'>('all');
