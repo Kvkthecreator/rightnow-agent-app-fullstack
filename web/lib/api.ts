@@ -11,8 +11,8 @@ export function apiUrl(path: string) {
   return `${API_BASE_URL}${path}`;
 }
 
-export async function apiGet<T = any>(path: string): Promise<T> {
-  const res = await fetchWithToken(apiUrl(path));
+export async function apiGet<T = any>(path: string, token?: string): Promise<T> {
+  const res = await fetchWithToken(apiUrl(path), {}, token);
   if (!res.ok) {
     console.warn(`[apiGet] Non-OK response (${res.status}) for ${path}`);
     throw new Error(`API error: ${res.status}`);
@@ -29,12 +29,20 @@ export async function apiGet<T = any>(path: string): Promise<T> {
   }
 }
 
-export async function apiPost<T = any>(path: string, body: any): Promise<T> {
-  const res = await fetchWithToken(apiUrl(path), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+export async function apiPost<T = any>(
+  path: string,
+  body: any,
+  token?: string,
+): Promise<T> {
+  const res = await fetchWithToken(
+    apiUrl(path),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    token,
+  );
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `apiPost ${path} failed with status ${res.status}`);
@@ -42,12 +50,20 @@ export async function apiPost<T = any>(path: string, body: any): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function apiPut<T = any>(path: string, body: any): Promise<T> {
-  const res = await fetchWithToken(apiUrl(path), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+export async function apiPut<T = any>(
+  path: string,
+  body: any,
+  token?: string,
+): Promise<T> {
+  const res = await fetchWithToken(
+    apiUrl(path),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    token,
+  );
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `apiPut ${path} failed with status ${res.status}`);

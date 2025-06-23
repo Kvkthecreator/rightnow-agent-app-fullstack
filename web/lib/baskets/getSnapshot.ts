@@ -1,5 +1,7 @@
 // web/lib/baskets/getSnapshot.ts
 import { apiGet } from "@/lib/api";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/dbTypes";
 
 /** Shape returned by /api/baskets/{id}/snapshot */
 export interface BasketSnapshot {
@@ -22,8 +24,15 @@ export interface BasketSnapshot {
 
 const SNAPSHOT_PREFIX = "/api/baskets/snapshot";
 
-export async function getSnapshot(id: string): Promise<BasketSnapshot> {
-  const res = await apiGet<any>(`${SNAPSHOT_PREFIX}/${id}`);
+export async function getSnapshot(
+  supabase: SupabaseClient<Database>,
+  id: string,
+): Promise<BasketSnapshot> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token ?? "";
+  const res = await apiGet<any>(`${SNAPSHOT_PREFIX}/${id}`, token);
   const payload = res as any;
   const flatBlocks = [
     ...(payload.accepted_blocks ?? []),
