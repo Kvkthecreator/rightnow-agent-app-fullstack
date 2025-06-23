@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { isAuthError } from "@/lib/utils";
 import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
 import { getSnapshot } from "@/lib/baskets/getSnapshot";
+import { createBrowserSupabaseClient } from "@/lib/supabaseClient";
 
 export interface Props {
   id: string;
@@ -18,10 +19,11 @@ export interface Props {
 
 export default function BasketWorkClient({ id, initialData }: Props) {
   const router = useRouter();
+  const supabase = createBrowserSupabaseClient();
 
   const { data, error, isLoading, mutate } = useSWR<BasketSnapshot>(
     id,
-    getSnapshot,
+    () => getSnapshot(supabase, id),
     { fallbackData: initialData }
   );
 
