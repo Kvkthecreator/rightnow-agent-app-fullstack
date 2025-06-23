@@ -61,7 +61,7 @@ def get_basket_snapshot(basket_id: str) -> dict:
                 "id, semantic_type, content, state, scope, canonical_value"
             )
             .eq("basket_id", basket_id)
-            .in_("state", ["CONSTANT", "LOCKED", "ACCEPTED"])
+            .in_("state", ["CONSTANT", "LOCKED", "ACCEPTED", "PROPOSED"])
             .execute()
         )
         blocks = blocks_res.data or []

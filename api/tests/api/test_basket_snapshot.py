@@ -45,6 +45,7 @@ def test_snapshot_empty(monkeypatch):
         "accepted_blocks": [],
         "locked_blocks": [],
         "constants": [],
+        "proposed_blocks": [],
     }
 
 
@@ -65,3 +66,4 @@ def test_snapshot_filters(monkeypatch):
     assert body["raw_dump"] == "d"
     assert len(body["accepted_blocks"]) == 1
     assert len(body["locked_blocks"]) == 1
+    assert len(body["proposed_blocks"]) == 1
