@@ -8,10 +8,10 @@ const CHECK_PATHS = [
 ];
 
 export async function GET(request: NextRequest) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE;
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (!baseUrl) {
     return NextResponse.json(
-      { error: "Missing NEXT_PUBLIC_API_BASE environment variable" },
+      { error: "Missing NEXT_PUBLIC_API_BASE_URL environment variable" },
       { status: 500 },
     );
   }

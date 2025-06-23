@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest, ctx: any) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE;
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (!baseUrl) {
-    return NextResponse.json({ error: 'Missing NEXT_PUBLIC_API_BASE' }, { status: 500 });
+    return NextResponse.json({ error: 'Missing NEXT_PUBLIC_API_BASE_URL' }, { status: 500 });
   }
   const { id } = ctx.params;
   const upstream = `${baseUrl}/baskets/snapshot/${id}`;

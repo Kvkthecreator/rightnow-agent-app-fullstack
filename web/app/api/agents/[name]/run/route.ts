@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest, ctx: any) {
-  const base = process.env.NEXT_PUBLIC_API_BASE;
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (!base) {
-    return NextResponse.json({ error: 'Missing NEXT_PUBLIC_API_BASE' }, { status: 500 });
+    return NextResponse.json({ error: 'Missing NEXT_PUBLIC_API_BASE_URL' }, { status: 500 });
   }
   const { name } = ctx.params;
   const body = await req.text();
