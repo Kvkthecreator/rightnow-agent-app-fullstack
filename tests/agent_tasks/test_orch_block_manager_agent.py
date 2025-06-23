@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+
 from tests.agent_tasks.test_agent_scaffold import _setup_supabase
 
 
@@ -40,14 +41,14 @@ def test_run_proposes_block(monkeypatch):
     assert records["blocks"][0]["state"] == "PROPOSED"
     assert records["blocks"][0]["workspace_id"] == "ws1"
     assert records["events"][0]["workspace_id"] == "ws1"
+    assert "summary" in records["block_revisions"][0]
+    assert "diff_json" in records["block_revisions"][0]
 
 
 def test_run_raises_on_error(monkeypatch):
     records = _setup_supabase(monkeypatch)
     basket_id = uuid4()
-    records["baskets"] = [
-        {"id": str(basket_id), "workspace_id": "ws1"}
-    ]
+    records["baskets"] = [{"id": str(basket_id), "workspace_id": "ws1"}]
 
     spec = importlib.util.spec_from_file_location(
         "orch_block_manager_agent",
@@ -101,4 +102,3 @@ def test_run_raises_on_error(monkeypatch):
     monkeypatch.setattr(module, "supabase", type("S", (), {"table": bad_table}))
     with pytest.raises(HTTPException):
         module.run(basket_id)
-
