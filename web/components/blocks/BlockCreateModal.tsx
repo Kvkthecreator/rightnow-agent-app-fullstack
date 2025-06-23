@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { createClient } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 
 interface Props {
   open: boolean;
@@ -33,7 +33,6 @@ export default function BlockCreateModal({ open, onOpenChange, onCreate }: Props
 
   useEffect(() => {
     if (!open) return;
-    const supabase = createClient();
     supabase
       .from("blocks")
       .select("type")

@@ -1,12 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { apiGet } from "@/lib/api";
 
 export default function BasketDetailPage({ params }: any) {
-  const supabase = createClient();
   const [basket, setBasket] = useState<any>(null);
   const [blocks, setBlocks] = useState<any[]>([]);
   const [configs, setConfigs] = useState<any[]>([]);

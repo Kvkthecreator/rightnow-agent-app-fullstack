@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/Input";
-import { createClient } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import type { User } from "@supabase/supabase-js";
 
 export default function ProfileTab() {
-  const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {

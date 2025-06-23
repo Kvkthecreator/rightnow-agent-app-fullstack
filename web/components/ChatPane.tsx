@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { ClarificationResponse } from "@/components/ClarificationResponse";
 
 interface ChatPaneProps {
@@ -26,7 +26,6 @@ export function ChatPane({ taskId, collectedInputs, onClarificationSubmit }: Cha
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const supabase = createClient();
 
     // Load existing messages
     supabase

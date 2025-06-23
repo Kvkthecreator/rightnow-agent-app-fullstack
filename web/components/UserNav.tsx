@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { User as UserIcon } from "lucide-react";
@@ -18,7 +18,6 @@ interface UserNavProps {
 
 export default function UserNav({ compact = false }: UserNavProps) {
   const router = useRouter();
-  const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);

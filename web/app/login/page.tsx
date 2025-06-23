@@ -3,13 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 import Brand from "@/components/Brand";
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
