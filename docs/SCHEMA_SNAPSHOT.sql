@@ -2408,7 +2408,8 @@ CREATE TABLE public.events (
     block_id uuid,
     kind text,
     payload jsonb,
-    ts timestamp with time zone DEFAULT now() NOT NULL
+    ts timestamp with time zone DEFAULT now() NOT NULL,
+    workspace_id uuid NOT NULL
 );
 
 
@@ -3972,6 +3973,33 @@ CREATE POLICY dump_member_insert ON public.raw_dumps FOR INSERT WITH CHECK ((wor
 CREATE POLICY dump_member_read ON public.raw_dumps FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: events event_member_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY event_member_delete ON public.events FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = events.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
+
+--
+-- Name: events event_member_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY event_member_insert ON public.events FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = events.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
+
+--
+-- Name: events event_member_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY event_member_update ON public.events FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = events.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
 
 
 --
