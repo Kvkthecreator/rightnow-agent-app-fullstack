@@ -11,6 +11,18 @@ log = logging.getLogger("uvicorn.error")
 DATABASE_URL = os.getenv("EVENT_BUS_DATABASE_URL")  # use dedicated direct connection
 LISTEN_CHANNEL = "bus_any"  # single physical channel
 
+POOL: asyncpg.Pool | None = None
+
+async def init_pool() -> None:
+    """Initialize the asyncpg connection pool lazily."""
+    global POOL
+    if POOL is None:
+        POOL = await asyncpg.create_pool(
+            DATABASE_URL,
+            min_size=1,
+            max_size=5,
+        )
+
 
 class Event:
     def __init__(self, topic: str, payload: dict):
@@ -22,20 +34,23 @@ class Event:
 async def emit(topic: str, payload: dict) -> None:
     """Insert into events table and rely on trigger to NOTIFY."""
     try:
-        conn = await asyncpg.connect(DATABASE_URL)
-        await conn.execute(
-            "insert into public.events(topic, payload) values($1, $2)",
-            topic,
-            json.dumps(payload),
-        )
-        await conn.close()
-    except Exception as e:
+        await init_pool()
+        async with POOL.acquire() as conn:
+            await conn.execute(
+                "insert into public.events(topic, payload) values($1, $2)",
+                topic,
+                json.dumps(payload),
+            )
+    except Exception:
         log.exception("Event bus emit failed for topic %s", topic)
         raise
 
 
 async def publish_event(topic: str, payload: dict) -> None:
-    await emit(topic, payload)
+    try:
+        await emit(topic, payload)
+    except Exception as e:
+        log.error("[EVENT BUS] Failed to publish event: %s", e)
 
 
 # ---------- subscriber ---------- #
@@ -48,19 +63,20 @@ async def subscribe(topics: list[str]):
                 evt = await queue.get()
     """
     q: asyncio.Queue[Event] = asyncio.Queue()
+    await init_pool()
+    callback = lambda *_, payload: asyncio.create_task(_dispatch(payload, topics, q))
+    conn = None
     try:
-        conn = await asyncpg.connect(DATABASE_URL)
-        await conn.add_listener(
-            LISTEN_CHANNEL,
-            lambda *_, payload: asyncio.create_task(_dispatch(payload, topics, q)),
-        )
+        conn = await POOL.acquire()
+        await conn.add_listener(LISTEN_CHANNEL, callback)
         yield q
-    except Exception as e:
+    except Exception:
         log.exception("Event bus subscription failed")
         raise
     finally:
-        if 'conn' in locals():
-            await conn.close()
+        if conn:
+            await conn.remove_listener(LISTEN_CHANNEL, callback)
+            await POOL.release(conn)
 
 
 async def _dispatch(raw: str, topics: list[str], q: asyncio.Queue):
