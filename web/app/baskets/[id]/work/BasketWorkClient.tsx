@@ -11,6 +11,7 @@ import { isAuthError } from "@/lib/utils";
 import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
 import { getSnapshot } from "@/lib/baskets/getSnapshot";
 import { createBrowserSupabaseClient } from "@/lib/supabaseClient";
+import BasketHeader from "@/components/basket/BasketHeader";
 
 export interface Props {
   id: string;
@@ -52,9 +53,18 @@ export default function BasketWorkClient({ id, initialData }: Props) {
     PROPOSED: blocks.filter((b) => b.state === "PROPOSED"),
   };
 
+  const scopes = Array.from(
+    new Set(blocks.map((b) => b.scope).filter(Boolean))
+  ) as string[];
+
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <Button onClick={runBlockifier}>Run Blockifier</Button>
+      <BasketHeader
+        basketName={data.basket.name || "Untitled Basket"}
+        status="DRAFT"
+        scope={scopes}
+        onRunBlockifier={runBlockifier}
+      />
 
       <section>
         <h2 className="font-semibold mb-2">Raw Dump</h2>
