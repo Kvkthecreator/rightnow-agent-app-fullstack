@@ -14,6 +14,7 @@ export interface BasketSnapshot {
   raw_dump_body: string;
   file_refs: string[];
   blocks: Block[];
+  proposed_blocks: Block[];
 }
 
 const SNAPSHOT_PREFIX = "/api/baskets/snapshot";
@@ -28,7 +29,7 @@ export async function getSnapshot(
   const token = session?.access_token ?? "";
   const res = await apiGet<any>(`${SNAPSHOT_PREFIX}/${id}`, token);
   const payload = res as any;
-const flatBlocks = [
+  const flatBlocks = [
     ...(payload.accepted_blocks ?? []),
     ...(payload.locked_blocks ?? []),
     ...(payload.constants ?? []),
@@ -39,5 +40,6 @@ const flatBlocks = [
     raw_dump_body: payload.raw_dump,
     file_refs: payload.file_refs ?? [],
     blocks: flatBlocks,
+    proposed_blocks: payload.proposed_blocks ?? [],
   };
 }
