@@ -73,8 +73,9 @@ async def health():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://www.yarnnn.com",
+        "https://www.yarnnn.com",  # production
         "https://yarnnn.com",
+        "http://localhost:3000",   # add this for local testing
     ],
     allow_credentials=True,
     allow_methods=["*"],
