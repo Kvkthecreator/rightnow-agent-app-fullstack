@@ -14,7 +14,7 @@ export default function WorkbenchLayoutDev({ initialSnapshot, children }: Props)
   ) as string[];
 
   return (
-    <div className="min-h-screen bg-yellow-50 p-4 space-y-4">
+    <div className="min-h-screen p-4 space-y-4">
       <BasketHeader
         basketName={initialSnapshot.basket?.name || "Untitled Basket"}
         status="DRAFT"
