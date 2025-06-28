@@ -3,9 +3,7 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
-import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
-
-export type Block = BasketSnapshot["blocks"][number];
+import type { Block } from "@/types/block";
 
 interface Props {
   rawText: string;

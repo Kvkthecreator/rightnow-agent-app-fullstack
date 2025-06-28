@@ -17,6 +17,7 @@ Content should feel like a helpful peer, not a corporation.
       semantic_type: "tone",
       state: "PROPOSED",
       created_at: "2025-06-25T12:00:00Z",
+      actor: "alice",
     },
     {
       id: "b2",
@@ -24,6 +25,7 @@ Content should feel like a helpful peer, not a corporation.
       semantic_type: "audience",
       state: "ACCEPTED",
       created_at: "2025-06-24T09:12:00Z",
+      actor: "bob",
     },
     {
       id: "b3",
@@ -31,6 +33,7 @@ Content should feel like a helpful peer, not a corporation.
       semantic_type: "voice",
       state: "LOCKED",
       created_at: "2025-06-23T15:40:00Z",
+      actor: "carol",
     },
     {
       id: "b4",
@@ -38,6 +41,7 @@ Content should feel like a helpful peer, not a corporation.
       semantic_type: "value",
       state: "CONSTANT",
       created_at: "2025-06-22T08:30:00Z",
+      actor: "dave",
     },
   ],
 } as const;

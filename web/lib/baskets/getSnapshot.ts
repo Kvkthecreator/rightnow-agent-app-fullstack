@@ -2,6 +2,7 @@
 import { apiGet } from "@/lib/api";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/dbTypes";
+import type { Block } from "@/types/block";
 
 /** Shape returned by /api/baskets/{id}/snapshot */
 export interface BasketSnapshot {
@@ -12,14 +13,7 @@ export interface BasketSnapshot {
   };
   raw_dump_body: string;
   file_refs: string[];
-  blocks: {
-    id: string;
-    semantic_type: string;
-    content: string;
-    state: string;
-    scope: string | null;
-    canonical_value: string | null;
-  }[];
+  blocks: Block[];
 }
 
 const SNAPSHOT_PREFIX = "/api/baskets/snapshot";
