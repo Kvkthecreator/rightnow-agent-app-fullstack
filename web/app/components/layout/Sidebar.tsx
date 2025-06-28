@@ -19,9 +19,10 @@ interface SidebarProps {
   open: boolean;
   onClose: () => void;
   collapsible?: boolean;
+  className?: string;
 }
 
-const Sidebar = ({ open, onClose, collapsible = false }: SidebarProps) => {
+const Sidebar = ({ open, onClose, collapsible = false, className }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -60,7 +61,8 @@ const Sidebar = ({ open, onClose, collapsible = false }: SidebarProps) => {
         "fixed top-0 left-0 z-50 h-screen w-64 bg-background border-r border-border shadow-md transform transition-transform",
         collapsible ? "md:fixed" : "md:relative md:block md:min-h-screen",
         open ? "translate-x-0" : "-translate-x-full",
-        !collapsible && "md:translate-x-0"
+        !collapsible && "md:translate-x-0",
+        className
       )}
     >
       <button
