@@ -9,6 +9,7 @@ import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
 import { getSnapshot } from "@/lib/baskets/getSnapshot";
 import { createBrowserSupabaseClient } from "@/lib/supabaseClient";
 import WorkbenchLayout from "@/components/workbench/WorkbenchLayout";
+import { useState } from "react";
 
 export interface Props {
     id: string;
@@ -18,6 +19,7 @@ export interface Props {
 export default function BasketWorkClient({ id, initialData }: Props) {
     const router = useRouter();
     const supabase = createBrowserSupabaseClient();
+    const [running, setRunning] = useState(false);
 
     const { data, error, isLoading, mutate } = useSWR<BasketSnapshot>(
         id,
@@ -26,16 +28,19 @@ export default function BasketWorkClient({ id, initialData }: Props) {
     );
 
     const runBlockifier = async () => {
+        setRunning(true);
         try {
             await apiPost("/api/agents/orch_block_manager/run", {
                 basket_id: id,
             });
             toast.success("Parsing complete");
             mutate();
-        } catch (err) {
+        } catch (err: any) {
             isAuthError(err)
                 ? router.push("/login")
-                : toast.error("Failed to run Blockifier");
+                : toast.error(err?.message || "Failed to run Blockifier");
+        } finally {
+            setRunning(false);
         }
     };
 
@@ -47,6 +52,7 @@ export default function BasketWorkClient({ id, initialData }: Props) {
         <WorkbenchLayout
             snapshot={data}
             onRunBlockifier={runBlockifier}
+            runningBlockifier={running}
             onSelectBlock={(bid) => console.log("select", bid)}
         />
     );

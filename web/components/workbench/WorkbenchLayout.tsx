@@ -7,6 +7,7 @@ import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
 interface Props {
     snapshot: BasketSnapshot;
     onRunBlockifier?: () => void;
+    runningBlockifier?: boolean;
     onSelectBlock?: (id: string) => void;
     children?: ReactNode;
 }
@@ -14,6 +15,7 @@ interface Props {
 export default function WorkbenchLayout({
     snapshot,
     onRunBlockifier,
+    runningBlockifier,
     onSelectBlock,
     children,
 }: Props) {
@@ -28,6 +30,7 @@ export default function WorkbenchLayout({
                 status="DRAFT"
                 scope={scopes}
                 onRunBlockifier={onRunBlockifier}
+                isRunningBlockifier={runningBlockifier}
             />
             <NarrativePane
                 rawText={snapshot.raw_dump_body}

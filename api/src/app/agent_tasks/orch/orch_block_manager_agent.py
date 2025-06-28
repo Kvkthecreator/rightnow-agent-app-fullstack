@@ -7,84 +7,107 @@ from postgrest.exceptions import APIError
 from src.utils.db import json_safe
 
 from app.utils.supabase_client import supabase_client as supabase
+from .orch_basket_parser_agent import run as run_parser
 
 log = logging.getLogger("uvicorn.error")
 
 
 def run(basket_id: UUID) -> dict[str, Any]:
-    """Insert a placeholder block then record a revision and event."""
+    """Parse the latest raw dump and create PROPOSED blocks."""
     try:
-        ws_res = (
+        b_res = (
             supabase.table("baskets")
-            .select("workspace_id")
+            .select("workspace_id,user_id")
             .eq("id", str(basket_id))
+            .single()
             .execute()
         )
-        workspace_id = ws_res.data[0]["workspace_id"]
+        if not b_res.data:
+            raise RuntimeError("basket not found")
+        workspace_id = b_res.data["workspace_id"]
+        user_id = b_res.data.get("user_id") or "system"
     except Exception as err:  # noqa: BLE001
-        log.exception("workspace lookup failed for basket %s", basket_id)
-        raise RuntimeError("workspace lookup failed") from err
+        log.exception("basket lookup failed for %s", basket_id)
+        raise RuntimeError("basket lookup failed") from err
 
-    block_id = str(uuid4())
-    block_payload = {
-        "id": block_id,
-        "basket_id": str(basket_id),
-        "workspace_id": workspace_id,
-        "semantic_type": "placeholder",
-        "content": "pending proposal",
-        "state": "PROPOSED",
-    }
     try:
-        res = supabase.table("blocks").insert(json_safe(block_payload)).execute()
-    except APIError:
-        log.exception("block insert API error for basket %s", basket_id)
-        raise
-    except Exception:  # noqa: BLE001
-        log.exception("block insert failed for basket %s", basket_id)
-        raise
-    if getattr(res, "status_code", 200) >= 400 or not res.data:
-        log.warning("Supabase insert failed", extra=block_payload)
-        raise HTTPException(status_code=500, detail="Supabase insert failed")
-
-    rev_payload = {
-        "block_id": block_id,
-        "workspace_id": workspace_id,
-        "actor_id": None,
-        "summary": "orch block proposed",
-        "diff_json": {"new_content": "pending proposal"},
-    }
-    try:
-        res = supabase.table("block_revisions").insert(json_safe(rev_payload)).execute()
-    except APIError as err:
-        log.error(
-            "revision insert API error for basket %s: %s",
-            basket_id,
-            getattr(err, "message", str(err)),
+        d_res = (
+            supabase.table("raw_dumps")
+            .select("body_md,file_refs")
+            .eq("basket_id", str(basket_id))
+            .order("created_at", desc=True)
+            .limit(1)
+            .single()
+            .execute()
         )
-        raise HTTPException(status_code=500, detail="Supabase insert failed") from err
+        if not d_res.data:
+            raise RuntimeError("raw dump not found")
+        body = d_res.data.get("body_md", "")
     except Exception as err:  # noqa: BLE001
-        log.exception("revision insert failed for basket %s", basket_id)
-        raise HTTPException(status_code=500, detail="Supabase insert failed") from err
-    if getattr(res, "status_code", 200) >= 400 or not res.data:
-        log.warning("Supabase insert failed for block_revisions: %s", res.data)
-        raise HTTPException(status_code=500, detail="Supabase insert failed")
+        log.exception("raw dump lookup failed for basket %s", basket_id)
+        raise RuntimeError("raw dump lookup failed") from err
 
-    event_payload = {
-        "basket_id": str(basket_id),
-        "workspace_id": workspace_id,
-        "block_id": block_id,
-        "kind": "orch_block_manager.proposed",
-        "payload": {},
-    }
-    try:
-        res = supabase.table("events").insert(json_safe(event_payload)).execute()
-    except APIError:
-        log.exception("event insert API error for basket %s", basket_id)
-        raise
-    except Exception:  # noqa: BLE001
-        log.exception("event insert failed for basket %s", basket_id)
-        raise
-    if getattr(res, "status_code", 200) >= 400 or not res.data:
-        log.warning("Supabase insert failed", extra=event_payload)
-        raise HTTPException(status_code=500, detail="Supabase insert failed")
-    return {"inserted": len(res.data)}
+    parsed = run_parser(str(basket_id), [{"type": "text", "content": body}], user_id)
+
+    inserted = 0
+    for blk in parsed.blocks:
+        block_id = str(blk.id or uuid4())
+        block_payload = {
+            "id": block_id,
+            "basket_id": str(basket_id),
+            "workspace_id": workspace_id,
+            "semantic_type": blk.type,
+            "content": blk.content,
+            "state": "PROPOSED",
+        }
+        try:
+            res = supabase.table("blocks").insert(json_safe(block_payload)).execute()
+        except APIError:
+            log.exception("block insert API error for basket %s", basket_id)
+            raise
+        except Exception:  # noqa: BLE001
+            log.exception("block insert failed for basket %s", basket_id)
+            raise
+        if getattr(res, "status_code", 200) >= 400 or not res.data:
+            log.warning("Supabase insert failed", extra=block_payload)
+            raise HTTPException(status_code=500, detail="Supabase insert failed")
+
+        rev_payload = {
+            "block_id": block_id,
+            "workspace_id": workspace_id,
+            "actor_id": None,
+            "summary": "orch block proposed",
+            "diff_json": {"new_content": blk.content},
+        }
+        try:
+            supabase.table("block_revisions").insert(json_safe(rev_payload)).execute()
+        except APIError as err:  # noqa: BLE001
+            log.error(
+                "revision insert API error for basket %s: %s",
+                basket_id,
+                getattr(err, "message", str(err)),
+            )
+            raise HTTPException(status_code=500, detail="Supabase insert failed") from err
+        except Exception as err:  # noqa: BLE001
+            log.exception("revision insert failed for basket %s", basket_id)
+            raise HTTPException(status_code=500, detail="Supabase insert failed") from err
+
+        event_payload = {
+            "basket_id": str(basket_id),
+            "workspace_id": workspace_id,
+            "block_id": block_id,
+            "kind": "orch_block_manager.proposed",
+            "payload": {},
+        }
+        try:
+            supabase.table("events").insert(json_safe(event_payload)).execute()
+        except APIError:
+            log.exception("event insert API error for basket %s", basket_id)
+            raise
+        except Exception:  # noqa: BLE001
+            log.exception("event insert failed for basket %s", basket_id)
+            raise
+
+        inserted += 1
+
+    return {"inserted": inserted}
