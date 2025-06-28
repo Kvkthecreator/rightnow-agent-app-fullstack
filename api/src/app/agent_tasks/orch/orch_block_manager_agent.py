@@ -13,7 +13,13 @@ log = logging.getLogger("uvicorn.error")
 
 
 def run(basket_id: UUID) -> dict[str, Any]:
-    """Parse the latest raw dump and create PROPOSED blocks."""
+    """Parse the latest raw dump and create PROPOSED blocks.
+
+    The parser expects ``artifacts`` as a list of ``{"type": str, "content": str}``
+    dictionaries. Only ``type`` and ``content`` are used currently.
+
+    Returns a dict with the number of blocks inserted and their IDs.
+    """
     try:
         b_res = (
             supabase.table("baskets")
@@ -47,10 +53,16 @@ def run(basket_id: UUID) -> dict[str, Any]:
         log.exception("raw dump lookup failed for basket %s", basket_id)
         raise RuntimeError("raw dump lookup failed") from err
 
-    parsed = run_parser(str(basket_id), [{"type": "text", "content": body}], user_id)
+    parsed = run_parser(
+        str(basket_id),
+        [{"type": "text", "content": body}],
+        user_id,
+    )
 
-    inserted = 0
+    inserted_ids: list[str] = []
     for blk in parsed.blocks:
+        if not blk.content or not str(blk.content).strip():
+            continue
         block_id = str(blk.id or uuid4())
         block_payload = {
             "id": block_id,
@@ -59,6 +71,7 @@ def run(basket_id: UUID) -> dict[str, Any]:
             "semantic_type": blk.type,
             "content": blk.content,
             "state": "PROPOSED",
+            "meta_agent_notes": "created_by_agent=orch_block_manager",
         }
         try:
             res = supabase.table("blocks").insert(json_safe(block_payload)).execute()
@@ -75,7 +88,7 @@ def run(basket_id: UUID) -> dict[str, Any]:
         rev_payload = {
             "block_id": block_id,
             "workspace_id": workspace_id,
-            "actor_id": None,
+            "actor_id": user_id,
             "summary": "orch block proposed",
             "diff_json": {"new_content": blk.content},
         }
@@ -92,12 +105,14 @@ def run(basket_id: UUID) -> dict[str, Any]:
             log.exception("revision insert failed for basket %s", basket_id)
             raise HTTPException(status_code=500, detail="Supabase insert failed") from err
 
+        inserted_ids.append(block_id)
+
+    if inserted_ids:
         event_payload = {
             "basket_id": str(basket_id),
             "workspace_id": workspace_id,
-            "block_id": block_id,
             "kind": "orch_block_manager.proposed",
-            "payload": {},
+            "payload": {"block_ids": inserted_ids, "count": len(inserted_ids)},
         }
         try:
             supabase.table("events").insert(json_safe(event_payload)).execute()
@@ -108,6 +123,10 @@ def run(basket_id: UUID) -> dict[str, Any]:
             log.exception("event insert failed for basket %s", basket_id)
             raise
 
-        inserted += 1
+    log.info(
+        "orch_block_manager proposed %s blocks for basket %s",
+        len(inserted_ids),
+        basket_id,
+    )
 
-    return {"inserted": inserted}
+    return {"inserted": len(inserted_ids), "block_ids": inserted_ids}
