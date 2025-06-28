@@ -1,7 +1,7 @@
-import { getSnapshot } from "@/lib/baskets/getSnapshot";
 import WorkbenchLayoutDev from "@/components/workbench/WorkbenchLayoutDev";
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { MOCK_SNAPSHOT } from "@/lib/baskets/mockSnapshot";
 
 // Match Next 15's PageProps expectation: `params` is a Promise.
 interface PageProps {
@@ -28,7 +28,8 @@ export default async function BasketWorkDevPage({ params }: PageProps) {
   }
 
   // 1st-paint / SEO fetch
-  const initialSnapshot = await getSnapshot(supabase, id);
+  // Use the mocked snapshot data for early development.
+  const initialSnapshot = MOCK_SNAPSHOT;
 
   return <WorkbenchLayoutDev initialSnapshot={initialSnapshot} />;
 }

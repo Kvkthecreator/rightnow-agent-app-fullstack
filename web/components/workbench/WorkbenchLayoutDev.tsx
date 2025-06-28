@@ -1,6 +1,7 @@
 "use client";
 import { ReactNode } from "react";
 import BasketHeader from "@/components/basket/BasketHeader";
+import NarrativePane from "@/components/basket/NarrativePane";
 
 interface Props {
   initialSnapshot: any;
@@ -18,6 +19,11 @@ export default function WorkbenchLayoutDev({ initialSnapshot, children }: Props)
         basketName={initialSnapshot.basket?.name || "Untitled Basket"}
         status="DRAFT"
         scope={scopes}
+      />
+      <NarrativePane
+        rawText={initialSnapshot.raw_dump_body}
+        blocks={initialSnapshot.blocks || []}
+        onSelectBlock={(id) => console.log("select", id)}
       />
       {children}
     </div>
