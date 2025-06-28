@@ -3,6 +3,7 @@ import React, { ReactNode, useEffect, useState } from "react";
 import Sidebar from "@/app/components/layout/Sidebar";
 import MobileSidebarToggle from "@/components/MobileSidebarToggle";
 import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 
 interface ShellProps {
     children: ReactNode;
@@ -10,6 +11,11 @@ interface ShellProps {
 }
 
 export default function Shell({ children, collapseSidebar = false }: ShellProps) {
+    const pathname = usePathname();
+    const hideSidebarByPath =
+        pathname?.includes("/baskets/") &&
+        (pathname.endsWith("/work") || pathname.endsWith("/work-dev"));
+    const shouldCollapse = collapseSidebar || hideSidebarByPath;
     const [open, setOpen] = useState(false);
 
     useEffect(() => {
@@ -21,24 +27,25 @@ export default function Shell({ children, collapseSidebar = false }: ShellProps)
     }, []);
 
     return (
-        <div className="min-h-screen md:grid md:grid-cols-[16rem_1fr]">
+        <div className="min-h-screen md:flex">
             {/* Screen overlay */}
             {open && (
                 <div
                     className={cn(
                         "fixed inset-0 z-40 bg-black/50",
-                        collapseSidebar ? undefined : "md:hidden"
+                        shouldCollapse ? undefined : "md:hidden"
                     )}
                     onClick={() => setOpen(false)}
                 />
             )}
             <Sidebar
-                open={collapseSidebar ? open : true}
+                open={shouldCollapse ? open : true}
                 onClose={() => setOpen(false)}
-                collapsible={collapseSidebar}
+                collapsible={shouldCollapse}
+                className={hideSidebarByPath && !open ? "hidden md:hidden" : undefined}
             />
-            <main className="p-6">
-                <div className={cn("mb-4", collapseSidebar ? undefined : "md:hidden")}
+            <main className="p-6 flex-1">
+                <div className={cn("mb-4", shouldCollapse ? undefined : "md:hidden")}
                 >
                     <MobileSidebarToggle onClick={() => setOpen(true)} />
                 </div>
