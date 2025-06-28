@@ -18,9 +18,10 @@ const baseItems = [
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
+  collapsible?: boolean;
 }
 
-const Sidebar = ({ open, onClose }: SidebarProps) => {
+const Sidebar = ({ open, onClose, collapsible = false }: SidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -56,12 +57,17 @@ const Sidebar = ({ open, onClose }: SidebarProps) => {
   return (
     <aside
       className={clsx(
-        "fixed top-0 left-0 z-50 h-screen w-64 bg-background border-r border-border shadow-md transform transition-transform md:relative md:translate-x-0 md:block md:min-h-screen",
-        open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        "fixed top-0 left-0 z-50 h-screen w-64 bg-background border-r border-border shadow-md transform transition-transform",
+        collapsible ? "md:fixed" : "md:relative md:block md:min-h-screen",
+        open ? "translate-x-0" : "-translate-x-full",
+        !collapsible && "md:translate-x-0"
       )}
     >
       <button
-        className="absolute top-3 left-3 md:hidden p-1 rounded-md hover:bg-muted"
+        className={clsx(
+          "absolute top-3 left-3 p-1 rounded-md hover:bg-muted",
+          !collapsible && "md:hidden"
+        )}
         onClick={onClose}
         aria-label="Close sidebar"
       >

@@ -9,14 +9,16 @@ import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
 import { getSnapshot } from "@/lib/baskets/getSnapshot";
 import { createBrowserSupabaseClient } from "@/lib/supabaseClient";
 import WorkbenchLayout from "@/components/workbench/WorkbenchLayout";
+import { RightPanelSkeleton } from "@/components/layout/RightPanel";
 import { useState } from "react";
 
 export interface Props {
     id: string;
     initialData: BasketSnapshot;
+    rightPanel?: React.ReactNode;
 }
 
-export default function BasketWorkClient({ id, initialData }: Props) {
+export default function BasketWorkClient({ id, initialData, rightPanel }: Props) {
     const router = useRouter();
     const supabase = createBrowserSupabaseClient();
     const [running, setRunning] = useState(false);
@@ -54,6 +56,7 @@ export default function BasketWorkClient({ id, initialData }: Props) {
             onRunBlockifier={runBlockifier}
             runningBlockifier={running}
             onSelectBlock={(bid) => console.log("select", bid)}
+            rightPanel={rightPanel || <RightPanelSkeleton />}
         />
     );
 }
