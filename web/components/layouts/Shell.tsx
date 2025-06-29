@@ -16,11 +16,11 @@ export default function Shell({ children, collapseSidebar = false }: ShellProps)
         pathname?.includes("/baskets/") &&
         (pathname.endsWith("/work") || pathname.endsWith("/work-dev"));
     const shouldCollapse = collapseSidebar || hideSidebarByPath;
-    const [open, setOpen] = useState(false);
+    const [sidebarVisible, setSidebarVisible] = useState(!hideSidebarByPath);
 
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setOpen(false);
+            if (e.key === "Escape") setSidebarVisible(false);
         };
         window.addEventListener("keydown", handleEsc);
         return () => window.removeEventListener("keydown", handleEsc);
@@ -29,25 +29,23 @@ export default function Shell({ children, collapseSidebar = false }: ShellProps)
     return (
         <div className="min-h-screen md:flex">
             {/* Screen overlay */}
-            {open && (
+            {sidebarVisible && shouldCollapse && (
                 <div
-                    className={cn(
-                        "fixed inset-0 z-40 bg-black/50",
-                        shouldCollapse ? undefined : "md:hidden"
-                    )}
-                    onClick={() => setOpen(false)}
+                    className="fixed inset-0 z-40 bg-black/50 md:hidden"
+                    onClick={() => setSidebarVisible(false)}
                 />
             )}
-            <Sidebar
-                open={shouldCollapse ? open : true}
-                onClose={() => setOpen(false)}
-                collapsible={shouldCollapse}
-                className={hideSidebarByPath && !open ? "hidden md:hidden" : undefined}
-            />
+            {sidebarVisible && (
+                <Sidebar
+                    open={true}
+                    onClose={() => setSidebarVisible(false)}
+                    collapsible={shouldCollapse}
+                />
+            )}
             <main className="p-6 flex-1">
                 <div className={cn("mb-4", shouldCollapse ? undefined : "md:hidden")}
                 >
-                    <MobileSidebarToggle onClick={() => setOpen(true)} />
+                    <MobileSidebarToggle onClick={() => setSidebarVisible(!sidebarVisible)} />
                 </div>
                 {children}
             </main>
