@@ -16,6 +16,7 @@ export default function Shell({ children, collapseSidebar = false }: ShellProps)
         pathname?.includes("/baskets/") &&
         (pathname.endsWith("/work") || pathname.endsWith("/work-dev"));
     const shouldCollapse = collapseSidebar || hideSidebarByPath;
+    const forceShowHamburger = hideSidebarByPath;
     const [sidebarVisible, setSidebarVisible] = useState(!hideSidebarByPath);
 
     useEffect(() => {
@@ -45,7 +46,10 @@ export default function Shell({ children, collapseSidebar = false }: ShellProps)
             <main className="p-6 flex-1">
                 <div className={cn("mb-4", shouldCollapse ? undefined : "md:hidden")}
                 >
-                    <MobileSidebarToggle onClick={() => setSidebarVisible(!sidebarVisible)} />
+                    <MobileSidebarToggle
+                        onClick={() => setSidebarVisible(!sidebarVisible)}
+                        forceShow={forceShowHamburger}
+                    />
                 </div>
                 {children}
             </main>
