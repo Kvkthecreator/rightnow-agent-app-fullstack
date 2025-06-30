@@ -33,6 +33,7 @@ from .routes.debug import router as debug_router
 from .routes.dump_new import router as dump_new_router
 from .routes.inputs import router as inputs_router
 from .routes.phase1_routes import router as phase1_router
+from .routes.context_blocks_create import router as context_blocks_create_router  # new block creation modal router
 
 app = FastAPI(title="RightNow Agent Server")
 
@@ -51,6 +52,7 @@ routers = (
     agent_run_router,
     agents_router,
     phase1_router,
+    context_blocks_create_router,  # new block creation modal router
 )
 
 for r in routers:
@@ -75,7 +77,7 @@ app.add_middleware(
     allow_origins=[
         "https://www.yarnnn.com",  # production
         "https://yarnnn.com",
-        "http://localhost:3000",   # add this for local testing
+        "http://localhost:3000",   # for local dev
     ],
     allow_credentials=True,
     allow_methods=["*"],
