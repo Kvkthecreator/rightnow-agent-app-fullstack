@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/serviceRole";
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const { params } = context;
+  const { id } = await params;
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("blocks")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -19,14 +19,14 @@ export async function GET(
 
 export async function DELETE(
   req: NextRequest,
-  context: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const { params } = context;
+  const { id } = await params;
   const supabase = createServiceRoleClient();
   const { error } = await supabase
     .from("blocks")
     .delete()
-    .eq("id", params.id);
+    .eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
