@@ -4,10 +4,18 @@ import { createClient } from "@/lib/supabaseClient";
 import { apiPost, apiPut, apiDelete } from "@/lib/api";
 
 export interface BlockInsert {
-  user_id: string;
-  type: string;
+  user_id?: string;
+  basket_id?: string;
+  /**
+   * TODO: rename to semantic_type across callers.
+   * Accept either `type` or `semantic_type` to satisfy legacy usage.
+   */
+  type?: string;
+  semantic_type?: string;
   label: string;
   content: string;
+  state?: string;
+  meta_tags?: string[];
   update_policy?: "manual" | "auto";
   is_core_block?: boolean;
   file_ids?: string[];
