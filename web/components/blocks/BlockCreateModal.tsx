@@ -22,11 +22,15 @@ interface Props {
     auto?: boolean;
     meta_tags?: string;
   }) => Promise<void>;
-  /** Hide the auto-update toggle (work page use) */
   includeAuto?: boolean;
 }
 
-export default function BlockCreateModal({ open, onOpenChange, onCreate, includeAuto = true }: Props) {
+export default function BlockCreateModal({
+  open,
+  onOpenChange,
+  onCreate,
+  includeAuto = true,
+}: Props) {
   const [label, setLabel] = useState("");
   const [content, setContent] = useState("");
   const [blockTypes, setBlockTypes] = useState<string[]>([]);
@@ -37,12 +41,15 @@ export default function BlockCreateModal({ open, onOpenChange, onCreate, include
 
   useEffect(() => {
     if (!open) return;
+
+    // ⚠️ FIXED: semantic_type instead of type
     supabase
       .from("blocks")
-      .select("type")
+      .select("semantic_type")
+      .limit(50)
       .then(({ data }) => {
         if (data) {
-          const vals = Array.from(new Set(data.map((d) => d.type))).sort();
+          const vals = Array.from(new Set(data.map((d) => d.semantic_type))).sort();
           setBlockTypes(vals);
           if (!type) setType(vals[0] || "custom");
         }
