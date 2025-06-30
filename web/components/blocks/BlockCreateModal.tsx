@@ -19,16 +19,20 @@ interface Props {
     type: string;
     label: string;
     content: string;
-    auto: boolean;
+    auto?: boolean;
+    meta_tags?: string;
   }) => Promise<void>;
+  /** Hide the auto-update toggle (work page use) */
+  includeAuto?: boolean;
 }
 
-export default function BlockCreateModal({ open, onOpenChange, onCreate }: Props) {
+export default function BlockCreateModal({ open, onOpenChange, onCreate, includeAuto = true }: Props) {
   const [label, setLabel] = useState("");
   const [content, setContent] = useState("");
   const [blockTypes, setBlockTypes] = useState<string[]>([]);
   const [type, setType] = useState("");
   const [auto, setAuto] = useState(true);
+  const [metaTags, setMetaTags] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -47,9 +51,10 @@ export default function BlockCreateModal({ open, onOpenChange, onCreate }: Props
 
   async function handleSave() {
     setSaving(true);
-    await onCreate({ type, label, content, auto });
+    await onCreate({ type, label, content, auto, meta_tags: metaTags });
     setLabel("");
     setContent("");
+    setMetaTags("");
     setAuto(true);
     setType(blockTypes[0] || "custom");
     setSaving(false);
@@ -91,18 +96,24 @@ export default function BlockCreateModal({ open, onOpenChange, onCreate }: Props
               onChange={(e) => setContent(e.target.value)}
             />
           </div>
-          <div className="flex items-center space-x-2">
-            <input
-              id="auto-toggle"
-              type="checkbox"
-              className="h-4 w-4"
-              checked={auto}
-              onChange={(e) => setAuto(e.target.checked)}
-            />
-            <label htmlFor="auto-toggle" className="text-sm text-muted-foreground">
-              Auto-update
-            </label>
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground">Tags</label>
+            <Input value={metaTags} onChange={(e) => setMetaTags(e.target.value)} />
           </div>
+          {includeAuto && (
+            <div className="flex items-center space-x-2">
+              <input
+                id="auto-toggle"
+                type="checkbox"
+                className="h-4 w-4"
+                checked={auto}
+                onChange={(e) => setAuto(e.target.checked)}
+              />
+              <label htmlFor="auto-toggle" className="text-sm text-muted-foreground">
+                Auto-update
+              </label>
+            </div>
+          )}
         </div>
         <DialogFooter className="pt-4">
           <Button onClick={handleSave} disabled={saving}>

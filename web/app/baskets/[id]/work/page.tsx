@@ -1,6 +1,5 @@
 import { getSnapshot } from "@/lib/baskets/getSnapshot";
 import BasketWorkClient from "./BasketWorkClient";
-import BlocksPane from "@/components/blocks/BlocksPane";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { cookies } from "next/headers";
 
@@ -28,15 +27,5 @@ export default async function BasketWorkPage({ params }: PageProps) {
   // 1st-paint / SEO fetch
   const initialData = await getSnapshot(supabase, id);
 
-  return (
-    <BasketWorkClient
-      id={id}
-      initialData={initialData}
-      rightPanel={
-        <div className="right-panel">
-          <BlocksPane blocks={initialData.proposed_blocks} />
-        </div>
-      }
-    />
-  );
+  return <BasketWorkClient id={id} initialData={initialData} />;
 }

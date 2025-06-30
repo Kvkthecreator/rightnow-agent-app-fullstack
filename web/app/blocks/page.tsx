@@ -43,7 +43,8 @@ export default function BlocksPage() {
         type: string;
         label: string;
         content: string;
-        auto: boolean;
+        auto?: boolean;
+        meta_tags?: string;
     }) {
         if (!session?.user) return;
         setLoading(true);
