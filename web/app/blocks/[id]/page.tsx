@@ -9,9 +9,10 @@ import { fetchBlock, updateBlock, deleteBlock } from "@/lib/supabase/blocks";
 export default function BlockDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
+  const [blockId, setBlockId] = useState<string | null>(null);
   const [block, setBlock] = useState<any | null>(null);
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState({
@@ -21,9 +22,18 @@ export default function BlockDetailPage({
     meta_tags: "",
   });
 
+  // Unwrap the promise-based params in Next 15
   useEffect(() => {
+    (async () => {
+      const { id } = await params;
+      setBlockId(id);
+    })();
+  }, [params]);
+
+  useEffect(() => {
+    if (!blockId) return;
     const load = async () => {
-      const { data } = await fetchBlock(params.id);
+      const { data } = await fetchBlock(blockId);
       if (data) {
         setBlock(data);
         setForm({
@@ -35,7 +45,7 @@ export default function BlockDetailPage({
       }
     };
     load();
-  }, [params.id]);
+  }, [blockId]);
 
   const handleSave = async () => {
     if (!block) return;
@@ -119,7 +129,14 @@ export default function BlockDetailPage({
         ) : (
           <Button size="sm" onClick={() => setEdit(true)}>Edit</Button>
         )}
-        <Button size="sm" variant="destructive" onClick={handleDelete}>Delete</Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-red-600 hover:bg-red-50 hover:text-red-800 border-red-300"
+          onClick={handleDelete}
+        >
+          Delete
+        </Button>
       </div>
     </BlockDetailLayout>
   );
