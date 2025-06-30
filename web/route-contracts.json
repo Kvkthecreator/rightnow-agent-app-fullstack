@@ -16,5 +16,6 @@
   "/api/task-types",
   "/api/baskets/new",
   "/api/baskets/snapshot/[id]",
-  "/api/agents/[name]/run"
+  "/api/agents/[name]/run",
+  "/api/context-blocks/[id]"
 ]

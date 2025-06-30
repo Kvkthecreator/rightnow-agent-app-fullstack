@@ -1,7 +1,7 @@
 // ✅ File: lib/supabase/blocks.ts
 
 import { createClient } from "@/lib/supabaseClient";
-import { apiPost, apiPut } from "@/lib/api";
+import { apiPost, apiPut, apiDelete } from "@/lib/api";
 
 export interface BlockInsert {
   user_id: string;
@@ -43,4 +43,22 @@ export async function toggleAuto(id: string, enable: boolean) {
     id,
     update_policy: enable ? "auto" : "manual",
   });
+}
+
+export async function fetchBlock(id: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("blocks")
+    .select("*")
+    .eq("id", id)
+    .single();
+  return { data, error };
+}
+
+export async function updateBlock(id: string, updates: Record<string, any>) {
+  return apiPut("/api/context-blocks/update", { id, ...updates });
+}
+
+export async function deleteBlock(id: string) {
+  return apiDelete(`/api/context-blocks/${id}`);
 }
