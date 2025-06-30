@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/Button";
 import BlockDetailLayout from "@/components/blocks/BlockDetailLayout";
 import { fetchBlock, updateBlock, deleteBlock } from "@/lib/supabase/blocks";
 
-type PageProps = {
+export default function BlockDetailPage({
+  params,
+}: {
   params: { id: string };
-  searchParams?: { [key: string]: string | string[] };
-};
-export default function BlockDetailPage({ params }: PageProps) {
+}) {
   const router = useRouter();
   const [block, setBlock] = useState<any | null>(null);
   const [edit, setEdit] = useState(false);
