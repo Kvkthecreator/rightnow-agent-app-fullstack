@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/serviceRole";
-import type { Params } from "next/dist/shared/lib/router/utils/route-matcher";
-
 export async function GET(
   req: NextRequest,
-  { params }: { params: Params },
+  context: { params: { id: string } },
 ) {
+  const { params } = context;
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("blocks")
@@ -20,8 +19,9 @@ export async function GET(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Params },
+  context: { params: { id: string } },
 ) {
+  const { params } = context;
   const supabase = createServiceRoleClient();
   const { error } = await supabase
     .from("blocks")
