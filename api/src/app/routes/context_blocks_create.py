@@ -22,7 +22,7 @@ class BlockCreateRequest(BaseModel):
     state: str = "PROPOSED"
 
 
-@router.post("/api/context-blocks/create")
+@router.post("/context-blocks/create")
 async def create_context_block(req: BlockCreateRequest):
     try:
         block_id = str(uuid4())
