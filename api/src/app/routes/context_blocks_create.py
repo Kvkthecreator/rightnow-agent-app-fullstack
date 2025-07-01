@@ -1,10 +1,11 @@
-# api/src/app/routes/context_blocks_create.py
-
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 from supabase import create_client, Client
 from uuid import uuid4
 import os
+
+from ..utils.jwt import verify_jwt
+from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter()
 
@@ -21,10 +22,10 @@ class BlockCreateRequest(BaseModel):
     meta_tags: list[str] = []
     state: str = "PROPOSED"
 
-
 @router.post("/context-blocks/create")
-async def create_context_block(req: BlockCreateRequest):
+async def create_context_block(req: BlockCreateRequest, user: dict = Depends(verify_jwt)):
     try:
+        workspace_id = get_or_create_workspace(user["user_id"])  # ✅ this was missing
         block_id = str(uuid4())
         data = {
             "id": block_id,
@@ -34,6 +35,7 @@ async def create_context_block(req: BlockCreateRequest):
             "content": req.content,
             "meta_tags": req.meta_tags,
             "state": req.state,
+            "workspace_id": workspace_id,  # ✅ this was missing
         }
         result = supabase.table("blocks").insert(data).execute()
         if result.status_code >= 400:
