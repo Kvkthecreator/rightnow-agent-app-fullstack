@@ -2395,6 +2395,7 @@ CREATE TABLE public.blocks (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     workspace_id uuid NOT NULL,
     meta_agent_notes text,
+    label text,
     CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state)))
 );
 
