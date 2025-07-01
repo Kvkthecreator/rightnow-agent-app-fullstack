@@ -38,8 +38,8 @@ async def create_context_block(req: BlockCreateRequest, user: dict = Depends(ver
             "workspace_id": workspace_id,  # ✅ this was missing
         }
         result = supabase.table("blocks").insert(data).execute()
-        if result.error:
-            raise HTTPException(status_code=500, detail=result.error.message)
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Block creation failed")
         return {"status": "success", "block_id": block_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
