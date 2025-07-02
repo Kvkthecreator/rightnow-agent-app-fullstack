@@ -14,6 +14,7 @@ from ..event_bus import publish_event
 from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_client as supabase
 from ..utils.workspace import get_or_create_workspace
+from ..services.template_cloner import clone_template
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 log = logging.getLogger("uvicorn.error")
@@ -22,10 +23,11 @@ log = logging.getLogger("uvicorn.error")
 # 1. Request model
 # ----------------------------------------------------------------
 class BasketCreateV1(BaseModel):
-    """Payload for creating a basket from a raw text dump."""
+    """Payload for creating a basket."""
 
-    text_dump: str = Field(..., min_length=1)
+    text_dump: str | None = Field(default=None, min_length=1)
     file_urls: list[str] = Field(default_factory=list)
+    template_slug: str | None = None
 
 # ────────────────────────────────────────────────────────────────
 # 2. Endpoint
@@ -35,13 +37,22 @@ async def create_basket(
     payload: BasketCreateV1,
     user: Annotated[dict, Depends(verify_jwt)],
 ):
-    """Create a basket from an atomic text dump."""
-
-    if not payload.text_dump.strip():
-        raise HTTPException(status_code=400, detail="text_dump is empty")
+    """Create a basket from an atomic text dump or template."""
 
     workspace_id = get_or_create_workspace(user["user_id"])
     log.info("create_basket user=%s workspace=%s", user["user_id"], workspace_id)
+
+    if payload.template_slug:
+        basket_id = clone_template(
+            payload.template_slug,
+            user["user_id"],
+            workspace_id,
+            supabase,
+        )
+        return JSONResponse({"id": basket_id}, status_code=201)
+
+    if not payload.text_dump or not payload.text_dump.strip():
+        raise HTTPException(status_code=400, detail="text_dump is empty")
 
     # Atomic creation via stored procedure
     try:
