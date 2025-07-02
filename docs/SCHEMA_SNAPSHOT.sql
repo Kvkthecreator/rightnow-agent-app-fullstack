@@ -2358,7 +2358,21 @@ CREATE TABLE public.baskets (
     state public.basket_state DEFAULT 'INIT'::public.basket_state NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     user_id uuid DEFAULT auth.uid(),
-    workspace_id uuid NOT NULL
+    workspace_id uuid NOT NULL,
+    origin_template text
+);
+
+
+--
+-- Name: block_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.block_links (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    block_id uuid,
+    document_id uuid,
+    occurrences integer DEFAULT 0,
+    snippets jsonb
 );
 
 
@@ -2396,7 +2410,27 @@ CREATE TABLE public.blocks (
     workspace_id uuid NOT NULL,
     meta_agent_notes text,
     label text,
+    meta_tags text[],
+    is_required boolean DEFAULT false,
     CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state)))
+)
+WITH (autovacuum_enabled='true');
+
+
+--
+-- Name: documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.documents (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid,
+    title text NOT NULL,
+    content_raw text NOT NULL,
+    content_rendered text,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    updated_by uuid
 );
 
 
@@ -2884,6 +2918,14 @@ ALTER TABLE ONLY public.baskets
 
 
 --
+-- Name: block_links block_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.block_links
+    ADD CONSTRAINT block_links_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: block_revisions block_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2897,6 +2939,14 @@ ALTER TABLE ONLY public.block_revisions
 
 ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: documents documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.documents
+    ADD CONSTRAINT documents_pkey PRIMARY KEY (id);
 
 
 --
@@ -3317,6 +3367,20 @@ CREATE INDEX baskets_user_idx ON public.baskets USING btree (user_id);
 
 
 --
+-- Name: blk_doc_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX blk_doc_idx ON public.block_links USING btree (block_id, document_id);
+
+
+--
+-- Name: docs_basket_title_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX docs_basket_title_idx ON public.documents USING btree (basket_id, title);
+
+
+--
 -- Name: ix_realtime_subscription_entity; Type: INDEX; Schema: realtime; Owner: -
 --
 
@@ -3559,6 +3623,22 @@ ALTER TABLE ONLY auth.sso_domains
 
 
 --
+-- Name: block_links block_links_block_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.block_links
+    ADD CONSTRAINT block_links_block_id_fkey FOREIGN KEY (block_id) REFERENCES public.blocks(id) ON DELETE CASCADE;
+
+
+--
+-- Name: block_links block_links_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.block_links
+    ADD CONSTRAINT block_links_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
+
+
+--
 -- Name: block_revisions block_revisions_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3596,6 +3676,14 @@ ALTER TABLE ONLY public.blocks
 
 ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_parent_block_id_fkey FOREIGN KEY (parent_block_id) REFERENCES public.blocks(id);
+
+
+--
+-- Name: documents documents_basket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.documents
+    ADD CONSTRAINT documents_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 
 
 --
