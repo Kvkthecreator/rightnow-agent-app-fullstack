@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSessionContext } from "@supabase/auth-helpers-react";
 import { Button } from "@/components/ui/Button";
@@ -17,11 +16,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import BasketCard from "@/components/BasketCard";
 import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
 import PageHeader from "@/components/page/PageHeader";
+import CreateBasketDialog from "@/components/CreateBasketDialog";
 
 export default function BasketsPage() {
   const { session, isLoading } = useSessionContext();
   const router = useRouter();
   const [baskets, setBaskets] = useState<BasketOverview[]>([]);
+  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("created");
   const [page, setPage] = useState(1);
@@ -70,9 +71,8 @@ export default function BasketsPage() {
         description="Lightweight containers for your tasks, context, and thoughts"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button asChild>
-              <Link href="/baskets/new">+ Create Basket</Link>
-            </Button>
+            <Button onClick={() => setOpen(true)}>+ New Basket</Button>
+            <CreateBasketDialog open={open} onOpenChange={setOpen} />
             <Select value={sort} onValueChange={(v) => setSort(v)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Sort by" />
