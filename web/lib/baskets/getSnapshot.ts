@@ -2,7 +2,7 @@
 import { apiGet } from "@/lib/api";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/dbTypes";
-import type { Block } from "@/types/block";
+import type { BlockWithHistory } from "@/types/block";
 
 /** Shape returned by /api/baskets/{id}/snapshot */
 export interface BasketSnapshot {
@@ -13,8 +13,8 @@ export interface BasketSnapshot {
   };
   raw_dump_body: string;
   file_refs: string[];
-  blocks: Block[];
-  proposed_blocks: Block[];
+  blocks: BlockWithHistory[];
+  proposed_blocks: BlockWithHistory[];
 }
 
 const SNAPSHOT_PREFIX = "/api/baskets/snapshot";
@@ -34,12 +34,20 @@ export async function getSnapshot(
     ...(payload.locked_blocks ?? []),
     ...(payload.constants ?? []),
     ...(payload.proposed_blocks ?? []),
-  ];
+  ].map((b: any) => ({
+    ...b,
+    prev_rev_id: b.prev_rev_id ?? null,
+    prev_content: b.prev_content ?? null,
+  }));
   return {
     basket: payload.basket,
     raw_dump_body: payload.raw_dump,
     file_refs: payload.file_refs ?? [],
     blocks: flatBlocks,
-    proposed_blocks: payload.proposed_blocks ?? [],
+    proposed_blocks: (payload.proposed_blocks ?? []).map((b: any) => ({
+      ...b,
+      prev_rev_id: b.prev_rev_id ?? null,
+      prev_content: b.prev_content ?? null,
+    })),
   };
 }

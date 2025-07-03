@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Pacifico } from "next/font/google";
 import "./globals.css";
+import "../styles/diff.css";
 import SupabaseProvider from "@/components/SupabaseProvider";
 import { Toaster } from "react-hot-toast";
 import AppLayout from "@/components/layout/AppLayout";

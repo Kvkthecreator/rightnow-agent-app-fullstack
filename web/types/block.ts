@@ -8,3 +8,8 @@ export type Block = {
   actor?: string;
   created_at?: string;
 };
+
+export type BlockWithHistory = Block & {
+  prev_rev_id?: string | null;
+  prev_content?: string | null;
+};
