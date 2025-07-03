@@ -6,7 +6,8 @@ export const useCreateBasket = () => {
     const res = await fetch("/api/baskets/new", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, template_slug: slug }),
+      credentials: "include",
+      body: JSON.stringify({ basket_name: name, template_slug: slug }),
     });
     if (!res.ok) {
       throw new Error("create fail");

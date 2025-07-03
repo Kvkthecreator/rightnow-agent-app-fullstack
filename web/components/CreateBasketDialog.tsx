@@ -37,7 +37,7 @@ export default function CreateBasketDialog({
     try {
       setLoading(true);
       const id = await mutate(basketName, templateSlug);
-      router.push(`/baskets/${id}/work`);
+      await router.push(`/baskets/${id}/work`);
       onOpenChange(false);
     } catch (err: any) {
       console.error(err);
