@@ -2418,6 +2418,23 @@ WITH (autovacuum_enabled='true');
 
 
 --
+-- Name: context_items; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.context_items (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid NOT NULL,
+    document_id uuid,
+    type text NOT NULL,
+    content text NOT NULL,
+    status text DEFAULT 'active'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT context_items_status_check CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text]))),
+    CONSTRAINT context_items_type_check CHECK ((type = 'guideline'::text))
+);
+
+
+--
 -- Name: documents; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2430,7 +2447,8 @@ CREATE TABLE public.documents (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
-    updated_by uuid
+    updated_by uuid,
+    workspace_id uuid
 );
 
 
@@ -2942,6 +2960,14 @@ ALTER TABLE ONLY public.blocks
 
 
 --
+-- Name: context_items context_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.context_items
+    ADD CONSTRAINT context_items_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: documents documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3381,6 +3407,41 @@ CREATE UNIQUE INDEX docs_basket_title_idx ON public.documents USING btree (baske
 
 
 --
+-- Name: idx_baskets_workspace; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_baskets_workspace ON public.baskets USING btree (workspace_id);
+
+
+--
+-- Name: idx_blocks_workspace; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_blocks_workspace ON public.blocks USING btree (workspace_id);
+
+
+--
+-- Name: idx_context_basket; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_context_basket ON public.context_items USING btree (basket_id);
+
+
+--
+-- Name: idx_context_doc; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_context_doc ON public.context_items USING btree (document_id);
+
+
+--
+-- Name: idx_documents_workspace; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_documents_workspace ON public.documents USING btree (workspace_id);
+
+
+--
 -- Name: ix_realtime_subscription_entity; Type: INDEX; Schema: realtime; Owner: -
 --
 
@@ -3679,11 +3740,35 @@ ALTER TABLE ONLY public.blocks
 
 
 --
+-- Name: context_items context_items_basket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.context_items
+    ADD CONSTRAINT context_items_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+
+
+--
+-- Name: context_items context_items_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.context_items
+    ADD CONSTRAINT context_items_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
+
+
+--
 -- Name: documents documents_basket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+
+
+--
+-- Name: documents documents_workspace_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.documents
+    ADD CONSTRAINT documents_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 
 
 --
