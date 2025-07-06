@@ -1,53 +1,82 @@
-import json
 import os
 import types
-from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("SUPABASE_URL", "http://localhost")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "svc.key")
 
-from app.routes.basket_new import router as basket_router
-from app.services import template_cloner
+from app.routes.basket_from_template import router as tpl_router
 
 app = FastAPI()
-app.include_router(basket_router, prefix="/api")
+app.include_router(tpl_router, prefix="/api")
 client = TestClient(app)
 
 
+class Resp:
+    def __init__(self, data=None, status_code=201, error=None):
+        self.data = [data] if data else []
+        self.status_code = status_code
+        self.error = error
+
+    def json(self):  # pragma: no cover - compat
+        return self.data
+
+
+def _fake_table(name, store):
+    def insert(rec):
+        store.setdefault(name, []).append(rec)
+        return types.SimpleNamespace(execute=lambda: Resp(rec))
+
+    return types.SimpleNamespace(insert=insert)
+
+
 def _fake_supabase(store):
-    def table(name):
-        store.setdefault(name, [])
-        def insert(record):
-            store[name].append(record)
-            return types.SimpleNamespace(data=record, status_code=201)
-        return types.SimpleNamespace(insert=insert)
-    return types.SimpleNamespace(table=table)
+    return types.SimpleNamespace(table=lambda n: _fake_table(n, store))
 
 
-def test_template_clone(monkeypatch, tmp_path):
-    tpl_root = tmp_path / "templates"
-    tpl = tpl_root / "brand_playbook"
-    docs = tpl / "docs"
-    docs.mkdir(parents=True)
-    (tpl / "basket.json").write_text(json.dumps({"name": "Brand"}))
-    (tpl / "blocks.json").write_text(json.dumps([{"type": "greeting", "content": "hi"}]))
-    (docs / "intro.md").write_text("hello")
+async def _noop(*_a, **_k):
+    return None
 
+
+def test_create_from_template(monkeypatch):
     store = {}
     fake = _fake_supabase(store)
-    monkeypatch.setattr("app.routes.basket_new.supabase", fake)
-    monkeypatch.setattr("app.services.template_cloner.supabase", fake, False)
-    monkeypatch.setattr("app.routes.basket_new.publish_event", lambda *_a, **_k: None)
-    monkeypatch.setattr("app.routes.basket_new.get_or_create_workspace", lambda _u: "ws")
-    monkeypatch.setattr("app.routes.basket_new.verify_jwt", lambda *_a, **_k: {"user_id": "u"})
-    monkeypatch.setattr(template_cloner, "TEMPLATE_ROOT", tpl_root)
+    monkeypatch.setattr("app.routes.basket_from_template.supabase", fake)
+    monkeypatch.setattr("app.routes.basket_from_template.verify_jwt", lambda *_a, **_k: {"user_id": "u"})
+    monkeypatch.setattr("app.routes.basket_from_template.get_or_create_workspace", lambda _u: "ws")
+    monkeypatch.setattr("app.routes.basket_from_template.run_agent_direct", _noop)
 
-    resp = client.post("/api/baskets/new", json={"template_slug": "brand_playbook"})
-    assert resp.status_code == 201
-    body = resp.json()
-    assert body["id"]
+    payload = {
+        "template_id": "multi_doc_consistency",
+        "files": ["f1", "f2", "f3"],
+        "guidelines": "Keep tone witty & optimistic",
+    }
+
+    resp = client.post("/api/baskets/new-from-template", json=payload)
+    assert resp.status_code == 200
+    bid = resp.json()["basket_id"]
+    assert bid
     assert len(store.get("baskets", [])) == 1
-    assert len(store.get("blocks", [])) == 1
-    assert len(store.get("documents", [])) == 1
+    assert len(store.get("documents", [])) == 3
+    assert len(store.get("raw_dumps", [])) == 3
+    assert all(rd["file_url"] == f"f{i+1}" for i, rd in enumerate(store["raw_dumps"]))
+    assert store["blocks"][0]["content"] == "{{BRAND_NAME}}"
+    assert store["context_items"][0]["content"] == payload["guidelines"]
+
+
+def test_reject_wrong_file_count(monkeypatch):
+    store = {}
+    fake = _fake_supabase(store)
+    monkeypatch.setattr("app.routes.basket_from_template.supabase", fake)
+    monkeypatch.setattr("app.routes.basket_from_template.verify_jwt", lambda *_a, **_k: {"user_id": "u"})
+    monkeypatch.setattr("app.routes.basket_from_template.get_or_create_workspace", lambda _u: "ws")
+    monkeypatch.setattr("app.routes.basket_from_template.run_agent_direct", _noop)
+
+    payload = {
+        "template_id": "multi_doc_consistency",
+        "files": ["f1", "f2"],
+    }
+    resp = client.post("/api/baskets/new-from-template", json=payload)
+    assert resp.status_code == 400
+

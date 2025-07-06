@@ -27,6 +27,7 @@ from .routes.basket_new import router as basket_new_router
 from .routes.basket_snapshot import router as snapshot_router
 from .routes.baskets import router as basket_router
 from .routes.blocks import router as blocks_router
+from .routes.basket_from_template import router as template_router
 from .routes.change_queue import router as change_queue_router
 from .routes.commits import router as commits_router
 from .routes.debug import router as debug_router
@@ -55,6 +56,7 @@ routers = (
     phase1_router,
     context_blocks_create_router,  # new block creation modal router
     context_items_router,
+    template_router,
 )
 
 for r in routers:
