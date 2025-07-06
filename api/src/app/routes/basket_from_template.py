@@ -31,7 +31,8 @@ async def create_from_template(payload: TemplatePayload, user: dict = Depends(ve
         raise HTTPException(status_code=400, detail="exactly 3 files required")
 
     tpl = TEMPLATES[payload.template_id]
-    workspace_id = get_or_create_workspace(user["user_id"])
+    ws = await get_or_create_workspace(user)
+    workspace_id = ws.id
     basket_id = str(uuid.uuid4())
 
     try:
@@ -69,11 +70,9 @@ async def create_from_template(payload: TemplatePayload, user: dict = Depends(ve
                 json_safe(
                     {
                         "id": str(uuid.uuid4()),
-                        "basket_id": basket_id,
-                        "workspace_id": workspace_id,
                         "document_id": doc_id,
-                        "body_md": None,
                         "file_url": file_url,
+                        "body_md": None,
                     }
                 )
             ).execute()
@@ -85,17 +84,13 @@ async def create_from_template(payload: TemplatePayload, user: dict = Depends(ve
     if seed:
         try:
             supabase.table("blocks").insert(
-                json_safe(
-                    {
-                        "id": str(uuid.uuid4()),
-                        "basket_id": basket_id,
-                        "workspace_id": workspace_id,
-                        "semantic_type": "seed",
-                        "content": seed.get("text"),
-                        "scope": seed.get("scope"),
-                        "state": seed.get("status", "LOCKED").upper(),
-                    }
-                )
+                {
+                    "id": str(uuid.uuid4()),
+                    "basket_id": basket_id,
+                    "text": seed["text"],
+                    "scope": seed["scope"],
+                    "status": seed.get("status", "locked"),
+                }
             ).execute()
         except Exception:
             log.exception("seed block insert failed")

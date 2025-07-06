@@ -44,7 +44,10 @@ def test_create_from_template(monkeypatch):
     fake = _fake_supabase(store)
     monkeypatch.setattr("app.routes.basket_from_template.supabase", fake)
     monkeypatch.setattr("app.routes.basket_from_template.verify_jwt", lambda *_a, **_k: {"user_id": "u"})
-    monkeypatch.setattr("app.routes.basket_from_template.get_or_create_workspace", lambda _u: "ws")
+    async def _ws(_u):
+        return types.SimpleNamespace(id="ws")
+
+    monkeypatch.setattr("app.routes.basket_from_template.get_or_create_workspace", _ws)
     monkeypatch.setattr("app.routes.basket_from_template.run_agent_direct", _noop)
 
     payload = {
@@ -61,7 +64,7 @@ def test_create_from_template(monkeypatch):
     assert len(store.get("documents", [])) == 3
     assert len(store.get("raw_dumps", [])) == 3
     assert all(rd["file_url"] == f"f{i+1}" for i, rd in enumerate(store["raw_dumps"]))
-    assert store["blocks"][0]["content"] == "{{BRAND_NAME}}"
+    assert store["blocks"][0]["text"] == "{{BRAND_NAME}}"
     assert store["context_items"][0]["content"] == payload["guidelines"]
 
 
@@ -70,7 +73,10 @@ def test_reject_wrong_file_count(monkeypatch):
     fake = _fake_supabase(store)
     monkeypatch.setattr("app.routes.basket_from_template.supabase", fake)
     monkeypatch.setattr("app.routes.basket_from_template.verify_jwt", lambda *_a, **_k: {"user_id": "u"})
-    monkeypatch.setattr("app.routes.basket_from_template.get_or_create_workspace", lambda _u: "ws")
+    async def _ws(_u):
+        return types.SimpleNamespace(id="ws")
+
+    monkeypatch.setattr("app.routes.basket_from_template.get_or_create_workspace", _ws)
     monkeypatch.setattr("app.routes.basket_from_template.run_agent_direct", _noop)
 
     payload = {
