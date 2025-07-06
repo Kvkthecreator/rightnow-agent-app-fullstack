@@ -10,7 +10,8 @@ import { X } from "lucide-react";
 const baseItems = [
   { href: "/dashboard", label: "🧶 Dashboard" },
   { href: "/baskets", label: "🧺 Baskets" },
-  { href: "/baskets/new", label: "➕ New Basket" },
+  { href: "/baskets/new?mode=wizard", label: "➕ New Basket (guided)" },
+  { href: "/baskets/new?mode=scratch", label: "➕ New Basket (blank)" },
   { href: "/blocks", label: "◾ Blocks" },
   { href: "/settings", label: "⚙️ Settings" },
 ];

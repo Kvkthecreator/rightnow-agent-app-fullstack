@@ -14,7 +14,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: Home },
   { title: "Baskets", href: "/baskets", icon: User },
-  { title: "New Basket", href: "/baskets/new", icon: User },
+  { title: "New Basket (guided)", href: "/baskets/new?mode=wizard", icon: User },
+  { title: "New Basket (blank)", href: "/baskets/new?mode=scratch", icon: User },
   { title: "Blocks", href: "/blocks", icon: User },
   { title: "Queue", href: "/queue", icon: User },
 ];
