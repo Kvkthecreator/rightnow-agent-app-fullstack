@@ -34,6 +34,7 @@ from .routes.dump_new import router as dump_new_router
 from .routes.inputs import router as inputs_router
 from .routes.phase1_routes import router as phase1_router
 from .routes.context_blocks_create import router as context_blocks_create_router  # new block creation modal router
+from .routes.context_items import router as context_items_router
 
 app = FastAPI(title="RightNow Agent Server")
 
@@ -53,6 +54,7 @@ routers = (
     agents_router,
     phase1_router,
     context_blocks_create_router,  # new block creation modal router
+    context_items_router,
 )
 
 for r in routers:
