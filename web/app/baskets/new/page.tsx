@@ -1,72 +1,25 @@
 "use client";
-import { useState } from "react";
-import { Button } from "@/components/ui/Button";
-import SmartDropZone from "@/components/SmartDropZone";
-import { UploadArea } from "@/components/baskets/UploadArea";
-import { createBasketNew } from "@/lib/baskets/createBasketNew";
-import { useRouter } from "next/navigation";
-import PageHeader from "@/components/page/PageHeader";
-import { isAuthError } from "@/lib/utils";
+export const dynamic = "force-dynamic";
+import { CreationModeToggle } from "@/components/template-wizard/CreationModeToggle";
+import { TemplateWizard } from "@/components/template-wizard/TemplateWizard";
+import { ScratchCreation } from "@/components/template-wizard/ScratchCreation";
+import { useCreationMode } from "@/lib/hooks/useCreationMode";
+import { Suspense } from "react";
+
+function NewBasketInner() {
+  const { mode, setMode } = useCreationMode();
+  return (
+    <div className="flex flex-col items-center pt-8">
+      <CreationModeToggle mode={mode} onChange={setMode} />
+      {mode === "wizard" ? <TemplateWizard /> : <ScratchCreation />}
+    </div>
+  );
+}
 
 export default function NewBasketPage() {
-  const router = useRouter();
-  const [text, setText] = useState("");
-  const [files, setFiles] = useState<string[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleCreate = async () => {
-    if (!text.trim()) {
-      alert("Please enter some text 😊");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const { id } = await createBasketNew({
-        text_dump: text,
-        file_urls: files,
-      });
-      router.push(`/baskets/${id}/work`);
-    } catch (err) {
-      console.error(err);
-      if (isAuthError(err)) {
-        router.push("/login");
-      } else {
-        alert("Failed to create basket");
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <PageHeader
-        emoji="🆕"
-        title="Create New Basket"
-        description="Begin a fresh container for your ideas and files"
-      />
-
-      <div className="space-y-4">
-        <SmartDropZone
-          className="w-full min-h-[200px] border rounded-md p-3"
-          placeholder="Drop your thoughts here..."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          readOnly={submitting}
-        />
-
-        <UploadArea
-          prefix="dump"
-          maxFiles={5}
-          onUpload={(url) => setFiles((prev) => [...prev, url])}
-        />
-
-        <div className="flex justify-end">
-          <Button onClick={handleCreate} disabled={submitting || !text.trim()}>
-            {submitting ? "Creating…" : "Create"}
-          </Button>
-        </div>
-      </div>
-    </div>
+    <Suspense>
+      <NewBasketInner />
+    </Suspense>
   );
 }
