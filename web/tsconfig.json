@@ -11,11 +11,13 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
+      "jsx": "preserve",
+      "incremental": true,
+      "typeRoots": ["./types", "./node_modules/@types"],
 
-    // ✅ Add types support for node and playwright
-    "types": ["react", "react-dom", "node", "playwright"],
+    // ✅ Add types support for node
+    // temporarily remove "playwright" until the build pipeline restores those types
+    "types": ["react", "react-dom", "node"],
 
     "plugins": [
       {
