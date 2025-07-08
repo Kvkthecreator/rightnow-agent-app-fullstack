@@ -2477,7 +2477,8 @@ CREATE TABLE public.raw_dumps (
     body_md text,
     file_refs jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    workspace_id uuid NOT NULL
+    workspace_id uuid NOT NULL,
+    file_url text
 );
 
 
@@ -4131,6 +4132,52 @@ ALTER TABLE public.block_revisions ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: context_items; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.context_items ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: context_items ctx_member_delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ctx_member_delete ON public.context_items FOR DELETE USING ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
+
+
+--
+-- Name: context_items ctx_member_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ctx_member_insert ON public.context_items FOR INSERT WITH CHECK ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
+
+
+--
+-- Name: context_items ctx_member_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ctx_member_read ON public.context_items FOR SELECT USING ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
+
+
+--
+-- Name: context_items ctx_member_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ctx_member_update ON public.context_items FOR UPDATE USING ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
+
 
 --
 -- Name: raw_dumps dump_member_insert; Type: POLICY; Schema: public; Owner: -
