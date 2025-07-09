@@ -143,4 +143,5 @@ format-command = "ruff format --stdin-filename {filename}"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "0.9.2"
+supabase-py = ">=2,<3"
 
