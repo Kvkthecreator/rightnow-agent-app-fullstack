@@ -1,7 +1,5 @@
 import WorkbenchLayoutDev from "@/components/workbench/WorkbenchLayoutDev";
-import BlocksPane from "@/components/blocks/BlocksPane";
-import ContextPanel from "@/components/context/ContextPanel";
-import { useFeatureFlag } from "@/lib/hooks/useFeatureFlag";
+import ContextBlocksPanel from "@/components/context/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
 
@@ -51,16 +49,11 @@ export default async function BasketWorkPage({ params }: PageProps) {
     blocks: blocks || [],
   };
 
-  const showContext = useFeatureFlag("showContextPanel", true);
-
   return (
     <WorkbenchLayoutDev
       initialSnapshot={snapshot}
       rightPanel={
-        <div className="right-panel">
-          {showContext && <ContextPanel items={contextItems || []} />}
-          <BlocksPane blocks={blocks || []} />
-        </div>
+        <ContextBlocksPanel blocks={blocks || []} contextItems={contextItems || []} />
       }
     />
   );

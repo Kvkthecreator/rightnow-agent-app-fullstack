@@ -19,7 +19,7 @@ export function useTemplateWizard() {
       files: fileUrls,
       guidelines: guidelines.trim() || undefined,
     });
-    router.push(`/baskets/${basket_id}/work-dev`);
+    router.push(`/baskets/${basket_id}/work`);
   };
 
   return {
