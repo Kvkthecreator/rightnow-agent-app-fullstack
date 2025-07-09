@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { supabase } from "@/lib/supabaseClient";
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
 const baseItems = [
   { href: "/dashboard", label: "🧶 Dashboard" },
@@ -17,13 +18,11 @@ const baseItems = [
 ];
 
 interface SidebarProps {
-  open: boolean;
-  onClose: () => void;
-  collapsible?: boolean;
   className?: string;
 }
 
-const Sidebar = ({ open, onClose, collapsible = false, className }: SidebarProps) => {
+const Sidebar = ({ className }: SidebarProps) => {
+  const { isOpen, collapsible, closeSidebar } = useSidebarStore();
   const pathname = usePathname();
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -37,6 +36,17 @@ const Sidebar = ({ open, onClose, collapsible = false, className }: SidebarProps
     };
     getSession();
   }, [supabase]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (!collapsible) return;
+      if (!(e.target as HTMLElement).closest('.sidebar')) {
+        closeSidebar();
+      }
+    }
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [collapsible, closeSidebar]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -59,9 +69,9 @@ const Sidebar = ({ open, onClose, collapsible = false, className }: SidebarProps
   return (
     <aside
       className={clsx(
-        "fixed top-0 left-0 z-50 h-screen w-64 bg-background border-r border-border shadow-md transform transition-transform",
+        "sidebar fixed top-0 left-0 z-50 h-screen w-64 bg-background border-r border-border shadow-md transform transition-transform",
         collapsible ? "md:fixed" : "md:relative md:block md:min-h-screen",
-        open ? "translate-x-0" : "-translate-x-full",
+        isOpen ? "translate-x-0" : "-translate-x-full",
         !collapsible && "md:translate-x-0",
         className
       )}
@@ -71,7 +81,7 @@ const Sidebar = ({ open, onClose, collapsible = false, className }: SidebarProps
           "absolute top-3 left-3 p-1 rounded-md hover:bg-muted",
           !collapsible && "md:hidden"
         )}
-        onClick={onClose}
+        onClick={closeSidebar}
         aria-label="Close sidebar"
       >
         <X className="h-5 w-5" />
