@@ -9,5 +9,5 @@ export function useAutoSidebarBehavior() {
   useEffect(() => {
     const shouldCollapse = pathname.startsWith('/baskets') || pathname.startsWith('/blocks')
     setCollapsible(shouldCollapse)
-  }, [pathname, setCollapsible])
+  }, [pathname])
 }
