@@ -2478,7 +2478,8 @@ CREATE TABLE public.raw_dumps (
     file_refs jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     workspace_id uuid NOT NULL,
-    file_url text
+    file_url text,
+    document_id uuid
 );
 
 
@@ -3443,6 +3444,13 @@ CREATE INDEX idx_documents_workspace ON public.documents USING btree (workspace_
 
 
 --
+-- Name: idx_rawdump_doc; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
+
+
+--
 -- Name: ix_realtime_subscription_entity; Type: INDEX; Schema: realtime; Owner: -
 --
 
@@ -3818,6 +3826,14 @@ ALTER TABLE ONLY public.blocks
 
 ALTER TABLE ONLY public.baskets
     ADD CONSTRAINT fk_raw_dump FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: raw_dumps fk_rawdump_document; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.raw_dumps
+    ADD CONSTRAINT fk_rawdump_document FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
 
 
 --
