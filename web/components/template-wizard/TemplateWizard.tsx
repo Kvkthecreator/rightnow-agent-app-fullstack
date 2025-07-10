@@ -2,54 +2,56 @@
 import { Button } from "@/components/ui/Button";
 import { ProgressStepper } from "@/components/ui/ProgressStepper";
 import { useTemplateWizard } from "@/lib/hooks/useTemplateWizard";
-import UploadDocsStep from "./UploadDocsStep";
-
-const stepLabels = ["Start", "Upload", "Guidelines", "Review"];
+import TemplatePicker from "@/components/template-flows/landing/TemplatePicker";
 
 export function TemplateWizard() {
   const {
-    step,
+    stepIndex,
+    stepLabels,
     next,
     back,
+    selectTemplate,
+    templateSteps,
     createBasket,
     fileUrls,
     setFileUrls,
     guidelines,
     setGuidelines,
+    docCount,
+    templateTitle,
   } = useTemplateWizard();
+
+  const currentStep = (() => {
+    if (stepIndex === 0) return TemplatePicker;
+    return templateSteps[stepIndex - 1];
+  })();
 
   return (
     <div className="w-full max-w-2xl space-y-4" data-testid="wizard">
-      <ProgressStepper current={step + 1} steps={stepLabels} />
+      <ProgressStepper current={stepIndex + 1} steps={stepLabels} />
+      {stepIndex > 0 && templateTitle && (
+        <h2 className="text-xl font-semibold">{templateTitle}</h2>
+      )}
       <div className="border rounded-md p-6 min-h-[150px]">
-        {step === 1 && <UploadDocsStep onFilesChange={setFileUrls} />}
-        {step === 2 && (
-          <textarea
-            className="w-full border rounded p-2 text-sm"
-            rows={4}
-            placeholder="Guidelines (optional)"
-            value={guidelines}
-            onChange={(e) => setGuidelines(e.target.value)}
+        {currentStep === TemplatePicker ? (
+          <TemplatePicker onSelect={selectTemplate} />
+        ) : (
+          <currentStep
+            fileUrls={fileUrls}
+            setFileUrls={setFileUrls}
+            guidelines={guidelines}
+            setGuidelines={setGuidelines}
           />
-        )}
-        {step === 3 && (
-          <div className="space-y-2 text-sm">
-            <p>{fileUrls.length} files uploaded.</p>
-            {guidelines && <p>Guidelines: {guidelines}</p>}
-          </div>
-        )}
-        {step === 0 && (
-          <p className="text-center text-sm text-muted-foreground">Start Wizard</p>
         )}
       </div>
       <div className="flex justify-between">
-        {step > 0 && (
+        {stepIndex > 0 && (
           <Button variant="ghost" onClick={back}>
             Back
           </Button>
         )}
-        {step < 3 ? (
-          <Button onClick={next} disabled={step === 1 && fileUrls.length < 3}>
+        {stepIndex < templateSteps.length ? (
+          <Button onClick={next} disabled={stepIndex === 1 && fileUrls.length < docCount}>
             Next
           </Button>
         ) : (
@@ -59,3 +61,4 @@ export function TemplateWizard() {
     </div>
   );
 }
+
