@@ -26,6 +26,8 @@ export function TemplateWizard() {
     return templateSteps[stepIndex - 1];
   })();
 
+  const StepComponent = currentStep;
+
   return (
     <div className="w-full max-w-2xl space-y-4" data-testid="wizard">
       <ProgressStepper current={stepIndex + 1} steps={stepLabels} />
@@ -36,7 +38,7 @@ export function TemplateWizard() {
         {currentStep === TemplatePicker ? (
           <TemplatePicker onSelect={selectTemplate} />
         ) : (
-          <currentStep
+          <StepComponent
             fileUrls={fileUrls}
             setFileUrls={setFileUrls}
             guidelines={guidelines}
