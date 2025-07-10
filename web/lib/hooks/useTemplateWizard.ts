@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBasketFromTemplate } from "@/lib/baskets/createBasketFromTemplate";
+import { createClient } from "@/lib/supabaseClient";
 
 export type WizardStep = 0 | 1 | 2 | 3;
 
@@ -19,7 +20,22 @@ export function useTemplateWizard() {
       files: fileUrls,
       guidelines: guidelines.trim() || undefined,
     });
-    router.push(`/baskets/${basket_id}/work`);
+
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("basket_id", basket_id)
+      .order("created_at")
+      .limit(1)
+      .single();
+
+    const firstDoc = data?.id;
+    if (firstDoc) {
+      router.push(`/baskets/${basket_id}/docs/${firstDoc}/work`);
+    } else {
+      router.push(`/baskets/${basket_id}/work`);
+    }
   };
 
   return {
