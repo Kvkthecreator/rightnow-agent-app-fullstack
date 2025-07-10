@@ -68,13 +68,10 @@ const Sidebar = ({ className }: SidebarProps) => {
 
   return (
     <aside
-      className={clsx(
-        "sidebar fixed top-0 left-0 z-50 h-screen w-64 bg-background border-r border-border shadow-md transform transition-transform",
-        collapsible ? "md:fixed" : "md:relative md:block md:min-h-screen",
-        isOpen ? "translate-x-0" : "-translate-x-full",
-        !collapsible && "md:translate-x-0",
-        className
-      )}
+      className={`sidebar fixed top-0 left-0 z-40 h-screen w-64 bg-background border-r border-border shadow-md transition-transform duration-300
+        ${isOpen ? "translate-x-0" : "-translate-x-full"}
+        ${collapsible ? "md:relative md:translate-x-0" : ""}
+        ${className ?? ""}`}
     >
       <button
         className={clsx(
