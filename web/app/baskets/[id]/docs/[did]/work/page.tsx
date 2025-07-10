@@ -5,11 +5,11 @@ import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
 
 interface PageProps {
-  params: Promise<{ bid: string; did: string }>;
+  params: Promise<{ id: string; did: string }>;
 }
 
 export default async function DocWorkPage({ params }: PageProps) {
-  const { bid, did } = await params;
+  const { id, did } = await params;
   const supabase = createServerSupabaseClient();
   const {
     data: { session },
@@ -21,7 +21,7 @@ export default async function DocWorkPage({ params }: PageProps) {
   const { data: basket } = await supabase
     .from("baskets")
     .select("id, name")
-    .eq("id", bid)
+    .eq("id", id)
     .single();
   if (!basket) {
     redirect("/404");
@@ -40,20 +40,20 @@ export default async function DocWorkPage({ params }: PageProps) {
     .select(
       "id, semantic_type, content, state, scope, canonical_value, actor, created_at"
     )
-    .eq("basket_id", bid)
+    .eq("basket_id", id)
     .in("state", ["LOCKED", "PROPOSED", "CONSTANT"]);
 
   const { data: basketGuidelines } = await supabase
     .from("context_items")
     .select("id, content")
-    .eq("basket_id", bid)
+    .eq("basket_id", id)
     .is("document_id", null)
     .eq("status", "active");
 
   const { data: docGuidelines } = await supabase
     .from("context_items")
     .select("id, content")
-    .eq("basket_id", bid)
+    .eq("basket_id", id)
     .eq("document_id", did)
     .eq("status", "active");
 
