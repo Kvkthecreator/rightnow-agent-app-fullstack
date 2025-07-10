@@ -39,6 +39,17 @@ export interface Database {
           ts: string;
         }
       }
+      documents: {
+        Row: {
+          id: string;
+          basket_id: string | null;
+          title: string;
+          content_raw: string;
+          content_rendered: string | null;
+          created_at: string;
+          updated_at: string;
+        }
+      }
     };
     Views: {
       v_basket_overview: {
