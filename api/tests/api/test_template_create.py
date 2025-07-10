@@ -63,6 +63,7 @@ def test_create_from_template(monkeypatch):
     assert len(store.get("baskets", [])) == 1
     assert len(store.get("documents", [])) == 3
     assert len(store.get("raw_dumps", [])) == 3
+    assert all(rd.get("document_id") for rd in store["raw_dumps"])
     assert all(rd["file_url"] == f"f{i+1}" for i, rd in enumerate(store["raw_dumps"]))
     assert store["blocks"][0]["text"] == "{{BRAND_NAME}}"
     assert store["context_items"][0]["content"] == payload["guidelines"]
