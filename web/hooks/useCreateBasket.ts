@@ -103,6 +103,7 @@ export function useCreateBasket() {
     addDump,
     setGuidelines,
     submit,
+    mutate: submit,
     canSubmit,
   };
 }
