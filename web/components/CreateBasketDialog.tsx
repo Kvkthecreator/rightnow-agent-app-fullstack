@@ -25,7 +25,7 @@ export default function CreateBasketDialog({
   onOpenChange,
 }: CreateBasketDialogProps) {
   const router = useRouter();
-  const { mutate } = useCreateBasket();
+  const { mutate, setBasketName: setGlobalBasketName } = useCreateBasket();
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [basketName, setBasketName] = useState("");
   const [templateSlug, setTemplateSlug] = useState<"brand_playbook" | "blank">(
@@ -36,8 +36,7 @@ export default function CreateBasketDialog({
   const handleCreate = async () => {
     try {
       setLoading(true);
-      const id = await mutate(basketName, templateSlug);
-      await router.push(`/baskets/${id}/work`);
+      await mutate();
       onOpenChange(false);
     } catch (err: any) {
       console.error(err);
@@ -59,7 +58,10 @@ export default function CreateBasketDialog({
           <Input
             autoFocus
             value={basketName}
-            onChange={(e) => setBasketName(e.target.value)}
+            onChange={(e) => {
+              setBasketName(e.target.value);
+              setGlobalBasketName(e.target.value);
+            }}
           />
         </div>
 
