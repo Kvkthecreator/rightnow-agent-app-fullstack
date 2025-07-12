@@ -12,9 +12,7 @@ from ..utils.supabase_client import supabase_client as supabase
 from ..utils.workspace import get_or_create_workspace
 
 # Agent calls
-from ..agent_tasks.orch.doc_scaffold_agent import run as doc_scaffold_agent
-from ..agent_tasks.orch.orch_block_manager_agent import run as orch_block_manager_agent
-from ..agent_tasks.orch.context_extractor_agent import run as context_extractor_agent
+from ..agent_tasks.run_agent_chain import run_agent_chain
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 log = logging.getLogger("uvicorn.error")
@@ -126,9 +124,7 @@ async def create_basket_universal(
 
     # ── agent chain ──────────────────────────────────────────────
     try:
-        await doc_scaffold_agent(basket_id)
-        await orch_block_manager_agent(basket_id)
-        await context_extractor_agent(basket_id)
+        await run_agent_chain(basket_id)
     except Exception:
         log.exception("agent invocation failed")
 
