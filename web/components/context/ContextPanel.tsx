@@ -2,7 +2,10 @@
 
 export interface ContextItem {
   id: string;
+  type?: string;
   content: string;
+  /** undefined = active (back-compat) */
+  status?: "active" | "verified";
 }
 
 export default function ContextPanel({ items }: { items: ContextItem[] }) {
