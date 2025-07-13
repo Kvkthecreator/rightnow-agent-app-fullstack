@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabaseClient";
+import { createClient } from "./supabaseClient";
 
 export async function fetchWithToken(
   input: RequestInfo | URL,

@@ -1,7 +1,7 @@
 /**
  * Simple wrapper for API calls to your FastAPI server at api.yarnnn.com.
  */
-import { fetchWithToken } from "@/lib/fetchWithToken";
+import { fetchWithToken } from "./fetchWithToken";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.yarnnn.com";
