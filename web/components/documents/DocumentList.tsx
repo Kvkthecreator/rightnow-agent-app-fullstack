@@ -1,10 +1,6 @@
 "use client";
-import Link from "next/link";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
-import { useDocuments } from "@/lib/baskets/useDocuments";
-
-dayjs.extend(relativeTime);
+import { useRouter } from "next/navigation";
+import { useDocuments } from "../../lib/baskets/useDocuments";
 
 interface Props {
   basketId: string;
@@ -13,6 +9,7 @@ interface Props {
 
 export default function DocumentList({ basketId, activeId }: Props) {
   const { docs, isLoading, error } = useDocuments(basketId);
+  const router = useRouter();
 
   if (isLoading) {
     return (
@@ -30,26 +27,28 @@ export default function DocumentList({ basketId, activeId }: Props) {
     );
   }
 
+  if (docs.length === 0) {
+    return (
+      <div className="p-6 text-sm text-muted-foreground">No documents yet</div>
+    );
+  }
+
   return (
     <ul className="p-6 space-y-2 overflow-y-auto flex-1">
       {docs.map((doc) => {
         const isActive = doc.id === activeId;
+        const title = doc.title || "Untitled Document";
         return (
           <li
             key={doc.id}
-            className={`border rounded-md p-3 flex items-center gap-3 ${
+            onClick={() =>
+              router.push(`/baskets/${basketId}/docs/${doc.id}/work`)
+            }
+            className={`border rounded-md p-3 flex items-center gap-3 cursor-pointer ${
               isActive ? "ring-2 ring-primary" : ""
             }`}
           >
-            <Link
-              href={`/baskets/${basketId}/docs/${doc.id}/work`}
-              className="flex-1 truncate"
-            >
-              {doc.title}
-            </Link>
-            <span className="text-[10px] text-muted-foreground shrink-0">
-              {dayjs(doc.updated_at).fromNow()}
-            </span>
+            <span className="flex-1 truncate">{title}</span>
           </li>
         );
       })}
