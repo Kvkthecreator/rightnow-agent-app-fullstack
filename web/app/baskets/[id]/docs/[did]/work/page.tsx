@@ -1,6 +1,5 @@
 import WorkbenchLayoutDev from "@/components/workbench/WorkbenchLayoutDev";
-import ContextPanel from "@/components/context/ContextPanel";
-import BlockLegend from "@/components/documents/BlockLegend";
+import RightPanelTabs from "@/components/workbench/RightPanelTabs";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
 
@@ -69,10 +68,11 @@ export default async function DocWorkPage({ params }: PageProps) {
     <WorkbenchLayoutDev
       initialSnapshot={snapshot}
       rightPanel={
-        <div>
-          <ContextPanel items={guidelines} />
-          <BlockLegend />
-        </div>
+        <RightPanelTabs
+          basketId={id}
+          blocks={blocks || []}
+          contextItems={guidelines}
+        />
       }
     />
   );
