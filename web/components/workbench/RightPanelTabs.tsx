@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/Button";
 import ContextPanel, { ContextItem } from "@/components/context/ContextPanel";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { createContextItem, updateContextItem, deleteContextItem } from "@/lib/contextItems";
 import { apiDelete, apiPut } from "@/lib/api";
 
@@ -19,8 +20,8 @@ export default function RightPanelTabs({
   contextItems: initialItems,
 }: {
   basketId: string;
-  blocks: Block[];
-  contextItems: ContextItem[];
+  blocks?: Block[];
+  contextItems?: ContextItem[];
 }) {
   const [tab, setTab] = useState("context");
   const [blocks, setBlocks] = useState(initialBlocks);
@@ -75,7 +76,9 @@ export default function RightPanelTabs({
           <Button size="sm" onClick={handleAdd} className="mb-2">
             + Add Context Item
           </Button>
-          {items.length === 0 ? (
+          {items === undefined ? (
+            <Skeleton className="h-6 mb-2" />
+          ) : items.length === 0 ? (
             <div className="text-sm text-muted-foreground">No context items.</div>
           ) : (
             items.map((it) => (
@@ -100,7 +103,9 @@ export default function RightPanelTabs({
       </TabsContent>
       <TabsContent value="blocks">
         <div className="p-2">
-          {blocks.length === 0 ? (
+          {blocks === undefined ? (
+            <Skeleton className="h-6 mb-2" />
+          ) : blocks.length === 0 ? (
             <div className="text-sm text-muted-foreground">No blocks.</div>
           ) : (
             blocks.map((b) => (

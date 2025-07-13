@@ -9,13 +9,13 @@ export interface ContextItemPayload {
 }
 
 export function createContextItem(body: ContextItemPayload) {
-  return apiPost('/api/context-items', body);
+  return apiPost('/api/context_items', body);
 }
 
 export function updateContextItem(id: string, body: Partial<ContextItemPayload>) {
-  return apiPut(`/api/context-items/${id}`, body);
+  return apiPut(`/api/context_items/${id}`, body);
 }
 
 export function deleteContextItem(id: string) {
-  return apiDelete(`/api/context-items/${id}`);
+  return apiDelete(`/api/context_items/${id}`);
 }
