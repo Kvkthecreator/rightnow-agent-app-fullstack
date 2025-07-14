@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const isWorkbench = /^\/baskets\/[^/]+\/work$/.test(pathname);
+    const isWorkbench =
+        /^\/baskets\/[^/]+(?:\/docs\/[^/]+)?\/work$/.test(pathname);
     if (isWorkbench) {
         return <>{children}</>;
     }
