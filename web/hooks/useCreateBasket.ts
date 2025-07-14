@@ -77,7 +77,7 @@ export function useCreateBasket() {
         raw_dumps: state.dumps.map((d) => ({ body_md: d })),
         guidelines: state.guidelines.trim() || null,
       };
-      const res = await fetch("/api/baskets/new-universal", {
+      const res = await fetch("/api/baskets/new", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
