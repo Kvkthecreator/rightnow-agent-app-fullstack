@@ -24,7 +24,6 @@ from .agent_entrypoints import router as agent_router, run_agent, run_agent_dire
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
 from .routes.basket_new import router as basket_new_router
-from .routes.basket_new_universal import router as basket_new_universal_router
 from .routes.basket_snapshot import router as snapshot_router
 from .routes.baskets import router as basket_router
 from .routes.blocks import router as blocks_router
@@ -48,7 +47,6 @@ routers = (
     change_queue_router,
     basket_router,
     basket_new_router,
-    basket_new_universal_router,
     snapshot_router,
     inputs_router,
     debug_router,
