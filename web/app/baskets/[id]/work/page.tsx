@@ -1,4 +1,4 @@
-import WorkbenchLayoutDev from "@/components/workbench/WorkbenchLayoutDev";
+import WorkbenchLayout from "@/components/workbench/WorkbenchLayout";
 import ContextBlocksPanel from "@/components/context/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
@@ -50,8 +50,8 @@ export default async function BasketWorkPage({ params }: PageProps) {
   };
 
   return (
-    <WorkbenchLayoutDev
-      initialSnapshot={snapshot}
+    <WorkbenchLayout
+      snapshot={snapshot}
       rightPanel={
         <ContextBlocksPanel blocks={blocks || []} contextItems={contextItems || []} />
       }
