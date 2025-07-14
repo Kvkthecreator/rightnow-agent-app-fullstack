@@ -46,7 +46,9 @@ export default async function BasketWorkPage({ params }: PageProps) {
   const snapshot = {
     basket,
     raw_dump_body: dump?.body_md || "",
+    file_refs: [],
     blocks: blocks || [],
+    proposed_blocks: [],
   };
 
   return (
