@@ -1,4 +1,4 @@
-import WorkbenchLayoutDev from "@/components/workbench/WorkbenchLayoutDev";
+import WorkbenchLayout from "@/components/workbench/WorkbenchLayout";
 import ContextBlocksPanel from "@/components/context/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
@@ -19,7 +19,7 @@ export default async function BasketWorkPage({ params }: PageProps) {
 
   const { data: basket } = await supabase
     .from("baskets")
-    .select("id, name, raw_dump_id")
+    .select("id, name, raw_dump_id, created_at")
     .eq("id", id)
     .single();
   if (!basket) {
@@ -44,14 +44,19 @@ export default async function BasketWorkPage({ params }: PageProps) {
     .eq("status", "active");
 
   const snapshot = {
-    basket,
+    basket: {
+      ...basket,
+      created_at: basket.created_at ?? new Date().toISOString(),
+    },
     raw_dump_body: dump?.body_md || "",
+    file_refs: [],
     blocks: blocks || [],
+    proposed_blocks: [],
   };
 
   return (
-    <WorkbenchLayoutDev
-      initialSnapshot={snapshot}
+    <WorkbenchLayout
+      snapshot={snapshot}
       rightPanel={
         <ContextBlocksPanel blocks={blocks || []} contextItems={contextItems || []} />
       }
