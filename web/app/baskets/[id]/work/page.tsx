@@ -1,4 +1,4 @@
-import WorkbenchLayout from "@/components/basket-work/WorkbenchLayout";
+import BasketWorkbenchLayout from "@/components/basket-work/BasketWorkbenchLayout";
 import ContextBlocksPanel from "@/components/basket-work/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
@@ -25,6 +25,11 @@ export default async function BasketWorkPage({ params }: PageProps) {
   if (!basket) {
     redirect("/404");
   }
+
+  const { data: documents } = await supabase
+    .from("documents")
+    .select("id, title")
+    .eq("basket_id", id);
 
   const { data: firstDoc } = await supabase
     .from("documents")
@@ -85,8 +90,10 @@ export default async function BasketWorkPage({ params }: PageProps) {
   };
 
   return (
-    <WorkbenchLayout
+    <BasketWorkbenchLayout
       snapshot={snapshot}
+      documentId={selectedDocId ?? undefined}
+      documents={documents || []}
       rightPanel={
         <ContextBlocksPanel
           basketId={id}
