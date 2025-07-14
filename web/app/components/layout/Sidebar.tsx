@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { supabase } from "@/lib/supabaseClient";
 import { useEffect, useState } from "react";
-import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon.svg";
+import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
 const baseItems = [
