@@ -1,77 +1,66 @@
 "use client";
 
 import { useState } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/Button";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { ContextItem } from "@/components/context/ContextPanel";
+import { useFeatureFlag } from "@/lib/hooks/useFeatureFlag";
+import ContextPanel, { ContextItem } from "@/components/context/ContextPanel";
+import BlocksPane from "@/components/blocks/BlocksPane";
+import { apiDelete, apiPut } from "@/lib/api";
 import {
   createContextItem,
   updateContextItem,
-  deleteContextItem,
 } from "@/lib/contextItems";
-import { apiDelete, apiPut } from "@/lib/api";
 
 interface Block {
   id: string;
   content: string;
-  state: string;          // e.g. "LOCKED"
+  state: string;
   scope?: string | null;
 }
 
-export default function RightPanelTabs({
+interface Props {
+  basketId: string;
+  documentId?: string;
+  blocks: Block[];
+  contextItems: ContextItem[];
+}
+
+export default function ContextBlocksPanel({
   basketId,
+  documentId,
   blocks: initialBlocks,
   contextItems: initialItems,
-}: {
-  basketId: string;
-  blocks?: Block[];
-  contextItems?: ContextItem[];
-}) {
-  const [tab, setTab] = useState("context");
-
-  // ✅ always an array, never undefined
+}: Props) {
+  const showContext = useFeatureFlag("showContextPanel", true);
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks ?? []);
   const [items, setItems] = useState<ContextItem[]>(initialItems ?? []);
-
-  /* ---------- Block handlers ---------- */
 
   async function handleDeleteBlock(id: string) {
     if (!window.confirm("Are you sure you want to delete this block?")) return;
     await apiDelete(`/api/blocks/${id}`);
     setBlocks((b) => b.filter((blk) => blk.id !== id));
-    console.log("log_event", "block_deleted", { id });
   }
 
   async function handleEditBlock(block: Block) {
     const content = window.prompt("Edit block text", block.content);
     if (content === null) return;
     const scope = window.prompt("Scope", block.scope || "") || null;
-
-    const res = await apiPut(`/api/blocks/${block.id}`, { content, scope });
+    await apiPut(`/api/blocks/${block.id}`, { content, scope });
     setBlocks((b) =>
       b.map((blk) => (blk.id === block.id ? { ...blk, content, scope } : blk)),
     );
-    console.log("log_event", "block_updated", res);
   }
-
-  /* ---------- Context-item handlers ---------- */
 
   async function handleToggleItem(it: ContextItem, verified: boolean) {
     const status = verified ? "verified" : "active";
     await updateContextItem(it.id, { status });
-    setItems((arr) =>
-      arr.map((i) => (i.id === it.id ? { ...i, status } : i)),
-    );
+    setItems((arr) => arr.map((i) => (i.id === it.id ? { ...i, status } : i)));
   }
 
   async function handleEditItem(it: ContextItem) {
     const content = window.prompt("Edit content", it.content);
     if (content === null) return;
     await updateContextItem(it.id, { content });
-    setItems((arr) =>
-      arr.map((i) => (i.id === it.id ? { ...i, content } : i)),
-    );
+    setItems((arr) => arr.map((i) => (i.id === it.id ? { ...i, content } : i)));
   }
 
   async function handleAdd() {
@@ -79,9 +68,9 @@ export default function RightPanelTabs({
     if (!type) return;
     const content = window.prompt("Content");
     if (!content) return;
-
     const res = await createContextItem({
       basket_id: basketId,
+      document_id: documentId ?? null,
       type,
       content,
       status: "active",
@@ -89,27 +78,13 @@ export default function RightPanelTabs({
     setItems((arr) => [...arr, res as any]);
   }
 
-  /* ---------- Render ---------- */
-
   return (
-    <Tabs
-      value={tab}
-      onValueChange={setTab}
-      defaultValue="context"
-      className="w-full"
-    >
-      <TabsList className="grid grid-cols-2 m-2">
-        <TabsTrigger value="context">Context</TabsTrigger>
-        <TabsTrigger value="blocks">Blocks</TabsTrigger>
-      </TabsList>
-
-      {/* --- Context tab --- */}
-      <TabsContent value="context">
+    <div className="right-panel space-y-4">
+      {showContext && (
         <div className="p-2">
-          <Button size="sm" onClick={handleAdd} className="mb-2">
+          <button onClick={handleAdd} className="mb-2 text-sm text-primary">
             + Add Context Item
-          </Button>
-
+          </button>
           {items.length === 0 ? (
             <div className="text-sm text-muted-foreground">No context items.</div>
           ) : (
@@ -126,9 +101,7 @@ export default function RightPanelTabs({
                       type="checkbox"
                       className="ml-1"
                       checked={it.status === "verified"}
-                      onChange={(e) =>
-                        handleToggleItem(it, e.target.checked)
-                      }
+                      onChange={(e) => handleToggleItem(it, e.target.checked)}
                     />
                   </label>
                   <button onClick={() => handleEditItem(it)}>✏️</button>
@@ -137,31 +110,27 @@ export default function RightPanelTabs({
             ))
           )}
         </div>
-      </TabsContent>
-
-      {/* --- Blocks tab --- */}
-      <TabsContent value="blocks">
-        <div className="p-2">
-          {blocks.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No blocks.</div>
-          ) : (
-            blocks.map((b) => (
-              <div
-                key={b.id}
-                className="border rounded p-2 mb-2 text-sm flex justify-between"
-              >
-                <span>{b.content.slice(0, 80)}</span>
-                {b.state !== "LOCKED" && (
-                  <span className="space-x-2">
-                    <button onClick={() => handleEditBlock(b)}>✏️</button>
-                    <button onClick={() => handleDeleteBlock(b.id)}>🗑</button>
-                  </span>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </TabsContent>
-    </Tabs>
+      )}
+      <div>
+        {blocks.length === 0 ? (
+          <div className="text-sm text-muted-foreground p-2">No blocks.</div>
+        ) : (
+          blocks.map((b) => (
+            <div
+              key={b.id}
+              className="border rounded p-2 mb-2 text-sm flex justify-between"
+            >
+              <span>{b.content.slice(0, 80)}</span>
+              {b.state !== "LOCKED" && (
+                <span className="space-x-2">
+                  <button onClick={() => handleEditBlock(b)}>✏️</button>
+                  <button onClick={() => handleDeleteBlock(b.id)}>🗑</button>
+                </span>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 }

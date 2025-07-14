@@ -1,5 +1,5 @@
-import WorkbenchLayoutDev from "@/components/workbench/WorkbenchLayoutDev";
-import RightPanelTabs from "@/components/workbench/RightPanelTabs";
+import WorkbenchLayout from "@/components/basket-work/WorkbenchLayout";
+import ContextBlocksPanel from "@/components/basket-work/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
 
@@ -19,7 +19,7 @@ export default async function DocWorkPage({ params }: PageProps) {
 
   const { data: basket } = await supabase
     .from("baskets")
-    .select("id, name")
+    .select("id, name, created_at")
     .eq("id", id)
     .single();
   if (!basket) {
@@ -59,17 +59,20 @@ export default async function DocWorkPage({ params }: PageProps) {
   const snapshot = {
     basket,
     raw_dump_body: dump?.body_md || "",
+    file_refs: [],
     blocks: blocks || [],
+    proposed_blocks: [],
   };
 
   const guidelines = [...(basketGuidelines || []), ...(docGuidelines || [])];
 
   return (
-    <WorkbenchLayoutDev
-      initialSnapshot={snapshot}
+    <WorkbenchLayout
+      snapshot={snapshot}
       rightPanel={
-        <RightPanelTabs
+        <ContextBlocksPanel
           basketId={id}
+          documentId={did}
           blocks={blocks || []}
           contextItems={guidelines}
         />
