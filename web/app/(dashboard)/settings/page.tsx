@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Shell from "@/components/layouts/Shell";
+import Shell from "@/components/layout/Shell";
 import ProfileTab from "@/components/settings/ProfileTab";
 import PreferencesTab from "@/components/settings/PreferencesTab";
 import { Card } from "@/components/ui/Card";

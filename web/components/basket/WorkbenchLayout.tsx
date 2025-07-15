@@ -1,9 +1,9 @@
 "use client";
 import { ReactNode } from "react";
-import BasketDocList from "@/components/basket-work/BasketDocList";
+import BasketDocList from "@/components/basket/BasketDocList";
 import NarrativePane from "@/components/basket/NarrativePane";
 import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
-import RightPanelLayout from "@/components/layout/RightPanel";
+import RightPanelLayout from "@/components/common/RightPanel";
 
 interface Props {
     snapshot: BasketSnapshot;

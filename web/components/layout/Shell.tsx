@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect } from "react";
 import Sidebar from "@/app/components/layout/Sidebar";
-import TopBar from "@/components/layout/TopBar";
+import TopBar from "@/components/common/TopBar";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 import { usePathname } from "next/navigation";
 
