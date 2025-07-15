@@ -4,7 +4,6 @@ import "./globals.css";
 import "../styles/diff.css";
 import SupabaseProvider from "@/components/SupabaseProvider";
 import { Toaster } from "react-hot-toast";
-import AppLayout from "@/components/layout/AppLayout";
 import DumpModalWrapper from "@/components/DumpModalWrapper";
 import { BasketProvider } from "@/lib/context/BasketContext";
 
@@ -46,9 +45,7 @@ export default function RootLayout({
     >
       <body className="antialiased min-h-screen">
         <BasketProvider>
-          <AppLayout>
-            <SupabaseProvider>{children}</SupabaseProvider>
-          </AppLayout>
+          <SupabaseProvider>{children}</SupabaseProvider>
           <DumpModalWrapper />
         </BasketProvider>
         <Toaster position="top-right" />

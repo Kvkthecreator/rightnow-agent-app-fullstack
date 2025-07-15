@@ -1,5 +1,5 @@
 
-import BasketWorkbenchLayout from "@/components/basket/BasketWorkbenchLayout";
+import WorkbenchLayout from "@/components/basket/WorkbenchLayout";
 import ContextBlocksPanel from "@/components/basket/ContextBlocksPanel";
 
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
@@ -45,17 +45,19 @@ export default async function BasketWorkPage({ params }: PageProps) {
     .limit(1)
     .maybeSingle();
 
-  const selectedDocId = firstDoc?.id;
+  const selectedDocId = firstDoc?.id ?? null;
 
-  const { data: dump } = selectedDocId
-    ? await supabase
-        .from("raw_dumps")
-        .select("body_md")
-        .eq("document_id", selectedDocId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single()
-    : { data: null };
+  let rawDumpBody = "";
+  if (selectedDocId) {
+    const { data: dump } = await supabase
+      .from("raw_dumps")
+      .select("body_md")
+      .eq("document_id", selectedDocId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    rawDumpBody = dump?.body_md ?? "";
+  }
 
   const { data: blocks } = await supabase
     .from("blocks")
@@ -79,23 +81,23 @@ export default async function BasketWorkPage({ params }: PageProps) {
         .eq("basket_id", id)
         .eq("document_id", selectedDocId)
         .eq("status", "active")
-    : { data: null };
+    : { data: [] };
 
-  const contextItems = [...(basketItems || []), ...(docItems || [])];
+  const contextItems = [...(basketItems ?? []), ...(docItems ?? [])];
 
   const snapshot = {
     basket: {
       ...basket,
       created_at: basket.created_at ?? new Date().toISOString(),
     },
-    raw_dump_body: dump?.body_md || "",
+    raw_dump_body: rawDumpBody,
     file_refs: [],
     blocks: blocks || [],
     proposed_blocks: [],
   };
 
   return (
-    <BasketWorkbenchLayout
+    <WorkbenchLayout
       snapshot={snapshot}
       documentId={selectedDocId ?? undefined}
       documents={documents || []}
