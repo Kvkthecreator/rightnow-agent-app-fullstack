@@ -14,7 +14,7 @@ interface Props {
     children?: ReactNode;
 }
 
-export default function WorkbenchLayout({
+export default function DocumentWorkbenchLayout({
     snapshot,
     onRunBlockifier,
     runningBlockifier,

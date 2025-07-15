@@ -1,6 +1,5 @@
 
-import WorkbenchLayout from "@/components/basket/WorkbenchLayout";
-import ContextBlocksPanel from "@/components/basket/ContextBlocksPanel";
+import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout";
 
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
@@ -32,11 +31,6 @@ export default async function BasketWorkPage({ params }: PageProps) {
     redirect("/404");
   }
 
-  const { data: documents } = await supabase
-    .from("documents")
-    .select("id, title")
-    .eq("basket_id", id);
-
   const { data: firstDoc } = await supabase
     .from("documents")
     .select("id")
@@ -59,56 +53,8 @@ export default async function BasketWorkPage({ params }: PageProps) {
     rawDumpBody = dump?.body_md ?? "";
   }
 
-  const { data: blocks } = await supabase
-    .from("blocks")
-    .select(
-      "id, semantic_type, content, state, scope, canonical_value, actor, created_at"
-    )
-    .eq("basket_id", id)
-    .in("state", ["LOCKED", "PROPOSED", "CONSTANT"]);
-
-  const { data: basketItems } = await supabase
-    .from("context_items")
-    .select("id, content")
-    .eq("basket_id", id)
-    .is("document_id", null)
-    .eq("status", "active");
-
-  const { data: docItems } = selectedDocId
-    ? await supabase
-        .from("context_items")
-        .select("id, content")
-        .eq("basket_id", id)
-        .eq("document_id", selectedDocId)
-        .eq("status", "active")
-    : { data: [] };
-
-  const contextItems = [...(basketItems ?? []), ...(docItems ?? [])];
-
-  const snapshot = {
-    basket: {
-      ...basket,
-      created_at: basket.created_at ?? new Date().toISOString(),
-    },
-    raw_dump_body: rawDumpBody,
-    file_refs: [],
-    blocks: blocks || [],
-    proposed_blocks: [],
-  };
 
   return (
-    <WorkbenchLayout
-      snapshot={snapshot}
-      documentId={selectedDocId ?? undefined}
-      documents={documents || []}
-      rightPanel={
-        <ContextBlocksPanel
-          basketId={id}
-          documentId={selectedDocId ?? undefined}
-          blocks={blocks || []}
-          contextItems={contextItems}
-        />
-      }
-    />
+    <BasketDashboardLayout basketId={id} dumpBody={rawDumpBody} />
   );
 }
