@@ -8,7 +8,7 @@ interface PageProps {
 }
 
 export default async function BasketWorkPage({ params }: PageProps) {
-  const { id } = params; // ✅ FIXED: remove unnecessary `await`
+  const { id } = params;
   const supabase = createServerSupabaseClient();
   const {
     data: { session },
