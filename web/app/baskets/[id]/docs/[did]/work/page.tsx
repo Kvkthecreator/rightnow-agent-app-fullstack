@@ -1,4 +1,4 @@
-import BasketWorkbenchLayout from "@/components/basket/BasketWorkbenchLayout";
+import DocumentWorkbenchLayout from "@/components/layouts/DocumentWorkbenchLayout";
 import ContextBlocksPanel from "@/components/basket/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
@@ -72,7 +72,7 @@ export default async function DocWorkPage({ params }: PageProps) {
   const guidelines = [...(basketGuidelines || []), ...(docGuidelines || [])];
 
   return (
-    <BasketWorkbenchLayout
+    <DocumentWorkbenchLayout
       snapshot={snapshot}
       documentId={did}
       documents={documents || []}

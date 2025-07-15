@@ -4,10 +4,13 @@ import Sidebar from "@/app/components/layout/Sidebar";
 import TopBar from "@/components/common/TopBar";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 import { usePathname } from "next/navigation";
+import { useFileDrag } from "@/hooks/useFileDrag";
+import { FileDropOverlay } from "@/components/FileDropOverlay";
 
 export default function Shell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const { openSidebar, closeSidebar, setCollapsible } = useSidebarStore();
+    const { isDraggingFile } = useFileDrag();
 
     useEffect(() => {
         const hideSidebar =
@@ -23,8 +26,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         }
     }, [pathname, setCollapsible, openSidebar, closeSidebar]);
 
+    function noopDropHandler(e: React.DragEvent) {
+        e.preventDefault();
+    }
+
     return (
-        <div className="flex h-screen overflow-hidden">
+        <div
+            className="flex h-screen overflow-hidden"
+            onDrop={noopDropHandler}
+            onDragOver={(e) => e.preventDefault()}
+        >
+            <FileDropOverlay isVisible={isDraggingFile} />
             <Sidebar />
             <div className="flex flex-1 flex-col">
                 <TopBar />

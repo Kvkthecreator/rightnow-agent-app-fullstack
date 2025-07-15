@@ -51,6 +51,7 @@ export default function CreateBasketDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Create Basket</DialogTitle>
+          <DialogDescription>Choose a name and optional template.</DialogDescription>
         </DialogHeader>
 
         <div className={step === 0 ? "space-y-4" : "hidden"}>
