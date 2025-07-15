@@ -23,7 +23,7 @@ export default async function BasketWorkPage({ params }: PageProps) {
 
   const { data: basket } = await supabase
     .from("baskets")
-    .select("id, name, created_at")
+    .select("id, name, status, tags")
     .eq("id", id)
     .single();
 
@@ -55,6 +55,12 @@ export default async function BasketWorkPage({ params }: PageProps) {
 
 
   return (
-    <BasketDashboardLayout basketId={id} dumpBody={rawDumpBody} />
+    <BasketDashboardLayout
+      basketId={id}
+      basketName={basket.name ?? "Untitled"}
+      status={basket.status ?? "draft"}
+      scope={basket.tags ?? []}
+      dumpBody={rawDumpBody}
+    />
   );
 }
