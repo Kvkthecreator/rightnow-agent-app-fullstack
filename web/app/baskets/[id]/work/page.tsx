@@ -1,13 +1,13 @@
-import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout";
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
-import { redirect } from "next/navigation";
+import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
+import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
+import { redirect } from "next/navigation"
 
 export default async function BasketWorkPage({
   params,
 }: {
-  params: { id: string };
+  params: { id: string }
 }) {
-  const { id } = params;
+  const { id } = params // ✅ No await here — `params` is not a Promise
 
   const supabase = createServerSupabaseClient()
 
@@ -16,18 +16,17 @@ export default async function BasketWorkPage({
   } = await supabase.auth.getSession()
 
   if (!session) {
-    redirect("/login");
+    redirect("/login")
   }
 
-  const { data: basket, error: basketError } = await supabase
+  const { data: basket } = await supabase
     .from("baskets")
-    .select("id, name, state, tags")
+    .select("id, name, status, tags")
     .eq("id", id)
     .single()
 
   if (!basket) {
-    // Disable redirect to inspect error first
-    return <div>⚠️ Basket not found for ID: {id}</div>
+    redirect("/404")
   }
 
   const { data: firstDoc } = await supabase
@@ -57,7 +56,7 @@ export default async function BasketWorkPage({
     <BasketDashboardLayout
       basketId={id}
       basketName={basket.name ?? "Untitled"}
-      status={basket.state ?? "draft"}
+      status={basket.status ?? "draft"}
       scope={basket.tags ?? []}
       dumpBody={rawDumpBody}
     />
