@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import Shell from "@/components/layouts/Shell";
+import Shell from "@/components/layout/Shell";
 
 interface DashboardLayoutProps {
   children: ReactNode;

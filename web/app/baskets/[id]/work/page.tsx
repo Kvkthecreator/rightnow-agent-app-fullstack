@@ -1,7 +1,7 @@
-// app/baskets/[id]/work/page.tsx
 
-import BasketWorkbenchLayout from "@/components/basket-work/BasketWorkbenchLayout";
-import ContextBlocksPanel from "@/components/basket-work/ContextBlocksPanel";
+import BasketWorkbenchLayout from "@/components/basket/BasketWorkbenchLayout";
+import ContextBlocksPanel from "@/components/basket/ContextBlocksPanel";
+
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
 

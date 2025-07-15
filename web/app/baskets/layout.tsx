@@ -1,6 +1,6 @@
 "use client";
 import { ReactNode } from "react";
-import Shell from "@/components/layouts/Shell";
+import Shell from "@/components/layout/Shell";
 import { usePathname } from "next/navigation";
 
 export default function Layout({ children }: { children: React.ReactNode }) {

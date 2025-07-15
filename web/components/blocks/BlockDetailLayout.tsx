@@ -1,6 +1,6 @@
 "use client";
 import { ReactNode } from "react";
-import RightPanelLayout from "@/components/layout/RightPanel";
+import RightPanelLayout from "@/components/common/RightPanel";
 
 interface Props {
   children: ReactNode;

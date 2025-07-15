@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Shell from "@/components/layouts/Shell";
+import Shell from "@/components/layout/Shell";
 import Brand from "@/components/Brand";
 
 export const metadata: Metadata = {

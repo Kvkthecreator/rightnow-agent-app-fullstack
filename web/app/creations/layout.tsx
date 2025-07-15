@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import Shell from "@/components/layouts/Shell";
+import Shell from "@/components/layout/Shell";
 
 interface CreationsLayoutProps {
   children: ReactNode;
