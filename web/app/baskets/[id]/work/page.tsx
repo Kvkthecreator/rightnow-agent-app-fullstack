@@ -2,16 +2,12 @@ import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
 import { redirect } from "next/navigation"
 
-// Remove custom interface
-// interface BasketWorkPageProps { ... }
-
-// Use Next.js built-in PageProps type
 export default async function BasketWorkPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { id } = await params // ✅ Fixed: await the params Promise
+  const { id } = await params
 
   const supabase = createServerSupabaseClient()
 
@@ -19,7 +15,7 @@ export default async function BasketWorkPage({
     data: { session },
   } = await supabase.auth.getSession()
 
-  console.log("\ud83d\udd10 Supabase session:", session)
+  console.log("🔐 Supabase session:", session)
 
   if (!session) {
     redirect("/login")
@@ -27,17 +23,17 @@ export default async function BasketWorkPage({
 
   const { data: basket, error: basketError } = await supabase
     .from("baskets")
-    .select("id, name, status, tags")
+    .select("id, name, state, tags")
     .eq("id", id)
     .single()
 
-  console.log("\ud83e\uddfa Basket ID param:", id)
-  console.log("\ud83d\uddde Supabase basket query result:", basket)
-  console.log("\u2757 Supabase basket query error:", basketError)
+  console.log("🧺 Basket ID param:", id)
+  console.log("📰 Supabase basket query result:", basket)
+  console.log("❗ Supabase basket query error:", basketError)
 
   if (!basket) {
-    // Temporarily disable redirect to see logs clearly
-    return <div>\u26a0\ufe0f Basket not found for ID: {id}</div>
+    // Disable redirect to inspect error first
+    return <div>⚠️ Basket not found for ID: {id}</div>
   }
 
   const { data: firstDoc } = await supabase
@@ -67,7 +63,7 @@ export default async function BasketWorkPage({
     <BasketDashboardLayout
       basketId={id}
       basketName={basket.name ?? "Untitled"}
-      status={basket.status ?? "draft"}
+      status={basket.state ?? "draft"}
       scope={basket.tags ?? []}
       dumpBody={rawDumpBody}
     />
