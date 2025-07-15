@@ -19,14 +19,25 @@ export default async function BasketWorkPage({
     data: { session },
   } = await supabase.auth.getSession()
 
+  console.log("\ud83d\udd10 Supabase session:", session)
+
   if (!session) {
     redirect("/login")
   }
 
-  const { data: basket } = await supabase.from("baskets").select("id, name, status, tags").eq("id", id).single()
+  const { data: basket, error: basketError } = await supabase
+    .from("baskets")
+    .select("id, name, status, tags")
+    .eq("id", id)
+    .single()
+
+  console.log("\ud83e\uddfa Basket ID param:", id)
+  console.log("\ud83d\uddde Supabase basket query result:", basket)
+  console.log("\u2757 Supabase basket query error:", basketError)
 
   if (!basket) {
-    redirect("/404")
+    // Temporarily disable redirect to see logs clearly
+    return <div>\u26a0\ufe0f Basket not found for ID: {id}</div>
   }
 
   const { data: firstDoc } = await supabase
