@@ -9,8 +9,6 @@ export default function TopBar() {
     const { isOpen, openSidebar } = useSidebarStore();
     const pathname = usePathname();
 
-    const show = !isOpen;
-
     const pageTitle = React.useMemo(() => {
         if (!pathname || pathname === "/") return "yarnnn";
         const segments = pathname.split("/").filter(Boolean);
@@ -18,11 +16,13 @@ export default function TopBar() {
         return decodeURIComponent(last).replace(/[-_]/g, " ");
     }, [pathname]);
 
+    if (isOpen) return null;
+
     return (
         <header
             className={cn(
                 "sticky top-0 z-30 flex h-12 items-center gap-2 border-b bg-background/70 px-3 backdrop-blur",
-                show ? "lg:hidden" : "lg:hidden pointer-events-none opacity-0",
+                "lg:hidden",
             )}
         >
             <button
