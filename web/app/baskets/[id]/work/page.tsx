@@ -2,12 +2,13 @@ import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
 import { redirect } from "next/navigation"
 
+// Remove any custom interface - let Next.js handle the typing
 export default async function BasketWorkPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const { id } = params // ✅ No await here — `params` is not a Promise
+  const { id } = await params // ✅ Await the params Promise
 
   const supabase = createServerSupabaseClient()
 
@@ -19,11 +20,7 @@ export default async function BasketWorkPage({
     redirect("/login")
   }
 
-  const { data: basket } = await supabase
-    .from("baskets")
-    .select("id, name, status, tags")
-    .eq("id", id)
-    .single()
+  const { data: basket } = await supabase.from("baskets").select("id, name, status, tags").eq("id", id).single()
 
   if (!basket) {
     redirect("/404")
