@@ -1,17 +1,27 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useDocuments } from "../../lib/baskets/useDocuments";
+import type { Document } from "@/types/document";
 
 interface Props {
   basketId: string;
-  activeId?: string;
+  documents?: Document[];
+  documentId?: string;
+  onSelect?: (id: string) => void;
 }
 
-export default function DocumentList({ basketId, activeId }: Props) {
+export default function DocumentList({
+  basketId,
+  documents,
+  documentId,
+  onSelect,
+}: Props) {
   const { docs, isLoading, error } = useDocuments(basketId);
   const router = useRouter();
 
-  if (isLoading) {
+  const items = documents ?? docs;
+
+  if (!documents && isLoading) {
     return (
       <ul className="p-6 space-y-2 animate-pulse">
         {Array.from({ length: 3 }).map((_, idx) => (
@@ -27,7 +37,7 @@ export default function DocumentList({ basketId, activeId }: Props) {
     );
   }
 
-  if (docs.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="p-6 text-sm text-muted-foreground">No documents yet</div>
     );
@@ -35,14 +45,16 @@ export default function DocumentList({ basketId, activeId }: Props) {
 
   return (
     <ul className="p-6 space-y-2 overflow-y-auto flex-1">
-      {docs.map((doc) => {
-        const isActive = doc.id === activeId;
+      {items.map((doc) => {
+        const isActive = doc.id === documentId;
         const title = doc.title || "Untitled Document";
         return (
           <li
             key={doc.id}
             onClick={() =>
-              router.push(`/baskets/${basketId}/docs/${doc.id}/work`)
+              onSelect
+                ? onSelect(doc.id)
+                : router.push(`/baskets/${basketId}/docs/${doc.id}/work`)
             }
             className={`border rounded-md p-3 flex items-center gap-3 cursor-pointer ${
               isActive ? "ring-2 ring-primary" : ""
