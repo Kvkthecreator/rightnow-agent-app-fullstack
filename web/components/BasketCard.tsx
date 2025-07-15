@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
 
 export interface BasketCardProps {
   basket: {
