@@ -92,7 +92,10 @@ export default function Sidebar({ className }: SidebarProps) {
           <span>New Basket</span>
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="px-4 pt-4 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        🧺 Baskets
+      </div>
+      <div className="flex-1 overflow-y-auto space-y-1">
         {baskets.map((b) => (
           <button
             key={b.id}
