@@ -2,13 +2,12 @@ import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
 import { redirect } from "next/navigation"
 
-// Remove any custom interface - let Next.js handle the typing
-export default async function BasketWorkPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params // ✅ Await the params Promise
+interface BasketWorkPageProps {
+  params: { id: string }
+}
+
+export default async function BasketWorkPage({ params }: BasketWorkPageProps) {
+  const { id } = params
 
   const supabase = createServerSupabaseClient()
 
@@ -20,7 +19,11 @@ export default async function BasketWorkPage({
     redirect("/login")
   }
 
-  const { data: basket } = await supabase.from("baskets").select("id, name, status, tags").eq("id", id).single()
+  const { data: basket } = await supabase
+    .from("baskets")
+    .select("id, name, status, tags")
+    .eq("id", id)
+    .single()
 
   if (!basket) {
     redirect("/404")
@@ -34,14 +37,13 @@ export default async function BasketWorkPage({
     .limit(1)
     .maybeSingle()
 
-  const selectedDocId = firstDoc?.id ?? null
   let rawDumpBody = ""
 
-  if (selectedDocId) {
+  if (firstDoc?.id) {
     const { data: dump } = await supabase
       .from("raw_dumps")
       .select("body_md")
-      .eq("document_id", selectedDocId)
+      .eq("document_id", firstDoc.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
