@@ -1,5 +1,5 @@
 "use client";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { formatDistanceToNow, format } from "date-fns";
 
 export interface BasketCardProps {
@@ -12,16 +12,15 @@ export interface BasketCardProps {
 }
 
 export default function BasketCard({ basket }: BasketCardProps) {
-  const router = useRouter();
   const created = basket.created_at
     ? format(new Date(basket.created_at), "PPP")
     : "";
   const preview =
     basket.raw_dump_body?.slice(0, 150) || "No dump yet. Add something?";
   return (
-    <div
-      className="rounded-md border p-4 hover:bg-muted cursor-pointer"
-      onClick={() => router.push(`/baskets/${basket.id}/work`)}
+    <Link
+      href={`/baskets/${basket.id}/work`}
+      className="rounded-md border p-4 hover:bg-muted block"
     >
       <div className="flex justify-between">
         <h3 className="text-md font-semibold truncate">
@@ -34,6 +33,6 @@ export default function BasketCard({ basket }: BasketCardProps) {
         </p>
       )}
       <div className="text-xs mt-2 text-muted-foreground">Created {created}</div>
-    </div>
+    </Link>
   );
 }
