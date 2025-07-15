@@ -4,11 +4,11 @@ import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 export default async function BasketWorkPage({ params }: PageProps) {
-  const { id } = await params;
+  const { id } = params; // ✅ FIXED: remove unnecessary `await`
   const supabase = createServerSupabaseClient();
   const {
     data: { session },
