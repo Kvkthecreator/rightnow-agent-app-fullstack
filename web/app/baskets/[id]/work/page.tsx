@@ -1,10 +1,18 @@
 import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
 import { redirect } from "next/navigation"
+import { type Metadata } from "next"
 
-// ✅ No manual interface or Promise typing
-export default async function BasketWorkPage({ params }: { params: { id: string } }) {
-  const { id } = params
+type BasketWorkPageProps = {
+  params: { id: string }
+}
+
+export const metadata: Metadata = {
+  title: "Basket Workspace",
+}
+
+export default async function BasketWorkPage({ params }: BasketWorkPageProps) {
+  const id = params.id
 
   const supabase = createServerSupabaseClient()
 
