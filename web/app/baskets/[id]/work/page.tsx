@@ -1,15 +1,13 @@
-
 import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout";
-
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
 
 interface PageProps {
-  params: Promise<{ id: string }>; // ✅ Next.js 15 expects this to be async
+  params: { id: string }; // ✅ Correct: params is always sync
 }
 
 export default async function BasketWorkPage({ params }: PageProps) {
-  const { id } = await params; // ✅ Correct usage for Next.js 15
+  const { id } = params;
 
   const supabase = createServerSupabaseClient();
 
@@ -52,7 +50,6 @@ export default async function BasketWorkPage({ params }: PageProps) {
       .maybeSingle();
     rawDumpBody = dump?.body_md ?? "";
   }
-
 
   return (
     <BasketDashboardLayout
