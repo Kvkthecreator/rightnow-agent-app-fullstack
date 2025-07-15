@@ -10,7 +10,7 @@ interface Props {
     isRunningBlockifier?: boolean;
 }
 
-export default function BasketHeader({
+export default function BasketSidebarHeader({
     basketName,
     status,
     scope,
