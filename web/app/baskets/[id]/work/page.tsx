@@ -1,18 +1,14 @@
 import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
 import { redirect } from "next/navigation"
-import { type Metadata } from "next"
 
-type BasketWorkPageProps = {
-  params: { id: string }
-}
-
-export const metadata: Metadata = {
-  title: "Basket Workspace",
-}
-
-export default async function BasketWorkPage({ params }: BasketWorkPageProps) {
-  const id = params.id
+// ✅ Next.js 15 requires params to be a Promise
+export default async function BasketWorkPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params // ✅ Await the promised params
 
   const supabase = createServerSupabaseClient()
 
