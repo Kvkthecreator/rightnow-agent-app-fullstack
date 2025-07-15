@@ -2,12 +2,12 @@ import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
 import { redirect } from "next/navigation"
 
-interface BasketWorkPageProps {
-  params: { id: string } // ✅ Correct: synchronous
-}
-
-export default async function BasketWorkPage({ params }: BasketWorkPageProps) {
-  const { id } = params // ✅ No await
+export default async function BasketWorkPage({
+  params,
+}: {
+  params: { id: string }
+}) {
+  const { id } = params
 
   const supabase = createServerSupabaseClient()
 
