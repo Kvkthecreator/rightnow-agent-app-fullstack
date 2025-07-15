@@ -1,18 +1,23 @@
+
 import BasketWorkbenchLayout from "@/components/basket/BasketWorkbenchLayout";
 import ContextBlocksPanel from "@/components/basket/ContextBlocksPanel";
+
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { redirect } from "next/navigation";
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>; // ✅ Next.js 15 expects this to be async
 }
 
 export default async function BasketWorkPage({ params }: PageProps) {
-  const { id } = params; // ✅ FIXED: remove unnecessary `await`
+  const { id } = await params; // ✅ Correct usage for Next.js 15
+
   const supabase = createServerSupabaseClient();
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
+
   if (!session) {
     redirect("/login");
   }
@@ -22,6 +27,7 @@ export default async function BasketWorkPage({ params }: PageProps) {
     .select("id, name, created_at")
     .eq("id", id)
     .single();
+
   if (!basket) {
     redirect("/404");
   }
@@ -53,7 +59,9 @@ export default async function BasketWorkPage({ params }: PageProps) {
 
   const { data: blocks } = await supabase
     .from("blocks")
-    .select("id, semantic_type, content, state, scope, canonical_value, actor, created_at")
+    .select(
+      "id, semantic_type, content, state, scope, canonical_value, actor, created_at"
+    )
     .eq("basket_id", id)
     .in("state", ["LOCKED", "PROPOSED", "CONSTANT"]);
 
@@ -73,10 +81,7 @@ export default async function BasketWorkPage({ params }: PageProps) {
         .eq("status", "active")
     : { data: null };
 
-  const contextItems = [
-    ...(basketItems || []),
-    ...(docItems || []),
-  ];
+  const contextItems = [...(basketItems || []), ...(docItems || [])];
 
   const snapshot = {
     basket: {
