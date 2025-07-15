@@ -1,13 +1,13 @@
-import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
-import { redirect } from "next/navigation"
+import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout";
+import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { redirect } from "next/navigation";
 
 export default async function BasketWorkPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: { id: string };
 }) {
-  const { id } = await params
+  const { id } = params;
 
   const supabase = createServerSupabaseClient()
 
@@ -15,10 +15,8 @@ export default async function BasketWorkPage({
     data: { session },
   } = await supabase.auth.getSession()
 
-  console.log("🔐 Supabase session:", session)
-
   if (!session) {
-    redirect("/login")
+    redirect("/login");
   }
 
   const { data: basket, error: basketError } = await supabase
@@ -26,10 +24,6 @@ export default async function BasketWorkPage({
     .select("id, name, state, tags")
     .eq("id", id)
     .single()
-
-  console.log("🧺 Basket ID param:", id)
-  console.log("📰 Supabase basket query result:", basket)
-  console.log("❗ Supabase basket query error:", basketError)
 
   if (!basket) {
     // Disable redirect to inspect error first
