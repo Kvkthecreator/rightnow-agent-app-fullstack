@@ -19,7 +19,7 @@ export default function BasketCreationNav({
     return (
         <div className="flex flex-col space-y-2 p-2 w-16 border-r bg-muted/40 text-muted-foreground">
             <Button
-                size="icon"
+                size="sm"
                 variant="ghost"
                 onClick={onCreateContext}
                 title="New Context Item"
@@ -27,7 +27,7 @@ export default function BasketCreationNav({
                 <StickyNote size={18} />
             </Button>
             <Button
-                size="icon"
+                size="sm"
                 variant="ghost"
                 onClick={onCreateBlock}
                 title="New Block"
@@ -35,7 +35,7 @@ export default function BasketCreationNav({
                 <Blocks size={18} />
             </Button>
             <Button
-                size="icon"
+                size="sm"
                 variant="ghost"
                 onClick={onCreateDocument}
                 title="New Document"
@@ -43,7 +43,7 @@ export default function BasketCreationNav({
                 <FileText size={18} />
             </Button>
             <Button
-                size="icon"
+                size="sm"
                 variant="ghost"
                 onClick={onCreateDump}
                 title="New Raw Dump"
