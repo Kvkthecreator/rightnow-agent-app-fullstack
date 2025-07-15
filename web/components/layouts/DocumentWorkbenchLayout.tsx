@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import BasketDocList from "@/components/basket/BasketDocList";
 import NarrativePane from "@/components/basket/NarrativePane";
 import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
-import RightPanelLayout from "@/components/common/RightPanel";
+import RightPanelLayout from "@/components/blocks/RightPanelLayout";
 import type { Document } from "@/types/document";
 
 interface Props {
