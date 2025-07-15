@@ -16,7 +16,7 @@ export default function LandingPage() {
         />
         <meta name="keywords" content="yarnnn, context OS, memory operating system, creative workflows, AI thinking tools" />
         <meta property="og:title" content="yarnnn — context OS for creative builders" />
-        <meta property="og:description" content="From chaos to clarity — yarnnn helps you preserve, evolve, and act on your ideas with structure and memory." />
+        <meta property="og:description" content="From chaos to clarity — Yarnnn helps you preserve, evolve, and act on your ideas with structure and memory." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://yarnnn.com" />
         <meta property="og:image" content="https://yarnnn.com/og-image.png" />
