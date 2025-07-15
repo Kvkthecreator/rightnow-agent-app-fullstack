@@ -1,59 +1,55 @@
 "use client";
-import { ReactNode } from "react";
-import BasketDocList from "@/components/basket/BasketDocList";
-import NarrativePane from "@/components/basket/NarrativePane";
-import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
-import RightPanelLayout from "@/components/common/RightPanel";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 interface Props {
-    snapshot: BasketSnapshot;
-    onRunBlockifier?: () => void;
-    runningBlockifier?: boolean;
-    onSelectBlock?: (id: string) => void;
-    rightPanel?: ReactNode;
-    children?: ReactNode;
+  basketId: string;
+  documents: { id: string; title: string }[];
+  selectedId?: string;
+  onSelect?: (id: string) => void;
 }
 
-export default function DocumentWorkbenchLayout({
-    snapshot,
-    onRunBlockifier,
-    runningBlockifier,
-    onSelectBlock,
-    rightPanel,
-    children,
+export default function BasketDocList({
+  basketId,
+  documents,
+  selectedId,
+  onSelect,
 }: Props) {
-    return (
-        <div className="md:flex w-full min-h-screen">
-            <aside className="hidden md:block w-[220px] shrink-0 border-r overflow-y-auto">
-                <BasketDocList basketId={snapshot.basket.id} />
-            </aside>
-            <div className="flex-1 flex flex-col">
-                <header className="sticky top-0 z-30 flex items-center gap-3 border-b bg-background/70 px-4 py-2 backdrop-blur">
-                    <h1 className="flex-1 truncate text-sm font-medium">
-                        {snapshot.basket?.name || "Untitled Basket"}
-                    </h1>
-                    <span className="text-xs px-2 py-0.5 bg-muted rounded">DRAFT</span>
-                    {onRunBlockifier && (
-                        <button
-                            className="text-sm text-primary"
-                            onClick={onRunBlockifier}
-                            disabled={runningBlockifier}
-                        >
-                            {runningBlockifier ? "Running..." : "Run Blockifier"}
-                        </button>
-                    )}
-                </header>
-                <RightPanelLayout rightPanel={rightPanel} className="flex-1">
-                    <div className="p-4 space-y-4">
-                        <NarrativePane
-                            rawText={snapshot.raw_dump_body}
-                            blocks={snapshot.blocks || []}
-                            onSelectBlock={onSelectBlock}
-                        />
-                        {children}
-                    </div>
-                </RightPanelLayout>
-            </div>
-        </div>
-    );
+  const pathname = usePathname();
+
+  return (
+    <nav className="flex flex-col gap-0.5 p-2">
+      {documents.map((doc) => {
+        const isSelected = selectedId
+          ? selectedId === doc.id
+          : pathname?.includes(doc.id);
+
+        return onSelect ? (
+          <button
+            key={doc.id}
+            onClick={() => onSelect(doc.id)}
+            className={cn(
+              "text-left px-3 py-1.5 text-sm rounded hover:bg-accent transition",
+              isSelected && "bg-accent text-primary font-medium"
+            )}
+          >
+            {doc.title || "Untitled"}
+          </button>
+        ) : (
+          <Link
+            key={doc.id}
+            href={`/baskets/${basketId}/docs/${doc.id}/work`}
+            className={cn(
+              "block px-3 py-1.5 text-sm rounded hover:bg-accent transition",
+              isSelected && "bg-accent text-primary font-medium"
+            )}
+          >
+            {doc.title || "Untitled"}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
