@@ -5,51 +5,51 @@ import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function AuthCallbackPage() {
-  const router = useRouter();
-  const supabase = createClientComponentClient();
-  const [error, setError] = useState<string | null>(null);
+    const router = useRouter();
+    const supabase = createClientComponentClient();
+    const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error || !data?.session) {
-        setError("Authentication failed. Please try logging in again.");
-        setTimeout(() => router.replace("/login"), 1500);
-        return;
-      }
+    useEffect(() => {
+        const checkSession = async () => {
+            const { data, error } = await supabase.auth.getSession();
+            if (error || !data?.session) {
+                setError("Authentication failed. Please try logging in again.");
+                setTimeout(() => router.replace("/login"), 1500);
+                return;
+            }
 
-      const storedPath =
-        typeof window !== "undefined"
-          ? localStorage.getItem("postLoginPath")
-          : null;
+            const storedPath =
+                typeof window !== "undefined"
+                    ? localStorage.getItem("postLoginPath")
+                    : null;
 
-      if (storedPath) {
-        localStorage.removeItem("postLoginPath");
-        router.replace(storedPath);
-        return;
-      }
+            if (storedPath) {
+                localStorage.removeItem("postLoginPath");
+                router.replace(storedPath);
+                return;
+            }
 
-      const { data: baskets } = await supabase
-        .from("baskets")
-        .select("id")
-        .eq("user_id", data.session.user.id)
-        .limit(1);
-      if (!baskets || baskets.length === 0) {
-        router.replace("/baskets/new");
-      } else {
-        router.replace("/dashboard");
-      }
-    };
-    checkSession();
-  }, [router, supabase]);
+            const { data: baskets } = await supabase
+                .from("baskets")
+                .select("id")
+                .eq("user_id", data.session.user.id)
+                .limit(1);
+            if (!baskets || baskets.length === 0) {
+                router.replace("/baskets/new");
+            } else {
+                router.replace("/dashboard");
+            }
+        };
+        checkSession();
+    }, [router, supabase]);
 
-  if (error) {
-    return <div className="text-center py-20 text-red-600">{error}</div>;
-  }
+    if (error) {
+        return <div className="text-center py-20 text-red-600">{error}</div>;
+    }
 
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p className="text-lg font-medium">Signing you in…</p>
-    </div>
-  );
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <p className="text-lg font-medium">Signing you in…</p>
+        </div>
+    );
 }
