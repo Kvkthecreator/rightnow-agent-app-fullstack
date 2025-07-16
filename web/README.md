@@ -65,17 +65,17 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 To configure your local development and production environments, create a `.env.local` file in the `web/` directory with the following variables:
 ```env
 # URL of your Render-hosted FastAPI backend for agent-run and task-types
-NEXT_PUBLIC_API_BASE=http://localhost:10000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:10000
 # Supabase REST API URL (public)
 NEXT_PUBLIC_SUPABASE_URL=https://xyzcompany.supabase.co
 # Supabase anonymous key for client calls
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 On your production host (e.g., Vercel), set the same variables in the project settings:
-  • `NEXT_PUBLIC_API_BASE` → your Render backend URL (e.g. `https://yarnnn.com`)
+  • `NEXT_PUBLIC_API_BASE_URL` → your Render backend URL (e.g. `https://yarnnn.com`)
   • `NEXT_PUBLIC_SUPABASE_URL` → your Supabase project URL
   • `NEXT_PUBLIC_SUPABASE_ANON_KEY` → your Supabase anonymous key
-After updating `NEXT_PUBLIC_API_BASE`, redeploy the frontend so route handlers
+After updating `NEXT_PUBLIC_API_BASE_URL`, redeploy the frontend so route handlers
 use the new value. You can confirm by requesting `/api/baskets/<id>/change-queue`
 and checking that the backend logs show a GET request without a 500 error.
 

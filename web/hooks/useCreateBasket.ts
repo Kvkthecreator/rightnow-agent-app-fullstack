@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithToken } from "@/lib/fetchWithToken";
+import { apiUrl } from "@/lib/api";
 
 interface WizardState {
   basketName: string;
@@ -77,12 +79,14 @@ export function useCreateBasket() {
         raw_dumps: state.dumps.map((d) => ({ body_md: d })),
         guidelines: state.guidelines.trim() || null,
       };
-      const res = await fetch("/api/baskets/new", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
+      const res = await fetchWithToken(
+        apiUrl("/baskets/new"),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
       if (!res.ok) throw new Error("create failed");
       const { basket_id } = await res.json();
       router.push(`/baskets/${basket_id}/work`);
