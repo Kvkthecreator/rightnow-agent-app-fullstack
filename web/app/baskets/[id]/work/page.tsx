@@ -13,10 +13,10 @@ export default async function BasketWorkPage({
   const supabase = createServerSupabaseClient()
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect("/login")
   }
 
@@ -28,8 +28,8 @@ export default async function BasketWorkPage({
 
   if (!basket) {
     console.log("🔍 basket fetch failed — possible RLS or auth issue")
-    console.log("session", session)
-    console.log("user id", session?.user.id)
+    console.log("user", user)
+    console.log("user id", user?.id)
     redirect("/404")
   }
 

@@ -21,11 +21,13 @@ export default function Sidebar({ className }: SidebarProps) {
   const [baskets, setBaskets] = useState<any[]>([]);
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUserEmail(session?.user?.email || null);
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUserEmail(user?.email || null);
     };
-    getSession();
+    getUser();
   }, [supabase]);
 
   useEffect(() => {

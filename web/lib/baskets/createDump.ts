@@ -15,8 +15,10 @@ export async function createDump({ basketId, text, images = [], userId }: Create
   );
   let uid = userId;
   if (!uid) {
-    const { data } = await supabase.auth.getSession();
-    uid = data.session?.user.id ?? "";
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    uid = user?.id ?? "";
   }
   return await postDump({ basketId, userId: uid, text, images });
 }

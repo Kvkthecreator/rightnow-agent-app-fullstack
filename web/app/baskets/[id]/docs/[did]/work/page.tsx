@@ -11,9 +11,9 @@ export default async function DocWorkPage({ params }: PageProps) {
   const { id, did } = await params;
   const supabase = createServerSupabaseClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
     redirect("/login");
   }
 

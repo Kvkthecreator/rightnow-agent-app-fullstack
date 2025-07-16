@@ -24,9 +24,9 @@ export default function UserNav({ compact = false }: UserNavProps) {
 
   // Fetch initial session and redirect if not authenticated
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser({ email: session.user.email || "" });
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUser({ email: user.email || "" });
       } else {
         router.replace("/about");
       }
