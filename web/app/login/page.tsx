@@ -24,11 +24,14 @@ export default function LoginPage() {
 
   // Google OAuth
   const handleGoogleLogin = async () => {
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+    // Preserve the current path so we can restore it after OAuth
+    if (typeof window !== "undefined") {
+      localStorage.setItem("postLoginPath", window.location.pathname);
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo,
+        redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: { prompt: "select_account" },
       },
     });
@@ -39,11 +42,14 @@ export default function LoginPage() {
 
   // Dev-only Magic Link Login
   const handleMagicLinkLogin = async () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("postLoginPath", window.location.pathname);
+    }
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
     if (error) {

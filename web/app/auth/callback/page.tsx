@@ -17,15 +17,27 @@ export default function AuthCallbackPage() {
         setTimeout(() => router.replace("/login"), 1500);
         return;
       }
+
+      const storedPath =
+        typeof window !== "undefined"
+          ? localStorage.getItem("postLoginPath")
+          : null;
+
+      if (storedPath) {
+        localStorage.removeItem("postLoginPath");
+        router.replace(storedPath);
+        return;
+      }
+
       const { data: baskets } = await supabase
-        .from('baskets')
-        .select('id')
-        .eq('user_id', data.session.user.id)
+        .from("baskets")
+        .select("id")
+        .eq("user_id", data.session.user.id)
         .limit(1);
       if (!baskets || baskets.length === 0) {
-        router.replace('/baskets/new');
+        router.replace("/baskets/new");
       } else {
-        router.replace('/dashboard');
+        router.replace("/dashboard");
       }
     };
     checkSession();
