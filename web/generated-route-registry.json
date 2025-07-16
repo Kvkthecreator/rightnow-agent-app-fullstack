@@ -4,7 +4,6 @@
   "/api/agent/direct",
   "/api/baskets",
   "/api/baskets/[id]",
-  "/api/baskets/[id]/blocks",
   "/api/baskets/[id]/change-queue",
   "/api/baskets/[id]/commits",
   "/api/baskets/[id]/work",

@@ -12,7 +12,6 @@ export async function GET(req: NextRequest, context: any) {
   const { id } = context.params;
   let upstream: string;
   try {
-    upstream = new URL(`/api/baskets/${id}/blocks${req.nextUrl.search}`, baseUrl).toString();
   } catch {
     return NextResponse.json({ error: 'Invalid API base URL' }, { status: 500 });
   }

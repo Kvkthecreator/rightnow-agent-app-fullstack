@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 const CHECK_PATHS = [
   "/api/baskets/demo-basket-id/commits",
-  "/api/baskets/demo-basket-id/blocks",
   "/api/baskets/demo-basket-id/change-queue?status=pending",
   "/api/agent-run",
 ];

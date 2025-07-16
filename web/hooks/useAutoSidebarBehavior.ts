@@ -12,7 +12,6 @@ export function useAutoSidebarBehavior() {
     const hideSidebar =
       /^\/baskets\/[^/]+\/work/.test(pathname) ||
       pathname.startsWith('/baskets/new') ||
-      /^\/blocks\/[^/]+$/.test(pathname)
 
     setCollapsible(hideSidebar)
 

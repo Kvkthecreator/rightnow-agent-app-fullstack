@@ -1,4 +1,3 @@
-// ✅ File: lib/supabase/blocks.ts
 
 import { createClient } from "@/lib/supabaseClient";
 import { apiPost, apiPut, apiDelete } from "@/lib/api";

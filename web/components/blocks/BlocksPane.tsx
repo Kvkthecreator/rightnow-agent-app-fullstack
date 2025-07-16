@@ -19,7 +19,6 @@ export default function BlocksPane({ blocks }: BlocksPaneProps) {
   return (
     <div className="p-4 space-y-2">
       {proposed.map((block) => (
-        <Link key={block.id} href={`/blocks/${block.id}`} className="block">
           {block.prev_rev_id && block.prev_content ? (
             <InlineDiffCard block={block} />
           ) : (

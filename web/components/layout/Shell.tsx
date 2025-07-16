@@ -15,7 +15,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const hideSidebar =
             pathname.startsWith("/baskets/new") ||
-            /^\/blocks\/[^/]+$/.test(pathname);
 
         setCollapsible(hideSidebar);
 

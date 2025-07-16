@@ -73,7 +73,6 @@
 - Only use variable-based utility classes for all color, background, and border styling.
 - Never use hardcoded palette classes (`bg-white`, `text-slate-900`, etc).
 - Maintain consistent border radii and spacing as specified above.
-- Use shadcn/ui components/blocks and override their classnames if needed to match this guide.
 
 ---
 

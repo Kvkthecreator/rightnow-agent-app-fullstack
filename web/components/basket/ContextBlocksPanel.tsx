@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useFeatureFlag } from "@/lib/hooks/useFeatureFlag";
 import ContextPanel, { ContextItem } from "@/components/context/ContextPanel";
-import BlocksPane from "@/components/blocks/BlocksPane";
 import { apiDelete, apiPut } from "@/lib/api";
 import {
   createContextItem,
@@ -36,7 +35,6 @@ export default function ContextBlocksPanel({
 
   async function handleDeleteBlock(id: string) {
     if (!window.confirm("Are you sure you want to delete this block?")) return;
-    await apiDelete(`/api/blocks/${id}`);
     setBlocks((b) => b.filter((blk) => blk.id !== id));
   }
 
@@ -44,7 +42,6 @@ export default function ContextBlocksPanel({
     const content = window.prompt("Edit block text", block.content);
     if (content === null) return;
     const scope = window.prompt("Scope", block.scope || "") || null;
-    await apiPut(`/api/blocks/${block.id}`, { content, scope });
     setBlocks((b) =>
       b.map((blk) => (blk.id === block.id ? { ...blk, content, scope } : blk)),
     );

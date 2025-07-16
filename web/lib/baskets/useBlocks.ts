@@ -13,7 +13,6 @@ const fetcher = (url: string) => apiGet<BlockRow[]>(url);
 
 export function useBlocks(basketId: string) {
   const { data, isLoading, error } = useSWR(
-    () => (basketId ? `/api/baskets/${basketId}/blocks` : null),
     fetcher,
     { refreshInterval: 10_000 },
   );

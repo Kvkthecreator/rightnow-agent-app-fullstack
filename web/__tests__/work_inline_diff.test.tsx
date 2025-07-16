@@ -1,5 +1,4 @@
 import { render } from "@testing-library/react";
-import BlocksPane from "@/components/blocks/BlocksPane";
 import type { BlockWithHistory } from "@/types/block";
 import React from "react";
 

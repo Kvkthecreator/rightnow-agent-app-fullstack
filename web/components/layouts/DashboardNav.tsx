@@ -24,7 +24,6 @@ const navItems: NavItem[] = [
         href: "/baskets/new?mode=blank",
         icon: User,
     },
-    { title: "Blocks", href: "/blocks", icon: User },
     { title: "Queue", href: "/queue", icon: User },
 ];
 
