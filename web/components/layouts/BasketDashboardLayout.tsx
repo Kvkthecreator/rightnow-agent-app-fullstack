@@ -1,8 +1,14 @@
+"use client";
 import DocumentList from "@/components/documents/DocumentList";
 import BasketSidebar from "@/components/basket/BasketSidebar";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import BlockCreateModal from "@/components/blocks/BlockCreateModal";
+import { openDumpModal } from "@/components/DumpModal";
+import { createBlock } from "@/lib/supabase/blocks";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface Props {
   basketId: string;
@@ -10,6 +16,41 @@ interface Props {
   status: string;
   scope: string[];
   dumpBody?: string;
+  empty?: boolean;
+}
+
+function EmptyPrompt({ basketId }: { basketId: string }) {
+  "use client";
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  return (
+    <Card className="p-4 text-center space-y-4">
+      <p className="text-sm text-muted-foreground">
+        👋 Start by adding a Block, Document, or Raw Dump.
+      </p>
+      <div className="flex justify-center gap-2">
+        <Button size="sm" onClick={() => setOpen(true)}>+ Block</Button>
+        <Button size="sm" disabled onClick={() => router.push(`/baskets/${basketId}/docs/new`)}>
+          + Document
+        </Button>
+        <Button size="sm" onClick={() => openDumpModal()}>+ Dump</Button>
+      </div>
+      <BlockCreateModal
+        open={open}
+        onOpenChange={setOpen}
+        onCreate={async (d) => {
+          await createBlock({
+            basket_id: basketId,
+            label: d.label,
+            content: d.content,
+            semantic_type: d.type,
+            meta_tags: d.meta_tags,
+          });
+        }}
+        includeAuto={false}
+      />
+    </Card>
+  );
 }
 
 export default function BasketDashboardLayout({
@@ -18,6 +59,7 @@ export default function BasketDashboardLayout({
   status,
   scope,
   dumpBody,
+  empty = false,
 }: Props) {
   return (
     <div className="flex h-full w-full">
@@ -41,6 +83,7 @@ export default function BasketDashboardLayout({
         </aside>
         {/* Main dashboard content */}
         <div className="flex-1 p-4 space-y-6">
+          {empty && <EmptyPrompt basketId={basketId} />}
           {/* Mobile document list */}
           <section className="md:hidden">
             <h2 className="font-medium mb-2">Documents</h2>

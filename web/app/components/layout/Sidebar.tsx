@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { Plus, Package2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabaseClient";
-import { getOrCreateWorkspaceId } from "@/lib/workspaces";
+import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
+import { createBasketNew } from "@/lib/baskets/createBasketNew";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
@@ -19,8 +20,7 @@ export default function Sidebar({ className }: SidebarProps) {
   const router = useRouter();
   const supabase = createClient();
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [baskets, setBaskets] = useState<any[]>([]);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [baskets, setBaskets] = useState<BasketOverview[]>([]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -28,24 +28,18 @@ export default function Sidebar({ className }: SidebarProps) {
         data: { user },
       } = await supabase.auth.getUser();
       setUserEmail(user?.email || null);
-      const ws = await getOrCreateWorkspaceId(supabase, user?.id!);
-      setWorkspaceId(ws);
     };
     getUser();
+    getAllBaskets()
+      .then(setBaskets)
+      .catch((err) => console.error('sidebar baskets', err));
   }, [supabase]);
 
   useEffect(() => {
-    const fetchBaskets = async () => {
-      if (!workspaceId) return;
-      const { data } = await supabase
-        .from("baskets")
-        .select("id, name, created_at")
-        .eq("workspace_id", workspaceId)
-        .order("created_at", { ascending: false });
-      setBaskets(data || []);
-    };
-    fetchBaskets();
-  }, [supabase, workspaceId]);
+    getAllBaskets()
+      .then(setBaskets)
+      .catch((err) => console.error('fetch baskets', err));
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -68,15 +62,8 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
   const handleNewBasket = async () => {
-    if (!workspaceId) return;
-    const { data } = await supabase
-      .from("baskets")
-      .insert({ name: "Untitled Basket", state: "draft", workspace_id: workspaceId })
-      .select("id")
-      .single();
-    if (data) {
-      router.push(`/baskets/${data.id}/work`);
-    }
+    const { id } = await createBasketNew({ text_dump: null });
+    router.push(`/baskets/${id}/work`);
   };
 
   const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
@@ -105,19 +92,25 @@ export default function Sidebar({ className }: SidebarProps) {
         🧺 Baskets
       </div>
       <div className="flex-1 overflow-y-auto space-y-1">
-        {baskets.map((b) => (
-          <button
-            key={b.id}
-            onClick={() => router.push(`/baskets/${b.id}/work`)}
-            className={cn(
-              "w-full text-left px-4 py-2 hover:bg-gray-100 text-sm flex items-center",
-              pathname?.includes(b.id) ? "bg-gray-100 font-semibold" : ""
-            )}
-          >
-            <Package2 size={14} className="inline-block mr-2" />
-            {b.name || "Untitled"}
-          </button>
-        ))}
+        {baskets.length === 0 ? (
+          <p className="px-4 py-2 text-sm text-muted-foreground">
+            No baskets yet. Click + New Basket
+          </p>
+        ) : (
+          baskets.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => router.push(`/baskets/${b.id}/work`)}
+              className={cn(
+                "w-full text-left px-4 py-2 hover:bg-gray-100 text-sm flex items-center",
+                pathname?.includes(b.id) ? "bg-gray-100 font-semibold" : ""
+              )}
+            >
+              <Package2 size={14} className="inline-block mr-2" />
+              {b.name || "Untitled"}
+            </button>
+          ))
+        )}
       </div>
       <div className="border-t px-4 py-3 text-sm text-muted-foreground">
         {userEmail ? (
