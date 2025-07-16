@@ -5,6 +5,7 @@ export async function getOrCreateWorkspaceId(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<string> {
+  console.debug("[Workspace] Creating or retrieving workspace for user:", userId)
   const { data: existing } = await supabase
     .from('workspace_members')
     .select('workspace_id')
