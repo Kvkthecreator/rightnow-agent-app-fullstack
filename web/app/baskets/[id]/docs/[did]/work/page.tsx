@@ -1,7 +1,7 @@
 import DocumentWorkbenchLayout from "@/components/layouts/DocumentWorkbenchLayout";
 import ContextBlocksPanel from "@/components/basket/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
-import { getActiveWorkspaceId } from "@/lib/workspace";
+import { getOrCreateWorkspaceId } from "@/lib/workspaces";
 import { redirect } from "next/navigation";
 
 interface PageProps {
@@ -17,7 +17,7 @@ export default async function DocWorkPage({ params }: PageProps) {
   if (!user) {
     redirect("/login");
   }
-  const workspaceId = await getActiveWorkspaceId(supabase, user?.id);
+  const workspaceId = await getOrCreateWorkspaceId(supabase, user?.id!);
 
   const { data: basket } = await supabase
     .from("baskets")

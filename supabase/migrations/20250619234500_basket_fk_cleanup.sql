@@ -17,8 +17,14 @@ UPDATE baskets
     AND baskets.user_id IS NULL;
 -- 0.4 relax NOT-NULL just long enough for service inserts
 ALTER TABLE baskets ALTER COLUMN user_id DROP NOT NULL;
--- 0.5 RLS: each user sees only own baskets
+-- 0.5 RLS: only workspace members can access baskets
 ALTER TABLE baskets ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Own baskets only"
+CREATE POLICY "Workspace members only"
   ON baskets FOR ALL
-  USING (user_id = auth.uid());
+  USING (
+    workspace_id IN (
+      SELECT wm.workspace_id
+        FROM workspace_memberships wm
+       WHERE wm.user_id = auth.uid()
+    )
+  );

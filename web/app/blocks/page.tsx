@@ -8,7 +8,7 @@ import BlockCard, { Block } from "@/components/blocks/BlockCard";
 import BlockCreateModal from "@/components/blocks/BlockCreateModal";
 import { fetchBlocks, createBlock, toggleAuto } from "@/lib/supabase/blocks";
 import { createClient } from "@/lib/supabaseClient";
-import { getActiveWorkspaceId } from "@/lib/workspace";
+import { getOrCreateWorkspaceId } from "@/lib/workspaces";
 
 export default function BlocksPage() {
     const { session, isLoading } = useSessionContext();
@@ -24,7 +24,7 @@ export default function BlocksPage() {
     useEffect(() => {
         if (!session) return;
         (async () => {
-            const ws = await getActiveWorkspaceId(supabase, session.user.id);
+            const ws = await getOrCreateWorkspaceId(supabase, session.user.id);
             setWorkspaceId(ws);
         })();
     }, [session, supabase]);

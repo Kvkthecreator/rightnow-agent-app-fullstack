@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './dbTypes'
 
-export async function getOrCreateWorkspace(
+export async function getOrCreateWorkspaceId(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<string> {

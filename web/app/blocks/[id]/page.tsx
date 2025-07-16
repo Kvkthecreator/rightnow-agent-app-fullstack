@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import BlockDetailLayout from "@/components/blocks/BlockDetailLayout";
 import { fetchBlock, updateBlock, deleteBlock } from "@/lib/supabase/blocks";
 import { createClient } from "@/lib/supabaseClient";
-import { getActiveWorkspaceId } from "@/lib/workspace";
+import { getOrCreateWorkspaceId } from "@/lib/workspaces";
 
 export default function BlockDetailPage({
   params,
@@ -37,7 +37,7 @@ export default function BlockDetailPage({
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      const ws = await getActiveWorkspaceId(supabase, user?.id);
+      const ws = await getOrCreateWorkspaceId(supabase, user?.id!);
       setWorkspaceId(ws);
     })();
   }, [supabase]);

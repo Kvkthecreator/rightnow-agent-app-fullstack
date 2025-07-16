@@ -1,6 +1,6 @@
 import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
-import { getActiveWorkspaceId } from "@/lib/workspace"
+import { getOrCreateWorkspaceId } from "@/lib/workspaces"
 import { redirect } from "next/navigation"
 
 // ✅ Next.js 15 requires params to be a Promise
@@ -17,7 +17,7 @@ export default async function BasketWorkPage({
     data: { user },
   } = await supabase.auth.getUser()
 
-  const workspaceId = await getActiveWorkspaceId(supabase, user?.id)
+  const workspaceId = await getOrCreateWorkspaceId(supabase, user?.id!)
 
   if (!user) {
     redirect("/login")

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/serviceRole";
-import { getOrCreateWorkspace } from "@/lib/workspaces";
+import { getOrCreateWorkspaceId } from "@/lib/workspaces";
 
 export async function POST(req: NextRequest) {
   let payload: { text: string; files?: string[]; name?: string | null };
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing user ID" }, { status: 401 });
   }
 
-  const workspaceId = await getOrCreateWorkspace(supabase, userId);
+  const workspaceId = await getOrCreateWorkspaceId(supabase, userId);
 
   const { data: basket, error: basketErr } = await supabase
     .from("baskets")
