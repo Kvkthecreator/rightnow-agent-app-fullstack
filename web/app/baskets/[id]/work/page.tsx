@@ -55,6 +55,15 @@ export default async function BasketWorkPage({
 
   let rawDumpBody = ""
 
+  const { data: anyDump } = await supabase
+    .from("raw_dumps")
+    .select("id")
+    .eq("basket_id", id)
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   if (firstDoc?.id) {
     const { data: dump } = await supabase
       .from("raw_dumps")
@@ -68,6 +77,16 @@ export default async function BasketWorkPage({
     rawDumpBody = dump?.body_md ?? ""
   }
 
+  const { data: anyBlock } = await supabase
+    .from("blocks")
+    .select("id")
+    .eq("basket_id", id)
+    .eq("workspace_id", workspaceId)
+    .limit(1)
+    .maybeSingle()
+
+  const isEmpty = !anyBlock && !firstDoc && !anyDump
+
   return (
     <BasketDashboardLayout
       basketId={id}
@@ -75,6 +94,7 @@ export default async function BasketWorkPage({
       status={basket.status ?? "draft"}
       scope={basket.tags ?? []}
       dumpBody={rawDumpBody}
+      empty={isEmpty}
     />
   )
 }
