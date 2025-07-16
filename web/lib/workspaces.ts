@@ -1,46 +1,75 @@
-import { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from './dbTypes'
+'use client';
 
+import { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from './dbTypes';
+
+/**
+ * Creates or fetches a workspace for the given user.
+ * Requires a valid Supabase client with injected user access token.
+ */
 export async function getOrCreateWorkspaceId(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<string> {
-  console.debug("[Workspace] Creating or retrieving workspace for user:", userId)
-  const { data: existing } = await supabase
+  console.debug("[Workspace] Creating or retrieving workspace for user:", userId);
+
+  const { data: existing, error: existingError } = await supabase
     .from('workspace_members')
     .select('workspace_id')
     .eq('user_id', userId)
-    .maybeSingle()
+    .maybeSingle();
 
-  if (existing?.workspace_id) return existing.workspace_id
+  if (existingError) {
+    console.error("[Workspace] Failed to fetch workspace membership", existingError.message);
+    throw existingError;
+  }
 
-  const { data: created, error } = await supabase
+  if (existing?.workspace_id) return existing.workspace_id;
+
+  const { data: created, error: createError } = await supabase
     .from('workspaces')
-    .insert({ name: 'My Workspace' })
+    .insert({ name: 'My Workspace', created_by: userId }) // adjust column name if needed
     .select('id')
-    .single()
+    .single();
 
-  if (error || !created?.id) throw new Error('Failed to create workspace')
+  if (createError || !created?.id) {
+    console.error("[Workspace] Failed to create workspace", createError?.message);
+    throw new Error('Failed to create workspace');
+  }
 
-  await supabase.from('workspace_members').insert({
+  const { error: memberInsertError } = await supabase.from('workspace_members').insert({
     workspace_id: created.id,
     user_id: userId,
     role: 'owner',
-  })
+  });
 
-  return created.id
+  if (memberInsertError) {
+    console.error("[Workspace] Failed to assign user to workspace", memberInsertError.message);
+    throw memberInsertError;
+  }
+
+  return created.id;
 }
 
+/**
+ * Fetches the active workspace for a given user.
+ */
 export async function getActiveWorkspaceId(
   supabase: SupabaseClient<Database>,
   userId: string | undefined,
 ): Promise<string | null> {
-  if (!userId) return null
-  const { data } = await supabase
-    .from('workspace_memberships')
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from('workspace_members')
     .select('workspace_id')
     .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle()
-  return data?.workspace_id ?? null
+    .maybeSingle();
+
+  if (error) {
+    console.error("[Workspace] Failed to fetch active workspace", error.message);
+    return null;
+  }
+
+  return data?.workspace_id ?? null;
 }
