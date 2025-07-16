@@ -1,22 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiFetch, apiUrl } from '@/lib/api';
 
 export async function GET(req: NextRequest, context: any) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!baseUrl) {
-    return NextResponse.json(
-      { error: 'Missing NEXT_PUBLIC_API_BASE_URL environment variable' },
-      { status: 500 },
-    );
-  }
-
   const { id } = context.params;
-  let upstream: string;
-  try {
-    upstream = new URL(`/api/baskets/${id}/change-queue${req.nextUrl.search}`, baseUrl).toString();
-  } catch {
-    return NextResponse.json({ error: 'Invalid API base URL' }, { status: 500 });
-  }
-
+  
   const headers: HeadersInit = {};
   const auth = req.headers.get('authorization');
   if (auth) headers['Authorization'] = auth;
@@ -25,7 +12,10 @@ export async function GET(req: NextRequest, context: any) {
 
   let res: Response;
   try {
-    res = await fetch(upstream, { headers, cache: 'no-store' });
+    res = await apiFetch(`/baskets/${id}/change-queue${req.nextUrl.search}`, {
+      headers,
+      cache: 'no-store',
+    });
   } catch {
     return NextResponse.json(
       { error: 'Failed to connect to upstream API' },

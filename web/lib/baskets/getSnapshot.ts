@@ -17,7 +17,7 @@ export interface BasketSnapshot {
   proposed_blocks: BlockWithHistory[];
 }
 
-const SNAPSHOT_PREFIX = "/api/baskets/snapshot";
+const SNAPSHOT_PREFIX = "/baskets/snapshot";
 
 export async function getSnapshot(
   supabase: SupabaseClient<Database>,

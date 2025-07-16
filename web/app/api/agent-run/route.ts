@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiFetch } from "@/lib/api";
 
 export async function POST(request: NextRequest) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!baseUrl) {
-    return NextResponse.json(
-      { error: "Missing NEXT_PUBLIC_API_BASE_URL environment variable" },
-      { status: 500 }
-    );
-  }
-
   // ① copy incoming body
   const body = await request.text();
 
@@ -21,8 +14,7 @@ export async function POST(request: NextRequest) {
   if (cookie) headers["cookie"] = cookie; // pass Supabase session cookie
 
   // ③ proxy to backend
-  const upstream = `${baseUrl}/agent-run`;
-  const res = await fetch(upstream, {
+  const res = await apiFetch("/agent-run", {
     method: "POST",
     headers,
     body,

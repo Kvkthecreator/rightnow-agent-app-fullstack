@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiFetch } from '@/lib/api';
 
 export async function GET(req: NextRequest, context: any) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!baseUrl) {
-    return NextResponse.json(
-      { error: 'Missing NEXT_PUBLIC_API_BASE_URL environment variable' },
-      { status: 500 },
-    );
-  }
-
   const { id } = context.params;
-
-  // ✅ Assign upstream
-  const upstream = `${baseUrl}/baskets/${id}/blocks`;
+  const upstreamPath = `/baskets/${id}/blocks`;
 
   const headers: HeadersInit = {};
   const auth = req.headers.get('authorization');
@@ -22,7 +13,7 @@ export async function GET(req: NextRequest, context: any) {
 
   let res: Response;
   try {
-    res = await fetch(upstream, { headers, cache: 'no-store' });
+    res = await apiFetch(upstreamPath, { headers, cache: 'no-store' });
   } catch {
     return NextResponse.json(
       { error: 'Failed to connect to upstream API' },

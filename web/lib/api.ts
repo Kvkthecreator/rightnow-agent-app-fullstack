@@ -3,12 +3,23 @@
  */
 import { fetchWithToken } from "./fetchWithToken";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.yarnnn.com";
-console.log(`[api.ts] API_BASE_URL resolved to: ${API_BASE_URL}`);
+/**
+ * Resolve the full backend URL for a given path.
+ */
+export function apiUrl(path: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (!baseUrl) {
+    console.error("Missing NEXT_PUBLIC_API_BASE_URL in environment variables");
+    throw new Error("Missing API base URL");
+  }
+  return `${baseUrl}/api${path}`;
+}
 
-export function apiUrl(path: string) {
-  return `${API_BASE_URL}${path}`;
+/**
+ * Lightweight fetch wrapper that always hits the FastAPI `/api` prefix.
+ */
+export function apiFetch(path: string, options: RequestInit = {}) {
+  return fetch(apiUrl(path), options);
 }
 
 export async function apiGet<T = any>(path: string, token?: string): Promise<T> {

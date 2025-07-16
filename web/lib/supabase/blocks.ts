@@ -42,11 +42,11 @@ export async function fetchBlocks(
 
 
 export async function createBlock(block: BlockInsert) {
-  return apiPost("/api/context-blocks/create", block);
+  return apiPost("/context-blocks/create", block);
 }
 
 export async function toggleAuto(id: string, enable: boolean) {
-  return apiPut("/api/context-blocks/update", {
+  return apiPut("/context-blocks/update", {
     id,
     update_policy: enable ? "auto" : "manual",
   });
@@ -64,9 +64,9 @@ export async function fetchBlock(id: string, workspaceId: string) {
 }
 
 export async function updateBlock(id: string, updates: Record<string, any>) {
-  return apiPut("/api/context-blocks/update", { id, ...updates });
+  return apiPut("/context-blocks/update", { id, ...updates });
 }
 
 export async function deleteBlock(id: string) {
-  return apiDelete(`/api/context-blocks/${id}`);
+  return apiDelete(`/context-blocks/${id}`);
 }

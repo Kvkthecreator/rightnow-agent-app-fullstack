@@ -78,3 +78,14 @@ On your production host (e.g., Vercel), set the same variables in the project se
 After updating `NEXT_PUBLIC_API_BASE`, redeploy the frontend so route handlers
 use the new value. You can confirm by requesting `/api/baskets/<id>/change-queue`
 and checking that the backend logs show a GET request without a 500 error.
+
+## 🔌 API Calls
+
+Use `apiFetch(path, options)` from `lib/api.ts` to ensure your requests hit the backend correctly:
+
+```ts
+import { apiFetch } from '@/lib/api';
+
+await apiFetch('/workspaces', { method: 'POST' });
+```
+This automatically appends `/api` to the path.

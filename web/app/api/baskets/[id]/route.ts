@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiFetch } from "@/lib/api";
 
 export async function GET(
   req: NextRequest,
@@ -11,8 +12,7 @@ export async function GET(
   const cookie = req.headers.get("cookie");
   if (cookie) headers["cookie"] = cookie;
 
-  const upstream = `${process.env.NEXT_PUBLIC_API_BASE_URL}/baskets/${id}`;
-  const res = await fetch(upstream, { headers, cache: "no-store" });
+  const res = await apiFetch(`/baskets/${id}`, { headers, cache: "no-store" });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
 }

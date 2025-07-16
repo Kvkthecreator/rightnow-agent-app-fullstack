@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiFetch, apiUrl } from "@/lib/api";
 
 const CHECK_PATHS = [
   "/api/baskets/demo-basket-id/commits",
@@ -7,27 +8,13 @@ const CHECK_PATHS = [
 ];
 
 export async function GET(request: NextRequest) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!baseUrl) {
-    return NextResponse.json(
-      { error: "Missing NEXT_PUBLIC_API_BASE_URL environment variable" },
-      { status: 500 },
-    );
-  }
-
   const checks: { path: string; status: number | null; validJson: boolean }[] = [];
 
   for (const path of CHECK_PATHS) {
-    let url: string;
-    try {
-      url = new URL(path, baseUrl).toString();
-    } catch {
-      checks.push({ path, status: null, validJson: false });
-      continue;
-    }
+    const url = apiUrl(path);
 
     try {
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await apiFetch(path, { cache: "no-store" });
       let validJson = false;
       const ct = res.headers.get("content-type") || "";
       if (ct.includes("application/json")) {
