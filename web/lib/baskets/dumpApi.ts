@@ -28,7 +28,7 @@ export async function postDump({
   if (text) form.append("text", text);
   for (const img of images) form.append("file", img, img.name);
 
-  const res = await fetchWithToken(apiUrl("/api/dump"), {
+  const res = await fetchWithToken(apiUrl("/dump"), {
     method: "POST",
     body: form,
   });

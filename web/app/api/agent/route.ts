@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiFetch } from "@/lib/api";
 
 /**
  * Proxy POST /api/agent to the backend FastAPI /agent endpoint,
@@ -16,8 +17,7 @@ export async function POST(request: NextRequest) {
   const cookie = request.headers.get("cookie");
   if (cookie) headers["cookie"] = cookie;
   // Backend URL
-  const upstream = `${process.env.NEXT_PUBLIC_API_BASE_URL}/agent`;
-  const res = await fetch(upstream, {
+  const res = await apiFetch("/agent", {
     method: "POST",
     headers,
     body,

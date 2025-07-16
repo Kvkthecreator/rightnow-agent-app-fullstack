@@ -38,7 +38,7 @@ export async function createBasketNew(
   console.log("[createBasketNew] Payload:", JSON.parse(body));
 
   // 🚀 POST to backend
-  const res = await fetchWithToken(apiUrl("/api/baskets/new"), {
+  const res = await fetchWithToken(apiUrl("/baskets/new"), {
     method: "POST",
     headers,
     body,

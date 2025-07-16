@@ -17,7 +17,7 @@ export async function createBasketWithInput({
   // 1️⃣ Core basket creation via privileged API route
   const payload = { text_dump: text, file_urls: [] as string[] };
   console.log("[createBasketWithInput] Payload:", payload);
-  const resp = await fetchWithToken(apiUrl("/api/baskets/new"), {
+  const resp = await fetchWithToken(apiUrl("/baskets/new"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

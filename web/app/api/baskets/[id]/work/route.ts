@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiFetch } from "@/lib/api";
 
 export async function POST(req: NextRequest, context: any) {
   const { id } = context.params;
@@ -9,8 +10,7 @@ export async function POST(req: NextRequest, context: any) {
   const cookie = req.headers.get("cookie");
   if (cookie) headers["cookie"] = cookie;
 
-  const upstream = `${process.env.NEXT_PUBLIC_API_BASE_URL}/baskets/${id}/work`;
-  const res = await fetch(upstream, {
+  const res = await apiFetch(`/baskets/${id}/work`, {
     method: "POST",
     headers,
     body,

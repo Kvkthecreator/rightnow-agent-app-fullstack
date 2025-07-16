@@ -7,5 +7,5 @@ export interface TemplateBasketArgs {
 }
 
 export async function createBasketFromTemplate(args: TemplateBasketArgs) {
-  return apiPost<{ basket_id: string }>("/api/baskets/new-from-template", args);
+  return apiPost<{ basket_id: string }>("/baskets/new-from-template", args);
 }

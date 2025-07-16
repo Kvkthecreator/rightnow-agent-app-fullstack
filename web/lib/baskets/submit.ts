@@ -74,5 +74,5 @@ export async function createBasket(values: BasketValues): Promise<{ id: string }
     insight: values.insight,
     reference_file_ids: values.reference_file_ids,
   };
-  return apiPost<{ id: string }>("/api/baskets", payload);
+  return apiPost<{ id: string }>("/baskets", payload);
 }
