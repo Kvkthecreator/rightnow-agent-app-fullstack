@@ -10,11 +10,9 @@ export async function GET(req: NextRequest, context: any) {
   }
 
   const { id } = context.params;
-  let upstream: string;
-  try {
-  } catch {
-    return NextResponse.json({ error: 'Invalid API base URL' }, { status: 500 });
-  }
+
+  // ✅ Assign upstream
+  const upstream = `${baseUrl}/baskets/${id}/blocks`;
 
   const headers: HeadersInit = {};
   const auth = req.headers.get('authorization');
