@@ -1,5 +1,6 @@
 "use client";
 import { useBlocks } from "@/lib/baskets/useBlocks";
+import type { BlockRow } from "@/lib/baskets/useBlocks";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
@@ -30,7 +31,7 @@ export default function BlocksList({ basketId, highlightCommitId }: Props) {
 
   return (
     <ul className="p-6 space-y-2 overflow-y-auto flex-1">
-      {blocks.map((blk) => {
+      {blocks.map((blk: BlockRow) => {
         const isHighlight = blk.commit_id && blk.commit_id === highlightCommitId;
         return (
           <li

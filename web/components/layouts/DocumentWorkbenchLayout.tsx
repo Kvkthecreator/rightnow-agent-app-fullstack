@@ -54,16 +54,23 @@ export default function DocumentWorkbenchLayout({
             </button>
           )}
         </header>
-        <RightPanelLayout rightPanel={rightPanel} className="flex-1">
-          <div className="p-4 space-y-4">
-            <NarrativePane
-              rawText={snapshot.raw_dump_body}
-              blocks={snapshot.blocks || []}
-              onSelectBlock={onSelectBlock}
-            />
-            {children}
+        <div className="md:flex w-full flex-1">
+          <div className="flex-1">
+            <div className="p-4 space-y-4">
+              <NarrativePane
+                rawText={snapshot.raw_dump_body}
+                blocks={snapshot.blocks || []}
+                onSelectBlock={onSelectBlock}
+              />
+              {children}
+            </div>
           </div>
-        </RightPanelLayout>
+          {rightPanel && (
+            <aside className="hidden md:block w-[320px] shrink-0 border-l bg-gray-50 overflow-y-auto">
+              {rightPanel}
+            </aside>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -13,8 +13,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     const { isDraggingFile } = useFileDrag();
 
     useEffect(() => {
-        const hideSidebar =
-            pathname.startsWith("/baskets/new") ||
+        const hideSidebar = pathname.startsWith("/baskets/new");
 
         setCollapsible(hideSidebar);
 
