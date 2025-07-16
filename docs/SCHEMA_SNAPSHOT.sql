@@ -4049,6 +4049,60 @@ CREATE POLICY "Service role full access" ON public.baskets TO service_role USING
 
 
 --
+-- Name: block_revisions Users can modify block revisions in their workspaces; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can modify block revisions in their workspaces" ON public.block_revisions USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
+
+--
+-- Name: blocks Users can modify blocks in their workspaces; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can modify blocks in their workspaces" ON public.blocks USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = blocks.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
+
+--
+-- Name: documents Users can modify documents in their workspaces; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can modify documents in their workspaces" ON public.documents USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = documents.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
+
+--
+-- Name: block_revisions Users can read block revisions in their workspaces; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can read block revisions in their workspaces" ON public.block_revisions FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
+
+--
+-- Name: blocks Users can read blocks in their workspaces; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can read blocks in their workspaces" ON public.blocks FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = blocks.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
+
+--
+-- Name: documents Users can read documents in their workspaces; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can read documents in their workspaces" ON public.documents FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.workspace_id = documents.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
+
+--
 -- Name: revisions allow agent insert; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -4194,6 +4248,12 @@ CREATE POLICY ctx_member_update ON public.context_items FOR UPDATE USING ((baske
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE (wm.user_id = auth.uid()))));
 
+
+--
+-- Name: documents; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: raw_dumps dump_member_insert; Type: POLICY; Schema: public; Owner: -
