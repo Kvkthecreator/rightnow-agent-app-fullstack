@@ -27,8 +27,12 @@ export default async function BasketWorkPage({
     .single()
 
   if (!basket) {
+    console.log("🔍 basket fetch failed — possible RLS or auth issue")
+    console.log("session", session)
+    console.log("user id", session?.user.id)
     redirect("/404")
   }
+
 
   const { data: firstDoc } = await supabase
     .from("documents")
