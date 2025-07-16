@@ -1,5 +1,6 @@
 import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
+import { getActiveWorkspaceId } from "@/lib/workspace"
 import { redirect } from "next/navigation"
 
 // ✅ Next.js 15 requires params to be a Promise
@@ -16,6 +17,8 @@ export default async function BasketWorkPage({
     data: { user },
   } = await supabase.auth.getUser()
 
+  const workspaceId = await getActiveWorkspaceId(supabase, user?.id)
+
   if (!user) {
     redirect("/login")
   }
@@ -24,6 +27,7 @@ export default async function BasketWorkPage({
     .from("baskets")
     .select("id, name, status, tags")
     .eq("id", id)
+    .eq("workspace_id", workspaceId)
     .single()
 
   if (!basket) {
@@ -38,6 +42,7 @@ export default async function BasketWorkPage({
     .from("documents")
     .select("id")
     .eq("basket_id", id)
+    .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle()
@@ -49,6 +54,7 @@ export default async function BasketWorkPage({
       .from("raw_dumps")
       .select("body_md")
       .eq("document_id", firstDoc.id)
+      .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()

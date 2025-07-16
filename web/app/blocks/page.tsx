@@ -7,18 +7,30 @@ import { Button } from "@/components/ui/Button";
 import BlockCard, { Block } from "@/components/blocks/BlockCard";
 import BlockCreateModal from "@/components/blocks/BlockCreateModal";
 import { fetchBlocks, createBlock, toggleAuto } from "@/lib/supabase/blocks";
+import { createClient } from "@/lib/supabaseClient";
+import { getActiveWorkspaceId } from "@/lib/workspace";
 
 export default function BlocksPage() {
     const { session, isLoading } = useSessionContext();
+    const supabase = createClient();
     const router = useRouter();
     const [blocks, setBlocks] = useState<Block[]>([]);
     const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [filter, setFilter] = useState<"all" | "core">("all");
     const [scope, setScope] = useState<"user" | "agent" | "all">("user");
+    const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (isLoading) return;
+        if (!session) return;
+        (async () => {
+            const ws = await getActiveWorkspaceId(supabase, session.user.id);
+            setWorkspaceId(ws);
+        })();
+    }, [session, supabase]);
+
+    useEffect(() => {
+        if (isLoading || !session || !workspaceId) return;
         if (!session) {
             router.replace("/about");
             return;
@@ -31,13 +43,13 @@ export default function BlocksPage() {
                       ? ["agent"]
                       : [];
             const { data } = await fetchBlocks(
-                session.user.id,
+                workspaceId,
                 filter === "core",
                 scopeList,
             );
             if (data) setBlocks(data as any);
         })();
-    }, [session, isLoading, router, filter, scope]);
+    }, [session, isLoading, router, filter, scope, workspaceId]);
 
     async function handleCreate(data: {
         type: string;
@@ -47,9 +59,11 @@ export default function BlocksPage() {
         meta_tags?: string;
     }) {
         if (!session?.user) return;
+        if (!workspaceId) return;
         setLoading(true);
         const { data: created } = await createBlock({
             user_id: session.user.id,
+            workspace_id: workspaceId,
             type: data.type,
             label: data.label,
             content: data.content,

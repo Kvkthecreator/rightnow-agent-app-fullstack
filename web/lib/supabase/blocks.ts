@@ -22,7 +22,7 @@ export interface BlockInsert {
 }
 
 export async function fetchBlocks(
-  userId: string,
+  workspaceId: string,
   coreOnly = false,
   scopes: string[] = ["basket", "profile"]
 ) {
@@ -30,7 +30,7 @@ export async function fetchBlocks(
   let query = supabase
     .from("blocks")
     .select("*")
-    .eq("user_id", userId);
+    .eq("workspace_id", workspaceId);
   if (scopes.length > 0) {
     query = query.in("meta_scope", scopes);
   }
@@ -53,12 +53,13 @@ export async function toggleAuto(id: string, enable: boolean) {
   });
 }
 
-export async function fetchBlock(id: string) {
+export async function fetchBlock(id: string, workspaceId: string) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("blocks")
     .select("*")
     .eq("id", id)
+    .eq("workspace_id", workspaceId)
     .single();
   return { data, error };
 }

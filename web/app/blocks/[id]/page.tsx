@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import BlockDetailLayout from "@/components/blocks/BlockDetailLayout";
 import { fetchBlock, updateBlock, deleteBlock } from "@/lib/supabase/blocks";
+import { createClient } from "@/lib/supabaseClient";
+import { getActiveWorkspaceId } from "@/lib/workspace";
 
 export default function BlockDetailPage({
   params,
@@ -12,9 +14,11 @@ export default function BlockDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
+  const supabase = createClient();
   const [blockId, setBlockId] = useState<string | null>(null);
   const [block, setBlock] = useState<any | null>(null);
   const [edit, setEdit] = useState(false);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [form, setForm] = useState({
     label: "",
     semantic_type: "",
@@ -31,9 +35,17 @@ export default function BlockDetailPage({
   }, [params]);
 
   useEffect(() => {
-    if (!blockId) return;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const ws = await getActiveWorkspaceId(supabase, user?.id);
+      setWorkspaceId(ws);
+    })();
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!blockId || !workspaceId) return;
     const load = async () => {
-      const { data } = await fetchBlock(blockId);
+      const { data } = await fetchBlock(blockId, workspaceId);
       if (data) {
         setBlock(data);
         setForm({
@@ -45,7 +57,7 @@ export default function BlockDetailPage({
       }
     };
     load();
-  }, [blockId]);
+  }, [blockId, workspaceId]);
 
   const handleSave = async () => {
     if (!block) return;

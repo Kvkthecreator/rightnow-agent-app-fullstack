@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Plus, Package2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabaseClient";
+import { getActiveWorkspaceId } from "@/lib/workspace";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
@@ -19,6 +20,7 @@ export default function Sidebar({ className }: SidebarProps) {
   const supabase = createClient();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [baskets, setBaskets] = useState<any[]>([]);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
@@ -26,20 +28,24 @@ export default function Sidebar({ className }: SidebarProps) {
         data: { user },
       } = await supabase.auth.getUser();
       setUserEmail(user?.email || null);
+      const ws = await getActiveWorkspaceId(supabase, user?.id);
+      setWorkspaceId(ws);
     };
     getUser();
   }, [supabase]);
 
   useEffect(() => {
     const fetchBaskets = async () => {
+      if (!workspaceId) return;
       const { data } = await supabase
         .from("baskets")
         .select("id, name, created_at")
+        .eq("workspace_id", workspaceId)
         .order("created_at", { ascending: false });
       setBaskets(data || []);
     };
     fetchBaskets();
-  }, [supabase]);
+  }, [supabase, workspaceId]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -62,9 +68,10 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
   const handleNewBasket = async () => {
+    if (!workspaceId) return;
     const { data } = await supabase
       .from("baskets")
-      .insert({ name: "Untitled Basket", state: "draft" })
+      .insert({ name: "Untitled Basket", state: "draft", workspace_id: workspaceId })
       .select("id")
       .single();
     if (data) {
