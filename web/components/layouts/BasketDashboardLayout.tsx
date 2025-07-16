@@ -44,7 +44,7 @@ function EmptyPrompt({ basketId }: { basketId: string }) {
             label: d.label,
             content: d.content,
             semantic_type: d.type,
-            meta_tags: d.meta_tags,
+            meta_tags: typeof d.meta_tags === 'string' ? d.meta_tags.split(',').map(tag => tag.trim()) : d.meta_tags,
           });
         }}
         includeAuto={false}
