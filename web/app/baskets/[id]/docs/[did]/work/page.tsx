@@ -10,14 +10,17 @@ interface PageProps {
 
 export default async function DocWorkPage({ params }: PageProps) {
   const { id, did } = await params;
+  console.debug("[DocLoader] basket", id, "document", did);
   const supabase = createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  console.debug("[DocLoader] User:", user);
   if (!user) {
     redirect("/login");
   }
   const workspaceId = await getOrCreateWorkspaceId(supabase, user?.id!);
+  console.debug("[DocLoader] Workspace ID:", workspaceId);
 
   const { data: basket } = await supabase
     .from("baskets")
@@ -25,7 +28,13 @@ export default async function DocWorkPage({ params }: PageProps) {
     .eq("id", id)
     .eq("workspace_id", workspaceId)
     .single();
+
+  console.debug("[DocLoader] Fetched basket:", basket);
+
   if (!basket) {
+    console.warn(
+      `[DocLoader] No basket found or not accessible for id=${id}`,
+    );
     redirect("/404");
   }
 

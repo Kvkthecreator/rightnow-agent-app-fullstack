@@ -10,6 +10,7 @@ export default async function BasketWorkPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params // ✅ Await the promised params
+  console.debug("[BasketLoader] basket id", id)
 
   const supabase = createServerSupabaseClient()
 
@@ -17,7 +18,10 @@ export default async function BasketWorkPage({
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.debug("[BasketLoader] User:", user)
+
   const workspaceId = await getOrCreateWorkspaceId(supabase, user?.id!)
+  console.debug("[BasketLoader] Workspace ID:", workspaceId)
 
   if (!user) {
     redirect("/login")
@@ -30,10 +34,12 @@ export default async function BasketWorkPage({
     .eq("workspace_id", workspaceId)
     .single()
 
+  console.debug("[BasketLoader] Fetched basket:", basket)
+
   if (!basket) {
-    console.log("🔍 basket fetch failed — possible RLS or auth issue")
-    console.log("user", user)
-    console.log("user id", user?.id)
+    console.warn(
+      `[BasketLoader] No basket found or not accessible for id=${id}`,
+    )
     redirect("/404")
   }
 
