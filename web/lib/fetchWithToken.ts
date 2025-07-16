@@ -17,8 +17,11 @@ export async function fetchWithToken(
     const session = await supabase.auth.getSession();
     jwt = session.data.session?.access_token ?? "";
   }
-  if (!jwt) {
-    throw new Error("No access token found. Please log in to continue.");
+  const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  if (!jwt || !apikey) {
+    console.warn(
+      "Missing access_token or apikey – this will break RLS or Supabase auth.",
+    );
   }
   return fetch(input, {
     ...init,
@@ -26,7 +29,7 @@ export async function fetchWithToken(
       ...(init.headers || {}),
       "sb-access-token": jwt,
       Authorization: `Bearer ${jwt}`,
-      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      apikey,
       "Content-Type": "application/json",
     },
     credentials: "include",
