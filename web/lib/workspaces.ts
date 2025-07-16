@@ -14,7 +14,7 @@ export async function getOrCreateWorkspaceId(
   console.debug("[Workspace] Creating or retrieving workspace for user:", userId);
 
   const { data: existing, error: existingError } = await supabase
-    .from('workspace_members')
+    .from('workspace_memberships')
     .select('workspace_id')
     .eq('user_id', userId)
     .maybeSingle();
@@ -37,11 +37,13 @@ export async function getOrCreateWorkspaceId(
     throw new Error('Failed to create workspace');
   }
 
-  const { error: memberInsertError } = await supabase.from('workspace_members').insert({
-    workspace_id: created.id,
-    user_id: userId,
-    role: 'owner',
-  });
+  const { error: memberInsertError } = await supabase
+    .from('workspace_memberships')
+    .insert({
+      workspace_id: created.id,
+      user_id: userId,
+      role: 'owner',
+    });
 
   if (memberInsertError) {
     console.error("[Workspace] Failed to assign user to workspace", memberInsertError.message);
@@ -61,7 +63,7 @@ export async function getActiveWorkspaceId(
   if (!userId) return null;
 
   const { data, error } = await supabase
-    .from('workspace_members')
+    .from('workspace_memberships')
     .select('workspace_id')
     .eq('user_id', userId)
     .maybeSingle();
