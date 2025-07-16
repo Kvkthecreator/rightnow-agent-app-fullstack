@@ -1,5 +1,6 @@
 import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
+import { getOrCreateWorkspaceId } from "@/lib/workspaces"
 import { redirect } from "next/navigation"
 
 // ✅ Next.js 15 requires params to be a Promise
@@ -9,14 +10,20 @@ export default async function BasketWorkPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params // ✅ Await the promised params
+  console.debug("[BasketLoader] basket id", id)
 
   const supabase = createServerSupabaseClient()
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  console.debug("[BasketLoader] User:", user)
+
+  const workspaceId = await getOrCreateWorkspaceId(supabase, user?.id!)
+  console.debug("[BasketLoader] Workspace ID:", workspaceId)
+
+  if (!user) {
     redirect("/login")
   }
 
@@ -24,12 +31,15 @@ export default async function BasketWorkPage({
     .from("baskets")
     .select("id, name, status, tags")
     .eq("id", id)
+    .eq("workspace_id", workspaceId)
     .single()
 
+  console.debug("[BasketLoader] Fetched basket:", basket)
+
   if (!basket) {
-    console.log("🔍 basket fetch failed — possible RLS or auth issue")
-    console.log("session", session)
-    console.log("user id", session?.user.id)
+    console.warn(
+      `[BasketLoader] No basket found or not accessible for id=${id}`,
+    )
     redirect("/404")
   }
 
@@ -38,6 +48,7 @@ export default async function BasketWorkPage({
     .from("documents")
     .select("id")
     .eq("basket_id", id)
+    .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle()
@@ -49,6 +60,7 @@ export default async function BasketWorkPage({
       .from("raw_dumps")
       .select("body_md")
       .eq("document_id", firstDoc.id)
+      .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()

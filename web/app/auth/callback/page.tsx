@@ -11,8 +11,12 @@ export default function AuthCallbackPage() {
 
     useEffect(() => {
         const checkSession = async () => {
-            const { data, error } = await supabase.auth.getSession();
-            if (error || !data?.session) {
+            const {
+                data: { user },
+                error: userError,
+            } = await supabase.auth.getUser();
+
+            if (userError || !user) {
                 setError("Authentication failed. Please try logging in again.");
                 setTimeout(() => router.replace("/login"), 1500);
                 return;
@@ -32,14 +36,16 @@ export default function AuthCallbackPage() {
             const { data: baskets } = await supabase
                 .from("baskets")
                 .select("id")
-                .eq("user_id", data.session.user.id)
+                .eq("user_id", user.id)
                 .limit(1);
+
             if (!baskets || baskets.length === 0) {
                 router.replace("/baskets/new");
             } else {
                 router.replace("/dashboard");
             }
         };
+
         checkSession();
     }, [router, supabase]);
 

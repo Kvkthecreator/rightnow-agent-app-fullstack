@@ -18,13 +18,15 @@ export async function createBasketNew(
 
   // 🔐 Get Supabase JWT
   const supabase = createClient();
-  const { data } = await supabase.auth.getSession();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // 🧱 Build headers and body
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  const uid = data.session?.user.id;
+  const uid = user?.id;
   if (uid) headers["X-User-Id"] = uid;
 
   // ✅ Ensure text_dump is never null

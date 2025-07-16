@@ -1,6 +1,7 @@
 import DocumentWorkbenchLayout from "@/components/layouts/DocumentWorkbenchLayout";
 import ContextBlocksPanel from "@/components/basket/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { getOrCreateWorkspaceId } from "@/lib/workspaces";
 import { redirect } from "next/navigation";
 
 interface PageProps {
@@ -9,32 +10,45 @@ interface PageProps {
 
 export default async function DocWorkPage({ params }: PageProps) {
   const { id, did } = await params;
+  console.debug("[DocLoader] basket", id, "document", did);
   const supabase = createServerSupabaseClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) {
+    data: { user },
+  } = await supabase.auth.getUser();
+  console.debug("[DocLoader] User:", user);
+  if (!user) {
     redirect("/login");
   }
+  const workspaceId = await getOrCreateWorkspaceId(supabase, user?.id!);
+  console.debug("[DocLoader] Workspace ID:", workspaceId);
 
   const { data: basket } = await supabase
     .from("baskets")
     .select("id, name, created_at")
     .eq("id", id)
+    .eq("workspace_id", workspaceId)
     .single();
+
+  console.debug("[DocLoader] Fetched basket:", basket);
+
   if (!basket) {
+    console.warn(
+      `[DocLoader] No basket found or not accessible for id=${id}`,
+    );
     redirect("/404");
   }
 
   const { data: documents } = await supabase
     .from("documents")
     .select("id, title")
-    .eq("basket_id", id);
+    .eq("basket_id", id)
+    .eq("workspace_id", workspaceId);
 
   const { data: dump } = await supabase
     .from("raw_dumps")
     .select("body_md")
     .eq("document_id", did)
+    .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false })
     .limit(1)
     .single();
@@ -45,6 +59,7 @@ export default async function DocWorkPage({ params }: PageProps) {
       "id, semantic_type, content, state, scope, canonical_value, actor, created_at"
     )
     .eq("basket_id", id)
+    .eq("workspace_id", workspaceId)
     .in("state", ["LOCKED", "PROPOSED", "CONSTANT"]);
 
   const { data: basketGuidelines } = await supabase
@@ -52,6 +67,7 @@ export default async function DocWorkPage({ params }: PageProps) {
     .select("id, content")
     .eq("basket_id", id)
     .is("document_id", null)
+    .eq("workspace_id", workspaceId)
     .eq("status", "active");
 
   const { data: docGuidelines } = await supabase
@@ -59,6 +75,7 @@ export default async function DocWorkPage({ params }: PageProps) {
     .select("id, content")
     .eq("basket_id", id)
     .eq("document_id", did)
+    .eq("workspace_id", workspaceId)
     .eq("status", "active");
 
   const snapshot = {

@@ -15,16 +15,15 @@ export default function LoginPage() {
 
     // If already signed in, redirect immediately
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) {
                 router.replace("/dashboard");
             }
         });
-    }, [router, supabase]);
+    }, [router]);
 
     // Google OAuth
     const handleGoogleLogin = async () => {
-        // Preserve the current path so we can restore it after OAuth
         if (typeof window !== "undefined") {
             localStorage.setItem("postLoginPath", window.location.pathname);
         }
@@ -63,12 +62,10 @@ export default function LoginPage() {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-muted p-4">
-            {/* Branding */}
             <div className="flex items-center space-x-2 mb-6">
                 <Brand className="text-2xl" />
             </div>
 
-            {/* Login Card */}
             <div className="w-full max-w-sm rounded-lg shadow-sm p-6 bg-card space-y-4">
                 <h2 className="text-2xl font-bold text-center">Welcome back</h2>
 
@@ -97,10 +94,7 @@ export default function LoginPage() {
                             className="w-full px-3 py-2 border rounded-md text-sm"
                             placeholder="test@example.com"
                         />
-                        <Button
-                            onClick={handleMagicLinkLogin}
-                            className="w-full"
-                        >
+                        <Button onClick={handleMagicLinkLogin} className="w-full">
                             Send Magic Link
                         </Button>
                         {sent && (
@@ -117,7 +111,6 @@ export default function LoginPage() {
                 )}
             </div>
 
-            {/* Policy Links */}
             <p className="text-sm font-medium text-center mt-4">
                 By clicking continue, you agree to our{" "}
                 <Link href="/terms" className="underline hover:text-gray-700">
