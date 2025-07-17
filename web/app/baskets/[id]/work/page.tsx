@@ -8,10 +8,11 @@ import BasketWorkLayout from "@/components/layouts/BasketWorkLayout";
 export default function BasketWorkPage({
   params,
 }: {
-  params: Promise<{ id: string }>; // ✅ preserves original working type
+  params: Promise<{ id: string }>;
 }) {
   const [id, setId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [renderData, setRenderData] = useState<{
     basketName: string;
     status: string;
@@ -34,18 +35,24 @@ export default function BasketWorkPage({
     if (!id) return;
 
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return router.replace("/login");
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        setError("Authentication error. Please log in again.");
+        return router.replace("/login");
+      }
 
-      const { data: workspace } = await supabase
+      const { data: workspace, error: wsError } = await supabase
         .from("workspaces")
         .select("id")
         .eq("owner_id", user.id)
         .single();
 
-      if (!workspace) return router.replace("/home");
+      if (wsError || !workspace) {
+        setError("Workspace not found.");
+        return router.replace("/home");
+      }
 
-      const { data: basket } = await supabase
+      const { data: basket, error: basketError } = await supabase
         .from("baskets")
         .select("id, name, status, tags")
         .eq("id", id)
@@ -54,7 +61,10 @@ export default function BasketWorkPage({
 
       console.log("📦 [BasketWorkPage] Fetched basket:", basket);
 
-      if (!basket) return router.replace("/404");
+      if (basketError || !basket) {
+        setError("Basket not found.");
+        return;
+      }
 
       const { data: firstDoc } = await supabase
         .from("documents")
@@ -112,8 +122,24 @@ export default function BasketWorkPage({
     load();
   }, [id, supabase, router]);
 
-  if (loading || !renderData) {
+  if (loading) {
     return <div className="p-4 text-muted-foreground">Loading workspace...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-red-500">
+        ⚠️ <strong>Error:</strong> {error}
+      </div>
+    );
+  }
+
+  if (!renderData) {
+    return (
+      <div className="p-4 text-yellow-500">
+        ⚠️ Unexpected issue: renderData is null.
+      </div>
+    );
   }
 
   return (
