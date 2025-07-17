@@ -1,0 +1,127 @@
+api/src/app/
+├── __init__.py
+├── agent_entrypoints.py
+├── agent_output.py
+├── agent_server.py
+├── agent_tasks
+│   ├── __init__.py
+│   ├── context_extractor_agent.py
+│   ├── context.py
+│   ├── holding
+│   ├── infra
+│   │   ├── __init__.py
+│   │   └── infra_cil_validator_agent.py
+│   ├── layer1_infra
+│   │   ├── __init__.py
+│   │   ├── agents
+│   │   │   ├── __init__.py
+│   │   │   ├── infra_analyzer_agent.py
+│   │   │   ├── infra_manager_agent.py
+│   │   │   ├── infra_observer_agent.py
+│   │   │   └── infra_research_agent.py
+│   │   ├── README.md
+│   │   ├── schemas.py
+│   │   ├── tools
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   └── web_search.py
+│   │   └── utils
+│   │       ├── __init__.py
+│   │       ├── auth_helpers.py
+│   │       ├── block_policy.py
+│   │       ├── normalize_output.py
+│   │       ├── supabase_helpers.py
+│   │       └── task_progress.py
+│   ├── layer2_tasks
+│   │   ├── agents
+│   │   ├── registry
+│   │   │   ├── providers
+│   │   │   └── validator_schemas
+│   │   ├── tools
+│   │   └── utils
+│   ├── layer3_config
+│   │   ├── __init__.py
+│   │   ├── adapters
+│   │   │   ├── __init__.py
+│   │   │   └── google_exporter.py
+│   │   ├── agents
+│   │   │   ├── __init__.py
+│   │   │   └── config_agent.py
+│   │   └── utils
+│   │       ├── __init__.py
+│   │       └── config_to_md.py
+│   ├── layer3_output
+│   │   ├── __init__.py
+│   │   ├── agents
+│   │   │   └── __init__.py
+│   │   ├── delivery
+│   │   │   └── __init__.py
+│   │   ├── README.md
+│   │   └── renderers
+│   │       └── __init__.py
+│   ├── orch
+│   │   ├── __init__.py
+│   │   ├── doc_scaffold_agent.py
+│   │   ├── orch_basket_parser_agent.py
+│   │   ├── orch_block_manager_agent.py
+│   │   └── orchestration_runner.py
+│   ├── orchestration
+│   ├── run_agent_chain.py
+│   └── shared
+│       ├── __init__.py
+│       ├── inbound_schemas.py
+│       ├── intent.py
+│       └── splitter.py
+├── db
+├── event_bus.py
+├── events
+│   ├── __init__.py
+│   └── on_input_created.py
+├── exceptions.py
+├── integrations
+│   ├── __init__.py
+│   └── google_client.py
+├── models
+│   ├── basket.py
+│   ├── block.py
+│   ├── context.py
+│   ├── event.py
+│   └── raw_dump.py
+├── routes
+│   ├── agent_run.py
+│   ├── agents.py
+│   ├── basket_from_template.py
+│   ├── basket_new.py
+│   ├── basket_snapshot.py
+│   ├── baskets.py
+│   ├── blocks.py
+│   ├── change_queue.py
+│   ├── commits.py
+│   ├── context_blocks_create.py
+│   ├── context_items.py
+│   ├── debug.py
+│   ├── dump_new.py
+│   ├── inputs.py
+│   ├── phase1_routes.py
+│   ├── task_brief.py
+│   └── task_types.py
+├── services
+│   ├── __init__.py
+│   └── template_cloner.py
+├── supabase_helpers.py
+├── templates
+│   └── __init__.py
+├── util
+│   └── __init__.py
+└── utils
+    ├── __init__.py
+    ├── auth_helpers.py
+    ├── db.py
+    ├── errors.py
+    ├── event_log.py
+    ├── jwt.py
+    ├── snapshot_assembler.py
+    ├── supabase_client.py
+    └── workspace.py
+
+35 directories, 90 files
