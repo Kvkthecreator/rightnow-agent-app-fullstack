@@ -6,7 +6,7 @@ export default function OrphanWorkRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    console.warn("🚨 Invalid /work route accessed. Redirecting to /home.");
+    console.warn("🚨 Invalid /work route. Redirecting to /home.");
     router.replace("/home");
   }, []);
 
