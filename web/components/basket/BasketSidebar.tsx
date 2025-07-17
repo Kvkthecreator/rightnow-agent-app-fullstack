@@ -1,6 +1,8 @@
 "use client";
 import BasketSidebarHeader from "./BasketSidebarHeader";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 interface Props {
   basketId: string;
@@ -15,6 +17,8 @@ export default function BasketSidebar({
   status,
   scope,
 }: Props) {
+  const params = useSearchParams();
+  const currentTab = params.get("tab") || "dashboard";
   return (
     <aside className="w-[260px] border-r shrink-0 flex flex-col p-4 space-y-6">
       <BasketSidebarHeader
@@ -23,9 +27,24 @@ export default function BasketSidebar({
         scope={scope}
       />
       <nav className="flex flex-col gap-2 text-sm">
-        <Link href={`/baskets/${basketId}/work`}>Dashboard</Link>
-        <Link href={`/baskets/${basketId}/insights`}>Insights</Link>
-        <Link href={`/baskets/${basketId}/history`}>History</Link>
+        <Link
+          href={`/baskets/${basketId}/work?tab=dashboard`}
+          className={cn(currentTab === "dashboard" && "font-semibold")}
+        >
+          Dashboard
+        </Link>
+        <Link
+          href={`/baskets/${basketId}/work?tab=insights`}
+          className={cn(currentTab === "insights" && "font-semibold")}
+        >
+          Insights
+        </Link>
+        <Link
+          href={`/baskets/${basketId}/work?tab=history`}
+          className={cn(currentTab === "history" && "font-semibold")}
+        >
+          History
+        </Link>
       </nav>
       <div className="text-xs font-semibold text-muted-foreground space-y-2">
         <p>Context Items</p>
