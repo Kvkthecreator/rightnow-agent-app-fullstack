@@ -1,101 +1,120 @@
-import BasketWorkLayout from "@/components/layouts/BasketWorkLayout"
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
-import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace"
-import { redirect } from "next/navigation"
+"use client";
 
-// ✅ Next.js 15 requires params to be a Promise
-export default async function BasketWorkPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params // ✅ Await the promised params
-  console.debug("[BasketLoader] basket id", id)
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import BasketWorkLayout from "@/components/layouts/BasketWorkLayout";
 
-  const supabase = createServerSupabaseClient()
+export default function BasketWorkPage({ params }: { params: { id: string } }) {
+  const { id } = params;
+  const supabase = createClientComponentClient();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [renderData, setRenderData] = useState<{
+    basketName: string;
+    status: string;
+    scope: string[];
+    dumpBody: string;
+    empty: boolean;
+  } | null>(null);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return router.replace("/login");
 
-  console.debug("[BasketLoader] User:", user)
+      const {
+        data: workspace,
+      } = await supabase
+        .from("workspaces")
+        .select("id")
+        .eq("owner_id", user.id)
+        .single();
 
-  if (!user) {
-    redirect("/login")
+      if (!workspace) {
+        console.warn("[BasketLoader] No workspace");
+        return router.replace("/home");
+      }
+
+      const { data: basket } = await supabase
+        .from("baskets")
+        .select("id, name, status, tags")
+        .eq("id", id)
+        .eq("workspace_id", workspace.id)
+        .single();
+
+      if (!basket) {
+        console.warn("[BasketLoader] No basket found or not accessible");
+        return router.replace("/404");
+      }
+
+      const { data: firstDoc } = await supabase
+        .from("documents")
+        .select("id")
+        .eq("basket_id", id)
+        .eq("workspace_id", workspace.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      const { data: anyDump } = await supabase
+        .from("raw_dumps")
+        .select("id")
+        .eq("basket_id", id)
+        .eq("workspace_id", workspace.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let rawDumpBody = "";
+      if (firstDoc?.id) {
+        const { data: dump } = await supabase
+          .from("raw_dumps")
+          .select("body_md")
+          .eq("document_id", firstDoc.id)
+          .eq("workspace_id", workspace.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        rawDumpBody = dump?.body_md ?? "";
+      }
+
+      const { data: anyBlock } = await supabase
+        .from("blocks")
+        .select("id")
+        .eq("basket_id", id)
+        .eq("workspace_id", workspace.id)
+        .limit(1)
+        .maybeSingle();
+
+      const isEmpty = !anyBlock && !firstDoc && !anyDump;
+
+      setRenderData({
+        basketName: basket.name ?? "Untitled",
+        status: basket.status ?? "draft",
+        scope: basket.tags ?? [],
+        dumpBody: rawDumpBody,
+        empty: isEmpty,
+      });
+      setLoading(false);
+    };
+
+    load();
+  }, [id, supabase, router]);
+
+  if (loading || !renderData) {
+    return <div className="p-4 text-muted-foreground">Loading workspace...</div>;
   }
-
-  const workspace = await getServerWorkspace()
-  const workspaceId = workspace?.id
-  console.debug("[BasketLoader] Workspace ID:", workspaceId)
-
-  const { data: basket } = await supabase
-    .from("baskets")
-    .select("id, name, status, tags")
-    .eq("id", id)
-    .eq("workspace_id", workspaceId)
-    .single()
-
-  console.debug("[BasketLoader] Fetched basket:", basket)
-
-  if (!basket) {
-    console.warn(
-      `[BasketLoader] No basket found or not accessible for id=${id}`,
-    )
-    redirect("/404")
-  }
-
-
-  const { data: firstDoc } = await supabase
-    .from("documents")
-    .select("id")
-    .eq("basket_id", id)
-    .eq("workspace_id", workspaceId)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle()
-
-  let rawDumpBody = ""
-
-  const { data: anyDump } = await supabase
-    .from("raw_dumps")
-    .select("id")
-    .eq("basket_id", id)
-    .eq("workspace_id", workspaceId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (firstDoc?.id) {
-    const { data: dump } = await supabase
-      .from("raw_dumps")
-      .select("body_md")
-      .eq("document_id", firstDoc.id)
-      .eq("workspace_id", workspaceId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    rawDumpBody = dump?.body_md ?? ""
-  }
-
-  const { data: anyBlock } = await supabase
-    .from("blocks")
-    .select("id")
-    .eq("basket_id", id)
-    .eq("workspace_id", workspaceId)
-    .limit(1)
-    .maybeSingle()
-
-  const isEmpty = !anyBlock && !firstDoc && !anyDump
 
   return (
     <BasketWorkLayout
       basketId={id}
-      basketName={basket.name ?? "Untitled"}
-      status={basket.status ?? "draft"}
-      scope={basket.tags ?? []}
-      dumpBody={rawDumpBody}
-      empty={isEmpty}
+      basketName={renderData.basketName}
+      status={renderData.status}
+      scope={renderData.scope}
+      dumpBody={renderData.dumpBody}
+      empty={renderData.empty}
     />
-  )
+  );
 }
