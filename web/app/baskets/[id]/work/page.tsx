@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import BasketWorkLayout from "@/components/layouts/BasketWorkLayout";
 
-export default function BasketWorkPage({ params }: { params: { id: string } }) {
-  const { id } = params;
-  const supabase = createClientComponentClient();
-  const router = useRouter();
+export default function BasketWorkPage({
+  params,
+}: {
+  params: Promise<{ id: string }>; // ✅ preserves original working type
+}) {
+  const [id, setId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [renderData, setRenderData] = useState<{
     basketName: string;
@@ -18,23 +20,27 @@ export default function BasketWorkPage({ params }: { params: { id: string } }) {
     empty: boolean;
   } | null>(null);
 
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+
   useEffect(() => {
+    params.then(({ id }) => setId(id));
+  }, [params]);
+
+  useEffect(() => {
+    if (!id) return;
+
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return router.replace("/login");
 
-      const {
-        data: workspace,
-      } = await supabase
+      const { data: workspace } = await supabase
         .from("workspaces")
         .select("id")
         .eq("owner_id", user.id)
         .single();
 
-      if (!workspace) {
-        console.warn("[BasketLoader] No workspace");
-        return router.replace("/home");
-      }
+      if (!workspace) return router.replace("/home");
 
       const { data: basket } = await supabase
         .from("baskets")
@@ -43,10 +49,7 @@ export default function BasketWorkPage({ params }: { params: { id: string } }) {
         .eq("workspace_id", workspace.id)
         .single();
 
-      if (!basket) {
-        console.warn("[BasketLoader] No basket found or not accessible");
-        return router.replace("/404");
-      }
+      if (!basket) return router.replace("/404");
 
       const { data: firstDoc } = await supabase
         .from("documents")
@@ -97,6 +100,7 @@ export default function BasketWorkPage({ params }: { params: { id: string } }) {
         dumpBody: rawDumpBody,
         empty: isEmpty,
       });
+
       setLoading(false);
     };
 
@@ -109,7 +113,7 @@ export default function BasketWorkPage({ params }: { params: { id: string } }) {
 
   return (
     <BasketWorkLayout
-      basketId={id}
+      basketId={id!}
       basketName={renderData.basketName}
       status={renderData.status}
       scope={renderData.scope}
