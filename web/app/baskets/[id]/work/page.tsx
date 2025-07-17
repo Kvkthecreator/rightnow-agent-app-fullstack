@@ -20,13 +20,13 @@ export default async function BasketWorkPage({
 
   console.debug("[BasketLoader] User:", user)
 
-  const workspace = await getServerWorkspace(user.id)
-  const workspaceId = workspace?.id
-  console.debug("[BasketLoader] Workspace ID:", workspaceId)
-
   if (!user) {
     redirect("/login")
   }
+
+  const workspace = await getServerWorkspace(user!.id)
+  const workspaceId = workspace?.id
+  console.debug("[BasketLoader] Workspace ID:", workspaceId)
 
   const { data: basket } = await supabase
     .from("baskets")
