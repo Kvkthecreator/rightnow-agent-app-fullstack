@@ -16,13 +16,13 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createServiceRoleClient();
-  const userId = req.headers.get("X-User-Id");
-  if (!userId) {
-    return NextResponse.json({ error: "Missing user ID" }, { status: 401 });
+
+  const workspace = await getServerWorkspace();
+  if (!workspace) {
+    return NextResponse.json({ error: "workspace not found" }, { status: 401 });
   }
 
-  const workspace = await getServerWorkspace(userId);
-  const workspaceId = workspace?.id;
+  const { id: workspaceId, user_id: userId } = workspace;
 
   const { data: basket, error: basketErr } = await supabase
     .from("baskets")

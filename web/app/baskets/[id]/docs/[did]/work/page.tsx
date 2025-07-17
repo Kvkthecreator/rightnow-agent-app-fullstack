@@ -19,7 +19,7 @@ export default async function DocWorkPage({ params }: PageProps) {
   if (!user) {
     redirect("/login");
   }
-  const workspace = await getServerWorkspace(user.id);
+  const workspace = await getServerWorkspace();
   const workspaceId = workspace?.id;
   console.debug("[DocLoader] Workspace ID:", workspaceId);
 

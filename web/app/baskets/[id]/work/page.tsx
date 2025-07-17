@@ -24,7 +24,7 @@ export default async function BasketWorkPage({
     redirect("/login")
   }
 
-  const workspace = await getServerWorkspace(user!.id)
+  const workspace = await getServerWorkspace()
   const workspaceId = workspace?.id
   console.debug("[BasketLoader] Workspace ID:", workspaceId)
 
