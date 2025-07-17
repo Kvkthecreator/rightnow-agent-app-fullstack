@@ -36,13 +36,26 @@ export default function AuthCallbackPage() {
             const { data: baskets } = await supabase
                 .from("baskets")
                 .select("id")
-                .eq("user_id", user.id)
+                .order("created_at", { ascending: false })
                 .limit(1);
 
-            if (!baskets || baskets.length === 0) {
-                router.replace("/baskets/new");
+            if (baskets && baskets.length > 0) {
+                router.replace(`/baskets/${baskets[0].id}/work?tab=dashboard`);
             } else {
-                router.replace("/dashboard");
+                const { data: newBasket, error } = await supabase
+                    .from("baskets")
+                    .insert({ name: "Untitled Basket" })
+                    .select("id")
+                    .single();
+
+                if (error || !newBasket?.id) {
+                    setError(
+                        "Something went wrong while creating your first basket.",
+                    );
+                    return;
+                }
+
+                router.replace(`/baskets/${newBasket.id}/work?tab=dashboard`);
             }
         };
 

@@ -13,11 +13,34 @@ export default function LoginPage() {
     const [sent, setSent] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
 
-    // If already signed in, redirect immediately
+    // If already signed in, redirect to the most recent basket
     useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user) {
-                router.replace("/dashboard");
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+            if (!user) return;
+
+            const { data: baskets } = await supabase
+                .from("baskets")
+                .select("id")
+                .order("created_at", { ascending: false })
+                .limit(1);
+
+            if (baskets && baskets.length > 0) {
+                router.replace(`/baskets/${baskets[0].id}/work?tab=dashboard`);
+            } else {
+                const { data: newBasket, error } = await supabase
+                    .from("baskets")
+                    .insert({ name: "Untitled Basket" })
+                    .select("id")
+                    .single();
+
+                if (error || !newBasket?.id) {
+                    console.error(
+                        "Something went wrong while creating your first basket.",
+                    );
+                    return;
+                }
+
+                router.replace(`/baskets/${newBasket.id}/work?tab=dashboard`);
             }
         });
     }, [router]);
@@ -94,7 +117,10 @@ export default function LoginPage() {
                             className="w-full px-3 py-2 border rounded-md text-sm"
                             placeholder="test@example.com"
                         />
-                        <Button onClick={handleMagicLinkLogin} className="w-full">
+                        <Button
+                            onClick={handleMagicLinkLogin}
+                            className="w-full"
+                        >
                             Send Magic Link
                         </Button>
                         {sent && (
