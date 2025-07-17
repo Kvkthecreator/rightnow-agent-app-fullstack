@@ -17,7 +17,7 @@
     // ✅ Add types support for node
     // temporarily remove "playwright" until the build pipeline restores those types
     // add vitest globals so test files compile
-    "types": ["react", "react-dom", "node", "vitest/globals"],
+    "types": ["react", "react-dom", "node"],
 
     "plugins": [
       {
