@@ -13,9 +13,13 @@ export default function AuthCallbackPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return router.replace("/login");
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
 
-      router.replace("/home"); // ✅ stable neutral landing
+      // ✅ Always land on /home after login
+      router.replace("/home");
     };
 
     run();
