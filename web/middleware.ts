@@ -18,6 +18,7 @@ export async function middleware(req: NextRequest) {
     '/login',
     '/auth',
     '/baskets', // Allow during callback redirect
+    '/home',
   ];
   const isPublic = publicPaths.some((path) =>
     req.nextUrl.pathname.startsWith(path)
