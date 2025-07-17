@@ -1,6 +1,6 @@
 import BasketWorkLayout from "@/components/layouts/BasketWorkLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
-import { getOrCreateWorkspaceId } from "@/lib/workspaces"
+import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace"
 import { redirect } from "next/navigation"
 
 // ✅ Next.js 15 requires params to be a Promise
@@ -20,12 +20,13 @@ export default async function BasketWorkPage({
 
   console.debug("[BasketLoader] User:", user)
 
-  const workspaceId = await getOrCreateWorkspaceId(supabase, user?.id!)
-  console.debug("[BasketLoader] Workspace ID:", workspaceId)
-
   if (!user) {
     redirect("/login")
   }
+
+  const workspace = await getServerWorkspace(user!.id)
+  const workspaceId = workspace?.id
+  console.debug("[BasketLoader] Workspace ID:", workspaceId)
 
   const { data: basket } = await supabase
     .from("baskets")
