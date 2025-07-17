@@ -1,5 +1,5 @@
 /**
- * Default dashboard layout shown for a basket.
+ * Layout for basket work area showing dashboard and other tabs.
  *
  * Used only in: `/baskets/[id]/work`
  *

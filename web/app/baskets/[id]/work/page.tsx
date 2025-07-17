@@ -1,4 +1,4 @@
-import BasketDashboardLayout from "@/components/layouts/BasketDashboardLayout"
+import BasketWorkLayout from "@/components/layouts/BasketWorkLayout"
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
 import { getOrCreateWorkspaceId } from "@/lib/workspaces"
 import { redirect } from "next/navigation"
@@ -88,7 +88,7 @@ export default async function BasketWorkPage({
   const isEmpty = !anyBlock && !firstDoc && !anyDump
 
   return (
-    <BasketDashboardLayout
+    <BasketWorkLayout
       basketId={id}
       basketName={basket.name ?? "Untitled"}
       status={basket.status ?? "draft"}
