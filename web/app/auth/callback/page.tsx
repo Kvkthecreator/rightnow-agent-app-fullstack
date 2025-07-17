@@ -12,13 +12,20 @@ export default function AuthCallbackPage() {
     const run = async () => {
       const {
         data: { user },
+        error,
       } = await supabase.auth.getUser();
-      if (!user) {
+
+      if (error || !user) {
+        console.warn("🔐 No user after callback. Redirecting to /login.");
         router.replace("/login");
         return;
       }
 
-      // ✅ Always land on /home after login
+      // 🔄 Clear any stale redirect state
+      localStorage.removeItem("redirectPath");
+      sessionStorage.removeItem("redirectPath");
+
+      console.info("✅ Auth successful. Redirecting to /home...");
       router.replace("/home");
     };
 
