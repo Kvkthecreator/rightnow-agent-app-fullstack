@@ -1,16 +1,20 @@
 "use client";
 
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { getServerWorkspace } from "./getServerWorkspace";
-import { Database } from "@/types/supabase";
 
 export async function getClientWorkspace() {
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createClientComponentClient();
   const {
     data: { user },
-    error,
   } = await supabase.auth.getUser();
-  if (error || !user) return null;
 
-  return getServerWorkspace(user.id);
+  if (!user) return null;
+
+  const { data: workspace } = await supabase
+    .from("workspaces")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  return workspace ?? null;
 }
