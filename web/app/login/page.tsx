@@ -25,7 +25,7 @@ export default function LoginPage() {
                 .limit(1);
 
             if (baskets && baskets.length > 0) {
-                router.replace(`/baskets/${baskets[0].id}/work?tab=dashboard`);
+                router.replace("/home");
             } else {
                 const { data: newBasket, error } = await supabase
                     .from("baskets")
@@ -40,7 +40,7 @@ export default function LoginPage() {
                     return;
                 }
 
-                router.replace(`/baskets/${newBasket.id}/work?tab=dashboard`);
+                router.replace("/home");
             }
         });
     }, [router]);
