@@ -20,7 +20,7 @@ export default function HomePage() {
         return;
       }
 
-      setUserEmail(user.email);
+      setUserEmail(user.email ?? null);
       setLoading(false);
     };
 
