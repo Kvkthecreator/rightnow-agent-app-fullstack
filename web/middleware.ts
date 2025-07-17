@@ -11,7 +11,14 @@ export async function middleware(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const publicPaths = ['/', '/about', '/landing', '/login', '/auth'];
+  const publicPaths = [
+    '/',
+    '/about',
+    '/landing',
+    '/login',
+    '/auth',
+    '/baskets', // Allow during callback redirect
+  ];
   const isPublic = publicPaths.some((path) =>
     req.nextUrl.pathname.startsWith(path)
   );

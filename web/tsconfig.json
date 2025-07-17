@@ -13,11 +13,11 @@
     "isolatedModules": true,
       "jsx": "preserve",
       "incremental": true,
-      "typeRoots": ["./types", "./node_modules/@types"],
 
     // ✅ Add types support for node
     // temporarily remove "playwright" until the build pipeline restores those types
-    "types": ["react", "react-dom", "node"],
+    // add vitest globals so test files compile
+    "types": ["react", "react-dom", "node", "vitest/globals"],
 
     "plugins": [
       {
@@ -35,5 +35,5 @@
     ".next/types/**/*.ts",
     "tests/**/*.ts" // ✅ Ensure test files are included
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "__tests__/**/*"]
 }
