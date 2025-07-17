@@ -39,9 +39,11 @@ export default function HomePage() {
           .eq("workspace_id", workspace.id)
           .limit(1);
 
-        if (baskets && baskets.length > 0) {
+        if (baskets?.[0]?.id) {
+          console.log("🧭 Basket redirect target:", baskets[0].id);
           router.replace(`/baskets/${baskets[0].id}/work`);
         } else {
+          console.warn("⚠️ No basket ID found, going to /baskets/new");
           router.replace("/baskets/new?mode=wizard");
         }
       } catch (err) {

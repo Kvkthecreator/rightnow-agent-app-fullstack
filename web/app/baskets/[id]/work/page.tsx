@@ -24,7 +24,10 @@ export default function BasketWorkPage({
   const supabase = createClientComponentClient();
 
   useEffect(() => {
-    params.then(({ id }) => setId(id));
+    params.then(({ id }) => {
+      console.log("🧺 [BasketWorkPage] Basket ID param:", id);
+      setId(id);
+    });
   }, [params]);
 
   useEffect(() => {
@@ -48,6 +51,8 @@ export default function BasketWorkPage({
         .eq("id", id)
         .eq("workspace_id", workspace.id)
         .single();
+
+      console.log("📦 [BasketWorkPage] Fetched basket:", basket);
 
       if (!basket) return router.replace("/404");
 
