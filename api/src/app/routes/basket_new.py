@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 
-from ..event_bus import publish_event
+from ..event_bus import emit
 from ..baskets.schemas import BasketCreateRequest
 from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_client as supabase
@@ -71,7 +71,7 @@ async def create_basket(
 
     # Publish event
     try:
-        await publish_event(
+        await emit(
             "basket.compose_request",
             {
                 "basket_id": basket_id,
@@ -79,7 +79,10 @@ async def create_basket(
                 "file_urls": payload.file_urls,
             },
         )
-    except Exception:
-        log.exception("compose_request publish failed")
+    except Exception as e:  # noqa: BLE001
+        log.error(
+            "[EVENT BUS] Failed to emit 'basket.compose_request': %s", e,
+        )
+        # TODO: Queue failed events for retry when network is restored
 
     return JSONResponse({"id": basket_id}, status_code=201)
