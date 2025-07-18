@@ -23,13 +23,20 @@ export default async function BasketWorkPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
+    console.warn("❌ No user found. Redirecting to login.");
     redirect(`/login?redirect=/baskets/${id}/work`);
   }
 
   const workspace = await getServerWorkspace();
   const workspaceId = workspace?.id;
 
+  console.log("🧺 User and Workspace Check:", {
+    userId: user?.id,
+    workspaceId,
+  });
+
   if (!workspaceId) {
+    console.warn("❌ No workspace found. Redirecting to /home.");
     redirect("/home");
   }
 
@@ -41,8 +48,20 @@ export default async function BasketWorkPage({
     .single();
 
   if (!basket) {
-    redirect("/404");
+    console.warn("❌ Basket not found — skipping redirect for debug.", {
+      basketId: id,
+      workspaceId,
+    });
+    return (
+      <div className="p-8 text-red-500">
+        <h1 className="text-xl font-bold">🧪 DEBUG MODE</h1>
+        <p>Basket not found: <code>{id}</code></p>
+        <p>Workspace: <code>{workspaceId}</code></p>
+      </div>
+    );
   }
+
+  console.log("✅ Basket loaded:", basket);
 
   const { data: firstDoc } = await supabase
     .from("documents")
