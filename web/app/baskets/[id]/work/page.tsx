@@ -1,31 +1,36 @@
-import BasketWorkLayout from "@/components/layouts/BasketWorkLayout"
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
-import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace"
-import { redirect } from "next/navigation"
+import BasketWorkLayout from "@/components/layouts/BasketWorkLayout";
+import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
+import { redirect } from "next/navigation";
 
-// Remove the custom PageProps interface - let Next.js handle the typing
+// ✅ Next.js 15 note:
+// `params` is now passed as a Promise due to streaming + layout changes.
+// Do NOT redefine `PageProps` manually — Next.js auto-generates one.
+// Instead, destructure and await it here inline as shown below.
+
 export default async function BasketWorkPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>; // ✅ Required in Next.js 15 for streamed routes
 }) {
-  // Await the params since they're now a Promise in Next.js 15
-  const { id } = await params
+  const { id } = await params;
 
-  const supabase = createServerSupabaseClient()
+  // ✅ Supabase client is created using dynamic cookies — safe for App Router
+  const supabase = createServerSupabaseClient();
+
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/login?redirect=/baskets/${id}/work`)
+    redirect(`/login?redirect=/baskets/${id}/work`);
   }
 
-  const workspace = await getServerWorkspace()
-  const workspaceId = workspace?.id
+  const workspace = await getServerWorkspace();
+  const workspaceId = workspace?.id;
 
   if (!workspaceId) {
-    redirect("/home")
+    redirect("/home");
   }
 
   const { data: basket } = await supabase
@@ -33,10 +38,10 @@ export default async function BasketWorkPage({
     .select("id, name, status, tags")
     .eq("id", id)
     .eq("workspace_id", workspaceId)
-    .single()
+    .single();
 
   if (!basket) {
-    redirect("/404")
+    redirect("/404");
   }
 
   const { data: firstDoc } = await supabase
@@ -46,7 +51,7 @@ export default async function BasketWorkPage({
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true })
     .limit(1)
-    .maybeSingle()
+    .maybeSingle();
 
   const { data: anyDump } = await supabase
     .from("raw_dumps")
@@ -55,9 +60,9 @@ export default async function BasketWorkPage({
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle()
+    .maybeSingle();
 
-  let rawDumpBody = ""
+  let rawDumpBody = "";
   if (firstDoc?.id) {
     const { data: dump } = await supabase
       .from("raw_dumps")
@@ -66,8 +71,8 @@ export default async function BasketWorkPage({
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle()
-    rawDumpBody = dump?.body_md ?? ""
+      .maybeSingle();
+    rawDumpBody = dump?.body_md ?? "";
   }
 
   const { data: anyBlock } = await supabase
@@ -76,9 +81,9 @@ export default async function BasketWorkPage({
     .eq("basket_id", id)
     .eq("workspace_id", workspaceId)
     .limit(1)
-    .maybeSingle()
+    .maybeSingle();
 
-  const isEmpty = !anyBlock && !firstDoc && !anyDump
+  const isEmpty = !anyBlock && !firstDoc && !anyDump;
 
   return (
     <BasketWorkLayout
@@ -89,5 +94,5 @@ export default async function BasketWorkPage({
       dumpBody={rawDumpBody}
       empty={isEmpty}
     />
-  )
+  );
 }
