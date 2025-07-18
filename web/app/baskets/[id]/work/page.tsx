@@ -13,6 +13,7 @@ export default async function BasketWorkPage({ params }: PageProps) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   if (!user) {
     redirect(`/login?redirect=/baskets/${id}/work`);
   }
@@ -86,4 +87,3 @@ export default async function BasketWorkPage({ params }: PageProps) {
     />
   );
 }
-
