@@ -70,17 +70,24 @@ export default function Sidebar({ className }: SidebarProps) {
 
   return (
     <aside
-      className={`sidebar fixed top-0 left-0 z-40 h-screen w-64 bg-background border-r border-border shadow-md transition-all duration-300 ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      } ${collapsible ? "md:relative md:translate-x-0" : ""} ${className ?? ""}`}
+      className={cn(
+        "sidebar h-screen w-64 bg-background border-r border-border transition-transform duration-300",
+        collapsible
+          ? "fixed top-0 left-0 z-40 shadow-md md:relative md:translate-x-0"
+          : "relative",
+        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+        className
+      )}
     >
       <div className="sticky top-0 z-10 border-b bg-background px-4 py-3 flex items-center justify-between">
         <button onClick={handleBrandClick} className="font-brand text-xl tracking-tight hover:underline">
           yarnnn
         </button>
-        <button onClick={toggleSidebar} aria-label="Toggle sidebar" className="p-1.5 rounded hover:bg-muted transition">
-          <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
-        </button>
+        {collapsible && (
+          <button onClick={toggleSidebar} aria-label="Toggle sidebar" className="p-1.5 rounded hover:bg-muted transition">
+            <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
+          </button>
+        )}
       </div>
       <div className="px-4 py-3 border-b">
         <button onClick={handleNewBasket} className="flex items-center space-x-2 text-sm text-gray-700 hover:text-black">

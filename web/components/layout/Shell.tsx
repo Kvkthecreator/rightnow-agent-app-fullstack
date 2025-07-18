@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect } from "react";
-import Sidebar from "@/app/components/layout/Sidebar";
+import Sidebar from "@/app/components/shell/Sidebar";
 import TopBar from "@/components/common/TopBar";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 import { usePathname } from "next/navigation";
@@ -9,7 +9,7 @@ import { FileDropOverlay } from "@/components/FileDropOverlay";
 
 export default function Shell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const { openSidebar, closeSidebar, setCollapsible } = useSidebarStore();
+    const { openSidebar, closeSidebar, setCollapsible, isOpen } = useSidebarStore();
     const { isDraggingFile } = useFileDrag();
 
     useEffect(() => {
@@ -30,18 +30,33 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
     return (
         <div
-            className="flex h-screen overflow-hidden"
+            className="flex h-screen"
             onDrop={noopDropHandler}
             onDragOver={(e) => e.preventDefault()}
         >
             <FileDropOverlay isVisible={isDraggingFile} />
-            <Sidebar />
-            <div className="flex flex-1 flex-col">
+            {/* Desktop sidebar (inline) */}
+            <div className="hidden md:block">
+                <Sidebar />
+            </div>
+
+            <div className="flex flex-1 flex-col overflow-hidden">
                 <TopBar />
                 <main className="flex-1 overflow-y-auto px-4 pt-16 md:pt-8 md:px-8">
                     {children}
                 </main>
             </div>
+
+            {/* Mobile sidebar (overlay) */}
+            {isOpen && (
+                <div className="fixed inset-0 z-40 flex md:hidden">
+                    <Sidebar />
+                    <div
+                        className="flex-1 bg-black/40"
+                        onClick={closeSidebar}
+                    />
+                </div>
+            )}
         </div>
     );
 }
