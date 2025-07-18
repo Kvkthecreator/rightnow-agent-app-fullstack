@@ -31,7 +31,10 @@ export default function BasketsPage() {
   useEffect(() => {
     if (isLoading) return;
     if (!session) {
-      router.replace("/about");
+      if (typeof window !== "undefined") {
+        localStorage.setItem("redirectPath", window.location.pathname);
+      }
+      router.replace("/login");
       return;
     }
     getAllBaskets().then(setBaskets).catch(console.error);

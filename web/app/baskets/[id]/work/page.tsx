@@ -38,6 +38,9 @@ export default function BasketWorkPage({
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         setError("Authentication error. Please log in again.");
+        if (typeof window !== "undefined") {
+          localStorage.setItem("redirectPath", window.location.pathname);
+        }
         return router.replace("/login");
       }
 

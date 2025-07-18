@@ -21,12 +21,15 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      // 🔄 Clear any stale redirect state
+      const redirectPath =
+        localStorage.getItem("redirectPath") || "/home";
       localStorage.removeItem("redirectPath");
       sessionStorage.removeItem("redirectPath");
 
-      console.info("✅ Auth successful. Redirecting to /home...");
-      router.replace("/home");
+      console.info(
+        `✅ Auth successful. Redirecting to ${redirectPath}...`
+      );
+      router.replace(redirectPath);
     };
 
     run();
