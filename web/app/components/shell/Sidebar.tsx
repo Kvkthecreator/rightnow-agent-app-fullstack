@@ -15,7 +15,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ className }: SidebarProps) {
-  const { isOpen, collapsible, toggleSidebar, closeSidebar } = useSidebarStore();
+  const { isVisible, collapsible, toggleSidebar, closeSidebar } = useSidebarStore();
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -67,6 +67,8 @@ export default function Sidebar({ className }: SidebarProps) {
   const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
   console.log("[Sidebar] render baskets", baskets);
 
+  if (!isVisible) return null;
+
   return (
     <aside
       className={cn(
@@ -74,7 +76,7 @@ export default function Sidebar({ className }: SidebarProps) {
         collapsible
           ? "fixed top-0 left-0 z-40 shadow-md md:relative md:translate-x-0"
           : "relative",
-        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+        isVisible ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         className
       )}
     >

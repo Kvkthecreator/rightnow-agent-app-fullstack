@@ -1,14 +1,12 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Shell from "@/components/layout/Shell";
 import ProfileTab from "@/components/settings/ProfileTab";
 import PreferencesTab from "@/components/settings/PreferencesTab";
 import { Card } from "@/components/ui/Card";
 
 export default function SettingsPage() {
   return (
-    <Shell>
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -38,6 +36,5 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </Shell>
   );
 }

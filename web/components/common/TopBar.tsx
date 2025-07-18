@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import React from "react";
 
 export default function TopBar() {
-  const { isOpen, openSidebar } = useSidebarStore();
+  const { openSidebar } = useSidebarStore();
   const pathname = usePathname();
 
   const pageTitle = React.useMemo(() => {
@@ -16,8 +16,6 @@ export default function TopBar() {
     return decodeURIComponent(last).replace(/[-_]/g, " ");
   }, [pathname]);
 
-  // Only show TopBar when sidebar is closed
-  if (isOpen) return null;
 
   return (
     <header
