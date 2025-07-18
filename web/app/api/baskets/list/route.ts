@@ -1,22 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
-import { apiFetch } from "@/lib/api";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
-  const headers: HeadersInit = {};
-  const auth = request.headers.get("authorization");
-  if (auth) headers["Authorization"] = auth;
-  const cookie = request.headers.get("cookie");
-  if (cookie) headers["cookie"] = cookie;
+export async function GET() {
+  const supabase = createRouteHandlerClient({ cookies });
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  try {
-    const res = await apiFetch("/baskets/list", { headers, cache: "no-store" });
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
-  } catch (err) {
-    console.error("\u274c Proxy error for /baskets/list:", err);
+  if (error || !user) {
     return NextResponse.json(
-      { error: "Failed to fetch baskets" },
-      { status: 500 },
+      { detail: "Missing authentication token" },
+      { status: 401 },
     );
   }
+
+  // Optionally: fetch workspace-linked baskets here using RLS
+  // const { data: baskets } = await supabase
+  //   .from("baskets")
+  //   .select("*")
+  //   .order("created_at", { ascending: false });
+
+  return NextResponse.json({ success: true });
 }
