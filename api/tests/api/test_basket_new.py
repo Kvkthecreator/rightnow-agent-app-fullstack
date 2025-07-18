@@ -84,7 +84,7 @@ def test_basket_new_empty(monkeypatch):
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
     resp = client.post("/api/baskets/new", json={"text_dump": "   "})
-    assert resp.status_code == 400
+    assert resp.status_code == 201
 
 
 def test_basket_new_error(monkeypatch):

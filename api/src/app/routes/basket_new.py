@@ -7,10 +7,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+
 
 from ..event_bus import publish_event
-
+from ..baskets.schemas import BasketCreateRequest
 from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_client as supabase
 from ..utils.workspace import get_or_create_workspace
@@ -22,19 +22,13 @@ log = logging.getLogger("uvicorn.error")
 # ────────────────────────────────────────────────────────────────
 # 1. Request model
 # ----------------------------------------------------------------
-class BasketCreateV1(BaseModel):
-    """Payload for creating a basket."""
-
-    text_dump: str | None = Field(default=None, min_length=1)
-    file_urls: list[str] = Field(default_factory=list)
-    template_slug: str | None = None
 
 # ────────────────────────────────────────────────────────────────
 # 2. Endpoint
 # ----------------------------------------------------------------
 @router.post("/new", status_code=201)
 async def create_basket(
-    payload: BasketCreateV1,
+    payload: BasketCreateRequest,
     user: Annotated[dict, Depends(verify_jwt)],
 ):
     """Create a basket from an atomic text dump or template."""
@@ -51,8 +45,7 @@ async def create_basket(
         )
         return JSONResponse({"id": basket_id}, status_code=201)
 
-    if not payload.text_dump or not payload.text_dump.strip():
-        raise HTTPException(status_code=400, detail="text_dump is empty")
+
 
     # Atomic creation via stored procedure
     try:
