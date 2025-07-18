@@ -35,18 +35,25 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             onDragOver={(e) => e.preventDefault()}
         >
             <FileDropOverlay isVisible={isDraggingFile} />
-            <Sidebar />
+            {/* Desktop sidebar */}
+            <div className="hidden md:block">
+                <Sidebar />
+            </div>
             <div className="flex flex-1 flex-col overflow-hidden">
                 <TopBar />
                 <main className="flex-1 overflow-y-auto px-4 pt-16 md:pt-8 md:px-8">
                     {children}
                 </main>
             </div>
+            {/* Mobile overlay sidebar */}
             {isOpen && (
-                <div
-                    className="fixed inset-0 bg-black/30 z-30 md:hidden"
-                    onClick={closeSidebar}
-                />
+                <div className="fixed inset-0 z-40 flex md:hidden">
+                    <Sidebar />
+                    <div
+                        className="flex-1 bg-black/40"
+                        onClick={closeSidebar}
+                    />
+                </div>
             )}
         </div>
     );
