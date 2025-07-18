@@ -21,6 +21,7 @@ export default function Sidebar({ className }: SidebarProps) {
   const supabase = createClient();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [baskets, setBaskets] = useState<BasketOverview[]>([]);
+  const [openDropdown, setOpenDropdown] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -64,6 +65,7 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
   const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
+  console.log("[Sidebar] render baskets", baskets);
 
   return (
     <aside
@@ -120,22 +122,26 @@ export default function Sidebar({ className }: SidebarProps) {
           ))
         )}
       </div>
-      <div className="border-t px-4 py-3">
+      <div className="relative border-t px-4 py-3">
         {userEmail ? (
-          <>
-            <p className="text-xs text-muted-foreground mb-1">Signed in as</p>
-            <div className="text-sm font-medium text-foreground truncate">
-              {userEmail}
-            </div>
+          <button
+            onClick={() => setOpenDropdown(!openDropdown)}
+            className="text-sm text-muted-foreground hover:text-foreground w-full text-left truncate"
+          >
+            {userEmail}
+          </button>
+        ) : (
+          <p className="text-sm text-muted-foreground">Not signed in</p>
+        )}
+        {openDropdown && (
+          <div className="absolute left-4 top-10 w-[200px] rounded-md border bg-white shadow-lg z-50">
             <button
               onClick={handleLogout}
-              className="mt-2 text-sm text-destructive hover:underline"
+              className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted"
             >
               🔓 Sign Out
             </button>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">Not signed in</p>
+          </div>
         )}
         {showHint && (
           <p className="mt-4 text-xs hidden md:block">⇧ V to quick-dump into this basket</p>
