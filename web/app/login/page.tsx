@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -9,9 +9,18 @@ import Brand from "@/components/Brand";
 
 export default function LoginPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [email, setEmail] = useState("");
     const [sent, setSent] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
+
+    // Capture redirect query param if present
+    useEffect(() => {
+        const param = searchParams.get("redirect");
+        if (param) {
+            localStorage.setItem("redirectPath", param);
+        }
+    }, [searchParams]);
 
     // If already signed in, redirect to the most recent basket
     useEffect(() => {
@@ -48,7 +57,7 @@ export default function LoginPage() {
     // Google OAuth
     const handleGoogleLogin = async () => {
         if (typeof window !== "undefined") {
-            localStorage.setItem("postLoginPath", window.location.pathname);
+            localStorage.setItem("redirectPath", window.location.pathname);
         }
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
@@ -64,7 +73,7 @@ export default function LoginPage() {
     // Dev-only Magic Link Login
     const handleMagicLinkLogin = async () => {
         if (typeof window !== "undefined") {
-            localStorage.setItem("postLoginPath", window.location.pathname);
+            localStorage.setItem("redirectPath", window.location.pathname);
         }
         const { error } = await supabase.auth.signInWithOtp({
             email,

@@ -14,7 +14,10 @@ export default function CreationsPage() {
   useEffect(() => {
     if (isLoading) return;
     if (!session) {
-      router.replace("/about");
+      if (typeof window !== "undefined") {
+        localStorage.setItem("redirectPath", window.location.pathname);
+      }
+      router.replace("/login");
     }
   }, [isLoading, session, router]);
 

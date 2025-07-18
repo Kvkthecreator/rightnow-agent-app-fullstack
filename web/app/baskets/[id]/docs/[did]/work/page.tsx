@@ -17,7 +17,7 @@ export default async function DocWorkPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
   console.debug("[DocLoader] User:", user);
   if (!user) {
-    redirect("/login");
+    redirect(`/login?redirect=/baskets/${id}/docs/${did}/work`);
   }
   const workspace = await getServerWorkspace();
   const workspaceId = workspace?.id;
