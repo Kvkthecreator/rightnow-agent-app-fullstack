@@ -1,29 +1,27 @@
 // web/lib/baskets/getAllBaskets.ts
+import { createClient } from "@/lib/supabaseClient";
 import { Database } from "@/lib/dbTypes";
 
-export type BasketOverview =
-  Database["public"]["Views"]["v_basket_overview"]["Row"];
+export type BasketOverview = Pick<
+  Database["public"]["Tables"]["baskets"]["Row"],
+  "id" | "name" | "created_at"
+>;
 
 export async function getAllBaskets(): Promise<BasketOverview[]> {
-  try {
-    const res = await fetch("/api/baskets/list", {
-      method: "GET",
-      credentials: "include",
-    });
+  const supabase = createClient();
 
-    if (!res.ok) {
-      console.error(
-        "\u274c Failed to fetch baskets:",
-        res.status,
-        await res.text(),
-      );
-      return [];
-    }
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("baskets")
+    .select("id, name, created_at")
+    .order("created_at", { ascending: false });
 
-    const data = await res.json();
-    return data.baskets || [];
-  } catch (err) {
-    console.error("\u274c Network error while fetching baskets:", err);
+  if (error) {
+    console.error("❌ Supabase error while fetching baskets:", error.message);
     return [];
   }
+
+  return data ?? [];
 }

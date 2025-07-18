@@ -20,7 +20,7 @@ export default function Sidebar({ className }: SidebarProps) {
   const router = useRouter();
   const supabase = createClient();
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [baskets, setBaskets] = useState<BasketOverview[]>([]);
+  const [baskets, setBaskets] = useState<BasketOverview[] | null>(null);
   const [openDropdown, setOpenDropdown] = useState(false);
 
   useEffect(() => {
@@ -34,6 +34,7 @@ export default function Sidebar({ className }: SidebarProps) {
         setBaskets(data);
       } catch (err) {
         console.error("sidebar init", err);
+        setBaskets([]);
       }
     }
     init();
@@ -65,14 +66,13 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
   const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
-  console.log("[Sidebar] render baskets", baskets);
 
   if (!isVisible) return null;
 
   return (
     <aside
       className={cn(
-        "sidebar h-screen w-64 bg-background border-r border-border transition-transform duration-300",
+        "sidebar h-screen w-64 bg-background border-r border-border transition-transform duration-300 flex flex-col",
         collapsible
           ? "fixed top-0 left-0 z-40 shadow-md md:relative md:translate-x-0"
           : "relative",
@@ -80,33 +80,41 @@ export default function Sidebar({ className }: SidebarProps) {
         className
       )}
     >
-      <div className="sticky top-0 z-10 border-b bg-background px-4 py-3 flex items-center justify-between">
+      {/* Top header bar */}
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3">
         <button onClick={handleBrandClick} className="font-brand text-xl tracking-tight hover:underline">
           yarnnn
         </button>
-        {collapsible && (
-          <button
-            onClick={toggleSidebar}
-            aria-label="Toggle sidebar"
-            className="p-1.5 rounded hover:bg-muted transition"
-          >
-            <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
-          </button>
-        )}
+        <button
+          onClick={toggleSidebar}
+          aria-label="Toggle sidebar"
+          className="p-1.5 rounded hover:bg-muted transition"
+        >
+          <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
+        </button>
       </div>
+
+      {/* New Basket */}
       <div className="px-4 py-3 border-b">
-        <button onClick={handleNewBasket} className="flex items-center space-x-2 text-sm text-gray-700 hover:text-black">
+        <button
+          onClick={handleNewBasket}
+          className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted font-medium text-muted-foreground hover:text-foreground transition"
+        >
           <Plus size={16} />
           <span>New Basket</span>
         </button>
       </div>
-      <div className="px-4 pt-4 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+
+      {/* Basket list */}
+      <div className="px-4 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
         🧺 Baskets
       </div>
-      <div className="flex-1 overflow-y-auto space-y-1">
-        {baskets.length === 0 ? (
-          <p className="px-4 py-2 text-sm text-muted-foreground">
-            No baskets yet. Click + New Basket
+      <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1">
+        {baskets === null ? (
+          <p className="text-sm text-muted-foreground px-2 py-1">Loading baskets...</p>
+        ) : baskets.length === 0 ? (
+          <p className="text-sm text-muted-foreground px-2 py-1">
+            No baskets yet. Click “New Basket”.
           </p>
         ) : (
           baskets.map((b) => (
@@ -114,16 +122,18 @@ export default function Sidebar({ className }: SidebarProps) {
               key={b.id}
               onClick={() => router.push(`/baskets/${b.id}/work`)}
               className={cn(
-                "w-full text-left px-4 py-2 hover:bg-gray-100 text-sm flex items-center",
-                pathname?.includes(b.id) ? "bg-gray-100 font-semibold" : ""
+                "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition",
+                pathname?.includes(b.id) ? "bg-accent text-accent-foreground font-semibold" : "text-muted-foreground"
               )}
             >
-              <Package2 size={14} className="inline-block mr-2" />
-              {b.name || "Untitled"}
+              <Package2 size={14} />
+              <span className="truncate">{b.name || "Untitled Basket"}</span>
             </button>
           ))
         )}
       </div>
+
+      {/* Footer */}
       <div className="relative border-t px-4 py-3">
         {userEmail ? (
           <button

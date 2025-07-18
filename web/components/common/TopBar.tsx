@@ -1,4 +1,5 @@
 "use client";
+
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 import { usePathname } from "next/navigation";
@@ -6,7 +7,7 @@ import { cn } from "@/lib/utils";
 import React from "react";
 
 export default function TopBar() {
-  const { openSidebar } = useSidebarStore();
+  const { toggleSidebar } = useSidebarStore();
   const pathname = usePathname();
 
   const pageTitle = React.useMemo(() => {
@@ -16,7 +17,6 @@ export default function TopBar() {
     return decodeURIComponent(last).replace(/[-_]/g, " ");
   }, [pathname]);
 
-
   return (
     <header
       className={cn(
@@ -24,15 +24,17 @@ export default function TopBar() {
       )}
     >
       <button
-        aria-label="Open sidebar"
-        className="p-1.5 rounded hover:bg-muted transition"
-        onClick={openSidebar}
+        aria-label="Toggle sidebar"
+        onClick={toggleSidebar}
+        className="p-2 rounded-md hover:bg-muted transition"
       >
         <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
       </button>
+
       <span className="flex-1 truncate text-sm font-medium">
         {pageTitle}
       </span>
+
       <div className="w-5" />
     </header>
   );
