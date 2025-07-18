@@ -29,11 +29,16 @@ export async function createBasketNew(
   const uid = user?.id;
   if (uid) headers["X-User-Id"] = uid;
 
-  // ✅ Ensure text_dump is never null
-  const body = JSON.stringify({
-    text_dump: args.text_dump ?? "", // 🔥 key fix here
-    file_urls: args.file_urls ?? [],
-  });
+  // ✅ Omit empty fields to avoid API validation errors
+  const payload: Record<string, any> = {};
+  const text = args.text_dump ?? "";
+  if (text.trim().length > 0) {
+    payload.text_dump = text;
+  }
+  if (args.file_urls && args.file_urls.length > 0) {
+    payload.file_urls = args.file_urls;
+  }
+  const body = JSON.stringify(payload);
 
   console.log("[createBasketNew] Payload:", JSON.parse(body));
 
