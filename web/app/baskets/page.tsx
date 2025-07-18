@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSessionContext } from "@supabase/auth-helpers-react";
@@ -12,11 +13,10 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
 import BasketCard from "@/components/BasketCard";
-import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
 import PageHeader from "@/components/page/PageHeader";
 import CreateBasketDialog from "@/components/CreateBasketDialog";
+import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
 
 export default function BasketsPage() {
   const { session, isLoading } = useSessionContext();
@@ -43,9 +43,7 @@ export default function BasketsPage() {
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     let arr = baskets.filter(
-      (b) =>
-        b.name?.toLowerCase().includes(term) ||
-        b.raw_dump_body?.toLowerCase().includes(term)
+      (b) => b.name?.toLowerCase().includes(term)
     );
     if (sort === "alpha") {
       arr = [...arr].sort((a, b) =>
