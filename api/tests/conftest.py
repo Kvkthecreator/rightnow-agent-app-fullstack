@@ -38,7 +38,11 @@ if "app.util.snapshot_assembler" not in sys.modules:
     sys.modules["app.util.snapshot_assembler"] = real
 
 # Bypass JWT verification in API routes so tests can run offline
-stub_user = lambda *_a, **_k: {"user_id": "u"}
+def stub_user(
+    sb_access_token: str | None = None,
+    authorization: str | None = None,
+) -> dict:
+    return {"user_id": "00000000-0000-0000-0000-000000000000"}
 try:
     import app.utils.jwt as jwt
     jwt.verify_jwt = stub_user
