@@ -6,6 +6,8 @@ import SupabaseProvider from "@/components/SupabaseProvider";
 import { Toaster } from "react-hot-toast";
 import DumpModalWrapper from "@/components/DumpModalWrapper";
 import { BasketProvider } from "@/lib/context/BasketContext";
+import Sidebar from "@/app/components/shell/Sidebar";
+import TopBar from "@/components/common/TopBar";
 
 // Font setup
 const geistSans = Geist({
@@ -43,9 +45,15 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans?.variable || ""} ${geistMono?.variable || ""} ${pacifico?.variable || ""}`}
     >
-      <body className="antialiased min-h-screen">
+      <body className="antialiased min-h-screen flex">
         <BasketProvider>
-          <SupabaseProvider>{children}</SupabaseProvider>
+          <SupabaseProvider>
+            <Sidebar />
+            <div className="flex flex-col flex-1">
+              <TopBar />
+              <main>{children}</main>
+            </div>
+          </SupabaseProvider>
           <DumpModalWrapper />
         </BasketProvider>
         <Toaster position="top-right" />

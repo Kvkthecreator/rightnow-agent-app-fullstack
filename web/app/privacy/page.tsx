@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Shell from "@/components/layout/Shell";
 import Brand from "@/components/Brand";
 
 export const metadata: Metadata = {
@@ -8,7 +7,6 @@ export const metadata: Metadata = {
 
 export default function Page() {
     return (
-        <Shell>
             <div className="prose max-w-3xl mx-auto p-6">
                 <h1 className="text-2xl font-bold">Privacy Policy</h1>
 
@@ -68,6 +66,5 @@ export default function Page() {
                     </a>
                 </p>
             </div>
-        </Shell>
     );
 }
