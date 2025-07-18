@@ -3,11 +3,12 @@ import { createServerSupabaseClient } from "@/lib/supabaseServerClient"
 import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace"
 import { redirect } from "next/navigation"
 
-interface PageProps {
+// Remove the custom PageProps interface - let Next.js handle the typing
+export default async function BasketWorkPage({
+  params,
+}: {
   params: Promise<{ id: string }>
-}
-
-export default async function BasketWorkPage({ params }: PageProps) {
+}) {
   // Await the params since they're now a Promise in Next.js 15
   const { id } = await params
 
