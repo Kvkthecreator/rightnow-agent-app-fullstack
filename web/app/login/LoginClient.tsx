@@ -28,10 +28,7 @@ export default function LoginClient() {
   }, [searchParams]);
 
   const handleGoogleLogin = async () => {
-    if (typeof window !== "undefined") {
-      // ✅ Force redirect path for post-login routing
-      localStorage.setItem("redirectPath", "/dashboard/home");
-    }
+    localStorage.setItem("redirectPath", "/dashboard/home");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
