@@ -1,4 +1,4 @@
-// File: /app/(dashboard)/layout.tsx
+// File: /app/dashboard/layout.tsx
 
 import { ReactNode } from "react";
 import { cookies } from "next/headers";
