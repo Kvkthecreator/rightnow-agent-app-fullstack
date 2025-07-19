@@ -1,40 +1,49 @@
-"use client";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import type { Database } from "@/lib/dbTypes";
+import { getOrCreateWorkspace } from "@/lib/workspaces/getOrCreateWorkspace";
+import SettingsSection from "@/components/settings/SettingsSection";
+import DisplayBox from "@/components/settings/DisplayBox";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ProfileTab from "@/components/settings/ProfileTab";
-import PreferencesTab from "@/components/settings/PreferencesTab";
-import { Card } from "@/components/ui/Card";
+export default async function SettingsPage() {
+  const supabase = createServerComponentClient<Database>({ cookies });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-export default function SettingsPage() {
+  if (!user) {
+    redirect("/login?redirect=/dashboard/settings");
+  }
+
+  const workspace = await getOrCreateWorkspace();
+  const workspaceId = workspace?.id ?? null;
+
+  const displayName =
+    (user.user_metadata?.full_name as string) ||
+    (user.user_metadata?.name as string) ||
+    "Unknown";
+
   return (
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">⚙️ Settings</h1>
-            <p className="text-sm text-muted-foreground">
-              Manage your account preferences and profile details
+    <div className="max-w-4xl mx-auto space-y-6">
+      <SettingsSection
+        title="Settings"
+        description="Manage your account preferences and profile details"
+      >
+        <DisplayBox label="UID" value={user.id} />
+        <DisplayBox label="Display Name" value={displayName} />
+        <DisplayBox label="Email" value={user.email ?? ""} />
+        {workspaceId ? (
+          <DisplayBox label="Workspace ID" value={workspaceId} />
+        ) : (
+          <div className="rounded-md bg-red-50 p-4 text-red-800 border border-red-200">
+            <strong>⚠️ No workspace found.</strong>
+            <p className="mt-1 text-sm">
+              Something went wrong with workspace setup. Please refresh the page or contact support.
             </p>
           </div>
-        </div>
-
-        <Card>
-          <p className="text-sm text-muted-foreground">
-            Customize your experience and manage your profile information.
-          </p>
-        </Card>
-
-        <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="preferences">Preferences</TabsTrigger>
-          </TabsList>
-          <TabsContent value="profile">
-            <ProfileTab />
-          </TabsContent>
-          <TabsContent value="preferences">
-            <PreferencesTab />
-          </TabsContent>
-        </Tabs>
-      </div>
+        )}
+      </SettingsSection>
+    </div>
   );
 }
