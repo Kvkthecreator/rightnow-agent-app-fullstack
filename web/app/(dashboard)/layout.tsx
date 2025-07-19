@@ -1,9 +1,10 @@
+// File: /app/(dashboard)/layout.tsx
+
 import { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Database } from "@/lib/dbTypes";
-import { SessionContextProvider } from "@supabase/auth-helpers-react";
-import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs";
+import ClientLayoutWrapper from "@/components/layouts/ClientLayoutWrapper";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = createServerComponentClient<Database>({ cookies });
@@ -12,11 +13,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   } = await supabase.auth.getSession();
 
   return (
-    <SessionContextProvider
-      supabaseClient={createPagesBrowserClient<Database>()}
-      initialSession={session}
-    >
+    <ClientLayoutWrapper initialSession={session}>
       {children}
-    </SessionContextProvider>
+    </ClientLayoutWrapper>
   );
 }
