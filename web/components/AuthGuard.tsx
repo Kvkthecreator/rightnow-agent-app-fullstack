@@ -21,9 +21,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
       if (!session || error) {
         console.warn("🔒 No session found. Redirecting to /login.");
-        if (typeof window !== "undefined") {
-          localStorage.setItem("redirectPath", window.location.pathname);
-        }
         router.replace("/login");
         return;
       }

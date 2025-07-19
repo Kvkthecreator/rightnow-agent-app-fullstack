@@ -31,9 +31,6 @@ export default function BasketsPage() {
   useEffect(() => {
     if (isLoading) return;
     if (!session) {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("redirectPath", window.location.pathname);
-      }
       router.replace("/login");
       return;
     }
