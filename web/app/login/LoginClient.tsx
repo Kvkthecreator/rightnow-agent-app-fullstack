@@ -29,6 +29,7 @@ export default function LoginClient() {
 
   const handleGoogleLogin = async () => {
     localStorage.setItem("redirectPath", "/dashboard/home");
+    console.log("\ud83d\udecf window.location.origin", window.location.origin);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -45,6 +46,7 @@ export default function LoginClient() {
       // ✅ Force redirect path for post-login routing
       localStorage.setItem("redirectPath", "/dashboard/home");
     }
+    console.log("\ud83d\udecf window.location.origin", window.location.origin);
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {

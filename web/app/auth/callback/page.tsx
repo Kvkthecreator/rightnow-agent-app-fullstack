@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs";
 import { SessionContextProvider } from "@supabase/auth-helpers-react";
-import { getRedirectPath } from "@/lib/auth/getRedirectPath";
 
 const supabase = createPagesBrowserClient();
 
@@ -25,9 +24,14 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      const redirectPath = getRedirectPath();
-      console.info(`✅ Auth successful. Redirecting to ${redirectPath}...`);
-      router.replace(redirectPath);
+      let redirectPath: string | null = null;
+      if (typeof window !== "undefined") {
+        redirectPath = localStorage.getItem("redirectPath");
+        localStorage.removeItem("redirectPath");
+        sessionStorage.removeItem("redirectPath");
+      }
+      console.log("\ud83d\udd01 Redirecting to:", redirectPath ?? "/dashboard/home");
+      router.replace(redirectPath ?? "/dashboard/home");
     };
 
     run().finally(() => setLoading(false));
