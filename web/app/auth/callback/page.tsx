@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs";
 import { SessionContextProvider } from "@supabase/auth-helpers-react";
@@ -10,6 +10,7 @@ const supabase = createPagesBrowserClient();
 
 export default function AuthCallbackPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const run = async () => {
@@ -29,12 +30,16 @@ export default function AuthCallbackPage() {
       router.replace(redirectPath);
     };
 
-    run();
+    run().finally(() => setLoading(false));
   }, [router]);
 
   return (
     <SessionContextProvider supabaseClient={supabase}>
-      <p>Redirecting...</p>
+      {loading ? (
+        <div className="flex items-center justify-center h-screen text-sm text-muted-foreground">
+          Redirecting...
+        </div>
+      ) : null}
     </SessionContextProvider>
   );
 }
