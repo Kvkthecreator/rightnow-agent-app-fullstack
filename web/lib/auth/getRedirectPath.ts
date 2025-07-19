@@ -1,9 +1,9 @@
 // web/lib/auth/getRedirectPath.ts
 
 export function getRedirectPath(): string {
-  if (typeof window === "undefined") return "/home";
+  if (typeof window === "undefined") return "/dashboard/home";
 
-  const path = localStorage.getItem("redirectPath") ?? "/home";
+  const path = localStorage.getItem("redirectPath") ?? "/dashboard/home";
   localStorage.removeItem("redirectPath");
   sessionStorage.removeItem("redirectPath");
   return path;
