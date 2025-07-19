@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/serviceRole";
-import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
+import { getOrCreateWorkspace } from "@/lib/workspaces/getOrCreateWorkspace";
 
 export async function POST(req: NextRequest) {
   let payload: { text: string; files?: string[]; name?: string | null };
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceRoleClient();
 
-  const workspace = await getServerWorkspace();
+  const workspace = await getOrCreateWorkspace();
   if (!workspace) {
     return NextResponse.json({ error: "workspace not found" }, { status: 401 });
   }
