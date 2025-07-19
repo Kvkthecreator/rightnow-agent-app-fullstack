@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Plus, Package2 } from "lucide-react";
+import { Plus, Package2, LogOut, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabaseClient";
 import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
@@ -19,6 +19,8 @@ export default function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [baskets, setBaskets] = useState<BasketOverview[] | null>(null);
   const [openDropdown, setOpenDropdown] = useState(false);
@@ -42,6 +44,13 @@ export default function Sidebar({ className }: SidebarProps) {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
+      if (
+        openDropdown &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setOpenDropdown(false);
+      }
       if (!collapsible) return;
       if (!(e.target as HTMLElement).closest(".sidebar")) {
         closeSidebar();
@@ -49,15 +58,11 @@ export default function Sidebar({ className }: SidebarProps) {
     }
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, [collapsible, closeSidebar]);
+  }, [openDropdown, collapsible, closeSidebar]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/");
-  };
-
-  const handleBrandClick = () => {
-    router.push("/baskets");
   };
 
   const handleNewBasket = async () => {
@@ -80,9 +85,12 @@ export default function Sidebar({ className }: SidebarProps) {
         className
       )}
     >
-      {/* Top header bar */}
+      {/* Top header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3">
-        <button onClick={handleBrandClick} className="font-brand text-xl tracking-tight hover:underline">
+        <button
+          onClick={() => router.push("/baskets")}
+          className="font-brand text-xl tracking-tight hover:underline"
+        >
           yarnnn
         </button>
         <button
@@ -123,7 +131,9 @@ export default function Sidebar({ className }: SidebarProps) {
               onClick={() => router.push(`/baskets/${b.id}/work`)}
               className={cn(
                 "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition",
-                pathname?.includes(b.id) ? "bg-accent text-accent-foreground font-semibold" : "text-muted-foreground"
+                pathname?.includes(b.id)
+                  ? "bg-accent text-accent-foreground font-semibold"
+                  : "text-muted-foreground"
               )}
             >
               <Package2 size={14} />
@@ -133,27 +143,40 @@ export default function Sidebar({ className }: SidebarProps) {
         )}
       </div>
 
-      {/* Footer */}
+      {/* Footer + Dropdown */}
       <div className="relative border-t px-4 py-3">
         {userEmail ? (
-          <button
-            onClick={() => setOpenDropdown(!openDropdown)}
-            className="text-sm text-muted-foreground hover:text-foreground w-full text-left truncate"
-          >
-            {userEmail}
-          </button>
+          <div className="relative w-full" ref={dropdownRef}>
+            <button
+              onClick={() => setOpenDropdown(!openDropdown)}
+              className="text-sm text-muted-foreground hover:text-foreground w-full text-left truncate"
+            >
+              {userEmail}
+            </button>
+            {openDropdown && (
+              <div className="absolute bottom-12 left-0 w-52 rounded-md border bg-popover shadow-md z-50 py-1 text-sm">
+                <button
+                  onClick={() => {
+                    setOpenDropdown(false);
+                    router.push("/dashboard/settings");
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2 hover:bg-muted text-muted-foreground hover:text-foreground"
+                >
+                  <Settings2 size={14} />
+                  Settings
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-destructive hover:bg-muted"
+                >
+                  <LogOut size={14} />
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">Not signed in</p>
-        )}
-        {openDropdown && (
-          <div className="absolute left-4 top-10 w-[200px] rounded-md border bg-white shadow-lg z-50">
-            <button
-              onClick={handleLogout}
-              className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-muted"
-            >
-              🔓 Sign Out
-            </button>
-          </div>
         )}
         {showHint && (
           <p className="mt-4 text-xs hidden md:block">⇧ V to quick-dump into this basket</p>

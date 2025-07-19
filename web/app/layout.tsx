@@ -4,10 +4,12 @@ import "./globals.css";
 import "../styles/diff.css";
 
 import { BasketProvider } from "@/lib/context/BasketContext";
-import SupabaseProvider from "@/components/SupabaseProvider";
 import DumpModalWrapper from "@/components/DumpModalWrapper";
 import { Toaster } from "react-hot-toast";
-import ClientLayoutShell from "@/components/shell/ClientLayoutShell"; // ⬅️ new client-aware shell
+import ClientLayoutShell from "@/components/shell/ClientLayoutShell";
+
+// ✅ NEW: Import SupabaseProvider
+import { SupabaseProvider } from "@/components/SupabaseProvider";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -38,12 +40,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable}`}
     >
       <body className="antialiased min-h-screen">
-        <BasketProvider>
-          <SupabaseProvider>
+        <SupabaseProvider>
+          <BasketProvider>
             <ClientLayoutShell>{children}</ClientLayoutShell>
-          </SupabaseProvider>
-          <DumpModalWrapper />
-        </BasketProvider>
+            <DumpModalWrapper />
+          </BasketProvider>
+        </SupabaseProvider>
         <Toaster position="top-right" />
       </body>
     </html>

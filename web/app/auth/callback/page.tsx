@@ -2,11 +2,14 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs";
+import { SessionContextProvider } from "@supabase/auth-helpers-react";
+import { getRedirectPath } from "@/lib/auth/getRedirectPath";
+
+const supabase = createPagesBrowserClient();
 
 export default function AuthCallbackPage() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
     const run = async () => {
@@ -16,24 +19,22 @@ export default function AuthCallbackPage() {
       } = await supabase.auth.getUser();
 
       if (error || !user) {
-        console.warn("🔐 No user after callback. Redirecting to /login.");
+        console.warn("❌ No user after callback. Redirecting to /login.");
         router.replace("/login");
         return;
       }
 
-      const redirectPath =
-        localStorage.getItem("redirectPath") || "/home";
-      localStorage.removeItem("redirectPath");
-      sessionStorage.removeItem("redirectPath");
-
-      console.info(
-        `✅ Auth successful. Redirecting to ${redirectPath}...`
-      );
+      const redirectPath = getRedirectPath();
+      console.info(`✅ Auth successful. Redirecting to ${redirectPath}...`);
       router.replace(redirectPath);
     };
 
     run();
-  }, []);
+  }, [router]);
 
-  return null;
+  return (
+    <SessionContextProvider supabaseClient={supabase}>
+      <p>Redirecting...</p>
+    </SessionContextProvider>
+  );
 }

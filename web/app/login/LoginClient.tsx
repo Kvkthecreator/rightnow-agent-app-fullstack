@@ -1,59 +1,36 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 import Brand from "@/components/Brand";
 
+// 🔐 This component is responsible ONLY for login UI and triggering Supabase auth flows.
+// Post-login logic like workspace/basket creation is handled *after* auth elsewhere.
 export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const showDevMagicLogin = process.env.NODE_ENV === "development";
+
+  // Capture redirect path if provided (preserved for post-login routing)
   useEffect(() => {
-    const param = searchParams.get("redirect");
-    if (param) {
-      localStorage.setItem("redirectPath", param);
+    const redirect = searchParams.get("redirect");
+    if (redirect) {
+      localStorage.setItem("redirectPath", redirect);
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-
-      // Assume RLS handles workspace access
-      const { data: baskets } = await supabase
-        .from("baskets")
-        .select("id")
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (baskets && baskets.length > 0) {
-        router.replace("/home");
-      } else {
-        const { data: newBasket, error } = await supabase
-          .from("baskets")
-          .insert({ name: "Untitled Basket" })
-          .select("id")
-          .single();
-
-        if (error || !newBasket?.id) {
-          console.error("❌ Failed to create first basket");
-          return;
-        }
-
-        router.replace("/home");
-      }
-    });
-  }, [router]);
-
   const handleGoogleLogin = async () => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("redirectPath", window.location.pathname);
+      // ✅ Force redirect path for post-login routing
+      localStorage.setItem("redirectPath", "/dashboard/home");
     }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -68,7 +45,8 @@ export default function LoginClient() {
 
   const handleMagicLinkLogin = async () => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("redirectPath", window.location.pathname);
+      // ✅ Force redirect path for post-login routing
+      localStorage.setItem("redirectPath", "/dashboard/home");
     }
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -83,8 +61,6 @@ export default function LoginClient() {
       setSent(true);
     }
   };
-
-  const showDevMagicLogin = process.env.NODE_ENV === "development";
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-muted p-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import AuthGuard from "@/app/components/AuthGuard";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function HomePage() {
   return (
