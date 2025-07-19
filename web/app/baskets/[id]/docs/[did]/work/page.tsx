@@ -1,7 +1,7 @@
 import DocumentWorkbenchLayout from "@/components/layouts/DocumentWorkbenchLayout";
 import ContextBlocksPanel from "@/components/basket/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
-import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
+import { getOrCreateWorkspace } from "@/lib/workspaces/getOrCreateWorkspace";
 import { redirect } from "next/navigation";
 
 interface PageProps {
@@ -19,7 +19,7 @@ export default async function DocWorkPage({ params }: PageProps) {
   if (!user) {
     redirect(`/login?redirect=/baskets/${id}/docs/${did}/work`);
   }
-  const workspace = await getServerWorkspace();
+  const workspace = await getOrCreateWorkspace();
   const workspaceId = workspace?.id;
   console.debug("[DocLoader] Workspace ID:", workspaceId);
 
