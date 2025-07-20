@@ -1,8 +1,12 @@
-import { getOrCreateWorkspace } from "@/lib/workspaces";
+import { ensureWorkspaceServer } from "@/lib/workspaces";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import type { Database } from "@/lib/dbTypes";
 import AuthGuard from "@/components/AuthGuard";
 
 export default async function HomePage() {
-  await getOrCreateWorkspace();
+  const supabase = createServerComponentClient<Database>({ cookies });
+  await ensureWorkspaceServer(supabase);
   return (
     <AuthGuard>
       <div className="p-6">
