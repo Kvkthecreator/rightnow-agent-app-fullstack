@@ -1,7 +1,7 @@
 import DocumentWorkbenchLayout from "@/components/layouts/DocumentWorkbenchLayout";
 import ContextBlocksPanel from "@/components/basket/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
-import { getOrCreateWorkspace } from "@/lib/workspaces/getOrCreateWorkspace";
+import { getOrCreateWorkspace } from "@/lib/workspaces/ensureWorkspaceServer";
 import { redirect } from "next/navigation";
 
 interface PageProps {

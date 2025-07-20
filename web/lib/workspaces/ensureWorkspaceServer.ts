@@ -1,17 +1,16 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
-import { Database } from "@/lib/dbTypes";
+// lib/workspaces/ensureWorkspaceServer.ts
+import type { SupabaseClient } from "@supabase/auth-helpers-nextjs";
+import type { Database } from "@/lib/dbTypes";
 
-export async function getOrCreateWorkspace() {
-  const supabase = createServerComponentClient<Database>({ cookies });
+export async function ensureWorkspaceServer(
+  supabase: SupabaseClient<Database>
+) {
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
-
   if (authError || !user) return null;
 
-  // 1. Look for an existing membership
   const { data: membership } = await supabase
     .from("workspace_memberships")
     .select("workspace_id")
@@ -28,10 +27,12 @@ export async function getOrCreateWorkspace() {
     return workspace ?? null;
   }
 
-  // 2. Create a new workspace
   const { data: newWorkspace, error: createError } = await supabase
     .from("workspaces")
-    .insert({ name: `${user.email}'s Workspace` })
+    .insert({
+      owner_id: user.id,
+      name: `${user.email}'s Workspace`,
+    })
     .select()
     .single();
 

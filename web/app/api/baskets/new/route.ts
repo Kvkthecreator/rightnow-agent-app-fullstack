@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/serviceRole";
-import { getOrCreateWorkspace } from "@/lib/workspaces/getOrCreateWorkspace";
+import { getOrCreateWorkspace } from "@/lib/workspaces/ensureWorkspaceServer";
 
 export async function POST(req: NextRequest) {
   let payload: { text: string; files?: string[]; name?: string | null };

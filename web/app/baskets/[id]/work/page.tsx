@@ -1,6 +1,6 @@
 import BasketWorkLayout from "@/components/layouts/BasketWorkLayout";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
-import { getOrCreateWorkspace } from "@/lib/workspaces/getOrCreateWorkspace";
+import { getOrCreateWorkspace } from "@/lib/workspaces/ensureWorkspaceServer";
 import { redirect } from "next/navigation";
 
 // ✅ Next.js 15 note:

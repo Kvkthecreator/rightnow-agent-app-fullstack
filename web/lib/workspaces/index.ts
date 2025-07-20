@@ -1,1 +1,1 @@
-export * from "./getOrCreateWorkspace";
+export * from "./ensureWorkspaceServer";
