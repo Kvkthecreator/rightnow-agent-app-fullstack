@@ -1,8 +1,6 @@
 import { Suspense } from "react";
 import LoginClient from "./LoginClient";
-import { buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
   return (
@@ -10,7 +8,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm bg-card border rounded-xl shadow-sm px-6 py-8 space-y-6">
         {/* Logo + Header */}
         <div className="flex flex-col items-center space-y-2">
-          <div className="text-3xl font-semibold">🧶</div>
+          <div className="text-3xl">🧶</div>
           <h2 className="text-xl font-semibold">Sign in</h2>
           <p className="text-sm text-muted-foreground text-center">
             to continue to <span className="font-medium">yarnnn</span>
@@ -33,14 +31,14 @@ export default function LoginPage() {
           By continuing, you agree to our{" "}
           <Link
             href="/terms"
-            className={cn(buttonVariants({ variant: "link", size: "sm" }), "px-0 text-xs")}
+            className="underline underline-offset-2 hover:text-primary transition-colors"
           >
             Terms
           </Link>{" "}
           and{" "}
           <Link
             href="/privacy"
-            className={cn(buttonVariants({ variant: "link", size: "sm" }), "px-0 text-xs")}
+            className="underline underline-offset-2 hover:text-primary transition-colors"
           >
             Privacy Policy
           </Link>
