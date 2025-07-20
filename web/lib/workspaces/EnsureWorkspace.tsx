@@ -24,11 +24,18 @@ export default function EnsureWorkspace() {
         return;
       }
 
-      const { data: membership } = await supabase
+      const { data: membership, error: membershipError } = await supabase
         .from("workspace_memberships")
         .select("workspace_id")
         .eq("user_id", user.id)
         .maybeSingle();
+
+      if (membershipError) {
+        console.error("🔴 Failed to check membership:", membershipError);
+        setMessage("❌ Failed to check workspace membership.");
+        setStatus("done");
+        return;
+      }
 
       if (membership?.workspace_id) {
         setMessage(`✅ Workspace already exists: ${membership.workspace_id}`);
@@ -36,23 +43,26 @@ export default function EnsureWorkspace() {
         return;
       }
 
-      // Create new workspace
       const { data: newWorkspace, error: wsError } = await supabase
         .from("workspaces")
         .insert({
           owner_id: user.id,
           name: `${user.email}'s Workspace`,
         })
-        .select()
+        .select("id")
         .single();
 
       if (wsError || !newWorkspace) {
+        console.error("❌ Failed to create workspace:", {
+          user_id: user.id,
+          email: user.email,
+          wsError,
+        });
         setMessage(`❌ Workspace creation failed: ${wsError?.message}`);
         setStatus("done");
         return;
       }
 
-      // Create membership
       const { error: memError } = await supabase
         .from("workspace_memberships")
         .insert({
@@ -62,6 +72,7 @@ export default function EnsureWorkspace() {
         });
 
       if (memError) {
+        console.error("⚠️ Membership insert failed:", memError);
         setMessage(`⚠️ Created workspace but failed membership: ${memError.message}`);
       } else {
         setMessage(`✅ Workspace + membership created: ${newWorkspace.id}`);
