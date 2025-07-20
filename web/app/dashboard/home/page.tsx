@@ -1,8 +1,8 @@
-"use client";
-
+import { getOrCreateWorkspace } from "@/lib/workspaces";
 import AuthGuard from "@/components/AuthGuard";
 
-export default function HomePage() {
+export default async function HomePage() {
+  await getOrCreateWorkspace();
   return (
     <AuthGuard>
       <div className="p-6">
