@@ -288,6 +288,16 @@ CREATE TYPE realtime.wal_rls AS (
 
 
 --
+-- Name: buckettype; Type: TYPE; Schema: storage; Owner: -
+--
+
+CREATE TYPE storage.buckettype AS ENUM (
+    'STANDARD',
+    'ANALYTICS'
+);
+
+
+--
 -- Name: email(); Type: FUNCTION; Schema: auth; Owner: -
 --
 
@@ -2511,27 +2521,6 @@ CREATE TABLE public.workspace_memberships (
 
 
 --
--- Name: v_basket_overview; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW public.v_basket_overview AS
- SELECT b.id,
-    b.name,
-    b.raw_dump_id,
-    b.status AS state,
-    b.created_at,
-    b.user_id,
-    b.workspace_id,
-    rd.body_md AS raw_dump_body,
-    rd.file_refs
-   FROM (public.baskets b
-     JOIN public.raw_dumps rd ON ((rd.id = b.raw_dump_id)))
-  WHERE (b.workspace_id IN ( SELECT workspace_memberships.workspace_id
-           FROM public.workspace_memberships
-          WHERE (workspace_memberships.user_id = auth.uid())));
-
-
---
 -- Name: workspace_memberships_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -2633,7 +2622,21 @@ CREATE TABLE storage.buckets (
     avif_autodetection boolean DEFAULT false,
     file_size_limit bigint,
     allowed_mime_types text[],
-    owner_id text
+    owner_id text,
+    type storage.buckettype DEFAULT 'STANDARD'::storage.buckettype NOT NULL
+);
+
+
+--
+-- Name: buckets_analytics; Type: TABLE; Schema: storage; Owner: -
+--
+
+CREATE TABLE storage.buckets_analytics (
+    id text NOT NULL,
+    type storage.buckettype DEFAULT 'ANALYTICS'::storage.buckettype NOT NULL,
+    format text DEFAULT 'ICEBERG'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -3047,6 +3050,14 @@ ALTER TABLE ONLY realtime.subscription
 
 ALTER TABLE ONLY realtime.schema_migrations
     ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: buckets_analytics buckets_analytics_pkey; Type: CONSTRAINT; Schema: storage; Owner: -
+--
+
+ALTER TABLE ONLY storage.buckets_analytics
+    ADD CONSTRAINT buckets_analytics_pkey PRIMARY KEY (id);
 
 
 --
@@ -4042,6 +4053,59 @@ CREATE POLICY "Allow anon read revisions" ON public.revisions FOR SELECT USING (
 
 
 --
+-- Name: baskets Allow baskets for workspace members; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow baskets for workspace members" ON public.baskets FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: workspace_memberships Allow insert for members; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow insert for members" ON public.workspace_memberships FOR INSERT TO authenticated WITH CHECK ((auth.uid() = user_id));
+
+
+--
+-- Name: workspaces Allow insert for owner; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow insert for owner" ON public.workspaces FOR INSERT TO authenticated WITH CHECK ((auth.uid() = owner_id));
+
+
+--
+-- Name: workspace_memberships Allow own workspace memberships; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow own workspace memberships" ON public.workspace_memberships FOR SELECT TO authenticated USING ((user_id = auth.uid()));
+
+
+--
+-- Name: workspaces Allow owner to read workspace; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow owner to read workspace" ON public.workspaces FOR SELECT USING ((auth.uid() = owner_id));
+
+
+--
+-- Name: workspace_memberships Allow users to see their own workspace memberships; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow users to see their own workspace memberships" ON public.workspace_memberships FOR SELECT USING ((user_id = auth.uid()));
+
+
+--
+-- Name: baskets Allow workspace members to read baskets; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Allow workspace members to read baskets" ON public.baskets FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
 -- Name: baskets Service role full access; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -4135,9 +4199,9 @@ CREATE POLICY basket_member_insert ON public.baskets FOR INSERT WITH CHECK ((wor
 -- Name: baskets basket_member_read; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY basket_member_read ON public.baskets FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
-   FROM public.workspace_memberships
-  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY basket_member_read ON public.baskets FOR SELECT USING (((auth.uid() IS NOT NULL) AND (workspace_id IN ( SELECT workspaces.id
+   FROM public.workspaces
+  WHERE (workspaces.owner_id = auth.uid())))));
 
 
 --
@@ -4250,6 +4314,13 @@ CREATE POLICY ctx_member_update ON public.context_items FOR UPDATE USING ((baske
 
 
 --
+-- Name: workspaces debug insert bypass; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "debug insert bypass" ON public.workspaces FOR INSERT TO authenticated WITH CHECK (true);
+
+
+--
 -- Name: documents; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -4311,6 +4382,13 @@ ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY member_self_crud ON public.workspace_memberships USING ((user_id = auth.uid()));
+
+
+--
+-- Name: workspace_memberships member_self_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY member_self_insert ON public.workspace_memberships FOR INSERT TO authenticated WITH CHECK ((auth.uid() = user_id));
 
 
 --
@@ -4493,6 +4571,12 @@ CREATE POLICY "allow_authenticated_select,insert,update,delete 7gbu0p_1" ON stor
 --
 
 ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: buckets_analytics; Type: ROW SECURITY; Schema: storage; Owner: -
+--
+
+ALTER TABLE storage.buckets_analytics ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: migrations; Type: ROW SECURITY; Schema: storage; Owner: -
