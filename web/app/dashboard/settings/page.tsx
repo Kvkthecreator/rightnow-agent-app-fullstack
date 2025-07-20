@@ -5,7 +5,7 @@ import type { Database } from "@/lib/dbTypes";
 
 import SettingsSection from "@/components/settings/SettingsSection";
 import DisplayBox from "@/components/settings/DisplayBox";
-import EnsureWorkspace from "@/lib/workspaces/EnsureWorkspace";
+import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
 export default async function SettingsPage() {
   const supabase = createServerComponentClient<Database>({ cookies });
@@ -22,6 +22,9 @@ export default async function SettingsPage() {
     (user.user_metadata?.name as string) ||
     "Unknown";
 
+  const workspace = await ensureWorkspaceServer(supabase);
+  const workspaceId = workspace?.id ?? null;
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <SettingsSection
@@ -32,8 +35,16 @@ export default async function SettingsPage() {
         <DisplayBox label="Display Name" value={displayName} />
         <DisplayBox label="Email" value={user.email ?? ""} />
 
-        {/* Dynamically checks/creates workspace and shows result */}
-        <EnsureWorkspace />
+        {workspaceId ? (
+          <DisplayBox label="Workspace ID" value={workspaceId} />
+        ) : (
+          <div className="rounded-md bg-red-50 p-4 text-red-800 border border-red-200">
+            <strong>⚠️ Workspace creation failed</strong>
+            <p className="mt-1 text-sm">
+              We couldn’t create your workspace. Please try again later or contact support.
+            </p>
+          </div>
+        )}
       </SettingsSection>
     </div>
   );

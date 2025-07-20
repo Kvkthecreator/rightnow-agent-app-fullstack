@@ -1,14 +1,12 @@
-// lib/workspaces/ensureWorkspaceServer.ts
 import type { SupabaseClient } from "@supabase/auth-helpers-nextjs";
 import type { Database } from "@/lib/dbTypes";
 
-export async function ensureWorkspaceServer(
-  supabase: SupabaseClient<Database>
-) {
+export async function ensureWorkspaceServer(supabase: SupabaseClient<Database>) {
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
+
   if (authError || !user) return null;
 
   const { data: membership } = await supabase
@@ -29,10 +27,7 @@ export async function ensureWorkspaceServer(
 
   const { data: newWorkspace, error: createError } = await supabase
     .from("workspaces")
-    .insert({
-      owner_id: user.id,
-      name: `${user.email}'s Workspace`,
-    })
+    .insert({ name: `${user.email}'s Workspace`, owner_id: user.id })
     .select()
     .single();
 
