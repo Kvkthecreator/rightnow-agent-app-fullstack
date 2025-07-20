@@ -23,7 +23,11 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      router.replace("/home");
+      // ✅ Redirect to correct landing page
+      const redirectPath =
+        localStorage.getItem("redirectPath") || "/dashboard/home";
+      localStorage.removeItem("redirectPath");
+      router.replace(redirectPath);
     };
 
     run();
