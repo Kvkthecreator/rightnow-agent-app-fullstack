@@ -1,12 +1,21 @@
-import { ensureWorkspaceServer } from "@/lib/workspaces";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
-import type { Database } from "@/lib/dbTypes";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import AuthGuard from "@/components/AuthGuard";
+import type { Database } from "@/lib/dbTypes";
 
 export default async function HomePage() {
   const supabase = createServerComponentClient<Database>({ cookies });
-  await ensureWorkspaceServer(supabase);
+  const workspace = await ensureWorkspaceServer(supabase);
+
+  if (!workspace) {
+    return (
+      <div className="p-6 text-red-600">
+        ❌ Workspace creation failed. Please try again or contact support.
+      </div>
+    );
+  }
+
   return (
     <AuthGuard>
       <div className="p-6">

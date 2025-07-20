@@ -33,7 +33,7 @@ export default async function SettingsPage() {
       >
         <DisplayBox label="UID" value={user.id} />
         <DisplayBox label="Display Name" value={displayName} />
-        <DisplayBox label="Email" value={user.email ?? ""} />
+        <DisplayBox label="Email" value={user.email ?? "Unknown"} />
 
         {workspaceId ? (
           <DisplayBox label="Workspace ID" value={workspaceId} />
