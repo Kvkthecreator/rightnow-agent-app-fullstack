@@ -1,6 +1,6 @@
 import BasketWorkLayout from "@/components/layouts/BasketWorkLayout";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
-import { getOrCreateWorkspace } from "@/lib/workspaces/ensureWorkspaceServer";
+import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { redirect } from "next/navigation";
 
 // ✅ Next.js 15 note:
@@ -27,7 +27,7 @@ export default async function BasketWorkPage({
     redirect(`/login?redirect=/baskets/${id}/work`);
   }
 
-  const workspace = await getOrCreateWorkspace();
+  const workspace = await ensureWorkspaceServer(supabase);
   const workspaceId = workspace?.id;
 
   console.log("🧺 User and Workspace Check:", {
