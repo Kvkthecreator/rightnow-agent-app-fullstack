@@ -3,19 +3,12 @@ import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { redirect } from "next/navigation";
 
-// ✅ Next.js 15 note:
-// `params` is now passed as a Promise due to streaming + layout changes.
-// Do NOT redefine `PageProps` manually — Next.js auto-generates one.
-// Instead, destructure and await it here inline as shown below.
-
 export default async function BasketWorkPage({
   params,
 }: {
-  params: Promise<{ id: string }>; // ✅ Required in Next.js 15 for streamed routes
+  params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-
-  // ✅ Supabase client is created using dynamic cookies — safe for App Router
   const supabase = createServerSupabaseClient();
 
   const {
@@ -40,17 +33,18 @@ export default async function BasketWorkPage({
     redirect("/home");
   }
 
-  const { data: basket } = await supabase
+  const { data: basket, error } = await supabase
     .from("baskets")
-    .select("id, name, status, tags")
+    .select("id, name, status") // ✅ Removed 'tags'
     .eq("id", id)
     .eq("workspace_id", workspaceId)
     .single();
 
-  if (!basket) {
+  if (error || !basket) {
     console.warn("❌ Basket not found — skipping redirect for debug.", {
       basketId: id,
       workspaceId,
+      error,
     });
     return (
       <div className="p-8 text-red-500">
@@ -109,7 +103,7 @@ export default async function BasketWorkPage({
       basketId={id}
       basketName={basket.name ?? "Untitled"}
       status={basket.status ?? "draft"}
-      scope={basket.tags ?? []}
+      scope={[]} // ✅ Temporarily empty until tags are wired properly
       dumpBody={rawDumpBody}
       empty={isEmpty}
     />
