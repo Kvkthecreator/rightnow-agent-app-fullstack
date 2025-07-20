@@ -2,9 +2,10 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Database } from "@/lib/dbTypes";
+
 import SettingsSection from "@/components/settings/SettingsSection";
 import DisplayBox from "@/components/settings/DisplayBox";
-import { getOrCreateWorkspace } from "@/lib/workspaces";
+import EnsureWorkspace from "@/lib/workspaces/EnsureWorkspace";
 
 export default async function SettingsPage() {
   const supabase = createServerComponentClient<Database>({ cookies });
@@ -15,9 +16,6 @@ export default async function SettingsPage() {
   if (!user) {
     redirect("/login?redirect=/dashboard/settings");
   }
-
-  const workspace = await getOrCreateWorkspace();
-  const workspaceId = workspace?.id ?? null;
 
   const displayName =
     (user.user_metadata?.full_name as string) ||
@@ -33,16 +31,9 @@ export default async function SettingsPage() {
         <DisplayBox label="UID" value={user.id} />
         <DisplayBox label="Display Name" value={displayName} />
         <DisplayBox label="Email" value={user.email ?? ""} />
-        {workspaceId ? (
-          <DisplayBox label="Workspace ID" value={workspaceId} />
-        ) : (
-          <div className="rounded-md bg-red-50 p-4 text-red-800 border border-red-200">
-            <strong>⚠️ No workspace found.</strong>
-            <p className="mt-1 text-sm">
-              Something went wrong with workspace setup. Please refresh the page or contact support.
-            </p>
-          </div>
-        )}
+
+        {/* Dynamically checks/creates workspace and shows result */}
+        <EnsureWorkspace />
       </SettingsSection>
     </div>
   );
