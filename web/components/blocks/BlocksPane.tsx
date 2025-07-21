@@ -8,6 +8,7 @@ export interface BlocksPaneProps {
 
 export default function BlocksPane({ blocks }: BlocksPaneProps) {
   const proposed = (blocks || []).filter(
+    // TODO: Legacy patch. Remove `as any` after type refactor.
     (b) => (b as any).state === "PROPOSED"
   );
 
@@ -28,6 +29,7 @@ export default function BlocksPane({ blocks }: BlocksPaneProps) {
           <Card
             key={block.id}
             className={`space-y-1 p-4 hover:bg-muted cursor-pointer ${
+              // TODO: Legacy patch. Remove `as any` after type refactor.
               (block as any).state === "PROPOSED" && !block.prev_rev_id
                 ? "block-proposed"
                 : ""
@@ -35,14 +37,17 @@ export default function BlocksPane({ blocks }: BlocksPaneProps) {
           >
             <div className="flex justify-between items-start">
               <span className="text-sm font-medium">
-                {(block as any).canonical_value ??
+                {  // TODO: Legacy patch. Remove `as any` after type refactor.
+                  (block as any).canonical_value ??
                   block.content.slice(0, 30) ??
                   "(Untitled)"}
               </span>
               <span className="text-xs px-2 py-0.5 bg-muted rounded badge">
-                {(block as any).semantic_type === "pending proposal"
-                  ? "PROPOSED"
-                  : (block as any).semantic_type ?? "UNKNOWN"}
+                {  // TODO: Legacy patch. Remove `as any` after type refactor.
+                  (block as any).semantic_type === "pending proposal"
+                    ? "PROPOSED"
+                    // TODO: Legacy patch. Remove `as any` after type refactor.
+                    : (block as any).semantic_type ?? "UNKNOWN"}
               </span>
             </div>
             <p className="text-sm text-muted-foreground">

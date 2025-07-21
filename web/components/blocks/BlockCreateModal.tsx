@@ -49,7 +49,12 @@ export default function BlockCreateModal({
       .limit(50)
       .then(({ data }) => {
         if (data) {
-          const vals = Array.from(new Set(data.map((d) => d.semantic_type))).sort();
+          // TODO: Legacy patch. Remove `as any` after type refactor.
+          const vals = Array.from(
+            new Set(
+              data.map((d) => (d as any).semantic_type ?? "UNKNOWN")
+            )
+          ).sort();
           setBlockTypes(vals);
           if (!type) setType(vals[0] || "custom");
         }

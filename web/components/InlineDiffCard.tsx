@@ -10,12 +10,16 @@ export default function InlineDiffCard({ block }: Props) {
   const pieces = diffWords(block.prev_content || "", block.content || "");
 
   // Narrow for optional fields that may not exist on the type
+  // TODO: Legacy patch. Remove `as any` after type refactor.
   const canonicalValue =
+    // TODO: Legacy patch. Remove `as any` after type refactor.
     typeof (block as any).canonical_value === "string"
       ? (block as any).canonical_value
       : undefined;
 
+  // TODO: Legacy patch. Remove `as any` after type refactor.
   const semanticType =
+    // TODO: Legacy patch. Remove `as any` after type refactor.
     typeof (block as any).semantic_type === "string"
       ? (block as any).semantic_type
       : undefined;
