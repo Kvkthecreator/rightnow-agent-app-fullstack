@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useDocuments } from "../../lib/baskets/useDocuments";
-import type { Document } from "@/types/document";
+import type { Document } from "@/types";
 
 interface Props {
   basketId: string;

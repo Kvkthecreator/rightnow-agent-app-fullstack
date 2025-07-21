@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/Card";
 import InlineDiffCard from "@/components/InlineDiffCard";
-import type { BlockWithHistory } from "@/types/block";
+import type { BlockWithHistory } from "@/types";
 
 export interface BlocksPaneProps {
   blocks: BlockWithHistory[];

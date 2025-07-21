@@ -4,7 +4,7 @@ export interface ContextItemPayload {
   basket_id?: string;
   document_id?: string | null;
   type: string;
-  content: string;
+  summary: string;
   status?: string;
 }
 

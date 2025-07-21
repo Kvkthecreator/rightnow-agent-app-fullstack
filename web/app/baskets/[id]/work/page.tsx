@@ -3,7 +3,6 @@ import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { getBasket } from "@/lib/api/baskets";
 import { getDocuments } from "@/lib/api/documents";
-import { getLatestDump } from "@/lib/api/dumps";
 import { getBlocks } from "@/lib/api/blocks";
 import { redirect } from "next/navigation";
 
@@ -59,19 +58,12 @@ export default async function BasketWorkPage({
   const docs = await getDocuments(id);
   const firstDoc = docs ? docs[0] : null;
 
-  const latestDump = await getLatestDump(id);
-  const anyDump = latestDump ? { id: latestDump.document_id } : null;
-
   let rawDumpBody = "";
-  if (firstDoc?.id) {
-    const dump = await getLatestDump(id);
-    rawDumpBody = dump?.body_md ?? "";
-  }
 
   const blocks = await getBlocks(id);
   const anyBlock = blocks && blocks.length > 0 ? blocks[0] : null;
 
-  const isEmpty = !anyBlock && !firstDoc && !anyDump;
+  const isEmpty = !anyBlock && !firstDoc;
 
   return (
     <BasketWorkLayout

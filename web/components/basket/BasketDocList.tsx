@@ -2,7 +2,7 @@
 import DocumentList from "@/components/basket/DocumentList";
 import { Button } from "@/components/ui/Button";
 
-import type { Document } from "@/types/document";
+import type { Document } from "@/types";
 
 interface Props {
   basketId: string;

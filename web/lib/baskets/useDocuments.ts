@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { apiGet } from "../api";
-import type { Document } from "@/types/document";
+import type { Document } from "@/types";
 
 export interface DocumentRow extends Document {
   updated_at: string;

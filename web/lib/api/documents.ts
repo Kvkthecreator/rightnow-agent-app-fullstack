@@ -1,4 +1,6 @@
-export async function getDocuments(basketId: string) {
+import type { Document } from "@/types";
+
+export async function getDocuments(basketId: string): Promise<Document[]> {
   try {
     const res = await fetch(`/api/baskets/${basketId}/docs`);
     if (!res.ok) {
@@ -9,7 +11,7 @@ export async function getDocuments(basketId: string) {
       console.error('[getDocuments] Failed', { status: res.status, basketId });
       throw new Error(`getDocuments failed with ${res.status}`);
     }
-    return await res.json();
+    return (await res.json()) as Document[];
   } catch (err) {
     console.error('[getDocuments] Unexpected error', err);
     throw err;

@@ -1,4 +1,6 @@
-export async function getBlocks(basketId: string) {
+import type { Block } from "@/types";
+
+export async function getBlocks(basketId: string): Promise<Block[]> {
   try {
     const res = await fetch(`/api/baskets/${basketId}/blocks`);
     if (!res.ok) {
@@ -9,7 +11,7 @@ export async function getBlocks(basketId: string) {
       console.error('[getBlocks] Failed', { status: res.status, basketId });
       throw new Error(`getBlocks failed with ${res.status}`);
     }
-    return await res.json();
+    return (await res.json()) as Block[];
   } catch (err) {
     console.error('[getBlocks] Unexpected error', err);
     throw err;

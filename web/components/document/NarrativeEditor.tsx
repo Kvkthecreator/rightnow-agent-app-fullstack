@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
-import type { Block } from "@/types/block";
+import type { Block } from "@/types";
 
 interface Props {
   rawText: string;
