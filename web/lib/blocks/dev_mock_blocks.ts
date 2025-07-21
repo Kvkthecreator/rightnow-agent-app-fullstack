@@ -1,6 +1,6 @@
 import type { Block } from "@/types";
 
-export const DEV_MOCK_BLOCKS: Block[] = [
+export const DEV_MOCK_BLOCKS = [
   {
     id: "mock1",
     semantic_type: "tone",
@@ -21,4 +21,4 @@ export const DEV_MOCK_BLOCKS: Block[] = [
     actor: "tester",
     created_at: new Date().toISOString(),
   },
-];
+] as any as Block[];
