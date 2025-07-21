@@ -1,5 +1,5 @@
 "use client";
-import DocumentList from "@/components/documents/DocumentList";
+import DocumentList from "@/components/basket/DocumentList";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";

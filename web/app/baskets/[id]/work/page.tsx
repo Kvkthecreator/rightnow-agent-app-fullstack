@@ -1,6 +1,10 @@
-import BasketWorkLayout from "@/components/layouts/BasketWorkLayout";
+import BasketWorkLayout from "@/components/basket/BasketWorkLayout";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { getBasket } from "@/lib/api/baskets";
+import { getDocuments } from "@/lib/api/documents";
+import { getLatestDump } from "@/lib/api/dumps";
+import { getBlocks } from "@/lib/api/blocks";
 import { redirect } from "next/navigation";
 
 export default async function BasketWorkPage({
@@ -33,12 +37,7 @@ export default async function BasketWorkPage({
     redirect("/home");
   }
 
-  const { data: basket, error } = await supabase
-    .from("baskets")
-    .select("id, name, status") // ✅ Removed 'tags'
-    .eq("id", id)
-    .eq("workspace_id", workspaceId)
-    .single();
+  const { data: basket, error } = await getBasket(supabase, id, workspaceId);
 
   if (error || !basket) {
     console.warn("❌ Basket not found — skipping redirect for debug.", {
@@ -57,44 +56,25 @@ export default async function BasketWorkPage({
 
   console.log("✅ Basket loaded:", basket);
 
-  const { data: firstDoc } = await supabase
-    .from("documents")
-    .select("id")
-    .eq("basket_id", id)
-    .eq("workspace_id", workspaceId)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const { data: docs } = await getDocuments(supabase, id, workspaceId);
+  const firstDoc = docs ? docs[0] : null;
 
-  const { data: anyDump } = await supabase
-    .from("raw_dumps")
-    .select("id")
-    .eq("basket_id", id)
-    .eq("workspace_id", workspaceId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: latestDump } = await getLatestDump(supabase, id, workspaceId);
+  const anyDump = latestDump ? { id: latestDump.document_id } : null;
 
   let rawDumpBody = "";
   if (firstDoc?.id) {
-    const { data: dump } = await supabase
-      .from("raw_dumps")
-      .select("body_md")
-      .eq("document_id", firstDoc.id)
-      .eq("workspace_id", workspaceId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: dump } = await getLatestDump(
+      supabase,
+      id,
+      workspaceId,
+      firstDoc.id,
+    );
     rawDumpBody = dump?.body_md ?? "";
   }
 
-  const { data: anyBlock } = await supabase
-    .from("blocks")
-    .select("id")
-    .eq("basket_id", id)
-    .eq("workspace_id", workspaceId)
-    .limit(1)
-    .maybeSingle();
+  const { data: blocks } = await getBlocks(supabase, id, workspaceId);
+  const anyBlock = blocks && blocks.length > 0 ? blocks[0] : null;
 
   const isEmpty = !anyBlock && !firstDoc && !anyDump;
 

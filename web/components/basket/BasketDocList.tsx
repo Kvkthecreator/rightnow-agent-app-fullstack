@@ -1,5 +1,5 @@
 "use client";
-import DocumentList from "@/components/documents/DocumentList";
+import DocumentList from "@/components/basket/DocumentList";
 import { Button } from "@/components/ui/Button";
 
 import type { Document } from "@/types/document";

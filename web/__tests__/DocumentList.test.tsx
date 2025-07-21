@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import React from "react";
 import { vi } from "vitest";
-import DocumentList from "../components/documents/DocumentList";
+import DocumentList from "../components/basket/DocumentList";
 
 vi.mock("../lib/baskets/useDocuments", () => ({
   useDocuments: vi.fn(),

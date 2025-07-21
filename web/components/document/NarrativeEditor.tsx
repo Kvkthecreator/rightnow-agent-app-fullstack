@@ -46,7 +46,7 @@ function BlockBadge({ block, onClick }: { block: Block; onClick?: () => void }) 
   );
 }
 
-export default function NarrativePane({ rawText, blocks, onSelectBlock }: Props) {
+export default function NarrativeEditor({ rawText, blocks, onSelectBlock }: Props) {
   const content = useMemo(() => {
     const ranges: { start: number; end: number; block: Block }[] = [];
     blocks.forEach((blk) => {

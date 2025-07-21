@@ -1,7 +1,12 @@
-import DocumentWorkbenchLayout from "@/components/layouts/DocumentWorkbenchLayout";
-import ContextBlocksPanel from "@/components/basket/ContextBlocksPanel";
+import DocumentWorkbenchLayout from "@/components/document/DocumentWorkbenchLayout";
+import ContextBlocksPanel from "@/components/document/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { getBasket } from "@/lib/api/baskets";
+import { getDocuments } from "@/lib/api/documents";
+import { getLatestDump } from "@/lib/api/dumps";
+import { getBlocks } from "@/lib/api/blocks";
+import { getContextItems } from "@/lib/api/contextItems";
 import { redirect } from "next/navigation";
 
 interface PageProps {
@@ -23,12 +28,7 @@ export default async function DocWorkPage({ params }: PageProps) {
   const workspaceId = workspace?.id;
   console.debug("[DocLoader] Workspace ID:", workspaceId);
 
-  const { data: basket } = await supabase
-    .from("baskets")
-    .select("id, name, created_at")
-    .eq("id", id)
-    .eq("workspace_id", workspaceId)
-    .single();
+  const { data: basket } = await getBasket(supabase, id, workspaceId);
 
   console.debug("[DocLoader] Fetched basket:", basket);
 
@@ -39,45 +39,29 @@ export default async function DocWorkPage({ params }: PageProps) {
     redirect("/404");
   }
 
-  const { data: documents } = await supabase
-    .from("documents")
-    .select("id, title")
-    .eq("basket_id", id)
-    .eq("workspace_id", workspaceId);
+  const { data: documents } = await getDocuments(supabase, id, workspaceId);
 
-  const { data: dump } = await supabase
-    .from("raw_dumps")
-    .select("body_md")
-    .eq("document_id", did)
-    .eq("workspace_id", workspaceId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+  const { data: dump } = await getLatestDump(
+    supabase,
+    id,
+    workspaceId,
+    did,
+  );
 
-  const { data: blocks } = await supabase
-    .from("blocks")
-    .select(
-      "id, semantic_type, content, state, scope, canonical_value, actor, created_at"
-    )
-    .eq("basket_id", id)
-    .eq("workspace_id", workspaceId)
-    .in("state", ["LOCKED", "PROPOSED", "CONSTANT"]);
+  const { data: blocks } = await getBlocks(supabase, id, workspaceId);
 
-  const { data: basketGuidelines } = await supabase
-    .from("context_items")
-    .select("id, content")
-    .eq("basket_id", id)
-    .is("document_id", null)
-    .eq("workspace_id", workspaceId)
-    .eq("status", "active");
-
-  const { data: docGuidelines } = await supabase
-    .from("context_items")
-    .select("id, content")
-    .eq("basket_id", id)
-    .eq("document_id", did)
-    .eq("workspace_id", workspaceId)
-    .eq("status", "active");
+  const { data: basketGuidelines } = await getContextItems(
+    supabase,
+    id,
+    null,
+    workspaceId,
+  );
+  const { data: docGuidelines } = await getContextItems(
+    supabase,
+    id,
+    did,
+    workspaceId,
+  );
 
   const snapshot = {
     basket,
