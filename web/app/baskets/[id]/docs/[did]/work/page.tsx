@@ -7,7 +7,12 @@ import { getDocuments } from "@/lib/api/documents";
 import { getLatestDump } from "@/lib/api/dumps";
 import { getBlocks } from "@/lib/api/blocks";
 import { getContextItems } from "@/lib/api/contextItems";
+import type { Block } from "@/types";
 import { redirect } from "next/navigation";
+
+type BlockRow = Block & {
+  state: string;
+};
 
 interface PageProps {
   params: Promise<{ id: string; did: string }>;
@@ -44,6 +49,10 @@ export default async function DocWorkPage({ params }: PageProps) {
   const dump = await getLatestDump(id);
 
   const blocks = await getBlocks(id);
+  const blocksWithState: BlockRow[] = (blocks || []).map((b) => ({
+    ...b,
+    state: "idle",
+  }));
 
   const docGuidelines = await getContextItems(did);
 
@@ -51,7 +60,7 @@ export default async function DocWorkPage({ params }: PageProps) {
     basket,
     raw_dump_body: dump?.body_md || "",
     file_refs: [],
-    blocks: blocks || [],
+    blocks: blocksWithState,
     proposed_blocks: [],
   };
 
@@ -66,7 +75,7 @@ export default async function DocWorkPage({ params }: PageProps) {
         <ContextBlocksPanel
           basketId={id}
           documentId={did}
-          blocks={blocks || []}
+          blocks={blocksWithState}
           contextItems={guidelines}
         />
       }
