@@ -1,17 +1,20 @@
-import type { SupabaseClient } from '@supabase/auth-helpers-nextjs';
-import type { Database } from '@/lib/dbTypes';
-
-export async function getContextItems(
-  supabase: SupabaseClient<Database>,
-  basketId: string,
-  documentId: string | null,
-  workspaceId: string,
-) {
-  return supabase
-    .from('context_items')
-    .select('id, content')
-    .eq('basket_id', basketId)
-    .eq('document_id', documentId)
-    .eq('workspace_id', workspaceId)
-    .eq('status', 'active');
+export async function getContextItems(docId: string) {
+  try {
+    const url = docId
+      ? `/api/context_items?document_id=${docId}`
+      : '/api/context_items';
+    const res = await fetch(url);
+    if (!res.ok) {
+      if (res.status === 404) {
+        console.warn('[getContextItems] Not found', { docId });
+        return [];
+      }
+      console.error('[getContextItems] Failed', { status: res.status, docId });
+      throw new Error(`getContextItems failed with ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    console.error('[getContextItems] Unexpected error', err);
+    throw err;
+  }
 }

@@ -37,13 +37,13 @@ export default async function BasketWorkPage({
     redirect("/home");
   }
 
-  const { data: basket, error } = await getBasket(supabase, id, workspaceId);
+  let error = null;
+  const basket = await getBasket(id);
 
-  if (error || !basket) {
+  if (!basket) {
     console.warn("❌ Basket not found — skipping redirect for debug.", {
       basketId: id,
       workspaceId,
-      error,
     });
     return (
       <div className="p-8 text-red-500">
@@ -56,24 +56,19 @@ export default async function BasketWorkPage({
 
   console.log("✅ Basket loaded:", basket);
 
-  const { data: docs } = await getDocuments(supabase, id, workspaceId);
+  const docs = await getDocuments(id);
   const firstDoc = docs ? docs[0] : null;
 
-  const { data: latestDump } = await getLatestDump(supabase, id, workspaceId);
+  const latestDump = await getLatestDump(id);
   const anyDump = latestDump ? { id: latestDump.document_id } : null;
 
   let rawDumpBody = "";
   if (firstDoc?.id) {
-    const { data: dump } = await getLatestDump(
-      supabase,
-      id,
-      workspaceId,
-      firstDoc.id,
-    );
+    const dump = await getLatestDump(id);
     rawDumpBody = dump?.body_md ?? "";
   }
 
-  const { data: blocks } = await getBlocks(supabase, id, workspaceId);
+  const blocks = await getBlocks(id);
   const anyBlock = blocks && blocks.length > 0 ? blocks[0] : null;
 
   const isEmpty = !anyBlock && !firstDoc && !anyDump;

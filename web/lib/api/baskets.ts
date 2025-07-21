@@ -1,15 +1,17 @@
-import type { SupabaseClient } from '@supabase/auth-helpers-nextjs';
-import type { Database } from '@/lib/dbTypes';
-
-export async function getBasket(
-  supabase: SupabaseClient<Database>,
-  id: string,
-  workspaceId: string,
-) {
-  return supabase
-    .from('baskets')
-    .select('id, name, status, created_at')
-    .eq('id', id)
-    .eq('workspace_id', workspaceId)
-    .single();
+export async function getBasket(id: string) {
+  try {
+    const res = await fetch(`/api/baskets/${id}`);
+    if (!res.ok) {
+      if (res.status === 404) {
+        console.warn('[getBasket] Not found', { id });
+        return null;
+      }
+      console.error('[getBasket] Failed', { status: res.status, id });
+      throw new Error(`getBasket failed with ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    console.error('[getBasket] Unexpected error', err);
+    throw err;
+  }
 }

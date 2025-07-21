@@ -1,21 +1,17 @@
-import type { SupabaseClient } from '@supabase/auth-helpers-nextjs';
-import type { Database } from '@/lib/dbTypes';
-
-export async function getLatestDump(
-  supabase: SupabaseClient<Database>,
-  basketId: string,
-  workspaceId: string,
-  documentId?: string,
-) {
-  const query = supabase
-    .from('raw_dumps')
-    .select('body_md, document_id')
-    .eq('basket_id', basketId)
-    .eq('workspace_id', workspaceId)
-    .order('created_at', { ascending: false })
-    .limit(1);
-  if (documentId) {
-    query.eq('document_id', documentId);
+export async function getLatestDump(basketId: string) {
+  try {
+    const res = await fetch(`/api/baskets/${basketId}/dumps/latest`);
+    if (!res.ok) {
+      if (res.status === 404) {
+        console.warn('[getLatestDump] Not found', { basketId });
+        return null;
+      }
+      console.error('[getLatestDump] Failed', { status: res.status, basketId });
+      throw new Error(`getLatestDump failed with ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    console.error('[getLatestDump] Unexpected error', err);
+    throw err;
   }
-  return query.maybeSingle();
 }

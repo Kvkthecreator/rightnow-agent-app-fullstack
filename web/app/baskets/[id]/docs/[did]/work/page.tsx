@@ -28,7 +28,7 @@ export default async function DocWorkPage({ params }: PageProps) {
   const workspaceId = workspace?.id;
   console.debug("[DocLoader] Workspace ID:", workspaceId);
 
-  const { data: basket } = await getBasket(supabase, id, workspaceId);
+  const basket = await getBasket(id);
 
   console.debug("[DocLoader] Fetched basket:", basket);
 
@@ -39,29 +39,13 @@ export default async function DocWorkPage({ params }: PageProps) {
     redirect("/404");
   }
 
-  const { data: documents } = await getDocuments(supabase, id, workspaceId);
+  const documents = await getDocuments(id);
 
-  const { data: dump } = await getLatestDump(
-    supabase,
-    id,
-    workspaceId,
-    did,
-  );
+  const dump = await getLatestDump(id);
 
-  const { data: blocks } = await getBlocks(supabase, id, workspaceId);
+  const blocks = await getBlocks(id);
 
-  const { data: basketGuidelines } = await getContextItems(
-    supabase,
-    id,
-    null,
-    workspaceId,
-  );
-  const { data: docGuidelines } = await getContextItems(
-    supabase,
-    id,
-    did,
-    workspaceId,
-  );
+  const docGuidelines = await getContextItems(did);
 
   const snapshot = {
     basket,
@@ -71,7 +55,7 @@ export default async function DocWorkPage({ params }: PageProps) {
     proposed_blocks: [],
   };
 
-  const guidelines = [...(basketGuidelines || []), ...(docGuidelines || [])];
+  const guidelines = docGuidelines || [];
 
   return (
     <DocumentWorkbenchLayout
