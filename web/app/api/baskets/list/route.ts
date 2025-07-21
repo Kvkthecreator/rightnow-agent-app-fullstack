@@ -1,3 +1,5 @@
+// ❌ DEPRECATED
+// This route is no longer used for SSR. Use server helpers in lib/server/baskets.ts instead.
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";

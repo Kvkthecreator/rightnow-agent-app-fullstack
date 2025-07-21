@@ -1,3 +1,5 @@
+// ❌ DEPRECATED
+// This route is no longer used for SSR. Use server helpers in lib/server/baskets.ts instead.
 import { NextRequest, NextResponse } from 'next/server';
 import { apiFetch } from '@/lib/api';
 

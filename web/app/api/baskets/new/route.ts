@@ -1,3 +1,5 @@
+// ❌ DEPRECATED
+// This route is no longer used for SSR. Use server helpers in lib/server/baskets.ts instead.
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/serviceRole";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
