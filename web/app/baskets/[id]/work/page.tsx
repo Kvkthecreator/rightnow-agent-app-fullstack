@@ -1,9 +1,9 @@
 import BasketWorkLayout from "@/components/basket/BasketWorkLayout";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
-import { getBasket } from "@/lib/api/baskets";
-import { getDocuments } from "@/lib/api/documents";
-import { getBlocks } from "@/lib/api/blocks";
+import { getBasketServer } from "@/lib/server/baskets";
+import { getDocumentsServer } from "@/lib/server/documents";
+import { getBlocksServer } from "@/lib/server/blocks";
 import { redirect } from "next/navigation";
 
 export default async function BasketWorkPage({
@@ -37,7 +37,7 @@ export default async function BasketWorkPage({
   }
 
   let error = null;
-  const basket = await getBasket(id);
+  const basket = await getBasketServer(id, workspaceId);
 
   if (!basket) {
     console.warn("❌ Basket not found — skipping redirect for debug.", {
@@ -55,12 +55,12 @@ export default async function BasketWorkPage({
 
   console.log("✅ Basket loaded:", basket);
 
-  const docs = await getDocuments(id);
+  const docs = await getDocumentsServer(id);
   const firstDoc = docs ? docs[0] : null;
 
   let rawDumpBody = "";
 
-  const blocks = await getBlocks(id);
+  const blocks = await getBlocksServer(id);
   const anyBlock = blocks && blocks.length > 0 ? blocks[0] : null;
 
   const isEmpty = !anyBlock && !firstDoc;

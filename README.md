@@ -55,3 +55,16 @@ Component	Local	Hosted
 Frontend	✅	Vercel
 Backend	optional	Render
 DB/Auth	Hosted only	Supabase
+## Developer Notes
+
+### \ud83d\udd27 Data Fetching Architecture
+
+Yarnnn uses a strict separation between server-side and client-side data fetching:
+
+| Folder | Usage | SSR Safe | Auth-safe via Supabase |
+|----------------------|--------------------|----------|-------------------------|
+| `lib/server/*` | \u2705 Server components | \u2705 Yes | \u2705 Yes (via cookies) |
+| `lib/api/*` | \u2705 Client components | \u274c No | \u2705 Yes (browser fetch) |
+| `app/api/...` routes | Optional proxy | \u2705 N/A | Use sparingly; mostly deprecated |
+
+\ud83d\udc49 Never use `fetch('/api/…')` inside server components. Always use `lib/server/*` helpers.
