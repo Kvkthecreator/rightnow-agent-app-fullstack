@@ -12,11 +12,14 @@ export default function InlineDiffCard({ block }: Props) {
     <Card className="space-y-1 p-4 hover:bg-muted cursor-pointer">
       <div className="flex justify-between items-start">
         <span className="text-sm font-medium">
-          {block.canonical_value || block.content.slice(0, 30)}
+          {/* Use fallback safely */}
+          {block?.canonical_value ?? block.content?.slice(0, 30) ?? "(Untitled)"}
         </span>
-        <span className="text-xs px-2 py-0.5 bg-muted rounded">
-          {block.semantic_type}
-        </span>
+        {block?.semantic_type && (
+          <span className="text-xs px-2 py-0.5 bg-muted rounded">
+            {block.semantic_type}
+          </span>
+        )}
       </div>
       <p className="text-sm text-muted-foreground">
         {pieces.map((part, idx) => {
