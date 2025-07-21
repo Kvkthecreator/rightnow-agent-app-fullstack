@@ -1,7 +1,7 @@
 "use client";
 import { ReactNode } from "react";
 import BasketDocList from "@/components/basket/BasketDocList";
-import NarrativePane from "@/components/basket/NarrativePane";
+import NarrativeEditor from "@/components/document/NarrativeEditor";
 import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
 import type { Document } from "@/types/document";
 
@@ -57,7 +57,7 @@ export default function DocumentWorkbenchLayout({
         <div className="md:flex w-full flex-1">
           <div className="flex-1">
             <div className="p-4 space-y-4">
-              <NarrativePane
+              <NarrativeEditor
                 rawText={snapshot.raw_dump_body}
                 blocks={snapshot.blocks || []}
                 onSelectBlock={onSelectBlock}

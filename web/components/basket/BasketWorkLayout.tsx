@@ -1,5 +1,5 @@
 "use client";
-import DocumentList from "@/components/documents/DocumentList";
+import DocumentList from "@/components/basket/DocumentList";
 import BasketSidebar from "@/components/basket/BasketSidebar";
 import BasketDashboard from "@/components/views/BasketDashboard";
 import { useSearchParams } from "next/navigation";
