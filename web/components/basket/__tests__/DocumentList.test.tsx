@@ -1,13 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import React from "react";
 import { vi } from "vitest";
-import DocumentList from "../components/basket/DocumentList";
+import DocumentList from "../DocumentList";
 
-vi.mock("../lib/baskets/useDocuments", () => ({
+vi.mock("../../../lib/baskets/useDocuments", () => ({
   useDocuments: vi.fn(),
 }));
 
-import { useDocuments } from "../lib/baskets/useDocuments";
+import { useDocuments } from "../../../lib/baskets/useDocuments";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
