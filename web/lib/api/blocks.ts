@@ -1,15 +1,17 @@
-import type { SupabaseClient } from '@supabase/auth-helpers-nextjs';
-import type { Database } from '@/lib/dbTypes';
-
-export async function getBlocks(
-  supabase: SupabaseClient<Database>,
-  basketId: string,
-  workspaceId: string,
-) {
-  return supabase
-    .from('blocks')
-    .select('id, semantic_type, content, state, scope, canonical_value, actor, created_at')
-    .eq('basket_id', basketId)
-    .eq('workspace_id', workspaceId)
-    .in('state', ['LOCKED', 'PROPOSED', 'CONSTANT']);
+export async function getBlocks(basketId: string) {
+  try {
+    const res = await fetch(`/api/baskets/${basketId}/blocks`);
+    if (!res.ok) {
+      if (res.status === 404) {
+        console.warn('[getBlocks] Not found', { basketId });
+        return [];
+      }
+      console.error('[getBlocks] Failed', { status: res.status, basketId });
+      throw new Error(`getBlocks failed with ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    console.error('[getBlocks] Unexpected error', err);
+    throw err;
+  }
 }
