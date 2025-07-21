@@ -2,11 +2,11 @@ import DocumentWorkbenchLayout from "@/components/document/DocumentWorkbenchLayo
 import ContextBlocksPanel from "@/components/document/ContextBlocksPanel";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
-import { getBasket } from "@/lib/api/baskets";
-import { getDocuments } from "@/lib/api/documents";
-import { getLatestDump } from "@/lib/api/dumps";
-import { getBlocks } from "@/lib/api/blocks";
-import { getContextItems } from "@/lib/api/contextItems";
+import { getBasketServer } from "@/lib/server/baskets";
+import { getDocumentsServer } from "@/lib/server/documents";
+import { getLatestDumpServer } from "@/lib/server/dumps";
+import { getBlocksServer } from "@/lib/server/blocks";
+import { getContextItemsServer } from "@/lib/server/contextItems";
 import type { Block } from "@/types";
 import { redirect } from "next/navigation";
 
@@ -33,7 +33,7 @@ export default async function DocWorkPage({ params }: PageProps) {
   const workspaceId = workspace?.id;
   console.debug("[DocLoader] Workspace ID:", workspaceId);
 
-  const basket = await getBasket(id);
+  const basket = await getBasketServer(id, workspaceId ?? "");
 
   console.debug("[DocLoader] Fetched basket:", basket);
 
@@ -44,17 +44,17 @@ export default async function DocWorkPage({ params }: PageProps) {
     redirect("/404");
   }
 
-  const documents = await getDocuments(id);
+  const documents = await getDocumentsServer(id);
 
-  const dump = await getLatestDump(id);
+  const dump = await getLatestDumpServer(id);
 
-  const blocks = await getBlocks(id);
+  const blocks = await getBlocksServer(id);
   const blocksWithState: BlockRow[] = (blocks || []).map((b) => ({
     ...b,
     state: "idle",
   }));
 
-  const docGuidelines = await getContextItems(did);
+  const docGuidelines = await getContextItemsServer(did);
 
   const snapshot = {
     basket,

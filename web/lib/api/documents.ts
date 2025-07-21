@@ -1,3 +1,6 @@
+// ❗ CSR-only helper
+// This file is for client-side API calls via fetch('/api/...')
+// Do NOT use inside server components – use lib/server/* instead.
 import type { Document } from "@/types";
 
 export async function getDocuments(basketId: string): Promise<Document[]> {
