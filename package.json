@@ -4,7 +4,8 @@
     "e2e:debug": "playwright test --debug",
     "lint": "echo \"Skipping lint\"",
     "test": "echo \"No tests\"",
-    "codegen:supabase": "python scripts/gen_pydantic.py"
+    "codegen:supabase": "python scripts/gen_pydantic.py",
+    "build:check": "npm --prefix web run build"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",

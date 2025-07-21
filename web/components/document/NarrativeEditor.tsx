@@ -29,29 +29,44 @@ function BlockBadge({ block, onClick }: { block: Block; onClick?: () => void }) 
       <Badge
         variant="secondary"
         className={
-          // TODO: Legacy patch. Remove `as any` after type refactor.
-          cn("px-1 py-0.5", styleMap[(block as any).state ?? "PROPOSED"])  
+          /* TODO: Legacy patch. Remove `as any` after type refactor. */
+          cn("px-1 py-0.5", styleMap[(block as any).state ?? "PROPOSED"])
         }
       >
-        {  // TODO: Legacy patch. Remove `as any` after type refactor.
+        {
+          /* TODO: Legacy patch. Remove `as any` after type refactor. */
           iconMap[(block as any).state ?? "PROPOSED"]
-        }{  // TODO: Legacy patch. Remove `as any` after type refactor.
+        }
+        {
+          /* TODO: Legacy patch. Remove `as any` after type refactor. */
           (block as any).canonical_value ?? ""
         }
       </Badge>
       <span className="absolute z-10 hidden group-hover:block bg-popover text-popover-foreground border border-border text-xs rounded-md p-2 whitespace-nowrap shadow-md left-1/2 -translate-x-1/2 mt-1">
         <div>
-          <strong>{  // TODO: Legacy patch. Remove `as any` after type refactor.
-            (block as any).semantic_type ?? "UNKNOWN"
-          }</strong>
+          <strong>
+            {
+              /* TODO: Legacy patch. Remove `as any` after type refactor. */
+              (block as any).semantic_type ?? "UNKNOWN"
+            }
+          </strong>
         </div>
-        <div className="capitalize">{  // TODO: Legacy patch. Remove `as any` after type refactor.
-          ((block as any).state ?? "PROPOSED").toLowerCase()
-        }</div>
-        {block.actor && <div>by {block.actor}</div>}
-        {block.created_at && (
-          <div>{new Date(block.created_at).toLocaleString()}</div>
-        )}
+        <div className="capitalize">
+          {
+            /* TODO: Legacy patch. Remove `as any` after type refactor. */
+            ((block as any).state ?? "PROPOSED").toLowerCase()
+          }
+        </div>
+        {
+          /* TODO: Legacy patch. Remove `as any` after type refactor. */
+          (block as any).actor && <div>by {(block as any).actor}</div>
+        }
+        {
+          /* TODO: Legacy patch. Remove `as any` after type refactor. */
+          (block as any).created_at && (
+            <div>{new Date((block as any).created_at).toLocaleString()}</div>
+          )
+        }
       </span>
     </span>
   );

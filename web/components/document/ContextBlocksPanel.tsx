@@ -93,10 +93,10 @@ export default function ContextBlocksPanel({
                 <span className="space-x-2">
                   <label className="text-xs">
                     ✔ Verified
+                    {/* TODO: Legacy patch. Remove `as any` after type refactor. */}
                     <input
                       type="checkbox"
                       className="ml-1"
-                      {/* TODO: Legacy patch. Remove `as any` after type refactor. */}
                       checked={(it as any).status === "verified"}
                       onChange={(e) => handleToggleItem(it, e.target.checked)}
                     />
