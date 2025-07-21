@@ -1,4 +1,4 @@
-import type { Block } from "@/types/block";
+import type { Block } from "@/types";
 
 export const DEV_MOCK_BLOCKS: Block[] = [
   {

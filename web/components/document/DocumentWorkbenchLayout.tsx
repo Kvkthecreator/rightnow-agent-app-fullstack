@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import BasketDocList from "@/components/basket/BasketDocList";
 import NarrativeEditor from "@/components/document/NarrativeEditor";
 import type { BasketSnapshot } from "@/lib/baskets/getSnapshot";
-import type { Document } from "@/types/document";
+import type { Document } from "@/types";
 
 interface Props {
   snapshot: BasketSnapshot;

@@ -2,7 +2,7 @@
 import { apiGet } from "@/lib/api";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/dbTypes";
-import type { BlockWithHistory } from "@/types/block";
+import type { BlockWithHistory } from "@/types";
 
 /** Shape returned by /api/baskets/{id}/snapshot */
 export interface BasketSnapshot {

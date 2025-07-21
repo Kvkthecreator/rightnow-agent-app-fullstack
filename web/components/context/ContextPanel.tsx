@@ -1,12 +1,6 @@
 "use client";
 
-export interface ContextItem {
-  id: string;
-  type?: string;
-  content: string;
-  /** undefined = active (back-compat) */
-  status?: "active" | "verified";
-}
+import type { ContextItem } from "@/types";
 
 export default function ContextPanel({ items }: { items: ContextItem[] }) {
   if (!items?.length) {
@@ -18,7 +12,7 @@ export default function ContextPanel({ items }: { items: ContextItem[] }) {
     <div className="p-4 space-y-2 text-sm">
       {items.map((i) => (
         <div key={i.id} className="border rounded p-2">
-          {i.content}
+          {i.summary}
         </div>
       ))}
     </div>

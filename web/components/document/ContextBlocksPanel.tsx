@@ -2,16 +2,15 @@
 
 import { useState } from "react";
 import { useFeatureFlag } from "@/lib/hooks/useFeatureFlag";
-import ContextPanel, { ContextItem } from "@/components/context/ContextPanel";
+import ContextPanel from "@/components/context/ContextPanel";
+import type { Block, ContextItem } from "@/types";
 import { apiDelete, apiPut } from "@/lib/api";
 import {
   createContextItem,
   updateContextItem,
 } from "@/lib/contextItems";
 
-interface Block {
-  id: string;
-  content: string;
+interface BlockRow extends Block {
   state: string;
   scope?: string | null;
 }
@@ -19,7 +18,7 @@ interface Block {
 interface Props {
   basketId: string;
   documentId?: string;
-  blocks: Block[];
+  blocks: BlockRow[];
   contextItems: ContextItem[];
 }
 
@@ -30,7 +29,7 @@ export default function ContextBlocksPanel({
   contextItems: initialItems,
 }: Props) {
   const showContext = useFeatureFlag("showContextPanel", true);
-  const [blocks, setBlocks] = useState<Block[]>(initialBlocks ?? []);
+  const [blocks, setBlocks] = useState<BlockRow[]>(initialBlocks ?? []);
   const [items, setItems] = useState<ContextItem[]>(initialItems ?? []);
 
   async function handleDeleteBlock(id: string) {
@@ -38,7 +37,7 @@ export default function ContextBlocksPanel({
     setBlocks((b) => b.filter((blk) => blk.id !== id));
   }
 
-  async function handleEditBlock(block: Block) {
+  async function handleEditBlock(block: BlockRow) {
     const content = window.prompt("Edit block text", block.content);
     if (content === null) return;
     const scope = window.prompt("Scope", block.scope || "") || null;
@@ -54,10 +53,10 @@ export default function ContextBlocksPanel({
   }
 
   async function handleEditItem(it: ContextItem) {
-    const content = window.prompt("Edit content", it.content);
+    const content = window.prompt("Edit content", it.summary);
     if (content === null) return;
-    await updateContextItem(it.id, { content });
-    setItems((arr) => arr.map((i) => (i.id === it.id ? { ...i, content } : i)));
+    await updateContextItem(it.id, { summary: content });
+    setItems((arr) => arr.map((i) => (i.id === it.id ? { ...i, summary: content } : i)));
   }
 
   async function handleAdd() {
@@ -69,7 +68,7 @@ export default function ContextBlocksPanel({
       basket_id: basketId,
       document_id: documentId ?? null,
       type,
-      content,
+      summary: content,
       status: "active",
     });
     setItems((arr) => [...arr, res as any]);
@@ -90,7 +89,7 @@ export default function ContextBlocksPanel({
                 key={it.id}
                 className="border rounded p-2 mb-2 flex justify-between text-sm"
               >
-                <span>{it.content}</span>
+                <span>{it.summary}</span>
                 <span className="space-x-2">
                   <label className="text-xs">
                     ✔ Verified
