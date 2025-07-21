@@ -5,6 +5,7 @@ import Sidebar from "@/app/components/shell/Sidebar";
 import TopBar from "@/components/common/TopBar";
 import { ReactNode } from "react";
 
+// These routes will show sidebar globally
 const SHOW_SIDEBAR_ROUTES = [
   "/home",
   "/baskets",
@@ -13,14 +14,21 @@ const SHOW_SIDEBAR_ROUTES = [
   "/context",
 ];
 
+// These specific pages should *not* show the sidebar (basket work pages)
+const isBasketWorkPage = (pathname: string | null): boolean => {
+  if (!pathname) return false;
+  return /^\/baskets\/[^/]+(\/docs\/[^/]+)?\/work$/.test(pathname);
+};
+
 export default function ClientLayoutShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
-  const shouldShowSidebar = pathname
-    ? SHOW_SIDEBAR_ROUTES.some((prefix) =>
-        prefix === "/" ? pathname === "/" : pathname.startsWith(prefix)
-      )
-    : false;
+  const shouldShowSidebar =
+    pathname && !isBasketWorkPage(pathname)
+      ? SHOW_SIDEBAR_ROUTES.some((prefix) =>
+          prefix === "/" ? pathname === "/" : pathname.startsWith(prefix)
+        )
+      : false;
 
   if (!shouldShowSidebar) {
     return <>{children}</>;
