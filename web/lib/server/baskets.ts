@@ -8,7 +8,7 @@ export async function getBasketServer(
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("baskets")
-    .select("id, name, status, created_at, tags")
+    .select("id, name, status, created_at")
     .eq("id", id)
     .eq("workspace_id", workspaceId)
     .single();
