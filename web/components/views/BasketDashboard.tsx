@@ -7,6 +7,7 @@ import BlockCreateModal from "@/components/blocks/BlockCreateModal";
 import { openDumpModal } from "@/components/DumpModal";
 import { createBlock } from "@/lib/supabase/blocks";
 import { useState } from "react";
+import type { Document } from "@/types";
 import { useRouter } from "next/navigation";
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
   dumpBody?: string;
   empty?: boolean;
   basketName?: string;
+  documents?: Document[];
 }
 
 function EmptyPrompt({ basketId }: { basketId: string }) {
@@ -61,6 +63,7 @@ export default function BasketDashboard({
   dumpBody,
   empty = false,
   basketName,
+  documents,
 }: Props) {
   return (
     <div className="p-4 space-y-6">
@@ -72,7 +75,7 @@ export default function BasketDashboard({
       <section className="md:hidden">
         <h2 className="font-medium mb-2">Documents</h2>
         <Card className="p-4">
-          <DocumentList basketId={basketId} />
+          <DocumentList basketId={basketId} documents={documents} />
           <div className="pt-4">
             <Button size="sm" disabled className="w-full">
               + Create Document

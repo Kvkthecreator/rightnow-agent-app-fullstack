@@ -4,6 +4,7 @@ import BasketSidebar from "@/components/basket/BasketSidebar";
 import BasketDashboard from "@/components/views/BasketDashboard";
 import { useSearchParams } from "next/navigation";
 import { ReactNode } from "react";
+import type { Document } from "@/types";
 
 interface Props {
   basketId: string;
@@ -12,6 +13,7 @@ interface Props {
   scope: string[];
   dumpBody?: string;
   empty?: boolean;
+  documents?: Document[];
 }
 
 export default function BasketWorkLayout({
@@ -21,6 +23,7 @@ export default function BasketWorkLayout({
   scope,
   dumpBody,
   empty = false,
+  documents,
 }: Props) {
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") || "dashboard";
@@ -34,6 +37,7 @@ export default function BasketWorkLayout({
           basketName={basketName}
           dumpBody={dumpBody}
           empty={empty}
+          documents={documents}
         />
       );
       break;
@@ -52,7 +56,7 @@ export default function BasketWorkLayout({
       <div className="md:flex w-full min-h-screen flex-1 overflow-y-auto">
         <aside className="hidden md:block w-[220px] shrink-0 border-r overflow-y-auto">
           <div className="flex flex-col h-full">
-            <DocumentList basketId={basketId} />
+            <DocumentList basketId={basketId} documents={documents} />
             <div className="p-4 border-t">
               <button className="w-full text-sm" disabled>
                 + Create Document

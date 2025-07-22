@@ -64,6 +64,7 @@ export default async function BasketWorkPage({
       scope={[]} // ✅ Temporarily empty until tags are wired properly
       dumpBody={rawDumpBody}
       empty={isEmpty}
+      documents={docs}
     />
   );
 }
