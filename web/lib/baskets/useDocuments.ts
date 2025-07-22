@@ -10,11 +10,15 @@ const fetcher = async (basketId: string) => {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("documents")
-    .select("id, title, created_at, basket_id")
+    .select("id, title, created_at, updated_at, basket_id")
     .eq("basket_id", basketId)
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return (data ?? []) as DocumentRow[];
+  if (!data) return [];
+  return data.map((doc) => ({
+    updated_at: doc.updated_at ?? doc.created_at,
+    ...doc,
+  })) as DocumentRow[];
 };
 
 export function useDocuments(basketId: string) {
