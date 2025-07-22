@@ -12,10 +12,7 @@ function InstantBasketRedirector() {
     const router = useRouter();
     useEffect(() => {
         const go = async () => {
-            const { id } = await createBasketNew({
-                text_dump: null,
-                file_urls: [],
-            });
+            const { id } = await createBasketNew({});
             router.replace(`/baskets/${id}/work`);
         };
         go();

@@ -66,7 +66,7 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
   const handleNewBasket = async () => {
-    const { id } = await createBasketNew({ text_dump: null });
+    const { id } = await createBasketNew({});
     router.push(`/baskets/${id}/work`);
   };
 
