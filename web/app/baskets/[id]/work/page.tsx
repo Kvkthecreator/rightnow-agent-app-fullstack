@@ -40,22 +40,13 @@ export default async function BasketWorkPage({
   const basket = await getBasketServer(id, workspaceId);
 
   if (!basket) {
-    console.warn("❌ Basket not found — skipping redirect for debug.", {
-      basketId: id,
-      workspaceId,
-    });
-    return (
-      <div className="p-8 text-red-500">
-        <h1 className="text-xl font-bold">🧪 DEBUG MODE</h1>
-        <p>Basket not found: <code>{id}</code></p>
-        <p>Workspace: <code>{workspaceId}</code></p>
-      </div>
-    );
+    console.warn("❌ Basket not found", { basketId: id, workspaceId });
+    redirect("/404");
   }
 
   console.log("✅ Basket loaded:", basket);
 
-  const docs = await getDocumentsServer(id);
+  const docs = await getDocumentsServer(workspaceId);
   const firstDoc = docs ? docs[0] : null;
 
   let rawDumpBody = "";

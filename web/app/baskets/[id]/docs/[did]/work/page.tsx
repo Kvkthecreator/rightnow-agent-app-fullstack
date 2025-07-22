@@ -44,7 +44,7 @@ export default async function DocWorkPage({ params }: PageProps) {
     redirect("/404");
   }
 
-  const documents = await getDocumentsServer(id);
+  const documents = await getDocumentsServer(workspaceId ?? "");
 
   const dump = await getLatestDumpServer(id);
 

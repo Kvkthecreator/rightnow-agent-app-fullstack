@@ -5,16 +5,14 @@ import { apiUrl } from "@/lib/api";
 
 /** Body accepted by /api/baskets/new (v1 mode) */
 export interface NewBasketArgs {
-  /** Free-form markdown or plaintext that seeds the basket */
-  text_dump: string | null;
-  /** Optional previously-uploaded file URLs (≤ 5) */
-  file_urls?: string[];
+  name?: string;
+  status?: string;
+  tags?: string[];
 }
 
 export async function createBasketNew(
-  args: NewBasketArgs,
+  args: NewBasketArgs = {},
 ): Promise<{ id: string }> {
-  console.debug("[createBasketNew] text_dump:", args.text_dump);
 
   // 🔐 Get Supabase JWT
   const supabase = createClient();
@@ -29,15 +27,11 @@ export async function createBasketNew(
   const uid = user?.id;
   if (uid) headers["X-User-Id"] = uid;
 
-  // ✅ Omit empty fields to avoid API validation errors
-  const payload: Record<string, any> = {};
-  const text = args.text_dump ?? "";
-  if (text.trim().length > 0) {
-    payload.text_dump = text;
-  }
-  if (args.file_urls && args.file_urls.length > 0) {
-    payload.file_urls = args.file_urls;
-  }
+  const payload: Record<string, any> = {
+    name: args.name ?? "Untitled Basket",
+    status: args.status ?? "active",
+    tags: args.tags ?? [],
+  };
   const body = JSON.stringify(payload);
 
   console.log("[createBasketNew] Payload:", JSON.parse(body));

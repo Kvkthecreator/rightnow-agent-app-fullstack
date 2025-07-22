@@ -56,37 +56,22 @@ export function useCreateBasket() {
   const setGuidelines = (v: string) =>
     setState((s) => ({ ...s, guidelines: v }));
 
-  const canSubmit =
-    !submitting &&
-    state.basketName.trim().length > 0 &&
-    state.coreBlock.length >= 100 &&
-    state.coreBlock.length <= 500 &&
-    state.dumps.length > 0 &&
-    state.dumps.every((d) => d.trim().length > 0);
+  const canSubmit = !submitting && state.basketName.trim().length > 0;
 
   const submit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
       const payload = {
-        template_id: "universal",
-        basket_name: state.basketName,
-        core_block: {
-          text: state.coreBlock,
-          scope: "basket",
-          status: "locked",
-        },
-        raw_dumps: state.dumps.map((d) => ({ body_md: d })),
-        guidelines: state.guidelines.trim() || null,
+        name: state.basketName || "Untitled Basket",
+        status: "active",
+        tags: [],
       };
-      const res = await fetchWithToken(
-        apiUrl("/baskets/new"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
+      const res = await fetchWithToken(apiUrl("/baskets/new"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
       if (!res.ok) throw new Error("create failed");
       const { basket_id } = await res.json();
       router.push(`/baskets/${basket_id}/work`);
