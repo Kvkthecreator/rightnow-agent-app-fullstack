@@ -16,8 +16,8 @@ const fetcher = async (basketId: string) => {
   if (error) throw error;
   if (!data) return [];
   return data.map((doc) => ({
-    updated_at: doc.updated_at ?? doc.created_at,
     ...doc,
+    updated_at: doc.updated_at ?? doc.created_at,
   })) as DocumentRow[];
 };
 
