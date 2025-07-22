@@ -1,16 +1,25 @@
 import useSWR from "swr";
-import { apiGet } from "../api";
 import type { Document } from "@/types";
+import { createClient } from "@/lib/supabaseClient";
 
 export interface DocumentRow extends Document {
   updated_at: string;
 }
 
-const fetcher = (url: string) => apiGet<DocumentRow[]>(url);
+const fetcher = async (basketId: string) => {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("documents")
+    .select("id, title, created_at, basket_id")
+    .eq("basket_id", basketId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as DocumentRow[];
+};
 
 export function useDocuments(basketId: string) {
   const { data, error, isLoading } = useSWR(
-    () => (basketId ? `/api/baskets/${basketId}/docs` : null),
+    () => (basketId ? basketId : null),
     fetcher,
     { refreshInterval: 10_000 },
   );

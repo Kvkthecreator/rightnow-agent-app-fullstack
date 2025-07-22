@@ -16,7 +16,9 @@ export default function DocumentList({
   documentId,
   onSelect,
 }: Props) {
-  const { docs, isLoading, error } = useDocuments(basketId);
+  const { docs, isLoading, error } = documents
+    ? { docs: documents, isLoading: false, error: null }
+    : useDocuments(basketId);
   const router = useRouter();
 
   const items = documents ?? docs;
@@ -39,7 +41,7 @@ export default function DocumentList({
 
   if (items.length === 0) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">No documents yet</div>
+      <div className="p-6 text-sm text-muted-foreground">No documents yet.</div>
     );
   }
 
