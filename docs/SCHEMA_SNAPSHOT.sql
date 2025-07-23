@@ -2474,7 +2474,11 @@ CREATE TABLE public.events (
     kind text,
     payload jsonb,
     ts timestamp with time zone DEFAULT now() NOT NULL,
-    workspace_id uuid NOT NULL
+    workspace_id uuid NOT NULL,
+    origin text DEFAULT 'user'::text,
+    actor_id uuid,
+    agent_type text,
+    CONSTRAINT events_origin_check CHECK ((origin = ANY (ARRAY['user'::text, 'agent'::text, 'daemon'::text, 'system'::text])))
 );
 
 
@@ -3456,6 +3460,27 @@ CREATE INDEX idx_documents_workspace ON public.documents USING btree (workspace_
 
 
 --
+-- Name: idx_events_agent_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_events_agent_type ON public.events USING btree (agent_type);
+
+
+--
+-- Name: idx_events_origin_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_events_origin_kind ON public.events USING btree (origin, kind);
+
+
+--
+-- Name: idx_events_workspace_ts; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_events_workspace_ts ON public.events USING btree (workspace_id, ts DESC);
+
+
+--
 -- Name: idx_rawdump_doc; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3790,6 +3815,14 @@ ALTER TABLE ONLY public.documents
 
 ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+
+
+--
+-- Name: events events_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.events
+    ADD CONSTRAINT events_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id);
 
 
 --
@@ -4165,6 +4198,42 @@ CREATE POLICY "Users can read blocks in their workspaces" ON public.blocks FOR S
 CREATE POLICY "Users can read documents in their workspaces" ON public.documents FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = documents.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+
+
+--
+-- Name: events Workspace members can insert events; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Workspace members can insert events" ON public.events FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: events Workspace members can read events; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Workspace members can read events" ON public.events FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: events Workspace members can update events; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Workspace members can update events" ON public.events FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+
+
+--
+-- Name: events Workspace members can view events; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Workspace members can view events" ON public.events FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 
 
 --
