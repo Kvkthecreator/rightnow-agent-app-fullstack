@@ -2369,7 +2369,8 @@ CREATE TABLE public.baskets (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     user_id uuid DEFAULT auth.uid(),
     workspace_id uuid NOT NULL,
-    origin_template text
+    origin_template text,
+    tags text[] DEFAULT '{}'::text[]
 );
 
 
