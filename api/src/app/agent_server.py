@@ -9,9 +9,9 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Extend sys.path if needed
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Extend sys.path: ensure 'api/src' is added before 'api/src/app' so sibling packages resolve correctly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from dotenv import load_dotenv

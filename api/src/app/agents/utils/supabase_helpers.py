@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from utils.db import json_safe
+from src.utils.db import json_safe
 
 from app.utils.supabase_client import get_supabase
 

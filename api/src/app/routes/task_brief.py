@@ -8,7 +8,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from utils.db import json_safe
+from src.utils.db import json_safe
 
 from ..agents.utils.supabase_helpers import get_supabase
 

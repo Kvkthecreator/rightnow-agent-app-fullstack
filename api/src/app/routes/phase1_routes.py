@@ -2,8 +2,8 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.utils.supabase_client import supabase_client as supabase
-from utils.db import json_safe
+from src.app.utils.supabase_client import supabase_client as supabase
+from src.utils.db import json_safe
 
 router = APIRouter()
 

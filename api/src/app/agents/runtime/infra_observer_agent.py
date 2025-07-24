@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import asyncpg
 from schemas.usage import UsageIn, UsageOut, UsageReport
 from schemas.validators import validates
-from utils.logged_agent import logged
+from src.utils.logged_agent import logged
 
 from app.event_bus import DATABASE_URL, publish_event
 
