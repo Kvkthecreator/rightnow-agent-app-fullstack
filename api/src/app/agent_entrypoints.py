@@ -3,6 +3,7 @@ from datetime import datetime
 
 from agents import Runner
 from fastapi import APIRouter, HTTPException, Request
+
 from src.utils.db import json_safe
 
 from .agents.utils.supabase_helpers import (
@@ -34,10 +35,8 @@ def build_payload(
 
 router = APIRouter()
 
-
-AGENT_REGISTRY = {
-    "manager": manager,
-}
+# Known agents mapped by name. Empty until agents are implemented.
+AGENT_REGISTRY: dict[str, object] = {}
 
 
 def log_agent_message(task_id, user_id, agent_type, message):
@@ -59,136 +58,8 @@ def log_agent_message(task_id, user_id, agent_type, message):
 
 
 async def run_agent(req: Request):
-    data = await req.json()
-    prompt = data.get("prompt") or data.get("user_prompt") or data.get("message")
-    if not prompt:
-        raise HTTPException(422, "Missing 'prompt' field")
-
-    task_type_id = data.get("task_type_id")
-    if not task_type_id:
-        raise HTTPException(422, "Missing 'task_type_id'")
-    task_id = data.get("task_id")
-    user_id = data.get("user_id")
-    if not user_id:
-        raise HTTPException(422, "Missing 'user_id'")
-    collected_inputs = data.get("collected_inputs", {}) or {}
-
-    if not task_id:
-        task_id = create_task_and_session(
-            user_id,
-            "manager",
-            metadata={
-                "task_type_id": task_type_id,
-                "inputs": collected_inputs,
-                "status": "clarifying",
-            },
-        )
-
-    try:
-        supabase.table("agent_sessions").update(
-            json_safe({"inputs": collected_inputs})
-        ).eq("id", task_id).execute()
-    except Exception:
-        print(f"Warning: failed to persist inputs for task_id={task_id}")
-
-    try:
-        result = await Runner.run(
-            manager,
-            input=prompt,
-            context={
-                "task_id": task_id,
-                "user_id": user_id,
-                "task_type_id": task_type_id,
-                "collected_inputs": collected_inputs,
-            },
-            max_turns=12,
-        )
-    except Exception:
-        fallback = build_payload(
-            task_id=task_id,
-            user_id=user_id,
-            agent_type="manager",
-            message={
-                "type": "text",
-                "content": "Sorry, I couldn’t process your request—could you rephrase?",
-            },
-            reason="parse_error",
-            trace=[],
-        )
-        log_agent_message(task_id, user_id, "manager", fallback["message"])
-        return {"ok": True, "task_id": task_id}
-
-    raw = result.final_output.strip()
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError:
-        fallback = build_payload(
-            task_id=task_id,
-            user_id=user_id,
-            agent_type="manager",
-            message={
-                "type": "text",
-                "content": "Sorry, I couldn’t process your request—could you rephrase?",
-            },
-            reason="parse_error",
-            trace=[],
-        )
-        log_agent_message(task_id, user_id, "manager", fallback["message"])
-        return {"ok": True, "task_id": task_id}
-
-    msg_type = parsed.get("type")
-
-    if msg_type == "clarification":
-        field = parsed.get("field")
-        question = parsed.get("message")
-        try:
-            supabase.table("agent_sessions").update(
-                json_safe({"inputs": collected_inputs, "pending_field": field})
-            ).eq("id", task_id).execute()
-        except Exception:
-            print(f"[warn] Could not persist pending_field for task_id={task_id}")
-        payload = build_payload(
-            task_id=task_id,
-            user_id=user_id,
-            agent_type="manager",
-            message={"type": "text", "content": question},
-            reason="clarification",
-            trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
-        )
-        log_agent_message(task_id, user_id, "manager", payload["message"])
-        return {"ok": True, "task_id": task_id}
-
-    if msg_type == "structured":
-        agent_type = parsed.get("agent_type") or "specialist"
-        inputs = parsed.get("input", {})
-        try:
-            supabase.table("agent_sessions").update(
-                json_safe({"status": "completed", "inputs": inputs})
-            ).eq("id", task_id).execute()
-        except Exception:
-            print(f"Warning: failed to update session status for task_id={task_id}")
-
-        payload = build_payload(
-            task_id=task_id,
-            user_id=user_id,
-            agent_type=agent_type,
-            message={"type": "structured", "data": inputs},
-            reason="completion",
-            trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
-        )
-        log_agent_message(task_id, user_id, agent_type, payload["message"])
-        return {"ok": True, "task_id": task_id}
-
-    fallback_payload = build_payload(
-        task_id=task_id,
-        user_id=user_id,
-        agent_type="manager",
-        message={"type": "text", "content": raw},
-        reason="unstructured",
-        trace=result.to_debug_dict() if hasattr(result, "to_debug_dict") else [],
-    )
-    log_agent_message(task_id, user_id, "manager", fallback_payload["message"])
-    return {"ok": True, "task_id": task_id}
+    """Placeholder implementation retained for compatibility."""
+    raise HTTPException(501, "Manager agent not implemented")
 
 
 async def run_agent_direct(req: Request):
