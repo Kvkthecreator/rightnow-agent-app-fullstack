@@ -1,6 +1,6 @@
 """Backfill basket_inputs rows into dump_artifacts."""
 
-from app.agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
+from app.agents.utils.supabase_helpers import get_supabase
 
 
 def main() -> None:

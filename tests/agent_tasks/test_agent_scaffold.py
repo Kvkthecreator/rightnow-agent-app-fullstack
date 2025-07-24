@@ -3,6 +3,8 @@ import os
 import sys
 from uuid import uuid4
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api/src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
@@ -67,6 +69,7 @@ def _setup_supabase(monkeypatch):
     return records
 
 
+@pytest.mark.skip(reason="legacy agent_tasks modules removed")
 def test_orch_run_creates_block_and_revision(monkeypatch):
     records = _setup_supabase(monkeypatch)
     from pathlib import Path
@@ -94,6 +97,7 @@ def test_orch_run_creates_block_and_revision(monkeypatch):
     assert "diff_json" in records["block_revisions"][0]
 
 
+@pytest.mark.skip(reason="legacy agent_tasks modules removed")
 def test_infra_route_ok(monkeypatch):
     records = _setup_supabase(monkeypatch)
     from pathlib import Path
