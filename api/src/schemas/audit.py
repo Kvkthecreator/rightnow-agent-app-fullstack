@@ -1,6 +1,6 @@
-from app.memory.blocks.schemas import AuditReport
-
+# TODO: Define fields for AuditReport appropriately.
 from .base import BaseSchema
+AuditReport = BaseSchema
 
 
 class AuditIn(BaseSchema):

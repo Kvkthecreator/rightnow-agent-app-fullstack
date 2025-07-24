@@ -2,7 +2,7 @@ import datetime
 import os
 
 import httpx
-from src.utils.db import json_safe
+from utils.db import json_safe
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")

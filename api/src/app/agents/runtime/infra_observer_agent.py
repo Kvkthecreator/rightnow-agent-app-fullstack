@@ -4,15 +4,13 @@
 from datetime import datetime, timezone
 
 import asyncpg
-from schemas.usage import UsageIn, UsageOut
+from schemas.usage import UsageIn, UsageOut, UsageReport
 from schemas.validators import validates
-from src.utils.logged_agent import logged
+from utils.logged_agent import logged
 
-from app.event_bus import DATABASE_URL
-from app.event_bus import publish_event
+from app.event_bus import DATABASE_URL, publish_event
 
-from ..schemas import UsageReport
-
+# Removed relative import of UsageReport; imported from schemas.usage above.
 STALE_SQL = """
 select id::text
 from public.blocks

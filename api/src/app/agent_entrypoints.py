@@ -4,7 +4,7 @@ from datetime import datetime
 from agents import Runner
 from fastapi import APIRouter, HTTPException, Request
 
-from src.utils.db import json_safe
+from utils.db import json_safe
 
 from .agents.utils.supabase_helpers import (
     create_task_and_session,

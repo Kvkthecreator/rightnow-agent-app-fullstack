@@ -1,6 +1,6 @@
-from app.memory.blocks.schemas import RefreshReport
-
+# TODO: Define fields for RefreshReport appropriately.
 from .base import BaseSchema
+RefreshReport = BaseSchema
 
 
 class ResearchIn(BaseSchema):
