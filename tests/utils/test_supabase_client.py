@@ -5,6 +5,7 @@ from unittest import mock
 
 import jwt
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api/src"))
 
 

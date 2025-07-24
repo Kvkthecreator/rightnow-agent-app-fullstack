@@ -5,7 +5,7 @@ from postgrest.exceptions import APIError
 from pydantic import BaseModel
 
 from ..agent_tasks.infra.infra_cil_validator_agent import run as run_infra_cil_validator
-from ..agent_tasks.orch.orch_block_manager_agent import run as run_orch_block_manager
+from app.agents.runtime.infra_observer_agent import run as run_orch_block_manager
 from ..utils.supabase_client import supabase_client as supabase
 
 router = APIRouter(prefix="/agents", tags=["agents"])

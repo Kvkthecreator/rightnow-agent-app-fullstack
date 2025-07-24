@@ -4,8 +4,9 @@ import os
 import importlib
 
 tests_dir = os.path.dirname(__file__)
-sys.path.insert(0, os.path.join(tests_dir, ".."))  # allow `import src`
 sys.path.insert(0, os.path.join(tests_dir, "../src"))  # allow `import app`
+sys.path.insert(0, os.path.join(tests_dir, ".."))  # allow `import src`
+sys.path.insert(0, os.path.join(tests_dir, "../../src"))
 
 
 def _stub(name: str):

@@ -2,6 +2,7 @@ import os
 import sys
 from uuid import uuid4
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api/src"))
 from schemas.context_block import ContextBlock
 

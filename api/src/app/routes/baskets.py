@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from schemas.context_block import ContextBlock
 from src.utils.db import json_safe
 
-from ..agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
+from ..agents.utils.supabase_helpers import get_supabase
 from ..event_bus import publish_event
 from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace

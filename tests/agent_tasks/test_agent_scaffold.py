@@ -3,8 +3,9 @@ import os
 import sys
 from uuid import uuid4
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api/src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -74,14 +75,13 @@ def test_orch_run_creates_block_and_revision(monkeypatch):
     records["baskets"] = [{"id": str(bid), "workspace_id": "ws"}]
 
     spec = importlib.util.spec_from_file_location(
-        "orch_block_manager_agent",
+        "infra_observer_agent",
         Path(__file__).resolve().parents[2]
-        / "api"
         / "src"
         / "app"
-        / "agent_tasks"
-        / "orch"
-        / "orch_block_manager_agent.py",
+        / "agents"
+        / "runtime"
+        / "infra_observer_agent.py",
     )
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
@@ -101,14 +101,13 @@ def test_infra_route_ok(monkeypatch):
     base = Path(__file__).resolve().parents[2]
 
     orch_spec = importlib.util.spec_from_file_location(
-        "app.agent_tasks.orch.orch_block_manager_agent",
+        "app.agents.runtime.infra_observer_agent",
         base
-        / "api"
         / "src"
         / "app"
-        / "agent_tasks"
-        / "orch"
-        / "orch_block_manager_agent.py",
+        / "agents"
+        / "runtime"
+        / "infra_observer_agent.py",
     )
     orch_mod = importlib.util.module_from_spec(orch_spec)
     assert orch_spec and orch_spec.loader

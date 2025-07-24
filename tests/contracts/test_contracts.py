@@ -2,6 +2,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api/src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from schemas.audit import AuditIn
 from schemas.basket import BasketOut

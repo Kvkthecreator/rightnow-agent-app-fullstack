@@ -7,7 +7,7 @@ from postgrest.exceptions import APIError
 from src.utils.db import json_safe
 
 from app.utils.supabase_client import supabase_client as supabase
-from .orch_basket_parser_agent import run as run_parser
+from app.orchestration.triggers.on_basket_created import run as run_parser
 
 log = logging.getLogger("uvicorn.error")
 
