@@ -3,6 +3,25 @@ api/src/app/
 ├── agent_entrypoints.py
 ├── agent_output.py
 ├── agent_server.py
+├── agents
+│   ├── __init__.py
+│   ├── runtime
+│   │   ├── __init__.py
+│   │   ├── infra_analyzer_agent.py
+│   │   ├── infra_manager_agent.py
+│   │   ├── infra_observer_agent.py
+│   │   └── infra_research_agent.py
+│   ├── tools
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   └── web_search.py
+│   └── utils
+│       ├── __init__.py
+│       ├── auth_helpers.py
+│       ├── block_policy.py
+│       ├── normalize_output.py
+│       ├── supabase_helpers.py
+│       └── task_progress.py
 ├── agent_tasks
 │   ├── __init__.py
 │   ├── context_extractor_agent.py
@@ -13,25 +32,8 @@ api/src/app/
 │   │   └── infra_cil_validator_agent.py
 │   ├── layer1_infra
 │   │   ├── __init__.py
-│   │   ├── agents
-│   │   │   ├── __init__.py
-│   │   │   ├── infra_analyzer_agent.py
-│   │   │   ├── infra_manager_agent.py
-│   │   │   ├── infra_observer_agent.py
-│   │   │   └── infra_research_agent.py
 │   │   ├── README.md
-│   │   ├── schemas.py
-│   │   ├── tools
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py
-│   │   │   └── web_search.py
-│   │   └── utils
-│   │       ├── __init__.py
-│   │       ├── auth_helpers.py
-│   │       ├── block_policy.py
-│   │       ├── normalize_output.py
-│   │       ├── supabase_helpers.py
-│   │       └── task_progress.py
+│   │   └── schemas.py
 │   ├── layer2_tasks
 │   │   ├── agents
 │   │   ├── registry
