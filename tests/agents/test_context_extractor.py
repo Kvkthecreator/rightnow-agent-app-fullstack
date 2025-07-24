@@ -4,6 +4,10 @@ import sys
 import types
 from pathlib import Path
 
+import pytest
+
+pytest.skip("legacy agent_tasks modules removed", allow_module_level=True)
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api/src"))

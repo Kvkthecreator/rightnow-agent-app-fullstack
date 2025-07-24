@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from tests.agent_tasks.test_agent_scaffold import _setup_supabase
 
 
+@pytest.mark.skip(reason="legacy agent_tasks modules removed")
 def test_run_proposes_block(monkeypatch):
     records = _setup_supabase(monkeypatch)
     basket_id = uuid4()
@@ -45,6 +46,7 @@ def test_run_proposes_block(monkeypatch):
     assert "diff_json" in records["block_revisions"][0]
 
 
+@pytest.mark.skip(reason="legacy agent_tasks modules removed")
 def test_run_raises_on_error(monkeypatch):
     records = _setup_supabase(monkeypatch)
     basket_id = uuid4()
