@@ -8,8 +8,8 @@ import os
 
 asyncpg_stub = types.SimpleNamespace(Connection=object)
 sys.modules.setdefault("asyncpg", asyncpg_stub)
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../src"))
 
 from app.routes.agents import router as agents_router
 
@@ -47,7 +47,10 @@ def test_run_blockifier(monkeypatch):
     store = {"baskets": [], "raw_dumps": [], "blocks": []}
     fake = _fake_supabase(store)
     monkeypatch.setattr("app.routes.agents.supabase", fake)
-    monkeypatch.setattr("app.agent_tasks.orch.orch_block_manager_agent.supabase", fake)
+    monkeypatch.setattr(
+        "app.agents.runtime.infra_observer_agent.supabase",
+        fake,
+    )
 
     basket_id = str(uuid.uuid4())
     dump_id = str(uuid.uuid4())

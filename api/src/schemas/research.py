@@ -1,4 +1,4 @@
-from app.agent_tasks.layer1_infra.schemas import RefreshReport
+from app.memory.blocks.schemas import RefreshReport
 
 from .base import BaseSchema
 

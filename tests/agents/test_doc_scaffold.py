@@ -4,6 +4,7 @@ import sys
 import types
 from pathlib import Path
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../api/src"))
 
@@ -68,7 +69,7 @@ def test_titles_updated(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk")
 
     base = Path(__file__).resolve().parents[2]
-    path = base / "api" / "src" / "app" / "agent_tasks" / "orch" / "doc_scaffold_agent.py"
+    path = base / "src" / "app" / "agents" / "tasks" / "tasks_editor_agent.py"
     spec = importlib.util.spec_from_file_location("doc_scaffold_agent", path)
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader

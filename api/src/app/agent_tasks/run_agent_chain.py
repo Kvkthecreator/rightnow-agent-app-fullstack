@@ -1,4 +1,5 @@
-from .orch import doc_scaffold_agent, orch_block_manager_agent
+from app.agents.tasks import tasks_editor_agent as doc_scaffold_agent
+from app.agents.runtime import infra_observer_agent as orch_block_manager_agent
 from .context_extractor_agent import run as context_extractor_agent
 
 

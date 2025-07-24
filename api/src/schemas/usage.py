@@ -1,4 +1,4 @@
-from app.agent_tasks.layer1_infra.schemas import UsageReport
+from app.memory.blocks.schemas import UsageReport
 
 from .base import BaseSchema
 

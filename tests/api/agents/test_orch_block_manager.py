@@ -5,8 +5,8 @@ import types
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../src"))
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -19,7 +19,7 @@ from tests.agent_tasks.test_agent_scaffold import _setup_supabase
 
 def test_run_agent_inserts_block(monkeypatch):
     records = _setup_supabase(monkeypatch)
-    for mod in ["app.routes.agents", "app.agent_tasks.orch.orch_block_manager_agent"]:
+    for mod in ["app.routes.agents", "app.agents.runtime.infra_observer_agent"]:
         if mod in sys.modules:
             del sys.modules[mod]
     base = Path(__file__).resolve().parents[3]
@@ -33,8 +33,8 @@ def test_run_agent_inserts_block(monkeypatch):
     spec.loader.exec_module(router_mod)
 
     orch_spec = importlib.util.spec_from_file_location(
-        "app.agent_tasks.orch.orch_block_manager_agent",
-        base / "api" / "src" / "app" / "agent_tasks" / "orch" / "orch_block_manager_agent.py",
+        "app.agents.runtime.infra_observer_agent",
+        base / "src" / "app" / "agents" / "runtime" / "infra_observer_agent.py",
     )
     orch_mod = importlib.util.module_from_spec(orch_spec)
     assert orch_spec and orch_spec.loader

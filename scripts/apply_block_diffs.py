@@ -5,7 +5,7 @@ import asyncio
 
 from app.agent_tasks.layer1_infra.utils.supabase_helpers import get_supabase
 from app.agent_tasks.orch.apply_diff_blocks import apply_diffs
-from app.agent_tasks.orch.orch_basket_parser_agent import run as parse_blocks
+from app.orchestration.triggers.on_basket_created import run as parse_blocks
 from app.agent_tasks.orch.orch_block_diff_agent import run as diff_blocks
 
 

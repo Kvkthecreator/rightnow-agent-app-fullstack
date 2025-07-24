@@ -1,4 +1,4 @@
-from app.agent_tasks.layer1_infra.schemas import AuditReport
+from app.memory.blocks.schemas import AuditReport
 
 from .base import BaseSchema
 
