@@ -1,121 +1,171 @@
-# AGENTS.md
+# 🧠 Yarnnn Agent System — Canonical Overview
 
-# yarnnn Agent System — Canonical Overview
-
-**Version 1.1 — aligned with Yarnnn Context Contract Model (First Principles)**
-
-This document explains the philosophy, roles, and durable folder layout of Yarnnn’s agent layer. It references—but does not duplicate—the **Context Contract** data model.
+**Version 2.1 — aligned with Yarnnn Context OS Substrate (v2.1)**
 
 ---
 
-## 💡 1 Philosophy
+## 💡 1. Philosophy: Agent ≠ Editor
 
-1️⃣ **Meaning-first preservation**
+Yarnnn is a **Context OS**, not an app.
 
-- A **Raw Dump** represents intent material — durable, additive, not sacrosanct.
-- The basket defends meaning via enforced blocks, not raw_dump immutability.
+Agents are not editors — they are **interpreters** and **composers** operating on a substrate of cognitive memory.
+
+---
+
+### Core Tenets
+
+1️⃣ **Memory-first, structure-second**
+
+- `raw_dump` = immutable user cognition
+- `block` = interpreted memory atom
+- `document` = composed expression, not a new source of truth
 
 2️⃣ **User-controlled constitution**
 
-- Blocks (□ / ■ / 🔒 / ★) represent **contextual contracts**, not just structure.
-- Promotion to enforced state (LOCK/CONSTANT) is always user or admin controlled.
+- `blocks` evolve via lifecycle: `PROPOSED` → `ACCEPTED` → `LOCKED` → `CONSTANT`
+- Agents may propose or flag, but **never silently mutate**
 
-3️⃣ **Assist, propose, defend**
+3️⃣ **Context-first orchestration**
 
-- Agents propose, highlight, validate — they **never silently modify or overwrite meaning**.
-- Agents ensure **no contradiction enters the contract of context**.
+- Agents operate only on blocks, context_items, and events
+- No agent mutates raw text or rewrites meaning
 
-👉 **Outcome:** Yarnnn lets builders evolve raw ideas into defended, auditable context contracts without hidden drift.
-
----
-
-## 🧱 2 Stable architecture layers
-
-| Layer | Role | Tech |  |
-| --- | --- | --- | --- |
-| **Frontend** | Capture raw_dumps, render contract state, surface change queues | Next.js + Vercel |  |
-| **Middleware** | Codex task registry & DX automation | Custom | *codex* tasks |
-| **Backend** | Orchestrate agents, enforce context contract, write **Revisions**/**Events** | FastAPI + Supabase |  |
+👉 **Outcome**: All memory remains auditable, intentional, and rooted in original cognition
 
 ---
 
-## 🧠 3 Agent categories & naming
+## 🧱 2. Architecture Layers
+
+| Layer | Role | Tech |
+| --- | --- | --- |
+| Frontend | Capture inputs, surface memory state, trigger agent interactions | Next.js + Vercel |
+| Middleware | Codex task runner + dev automation scaffold | Custom CLI + scripts |
+| Backend | Hosts agent logic, tracks revisions, emits events | FastAPI + Supabase |
+
+---
+
+## 🧠 3. Agent Categories & Naming Conventions
 
 | Prefix | Category | Purpose |
 | --- | --- | --- |
-| `orch_` | **Orchestration agents** | Drive flows: parse raw_dumps → propose □ **PROPOSED** blocks → validate against enforced context |
-| `tasks_` | **Goal agents** | Produce independent deliverables (e.g., marketing brief) using current `/snapshot` truth |
-| `infra_` | **Maintenance agents** | Enforce context contract integrity (detect contradictions, guard depth, resolve lock/constant conflicts) |
+| `orch_` | Orchestration agents | Interpret raw_dumps, propose blocks, tag context_items |
+| `tasks_` | Goal agents | Compose outputs (e.g. documents, briefs) using memory substrate |
+| `infra_` | Infrastructure agents | Detect contradictions, maintain integrity, validate tag consistency |
 
-👉 *All agent files end with **`_agent.py`***
+> ✅ All agent files must end with _agent.py
+> 
+
+> ✅ All agent I/O must be block- and event-based (never text overwrite)
+> 
 
 ---
 
-## 🗂️ 4 Folder skeleton (durable)
+## 📂 4. Canonical Folder Structure
 
 ```
-bash
+arduino
 CopyEdit
-/api/src/app/
-  └── agent_tasks/
-        ├── orch/
-        ├── tasks/
-        ├── infra/
-        └── shared/
-  └── middleware/codex/
-  └── util/
-/web/
-  └── app/baskets/
-  └── app/blocks/
-  └── app/tasks/
-  └── components/
-  └── lib/supabaseClient.ts
-  └── lib/agents/   # calls orchestrators, shows badges
+api/
+└── src/
+    ├── app/
+    │   ├── agent_entrypoints.py
+    │   ├── agent_output.py
+    │   └── agent_server.py
+    ├── agents/
+    │   ├── output/               # post-processing & publishing
+    │   ├── runtime/              # persistent/infra agents (e.g. infra_observer_agent.py)
+    │   ├── tasks/                # per-task composition agents
+    │   ├── tools/                # agent tools (web_search.py, base.py)
+    │   └── utils/                # shared helpers
+    ├── baskets/
+    ├── db/
+    ├── integrations/
+    ├── memory/
+    │   ├── blocks/
+    │   ├── context_items/
+    │   ├── documents/
+    │   ├── revisions/
+    │   └── system_events/
+    ├── models/
+    ├── orchestration/
+    │   └── triggers/
+    ├── routes/
+    ├── services/
+    ├── templates/
+    ├── utils/
+    └── workspaces/
 
 ```
 
 ---
 
-## 🔖 5 Unchanging conventions
+## 🧩 5. Memory Contract Enforcement
 
-1️⃣ Supabase is the **single source of truth**; agents write via stored procedures or typed repos.
+| Action | Result |
+| --- | --- |
+| Agent proposes a block | `PROPOSED` + `event` |
+| User accepts a block | `ACCEPTED` + `event` |
+| User locks a block | `LOCKED` + `event` |
+| Agent creates document | Output linked to blocks + narrative |
+| Agent tags content | Creates/updates `context_item` |
+| All changes | Tracked via `revision` + `event` |
 
-2️⃣ Every agent mutation creates:
-
-- **Revision** (an amendment to the context contract — not just a commit)
-- One or more **Event** rows (recorded in the contract audit log)
-
-3️⃣ The authority ladder is enforced by **infra_cil_validator_agent** (Context Integrity Layer = CIL).
-
-4️⃣ Env vars conform to `docs/env_supabase_reference.md`.
+> 🧠 raw_dumps are never modified
+> 
+> 
+> 🧠 Only `blocks` evolve. `documents` compose. `context_items` link.
+> 
 
 ---
 
-## 📝 6 Agent life-cycle cheat-sheet
+## 🧠 6. Cognitive Roles of Agents
 
-```
-pgsql
+| Agent Category | Cognitive Function | Output Type |
+| --- | --- | --- |
+| `orch_` | Extraction + interpretation | `block`, `context_item` |
+| `tasks_` | Composition + contextual reasoning | `document`, `brief`, etc |
+| `infra_` | Meta-reasoning + memory validation | `event`, `audit_report` |
+
+---
+
+## 🔁 7. Substrate Memory Flow (Simplified)
+
+```mermaid
+mermaid
 CopyEdit
-User provides raw_dump → orch_block_manager_agent
-                           ├─ parse & propose Blocks (state=PROPOSED)
-                           └─ validate against enforced Blocks → attach VIOLATION badges
-User accepts block        → state=ACCEPTED (■)
-User locks block          → state=LOCKED   (🔒)
-Admin promotes block      → state=CONSTANT (★, scope applied)
-infra_consistency_agent nightly scan → flag stale Locks / enforce depth guard / resolve contradictions
+flowchart TD
+    R([raw_dump])
+    R -->|orch_agent| B([block])
+    B -->|tasks_agent| D([document])
+    B -->|tagged| C([context_item])
+    D -->|semantically framed| C
+    B & D --> E([event])
+
+    style R fill:#f9f,stroke:#333,stroke-width:1px
 
 ```
 
-👉 *No agent edits or mutates raw_dumps directly — all evolution happens through block lineage and enforced contract checks.*
+---
+
+## 🧠 8. Agent Behavior Constraints (Contracts)
+
+- **Stateless per task**: Agents reason from current substrate snapshot, not hidden history
+- **Always emit events**: Every change must emit `event` and/or `revision`
+- **Immutable sources**: No overwrite of `raw_dump` or document inputs
+- **Respect block lifecycle**: Only users promote memory (not agents)
 
 ---
 
-## 🚀 7 Future evolution
+## 🔭 9. Agent Roadmap
 
-- **Phase 1**: Manual promotion + CIL checks.
-- **Phase 2**: Agents propose clusters, suggest contract mergers, validate namespace integrity — no silent merges.
-- **Phase 3**: Real-time collaboration + merge queue — contract principles remain stable.
+| Phase | Capability | Status |
+| --- | --- | --- |
+| 1 | Agent proposals + user validation | ✅ Live |
+| 2 | Agent composition (docs, briefs, scaffolds) | ✅ Live |
+| 3 | Auto-summarize baskets & scoped insights | 🧪 In Dev |
+| 4 | Memory health scanning + contradiction flags | 🧪 In Dev |
+| 5 | Real-time collab + inline agent suggestions | ⏳ Planned |
 
 ---
 
-*Last updated 2025‑06‑23 — aligned with Context Contract First Principles.*
+*Last updated 2025‑07‑25 — aligned with `memory_model.md` v2.1 and live substrate contract.*
