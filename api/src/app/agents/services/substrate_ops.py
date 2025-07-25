@@ -31,7 +31,7 @@ class AgentSubstrateRequest(BaseModel):
     """Generic request for agent substrate operations."""
     operation_type: SubstrateOperationType
     agent_id: str
-    agent_type: str = Field(..., regex="^(orch_|tasks_|infra_).+")
+    agent_type: str = Field(..., pattern="^(orch_|tasks_|infra_).+")
     target_id: Optional[UUID] = None
     parameters: Dict[str, Any] = Field(default_factory=dict)
     reasoning: Optional[str] = None

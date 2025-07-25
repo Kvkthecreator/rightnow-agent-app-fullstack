@@ -37,7 +37,7 @@ class InterpretDumpRequest(BaseModel):
 
 class TagContextRequest(BaseModel):
     target_id: UUID
-    target_type: str = Field(..., regex="^(block|document|basket)$")
+    target_type: str = Field(..., pattern="^(block|document|basket)$")
     context_type: str
     content: str = Field(..., min_length=3)
     confidence: float = Field(default=0.8, ge=0.0, le=1.0)
