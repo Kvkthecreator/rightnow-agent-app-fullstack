@@ -25,6 +25,11 @@ class SubstrateOperationType(str, Enum):
     ANALYZE_MEMORY = "analyze_memory"
     FLAG_INCONSISTENCY = "flag_inconsistency"
     SUGGEST_RELATIONSHIP = "suggest_relationship"
+    # Composition intelligence operations
+    ANALYZE_COMPOSITION_INTELLIGENCE = "analyze_composition_intelligence"
+    ASSESS_COMPOSITION_READINESS = "assess_composition_readiness"
+    DISCOVER_RELEVANT_MEMORY = "discover_relevant_memory"
+    PROMOTE_CONTEXT_HIERARCHY = "promote_context_hierarchy"
 
 
 class AgentSubstrateRequest(BaseModel):
@@ -87,6 +92,14 @@ class AgentSubstrateService:
                 result = await cls._handle_flag_inconsistency(request, workspace_id)
             elif request.operation_type == SubstrateOperationType.SUGGEST_RELATIONSHIP:
                 result = await cls._handle_suggest_relationship(request, workspace_id)
+            elif request.operation_type == SubstrateOperationType.ANALYZE_COMPOSITION_INTELLIGENCE:
+                result = await cls._handle_analyze_composition_intelligence(request, workspace_id)
+            elif request.operation_type == SubstrateOperationType.ASSESS_COMPOSITION_READINESS:
+                result = await cls._handle_assess_composition_readiness(request, workspace_id)
+            elif request.operation_type == SubstrateOperationType.DISCOVER_RELEVANT_MEMORY:
+                result = await cls._handle_discover_relevant_memory(request, workspace_id)
+            elif request.operation_type == SubstrateOperationType.PROMOTE_CONTEXT_HIERARCHY:
+                result = await cls._handle_promote_context_hierarchy(request, workspace_id)
             else:
                 raise ValueError(f"Unsupported operation type: {request.operation_type}")
             
@@ -131,16 +144,23 @@ class AgentSubstrateService:
             "orch_": {
                 SubstrateOperationType.PROPOSE_BLOCK,
                 SubstrateOperationType.TAG_CONTEXT,
-                SubstrateOperationType.ANALYZE_MEMORY
+                SubstrateOperationType.ANALYZE_MEMORY,
+                SubstrateOperationType.ANALYZE_COMPOSITION_INTELLIGENCE,
+                SubstrateOperationType.ASSESS_COMPOSITION_READINESS,
+                SubstrateOperationType.DISCOVER_RELEVANT_MEMORY,
+                SubstrateOperationType.PROMOTE_CONTEXT_HIERARCHY
             },
             "tasks_": {
                 SubstrateOperationType.ANALYZE_MEMORY,
-                SubstrateOperationType.SUGGEST_RELATIONSHIP
+                SubstrateOperationType.SUGGEST_RELATIONSHIP,
+                SubstrateOperationType.ANALYZE_COMPOSITION_INTELLIGENCE,
+                SubstrateOperationType.DISCOVER_RELEVANT_MEMORY
             },
             "infra_": {
                 SubstrateOperationType.ANALYZE_MEMORY,
                 SubstrateOperationType.FLAG_INCONSISTENCY,
-                SubstrateOperationType.TAG_CONTEXT
+                SubstrateOperationType.TAG_CONTEXT,
+                SubstrateOperationType.ASSESS_COMPOSITION_READINESS
             }
         }
         
@@ -432,6 +452,136 @@ class AgentSubstrateService:
         }
         
         supabase.table("events").insert(as_json(event_data)).execute()
+    
+    # Composition Intelligence Operation Handlers
+    
+    @classmethod
+    async def _handle_analyze_composition_intelligence(
+        cls,
+        request: AgentSubstrateRequest,
+        workspace_id: str
+    ) -> Dict[str, Any]:
+        """Handle composition intelligence analysis operation."""
+        
+        from ...context.services.composition_intelligence import CompositionIntelligenceService
+        
+        params = request.parameters
+        basket_id = UUID(params.get("basket_id")) if params.get("basket_id") else request.target_id
+        
+        if not basket_id:
+            raise ValueError("basket_id required for composition intelligence analysis")
+        
+        analysis_focus = params.get("analysis_focus", "comprehensive")
+        
+        report = await CompositionIntelligenceService.analyze_composition_intelligence(
+            basket_id=basket_id,
+            workspace_id=workspace_id,
+            analysis_focus=analysis_focus
+        )
+        
+        return {
+            "composition_report": report.model_dump(),
+            "audit_events": [f"Composition intelligence analyzed by {request.agent_type}"],
+            "readiness_score": report.overall_composition_readiness,
+            "opportunities_count": len(report.composition_opportunities)
+        }
+    
+    @classmethod
+    async def _handle_assess_composition_readiness(
+        cls,
+        request: AgentSubstrateRequest,
+        workspace_id: str
+    ) -> Dict[str, Any]:
+        """Handle composition readiness assessment operation."""
+        
+        from ...context.services.composition_intelligence import CompositionIntelligenceService
+        
+        params = request.parameters
+        basket_id = UUID(params.get("basket_id")) if params.get("basket_id") else request.target_id
+        
+        if not basket_id:
+            raise ValueError("basket_id required for composition readiness assessment")
+        
+        assessment = await CompositionIntelligenceService.assess_composition_readiness(
+            basket_id=basket_id,
+            workspace_id=workspace_id
+        )
+        
+        return {
+            "readiness_assessment": assessment.model_dump(),
+            "audit_events": [f"Composition readiness assessed by {request.agent_type}"],
+            "readiness_score": assessment.readiness_score,
+            "improvement_areas": assessment.improvement_areas
+        }
+    
+    @classmethod
+    async def _handle_discover_relevant_memory(
+        cls,
+        request: AgentSubstrateRequest,
+        workspace_id: str
+    ) -> Dict[str, Any]:
+        """Handle relevant memory discovery operation."""
+        
+        from ...context.services.context_discovery import ContextDiscoveryService
+        
+        params = request.parameters
+        basket_id = UUID(params.get("basket_id")) if params.get("basket_id") else request.target_id
+        
+        if not basket_id:
+            raise ValueError("basket_id required for memory discovery")
+        
+        composition_intent = params.get("composition_intent", "general_composition")
+        max_results = params.get("max_results", 15)
+        
+        discovery_result = await ContextDiscoveryService.discover_composition_relevant_memory(
+            basket_id=basket_id,
+            composition_intent=composition_intent,
+            workspace_id=workspace_id,
+            max_results=max_results
+        )
+        
+        return {
+            "discovery_result": discovery_result.model_dump(),
+            "audit_events": [f"Relevant memory discovered by {request.agent_type}"],
+            "blocks_found": len(discovery_result.discovered_blocks),
+            "average_relevance": discovery_result.average_relevance_score
+        }
+    
+    @classmethod
+    async def _handle_promote_context_hierarchy(
+        cls,
+        request: AgentSubstrateRequest,
+        workspace_id: str
+    ) -> Dict[str, Any]:
+        """Handle context hierarchy promotion operation."""
+        
+        from ...context.services.context_hierarchy import ContextHierarchyService
+        
+        params = request.parameters
+        context_id = UUID(params.get("context_id")) if params.get("context_id") else request.target_id
+        
+        if not context_id:
+            raise ValueError("context_id required for hierarchy promotion")
+        
+        new_level = params.get("new_level")
+        if not new_level:
+            raise ValueError("new_level required for hierarchy promotion")
+        
+        reasoning = request.reasoning or f"Promoted by {request.agent_type}"
+        
+        result = await ContextHierarchyService.promote_context_level(
+            context_id=context_id,
+            new_level=new_level,
+            workspace_id=workspace_id,
+            reasoning=reasoning
+        )
+        
+        return {
+            "promotion_result": result,
+            "audit_events": [f"Context hierarchy promoted by {request.agent_type}"],
+            "new_hierarchy_level": result["new_hierarchy_level"],
+            "new_composition_weight": result["new_composition_weight"]
+        }
 
 
 # Convenience functions for common agent operations
@@ -463,6 +613,100 @@ class AgentMemoryOperations:
         return await AgentSubstrateService.execute_operation(request, workspace_id)
     
     @classmethod
+    async def quick_analyze_composition_intelligence(
+        cls,
+        basket_id: UUID,
+        agent_id: str,
+        workspace_id: str,
+        analysis_focus: str = "comprehensive"
+    ) -> Dict[str, Any]:
+        """Quick composition intelligence analysis for agents."""
+        
+        request = AgentSubstrateRequest(
+            operation_type=SubstrateOperationType.ANALYZE_COMPOSITION_INTELLIGENCE,
+            agent_id=agent_id,
+            agent_type="orch_intelligence",  # Default agent type
+            target_id=basket_id,
+            parameters={
+                "basket_id": str(basket_id),
+                "analysis_focus": analysis_focus
+            }
+        )
+        
+        return await AgentSubstrateService.execute_operation(request, workspace_id)
+    
+    @classmethod
+    async def quick_assess_composition_readiness(
+        cls,
+        basket_id: UUID,
+        agent_id: str,
+        workspace_id: str
+    ) -> Dict[str, Any]:
+        """Quick composition readiness assessment for agents."""
+        
+        request = AgentSubstrateRequest(
+            operation_type=SubstrateOperationType.ASSESS_COMPOSITION_READINESS,
+            agent_id=agent_id,
+            agent_type="infra_assessor",  # Default agent type
+            target_id=basket_id,
+            parameters={
+                "basket_id": str(basket_id)
+            }
+        )
+        
+        return await AgentSubstrateService.execute_operation(request, workspace_id)
+    
+    @classmethod
+    async def quick_discover_relevant_memory(
+        cls,
+        basket_id: UUID,
+        composition_intent: str,
+        agent_id: str,
+        workspace_id: str,
+        max_results: int = 15
+    ) -> Dict[str, Any]:
+        """Quick relevant memory discovery for agents."""
+        
+        request = AgentSubstrateRequest(
+            operation_type=SubstrateOperationType.DISCOVER_RELEVANT_MEMORY,
+            agent_id=agent_id,
+            agent_type="tasks_discoverer",  # Default agent type
+            target_id=basket_id,
+            parameters={
+                "basket_id": str(basket_id),
+                "composition_intent": composition_intent,
+                "max_results": max_results
+            }
+        )
+        
+        return await AgentSubstrateService.execute_operation(request, workspace_id)
+    
+    @classmethod
+    async def quick_promote_context_hierarchy(
+        cls,
+        context_id: UUID,
+        new_level: str,
+        agent_id: str,
+        workspace_id: str,
+        reasoning: str = None
+    ) -> Dict[str, Any]:
+        """Quick context hierarchy promotion for agents."""
+        
+        request = AgentSubstrateRequest(
+            operation_type=SubstrateOperationType.PROMOTE_CONTEXT_HIERARCHY,
+            agent_id=agent_id,
+            agent_type="orch_hierarchy",  # Default agent type
+            target_id=context_id,
+            parameters={
+                "context_id": str(context_id),
+                "new_level": new_level
+            },
+            reasoning=reasoning or f"Promoted by agent {agent_id}"
+        )
+        
+        return await AgentSubstrateService.execute_operation(request, workspace_id)
+    
+    @classmethod
     async def quick_tag_context(
         cls,
         target_id: UUID,
@@ -486,6 +730,100 @@ class AgentMemoryOperations:
                 "content": content,
                 "confidence": 0.8
             }
+        )
+        
+        return await AgentSubstrateService.execute_operation(request, workspace_id)
+    
+    @classmethod
+    async def quick_analyze_composition_intelligence(
+        cls,
+        basket_id: UUID,
+        agent_id: str,
+        workspace_id: str,
+        analysis_focus: str = "comprehensive"
+    ) -> Dict[str, Any]:
+        """Quick composition intelligence analysis for agents."""
+        
+        request = AgentSubstrateRequest(
+            operation_type=SubstrateOperationType.ANALYZE_COMPOSITION_INTELLIGENCE,
+            agent_id=agent_id,
+            agent_type="orch_intelligence",  # Default agent type
+            target_id=basket_id,
+            parameters={
+                "basket_id": str(basket_id),
+                "analysis_focus": analysis_focus
+            }
+        )
+        
+        return await AgentSubstrateService.execute_operation(request, workspace_id)
+    
+    @classmethod
+    async def quick_assess_composition_readiness(
+        cls,
+        basket_id: UUID,
+        agent_id: str,
+        workspace_id: str
+    ) -> Dict[str, Any]:
+        """Quick composition readiness assessment for agents."""
+        
+        request = AgentSubstrateRequest(
+            operation_type=SubstrateOperationType.ASSESS_COMPOSITION_READINESS,
+            agent_id=agent_id,
+            agent_type="infra_assessor",  # Default agent type
+            target_id=basket_id,
+            parameters={
+                "basket_id": str(basket_id)
+            }
+        )
+        
+        return await AgentSubstrateService.execute_operation(request, workspace_id)
+    
+    @classmethod
+    async def quick_discover_relevant_memory(
+        cls,
+        basket_id: UUID,
+        composition_intent: str,
+        agent_id: str,
+        workspace_id: str,
+        max_results: int = 15
+    ) -> Dict[str, Any]:
+        """Quick relevant memory discovery for agents."""
+        
+        request = AgentSubstrateRequest(
+            operation_type=SubstrateOperationType.DISCOVER_RELEVANT_MEMORY,
+            agent_id=agent_id,
+            agent_type="tasks_discoverer",  # Default agent type
+            target_id=basket_id,
+            parameters={
+                "basket_id": str(basket_id),
+                "composition_intent": composition_intent,
+                "max_results": max_results
+            }
+        )
+        
+        return await AgentSubstrateService.execute_operation(request, workspace_id)
+    
+    @classmethod
+    async def quick_promote_context_hierarchy(
+        cls,
+        context_id: UUID,
+        new_level: str,
+        agent_id: str,
+        workspace_id: str,
+        reasoning: str = None
+    ) -> Dict[str, Any]:
+        """Quick context hierarchy promotion for agents."""
+        
+        request = AgentSubstrateRequest(
+            operation_type=SubstrateOperationType.PROMOTE_CONTEXT_HIERARCHY,
+            agent_id=agent_id,
+            agent_type="orch_hierarchy",  # Default agent type
+            target_id=context_id,
+            parameters={
+                "context_id": str(context_id),
+                "new_level": new_level
+            },
+            reasoning=reasoning or f"Promoted by agent {agent_id}"
         )
         
         return await AgentSubstrateService.execute_operation(request, workspace_id)
