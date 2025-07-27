@@ -167,6 +167,77 @@ class AgentSubstrateBridge:
                 "success": False,
                 "error": str(e)
             }
+    
+    @classmethod
+    async def analyze_basket_intelligence(
+        cls,
+        basket_id: str,
+        workspace_id: str,
+        agent_id: str,
+        analysis_type: str = "comprehensive"
+    ) -> Dict[str, Any]:
+        """Analyze basket intelligence for existing agents using new Chapter 3.5 services."""
+        
+        try:
+            from ...baskets.services.pattern_recognition import BasketPatternRecognitionService
+            from ...baskets.services.coherence_suggestions import CoherenceSuggestionsService
+            from ...baskets.services.relationship_discovery import RelationshipDiscoveryService
+            from ...baskets.services.inconsistency_accommodation import InconsistencyAccommodationService
+            from ...schemas.basket_intelligence_schema import PatternAnalysisRequest
+            
+            basket_uuid = UUID(basket_id)
+            
+            # Perform pattern analysis
+            pattern_request = PatternAnalysisRequest(
+                basket_id=basket_uuid,
+                accommodate_inconsistency=True,
+                suggestion_gentleness="gentle"
+            )
+            
+            thematic_analysis = await BasketPatternRecognitionService.analyze_basket_patterns(
+                pattern_request, workspace_id
+            )
+            
+            # Get coherence suggestions if comprehensive analysis
+            suggestions = None
+            if analysis_type == "comprehensive":
+                suggestions = await CoherenceSuggestionsService.generate_gentle_suggestions(
+                    basket_uuid, workspace_id, thematic_analysis
+                )
+            
+            # Get context health
+            context_health = await InconsistencyAccommodationService.assess_context_health(
+                basket_uuid, workspace_id, thematic_analysis
+            )
+            
+            return {
+                "success": True,
+                "thematic_analysis": {
+                    "dominant_themes": thematic_analysis.dominant_themes,
+                    "coherence_level": thematic_analysis.coherence_level,
+                    "content_diversity": thematic_analysis.content_diversity,
+                    "patterns_count": len(thematic_analysis.discovered_patterns),
+                    "thematic_summary": thematic_analysis.thematic_summary
+                },
+                "context_health": {
+                    "health_score": context_health.overall_health_score,
+                    "human_compatibility": context_health.human_compatibility_score,
+                    "inconsistencies_count": len(context_health.inconsistencies),
+                    "accommodation_strategies": context_health.accommodation_strategies
+                },
+                "suggestions": {
+                    "total_suggestions": suggestions.total_suggestions if suggestions else 0,
+                    "priority_level": suggestions.priority_level if suggestions else "none",
+                    "accommodation_note": suggestions.accommodation_note if suggestions else "Analysis focused on patterns only"
+                }
+            }
+            
+        except Exception as e:
+            logger.exception(f"Basket intelligence analysis failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
 
 # Convenience functions for existing agent code
@@ -220,4 +291,19 @@ async def agent_propose_block(
         agent_id=agent_id,
         workspace_id=workspace_id,
         semantic_type=semantic_type
+    )
+
+
+async def agent_analyze_basket_intelligence(
+    basket_id: str,
+    workspace_id: str,
+    agent_id: str,
+    analysis_type: str = "comprehensive"
+) -> Dict[str, Any]:
+    """Convenience function for existing agents to analyze basket intelligence."""
+    return await AgentSubstrateBridge.analyze_basket_intelligence(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        agent_id=agent_id,
+        analysis_type=analysis_type
     )
