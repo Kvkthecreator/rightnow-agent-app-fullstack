@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import { useAuth } from "@/lib/useAuth";
-import { fetchWithToken } from "@/lib/api";
+import { fetchWithToken } from "@/lib/fetchWithToken";
 
 interface ThematicAnalysis {
   analysis_id: string;
