@@ -1,5 +1,6 @@
 import { WorkspaceCreationPlan, BusinessContext } from "@/components/onboarding/OnboardingAgent";
 import { fetchWithToken } from "@/lib/fetchWithToken";
+import { globalSubstrateService } from "./substrateIntegration";
 
 export interface CreatedDocument {
   id: string;
@@ -32,35 +33,101 @@ export async function createWorkspace(
 ): Promise<WorkspaceCreationResult> {
   
   try {
-    // Step 1: Create the basket
-    const basket = await createBasket(plan, context);
+    // First try using the substrate integration service
+    const workspaceId = await getOrCreateWorkspaceId();
     
-    // Step 2: Create documents with initial content
-    const documents = await createDocuments(basket.id, plan.documents);
-    
-    // Step 3: Create blocks for each document
-    const documentsWithBlocks = await createBlocksForDocuments(documents, plan);
-    
-    // Step 4: Seed intelligence analysis
-    await seedIntelligenceAnalysis(basket.id, plan, context);
-    
-    // Step 5: Initialize Brain sidebar intelligence
-    await initializeBrainIntelligence(basket.id, plan.intelligenceSeeds);
-    
-    return {
-      basketId: basket.id,
-      documents: documentsWithBlocks,
-      initialIntelligence: {
-        themes: plan.intelligenceSeeds.themes,
-        contextItems: plan.contextItems.length,
-        intelligenceActive: true
-      }
-    };
+    try {
+      const substrateResult = await globalSubstrateService.createWorkspaceWithSubstrate(
+        plan,
+        context,
+        workspaceId
+      );
+      
+      // Convert substrate result to our expected format
+      return {
+        basketId: substrateResult.basket.id,
+        documents: substrateResult.documents.map(doc => ({
+          id: doc.id,
+          title: doc.title,
+          type: doc.document_type,
+          initialContent: doc.content,
+          blocks: substrateResult.blocks
+            .filter(block => block.document_id === doc.id)
+            .map(block => ({
+              id: block.id,
+              type: block.semantic_type,
+              content: block.canonical_value,
+              position: 0 // Will be set by substrate
+            }))
+        })),
+        initialIntelligence: {
+          themes: plan.intelligenceSeeds.themes,
+          contextItems: plan.contextItems.length,
+          intelligenceActive: substrateResult.intelligence_initialized
+        }
+      };
+      
+    } catch (substrateError) {
+      console.warn('Substrate creation failed, falling back to direct API calls:', substrateError);
+    }
+
+    // Fallback to direct API approach
+    return createWorkspaceWithDirectAPIs(plan, context);
     
   } catch (error) {
     console.error('Workspace creation failed:', error);
     throw new Error('Failed to create workspace. Please try again.');
   }
+}
+
+// Renamed original function for fallback
+async function createWorkspaceWithDirectAPIs(
+  plan: WorkspaceCreationPlan,
+  context: BusinessContext
+): Promise<WorkspaceCreationResult> {
+  
+  // Step 1: Create the basket
+  const basket = await createBasket(plan, context);
+  
+  // Step 2: Create documents with initial content
+  const documents = await createDocuments(basket.id, plan.documents);
+  
+  // Step 3: Create blocks for each document
+  const documentsWithBlocks = await createBlocksForDocuments(documents, plan);
+  
+  // Step 4: Seed intelligence analysis
+  await seedIntelligenceAnalysis(basket.id, plan, context);
+  
+  // Step 5: Initialize Brain sidebar intelligence
+  await initializeBrainIntelligence(basket.id, plan.intelligenceSeeds);
+  
+  return {
+    basketId: basket.id,
+    documents: documentsWithBlocks,
+    initialIntelligence: {
+      themes: plan.intelligenceSeeds.themes,
+      contextItems: plan.contextItems.length,
+      intelligenceActive: true
+    }
+  };
+}
+
+// Helper function to get or create workspace ID
+async function getOrCreateWorkspaceId(): Promise<string> {
+  // This should integrate with your workspace management system
+  // For now, we'll use a placeholder approach
+  try {
+    const response = await fetchWithToken('/api/workspace/current');
+    if (response.ok) {
+      const workspace = await response.json();
+      return workspace.id;
+    }
+  } catch (error) {
+    console.warn('Could not fetch current workspace, using default');
+  }
+  
+  // Fallback to a default workspace ID or create one
+  return 'default-workspace-id';
 }
 
 async function createBasket(plan: WorkspaceCreationPlan, context: BusinessContext) {

@@ -1,4 +1,5 @@
 import { InterviewResponse, BusinessContext, WorkspaceCreationPlan } from "@/components/onboarding/OnboardingAgent";
+import { globalOnboardingAgent } from "./interviewAgent";
 
 // Business type templates for workspace generation
 const BUSINESS_TYPE_TEMPLATES = {
@@ -75,6 +76,29 @@ const CHALLENGE_DOCUMENT_TEMPLATES = {
 };
 
 export async function processInterview(
+  responses: InterviewResponse[],
+  context: BusinessContext
+): Promise<WorkspaceCreationPlan> {
+  
+  try {
+    // First try using the intelligent agent processing
+    const agentResult = await globalOnboardingAgent.processInterview(responses, context);
+    
+    if (agentResult.success && agentResult.plan) {
+      return agentResult.plan;
+    } else {
+      console.warn('Agent processing failed, falling back to template system:', agentResult.error);
+    }
+  } catch (error) {
+    console.warn('Agent processing error, falling back to template system:', error);
+  }
+
+  // Fallback to template-based processing
+  return processInterviewWithTemplates(responses, context);
+}
+
+// Renamed original function to be explicit about template-based processing
+async function processInterviewWithTemplates(
   responses: InterviewResponse[],
   context: BusinessContext
 ): Promise<WorkspaceCreationPlan> {
