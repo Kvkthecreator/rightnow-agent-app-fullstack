@@ -60,7 +60,13 @@ export function useBasketIntelligence(basketId: string, refreshInterval: number 
   
   const { data, error, isLoading, mutate } = useSWR<BasketIntelligence>(
     basketId && user ? `/api/intelligence/basket/${basketId}/comprehensive` : null,
-    (url: string) => fetchWithToken(url),
+    async (url: string) => {
+      const response = await fetchWithToken(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch basket intelligence');
+      }
+      return response.json();
+    },
     {
       refreshInterval,
       revalidateOnFocus: true,

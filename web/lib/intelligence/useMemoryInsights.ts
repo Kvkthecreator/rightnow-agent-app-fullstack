@@ -44,7 +44,13 @@ export function useMemoryInsights(basketId: string, refreshInterval: number = 10
   
   const { data, error, isLoading, mutate } = useSWR<MemoryInsights>(
     basketId && user ? `/api/intelligence/basket/${basketId}/memory-insights` : null,
-    (url: string) => fetchWithToken(url),
+    async (url: string) => {
+      const response = await fetchWithToken(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch memory insights');
+      }
+      return response.json();
+    },
     {
       refreshInterval,
       revalidateOnFocus: true,

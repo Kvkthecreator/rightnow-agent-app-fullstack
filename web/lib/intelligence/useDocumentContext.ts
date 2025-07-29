@@ -27,7 +27,13 @@ export function useDocumentContext(documentId?: string, refreshInterval: number 
   
   const { data, error, isLoading, mutate } = useSWR<DocumentContext>(
     documentId && user ? `/api/intelligence/document/${documentId}/context` : null,
-    (url: string) => fetchWithToken(url),
+    async (url: string) => {
+      const response = await fetchWithToken(url);
+      if (!response.ok) {
+        throw new Error('Failed to fetch document context');
+      }
+      return response.json();
+    },
     {
       refreshInterval,
       revalidateOnFocus: true,
