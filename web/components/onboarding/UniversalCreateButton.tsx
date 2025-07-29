@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   variant?: "default" | "outline" | "ghost";
-  size?: "sm" | "default" | "lg";
+  size?: "sm" | "md" | "lg";
   className?: string;
   children?: React.ReactNode;
   context?: "dashboard" | "navigation" | "empty-state" | "inline";
@@ -14,7 +14,7 @@ interface Props {
 
 export default function UniversalCreateButton({
   variant = "default",
-  size = "default", 
+  size = "md", 
   className,
   children,
   context = "inline"
