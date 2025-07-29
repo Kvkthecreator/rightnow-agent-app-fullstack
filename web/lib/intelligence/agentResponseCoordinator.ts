@@ -46,7 +46,7 @@ export class AgentResponseCoordinator {
       // Immediate response rules
       {
         id: 'text_selection_immediate',
-        condition: (context) => context.selectedText && context.selectedText.length > 10,
+        condition: (context) => !!(context.selectedText && context.selectedText.length > 10),
         response: (context, trigger) => ({
           id: `selection-${Date.now()}`,
           type: 'immediate',
@@ -67,7 +67,7 @@ export class AgentResponseCoordinator {
       {
         id: 'typing_pause_contextual',
         condition: (context, trigger) => 
-          trigger?.type === 'typing_pause' && !context.isTyping,
+          !!(trigger?.type === 'typing_pause' && !context.isTyping),
         response: (context, trigger) => ({
           id: `pause-${Date.now()}`,
           type: 'contextual',
@@ -87,7 +87,7 @@ export class AgentResponseCoordinator {
       {
         id: 'extended_pause_anticipatory',
         condition: (context, trigger) => 
-          trigger?.type === 'extended_pause',
+          !!(trigger?.type === 'extended_pause'),
         response: (context, trigger) => ({
           id: `extended-${Date.now()}`,
           type: 'anticipatory',
@@ -108,7 +108,7 @@ export class AgentResponseCoordinator {
       {
         id: 'focus_change_contextual',
         condition: (context, trigger) => 
-          trigger?.type === 'focus_change',
+          !!(trigger?.type === 'focus_change'),
         response: (context, trigger) => ({
           id: `focus-${Date.now()}`,
           type: 'contextual',
@@ -125,8 +125,8 @@ export class AgentResponseCoordinator {
       {
         id: 'frustration_support',
         condition: (context, trigger, pattern) => 
-          pattern?.pause_frequency === 'frequent' && 
-          pattern?.typing_rhythm === 'slow',
+          !!(pattern?.pause_frequency === 'frequent' && 
+          pattern?.typing_rhythm === 'slow'),
         response: (context, trigger, pattern) => ({
           id: `support-${Date.now()}`,
           type: 'anticipatory',
