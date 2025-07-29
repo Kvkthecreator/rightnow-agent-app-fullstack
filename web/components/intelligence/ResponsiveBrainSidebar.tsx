@@ -233,32 +233,73 @@ export default function ResponsiveBrainSidebar({
       {/* Enhanced Active Panel Content */}
       <div className="flex-1 overflow-y-auto">
         {activePanel === "context" && (
-          <CurrentContextPanel 
-            basketId={basketId}
-            documentId={currentDocumentId}
-            focusMode={focusMode}
-            cursorPosition={cursorPosition}
-            recentTriggers={triggerEvents.slice(-3)}
-            contextualInsights={agentCoordination.contextualInsights}
-          />
+          <div>
+            <CurrentContextPanel 
+              basketId={basketId}
+              documentId={currentDocumentId}
+              focusMode={focusMode}
+            />
+            {/* Enhanced contextual intelligence display */}
+            {(triggerEvents.length > 0 || agentCoordination.contextualInsights.length > 0) && (
+              <div className="p-4 border-t bg-blue-50/30">
+                <div className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  Live Intelligence
+                </div>
+                
+                {cursorPosition !== undefined && (
+                  <div className="text-xs text-muted-foreground mb-2">
+                    📍 Position: {cursorPosition}
+                  </div>
+                )}
+
+                {triggerEvents.slice(-2).map((trigger) => (
+                  <div key={`${trigger.type}-${trigger.timestamp}`} className="text-xs mb-2 flex items-center gap-2">
+                    <span>{trigger.type === 'typing_pause' ? '⏸️' : trigger.type === 'text_selection' ? '📝' : '⚡'}</span>
+                    <span className="capitalize">{trigger.type.replace('_', ' ')}</span>
+                    <span className="text-muted-foreground ml-auto">{Math.round(trigger.confidence * 100)}%</span>
+                  </div>
+                ))}
+
+                {agentCoordination.contextualInsights.slice(0, 2).map((insight) => (
+                  <div key={insight.insight_id} className="bg-blue-100 border border-blue-200 rounded p-2 mb-2">
+                    <div className="text-xs font-medium text-blue-800">{insight.insight_type} insight</div>
+                    <div className="text-xs text-blue-700">{insight.description}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
         {activePanel === "suggestions" && (
-          <IntelligentSuggestionsPanel 
-            basketId={basketId}
-            documentId={currentDocumentId}
-            focusMode={focusMode}
-            prioritySuggestions={agentCoordination.prioritySuggestions}
-            smartSuggestions={agentCoordination.smartSuggestions}
-            isTyping={isTyping}
-          />
+          <div>
+            <IntelligentSuggestionsPanel 
+              basketId={basketId}
+              documentId={currentDocumentId}
+              focusMode={focusMode}
+            />
+            {/* Enhanced suggestions display */}
+            {agentCoordination.prioritySuggestions.length > 0 && (
+              <div className="p-4 border-t bg-green-50/30">
+                <div className="text-xs font-medium text-muted-foreground mb-3">
+                  🎯 Priority Suggestions
+                </div>
+                {agentCoordination.prioritySuggestions.slice(0, 3).map((suggestion) => (
+                  <div key={suggestion.suggestion_id} className="bg-green-100 border border-green-200 rounded p-2 mb-2">
+                    <div className="text-xs font-medium text-green-800 capitalize">{suggestion.type}</div>
+                    <div className="text-xs text-green-700">{suggestion.content}</div>
+                    <div className="text-xs text-green-600 mt-1">Priority: {Math.round(suggestion.priority * 100)}%</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
         {activePanel === "memory" && (
           <MemoryInsightsPanel 
             basketId={basketId}
             documentId={currentDocumentId}
             focusMode={focusMode}
-            cursorContext={textSelection?.text}
-            behavioralPattern={currentPattern}
           />
         )}
         {activePanel === "anticipation" && (
