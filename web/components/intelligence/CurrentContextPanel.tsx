@@ -7,17 +7,25 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
 import { useBasketIntelligence } from "@/lib/intelligence/useBasketIntelligence";
 import { useDocumentContext } from "@/lib/intelligence/useDocumentContext";
+import { TriggerEvent } from "@/lib/intelligence/useBehavioralTriggers";
+import { ContextualInsight } from "@/lib/intelligence/useContextualAgentResponse";
 
 interface CurrentContextPanelProps {
   basketId: string;
   documentId?: string;
   focusMode: "document" | "basket";
+  cursorPosition?: number;
+  recentTriggers?: TriggerEvent[];
+  contextualInsights?: ContextualInsight[];
 }
 
 export default function CurrentContextPanel({ 
   basketId, 
   documentId, 
-  focusMode 
+  focusMode,
+  cursorPosition,
+  recentTriggers = [],
+  contextualInsights = []
 }: CurrentContextPanelProps) {
   return (
     <div className="p-4 space-y-4">
@@ -55,6 +63,15 @@ export default function CurrentContextPanel({
         documentId={documentId}
         focusMode={focusMode}
       />
+
+      {/* Real-time Activity */}
+      {(recentTriggers.length > 0 || contextualInsights.length > 0) && (
+        <RealtimeActivityCard 
+          cursorPosition={cursorPosition}
+          recentTriggers={recentTriggers}
+          contextualInsights={contextualInsights}
+        />
+      )}
 
       {/* Attention Areas */}
       <AttentionAreasCard 
@@ -331,5 +348,89 @@ function ContextConfidenceIndicator({ basketId, documentId }: ContextConfidenceI
         confidence
       </div>
     </div>
+  );
+}
+
+function RealtimeActivityCard({ 
+  cursorPosition,
+  recentTriggers,
+  contextualInsights
+}: { 
+  cursorPosition?: number;
+  recentTriggers: TriggerEvent[];
+  contextualInsights: ContextualInsight[];
+}) {
+  const getTriggerIcon = (type: string) => {
+    const icons: Record<string, string> = {
+      typing_pause: "⏸️",
+      text_selection: "📝",
+      focus_change: "🎯",
+      extended_pause: "💭",
+      default: "⚡"
+    };
+    return icons[type] || icons.default;
+  };
+
+  const getInsightIcon = (type: string) => {
+    const icons: Record<string, string> = {
+      pattern: "🔍",
+      connection: "🔗",
+      opportunity: "💡",
+      concern: "⚠️",
+      default: "💭"
+    };
+    return icons[type] || icons.default;
+  };
+
+  return (
+    <Card className="p-3 space-y-3">
+      <div className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+        Real-time Activity
+      </div>
+      
+      {cursorPosition !== undefined && (
+        <div className="text-xs text-muted-foreground">
+          Cursor at position {cursorPosition}
+        </div>
+      )}
+
+      {recentTriggers.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-medium text-muted-foreground">Recent Triggers</div>
+          {recentTriggers.slice(-2).map((trigger, index) => (
+            <div key={`${trigger.type}-${trigger.timestamp}`} className="flex items-center gap-2 text-xs">
+              <span>{getTriggerIcon(trigger.type)}</span>
+              <span className="capitalize">{trigger.type.replace('_', ' ')}</span>
+              <Badge variant="outline" className="text-xs ml-auto">
+                {Math.round(trigger.confidence * 100)}%
+              </Badge>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {contextualInsights.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-medium text-muted-foreground">Live Insights</div>
+          {contextualInsights.slice(0, 2).map((insight, index) => (
+            <div key={insight.insight_id} className="bg-blue-50 border border-blue-200 rounded p-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span>{getInsightIcon(insight.insight_type)}</span>
+                <span className="text-xs font-medium capitalize">
+                  {insight.insight_type} insight
+                </span>
+                <Badge variant="outline" className="text-xs ml-auto">
+                  {Math.round(insight.relevance * 100)}%
+                </Badge>
+              </div>
+              <p className="text-xs text-blue-800 leading-relaxed">
+                {insight.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
