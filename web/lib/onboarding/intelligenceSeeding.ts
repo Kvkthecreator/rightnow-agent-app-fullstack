@@ -520,7 +520,7 @@ export class IntelligenceSeedingService {
   }
 
   private buildThemeRelationships(themes: string[]) {
-    const relationships = [];
+    const relationships: Array<{from: string, to: string, type: string}> = [];
     
     themes.forEach((theme, i) => {
       themes.slice(i + 1).forEach(otherTheme => {
@@ -699,7 +699,7 @@ export class IntelligenceSeedingService {
     
     const itemWords = itemContent.split(' ');
     const contextWords = contextText.split(' ');
-    const commonWords = itemWords.filter(word => contextWords.includes(word) && word.length > 3);
+    const commonWords = itemWords.filter((word: string) => contextWords.includes(word) && word.length > 3);
     
     return Math.min(0.95, 0.3 + (commonWords.length / Math.max(itemWords.length, contextWords.length)) * 0.65);
   }
