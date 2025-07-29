@@ -14,7 +14,7 @@ interface TextSelection {
   text: string;
 }
 
-export function useCursorContext(elementRef: React.RefObject<HTMLElement>) {
+export function useCursorContext(elementRef: React.RefObject<HTMLElement | null>) {
   const [cursorPosition, setCursorPosition] = useState<CursorPosition | null>(null);
   const [textSelection, setTextSelection] = useState<TextSelection | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
