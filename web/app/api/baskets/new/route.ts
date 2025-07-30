@@ -36,9 +36,7 @@ export async function POST(request: NextRequest) {
       name = "Untitled Basket",
       status = "active", 
       tags = [],
-      description = "",
-      text_dump = "",
-      file_urls = []
+      text_dump = ""
     } = body;
 
     console.log("[/api/baskets/new] Creating basket:", { name, status, tags, userId: user.id, workspaceId: workspace.id });
@@ -48,16 +46,10 @@ export async function POST(request: NextRequest) {
       .from("baskets")
       .insert({
         name,
-        description: description || text_dump, // Use text_dump as description if provided
         status,
         workspace_id: workspace.id,
-        metadata: {
-          createdBy: user.id,
-          createdVia: text_dump ? 'dump_input' : 'new_basket_button',
-          tags,
-          text_dump: text_dump || undefined,
-          file_urls: file_urls.length > 0 ? file_urls : undefined
-        }
+        tags,
+        origin_template: text_dump || undefined
       })
       .select()
       .single();
