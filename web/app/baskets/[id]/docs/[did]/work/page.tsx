@@ -38,7 +38,7 @@ export default async function DocWorkPageRoute({ params }: PageProps) {
       documentId={did}
       basketName={basket.name}
       basketStatus={basket.status}
-      basketScope={basket.metadata?.scope || []}
+      basketScope={[]} // ✅ Temporarily empty until tags are wired properly
       documents={documents || []}
     />
   );
