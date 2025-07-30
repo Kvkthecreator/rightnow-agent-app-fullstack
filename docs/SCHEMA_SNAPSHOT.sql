@@ -2459,7 +2459,9 @@ CREATE TABLE public.documents (
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
     updated_by uuid,
-    workspace_id uuid
+    workspace_id uuid NOT NULL,
+    document_type text DEFAULT 'general'::text NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL
 );
 
 

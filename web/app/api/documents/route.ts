@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       .from("documents")
       .insert({
         title,
-        content,
+        content_raw: content,
         document_type,
         basket_id: finalBasketId,
         workspace_id: workspace.id,
