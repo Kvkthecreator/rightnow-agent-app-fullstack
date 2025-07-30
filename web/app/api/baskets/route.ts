@@ -1,0 +1,143 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = createServerSupabaseClient();
+    
+    // Use getUser() for secure authentication
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    // Ensure user has a workspace
+    const workspace = await ensureWorkspaceServer(supabase);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: "Failed to get or create workspace" },
+        { status: 500 }
+      );
+    }
+
+    // Parse request body
+    const body = await request.json();
+    const {
+      name = "Untitled Basket",
+      description = "",
+      status = "active",
+      tags = [],
+      metadata = {}
+    } = body;
+
+    // Create basket in database
+    const { data: basket, error: createError } = await supabase
+      .from("baskets")
+      .insert({
+        name,
+        description,
+        status,
+        workspace_id: workspace.id,
+        metadata: {
+          createdBy: user.id,
+          tags,
+          ...metadata
+        }
+      })
+      .select()
+      .single();
+
+    if (createError || !basket) {
+      console.error("Basket creation error:", createError);
+      return NextResponse.json(
+        { error: "Failed to create basket" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      { 
+        id: basket.id,
+        name: basket.name,
+        description: basket.description,
+        status: basket.status,
+        created_at: basket.created_at
+      },
+      { status: 201 }
+    );
+
+  } catch (error) {
+    console.error("Basket API error:", error);
+    return NextResponse.json(
+      { 
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// Handle GET requests for listing baskets
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = createServerSupabaseClient();
+    
+    // Use getUser() for secure authentication
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    // Ensure user has a workspace
+    const workspace = await ensureWorkspaceServer(supabase);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: "Failed to get workspace" },
+        { status: 500 }
+      );
+    }
+
+    // Get baskets for the workspace
+    const { data: baskets, error: fetchError } = await supabase
+      .from("baskets")
+      .select("id, name, description, status, created_at")
+      .eq("workspace_id", workspace.id)
+      .order("created_at", { ascending: false });
+
+    if (fetchError) {
+      console.error("Baskets fetch error:", fetchError);
+      return NextResponse.json(
+        { error: "Failed to fetch baskets" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(baskets || []);
+
+  } catch (error) {
+    console.error("Baskets GET API error:", error);
+    return NextResponse.json(
+      { 
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
+      { status: 500 }
+    );
+  }
+}
