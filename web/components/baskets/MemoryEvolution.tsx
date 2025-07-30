@@ -20,9 +20,33 @@ export function MemoryEvolution({ confidenceScore, memoryGrowth, lastUpdated }: 
     });
   };
 
+  const getConfidenceLabel = (score: number) => {
+    if (score === 0) return "Ready to learn";
+    if (score < 30) return "Early understanding";
+    if (score < 60) return "Growing intelligence";
+    if (score < 80) return "Strong insights";
+    return "Deep understanding";
+  };
+
+  const getGrowthMessage = (growth: number, score: number) => {
+    if (score === 0) return "Add content to start building intelligence";
+    if (growth === 0) return "Intelligence is stable";
+    if (growth < 5) return `Gradual intelligence growth (+${growth}%)`;
+    if (growth < 15) return `Strong intelligence growth (+${growth}%)`;
+    return `Rapid intelligence growth (+${growth}%)`;
+  };
+
+  const getProgressBarColor = (score: number) => {
+    if (score === 0) return "bg-muted";
+    if (score < 30) return "bg-yellow-500";
+    if (score < 60) return "bg-blue-500";
+    if (score < 80) return "bg-green-500";
+    return "bg-emerald-500";
+  };
+
   return (
     <div className="border-t pt-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <GitBranch className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">Project Memory</span>
@@ -33,31 +57,44 @@ export function MemoryEvolution({ confidenceScore, memoryGrowth, lastUpdated }: 
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="text-sm font-medium">Intelligence: {confidenceScore}%</div>
+          <div className="text-sm font-medium">
+            {getConfidenceLabel(confidenceScore)}: {confidenceScore}%
+          </div>
           {memoryGrowth > 0 && (
             <Badge variant="secondary" className="text-xs">
-              +{memoryGrowth}% this week
+              +{memoryGrowth}%
             </Badge>
           )}
         </div>
       </div>
       
-      <div className="mt-2 h-2 bg-muted rounded-full">
+      <div className="mb-2 h-2 bg-muted rounded-full overflow-hidden">
         <div 
-          className="h-full bg-primary rounded-full transition-all duration-500"
-          style={{ width: `${Math.min(confidenceScore, 100)}%` }}
+          className={`h-full rounded-full transition-all duration-1000 ${getProgressBarColor(confidenceScore)}`}
+          style={{ width: `${Math.max(confidenceScore, 2)}%` }}
         />
       </div>
       
-      {confidenceScore < 30 && (
-        <p className="text-xs text-muted-foreground mt-2">
-          Add more content to build stronger project intelligence
+      <p className="text-xs text-muted-foreground">
+        {getGrowthMessage(memoryGrowth, confidenceScore)}
+      </p>
+      
+      {/* Additional insight for different confidence levels */}
+      {confidenceScore === 0 && (
+        <p className="text-xs text-blue-600 mt-1">
+          Your first content will help me understand your project
         </p>
       )}
       
-      {confidenceScore >= 70 && (
-        <p className="text-xs text-primary mt-2">
-          Your knowledge graph is getting smarter • Strong project understanding
+      {confidenceScore > 0 && confidenceScore < 30 && (
+        <p className="text-xs text-yellow-600 mt-1">
+          Building foundational understanding from your content
+        </p>
+      )}
+      
+      {confidenceScore >= 80 && (
+        <p className="text-xs text-emerald-600 mt-1">
+          Strong project intelligence • Ready for advanced synthesis
         </p>
       )}
     </div>

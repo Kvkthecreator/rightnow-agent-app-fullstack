@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Plus, FileText, MessageSquare, Zap } from "lucide-react";
+import { Plus, FileText, MessageSquare, Zap, Upload, Template, Search, BarChart3, Target } from "lucide-react";
 
 interface Action {
   type: string;
   label: string;
   enabled: boolean;
+  primary?: boolean;
 }
 
 interface SimpleActionsProps {
@@ -18,53 +19,71 @@ interface SimpleActionsProps {
 export function SimpleActions({ basketId, actions }: SimpleActionsProps) {
   const router = useRouter();
 
-  const handleAddContent = () => {
-    router.push(`/baskets/${basketId}/add-content`);
-  };
-
-  const handleCreateDocument = () => {
-    router.push(`/baskets/${basketId}/documents/new`);
-  };
-
-  const handleStrategicAnalysis = () => {
-    // For now, navigate to a strategic analysis page or modal
-    router.push(`/baskets/${basketId}/strategy`);
-  };
-
-  // Default actions if none provided
-  const defaultActions: Action[] = [
-    { type: "add_content", label: "Add Content", enabled: true },
-    { type: "create_document", label: "Create Document", enabled: true },
-    { type: "strategic_analysis", label: "Ask Strategy Question", enabled: true }
-  ];
-
-  const availableActions = actions && actions.length > 0 ? actions : defaultActions;
-
-  const getActionHandler = (actionType: string) => {
+  const handleAction = (actionType: string) => {
     switch (actionType) {
-      case "add_content":
-        return handleAddContent;
-      case "create_document":
-        return handleCreateDocument;
-      case "strategic_analysis":
-        return handleStrategicAnalysis;
+      case 'add_first_content':
+      case 'add_content':
+        router.push(`/onboarding?basketId=${basketId}`);
+        break;
+      case 'import_files':
+        router.push(`/onboarding?basketId=${basketId}&mode=import`);
+        break;
+      case 'start_template':
+        router.push(`/onboarding?basketId=${basketId}&mode=template`);
+        break;
+      case 'create_document':
+        router.push(`/baskets/${basketId}/documents/new`);
+        break;
+      case 'analyze_deeper':
+        router.push(`/baskets/${basketId}/work?tab=insights`);
+        break;
+      case 'create_synthesis':
+        router.push(`/baskets/${basketId}/documents/new?type=synthesis`);
+        break;
+      case 'find_gaps':
+        router.push(`/baskets/${basketId}/work?tab=analysis`);
+        break;
+      case 'strategic_planning':
+        router.push(`/baskets/${basketId}/strategy`);
+        break;
+      case 'strategic_analysis':
+        router.push(`/baskets/${basketId}/work?tab=insights`);
+        break;
       default:
-        return () => console.log(`Action ${actionType} not implemented`);
+        console.warn('Unknown action type:', actionType);
     }
   };
 
   const getActionIcon = (actionType: string) => {
     switch (actionType) {
-      case "add_content":
+      case 'add_first_content':
+      case 'add_content':
         return <Plus className="h-4 w-4" />;
-      case "create_document":
+      case 'import_files':
+        return <Upload className="h-4 w-4" />;
+      case 'start_template':
+        return <Template className="h-4 w-4" />;
+      case 'create_document':
+      case 'create_synthesis':
         return <FileText className="h-4 w-4" />;
-      case "strategic_analysis":
+      case 'analyze_deeper':
+      case 'find_gaps':
+        return <Search className="h-4 w-4" />;
+      case 'strategic_planning':
+        return <Target className="h-4 w-4" />;
+      case 'strategic_analysis':
         return <MessageSquare className="h-4 w-4" />;
       default:
         return <Zap className="h-4 w-4" />;
     }
   };
+
+  // If no actions provided, show default fallback
+  const displayActions = actions && actions.length > 0 ? actions : [
+    { type: "add_content", label: "Add Content", enabled: true, primary: true },
+    { type: "create_document", label: "Create Document", enabled: true },
+    { type: "strategic_analysis", label: "Strategic Analysis", enabled: true }
+  ];
 
   return (
     <div className="mb-6">
@@ -74,12 +93,12 @@ export function SimpleActions({ basketId, actions }: SimpleActionsProps) {
       </div>
       
       <div className="flex flex-wrap gap-3">
-        {availableActions.slice(0, 3).map((action, index) => (
+        {displayActions.slice(0, 3).map((action) => (
           <Button
-            key={index}
-            onClick={getActionHandler(action.type)}
+            key={action.type}
+            onClick={() => handleAction(action.type)}
             disabled={!action.enabled}
-            variant={index === 0 ? "default" : "outline"}
+            variant={action.primary ? "default" : "outline"}
             className="flex items-center gap-2"
           >
             {getActionIcon(action.type)}

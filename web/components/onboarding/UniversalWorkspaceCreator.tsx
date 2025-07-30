@@ -11,11 +11,15 @@ import { cn } from '@/lib/utils';
 interface UniversalWorkspaceCreatorProps {
   onWorkspaceCreated?: (basketId: string) => void;
   className?: string;
+  existingBasketId?: string | null;
+  mode?: string | null;
 }
 
 export default function UniversalWorkspaceCreator({
   onWorkspaceCreated,
-  className
+  className,
+  existingBasketId,
+  mode
 }: UniversalWorkspaceCreatorProps) {
   const router = useRouter();
   const [inputs, setInputs] = useState<ContentInput[]>([]);
