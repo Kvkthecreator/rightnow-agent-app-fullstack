@@ -14,6 +14,8 @@ interface ContextualBrainSidebarProps {
   contextType: ContextType;
   intelligenceMode: IntelligenceMode;
   className?: string;
+  onToggle?: (collapsed: boolean) => void;
+  defaultCollapsed?: boolean;
 }
 
 interface ContextualContent {
@@ -33,7 +35,9 @@ export default function ContextualBrainSidebar({
   currentDocumentId,
   contextType,
   intelligenceMode,
-  className
+  className,
+  onToggle,
+  defaultCollapsed
 }: ContextualBrainSidebarProps) {
   
   // Get contextual content based on current context
@@ -123,66 +127,16 @@ export default function ContextualBrainSidebar({
   // Determine focus mode based on context and intelligence mode
   const focusMode = contextType === "document" ? "document" : "basket";
 
-  // Enhanced BrainSidebar with contextual header
+  // Use BrainSidebar directly with contextual enhancements  
   return (
-    <div className={cn("w-80 border-l bg-background flex flex-col", className)}>
-      {/* Contextual Header */}
-      <div className="p-4 border-b bg-muted/20">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="text-lg">🧠</div>
-            <div>
-              <h2 className="font-medium text-sm">{contextualContent.title}</h2>
-              <p className="text-xs text-muted-foreground">
-                {contextualContent.description}
-              </p>
-            </div>
-          </div>
-          <IntelligenceModeIndicator mode={intelligenceMode} />
-        </div>
-
-        {/* Context-specific quick actions */}
-        <div className="flex gap-1 flex-wrap">
-          {contextualContent.quickActions.map((action, idx) => (
-            <Button
-              key={idx}
-              variant="ghost"
-              size="sm"
-              onClick={action.action}
-              className="text-xs h-7 px-2"
-            >
-              <span className="mr-1">{action.icon}</span>
-              {action.label}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Standard BrainSidebar with enhanced context */}
-      <div className="flex-1 overflow-hidden">
-        <BrainSidebar
-          basketId={basketId}
-          currentDocumentId={currentDocumentId}
-          focusMode={focusMode}
-          className="border-none"
-        />
-      </div>
-
-      {/* Contextual hints footer */}
-      <div className="p-3 border-t bg-muted/10">
-        <div className="text-xs text-muted-foreground mb-2">
-          💡 <strong>Focus:</strong> {contextualContent.memoryFocus}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" className="flex-1 text-xs">
-            📚 Learn Mode
-          </Button>
-          <Button variant="ghost" size="sm" className="flex-1 text-xs">
-            🎯 Focus
-          </Button>
-        </div>
-      </div>
-    </div>
+    <BrainSidebar
+      basketId={basketId}
+      currentDocumentId={currentDocumentId}
+      focusMode={focusMode}
+      className={className}
+      onToggle={onToggle}
+      defaultCollapsed={defaultCollapsed}
+    />
   );
 }
 

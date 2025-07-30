@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { createDocumentWithPrompt } from "@/lib/documents/createDocument";
+import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import type { Document } from "@/types";
 
 interface Props {
@@ -64,16 +65,15 @@ export default function BasketSidebar({
 
   if (collapsed) {
     return (
-      <aside className={cn("w-12 border-r shrink-0 flex flex-col bg-muted/20", className)}>
+      <aside className={cn("w-12 border-r shrink-0 flex flex-col bg-background", className)}>
         <div className="p-2">
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => setCollapsed(false)}
-            className="w-full h-8 px-0"
+            aria-label="Expand sidebar"
+            className="p-1.5 rounded hover:bg-muted transition w-full flex justify-center"
           >
-            📂
-          </Button>
+            <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
+          </button>
         </div>
       </aside>
     );
@@ -98,14 +98,13 @@ export default function BasketSidebar({
               <span className="font-medium text-sm">Yarnnn</span>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => setCollapsed(true)}
-            className="h-6 w-6 p-0 text-muted-foreground"
+            aria-label="Collapse sidebar"
+            className="p-1.5 rounded hover:bg-muted transition"
           >
-            ←
-          </Button>
+            <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
+          </button>
         </div>
         
         {/* Basket Info */}

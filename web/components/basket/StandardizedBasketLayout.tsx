@@ -100,6 +100,8 @@ export default function StandardizedBasketLayout({
       contextType={contextType}
       intelligenceMode={intelligenceMode}
       className="hidden lg:flex"
+      onToggle={(collapsed) => setShowBrainSidebar(!collapsed)}
+      defaultCollapsed={!showBrainSidebar}
     />
   );
 
@@ -118,19 +120,20 @@ export default function StandardizedBasketLayout({
           />
         )}
 
-        {/* Mobile Brain Sidebar Toggle */}
-        <button
-          onClick={handleToggleBrainSidebar}
-          data-discovery="brain-toggle"
-          className={cn(
-            "fixed bottom-4 right-4 z-20 bg-primary text-primary-foreground hover:opacity-90 p-3 rounded-full shadow-lg transition-all brain-toggle",
-            isMobile ? "block" : "hidden",
-            discoveryStage === 1 && "animate-pulse ring-2 ring-primary/50 discovered"
-          )}
-          title={showBrainSidebar ? "Hide AI Brain" : "Show AI Brain"}
-        >
-          🧠
-        </button>
+        {/* Mobile Brain Sidebar Toggle - Only show if brain sidebar is collapsed */}
+        {isMobile && !showBrainSidebar && (
+          <button
+            onClick={handleToggleBrainSidebar}
+            data-discovery="brain-toggle"
+            className={cn(
+              "fixed bottom-4 right-4 z-20 bg-primary text-primary-foreground hover:opacity-90 p-3 rounded-full shadow-lg transition-all brain-toggle",
+              discoveryStage === 1 && "animate-pulse ring-2 ring-primary/50 discovered"
+            )}
+            title="Show AI Brain"
+          >
+            🧠
+          </button>
+        )}
 
         {/* Main Content */}
         <div className="h-full overflow-y-auto">
@@ -150,20 +153,6 @@ export default function StandardizedBasketLayout({
       {/* Right Panel - Intelligence (Desktop) */}
       {!isMobile && (rightPanel || defaultRightPanel)}
 
-      {/* Desktop Brain Sidebar Toggle */}
-      <div className="hidden lg:flex items-center justify-center w-6 border-l">
-        <button
-          onClick={handleToggleBrainSidebar}
-          data-discovery="brain-toggle"
-          className={cn(
-            "p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors brain-toggle",
-            discoveryStage === 1 && "animate-pulse text-primary discovered"
-          )}
-          title={showBrainSidebar ? "Hide AI Brain" : "Show AI Brain"}
-        >
-          {showBrainSidebar ? '→' : '🧠'}
-        </button>
-      </div>
     </div>
   );
 }

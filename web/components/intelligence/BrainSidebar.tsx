@@ -14,6 +14,8 @@ interface BrainSidebarProps {
   currentDocumentId?: string;
   focusMode: "document" | "basket";
   className?: string;
+  onToggle?: (collapsed: boolean) => void;
+  defaultCollapsed?: boolean;
 }
 
 type PanelType = "context" | "suggestions" | "memory";
@@ -22,23 +24,31 @@ export default function BrainSidebar({
   basketId, 
   currentDocumentId, 
   focusMode,
-  className 
+  className,
+  onToggle,
+  defaultCollapsed = false
 }: BrainSidebarProps) {
   const [activePanel, setActivePanel] = useState<PanelType>("context");
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+
+  const handleToggle = () => {
+    const newCollapsed = !collapsed;
+    setCollapsed(newCollapsed);
+    onToggle?.(newCollapsed);
+  };
 
   if (collapsed) {
     return (
       <div className={cn("w-12 border-l bg-background flex flex-col", className)}>
-        <div className="p-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCollapsed(false)}
-            className="w-full h-8 px-0"
+        <div className="p-2 border-b">
+          <button
+            onClick={handleToggle}
+            aria-label="Expand Brain sidebar"
+            className="p-1.5 rounded hover:bg-muted transition w-full flex justify-center"
+            title="Expand AI Brain"
           >
-            🧠
-          </Button>
+            <span className="text-lg">🧠</span>
+          </button>
         </div>
         <div className="flex-1 flex flex-col gap-1 p-1">
           <PanelButton
@@ -78,19 +88,19 @@ export default function BrainSidebar({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <IntelligenceStatusIndicator 
               basketId={basketId}
               documentId={currentDocumentId}
             />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCollapsed(true)}
-              className="h-6 w-6 p-0"
+            <button
+              onClick={handleToggle}
+              aria-label="Collapse Brain sidebar"
+              className="p-1.5 rounded hover:bg-muted transition"
+              title="Collapse AI Brain"
             >
-              →
-            </Button>
+              <span className="text-sm">→</span>
+            </button>
           </div>
         </div>
 
