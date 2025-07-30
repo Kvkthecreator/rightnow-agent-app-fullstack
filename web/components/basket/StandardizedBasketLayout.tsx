@@ -13,6 +13,7 @@ interface StandardizedBasketLayoutProps {
   basketName: string;
   status: string;
   scope: string[];
+  documents?: any[];
   leftPanel?: ReactNode;
   mainContent: ReactNode;
   rightPanel?: ReactNode;
@@ -30,6 +31,7 @@ export default function StandardizedBasketLayout({
   basketName,
   status,
   scope,
+  documents,
   leftPanel,
   mainContent,
   rightPanel,
@@ -86,6 +88,7 @@ export default function StandardizedBasketLayout({
       basketName={basketName}
       status={status}
       scope={scope}
+      documents={documents}
     />
   );
 

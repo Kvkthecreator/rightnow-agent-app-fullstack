@@ -48,7 +48,8 @@ export default function BasketWorkLayout({
   };
 
   // Determine context type based on current tab
-  const contextType = tab === "insights" ? "insights" : "dashboard";
+  const contextType = tab === "insights" ? "insights" : 
+                     tab === "history" ? "settings" : "dashboard";
   
   // Create main content based on tab
   let mainContent: ReactNode;
@@ -96,6 +97,23 @@ export default function BasketWorkLayout({
         />
       );
       break;
+    case "history":
+      mainContent = (
+        <div className="p-6">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold mb-6">Basket History</h1>
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Track changes, document versions, and collaboration history for this basket.
+              </div>
+              <div className="border rounded-lg p-4 bg-muted/20">
+                <p className="text-sm">History functionality coming soon...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+      break;
     default:
       mainContent = <div className="p-4">Coming soon: {tab}</div>;
   }
@@ -106,6 +124,7 @@ export default function BasketWorkLayout({
       basketName={basketName}
       status={status}
       scope={scope}
+      documents={documents}
       mainContent={mainContent}
       contextType={contextType}
       intelligenceMode={tab === "insights" ? "detailed" : "ambient"}

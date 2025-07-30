@@ -1,14 +1,20 @@
 "use client";
-import BasketSidebarHeader from "./BasketSidebarHeader";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
+import { createDocumentWithPrompt } from "@/lib/documents/createDocument";
+import type { Document } from "@/types";
 
 interface Props {
   basketId: string;
   basketName: string;
   status: string;
   scope: string[];
+  documents?: Document[];
+  className?: string;
 }
 
 export default function BasketSidebar({
@@ -16,42 +22,283 @@ export default function BasketSidebar({
   basketName,
   status,
   scope,
+  documents = [],
+  className,
 }: Props) {
+  const router = useRouter();
   const params = useSearchParams();
   const currentTab = params.get("tab") || "dashboard";
+  const currentDocId = params.get("docId");
+  const [collapsed, setCollapsed] = useState(false);
+  const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set());
+  const [isCreatingDocument, setIsCreatingDocument] = useState(false);
+
+  const toggleDocExpansion = (docId: string) => {
+    const newExpanded = new Set(expandedDocs);
+    if (newExpanded.has(docId)) {
+      newExpanded.delete(docId);
+    } else {
+      newExpanded.add(docId);
+    }
+    setExpandedDocs(newExpanded);
+  };
+
+  const handleNavigation = (path: string) => {
+    router.push(path);
+  };
+
+  const handleCreateDocument = async () => {
+    if (isCreatingDocument) return;
+    
+    setIsCreatingDocument(true);
+    try {
+      const newDocument = await createDocumentWithPrompt(basketId);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to create document:', error);
+      alert('Failed to create document. Please try again.');
+    } finally {
+      setIsCreatingDocument(false);
+    }
+  };
+
+  if (collapsed) {
+    return (
+      <aside className={cn("w-12 border-r shrink-0 flex flex-col bg-muted/20", className)}>
+        <div className="p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(false)}
+            className="w-full h-8 px-0"
+          >
+            📂
+          </Button>
+        </div>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="w-[260px] border-r shrink-0 flex flex-col p-4 space-y-6">
-      <BasketSidebarHeader
-        basketName={basketName}
-        status={status}
-        scope={scope}
-      />
-      <nav className="flex flex-col gap-2 text-sm">
-        <Link
-          href={`/baskets/${basketId}/work?tab=dashboard`}
-          className={cn(currentTab === "dashboard" && "font-semibold")}
-        >
-          Dashboard
-        </Link>
-        <Link
-          href={`/baskets/${basketId}/work?tab=insights`}
-          className={cn(currentTab === "insights" && "font-semibold")}
-        >
-          Insights
-        </Link>
-        <Link
-          href={`/baskets/${basketId}/work?tab=history`}
-          className={cn(currentTab === "history" && "font-semibold")}
-        >
-          History
-        </Link>
-      </nav>
-      <div className="text-xs font-semibold text-muted-foreground space-y-2">
-        <p>Context Items</p>
-        <p>Text Blocks</p>
-        <p>Documents</p>
-        <p>Raw Dumps</p>
+    <aside className={cn("w-[280px] border-r shrink-0 flex flex-col bg-background", className)}>
+      {/* General Navigation Header */}
+      <div className="p-4 border-b bg-muted/20">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/dashboard/home")}
+              className="text-xs px-2 py-1 h-7"
+            >
+              ← Back
+            </Button>
+            <div className="flex items-center gap-1">
+              <span className="text-lg">🧺</span>
+              <span className="font-medium text-sm">Yarnnn</span>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(true)}
+            className="h-6 w-6 p-0 text-muted-foreground"
+          >
+            ←
+          </Button>
+        </div>
+        
+        {/* Basket Info */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h2 className="font-medium text-sm truncate flex-1">{basketName}</h2>
+            <Badge variant="outline" className="text-xs">
+              {status}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {documents.length} documents • {scope.length} topics
+          </p>
+        </div>
+      </div>
+
+      {/* Basket Context Navigation */}
+      <div className="p-4 border-b">
+        <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+          Basket Context
+        </h3>
+        <nav className="space-y-1">
+          <NavItem
+            icon="📊"
+            label="Dashboard"
+            active={currentTab === "dashboard" && !currentDocId}
+            onClick={() => handleNavigation(`/baskets/${basketId}/work?tab=dashboard`)}
+          />
+          <NavItem
+            icon="🧠"
+            label="Insights"
+            active={currentTab === "insights" && !currentDocId}
+            onClick={() => handleNavigation(`/baskets/${basketId}/work?tab=insights`)}
+          />
+          <NavItem
+            icon="📜"
+            label="History"
+            active={currentTab === "history" && !currentDocId}
+            onClick={() => handleNavigation(`/baskets/${basketId}/work?tab=history`)}
+          />
+        </nav>
+      </div>
+
+      {/* Documents Section */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Documents
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
+              onClick={handleCreateDocument}
+              disabled={isCreatingDocument}
+            >
+              {isCreatingDocument ? "..." : "+"}
+            </Button>
+          </div>
+          
+          <nav className="space-y-1">
+            {documents.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-4">
+                No documents yet
+              </div>
+            ) : (
+              documents.map((doc) => (
+                <DocumentNavItem
+                  key={doc.id}
+                  document={doc}
+                  basketId={basketId}
+                  expanded={expandedDocs.has(doc.id)}
+                  active={currentDocId === doc.id}
+                  currentTab={currentTab}
+                  onToggleExpand={() => toggleDocExpansion(doc.id)}
+                  onNavigate={handleNavigation}
+                />
+              ))
+            )}
+          </nav>
+        </div>
       </div>
     </aside>
+  );
+}
+
+interface NavItemProps {
+  icon: string;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  badge?: string;
+}
+
+function NavItem({ icon, label, active, onClick, badge }: NavItemProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors text-left",
+        active 
+          ? "bg-primary text-primary-foreground" 
+          : "hover:bg-muted text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <span className="text-base">{icon}</span>
+      <span className="flex-1">{label}</span>
+      {badge && (
+        <Badge variant="secondary" className="text-xs">
+          {badge}
+        </Badge>
+      )}
+    </button>
+  );
+}
+
+interface DocumentNavItemProps {
+  document: Document;
+  basketId: string;
+  expanded: boolean;
+  active: boolean;
+  currentTab: string;
+  onToggleExpand: () => void;
+  onNavigate: (path: string) => void;
+}
+
+function DocumentNavItem({
+  document,
+  basketId,
+  expanded,
+  active,
+  currentTab,
+  onToggleExpand,
+  onNavigate,
+}: DocumentNavItemProps) {
+  const docActive = active && !currentTab.includes("insights") && !currentTab.includes("history");
+  const docInsightsActive = active && currentTab.includes("insights");
+  const docHistoryActive = active && currentTab.includes("history");
+
+  return (
+    <div className="space-y-1">
+      {/* Main document item */}
+      <div className="flex items-center">
+        <button
+          onClick={onToggleExpand}
+          className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground mr-1"
+        >
+          {expanded ? "⌄" : "›"}
+        </button>
+        <button
+          onClick={() => onNavigate(`/baskets/${basketId}/docs/${document.id}/work`)}
+          className={cn(
+            "flex-1 flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors text-left",
+            docActive
+              ? "bg-primary text-primary-foreground"
+              : "hover:bg-muted text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span className="text-base">📄</span>
+          <span className="flex-1 truncate">{document.title || `Document ${document.id.slice(0, 8)}`}</span>
+        </button>
+      </div>
+
+      {/* Expanded document sub-items */}
+      {expanded && (
+        <div className="ml-6 space-y-1">
+          <button
+            onClick={() => onNavigate(`/baskets/${basketId}/docs/${document.id}/insights`)}
+            className={cn(
+              "w-full flex items-center gap-2 px-2 py-1 text-sm rounded-md transition-colors text-left",
+              docInsightsActive
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-muted text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <span className="text-sm">🧠</span>
+            <span className="flex-1">Insights</span>
+          </button>
+          <button
+            onClick={() => onNavigate(`/baskets/${basketId}/docs/${document.id}/history`)}
+            className={cn(
+              "w-full flex items-center gap-2 px-2 py-1 text-sm rounded-md transition-colors text-left",
+              docHistoryActive
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-muted text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <span className="text-sm">📜</span>
+            <span className="flex-1">History</span>
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
