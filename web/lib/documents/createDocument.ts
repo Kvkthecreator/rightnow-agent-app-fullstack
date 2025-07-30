@@ -44,16 +44,14 @@ export async function createDocument(data: DocumentCreationData): Promise<Create
 }
 
 export async function createDocumentWithPrompt(basketId: string): Promise<CreatedDocument> {
-  const title = prompt('Enter document title:', 'New Document');
-  
-  if (!title) {
-    throw new Error('Document creation cancelled');
-  }
+  // Generate a default title with timestamp to avoid the prompt issue
+  const timestamp = new Date().toLocaleString();
+  const defaultTitle = `New Document - ${timestamp}`;
 
   return createDocument({
     basket_id: basketId,
-    title,
-    content: `# ${title}\n\nStart writing your content here...`,
+    title: defaultTitle,
+    content: `# ${defaultTitle}\n\nStart writing your content here...`,
     document_type: 'general'
   });
 }
