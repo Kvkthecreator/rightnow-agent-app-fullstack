@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import UniversalContentInput from './UniversalContentInput';
 import LiveIntelligencePreview from './LiveIntelligencePreview';
 import WorkspaceCreationTrigger from './WorkspaceCreationTrigger';
-import { useUniversalIntelligence, ContentInput } from '@/lib/intelligence/useUniversalIntelligence';
+import { useUniversalIntelligence, ContentInput, WorkspaceCreationResult } from '@/lib/intelligence/useUniversalIntelligence';
 import { cn } from '@/lib/utils';
 
 interface UniversalWorkspaceCreatorProps {
@@ -20,7 +20,7 @@ export default function UniversalWorkspaceCreator({
   const router = useRouter();
   const [inputs, setInputs] = useState<ContentInput[]>([]);
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-  const [creationResult, setCreationResult] = useState(null);
+  const [creationResult, setCreationResult] = useState<WorkspaceCreationResult | null>(null);
   
   const {
     processContent,
