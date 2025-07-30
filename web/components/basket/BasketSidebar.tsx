@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -15,6 +15,7 @@ interface Props {
   status: string;
   scope: string[];
   documents?: Document[];
+  currentDocumentId?: string;
   className?: string;
 }
 
@@ -24,12 +25,18 @@ export default function BasketSidebar({
   status,
   scope,
   documents = [],
+  currentDocumentId,
   className,
 }: Props) {
   const router = useRouter();
   const params = useSearchParams();
+  const pathname = usePathname();
   const currentTab = params.get("tab") || "dashboard";
-  const currentDocId = params.get("docId");
+  
+  // Extract document ID from URL path (e.g., /baskets/[id]/docs/[did]/work)
+  const docMatch = pathname.match(/\/baskets\/[^\/]+\/docs\/([^\/]+)/);
+  const currentDocId = currentDocumentId || (docMatch ? docMatch[1] : params.get("docId"));
+  
   const [collapsed, setCollapsed] = useState(false);
   const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set());
   const [isCreatingDocument, setIsCreatingDocument] = useState(false);

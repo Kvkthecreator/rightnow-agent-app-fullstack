@@ -89,6 +89,7 @@ export default function StandardizedBasketLayout({
       status={status}
       scope={scope}
       documents={documents}
+      currentDocumentId={currentDocumentId}
     />
   );
 
