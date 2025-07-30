@@ -132,25 +132,31 @@ export default function BrainSidebar({
       {/* Active Panel Content */}
       <div className="flex-1 overflow-y-auto">
         {activePanel === "context" && (
-          <CurrentContextPanel 
-            basketId={basketId}
-            documentId={currentDocumentId}
-            focusMode={focusMode}
-          />
+          <div data-discovery="brain-context">
+            <CurrentContextPanel 
+              basketId={basketId}
+              documentId={currentDocumentId}
+              focusMode={focusMode}
+            />
+          </div>
         )}
         {activePanel === "suggestions" && (
-          <IntelligentSuggestionsPanel 
-            basketId={basketId}
-            documentId={currentDocumentId}
-            focusMode={focusMode}
-          />
+          <div data-discovery="brain-suggestions">
+            <IntelligentSuggestionsPanel 
+              basketId={basketId}
+              documentId={currentDocumentId}
+              focusMode={focusMode}
+            />
+          </div>
         )}
         {activePanel === "memory" && (
-          <MemoryInsightsPanel 
-            basketId={basketId}
-            documentId={currentDocumentId}
-            focusMode={focusMode}
-          />
+          <div data-discovery="brain-memory">
+            <MemoryInsightsPanel 
+              basketId={basketId}
+              documentId={currentDocumentId}
+              focusMode={focusMode}
+            />
+          </div>
         )}
       </div>
 
