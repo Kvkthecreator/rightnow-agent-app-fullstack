@@ -22,7 +22,7 @@ export default function UniversalCreateButton({
   const router = useRouter();
 
   const handleCreateWorkspace = () => {
-    router.push("/onboarding/new-workspace");
+    router.push("/onboarding");
   };
 
   // Context-specific button content and styling

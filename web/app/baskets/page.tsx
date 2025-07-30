@@ -15,14 +15,13 @@ import {
 import { Card } from "@/components/ui/Card";
 import BasketCard from "@/components/BasketCard";
 import PageHeader from "@/components/page/PageHeader";
-import CreateBasketDialog from "@/components/CreateBasketDialog";
+import { EmptyStateCreateButton } from "@/components/onboarding/UniversalCreateButton";
 import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
 
 export default function BasketsPage() {
   const { session, isLoading } = useSessionContext();
   const router = useRouter();
   const [baskets, setBaskets] = useState<BasketOverview[]>([]);
-  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("created");
   const [page, setPage] = useState(1);
@@ -69,8 +68,7 @@ export default function BasketsPage() {
         description="Lightweight containers for your tasks, context, and thoughts"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setOpen(true)}>+ New Basket</Button>
-            <CreateBasketDialog open={open} onOpenChange={setOpen} />
+            <Button onClick={() => router.push('/onboarding')}>✨ Create Workspace</Button>
             <Select value={sort} onValueChange={(v) => setSort(v)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Sort by" />
@@ -101,8 +99,8 @@ export default function BasketsPage() {
       </Card>
 
       {pageData.length === 0 ? (
-        <div className="p-8 text-center text-muted-foreground">
-          No baskets found. You can create a new one to get started.
+        <div className="p-12 text-center">
+          <EmptyStateCreateButton />
         </div>
       ) : (
         <div className="space-y-4">
