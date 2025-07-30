@@ -92,11 +92,13 @@ export async function POST(request: NextRequest) {
       basket_id,
       title = "Untitled Document",
       content = "",
+      content_raw,
       type = "document",
       document_type = "general"
     } = body;
 
     const finalBasketId = basketId || basket_id;
+    const finalContent = content_raw || content;
 
     if (!finalBasketId) {
       return NextResponse.json(
@@ -112,7 +114,7 @@ export async function POST(request: NextRequest) {
       .from("documents")
       .insert({
         title,
-        content_raw: content,
+        content_raw: finalContent,
         document_type,
         basket_id: finalBasketId,
         workspace_id: workspace.id,
@@ -126,6 +128,7 @@ export async function POST(request: NextRequest) {
 
     if (createError) {
       console.error("Document creation error:", createError);
+      console.error("Failed payload:", { title, content_raw: finalContent, document_type, basket_id: finalBasketId, workspace_id: workspace.id });
       return NextResponse.json(
         { error: "Failed to create document", details: createError.message },
         { status: 500 }
@@ -142,7 +145,13 @@ export async function POST(request: NextRequest) {
 
     console.log("[/api/documents] Document created successfully:", document.id);
 
-    return NextResponse.json(document, { status: 201 });
+    // Map database fields to client expected fields
+    const responseDocument = {
+      ...document,
+      content: document.content_raw // Map content_raw back to content for client compatibility
+    };
+
+    return NextResponse.json(responseDocument, { status: 201 });
 
   } catch (error) {
     console.error("Documents POST API error:", error);
