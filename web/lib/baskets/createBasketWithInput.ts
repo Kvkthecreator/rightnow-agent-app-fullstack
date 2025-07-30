@@ -1,7 +1,6 @@
 import { uploadFile } from "@/lib/uploadFile";
 import { createClient } from "@/lib/supabaseClient";
 import { fetchWithToken } from "@/lib/fetchWithToken";
-import { apiUrl } from "@/lib/api";
 
 export interface CreateBasketArgs {
   userId: string;
@@ -17,7 +16,7 @@ export async function createBasketWithInput({
   // 1️⃣ Core basket creation via privileged API route
   const payload = { text_dump: text, file_urls: [] as string[] };
   console.log("[createBasketWithInput] Payload:", payload);
-  const resp = await fetchWithToken(apiUrl("/baskets/new"), {
+  const resp = await fetchWithToken("/api/baskets/new", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
