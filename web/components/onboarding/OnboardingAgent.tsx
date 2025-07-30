@@ -85,8 +85,12 @@ export default function OnboardingAgent() {
       const { createWorkspace } = await import('@/lib/onboarding/createWorkspace');
       const result = await createWorkspace(workspacePlan, businessContext);
       
-      // Redirect to the created workspace
-      router.push(`/baskets/${result.basketId}`);
+      setStage('complete');
+      
+      // Give user a moment to see completion, then redirect to workspace
+      setTimeout(() => {
+        router.push(`/baskets/${result.basketId}/work`);
+      }, 2000);
     } catch (error) {
       console.error('Failed to create workspace:', error);
       // Handle error - could show error state or retry option
@@ -171,6 +175,21 @@ export default function OnboardingAgent() {
               I'm setting up your workspace with documents, analysis, and AI insights. 
               This will just take a moment...
             </p>
+          </div>
+        )}
+
+        {stage === 'complete' && (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-6">🎉</div>
+            <h3 className="text-2xl font-bold mb-4 text-green-600">Workspace Created Successfully!</h3>
+            <p className="text-muted-foreground max-w-md mx-auto mb-6">
+              Your intelligent workspace is ready with AI-powered insights, contextual analysis, 
+              and smart suggestions. Redirecting you to your new workspace...
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <span>Taking you to your workspace...</span>
+            </div>
           </div>
         )}
       </Card>

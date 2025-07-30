@@ -41,12 +41,10 @@ export default function LandingPage() {
 
             <div className="mt-8">
               <a
-                href="https://tally.so/r/wo89eX"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/onboarding/new-workspace"
                 className="inline-block bg-black text-white rounded-xl px-6 py-3 text-lg hover:bg-neutral-800 transition"
               >
-                Join early access
+                Create Your Intelligent Workspace
               </a>
             </div>
           </div>
