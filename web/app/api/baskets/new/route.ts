@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         name,
         status,
         workspace_id: workspace.id,
+        user_id: user.id,
         tags,
         origin_template: text_dump || undefined
       })
