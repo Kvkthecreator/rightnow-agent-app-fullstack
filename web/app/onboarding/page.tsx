@@ -2,16 +2,14 @@
 
 import { useAuth } from "@/lib/useAuth";
 import { redirect } from "next/navigation";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { Suspense } from "react";
 import UniversalWorkspaceCreator from "@/components/onboarding/UniversalWorkspaceCreator";
+import OnboardingContent from "./OnboardingContent";
 
 export default function OnboardingPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
-  const basketId = searchParams.get('basketId');
-  const mode = searchParams.get('mode');
 
   if (isLoading) {
     return (
@@ -32,32 +30,16 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-4xl mx-auto">
-          {/* Page Header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
-              <span>✨</span>
-              <span>Universal Intelligence Engine</span>
+          <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading...</p>
+              </div>
             </div>
-            <h1 className="text-4xl font-bold mb-4">
-              {basketId ? 'Enhance Your Workspace' : 'Create Your Intelligent Workspace'}
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              {basketId 
-                ? 'Add more content to build stronger intelligence for your existing project'
-                : 'Add any content—files, text, ideas—and watch our AI build a complete workspace with documents, insights, and intelligent organization.'
-              }
-            </p>
-          </div>
-
-          {/* Universal Workspace Creator */}
-          <UniversalWorkspaceCreator 
-            existingBasketId={basketId}
-            mode={mode}
-            onWorkspaceCreated={(finalBasketId) => {
-              // Analytics or tracking could go here
-              router.push(`/baskets/${finalBasketId}/work?tab=dashboard`);
-            }}
-          />
+          }>
+            <OnboardingContent router={router} />
+          </Suspense>
 
           {/* Features Preview */}
           <div className="mt-16 pt-12 border-t">
