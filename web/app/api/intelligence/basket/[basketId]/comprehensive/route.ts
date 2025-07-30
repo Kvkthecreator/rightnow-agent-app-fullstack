@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { basketId: string } }
+  context: { params: Promise<{ basketId: string }> }
 ) {
   try {
     const supabase = createServerSupabaseClient();
@@ -21,6 +21,7 @@ export async function GET(
       );
     }
 
+    const params = await context.params;
     const { basketId } = params;
 
     // Get basket information
