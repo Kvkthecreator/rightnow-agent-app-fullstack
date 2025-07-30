@@ -19,7 +19,7 @@ export default function NewWorkspacePage() {
   }
 
   if (!user) {
-    redirect("/auth/login");
+    redirect("/login");
   }
 
   return (

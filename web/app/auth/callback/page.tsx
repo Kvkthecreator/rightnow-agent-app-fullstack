@@ -25,7 +25,7 @@ export default function AuthCallbackPage() {
 
       // ✅ Redirect to correct landing page
       const redirectPath =
-        localStorage.getItem("redirectPath") || "/dashboard/home";
+        localStorage.getItem("redirectPath") || "/onboarding/new-workspace";
       localStorage.removeItem("redirectPath");
       router.replace(redirectPath);
     };

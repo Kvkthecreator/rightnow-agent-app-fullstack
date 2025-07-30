@@ -41,7 +41,12 @@ export default function LandingPage() {
 
             <div className="mt-8">
               <a
-                href="/onboarding/new-workspace"
+                href="/login"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('redirectPath', '/onboarding/new-workspace');
+                  }
+                }}
                 className="inline-block bg-black text-white rounded-xl px-6 py-3 text-lg hover:bg-neutral-800 transition"
               >
                 Create Your Intelligent Workspace
