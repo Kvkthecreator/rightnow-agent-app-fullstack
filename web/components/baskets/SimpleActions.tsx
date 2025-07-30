@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Plus, FileText, MessageSquare, Zap, Upload, Template, Search, BarChart3, Target } from "lucide-react";
+import { Plus, FileText, MessageSquare, Zap, Upload, Search, BarChart3, Target, FileIcon } from "lucide-react";
 
 interface Action {
   type: string;
@@ -62,7 +62,7 @@ export function SimpleActions({ basketId, actions }: SimpleActionsProps) {
       case 'import_files':
         return <Upload className="h-4 w-4" />;
       case 'start_template':
-        return <Template className="h-4 w-4" />;
+        return <FileIcon className="h-4 w-4" />;
       case 'create_document':
       case 'create_synthesis':
         return <FileText className="h-4 w-4" />;

@@ -241,14 +241,14 @@ function extractThemesFromContent(documents: any[], blocks: any[], contextItems:
     if (doc.title) {
       const titleWords = doc.title.toLowerCase()
         .split(/[\s\-_]+/)
-        .filter(word => word.length > 3 && !isCommonWord(word));
-      titleWords.forEach(word => themes.add(capitalizeWord(word)));
+        .filter((word: string) => word.length > 3 && !isCommonWord(word));
+      titleWords.forEach((word: string) => themes.add(capitalizeWord(word)));
     }
     
     // Extract meaningful keywords from content
     if (doc.content_raw) {
       const contentWords = extractKeywords(doc.content_raw);
-      contentWords.forEach(word => themes.add(word));
+      contentWords.forEach((word: string) => themes.add(word));
     }
   });
   
@@ -262,7 +262,7 @@ function extractThemesFromContent(documents: any[], blocks: any[], contextItems:
     }
     if (block.content) {
       const contentWords = extractKeywords(block.content);
-      contentWords.forEach(word => themes.add(word));
+      contentWords.forEach((word: string) => themes.add(word));
     }
   });
   
@@ -270,7 +270,7 @@ function extractThemesFromContent(documents: any[], blocks: any[], contextItems:
   contextItems.forEach(item => {
     if (item.content) {
       const contentWords = extractKeywords(item.content);
-      contentWords.forEach(word => themes.add(word));
+      contentWords.forEach((word: string) => themes.add(word));
     }
   });
   
@@ -313,11 +313,11 @@ function extractKeywords(text: string, limit: number = 3): string[] {
   const words = text.toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
-    .filter(word => word.length > 4 && !isCommonWord(word));
+    .filter((word: string) => word.length > 4 && !isCommonWord(word));
     
   // Simple frequency analysis
   const wordCount = new Map<string, number>();
-  words.forEach(word => {
+  words.forEach((word: string) => {
     wordCount.set(word, (wordCount.get(word) || 0) + 1);
   });
   
