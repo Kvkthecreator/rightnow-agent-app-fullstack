@@ -4,6 +4,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { ReactNode } from "react";
 import { BasketNavigationHub } from "@/components/navigation/BasketNavigationHub";
 import { useBasketDocuments } from "@/lib/hooks/useBasketDocuments";
+import { DashboardView } from "@/components/views/DashboardView";
 import BasketDashboard from "@/components/views/BasketDashboard";
 import LiveThinkingPartner from "@/components/intelligence/LiveThinkingPartner";
 import type { Document } from "@/types";
@@ -65,48 +66,53 @@ export default function BasketWorkLayout({
     }
   };
   
-  // Create main content based on tab
-  let mainContent: ReactNode;
-  switch (tab) {
-    case "dashboard":
-      mainContent = (
-        <BasketDashboard
-          basketId={basketId}
-          basketName={basketName}
-          dumpBody={dumpBody}
-          empty={empty}
-          documents={documents}
-        />
-      );
-      break;
-    case "insights":
-      mainContent = (
-        <LiveThinkingPartner
-          basketId={basketId}
-          basketName={basketName}
-        />
-      );
-      break;
-    case "history":
-      mainContent = (
-        <div className="p-6">
-          <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6">Project Evolution</h1>
-            <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                See how your project has evolved through our collaboration.
-              </div>
-              <div className="border rounded-lg p-4 bg-muted/20">
-                <p className="text-sm">Project evolution tracking coming soon...</p>
+  // Create main content based on current view
+  const getMainContent = (): ReactNode => {
+    const view = getCurrentView();
+    
+    switch (view) {
+      case 'dashboard':
+        return (
+          <DashboardView 
+            basketId={basketId}
+            basketName={basketName}
+          />
+        );
+      case 'documents':
+        if (tab === 'insights') {
+          return (
+            <LiveThinkingPartner
+              basketId={basketId}
+              basketName={basketName}
+            />
+          );
+        }
+        return <div className="p-6">Documents View - Coming next</div>;
+      case 'timeline':
+        return (
+          <div className="p-6">
+            <div className="max-w-4xl mx-auto">
+              <h1 className="text-2xl font-bold mb-6">Project Timeline</h1>
+              <div className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  See how your project has evolved through our collaboration.
+                </div>
+                <div className="border rounded-lg p-4 bg-muted/20">
+                  <p className="text-sm">Project timeline tracking coming soon...</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      );
-      break;
-    default:
-      mainContent = <div className="p-4">Coming soon: {tab}</div>;
-  }
+        );
+      default:
+        return (
+          <DashboardView 
+            basketId={basketId}
+            basketName={basketName}
+          />
+        );
+    }
+  };
 
   return (
     <div className="basket-work-layout h-screen flex bg-gray-50">
@@ -120,7 +126,7 @@ export default function BasketWorkLayout({
       />
       
       <main className="flex-1 flex flex-col min-w-0 bg-white">
-        {mainContent}
+        {getMainContent()}
       </main>
     </div>
   );
