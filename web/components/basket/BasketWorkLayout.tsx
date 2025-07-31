@@ -59,13 +59,13 @@ export default function BasketWorkLayout({
       mainContent = (
         <div className="p-6">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6">Basket History</h1>
+            <h1 className="text-2xl font-bold mb-6">Project Evolution</h1>
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground">
-                Track changes, document versions, and collaboration history for this basket.
+                See how your project has evolved through our collaboration.
               </div>
               <div className="border rounded-lg p-4 bg-muted/20">
-                <p className="text-sm">History functionality coming soon...</p>
+                <p className="text-sm">Project evolution tracking coming soon...</p>
               </div>
             </div>
           </div>

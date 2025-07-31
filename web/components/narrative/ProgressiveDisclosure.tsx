@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { ChevronRight, ChevronDown, Eye, Lightbulb, Settings } from "lucide-react";
 
 interface ProgressiveDisclosureProps {
-  story: string;
+  story: string | ReactNode;
   reasoning?: string;
   substrate?: any;
   defaultLevel?: 'story' | 'reasoning' | 'substrate';
   className?: string;
+  children?: ReactNode;
 }
 
 export function ProgressiveDisclosure({ 
@@ -16,7 +17,8 @@ export function ProgressiveDisclosure({
   reasoning, 
   substrate, 
   defaultLevel = 'story',
-  className = ""
+  className = "",
+  children
 }: ProgressiveDisclosureProps) {
   const [level, setLevel] = useState<'story' | 'reasoning' | 'substrate'>(defaultLevel);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -109,6 +111,13 @@ export function ProgressiveDisclosure({
               )}
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Children components render after disclosure */}
+      {children && (
+        <div className="progressive-children mt-4">
+          {children}
         </div>
       )}
     </div>
