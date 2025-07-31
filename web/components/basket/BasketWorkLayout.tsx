@@ -5,6 +5,7 @@ import { ReactNode } from "react";
 import { BasketNavigationHub } from "@/components/navigation/BasketNavigationHub";
 import { useBasketDocuments } from "@/lib/hooks/useBasketDocuments";
 import { DashboardView } from "@/components/views/DashboardView";
+import { DocumentsView } from "@/components/views/DocumentsView";
 import BasketDashboard from "@/components/views/BasketDashboard";
 import LiveThinkingPartner from "@/components/intelligence/LiveThinkingPartner";
 import type { Document } from "@/types";
@@ -87,7 +88,13 @@ export default function BasketWorkLayout({
             />
           );
         }
-        return <div className="p-6">Documents View - Coming next</div>;
+        return (
+          <DocumentsView
+            basketId={basketId}
+            basketName={basketName}
+            documentId={getActiveDocumentId()}
+          />
+        );
       case 'timeline':
         return (
           <div className="p-6">
