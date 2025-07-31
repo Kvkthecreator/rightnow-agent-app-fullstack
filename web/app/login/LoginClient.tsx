@@ -37,23 +37,23 @@ export default function LoginClient() {
   };
 
   return (
-    <div className="p-8 max-w-md mx-auto">
+    <div className="flex flex-col items-center space-y-4">
       <Brand />
-      <Button onClick={handleGoogleLogin}>Continue with Google</Button>
+      <Button onClick={handleGoogleLogin} className="w-full">Continue with Google</Button>
       {showDevMagicLogin && (
-        <>
+        <div className="w-full space-y-3">
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-4 border p-2 w-full"
+            className="border rounded-md p-2 w-full text-center"
             placeholder="Email for magic link"
           />
-          <Button onClick={handleMagicLinkLogin}>Send Magic Link</Button>
-        </>
+          <Button onClick={handleMagicLinkLogin} className="w-full">Send Magic Link</Button>
+        </div>
       )}
-      {sent && <p className="text-green-600 mt-2">Check your email!</p>}
-      {errorMsg && <p className="text-red-600 mt-2">{errorMsg}</p>}
+      {sent && <p className="text-green-600 text-center text-sm">Check your email!</p>}
+      {errorMsg && <p className="text-red-600 text-center text-sm">{errorMsg}</p>}
     </div>
   );
 }
