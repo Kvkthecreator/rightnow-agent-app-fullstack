@@ -1,7 +1,7 @@
 "use client";
 import BasketDashboard from "@/components/views/BasketDashboard";
 import LiveThinkingPartner from "@/components/intelligence/LiveThinkingPartner";
-import StandardizedBasketLayout from "@/components/basket/StandardizedBasketLayout";
+import { AdaptiveLayout } from "@/components/layouts/AdaptiveLayout";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ReactNode } from "react";
 import type { Document } from "@/types";
@@ -29,9 +29,15 @@ export default function BasketWorkLayout({
   const router = useRouter();
   const tab = searchParams.get("tab") || "dashboard";
 
-  // Determine context type based on current tab
-  const contextType = tab === "insights" ? "insights" : 
-                     tab === "history" ? "settings" : "dashboard";
+  // Map tabs to view types
+  const getViewType = (tab: string): 'dashboard' | 'documents' | 'insights' | 'understanding' => {
+    switch (tab) {
+      case "insights": return "insights";
+      case "history": return "understanding";
+      case "documents": return "documents";
+      default: return "dashboard";
+    }
+  };
   
   // Create main content based on tab
   let mainContent: ReactNode;
@@ -77,17 +83,11 @@ export default function BasketWorkLayout({
   }
 
   return (
-    <StandardizedBasketLayout
+    <AdaptiveLayout
+      view={getViewType(tab)}
       basketId={basketId}
-      basketName={basketName}
-      status={status}
-      scope={scope}
-      documents={documents}
-      mainContent={mainContent}
-      contextType={contextType}
-      intelligenceMode={tab === "insights" ? "detailed" : "ambient"}
-      showIntelligenceHints={true}
-      onIntelligenceDiscovered={() => console.log("User discovered intelligence features")}
-    />
+    >
+      {mainContent}
+    </AdaptiveLayout>
   );
 }
