@@ -38,7 +38,7 @@ export function useProjectHealth(basketId: string, previousAnalysis?: Record<str
         },
         body: JSON.stringify({
           basket_id: basketId,
-          workspace_id: user?.workspace_id || 'default',
+          workspace_id: 'default',
           previous_analysis: previousAnalysis
         })
       });

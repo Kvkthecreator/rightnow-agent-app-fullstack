@@ -20,8 +20,8 @@ interface ConversationalAction {
   label: string;
   description: string;
   icon: React.ReactNode;
-  variant?: 'default' | 'outline' | 'secondary' | 'ghost';
-  size?: 'sm' | 'default' | 'lg';
+  variant?: 'default' | 'outline' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   primary?: boolean;
   onClick: () => void;

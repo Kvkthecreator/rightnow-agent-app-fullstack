@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from ...models.context import (
     ContextItem, CompositionIntent, ContextHierarchy, CompositionProfile
 )
-from ...schemas.context_composition_schema import (
+from ....schemas.context_composition_schema import (
     CompositionIntelligenceReport,
     CompositionOpportunity,
     ContextEnhancementSuggestion,

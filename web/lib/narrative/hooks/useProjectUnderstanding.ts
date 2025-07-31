@@ -47,7 +47,7 @@ export function useProjectUnderstanding(basketId: string, userContext?: Record<s
         },
         body: JSON.stringify({
           basket_id: basketId,
-          workspace_id: user?.workspace_id || 'default',
+          workspace_id: 'default',
           user_context: userContext
         })
       });

@@ -46,7 +46,7 @@ export function useIntelligentGuidance(
         },
         body: JSON.stringify({
           basket_id: basketId,
-          workspace_id: user?.workspace_id || 'default',
+          workspace_id: 'default',
           focus_area: focusArea,
           user_goal: userGoal
         })

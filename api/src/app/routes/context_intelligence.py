@@ -14,7 +14,7 @@ from ..context.services.composition_intelligence import CompositionIntelligenceS
 from ..context.services.context_hierarchy import ContextHierarchyService
 from ..context.services.intent_analyzer import IntentAnalyzerService
 from ..context.services.context_discovery import ContextDiscoveryService
-from ..schemas.context_composition_schema import (
+from ...schemas.context_composition_schema import (
     CompositionIntelligenceReport,
     CompositionReadinessAssessment,
     ContextDiscoveryRequest,

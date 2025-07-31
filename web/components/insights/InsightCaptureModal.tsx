@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@/components/ui/Textarea";
 import { ProgressiveDisclosure } from "@/components/narrative/ProgressiveDisclosure";
 import { Lightbulb, Sparkles, Link, FileText } from "lucide-react";
 import { transformToNarrativeLanguage, createProgressiveStory } from "@/lib/narrative/utils/languageTransformation";

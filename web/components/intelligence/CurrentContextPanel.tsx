@@ -8,7 +8,16 @@ import { Spinner } from "@/components/ui/Spinner";
 import { useBasketIntelligence } from "@/lib/intelligence/useBasketIntelligence";
 import { useDocumentContext } from "@/lib/intelligence/useDocumentContext";
 import { TriggerEvent } from "@/lib/intelligence/useBehavioralTriggers";
-import { ContextualInsight } from "@/lib/intelligence/useContextualAgentResponse";
+// Local type definition for ContextualInsight
+interface ContextualInsight {
+  insight_id: string;
+  insight_title: string;
+  insight_content: string;
+  insight_type: string;
+  confidence_score: number;
+  relevance: number;
+  description: string;
+}
 
 interface CurrentContextPanelProps {
   basketId: string;

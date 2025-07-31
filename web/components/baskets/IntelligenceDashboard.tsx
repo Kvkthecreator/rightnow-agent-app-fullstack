@@ -105,7 +105,14 @@ export function IntelligenceDashboard({ basketId }: IntelligenceDashboardProps) 
         {/* Strategic Guidance */}
         {(guidance?.length > 0 || combinedData.nextSteps?.length > 0) && (
           <StrategicGuidance
-            nextSteps={combinedData.nextSteps}
+            nextSteps={Array.isArray(combinedData.nextSteps) 
+              ? combinedData.nextSteps.map((step, index) => 
+                  typeof step === 'string' 
+                    ? { description: step, priority: index + 1 }
+                    : step
+                )
+              : []
+            }
             guidance={guidance?.slice(0, 3)} // Show top 3 guidance items
           />
         )}

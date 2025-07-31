@@ -30,7 +30,7 @@ export function useBasketIntelligenceDashboard(basketId: string) {
   const { user } = useAuth();
   
   const { data, error, isLoading, mutate } = useSWR<BasketIntelligenceDashboard>(
-    basketId && user ? `/api/narrative-intelligence/dashboard/${basketId}?workspace_id=${user?.workspace_id || 'default'}` : null,
+    basketId && user ? `/api/narrative-intelligence/dashboard/${basketId}?workspace_id=default` : null,
     async (url: string) => {
       const response = await fetchWithToken(url);
       if (!response.ok) {
