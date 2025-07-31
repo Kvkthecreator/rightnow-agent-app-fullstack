@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 
-from ...schemas.basket_intelligence_schema import (
+from ....schemas.basket_intelligence_schema import (
     BasketIntelligenceReport, AgentBasketAnalysisRequest
 )
 from ...baskets.services.pattern_recognition import BasketPatternRecognitionService
@@ -134,7 +134,7 @@ class InfraBasketAnalyzerAgent(BaseInfraAgent):
         thematic_analysis = await self._perform_thematic_analysis(request)
         
         # Minimal other components
-        from ...schemas.basket_intelligence_schema import (
+        from ....schemas.basket_intelligence_schema import (
             BasketCoherenceSuggestions, CrossDocumentRelationships, BasketContextHealth
         )
         
@@ -204,7 +204,7 @@ class InfraBasketAnalyzerAgent(BaseInfraAgent):
     ) -> Any:  # BasketThematicAnalysis
         """Perform thematic pattern analysis."""
         
-        from ...schemas.basket_intelligence_schema import PatternAnalysisRequest
+        from ....schemas.basket_intelligence_schema import PatternAnalysisRequest
         
         analysis_request = PatternAnalysisRequest(
             basket_id=request.basket_id,

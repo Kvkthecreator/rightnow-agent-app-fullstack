@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from uuid import UUID, uuid4
 
-from ...schemas.basket_intelligence_schema import (
+from ....schemas.basket_intelligence_schema import (
     BasketImprovementGuidance, BasketThematicAnalysis, BasketCoherenceSuggestions,
     CrossDocumentRelationships, BasketContextHealth
 )
@@ -204,7 +204,7 @@ class ImprovementGuidanceService:
         """Get comprehensive analysis for improvement guidance."""
         
         # Get thematic analysis
-        from ...schemas.basket_intelligence_schema import PatternAnalysisRequest
+        from ....schemas.basket_intelligence_schema import PatternAnalysisRequest
         analysis_request = PatternAnalysisRequest(
             basket_id=basket_id,
             accommodate_inconsistency=True

@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 from collections import Counter
 import re
 
-from ...schemas.basket_intelligence_schema import (
+from ....schemas.basket_intelligence_schema import (
     BasketThematicAnalysis, ThematicPattern, PatternAnalysisRequest
 )
 from ...utils.supabase_client import supabase_client as supabase

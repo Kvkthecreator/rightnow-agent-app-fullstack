@@ -6,7 +6,7 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple
 from uuid import UUID
 
-from ...schemas.document_composition_schema import (
+from ....schemas.document_composition_schema import (
     DiscoveredBlock, CompositionSuggestion, CompositionOpportunityAnalysis
 )
 from ...context.services.composition_intelligence import CompositionIntelligenceService

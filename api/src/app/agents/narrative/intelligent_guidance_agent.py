@@ -290,7 +290,7 @@ class IntelligentGuidanceAgent:
     async def _get_technical_analysis(self, basket_id: str) -> Any:
         """Get technical analysis from infrastructure agents."""
         
-        from ...schemas.basket_intelligence_schema import AgentBasketAnalysisRequest
+        from ....schemas.basket_intelligence_schema import AgentBasketAnalysisRequest
         from uuid import UUID
         
         # Create infrastructure agent

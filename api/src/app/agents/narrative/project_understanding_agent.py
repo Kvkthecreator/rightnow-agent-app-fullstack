@@ -15,7 +15,7 @@ from uuid import UUID
 
 from ..runtime.infra_basket_analyzer_agent import InfraBasketAnalyzerAgent
 from ..runtime.infra_memory_analyzer_agent import run_infra_memory_analyzer, InfraMemoryAnalyzerInput
-from ...schemas.basket_intelligence_schema import AgentBasketAnalysisRequest
+from ....schemas.basket_intelligence_schema import AgentBasketAnalysisRequest
 
 logger = logging.getLogger("uvicorn.error")
 

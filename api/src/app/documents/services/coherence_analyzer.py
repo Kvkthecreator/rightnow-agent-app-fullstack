@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 import re
 
 from ...models.document import Document
-from ...schemas.document_composition_schema import DocumentContextAlignment
+from ....schemas.document_composition_schema import DocumentContextAlignment
 from ...context.services.composition_intelligence import CompositionIntelligenceService
 from ...utils.supabase_client import supabase_client as supabase
 from ...utils.db import as_json
