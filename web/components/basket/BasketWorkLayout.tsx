@@ -1,12 +1,14 @@
 "use client";
+import { useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { ReactNode } from "react";
+import { BasketNavigationHub } from "@/components/navigation/BasketNavigationHub";
+import { useBasketDocuments } from "@/lib/hooks/useBasketDocuments";
 import BasketDashboard from "@/components/views/BasketDashboard";
 import LiveThinkingPartner from "@/components/intelligence/LiveThinkingPartner";
-import { AdaptiveLayout } from "@/components/layouts/AdaptiveLayout";
-import { useSearchParams, useRouter } from "next/navigation";
-import { ReactNode } from "react";
 import type { Document } from "@/types";
 
-interface Props {
+interface BasketWorkLayoutProps {
   basketId: string;
   basketName: string;
   status: string;
@@ -24,18 +26,42 @@ export default function BasketWorkLayout({
   dumpBody,
   empty = false,
   documents,
-}: Props) {
-  const searchParams = useSearchParams();
+}: BasketWorkLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const tab = searchParams.get("tab") || "dashboard";
+  
+  // Use hook for document management  
+  const { documents: managedDocuments, createDocument } = useBasketDocuments(basketId);
+  
+  // Use managed documents if available, otherwise fall back to props
+  const displayDocuments = managedDocuments.length > 0 ? managedDocuments : (documents || []);
 
-  // Map tabs to view types
-  const getViewType = (tab: string): 'dashboard' | 'documents' | 'insights' | 'understanding' => {
-    switch (tab) {
-      case "insights": return "insights";
-      case "history": return "understanding";
-      case "documents": return "documents";
-      default: return "dashboard";
+  // Determine current view from URL
+  const getCurrentView = (): 'dashboard' | 'documents' | 'timeline' => {
+    if (pathname.includes('/documents')) return 'documents';
+    if (pathname.includes('/timeline')) return 'timeline';
+    if (tab === 'insights') return 'documents'; // Map insights to documents view for now
+    if (tab === 'history') return 'timeline';
+    return 'dashboard';
+  };
+
+  // Get active document ID from URL
+  const getActiveDocumentId = (): string | undefined => {
+    const matches = pathname.match(/\/documents\/([^\/]+)/);
+    return matches?.[1];
+  };
+
+  const handleCreateDocument = async () => {
+    try {
+      const newDoc = await createDocument('Untitled Document');
+      // Navigate to the new document
+      router.push(`/baskets/${basketId}/work/documents/${newDoc.id}`);
+    } catch (error) {
+      console.error('Failed to create document:', error);
+      // For now, just navigate to documents view
+      router.push(`/baskets/${basketId}/work?tab=documents`);
     }
   };
   
@@ -83,12 +109,19 @@ export default function BasketWorkLayout({
   }
 
   return (
-    <AdaptiveLayout
-      view={getViewType(tab)}
-      basketId={basketId}
-      basketName={basketName}
-    >
-      {mainContent}
-    </AdaptiveLayout>
+    <div className="basket-work-layout h-screen flex bg-gray-50">
+      <BasketNavigationHub
+        basketId={basketId}
+        basketName={basketName}
+        documents={displayDocuments}
+        currentView={getCurrentView()}
+        activeDocumentId={getActiveDocumentId()}
+        onCreateDocument={handleCreateDocument}
+      />
+      
+      <main className="flex-1 flex flex-col min-w-0 bg-white">
+        {mainContent}
+      </main>
+    </div>
   );
 }
