@@ -219,7 +219,7 @@ export async function GET(
     const response = await coordinator.processNarrativeIntelligence(narrativeRequest);
 
     // Generate conversation starters and context
-    const conversationStarters = this.generateConversationStarters(
+    const conversationStarters = generateConversationStarters(
       response.projectUnderstanding,
       contextType
     );
@@ -229,7 +229,7 @@ export async function GET(
       confidenceLevel: response.projectUnderstanding.confidence.level,
       projectState: response.projectUnderstanding.confidence.explanation,
       themesAvailable: response.projectUnderstanding.discoveredThemes.length > 0,
-      suggestedTopics: this.generateSuggestedTopics(response.projectUnderstanding)
+      suggestedTopics: generateSuggestedTopics(response.projectUnderstanding)
     };
 
     return NextResponse.json({

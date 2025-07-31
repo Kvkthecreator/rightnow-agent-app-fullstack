@@ -9,6 +9,11 @@ from ..services.context_tagger import ContextTaggerService, ContextTagRequest
 from ..services.substrate_ops import AgentMemoryOperations
 from ...models.context import ContextItemType
 
+# Import narrative agents for user-facing intelligence
+from ..narrative.project_understanding_agent import ProjectUnderstandingAgent
+from ..narrative.ai_assistant_agent import AIAssistantAgent
+from ..narrative.intelligent_guidance_agent import IntelligentGuidanceAgent
+
 logger = logging.getLogger("uvicorn.error")
 
 
@@ -238,6 +243,214 @@ class AgentSubstrateBridge:
                 "success": False,
                 "error": str(e)
             }
+    
+    # Narrative Intelligence Coordination Methods
+    @classmethod
+    async def get_project_understanding(
+        cls,
+        basket_id: str,
+        workspace_id: str,
+        user_context: Optional[Dict[str, str]] = None
+    ) -> Dict[str, Any]:
+        """Get project understanding from narrative agent."""
+        
+        try:
+            understanding_agent = ProjectUnderstandingAgent(workspace_id)
+            understanding = await understanding_agent.create_project_understanding(
+                basket_id, user_context
+            )
+            
+            return {
+                "success": True,
+                "understanding": {
+                    "personalized_greeting": understanding.personalized_greeting,
+                    "current_understanding": understanding.current_understanding,
+                    "intelligence_level": understanding.intelligence_level,
+                    "confidence": understanding.confidence,
+                    "discovered_themes": understanding.discovered_themes,
+                    "next_steps": understanding.next_steps,
+                    "recommended_actions": understanding.recommended_actions
+                }
+            }
+            
+        except Exception as e:
+            logger.exception(f"Project understanding failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    @classmethod
+    async def generate_ai_assistance(
+        cls,
+        basket_id: str,
+        workspace_id: str,
+        user_query: Optional[str] = None,
+        user_context: Optional[Dict[str, str]] = None
+    ) -> Dict[str, Any]:
+        """Generate conversational AI assistance."""
+        
+        try:
+            ai_assistant = AIAssistantAgent(workspace_id)
+            response = await ai_assistant.generate_conversational_response(
+                basket_id, user_query, user_context
+            )
+            
+            return {
+                "success": True,
+                "response": {
+                    "message": response.message,
+                    "tone": response.tone.value,
+                    "suggestions": [
+                        {
+                            "action": s.action,
+                            "description": s.description,
+                            "user_benefit": s.user_benefit,
+                            "priority": s.priority
+                        } for s in response.suggestions
+                    ],
+                    "follow_up_questions": response.follow_up_questions,
+                    "assistant_personality": response.assistant_personality.value,
+                    "user_engagement_level": response.user_engagement_level.value,
+                    "conversation_flow": response.conversation_flow.value
+                }
+            }
+            
+        except Exception as e:
+            logger.exception(f"AI assistance generation failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    @classmethod
+    async def get_intelligent_guidance(
+        cls,
+        basket_id: str,
+        workspace_id: str,
+        focus_area: Optional[str] = None,
+        user_goal: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get strategic guidance from intelligent guidance agent."""
+        
+        try:
+            guidance_agent = IntelligentGuidanceAgent(workspace_id)
+            guidance_list = await guidance_agent.generate_strategic_guidance(
+                basket_id, focus_area, user_goal
+            )
+            
+            return {
+                "success": True,
+                "guidance": [
+                    {
+                        "title": g.title,
+                        "description": g.description,
+                        "recommendation": g.recommendation,
+                        "reasoning": g.reasoning,
+                        "action_plan": [
+                            {
+                                "step": step.step,
+                                "description": step.description,
+                                "user_benefit": step.user_benefit,
+                                "estimated_time": step.estimated_time,
+                                "prerequisite": step.prerequisite
+                            } for step in g.action_plan
+                        ],
+                        "expected_outcome": g.expected_outcome,
+                        "timeframe": g.timeframe.value,
+                        "difficulty": g.difficulty.value
+                    } for g in guidance_list
+                ]
+            }
+            
+        except Exception as e:
+            logger.exception(f"Intelligent guidance failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    @classmethod
+    async def assess_project_health(
+        cls,
+        basket_id: str,
+        workspace_id: str,
+        previous_analysis: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Assess project health using intelligent guidance agent."""
+        
+        try:
+            guidance_agent = IntelligentGuidanceAgent(workspace_id)
+            health_assessment = await guidance_agent.evaluate_project_health(
+                basket_id, previous_analysis
+            )
+            
+            return {
+                "success": True,
+                "health_assessment": {
+                    "overall_health": health_assessment.overall_health.value,
+                    "strengths": health_assessment.strengths,
+                    "improvement_areas": health_assessment.improvement_areas,
+                    "recommendations": [
+                        {
+                            "focus": rec.focus,
+                            "suggestion": rec.suggestion,
+                            "impact": rec.impact,
+                            "effort": rec.effort
+                        } for rec in health_assessment.recommendations
+                    ],
+                    "progress_trajectory": health_assessment.progress_trajectory.value
+                }
+            }
+            
+        except Exception as e:
+            logger.exception(f"Project health assessment failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    @classmethod
+    async def get_contextual_next_steps(
+        cls,
+        basket_id: str,
+        workspace_id: str,
+        user_goal: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get contextual next steps from intelligent guidance agent."""
+        
+        try:
+            guidance_agent = IntelligentGuidanceAgent(workspace_id)
+            next_steps = await guidance_agent.generate_contextual_next_steps(
+                basket_id, user_goal
+            )
+            
+            # Transform action steps to dictionary format
+            formatted_steps = []
+            for step in next_steps.get("immediate_steps", []):
+                formatted_steps.append({
+                    "step": step.step,
+                    "description": step.description,
+                    "user_benefit": step.user_benefit,
+                    "estimated_time": step.estimated_time,
+                    "prerequisite": step.prerequisite
+                })
+            
+            return {
+                "success": True,
+                "next_steps": {
+                    "immediate_steps": formatted_steps,
+                    "short_term_goals": next_steps.get("short_term_goals", []),
+                    "strategic_considerations": next_steps.get("strategic_considerations", [])
+                }
+            }
+            
+        except Exception as e:
+            logger.exception(f"Contextual next steps failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
 
 # Convenience functions for existing agent code
@@ -306,4 +519,74 @@ async def agent_analyze_basket_intelligence(
         workspace_id=workspace_id,
         agent_id=agent_id,
         analysis_type=analysis_type
+    )
+
+
+# Narrative Intelligence Convenience Functions
+async def agent_get_project_understanding(
+    basket_id: str,
+    workspace_id: str,
+    user_context: Optional[Dict[str, str]] = None
+) -> Dict[str, Any]:
+    """Convenience function to get project understanding."""
+    return await AgentSubstrateBridge.get_project_understanding(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        user_context=user_context
+    )
+
+
+async def agent_generate_ai_assistance(
+    basket_id: str,
+    workspace_id: str,
+    user_query: Optional[str] = None,
+    user_context: Optional[Dict[str, str]] = None
+) -> Dict[str, Any]:
+    """Convenience function to generate AI assistance."""
+    return await AgentSubstrateBridge.generate_ai_assistance(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        user_query=user_query,
+        user_context=user_context
+    )
+
+
+async def agent_get_intelligent_guidance(
+    basket_id: str,
+    workspace_id: str,
+    focus_area: Optional[str] = None,
+    user_goal: Optional[str] = None
+) -> Dict[str, Any]:
+    """Convenience function to get intelligent guidance."""
+    return await AgentSubstrateBridge.get_intelligent_guidance(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        focus_area=focus_area,
+        user_goal=user_goal
+    )
+
+
+async def agent_assess_project_health(
+    basket_id: str,
+    workspace_id: str,
+    previous_analysis: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Convenience function to assess project health."""
+    return await AgentSubstrateBridge.assess_project_health(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        previous_analysis=previous_analysis
+    )
+
+
+async def agent_get_contextual_next_steps(
+    basket_id: str,
+    workspace_id: str,
+    user_goal: Optional[str] = None
+) -> Dict[str, Any]:
+    """Convenience function to get contextual next steps."""
+    return await AgentSubstrateBridge.get_contextual_next_steps(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        user_goal=user_goal
     )

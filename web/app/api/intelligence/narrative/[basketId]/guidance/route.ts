@@ -316,7 +316,7 @@ export async function POST(
 
     if (requestedAnalysis.includes('contextual_help')) {
       // Determine appropriate help situation based on project state
-      const situation = this.determineHelpSituation(response.projectUnderstanding);
+      const situation = determineHelpSituation(response.projectUnderstanding);
       analysisPromises.push(
         coordinator.createContextualHelp(basketId, situation)
       );

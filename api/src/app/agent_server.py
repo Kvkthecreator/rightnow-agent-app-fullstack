@@ -38,6 +38,8 @@ from .routes.context_blocks_create import router as context_blocks_create_router
 from .routes.context_items import router as context_items_router
 from .routes.block_lifecycle import router as block_lifecycle_router
 from .routes.agent_memory import router as agent_memory_router
+from .routes.context_intelligence import router as context_intelligence_router
+from .routes.narrative_intelligence import router as narrative_intelligence_router
 
 app = FastAPI(title="RightNow Agent Server")
 
@@ -61,6 +63,8 @@ routers = (
     block_lifecycle_router,
     agent_memory_router,
     template_router,
+    context_intelligence_router,
+    narrative_intelligence_router,
 )
 
 for r in routers:
