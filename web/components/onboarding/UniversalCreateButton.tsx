@@ -21,7 +21,7 @@ export default function UniversalCreateButton({
 }: Props) {
   const router = useRouter();
 
-  const handleCreateWorkspace = () => {
+  const handleCreateProject = () => {
     router.push("/onboarding");
   };
 
@@ -33,7 +33,7 @@ export default function UniversalCreateButton({
           <>
             <div className="text-xl mb-2">✨</div>
             <div>
-              <div className="font-semibold">Create Intelligent Workspace</div>
+              <div className="font-semibold">Create Intelligent Project</div>
               <div className="text-sm opacity-90">
                 I'll help you set up a complete project with AI insights
               </div>
@@ -45,7 +45,7 @@ export default function UniversalCreateButton({
         return (
           <>
             <span className="mr-2">✨</span>
-            Create Workspace
+            Create Project
           </>
         );
       
@@ -53,9 +53,9 @@ export default function UniversalCreateButton({
         return (
           <>
             <div className="text-2xl mb-3">🚀</div>
-            <div className="font-semibold mb-1">Create Your First Workspace</div>
+            <div className="font-semibold mb-1">Create Your First Project</div>
             <div className="text-sm text-muted-foreground">
-              I'll guide you through creating an intelligent workspace in just a few minutes
+              I'll guide you through creating an intelligent project in just a few minutes
             </div>
           </>
         );
@@ -64,7 +64,7 @@ export default function UniversalCreateButton({
         return children || (
           <>
             <span className="mr-2">✨</span>
-            Create Workspace
+            Create Project
           </>
         );
     }
@@ -97,7 +97,7 @@ export default function UniversalCreateButton({
     <Button
       variant={variant}
       size={size}
-      onClick={handleCreateWorkspace}
+      onClick={handleCreateProject}
       className={getButtonClassName()}
     >
       {getButtonContent()}

@@ -4,26 +4,26 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import UniversalContentInput from './UniversalContentInput';
 import LiveIntelligencePreview from './LiveIntelligencePreview';
-import WorkspaceCreationTrigger from './WorkspaceCreationTrigger';
+import ProjectCreationTrigger from './WorkspaceCreationTrigger';
 import { useUniversalIntelligence, ContentInput, WorkspaceCreationResult } from '@/lib/intelligence/useUniversalIntelligence';
 import { cn } from '@/lib/utils';
 
-interface UniversalWorkspaceCreatorProps {
-  onWorkspaceCreated?: (basketId: string) => void;
+interface UniversalProjectCreatorProps {
+  onProjectCreated?: (basketId: string) => void;
   className?: string;
   existingBasketId?: string | null;
   mode?: string | null;
 }
 
-export default function UniversalWorkspaceCreator({
-  onWorkspaceCreated,
+export default function UniversalProjectCreator({
+  onProjectCreated,
   className,
   existingBasketId,
   mode
-}: UniversalWorkspaceCreatorProps) {
+}: UniversalProjectCreatorProps) {
   const router = useRouter();
   const [inputs, setInputs] = useState<ContentInput[]>([]);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [creationResult, setCreationResult] = useState<WorkspaceCreationResult | null>(null);
   
   const {
@@ -48,10 +48,10 @@ export default function UniversalWorkspaceCreator({
     return () => clearTimeout(timeoutId);
   }, [inputs, processContent]);
 
-  const handleCreateWorkspace = async (modifications?: any) => {
+  const handleCreateProject = async (modifications?: any) => {
     if (!processingResult) return null;
 
-    setIsCreatingWorkspace(true);
+    setIsCreatingProject(true);
     
     try {
       const result = await createWorkspace(
@@ -66,8 +66,8 @@ export default function UniversalWorkspaceCreator({
         // Redirect after showing success
         setTimeout(() => {
           const basketId = result.basket.id;
-          if (onWorkspaceCreated) {
-            onWorkspaceCreated(basketId);
+          if (onProjectCreated) {
+            onProjectCreated(basketId);
           } else {
             router.push(`/baskets/${basketId}/work`);
           }
@@ -76,17 +76,17 @@ export default function UniversalWorkspaceCreator({
       
       return result;
     } catch (err) {
-      console.error('Workspace creation failed:', err);
+      console.error('Project creation failed:', err);
       return null;
     } finally {
-      setIsCreatingWorkspace(false);
+      setIsCreatingProject(false);
     }
   };
 
   const handleReset = () => {
     setInputs([]);
     setCreationResult(null);
-    setIsCreatingWorkspace(false);
+    setIsCreatingProject(false);
     reset();
   };
 
@@ -116,14 +116,14 @@ export default function UniversalWorkspaceCreator({
             <h2 className="text-2xl font-bold mb-2">Add Your Content</h2>
             <p className="text-muted-foreground">
               Share your ideas, documents, or requirements. Our AI will analyze them 
-              and create an intelligent workspace tailored to your needs.
+              and create an intelligent project tailored to your needs.
             </p>
           </div>
           
           <UniversalContentInput
             inputs={inputs}
             onInputsChange={setInputs}
-            disabled={isCreatingWorkspace}
+            disabled={isCreatingProject}
           />
         </div>
       )}
@@ -137,11 +137,11 @@ export default function UniversalWorkspaceCreator({
         />
       )}
 
-      {/* Workspace Creation */}
-      <WorkspaceCreationTrigger
+      {/* Project Creation */}
+      <ProjectCreationTrigger
         processingResult={processingResult}
-        onCreateWorkspace={handleCreateWorkspace}
-        isCreating={isCreatingWorkspace}
+        onCreateProject={handleCreateProject}
+        isCreating={isCreatingProject}
         creationResult={creationResult}
         disabled={isProcessing || !!error}
       />

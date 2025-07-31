@@ -7,10 +7,10 @@ import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 import { ProcessingResponse, WorkspaceCreationResult } from '@/lib/intelligence/useUniversalIntelligence';
 
-interface WorkspaceCreationTriggerProps {
+interface ProjectCreationTriggerProps {
   processingResult: ProcessingResponse | null;
-  onCreateWorkspace: (modifications?: {
-    workspace_name?: string;
+  onCreateProject: (modifications?: {
+    project_name?: string;
     selected_documents?: string[];
     additional_context?: string;
   }) => Promise<WorkspaceCreationResult | null>;
@@ -20,14 +20,14 @@ interface WorkspaceCreationTriggerProps {
   className?: string;
 }
 
-export default function WorkspaceCreationTrigger({
+export default function ProjectCreationTrigger({
   processingResult,
-  onCreateWorkspace,
+  onCreateProject,
   isCreating,
   creationResult,
   disabled = false,
   className
-}: WorkspaceCreationTriggerProps) {
+}: ProjectCreationTriggerProps) {
   const [showCustomization, setShowCustomization] = useState(false);
   const [customName, setCustomName] = useState('');
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -41,14 +41,14 @@ export default function WorkspaceCreationTrigger({
     }
   });
 
-  const handleCreateWorkspace = async () => {
+  const handleCreateProject = async () => {
     const modifications = showCustomization ? {
-      workspace_name: customName || undefined,
+      project_name: customName || undefined,
       selected_documents: selectedDocs.length > 0 ? selectedDocs : undefined,
       additional_context: additionalContext || undefined
     } : undefined;
 
-    await onCreateWorkspace(modifications);
+    await onCreateProject(modifications);
   };
 
   const toggleDocSelection = (docTitle: string) => {
@@ -66,10 +66,10 @@ export default function WorkspaceCreationTrigger({
         <CardContent className="text-center py-8">
           <div className="text-5xl mb-4">🎉</div>
           <h3 className="text-xl font-bold mb-2 text-green-800">
-            Workspace Created Successfully!
+            Project Created Successfully!
           </h3>
           <p className="text-sm text-green-700 mb-4">
-            Your intelligent workspace "{creationResult.basket.name}" is ready with AI-powered insights
+            Your intelligent project "{creationResult.basket.name}" is ready with AI-powered insights
           </p>
           
           <div className="flex flex-wrap justify-center gap-2 mb-6">
@@ -99,7 +99,7 @@ export default function WorkspaceCreationTrigger({
 
           <div className="flex items-center justify-center gap-2 text-sm text-green-600">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent"></div>
-            <span>Taking you to your workspace...</span>
+            <span>Taking you to your project...</span>
           </div>
         </CardContent>
       </Card>
@@ -112,9 +112,9 @@ export default function WorkspaceCreationTrigger({
       <Card className={cn("border-primary bg-primary/5", className)}>
         <CardContent className="text-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-3 border-primary border-t-transparent mx-auto mb-4"></div>
-          <h3 className="text-lg font-semibold mb-2">Creating Your Intelligent Workspace</h3>
+          <h3 className="text-lg font-semibold mb-2">Creating Your Intelligent Project</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
-            Setting up your workspace with documents, AI analysis, and intelligent insights. 
+            Setting up your project with documents, AI analysis, and intelligent insights. 
             This will just take a moment...
           </p>
           <div className="flex flex-wrap justify-center gap-2">
@@ -134,7 +134,7 @@ export default function WorkspaceCreationTrigger({
         <CardContent className="text-center py-6">
           <span className="text-2xl mb-2 block opacity-40">✨</span>
           <p className="text-sm text-muted-foreground">
-            Add content above to create your workspace
+            Add content above to create your project
           </p>
         </CardContent>
       </Card>
@@ -153,24 +153,24 @@ export default function WorkspaceCreationTrigger({
         {/* Main Creation Button */}
         <div className="text-center">
           <Button
-            onClick={handleCreateWorkspace}
+            onClick={handleCreateProject}
             disabled={disabled || !isReady}
             size="lg"
             className="w-full mb-3"
           >
             <span className="mr-2">✨</span>
-            Create My Workspace
+            Create My Project
           </Button>
           
           {!isReady && (
             <p className="text-xs text-muted-foreground">
-              Add more content to improve workspace creation
+              Add more content to improve project creation
             </p>
           )}
           
           {isReady && (
             <p className="text-xs text-muted-foreground">
-              Ready to create workspace with {processingResult.suggested_structure.documents.length} documents
+              Ready to create project with {processingResult.suggested_structure.documents.length} documents
             </p>
           )}
         </div>
@@ -196,7 +196,7 @@ export default function WorkspaceCreationTrigger({
             {/* Workspace Name */}
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Workspace Name
+                Project Name
               </label>
               <input
                 type="text"
@@ -243,7 +243,7 @@ export default function WorkspaceCreationTrigger({
               <textarea
                 value={additionalContext}
                 onChange={(e) => setAdditionalContext(e.target.value)}
-                placeholder="Any additional information to help customize your workspace..."
+                placeholder="Any additional information to help customize your project..."
                 className="w-full p-2 border border-input rounded-lg text-sm bg-background resize-none h-20 focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>

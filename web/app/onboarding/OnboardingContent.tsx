@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import UniversalWorkspaceCreator from "@/components/onboarding/UniversalWorkspaceCreator";
+import UniversalProjectCreator from "@/components/onboarding/UniversalWorkspaceCreator";
 
 interface OnboardingContentProps {
   router: AppRouterInstance;
@@ -23,21 +23,21 @@ export default function OnboardingContent({ router }: OnboardingContentProps) {
           <span>Universal Intelligence Engine</span>
         </div>
         <h1 className="text-4xl font-bold mb-4">
-          {basketId ? 'Enhance Your Workspace' : 'Create Your Intelligent Workspace'}
+          {basketId ? 'Enhance Your Project' : 'Create Your Intelligent Project'}
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
           {basketId 
             ? 'Add more content to build stronger intelligence for your existing project'
-            : 'Add any content—files, text, ideas—and watch our AI build a complete workspace with documents, insights, and intelligent organization.'
+            : 'Add any content—files, text, ideas—and watch our AI build a complete project with documents, insights, and intelligent organization.'
           }
         </p>
       </div>
 
-      {/* Universal Workspace Creator */}
-      <UniversalWorkspaceCreator 
+      {/* Universal Project Creator */}
+      <UniversalProjectCreator 
         existingBasketId={basketId}
         mode={mode}
-        onWorkspaceCreated={(finalBasketId) => {
+        onProjectCreated={(finalBasketId) => {
           // Analytics or tracking could go here
           router.push(`/baskets/${finalBasketId}/work?tab=dashboard`);
         }}
