@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from uuid import UUID, uuid4
 
-from ....schemas.document_composition_schema import (
+from src.schemas.document_composition_schema import (
     AgentCompositionRequest, ContextDrivenDocument, CompositionSuggestion,
     CompositionOpportunityAnalysis
 )

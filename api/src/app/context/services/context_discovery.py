@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 import math
 
 from ...models.context import ContextItem
-from ....schemas.context_composition_schema import (
+from src.schemas.context_composition_schema import (
     ContextDiscoveryRequest,
     ContextDiscoveryResult,
     BlockRelevanceScore

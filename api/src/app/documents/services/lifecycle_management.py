@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 from uuid import UUID, uuid4
 
 from ...models.document import Document, DocumentState, CompositionMethod
-from ....schemas.document_composition_schema import (
+from src.schemas.document_composition_schema import (
     DocumentRecompositionRequest, DocumentEvolutionRequest, DocumentEvolutionResult,
     ContextDrivenDocument
 )
@@ -292,7 +292,7 @@ class DocumentLifecycleService:
     ) -> ContextDrivenDocument:
         """Execute document recomposition."""
         
-        from ....schemas.document_composition_schema import ContextDrivenCompositionRequest
+        from src.schemas.document_composition_schema import ContextDrivenCompositionRequest
         
         # Build recomposition request
         recomposition_request = ContextDrivenCompositionRequest(

@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 import re
 
 from ...models.context import ContextItem, CompositionIntent
-from ....schemas.context_composition_schema import IntentAnalysisResult
+from src.schemas.context_composition_schema import IntentAnalysisResult
 from ...utils.supabase_client import supabase_client as supabase
 from ...utils.db import as_json
 

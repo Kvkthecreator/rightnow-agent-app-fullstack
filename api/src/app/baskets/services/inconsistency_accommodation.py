@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional, Set
 from uuid import UUID, uuid4
 
-from ....schemas.basket_intelligence_schema import (
+from src.schemas.basket_intelligence_schema import (
     BasketContextHealth, ContextInconsistency, BasketThematicAnalysis,
     BasketFlexibilityMetrics
 )
@@ -94,7 +94,7 @@ class InconsistencyAccommodationService:
         
         # Get thematic analysis if not provided
         if not thematic_analysis:
-            from ....schemas.basket_intelligence_schema import PatternAnalysisRequest
+            from src.schemas.basket_intelligence_schema import PatternAnalysisRequest
             analysis_request = PatternAnalysisRequest(
                 basket_id=basket_id,
                 accommodate_inconsistency=True

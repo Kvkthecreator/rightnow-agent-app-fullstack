@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from uuid import UUID, uuid4
 
-from ....schemas.document_composition_schema import (
+from src.schemas.document_composition_schema import (
     AgentCompositionRequest, ContextDrivenDocument, CompositionSuggestion
 )
 from ...documents.services.context_composition import ContextCompositionService
@@ -211,7 +211,7 @@ class TasksDocumentComposerAgent:
     ) -> ContextDrivenDocument:
         """Execute the planned composition."""
         
-        from ....schemas.document_composition_schema import ContextDrivenCompositionRequest
+        from src.schemas.document_composition_schema import ContextDrivenCompositionRequest
         
         # Build composition request from plan
         composition_request = ContextDrivenCompositionRequest(

@@ -5,7 +5,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from ..auth.dependencies import get_current_workspace_id
-from ..schemas.basket_intelligence_schema import (
+from src.schemas.basket_intelligence_schema import (
     PatternAnalysisRequest, BasketIntelligenceReport,
     AgentBasketAnalysisRequest, BasketCoherenceSuggestions,
     CrossDocumentRelationships, BasketContextHealth,

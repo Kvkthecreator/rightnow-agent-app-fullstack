@@ -11,7 +11,7 @@ from ...models.document import (
     Document, DocumentType, CompositionMethod, CompositionIntelligence,
     NarrativeMetadata, DocumentCoherence, BlockReference, DocumentSection
 )
-from .....schemas.document_composition_schema import (
+from src.schemas.document_composition_schema import (
     ContextDrivenCompositionRequest, CompositionFromIntentRequest,
     ContextDrivenDocument, DiscoveredBlock, CompositionContext,
     NarrativeIntelligence
@@ -237,7 +237,7 @@ class ContextCompositionService:
                     ))
         else:
             # Use context-driven discovery
-            from .....schemas.context_composition_schema import ContextDiscoveryRequest
+            from src.schemas.context_composition_schema import ContextDiscoveryRequest
             
             discovery_request = ContextDiscoveryRequest(
                 basket_id=request.basket_id,

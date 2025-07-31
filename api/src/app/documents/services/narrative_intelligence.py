@@ -6,7 +6,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 
-from ....schemas.document_composition_schema import (
+from src.schemas.document_composition_schema import (
     DiscoveredBlock, NarrativeIntelligence
 )
 

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from uuid import UUID, uuid4
 
-from ....schemas.basket_intelligence_schema import (
+from src.schemas.basket_intelligence_schema import (
     BasketCoherenceSuggestions, CoherenceSuggestion, BasketThematicAnalysis
 )
 from .pattern_recognition import BasketPatternRecognitionService
@@ -83,7 +83,7 @@ class CoherenceSuggestionsService:
         
         # Get thematic analysis if not provided
         if not thematic_analysis:
-            from ....schemas.basket_intelligence_schema import PatternAnalysisRequest
+            from src.schemas.basket_intelligence_schema import PatternAnalysisRequest
             
             analysis_request = PatternAnalysisRequest(
                 basket_id=basket_id,

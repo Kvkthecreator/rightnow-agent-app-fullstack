@@ -188,7 +188,7 @@ class AgentSubstrateBridge:
             from ...baskets.services.coherence_suggestions import CoherenceSuggestionsService
             from ...baskets.services.relationship_discovery import RelationshipDiscoveryService
             from ...baskets.services.inconsistency_accommodation import InconsistencyAccommodationService
-            from ....schemas.basket_intelligence_schema import PatternAnalysisRequest
+            from src.schemas.basket_intelligence_schema import PatternAnalysisRequest
             
             basket_uuid = UUID(basket_id)
             

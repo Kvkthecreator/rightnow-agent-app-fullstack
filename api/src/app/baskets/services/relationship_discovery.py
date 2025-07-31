@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 from collections import defaultdict
 import re
 
-from ....schemas.basket_intelligence_schema import (
+from src.schemas.basket_intelligence_schema import (
     CrossDocumentRelationships, DocumentRelationship, BasketThematicAnalysis
 )
 from .pattern_recognition import BasketPatternRecognitionService
@@ -84,7 +84,7 @@ class RelationshipDiscoveryService:
         
         # Get thematic analysis if not provided
         if not thematic_analysis:
-            from ....schemas.basket_intelligence_schema import PatternAnalysisRequest
+            from src.schemas.basket_intelligence_schema import PatternAnalysisRequest
             analysis_request = PatternAnalysisRequest(
                 basket_id=basket_id,
                 accommodate_inconsistency=True

@@ -9,7 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 
-from ..schemas.document_composition_schema import (
+from src.schemas.document_composition_schema import (
     ContextDrivenCompositionRequest, CompositionFromIntentRequest,
     DocumentRecompositionRequest, DocumentEvolutionRequest, DocumentEvolutionResult,
     ContextDrivenDocument, DocumentContextAlignment, AgentCompositionRequest,
@@ -181,7 +181,7 @@ async def suggest_document_structure(
     
     try:
         # Create mock discovered blocks for structure suggestion
-        from ..schemas.document_composition_schema import DiscoveredBlock
+        from src.schemas.document_composition_schema import DiscoveredBlock
         
         mock_blocks = [
             DiscoveredBlock(
