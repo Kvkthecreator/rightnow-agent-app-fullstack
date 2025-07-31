@@ -3,21 +3,21 @@
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { 
-  Home, 
+  BarChart3, 
+  FileText, 
   Lightbulb, 
-  Brain, 
-  BookOpen, 
+  Settings, 
   Clock,
   ChevronLeft,
   ChevronRight 
 } from "lucide-react";
 import { useState } from "react";
-import { ProgressiveDisclosure } from "../narrative/ProgressiveDisclosure";
 
 interface NavigationHubProps {
   minimized?: boolean;
   className?: string;
   basketId?: string;
+  basketName?: string;
 }
 
 interface NavItem {
@@ -28,61 +28,59 @@ interface NavItem {
   description: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
+const getNavItems = (basketId?: string): NavItem[] => [
   {
     key: 'dashboard',
     label: 'Strategic Intelligence',
-    icon: Home,
-    href: '/dashboard/home',
-    description: 'Your AI partnership overview'
+    icon: BarChart3,
+    href: basketId ? `/baskets/${basketId}/work` : '/dashboard/home',
+    description: 'AI insights and project understanding'
+  },
+  {
+    key: 'documents',
+    label: 'Documents',
+    icon: FileText,
+    href: basketId ? `/baskets/${basketId}/work?tab=documents` : '/documents',
+    description: 'Live editing workspace'
   },
   {
     key: 'insights',
     label: 'Insights & Ideas',
     icon: Lightbulb,
-    href: '/baskets',
-    description: 'Captured thoughts and discoveries'
-  },
-  {
-    key: 'understanding',
-    label: 'My Understanding',
-    icon: Brain,
-    href: '/work',
-    description: 'What I know about your goals'
-  },
-  {
-    key: 'knowledge',
-    label: 'Project Knowledge',
-    icon: BookOpen,
-    href: '/queue',
-    description: 'Documents and shared context'
+    href: basketId ? `/baskets/${basketId}/work?tab=insights` : '/insights',
+    description: 'Manage discoveries and connections'
   },
   {
     key: 'timeline',
-    label: 'Evolution',
+    label: 'Project Timeline',
     icon: Clock,
-    href: '/creations',
-    description: 'How your project has grown'
+    href: basketId ? `/baskets/${basketId}/timeline` : '/timeline',
+    description: 'History and evolution (Coming Soon)'
+  },
+  {
+    key: 'settings',
+    label: 'Project Settings',
+    icon: Settings,
+    href: basketId ? `/baskets/${basketId}/settings` : '/settings',
+    description: 'Project configuration'
   }
 ];
 
-export function NavigationHub({ minimized = false, className = "", basketId }: NavigationHubProps) {
+export function NavigationHub({ minimized = false, className = "", basketId, basketName }: NavigationHubProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isExpanded, setIsExpanded] = useState(!minimized);
+  const navItems = getNavItems(basketId);
 
   const handleNavigation = (href: string) => {
-    // If we have a basketId and navigating to baskets, include it
-    if (basketId && href === '/baskets') {
-      router.push(`/baskets/${basketId}`);
-    } else {
-      router.push(href);
-    }
+    router.push(href);
   };
 
   const isActive = (href: string) => {
-    if (href === '/baskets' && pathname.startsWith('/baskets')) return true;
-    return pathname === href;
+    // Exact match or match with query params
+    const basePath = href.split('?')[0];
+    const currentPath = pathname.split('?')[0];
+    return currentPath === basePath || pathname === href;
   };
 
   // Show minimal navigation when minimized
@@ -99,7 +97,7 @@ export function NavigationHub({ minimized = false, className = "", basketId }: N
         </Button>
         
         <div className="flex-1 space-y-2 px-2">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             
@@ -124,26 +122,36 @@ export function NavigationHub({ minimized = false, className = "", basketId }: N
   return (
     <nav className={`navigation-hub ${isExpanded ? 'w-72' : 'w-16'} bg-muted/30 border-r transition-all duration-300 ${className}`}>
       <div className="p-4">
-        {/* Header with collapse button */}
-        <div className="flex items-center justify-between mb-6">
-          {isExpanded && (
-            <h2 className="text-lg font-semibold">Navigate</h2>
-          )}
-          {minimized && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="ml-auto"
-            >
-              {isExpanded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </Button>
-          )}
-        </div>
+        {/* Basket Header */}
+        {isExpanded && basketName && (
+          <div className="nav-header mb-6 pb-4 border-b border-gray-200">
+            <h2 className="font-semibold text-gray-900 truncate">{basketName}</h2>
+            <p className="text-sm text-gray-500">Project Workspace</p>
+          </div>
+        )}
+        
+        {/* Header with collapse button for non-basket contexts */}
+        {(!basketName || !isExpanded) && (
+          <div className="flex items-center justify-between mb-6">
+            {isExpanded && !basketName && (
+              <h2 className="text-lg font-semibold">Navigate</h2>
+            )}
+            {minimized && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="ml-auto"
+              >
+                {isExpanded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Navigation Items */}
         <div className="space-y-1">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             
@@ -181,24 +189,7 @@ export function NavigationHub({ minimized = false, className = "", basketId }: N
           })}
         </div>
 
-        {/* Progressive Disclosure for Navigation Help */}
-        {isExpanded && (
-          <div className="mt-8 pt-4 border-t">
-            <ProgressiveDisclosure
-              story="I'm here to help you navigate your work"
-              reasoning="I organize your navigation based on how you typically interact with different parts of your project, making it easy to switch between strategic planning and detailed work."
-              substrate={{
-                navigation_items: NAV_ITEMS.map(item => ({
-                  key: item.key,
-                  href: item.href,
-                  active: isActive(item.href)
-                })),
-                current_path: pathname,
-                basket_context: basketId
-              }}
-            />
-          </div>
-        )}
+        {/* Clean navigation - no progressive disclosure here */}
       </div>
     </nav>
   );

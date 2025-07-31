@@ -2,19 +2,19 @@
 
 import { ReactNode, useState, useEffect } from "react";
 import { NavigationHub } from "../panels/NavigationHub";
-import { PrimaryWorkspace } from "../panels/PrimaryWorkspace";
 import { ComplementaryContext } from "../panels/ComplementaryContext";
 import { AmbientAssistance } from "../ambient/AmbientAssistance";
 import { useAttentionManagement } from "@/lib/layout/attentionManager";
 import { useContextualAwareness } from "@/lib/layout/contextualAwareness";
 import { useActivityDetection } from "@/lib/ambient/activityDetection";
-import { Focus, Minimize2, Maximize2 } from "lucide-react";
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface AdaptiveLayoutProps {
   children: ReactNode;
   view: 'dashboard' | 'documents' | 'insights' | 'understanding';
   basketId?: string;
+  basketName?: string;
   className?: string;
 }
 
@@ -29,12 +29,12 @@ export function AdaptiveLayout({
   children, 
   view, 
   basketId,
+  basketName,
   className = "" 
 }: AdaptiveLayoutProps) {
-  const [focusMode, setFocusMode] = useState(false);
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [rightPanelVisible, setRightPanelVisible] = useState(true);
   
-  const attentionConfig = useAttentionManagement(view, focusMode);
+  const attentionConfig = useAttentionManagement(view, false);
   const contextualContent = useContextualAwareness(view, basketId);
   const userActivity = useActivityDetection();
   
@@ -42,7 +42,7 @@ export function AdaptiveLayout({
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 1200) {
-        setRightPanelCollapsed(true);
+        setRightPanelVisible(false);
       }
     };
     
@@ -51,14 +51,13 @@ export function AdaptiveLayout({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const toggleFocusMode = () => {
-    setFocusMode(!focusMode);
-    if (!focusMode) {
-      // Entering focus mode
-      document.body.classList.add('focus-mode');
-    } else {
-      // Exiting focus mode
-      document.body.classList.remove('focus-mode');
+  const getViewTitle = (view: string): string => {
+    switch (view) {
+      case 'dashboard': return 'Strategic Intelligence';
+      case 'documents': return 'Document Workspace';
+      case 'insights': return 'Insights & Ideas';
+      case 'understanding': return 'Project Understanding';
+      default: return 'Project Workspace';
     }
   };
 
@@ -66,62 +65,53 @@ export function AdaptiveLayout({
     <div className={`adaptive-layout h-screen flex overflow-hidden bg-background ${className}`}>
       {/* Left Navigation Hub - Minimal, efficient */}
       <NavigationHub 
-        minimized={focusMode}
+        minimized={false}
         className={`${attentionConfig.navigation.classes} transition-all duration-300`}
         basketId={basketId}
+        basketName={basketName}
       />
       
       {/* Middle Panel - 80% attention focus */}
-      <PrimaryWorkspace 
-        className={`${attentionConfig.primary.classes} ${
-          focusMode ? 'w-full' : ''
-        } transition-all duration-300 relative`}
-      >
-        {/* Focus Mode Toggle */}
-        <div className="absolute top-4 right-4 z-10">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleFocusMode}
-            className="flex items-center gap-2 text-xs"
-            title={focusMode ? "Exit focus mode" : "Enter focus mode"}
-          >
-            <Focus className="h-4 w-4" />
-            {focusMode ? "Exit Focus" : "Focus Mode"}
-          </Button>
+      <div className={`${attentionConfig.primary.classes} flex-1 flex flex-col transition-all duration-300`}>
+        {/* Panel header with controls */}
+        <div className="panel-header p-4 border-b flex items-center justify-between bg-background">
+          <div className="panel-title">
+            <h1 className="text-xl font-semibold text-gray-900">
+              {getViewTitle(view)}
+            </h1>
+          </div>
+          
+          <div className="panel-controls">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setRightPanelVisible(!rightPanelVisible)}
+              className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+            >
+              {rightPanelVisible ? (
+                <><PanelRightClose className="h-4 w-4" /> Hide Context</>
+              ) : (
+                <><PanelRightOpen className="h-4 w-4" /> Show Context</>
+              )}
+            </Button>
+          </div>
         </div>
         
-        {children}
-      </PrimaryWorkspace>
+        {/* Clean content area */}
+        <div className="panel-content flex-1 overflow-auto">
+          {children}
+        </div>
+      </div>
       
       {/* Right Panel - 20% complementary context */}
-      {!focusMode && (
-        <div className={`relative transition-all duration-300 ${
-          rightPanelCollapsed ? 'w-0' : attentionConfig.complementary.classes
-        }`}>
-          {/* Collapse/Expand Toggle */}
-          <button
-            onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
-            className="absolute -left-6 top-1/2 -translate-y-1/2 bg-background border rounded-l-lg p-1 hover:bg-muted transition-colors z-20"
-            aria-label={rightPanelCollapsed ? "Show context panel" : "Hide context panel"}
-          >
-            {rightPanelCollapsed ? (
-              <Maximize2 className="h-4 w-4" />
-            ) : (
-              <Minimize2 className="h-4 w-4" />
-            )}
-          </button>
-          
-          {!rightPanelCollapsed && (
-            <ComplementaryContext
-              view={view}
-              basketId={basketId}
-              content={contextualContent}
-              priority={attentionConfig.complementary.priority}
-              className="h-full"
-            />
-          )}
-        </div>
+      {rightPanelVisible && (
+        <ComplementaryContext
+          view={view}
+          basketId={basketId}
+          content={contextualContent}
+          priority={attentionConfig.complementary.priority}
+          className="h-full"
+        />
       )}
       
       {/* Ambient Assistance Layer */}

@@ -86,6 +86,7 @@ export default function BasketWorkLayout({
     <AdaptiveLayout
       view={getViewType(tab)}
       basketId={basketId}
+      basketName={basketName}
     >
       {mainContent}
     </AdaptiveLayout>
