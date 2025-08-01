@@ -1,12 +1,12 @@
-import { DashboardView } from "@/components/views/DashboardView";
+import { DocumentsView } from "@/components/views/DocumentsView";
 import { getBasketData } from "@/lib/data/basketData";
 import { notFound } from "next/navigation";
 
-interface DashboardPageProps {
+interface NewDocumentPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function DashboardPage({ params }: DashboardPageProps) {
+export default async function NewDocumentPage({ params }: NewDocumentPageProps) {
   const { id } = await params;
   const basketData = await getBasketData(id);
   
@@ -15,9 +15,10 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
   }
 
   return (
-    <DashboardView 
+    <DocumentsView
       basketId={id}
       basketName={basketData.name}
+      documentId="new" // Special case for document creation
     />
   );
 }

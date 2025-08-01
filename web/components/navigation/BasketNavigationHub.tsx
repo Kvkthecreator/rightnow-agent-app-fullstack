@@ -13,12 +13,7 @@ import {
   PanelLeftOpen
 } from "lucide-react";
 
-interface Document {
-  id: string;
-  title: string;
-  updatedAt: string;
-  wordCount?: number;
-}
+import type { Document } from "@/types";
 
 interface BasketNavigationHubProps {
   basketId: string;
@@ -40,6 +35,7 @@ export function BasketNavigationHub({
   const router = useRouter();
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
+  // Clean navigation routing using the new structure
   const navigateToView = (view: 'dashboard' | 'documents' | 'timeline', documentId?: string) => {
     if (view === 'dashboard') {
       router.push(`/baskets/${basketId}/work`);
@@ -48,9 +44,13 @@ export function BasketNavigationHub({
     } else if (view === 'documents') {
       router.push(`/baskets/${basketId}/work/documents`);
     } else if (view === 'timeline') {
-      // TODO: Timeline view - Phase 2
-      console.log('Timeline view - Coming soon');
+      router.push(`/baskets/${basketId}/work/timeline`);
     }
+  };
+
+  // Handle document creation with clean routing
+  const handleCreateDocument = () => {
+    router.push(`/baskets/${basketId}/work/documents/new`);
   };
 
   // Collapsed state
@@ -117,8 +117,8 @@ export function BasketNavigationHub({
             icon={<Clock className="h-4 w-4" />}
             label="Timeline"
             active={currentView === 'timeline'}
-            disabled={true}
-            badge="TBD"
+            disabled={false}
+            badge="Phase 2"
             onClick={() => navigateToView('timeline')}
           />
         </div>
@@ -132,7 +132,7 @@ export function BasketNavigationHub({
             <Button 
               variant="ghost" 
               size="sm"
-              onClick={onCreateDocument}
+              onClick={handleCreateDocument}
               className="text-gray-500 hover:text-gray-700"
             >
               <Plus className="h-3 w-3" />
@@ -150,7 +150,7 @@ export function BasketNavigationHub({
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={onCreateDocument}
+                onClick={handleCreateDocument}
               >
                 Create First Document
               </Button>
@@ -216,7 +216,8 @@ interface DocumentItemProps {
 }
 
 function DocumentItem({ document, active, onClick }: DocumentItemProps) {
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Recently';
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
@@ -227,6 +228,14 @@ function DocumentItem({ document, active, onClick }: DocumentItemProps) {
     if (diffDays <= 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
   };
+
+  // Calculate word count from content if available
+  const getWordCount = (content?: string) => {
+    if (!content) return 0;
+    return content.split(/\s+/).filter(word => word.length > 0).length;
+  };
+
+  const wordCount = getWordCount(document.content_raw);
 
   return (
     <button
@@ -246,17 +255,17 @@ function DocumentItem({ document, active, onClick }: DocumentItemProps) {
         <p className={`text-sm font-medium truncate ${
           active ? 'text-blue-900' : 'text-gray-900'
         }`}>
-          {document.title}
+          {document.title || 'Untitled Document'}
         </p>
         <div className="flex items-center gap-2 mt-1">
           <p className="text-xs text-gray-500">
-            {formatDate(document.updatedAt)}
+            {formatDate(document.updated_at)}
           </p>
-          {document.wordCount && (
+          {wordCount > 0 && (
             <>
               <span className="text-xs text-gray-300">•</span>
               <p className="text-xs text-gray-400">
-                {document.wordCount.toLocaleString()} words
+                {wordCount.toLocaleString()} words
               </p>
             </>
           )}
