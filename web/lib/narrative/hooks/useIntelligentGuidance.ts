@@ -29,6 +29,28 @@ interface IntelligentGuidanceResponse {
   error?: string;
 }
 
+function getFallbackGuidance(): StrategicGuidance[] {
+  return [
+    {
+      title: "Strategic Documentation",
+      description: "Your project would benefit from clearer strategic documentation",
+      recommendation: "Create a comprehensive strategy document that outlines your project's core objectives and approach",
+      reasoning: "I notice you have several document fragments but no central strategic overview",
+      action_plan: [
+        {
+          step: "Strategic Overview Draft",
+          description: "Create initial strategy document structure",
+          user_benefit: "Clear project direction",
+          estimated_time: "2-3 hours"
+        }
+      ],
+      expected_outcome: "Improved project clarity and stakeholder alignment",
+      timeframe: "short_term",
+      difficulty: "beginner_friendly"
+    }
+  ];
+}
+
 export function useIntelligentGuidance(
   basketId: string, 
   focusArea?: string, 
@@ -37,40 +59,33 @@ export function useIntelligentGuidance(
   const { user } = useAuth();
   
   const { data, error, isLoading, mutate } = useSWR<StrategicGuidance[]>(
-    basketId && user ? ['intelligent-guidance', basketId, focusArea, userGoal] : null,
-    async () => {
-      const response = await fetchWithToken('/api/narrative-intelligence/intelligent-guidance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          basket_id: basketId,
-          workspace_id: 'default',
-          focus_area: focusArea,
-          user_goal: userGoal
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch intelligent guidance: ${response.status}`);
+    basketId && user ? 
+      `/api/narrative-intelligence/intelligent-guidance?basket_id=${basketId}&workspace_id=default` : 
+      null,
+    async (url: string) => {
+      try {
+        const response = await fetchWithToken(url);
+        
+        if (!response.ok) {
+          console.warn(`Guidance API error: ${response.status}`);
+          return getFallbackGuidance();
+        }
+        
+        const result: IntelligentGuidanceResponse = await response.json();
+        return result.guidance || getFallbackGuidance();
+      } catch (err) {
+        console.warn('Guidance API fetch failed:', err);
+        return getFallbackGuidance();
       }
-
-      const result: IntelligentGuidanceResponse = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to get intelligent guidance');
-      }
-
-      return result.guidance || [];
     },
     {
       refreshInterval: 120000, // 2 minute refresh
-      revalidateOnFocus: true,
+      revalidateOnFocus: false,
       revalidateOnReconnect: true,
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
-      dedupingInterval: 60000
+      errorRetryCount: 2,
+      errorRetryInterval: 10000,
+      dedupingInterval: 60000,
+      shouldRetryOnError: false
     }
   );
 

@@ -13,13 +13,7 @@ import {
   Download
 } from "lucide-react";
 
-interface Document {
-  id: string;
-  title: string;
-  content: string;
-  updatedAt: string;
-  wordCount: number;
-}
+import type { Document } from "@/types";
 
 interface DocumentGridProps {
   documents: Document[];
@@ -30,7 +24,8 @@ interface DocumentGridProps {
 export function DocumentGrid({ documents, onDocumentClick, onDocumentAction }: DocumentGridProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Recently';
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
@@ -42,7 +37,8 @@ export function DocumentGrid({ documents, onDocumentClick, onDocumentAction }: D
     return date.toLocaleDateString();
   };
 
-  const getPreview = (content: string, maxLength: number = 150) => {
+  const getPreview = (content: string | undefined, maxLength: number = 150) => {
+    if (!content) return '';
     const preview = content.replace(/[#*>`\-]/g, '').trim();
     return preview.length > maxLength 
       ? preview.substring(0, maxLength) + '...'
@@ -132,14 +128,14 @@ export function DocumentGrid({ documents, onDocumentClick, onDocumentAction }: D
 
             {/* Document Preview */}
             <p className="text-sm text-gray-600 mb-4 leading-relaxed line-clamp-3">
-              {getPreview(document.content) || "No content yet..."}
+              {getPreview(document.content_raw) || "No content yet..."}
             </p>
 
             {/* Document Metadata */}
             <div className="flex items-center justify-between text-xs text-gray-500">
-              <span>{formatDate(document.updatedAt)}</span>
+              <span>{formatDate(document.updated_at)}</span>
               <Badge variant="outline" className="text-xs">
-                {document.wordCount?.toLocaleString() || 0} words
+                {(document.content_raw ? document.content_raw.split(/\s+/).filter(word => word.length > 0).length : 0).toLocaleString()} words
               </Badge>
             </div>
           </CardContent>

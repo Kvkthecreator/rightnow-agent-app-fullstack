@@ -13,6 +13,11 @@ export async function getBasketData(basketId: string) {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      // In development, provide mock data
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('No user found, using mock basket data for development');
+        return getMockBasketData(basketId);
+      }
       return null;
     }
 
@@ -20,12 +25,22 @@ export async function getBasketData(basketId: string) {
     const workspaceId = workspace?.id;
 
     if (!workspaceId) {
+      // In development, provide mock data
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('No workspace found, using mock basket data for development');
+        return getMockBasketData(basketId);
+      }
       return null;
     }
 
     const basket = await getBasketServer(basketId, workspaceId);
     
     if (!basket) {
+      // In development, provide mock data
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Basket not found, using mock basket data for development');
+        return getMockBasketData(basketId);
+      }
       return null;
     }
 
@@ -38,6 +53,11 @@ export async function getBasketData(basketId: string) {
     };
   } catch (error) {
     console.error('Error fetching basket data:', error);
+    // In development, provide mock data as fallback
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('API error, using mock basket data for development');
+      return getMockBasketData(basketId);
+    }
     return null;
   }
 }
@@ -51,6 +71,11 @@ export async function getBasketDocuments(basketId: string) {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      // In development, provide mock data
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('No user found, using mock documents for development');
+        return getMockDocuments();
+      }
       return [];
     }
 
@@ -58,6 +83,11 @@ export async function getBasketDocuments(basketId: string) {
     const workspaceId = workspace?.id;
 
     if (!workspaceId) {
+      // In development, provide mock data
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('No workspace found, using mock documents for development');
+        return getMockDocuments();
+      }
       return [];
     }
 
@@ -68,6 +98,11 @@ export async function getBasketDocuments(basketId: string) {
     return docs || [];
   } catch (error) {
     console.error('Error fetching documents:', error);
+    // In development, provide mock data as fallback
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('API error, using mock documents for development');
+      return getMockDocuments();
+    }
     return [];
   }
 }
@@ -119,26 +154,35 @@ export function getMockDocuments() {
     {
       id: 'doc-1',
       title: 'Project Strategy Overview',
-      content: '# Project Strategy\n\nThis document outlines our strategic approach...',
-      updated_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+      basket_id: 'mock-basket-id',
+      content_raw: '# Project Strategy\n\nThis document outlines our strategic approach...',
+      document_type: 'strategic-analysis',
+      workspace_id: 'mock-workspace-id',
       created_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-      wordCount: 1247
+      updated_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+      metadata: { wordCount: 1247 }
     },
     {
       id: 'doc-2', 
       title: 'Market Research Findings',
-      content: '# Market Research\n\nKey findings from our market analysis...',
-      updated_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+      basket_id: 'mock-basket-id',
+      content_raw: '# Market Research\n\nKey findings from our market analysis...',
+      document_type: 'research-notes',
+      workspace_id: 'mock-workspace-id',
       created_at: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
-      wordCount: 892
+      updated_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+      metadata: { wordCount: 892 }
     },
     {
       id: 'doc-3',
       title: 'Implementation Plan',
-      content: '# Implementation\n\nDetailed plan for executing our strategy...',
-      updated_at: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
+      basket_id: 'mock-basket-id',
+      content_raw: '# Implementation\n\nDetailed plan for executing our strategy...',
+      document_type: 'project-plan',
+      workspace_id: 'mock-workspace-id',
       created_at: new Date(Date.now() - 345600000).toISOString(), // 4 days ago
-      wordCount: 1563
+      updated_at: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
+      metadata: { wordCount: 1563 }
     }
   ];
 }

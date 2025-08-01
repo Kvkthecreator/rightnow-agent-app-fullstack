@@ -151,8 +151,8 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
           <div className="p-6">
             <DocumentGrid
               documents={documents.filter(doc => 
-                doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                doc.content.toLowerCase().includes(searchQuery.toLowerCase())
+                (doc.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (doc.content_raw || '').toLowerCase().includes(searchQuery.toLowerCase())
               )}
               onDocumentClick={(doc) => router.push(`/baskets/${basketId}/work/documents/${doc.id}`)}
               onDocumentAction={(doc, action) => handleDocumentAction(doc, action)}
@@ -189,15 +189,15 @@ function DocumentEditorView({
   onSave, 
   onBack 
 }: DocumentEditorViewProps) {
-  const [title, setTitle] = useState(document.title);
-  const [content, setContent] = useState(document.content);
+  const [title, setTitle] = useState(document.title || '');
+  const [content, setContent] = useState(document.content_raw || '');
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Auto-save functionality
   useEffect(() => {
     const saveTimer = setTimeout(async () => {
-      if (content !== document.content || title !== document.title) {
+      if (content !== document.content_raw || title !== document.title) {
         setIsSaving(true);
         try {
           await onSave(document.id, content, title);
@@ -211,7 +211,7 @@ function DocumentEditorView({
     }, 2000); // Auto-save after 2 seconds of inactivity
 
     return () => clearTimeout(saveTimer);
-  }, [content, title, document.id, document.content, document.title, onSave]);
+  }, [content, title, document.id, document.content_raw, document.title, onSave]);
 
   const wordCount = content.split(/\s+/).filter((word: string) => word.length > 0).length;
 
