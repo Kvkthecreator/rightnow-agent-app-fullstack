@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import UniversalContentInput from './UniversalContentInput';
 import LiveIntelligencePreview from './LiveIntelligencePreview';
 import ProjectCreationTrigger from './WorkspaceCreationTrigger';
-import { useUniversalIntelligence, ContentInput, WorkspaceCreationResult } from '@/lib/intelligence/useUniversalIntelligence';
+import { useEnhancedUniversalIntelligence, EnhancedContentInput } from '@/lib/intelligence/useEnhancedUniversalIntelligence';
+import { WorkspaceCreationResult } from '@/lib/intelligence/useUniversalIntelligence';
 import { cn } from '@/lib/utils';
 
 interface UniversalProjectCreatorProps {
@@ -22,7 +23,7 @@ export default function UniversalProjectCreator({
   mode
 }: UniversalProjectCreatorProps) {
   const router = useRouter();
-  const [inputs, setInputs] = useState<ContentInput[]>([]);
+  const [inputs, setInputs] = useState<EnhancedContentInput[]>([]);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [creationResult, setCreationResult] = useState<WorkspaceCreationResult | null>(null);
   
@@ -32,8 +33,9 @@ export default function UniversalProjectCreator({
     isProcessing,
     processingResult,
     error,
-    reset
-  } = useUniversalIntelligence();
+    reset,
+    processingStats
+  } = useEnhancedUniversalIntelligence();
 
   // Process content when inputs change (with debouncing)
   useEffect(() => {
