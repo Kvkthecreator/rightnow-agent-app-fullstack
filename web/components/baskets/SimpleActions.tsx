@@ -35,19 +35,19 @@ export function SimpleActions({ basketId, actions }: SimpleActionsProps) {
         router.push(`/baskets/${basketId}/documents/new`);
         break;
       case 'analyze_deeper':
-        router.push(`/baskets/${basketId}/work?tab=insights`);
+        router.push(`/baskets/${basketId}/work/documents`);
         break;
       case 'create_synthesis':
         router.push(`/baskets/${basketId}/documents/new?type=synthesis`);
         break;
       case 'find_gaps':
-        router.push(`/baskets/${basketId}/work?tab=analysis`);
+        router.push(`/baskets/${basketId}/work`);
         break;
       case 'strategic_planning':
         router.push(`/baskets/${basketId}/strategy`);
         break;
       case 'strategic_analysis':
-        router.push(`/baskets/${basketId}/work?tab=insights`);
+        router.push(`/baskets/${basketId}/work/documents`);
         break;
       default:
         console.warn('Unknown action type:', actionType);

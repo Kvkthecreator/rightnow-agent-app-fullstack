@@ -39,7 +39,7 @@ export default function OnboardingContent({ router }: OnboardingContentProps) {
         mode={mode}
         onProjectCreated={(finalBasketId) => {
           // Analytics or tracking could go here
-          router.push(`/baskets/${finalBasketId}/work?tab=dashboard`);
+          router.push(`/baskets/${finalBasketId}/work`);
         }}
       />
     </>

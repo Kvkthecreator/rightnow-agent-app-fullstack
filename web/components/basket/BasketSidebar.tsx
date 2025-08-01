@@ -33,8 +33,8 @@ export default function BasketSidebar({
   const pathname = usePathname();
   const currentTab = params.get("tab") || "dashboard";
   
-  // Extract document ID from URL path (e.g., /baskets/[id]/docs/[did]/work)
-  const docMatch = pathname.match(/\/baskets\/[^\/]+\/docs\/([^\/]+)/);
+  // Extract document ID from URL path (e.g., /baskets/[id]/work/documents/[docId])
+  const docMatch = pathname.match(/\/baskets\/[^\/]+\/work\/documents\/([^\/]+)/);
   const currentDocId = currentDocumentId || (docMatch ? docMatch[1] : params.get("docId"));
   
   const [collapsed, setCollapsed] = useState(false);
@@ -138,19 +138,19 @@ export default function BasketSidebar({
             icon="📊"
             label="Dashboard"
             active={currentTab === "dashboard" && !currentDocId}
-            onClick={() => handleNavigation(`/baskets/${basketId}/work?tab=dashboard`)}
+            onClick={() => handleNavigation(`/baskets/${basketId}/work`)}
           />
           <NavItem
             icon="🧠"
             label="Insights"
             active={currentTab === "insights" && !currentDocId}
-            onClick={() => handleNavigation(`/baskets/${basketId}/work?tab=insights`)}
+            onClick={() => handleNavigation(`/baskets/${basketId}/work/documents`)}
           />
           <NavItem
             icon="📜"
             label="History"
             active={currentTab === "history" && !currentDocId}
-            onClick={() => handleNavigation(`/baskets/${basketId}/work?tab=history`)}
+            onClick={() => handleNavigation(`/baskets/${basketId}/work/timeline`)}
           />
         </nav>
       </div>
@@ -263,7 +263,7 @@ function DocumentNavItem({
           {expanded ? "⌄" : "›"}
         </button>
         <button
-          onClick={() => onNavigate(`/baskets/${basketId}/docs/${document.id}/work`)}
+          onClick={() => onNavigate(`/baskets/${basketId}/work/documents/${document.id}`)}
           className={cn(
             "flex-1 flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors text-left",
             docActive
@@ -280,7 +280,7 @@ function DocumentNavItem({
       {expanded && (
         <div className="ml-6 space-y-1">
           <button
-            onClick={() => onNavigate(`/baskets/${basketId}/docs/${document.id}/insights`)}
+            onClick={() => onNavigate(`/baskets/${basketId}/work/documents/${document.id}`)}
             className={cn(
               "w-full flex items-center gap-2 px-2 py-1 text-sm rounded-md transition-colors text-left",
               docInsightsActive
@@ -292,7 +292,7 @@ function DocumentNavItem({
             <span className="flex-1">Insights</span>
           </button>
           <button
-            onClick={() => onNavigate(`/baskets/${basketId}/docs/${document.id}/history`)}
+            onClick={() => onNavigate(`/baskets/${basketId}/work/timeline`)}
             className={cn(
               "w-full flex items-center gap-2 px-2 py-1 text-sm rounded-md transition-colors text-left",
               docHistoryActive

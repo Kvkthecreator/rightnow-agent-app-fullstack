@@ -56,7 +56,7 @@ export default function DocumentList({
             onClick={() =>
               onSelect
                 ? onSelect(doc.id)
-                : router.push(`/baskets/${basketId}/docs/${doc.id}/work`)
+                : router.push(`/baskets/${basketId}/work/documents/${doc.id}`)
             }
             className={`border rounded-md p-3 flex items-center gap-3 cursor-pointer ${
               isActive ? "ring-2 ring-primary" : ""

@@ -40,21 +40,21 @@ const getNavItems = (basketId?: string): NavItem[] => [
     key: 'documents',
     label: 'Documents',
     icon: FileText,
-    href: basketId ? `/baskets/${basketId}/work?tab=documents` : '/documents',
+    href: basketId ? `/baskets/${basketId}/work/documents` : '/documents',
     description: 'Live editing workspace'
   },
   {
     key: 'insights',
     label: 'Insights & Ideas',
     icon: Lightbulb,
-    href: basketId ? `/baskets/${basketId}/work?tab=insights` : '/insights',
+    href: basketId ? `/baskets/${basketId}/work/documents` : '/insights',
     description: 'Manage discoveries and connections'
   },
   {
     key: 'timeline',
     label: 'Project Timeline',
     icon: Clock,
-    href: basketId ? `/baskets/${basketId}/timeline` : '/timeline',
+    href: basketId ? `/baskets/${basketId}/work/timeline` : '/timeline',
     description: 'History and evolution (Coming Soon)'
   },
   {
