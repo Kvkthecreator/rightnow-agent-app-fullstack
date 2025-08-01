@@ -10,6 +10,7 @@ import { DataTypeRegistry } from './DataTypeRegistry';
 import { UniversalContentProcessor } from './UniversalContentProcessor';
 import { TextProcessor } from './TextProcessor';
 import { PDFProcessor } from './PDFProcessor';
+import { ImageProcessor } from './ImageProcessor';
 
 // Create and initialize the global registry
 export const dataTypeRegistry = new DataTypeRegistry();
@@ -17,6 +18,7 @@ export const dataTypeRegistry = new DataTypeRegistry();
 // Register current processors
 dataTypeRegistry.register(new TextProcessor());
 dataTypeRegistry.register(new PDFProcessor());
+dataTypeRegistry.register(new ImageProcessor());
 
 // Create the universal processor instance
 export const universalProcessor = new UniversalContentProcessor(dataTypeRegistry);
@@ -28,13 +30,14 @@ console.log('Universal Data Processing System initialized with processors:',
 // Export types and classes for external use
 export * from './types';
 export { DataTypeRegistry } from './DataTypeRegistry';
-export { UniversalContentProcessor } from './UniversalContentProcessor';
+export { UniversalContentProcessor, type ProcessingResult } from './UniversalContentProcessor';
 export { TextProcessor } from './TextProcessor';
 export { PDFProcessor } from './PDFProcessor';
+export { ImageProcessor } from './ImageProcessor';
 
 // Future processor imports will be added here:
-// export { ImageProcessor } from './ImageProcessor';
 // export { AudioProcessor } from './AudioProcessor';
+// export { VideoProcessor } from './VideoProcessor';
 
 /**
  * Convenience function for processing mixed content

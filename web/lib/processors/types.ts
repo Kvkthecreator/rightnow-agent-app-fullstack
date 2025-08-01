@@ -51,6 +51,12 @@ export interface StructuredContent {
   metadata?: Record<string, any>;
   pdfStructure?: PDFStructure;
   pages?: PageContent[];
+  imageAnalysis?: {
+    visualType: string;
+    hasText: boolean;
+    textDensity: number;
+    ocrConfidence: number;
+  };
 }
 
 // PDF-specific structure

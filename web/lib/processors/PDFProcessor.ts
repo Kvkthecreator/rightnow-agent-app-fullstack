@@ -6,7 +6,9 @@
  * for reliable PDF parsing.
  */
 
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+// Dynamic import for PDF.js to handle SSR
+let getDocument: any;
+let GlobalWorkerOptions: any;
 import {
   DataTypeProcessor,
   DataTypeIdentifier,
@@ -22,9 +24,13 @@ import {
 } from './types';
 import { TextProcessor } from './TextProcessor';
 
-// Set up PDF.js worker
+// Initialize PDF.js only on client-side
 if (typeof window !== 'undefined') {
-  GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+  import('pdfjs-dist').then((pdfjs) => {
+    getDocument = pdfjs.getDocument;
+    GlobalWorkerOptions = pdfjs.GlobalWorkerOptions;
+    GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+  }).catch(console.error);
 }
 
 export class PDFProcessor implements DataTypeProcessor<File> {
@@ -123,6 +129,11 @@ export class PDFProcessor implements DataTypeProcessor<File> {
   }
 
   private async extractContentFromPDF(file: File): Promise<PDFExtractionResult> {
+    // Ensure PDF.js is loaded (client-side only)
+    if (!getDocument) {
+      throw new Error('PDF.js not available - PDF processing only supported on client-side');
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await getDocument({ data: arrayBuffer }).promise;
     

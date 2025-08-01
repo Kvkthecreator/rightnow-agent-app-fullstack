@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/useAuth';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 
 export interface ContentInput {
-  type: 'text' | 'file' | 'url';
+  type: 'text' | 'file' | 'url' | 'pdf' | 'image';
   content: string;
   metadata?: Record<string, any>;
 }

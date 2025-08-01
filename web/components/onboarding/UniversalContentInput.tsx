@@ -34,10 +34,15 @@ export default function UniversalContentInput({
     .filter(format => format !== 'text/plain'); // Exclude plain text since we handle that separately
   
   const fileAcceptString = [
-    '.txt', '.md', '.pdf', '.doc', '.docx', // Explicitly supported
+    '.txt', '.md', '.pdf', '.doc', '.docx', // Text and document formats
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', // Image formats
     ...supportedFormats.map(format => {
       // Convert MIME types to file extensions where possible
       if (format === 'application/pdf') return '.pdf';
+      if (format.startsWith('image/')) {
+        const ext = format.split('/')[1];
+        return `.${ext}`;
+      }
       return '';
     }).filter(Boolean)
   ].join(',');
@@ -87,16 +92,20 @@ export default function UniversalContentInput({
         setProcessingFiles(new Set(processingSet));
 
         // Determine the appropriate content type based on file
-        let contentType: 'file' | 'pdf' = 'file';
+        let contentType: 'file' | 'pdf' | 'image' = 'file';
         if (file.type === 'application/pdf') {
           contentType = 'pdf';
+        } else if (file.type.startsWith('image/')) {
+          contentType = 'image';
         }
 
-        // For PDFs, we store the File directly for later processing
+        // For PDFs and images, we store the File directly for later processing
         // For text files, we still extract the content immediately for backward compatibility
         let content: string;
         if (file.type === 'application/pdf') {
           content = `[PDF File: ${file.name}]`; // Placeholder - actual processing happens in intelligence system
+        } else if (file.type.startsWith('image/')) {
+          content = `[Image File: ${file.name}]`; // Placeholder - OCR processing happens in intelligence system
         } else {
           content = await readFile(file);
         }
@@ -110,7 +119,9 @@ export default function UniversalContentInput({
             type: file.type,
             lastModified: file.lastModified,
             fileObject: file, // Store the File object for processor system
-            processorType: file.type === 'application/pdf' ? DataTypeIdentifier.PDF_DOCUMENT : DataTypeIdentifier.TEXT_FILE
+            processorType: file.type === 'application/pdf' ? DataTypeIdentifier.PDF_DOCUMENT : 
+                          file.type.startsWith('image/') ? DataTypeIdentifier.IMAGE : 
+                          DataTypeIdentifier.TEXT_FILE
           }
         });
 
@@ -186,9 +197,11 @@ export default function UniversalContentInput({
   const getInputIcon = (type: string, metadata?: any) => {
     switch (type) {
       case 'pdf': return '📄';
+      case 'image': return '🖼️';
       case 'file': 
         // Enhanced file type detection
         if (metadata?.type === 'application/pdf') return '📄';
+        if (metadata?.type?.startsWith('image/')) return '🖼️';
         if (metadata?.filename?.endsWith('.md')) return '📝';
         if (metadata?.filename?.endsWith('.txt')) return '📝';
         return '📄';
@@ -201,9 +214,11 @@ export default function UniversalContentInput({
   const getInputTypeColor = (type: string, metadata?: any) => {
     switch (type) {
       case 'pdf': return 'bg-red-100 text-red-800';
+      case 'image': return 'bg-orange-100 text-orange-800';
       case 'file':
         // Enhanced file type styling
         if (metadata?.type === 'application/pdf') return 'bg-red-100 text-red-800';
+        if (metadata?.type?.startsWith('image/')) return 'bg-orange-100 text-orange-800';
         if (metadata?.filename?.endsWith('.md')) return 'bg-indigo-100 text-indigo-800';
         return 'bg-blue-100 text-blue-800';
       case 'url': return 'bg-green-100 text-green-800';
@@ -244,7 +259,7 @@ export default function UniversalContentInput({
           <div className="text-4xl mb-2">📁</div>
           <h3 className="font-medium text-sm mb-1">Drop files here or click to browse</h3>
           <p className="text-xs text-muted-foreground">
-            Supports PDFs, text files, documents, and more
+            Supports PDFs, images (with OCR), text files, documents, and more
           </p>
           {processingFiles.size > 0 && (
             <div className="text-xs text-blue-600 flex items-center gap-1 mt-2">
@@ -345,7 +360,9 @@ export default function UniversalContentInput({
                           variant="outline" 
                           className={cn("text-xs px-1.5 py-0.5", getInputTypeColor(input.type, input.metadata))}
                         >
-                          {input.type === 'pdf' ? 'PDF' : input.type}
+                          {input.type === 'pdf' ? 'PDF' : 
+                           input.type === 'image' ? 'IMAGE' : 
+                           input.type.toUpperCase()}
                         </Badge>
                         {input.metadata?.filename && (
                           <span className="text-xs text-muted-foreground truncate">
@@ -370,6 +387,8 @@ export default function UniversalContentInput({
                       <p className="text-xs text-muted-foreground line-clamp-2">
                         {input.type === 'pdf' ? 
                           `PDF document ready for intelligent processing (${input.metadata?.filename})` :
+                        input.type === 'image' ?
+                          `Image ready for OCR text extraction (${input.metadata?.filename})` :
                           (input.content.length > 100 
                             ? input.content.substring(0, 100) + '...'
                             : input.content
