@@ -6,7 +6,7 @@ import { fetchWithToken } from "@/lib/fetchWithToken";
 interface Document {
   id: string;
   title: string;
-  content: string;
+  content_raw: string;
   updatedAt: string;
   wordCount: number;
   basketId: string;
@@ -24,14 +24,14 @@ export function useBasketDocuments(basketId: string) {
     }
   );
 
-  const createDocument = async (title: string, content: string = '') => {
+  const createDocument = async (title: string, content_raw: string = '') => {
     try {
       const response = await fetchWithToken(`/api/documents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           title, 
-          content, 
+          content_raw, 
           basketId // Include basketId to associate with this basket
         })
       });

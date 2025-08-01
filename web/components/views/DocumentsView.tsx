@@ -25,6 +25,10 @@ import { LiveDocumentEditor } from "@/components/documents/LiveDocumentEditor";
 import { DocumentGrid } from "@/components/documents/DocumentGrid";
 import { DocumentCreationModal } from "@/components/documents/DocumentCreationModal";
 
+// Import substrate integration
+import { useSubstrateIntelligence } from "@/lib/substrate/useSubstrateIntelligence";
+import { SubstrateContentInput } from "@/components/substrate/SubstrateContentInput";
+
 interface DocumentsViewProps {
   basketId: string;
   basketName: string;
@@ -56,7 +60,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
   const handleDocumentSave = async (documentId: string, content: string, title?: string) => {
     try {
       await updateDocument(documentId, { 
-        content, 
+        content_raw: content, 
         ...(title && { title }),
         updatedAt: new Date().toISOString()
       });
@@ -193,6 +197,39 @@ function DocumentEditorView({
   const [content, setContent] = useState(document.content_raw || '');
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [showAddContext, setShowAddContext] = useState(false);
+
+  // Add substrate integration
+  const { addContext, refresh: refreshSubstrate } = useSubstrateIntelligence(basketId);
+
+  // Handle adding context through substrate system
+  const handleAddContext = async (contextContent: string, type: 'text' | 'file' | 'pdf' | 'image', files?: File[]): Promise<void> => {
+    try {
+      const substrateInput = [{
+        type,
+        content: contextContent,
+        metadata: files && files.length > 0 ? {
+          filename: files[0].name,
+          size: files[0].size,
+          fileObject: files[0]
+        } : undefined
+      }];
+      
+      await addContext(substrateInput);
+      await refreshSubstrate();
+      
+      // Optionally append context to current document content
+      if (type === 'text') {
+        const separator = content.length > 0 ? '\n\n---\n\n' : '';
+        const updatedContent = content + separator + `**Added Context:**\n\n${contextContent}`;
+        setContent(updatedContent);
+      }
+      
+      setShowAddContext(false);
+    } catch (error) {
+      console.error('Failed to add context:', error);
+    }
+  };
 
   // Auto-save functionality
   useEffect(() => {
@@ -249,6 +286,14 @@ function DocumentEditorView({
               </span>
             ) : null}
             
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowAddContext(!showAddContext)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Context
+            </Button>
             <Button variant="outline" size="sm">
               <Share className="h-4 w-4 mr-2" />
               Share
@@ -272,6 +317,23 @@ function DocumentEditorView({
             documentId={document.id}
           />
         </div>
+        
+        {/* Add Context Panel */}
+        {showAddContext && (
+          <div className="editor-sidebar w-96 border-l border-gray-200 bg-gray-50 p-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Add Context</h3>
+              <p className="text-sm text-gray-600">
+                Add content that will enhance your document and feed into your workspace intelligence.
+              </p>
+            </div>
+            
+            <SubstrateContentInput 
+              onAddContext={handleAddContext}
+              isVisible={true}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
