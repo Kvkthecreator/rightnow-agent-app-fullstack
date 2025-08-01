@@ -1,4 +1,4 @@
-import { DashboardView } from "@/components/views/DashboardView";
+import { SubstrateDashboard } from "@/components/substrate/SubstrateDashboard";
 import { getBasketData } from "@/lib/data/basketData";
 import { notFound } from "next/navigation";
 
@@ -15,9 +15,6 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
   }
 
   return (
-    <DashboardView 
-      basketId={id}
-      basketName={basketData.name}
-    />
+    <SubstrateDashboard basketId={id} />
   );
 }
