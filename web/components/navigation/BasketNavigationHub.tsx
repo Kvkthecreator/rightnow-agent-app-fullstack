@@ -10,7 +10,8 @@ import {
   FileText, 
   Plus,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Search
 } from "lucide-react";
 
 import type { Document } from "@/types";
@@ -19,7 +20,7 @@ interface BasketNavigationHubProps {
   basketId: string;
   basketName: string;
   documents: Document[];
-  currentView: 'dashboard' | 'documents' | 'timeline';
+  currentView: 'dashboard' | 'documents' | 'timeline' | 'detailed-view';
   activeDocumentId?: string;
   onCreateDocument: () => void;
 }
@@ -36,7 +37,7 @@ export function BasketNavigationHub({
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
   // Clean navigation routing using the new structure
-  const navigateToView = (view: 'dashboard' | 'documents' | 'timeline', documentId?: string) => {
+  const navigateToView = (view: 'dashboard' | 'documents' | 'timeline' | 'detailed-view', documentId?: string) => {
     if (view === 'dashboard') {
       router.push(`/baskets/${basketId}/work`);
     } else if (view === 'documents' && documentId) {
@@ -45,6 +46,8 @@ export function BasketNavigationHub({
       router.push(`/baskets/${basketId}/work/documents`);
     } else if (view === 'timeline') {
       router.push(`/baskets/${basketId}/work/timeline`);
+    } else if (view === 'detailed-view') {
+      router.push(`/baskets/${basketId}/detailed-view`);
     }
   };
 
@@ -112,6 +115,13 @@ export function BasketNavigationHub({
             label="Dashboard"
             active={currentView === 'dashboard'}
             onClick={() => navigateToView('dashboard')}
+          />
+          <NavigationItem
+            icon={<Search className="h-4 w-4" />}
+            label="Detailed View"
+            active={currentView === 'detailed-view'}
+            onClick={() => navigateToView('detailed-view')}
+            badge="Debug"
           />
           <NavigationItem
             icon={<Clock className="h-4 w-4" />}

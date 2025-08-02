@@ -21,9 +21,10 @@ export default function BasketWorkLayout({
   const pathname = usePathname();
 
   // Clean view detection based on URL structure
-  const getCurrentView = (): 'dashboard' | 'documents' | 'timeline' => {
+  const getCurrentView = (): 'dashboard' | 'documents' | 'timeline' | 'detailed-view' => {
     if (pathname.includes('/documents')) return 'documents';
     if (pathname.includes('/timeline')) return 'timeline';
+    if (pathname.includes('/detailed-view')) return 'detailed-view';
     return 'dashboard';
   };
 
