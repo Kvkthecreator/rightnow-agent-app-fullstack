@@ -47,7 +47,7 @@ export function BasketNavigationHub({
     } else if (view === 'timeline') {
       router.push(`/baskets/${basketId}/work/timeline`);
     } else if (view === 'detailed-view') {
-      router.push(`/baskets/${basketId}/detailed-view`);
+      router.push(`/baskets/${basketId}/work/detailed-view`);
     }
   };
 

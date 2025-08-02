@@ -1,4 +1,4 @@
-import { DetailedViewDashboard } from "@/components/detailed-view/DetailedViewDashboard";
+import { DetailedViewContent } from "@/components/detailed-view/DetailedViewContent";
 import { getBasketData } from "@/lib/data/basketData";
 import { notFound } from "next/navigation";
 
@@ -15,7 +15,7 @@ export default async function DetailedViewPage({ params }: DetailedViewPageProps
   }
 
   return (
-    <DetailedViewDashboard
+    <DetailedViewContent
       basketId={id}
       basketName={basketData.name}
     />

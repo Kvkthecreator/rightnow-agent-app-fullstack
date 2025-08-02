@@ -22,9 +22,9 @@ export default function BasketWorkLayout({
 
   // Clean view detection based on URL structure
   const getCurrentView = (): 'dashboard' | 'documents' | 'timeline' | 'detailed-view' => {
+    if (pathname.includes('/detailed-view')) return 'detailed-view';
     if (pathname.includes('/documents')) return 'documents';
     if (pathname.includes('/timeline')) return 'timeline';
-    if (pathname.includes('/detailed-view')) return 'detailed-view';
     return 'dashboard';
   };
 
