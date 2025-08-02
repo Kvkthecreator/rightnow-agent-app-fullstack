@@ -86,6 +86,54 @@ export async function GET(
 }
 
 function transformToSubstrateFormat(basketData: any, documentsData: any[], intelligenceData: any): SubstrateIntelligence {
+  // Calculate total content to determine if we have enough for meaningful analysis
+  const totalContentLength = documentsData.reduce((sum, doc) => 
+    sum + (doc.content_raw?.length || 0), 0
+  );
+
+  // Return honest "insufficient content" response for minimal content
+  if (totalContentLength < 100) {
+    return {
+      basketInfo: {
+        id: basketData.id,
+        name: basketData.name || 'Untitled Workspace',
+        status: mapBasketStatus(basketData.status),
+        lastUpdated: basketData.updated_at || basketData.created_at || new Date().toISOString(),
+        documentCount: documentsData.length,
+        workspaceId: basketData.workspace_id
+      },
+      contextUnderstanding: {
+        intent: `You currently have ${totalContentLength} characters of content. Add at least ${100 - totalContentLength} more characters to start generating insights.`,
+        themes: [],
+        coherenceScore: 0.1,
+        lastAnalysis: new Date().toISOString()
+      },
+      documents: transformDocumentsToSubstrateStatus(documentsData, intelligenceData),
+      intelligence: {
+        insights: [],
+        recommendations: [{
+          id: 'add-content',
+          priority: 'high',
+          title: 'Add content to enable intelligence',
+          description: `Your workspace needs more content to generate meaningful insights. Add strategic documents, notes, or uploads to begin analysis.`,
+          reasoning: 'Insufficient content for analysis',
+          actions: [
+            { type: 'add_content', label: 'Add Content' }
+          ],
+          estimatedImpact: 'high'
+        }],
+        contextAlerts: [],
+        recentActivity: generateRecentActivity(basketData, documentsData)
+      },
+      substrateHealth: {
+        contextQuality: Math.max(0.1, totalContentLength / 1000), // Realistic based on content
+        documentAlignment: 0.0,
+        evolutionRate: 'stable'
+      }
+    };
+  }
+
+  // Normal processing for baskets with sufficient content
   return {
     basketInfo: {
       id: basketData.id,
@@ -96,20 +144,20 @@ function transformToSubstrateFormat(basketData: any, documentsData: any[], intel
       workspaceId: basketData.workspace_id
     },
     contextUnderstanding: {
-      intent: extractIntentFromIntelligence(intelligenceData),
+      intent: extractIntentFromIntelligence(intelligenceData, documentsData),
       themes: extractThemesFromIntelligence(intelligenceData),
-      coherenceScore: intelligenceData.coherence_score || 0.8,
+      coherenceScore: calculateCoherenceScore(intelligenceData, documentsData),
       lastAnalysis: new Date().toISOString()
     },
     documents: transformDocumentsToSubstrateStatus(documentsData, intelligenceData),
     intelligence: {
-      insights: transformToSubstrateInsights(intelligenceData),
-      recommendations: transformToSubstrateRecommendations(intelligenceData),
+      insights: transformToSubstrateInsights(intelligenceData, documentsData),
+      recommendations: transformToSubstrateRecommendations(intelligenceData, documentsData),
       contextAlerts: generateContextAlerts(documentsData, intelligenceData),
       recentActivity: generateRecentActivity(basketData, documentsData)
     },
     substrateHealth: {
-      contextQuality: calculateContextQuality(intelligenceData),
+      contextQuality: calculateContextQuality(intelligenceData, documentsData),
       documentAlignment: calculateDocumentAlignment(documentsData, intelligenceData),
       evolutionRate: determineEvolutionRate(basketData, documentsData)
     }
@@ -125,17 +173,33 @@ function mapBasketStatus(status: string): 'active' | 'archived' | 'draft' {
   }
 }
 
-function extractIntentFromIntelligence(intelligence: any): string {
+function extractIntentFromIntelligence(intelligence: any, documentsData: any[] = []): string {
   if (intelligence.understanding) {
     return intelligence.understanding;
   }
   if (intelligence.project_understanding?.intent) {
     return intelligence.project_understanding.intent;
   }
-  if (intelligence.themes?.length > 0) {
-    return `Building understanding around ${intelligence.themes.slice(0, 2).join(' and ').toLowerCase()}`;
+  
+  // Check if we have real themes and content
+  const realThemes = extractThemesFromIntelligence(intelligence);
+  const totalContentLength = documentsData.reduce((sum, doc) => 
+    sum + (doc.content_raw?.length || 0), 0
+  );
+  
+  if (totalContentLength < 100 && realThemes.length === 0) {
+    return "Add more strategic content to help me understand your intent";
   }
-  return "Building strategic understanding and documentation for sustainable growth";
+  
+  if (realThemes.length === 1) {
+    return `Building understanding around ${realThemes[0].toLowerCase()}. Add more strategic context for deeper insights.`;
+  }
+  
+  if (realThemes.length > 1) {
+    return `Building understanding around ${realThemes.slice(0, 2).join(' and ').toLowerCase()}`;
+  }
+  
+  return "Add strategic documents, plans, or context to enable intelligent analysis";
 }
 
 function extractThemesFromIntelligence(intelligence: any): string[] {
@@ -149,10 +213,7 @@ function extractThemesFromIntelligence(intelligence: any): string[] {
     themes.push(...intelligence.project_understanding.themes);
   }
   
-  if (themes.length === 0) {
-    themes.push('Strategic Planning', 'Documentation', 'Growth');
-  }
-  
+  // Don't add fake themes - return empty array if no real themes detected
   return themes.slice(0, 5);
 }
 
@@ -222,7 +283,7 @@ function generateDocumentActions(doc: any, status: string): any[] {
   }
 }
 
-function transformToSubstrateInsights(intelligence: any): any[] {
+function transformToSubstrateInsights(intelligence: any, documentsData: any[] = []): any[] {
   const insights = [];
   
   if (intelligence.insights) {
@@ -240,7 +301,7 @@ function transformToSubstrateInsights(intelligence: any): any[] {
   return insights.slice(0, 5);
 }
 
-function transformToSubstrateRecommendations(intelligence: any): any[] {
+function transformToSubstrateRecommendations(intelligence: any, documentsData: any[] = []): any[] {
   const recommendations = [];
   
   if (intelligence.recommendations) {
@@ -300,29 +361,74 @@ function generateRecentActivity(basket: any, documents: any[]): any[] {
   );
 }
 
-function calculateContextQuality(intelligence: any): number {
+function calculateContextQuality(intelligence: any, documentsData: any[] = []): number {
+  const totalContentLength = documentsData.reduce((sum, doc) => 
+    sum + (doc.content_raw?.length || 0), 0
+  );
+  
   const hasInsights = intelligence.insights?.length > 0;
   const hasRecommendations = intelligence.recommendations?.length > 0;
-  const hasThemes = intelligence.themes?.length > 0;
+  const realThemes = extractThemesFromIntelligence(intelligence);
+  const hasRealThemes = realThemes.length > 0;
   
-  let score = 0.6;
+  // Start with honest low base score
+  let score = 0.1;
+  
+  // Build up score based on real content
+  if (totalContentLength > 100) score += 0.1;
+  if (totalContentLength > 500) score += 0.2;
+  if (totalContentLength > 1000) score += 0.2;
+  if (totalContentLength > 2000) score += 0.1;
+  
+  // Add points for real intelligence features
   if (hasInsights) score += 0.2;
   if (hasRecommendations) score += 0.1;
-  if (hasThemes) score += 0.1;
+  if (hasRealThemes && realThemes.length > 1) score += 0.1;
+  if (hasRealThemes && realThemes.length > 2) score += 0.1;
   
   return Math.min(score, 1.0);
 }
 
-function calculateDocumentAlignment(documents: any[], intelligence: any): number {
-  if (!documents.length) return 0.8;
+function calculateCoherenceScore(intelligence: any, documentsData: any[] = []): number {
+  const totalContentLength = documentsData.reduce((sum, doc) => 
+    sum + (doc.content_raw?.length || 0), 0
+  );
+  const realThemes = extractThemesFromIntelligence(intelligence);
   
-  const totalDocs = documents.length;
-  const alignedDocs = documents.filter(doc => 
-    doc.metadata?.alignment_score > 0.7 || 
-    new Date(doc.updated_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  // Base coherence based on content amount and theme consistency
+  if (totalContentLength < 100) return 0.2;
+  if (totalContentLength < 500) return 0.4;
+  if (realThemes.length === 0) return 0.3;
+  if (realThemes.length === 1) return 0.6;
+  if (realThemes.length > 1) return 0.8;
+  
+  return 0.8;
+}
+
+function calculateDocumentAlignment(documents: any[], intelligence: any): number {
+  if (!documents.length) return 0.0; // No docs = no alignment
+  
+  // Check for documents with substantial content
+  const docsWithContent = documents.filter(doc => 
+    doc.content_raw && doc.content_raw.length > 100
+  );
+  
+  if (docsWithContent.length === 0) return 0.0; // No content = no alignment
+  
+  // For now, calculate based on content presence
+  // In the future, this could analyze actual content similarity/coherence
+  const contentAlignment = docsWithContent.length / documents.length;
+  
+  // Bonus for documents that actually have meaningful metadata alignment scores
+  const docsWithHighAlignment = documents.filter(doc => 
+    doc.metadata?.alignment_score > 0.7
   ).length;
   
-  return alignedDocs / totalDocs;
+  if (docsWithHighAlignment > 0) {
+    return Math.min(contentAlignment + (docsWithHighAlignment / documents.length * 0.2), 1.0);
+  }
+  
+  return contentAlignment;
 }
 
 function determineEvolutionRate(basket: any, documents: any[]): 'stable' | 'growing' | 'active' {
