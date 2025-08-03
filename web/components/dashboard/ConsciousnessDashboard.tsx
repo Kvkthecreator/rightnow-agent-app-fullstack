@@ -115,7 +115,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
       <ErrorMessage 
         error={error} 
         onRetry={() => window.location.reload()}
-        title="Failed to load consciousness dashboard"
+        title="Failed to load thinking partner dashboard"
       />
     );
   }
@@ -127,13 +127,13 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           {isProcessing ? (
             <>
               <LoadingSpinner size="lg" />
-              <p className="ml-3 text-lg text-gray-600 mt-4">Awakening your substrate intelligence...</p>
+              <p className="ml-3 text-lg text-gray-600 mt-4">Preparing your thinking partner...</p>
             </>
           ) : (
             <>
               <div className="text-4xl mb-4">🧠</div>
-              <h2 className="text-xl font-semibold mb-2">Consciousness awaiting...</h2>
-              <p className="text-gray-600">This workspace is ready for your first thoughts.</p>
+              <h2 className="text-xl font-semibold mb-2">Thinking partner ready...</h2>
+              <p className="text-gray-600">This workspace is ready for your thoughts and ideas.</p>
             </>
           )}
         </div>
@@ -169,7 +169,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-medium text-orange-900">
-                    {pendingChanges.length} intelligence update{pendingChanges.length !== 1 ? 's' : ''} pending review
+                    {pendingChanges.length} updated understanding{pendingChanges.length !== 1 ? 's' : ''} pending review
                   </h3>
                   <p className="text-xs text-orange-700">
                     Review changes in the Thinking Partner panel →
@@ -351,7 +351,7 @@ function getDefaultTransformedData() {
       dominantThemes: [],
       uncertainty: [],
       readinessForExecution: false,
-      personalizedInsight: "Welcome to your thinking workspace. Start by adding some content to begin developing intelligence about your work.",
+      personalizedInsight: "Welcome to your thinking workspace. Start by adding some content and I'll help you develop insights about your work.",
       confidenceLevel: 0.1
     },
     suggestions: []

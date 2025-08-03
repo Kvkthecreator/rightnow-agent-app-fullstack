@@ -369,7 +369,7 @@ function MemoryConnectionsCard({ basketId }: { basketId: string }) {
       )}
 
       <div className="text-xs text-muted-foreground p-2 bg-muted/30 rounded">
-        🧠 Connections from your memory substrate
+        🧠 Connections from your knowledge base
       </div>
     </Card>
   );

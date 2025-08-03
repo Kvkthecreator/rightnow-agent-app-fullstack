@@ -68,15 +68,48 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
         setLastUpdateTime(data.lastApprovalDate);
       } else if (response.status === 404) {
         // No approved intelligence, fallback to real-time generation
-        const fallbackResponse = await fetchWithToken(`/api/substrate/basket/${basketId}`);
-        if (fallbackResponse.ok) {
-          const fallbackData = await fallbackResponse.json();
-          setCurrentIntelligence(fallbackData);
+        try {
+          const fallbackResponse = await fetchWithToken(`/api/substrate/basket/${basketId}`);
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            setCurrentIntelligence(fallbackData);
+          } else {
+            // If substrate also fails, set null and let UI handle empty state
+            setCurrentIntelligence(null);
+          }
+        } catch (fallbackErr) {
+          console.log('Substrate fallback also failed, will show empty state');
+          setCurrentIntelligence(null);
+        }
+      } else {
+        console.log(`Approved intelligence API returned ${response.status}, will try substrate fallback`);
+        try {
+          const fallbackResponse = await fetchWithToken(`/api/substrate/basket/${basketId}`);
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            setCurrentIntelligence(fallbackData);
+          } else {
+            setCurrentIntelligence(null);
+          }
+        } catch (fallbackErr) {
+          setCurrentIntelligence(null);
         }
       }
     } catch (err) {
       console.error('Failed to fetch current intelligence:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      // Don't set error for network failures, just log and continue
+      console.log('Will try substrate fallback due to network error');
+      try {
+        const fallbackResponse = await fetchWithToken(`/api/substrate/basket/${basketId}`);
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
+          setCurrentIntelligence(fallbackData);
+        } else {
+          setCurrentIntelligence(null);
+        }
+      } catch (fallbackErr) {
+        setCurrentIntelligence(null);
+      }
     }
   }, [basketId]);
 
@@ -88,9 +121,17 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
       if (response.ok) {
         const data = await response.json();
         setPendingChanges(data.events || []);
+      } else if (response.status === 404) {
+        // No pending changes found, which is normal
+        setPendingChanges([]);
+      } else {
+        console.log(`Pending changes API returned ${response.status}`);
+        setPendingChanges([]);
       }
     } catch (err) {
       console.error('Failed to fetch pending changes:', err);
+      // Don't fail the whole app for pending changes fetch failures
+      setPendingChanges([]);
     }
   }, [basketId]);
 
