@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { getLastApprovedIntelligence } from "@/lib/intelligence/intelligenceEvents";
 
 interface NextStep {
   description: string;

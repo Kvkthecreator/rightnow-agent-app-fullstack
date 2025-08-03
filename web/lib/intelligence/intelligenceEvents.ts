@@ -16,7 +16,7 @@ export async function storeIntelligenceEvent(
     timestamp: new Date().toISOString()
   };
 
-  // Extend the events table structure for intelligence tracking
+  // Store in events table with existing schema
   const { data, error } = await supabase
     .from('events')
     .insert({
@@ -33,11 +33,7 @@ export async function storeIntelligenceEvent(
         origin: event.origin,
         eventId: fullEvent.id
       },
-      ts: fullEvent.timestamp,
-      // Note: We'll need to add these fields to the events table
-      workspace_id: event.workspaceId,
-      actor_id: event.actorId,
-      origin: event.origin
+      ts: fullEvent.timestamp
     })
     .select()
     .single();

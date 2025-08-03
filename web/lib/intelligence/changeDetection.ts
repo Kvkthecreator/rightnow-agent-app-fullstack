@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
 
 export interface IntelligenceChange {
@@ -35,11 +34,11 @@ export interface IntelligenceEvent {
 /**
  * Generate SHA-256 hash of basket content for change detection
  */
-export function generateContentHash(basketData: {
+export async function generateContentHash(basketData: {
   documents: Array<{ id: string; content_raw: string; updated_at: string }>;
   rawDumps: Array<{ id: string; text_dump: string; created_at: string }>;
   basketId: string;
-}): ContentHash {
+}): Promise<ContentHash> {
   // Sort documents by ID for consistent hashing
   const sortedDocs = basketData.documents
     .sort((a, b) => a.id.localeCompare(b.id))
@@ -52,10 +51,21 @@ export function generateContentHash(basketData: {
     .map(dump => `${dump.id}:${dump.text_dump}:${dump.created_at}`)
     .join('|');
 
+  // Use a simple hash function that works in both browser and Node.js
+  const simpleHash = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16);
+  };
+
   return {
-    documentsHash: crypto.createHash('sha256').update(sortedDocs).digest('hex'),
-    rawDumpsHash: crypto.createHash('sha256').update(sortedDumps).digest('hex'),
-    basketHash: crypto.createHash('sha256').update(`${basketData.basketId}:${sortedDocs}:${sortedDumps}`).digest('hex'),
+    documentsHash: simpleHash(sortedDocs),
+    rawDumpsHash: simpleHash(sortedDumps),
+    basketHash: simpleHash(`${basketData.basketId}:${sortedDocs}:${sortedDumps}`),
     timestamp: new Date().toISOString()
   };
 }

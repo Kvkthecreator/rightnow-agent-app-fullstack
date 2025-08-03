@@ -109,7 +109,7 @@ export async function POST(
     const rawDumps = rawDumpsResult.data || [];
 
     // Generate content hash
-    const contentHash = generateContentHash({
+    const contentHash = await generateContentHash({
       documents,
       rawDumps,
       basketId
