@@ -1,4 +1,4 @@
-import { SubstrateDashboard } from "@/components/substrate/SubstrateDashboard";
+import { ConsciousnessDashboard } from "@/components/dashboard/ConsciousnessDashboard";
 import { getBasketData } from "@/lib/data/basketData";
 import { notFound } from "next/navigation";
 
@@ -15,6 +15,6 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
   }
 
   return (
-    <SubstrateDashboard basketId={id} />
+    <ConsciousnessDashboard basketId={id} />
   );
 }
