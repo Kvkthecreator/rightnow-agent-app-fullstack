@@ -24,6 +24,7 @@ import { useBasketDocuments } from "@/lib/hooks/useBasketDocuments";
 import { LiveDocumentEditor } from "@/components/documents/LiveDocumentEditor";
 import { DocumentGrid } from "@/components/documents/DocumentGrid";
 import { DocumentCreationModal } from "@/components/documents/DocumentCreationModal";
+import { MarkdownDisplay } from "@/components/documents/MarkdownDisplay";
 
 // Import substrate integration
 import { useSubstrateIntelligence } from "@/lib/substrate/useSubstrateIntelligence";
@@ -198,6 +199,7 @@ function DocumentEditorView({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showAddContext, setShowAddContext] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Add substrate integration
   const { addContext, refresh: refreshSubstrate } = useSubstrateIntelligence(basketId);
@@ -289,6 +291,14 @@ function DocumentEditorView({
             <Button 
               variant="outline" 
               size="sm"
+              onClick={() => setShowPreview(!showPreview)}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              {showPreview ? 'Hide Preview' : 'Preview'}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
               onClick={() => setShowAddContext(!showAddContext)}
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -308,7 +318,7 @@ function DocumentEditorView({
 
       {/* Live Editor */}
       <div className="editor-workspace flex-1 flex">
-        <div className="editor-main flex-1 p-6">
+        <div className={`editor-main ${showPreview ? 'w-1/2' : 'flex-1'} p-6 ${showPreview ? 'border-r border-gray-200' : ''}`}>
           <LiveDocumentEditor
             content={content}
             onChange={setContent}
@@ -318,8 +328,23 @@ function DocumentEditorView({
           />
         </div>
         
+        {/* Markdown Preview Panel */}
+        {showPreview && (
+          <div className="editor-preview w-1/2 p-6 bg-gray-50 overflow-auto">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Preview</h3>
+              <p className="text-sm text-gray-600">
+                Live preview of your markdown-formatted document
+              </p>
+            </div>
+            <div className="bg-white rounded-lg p-6 shadow-sm min-h-96">
+              <MarkdownDisplay content={content} />
+            </div>
+          </div>
+        )}
+        
         {/* Add Context Panel */}
-        {showAddContext && (
+        {showAddContext && !showPreview && (
           <div className="editor-sidebar w-96 border-l border-gray-200 bg-gray-50 p-4">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Add Context</h3>
