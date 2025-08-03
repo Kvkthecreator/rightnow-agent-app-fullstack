@@ -99,7 +99,7 @@ export function IdentityAnchorHeader({
               <button
                 onClick={() => setIsEditing(true)}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                title="Edit workspace name"
+                title="Edit basket name"
               >
                 <Edit2 className="h-4 w-4" />
               </button>

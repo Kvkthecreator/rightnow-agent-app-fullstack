@@ -65,10 +65,25 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
 
   // Handle basket name change
   const handleNameChange = async (newName: string) => {
-    // In a real implementation, this would call an API to update the basket name
-    console.log('Update basket name to:', newName);
-    // For now, just refresh to get updated data
-    refresh();
+    try {
+      const response = await fetch(`/api/baskets/${basketId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: newName }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update basket name');
+      }
+
+      // Refresh to get updated data
+      refresh();
+    } catch (error) {
+      console.error('Failed to update basket name:', error);
+      // Could add toast notification here
+    }
   };
 
   if (loading) {
