@@ -32,8 +32,7 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
-    "tests/**/*.ts" // ✅ Ensure test files are included
+    ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "__tests__/**/*"]
+  "exclude": ["node_modules", "__tests__/**/*", "tests/**/*", "**/*.test.ts", "**/*.test.tsx"]
 }

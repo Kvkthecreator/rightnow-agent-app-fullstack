@@ -610,9 +610,13 @@ function ChangeItem({ change }: { change: IntelligenceChange }) {
           )}
           <div className="flex items-center gap-2 mt-1">
             <Badge 
-              variant={change.significance === 'major' ? 'destructive' : 
+              variant={change.significance === 'major' ? 'default' : 
                      change.significance === 'moderate' ? 'default' : 'secondary'}
-              className="text-xs"
+              className={`text-xs ${
+                change.significance === 'major' ? 'bg-red-100 text-red-800 border-red-200' :
+                change.significance === 'moderate' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                'bg-gray-100 text-gray-600 border-gray-200'
+              }`}
             >
               {change.significance}
             </Badge>
