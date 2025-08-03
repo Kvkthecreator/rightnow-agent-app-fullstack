@@ -7,9 +7,16 @@ import Image from 'next/image';
 interface FloatingCommunicationProps {
   onCapture: (content: any) => void;
   isProcessing?: boolean;
+  hasPendingChanges?: boolean;
+  onCheckPendingChanges?: () => void;
 }
 
-export function FloatingCommunication({ onCapture, isProcessing = false }: FloatingCommunicationProps) {
+export function FloatingCommunication({ 
+  onCapture, 
+  isProcessing = false, 
+  hasPendingChanges = false, 
+  onCheckPendingChanges 
+}: FloatingCommunicationProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeMode, setActiveMode] = useState<'text' | 'upload' | 'voice' | 'generate' | null>(null);
   const [textInput, setTextInput] = useState('');
@@ -88,11 +95,16 @@ export function FloatingCommunication({ onCapture, isProcessing = false }: Float
   };
 
   const handleGenerate = () => {
-    onCapture({
-      type: 'generate',
-      content: 'Generate insights from current context',
-      timestamp: new Date().toISOString()
-    });
+    // Check for pending changes first
+    if (hasPendingChanges && onCheckPendingChanges) {
+      onCheckPendingChanges();
+    } else {
+      onCapture({
+        type: 'generate',
+        content: 'Generate insights from current context',
+        timestamp: new Date().toISOString()
+      });
+    }
     setActiveMode(null);
   };
 
@@ -197,13 +209,24 @@ export function FloatingCommunication({ onCapture, isProcessing = false }: Float
 
                 <button
                   onClick={() => handleModeSelect('generate')}
-                  className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                  className={`flex items-center gap-2 p-3 border rounded-lg transition-colors text-left relative ${
+                    hasPendingChanges 
+                      ? 'border-orange-300 bg-orange-50 hover:bg-orange-100' 
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
                 >
-                  <Sparkles className="h-4 w-4 text-orange-600" />
+                  <Sparkles className={`h-4 w-4 ${hasPendingChanges ? 'text-orange-700' : 'text-orange-600'}`} />
                   <div>
-                    <div className="text-sm font-medium text-gray-900">Generate</div>
-                    <div className="text-xs text-gray-500">New insights</div>
+                    <div className={`text-sm font-medium ${hasPendingChanges ? 'text-orange-900' : 'text-gray-900'}`}>
+                      {hasPendingChanges ? 'Review' : 'Generate'}
+                    </div>
+                    <div className={`text-xs ${hasPendingChanges ? 'text-orange-700' : 'text-gray-500'}`}>
+                      {hasPendingChanges ? 'Pending changes' : 'New insights'}
+                    </div>
                   </div>
+                  {hasPendingChanges && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white"></div>
+                  )}
                 </button>
               </div>
             </div>

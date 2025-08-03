@@ -89,6 +89,21 @@ export async function POST(request: NextRequest) {
     // Create raw_dump using existing function
     const rawDump = await createDump(basketId, consolidatedContent, fileUrls);
     
+    // Trigger immediate background intelligence generation for raw dumps
+    try {
+      const { triggerBackgroundIntelligenceGeneration } = await import('@/lib/intelligence/backgroundGeneration');
+      
+      triggerBackgroundIntelligenceGeneration({
+        basketId,
+        origin: 'raw_dump_added',
+        rawDumpId: rawDump.raw_dump_id
+      });
+      
+      console.log(`Background intelligence generation triggered for raw dump in basket ${basketId}`);
+    } catch (error) {
+      console.warn('Failed to trigger background intelligence generation:', error);
+    }
+    
     // Build response
     const result: AddContextResult = {
       success: true,

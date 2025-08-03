@@ -2,25 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
-// Helper function to trigger intelligence refresh in background
-async function triggerIntelligenceRefresh(basketId: string): Promise<void> {
+// Helper function to trigger background intelligence generation
+async function triggerBackgroundIntelligenceGeneration(basketId: string, documentId: string): Promise<void> {
   try {
-    // Use internal API call to refresh intelligence without blocking document update
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/intelligence/basket/${basketId}/dashboard`, {
-      method: 'GET',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      }
+    // Import here to avoid circular dependencies
+    const { triggerBackgroundIntelligenceGeneration } = await import('@/lib/intelligence/backgroundGeneration');
+    
+    // Trigger debounced background generation
+    triggerBackgroundIntelligenceGeneration({
+      basketId,
+      origin: 'document_update',
+      documentId
     });
     
-    if (!response.ok) {
-      console.warn(`Intelligence refresh failed for basket ${basketId}: ${response.status}`);
-    } else {
-      console.log(`Intelligence refresh triggered for basket ${basketId}`);
-    }
+    console.log(`Background intelligence generation scheduled for basket ${basketId}`);
   } catch (error) {
-    console.warn(`Intelligence refresh error for basket ${basketId}:`, error);
+    console.warn(`Background intelligence generation error for basket ${basketId}:`, error);
   }
 }
 
@@ -83,11 +80,11 @@ export async function PATCH(
       );
     }
 
-    // Trigger background intelligence refresh for the basket
+    // Trigger background intelligence generation for the basket
     if (document.basket_id) {
-      // Fire and forget - don't wait for intelligence refresh
-      triggerIntelligenceRefresh(document.basket_id).catch(error => {
-        console.warn('Intelligence refresh failed:', error);
+      // Fire and forget - don't wait for intelligence generation
+      triggerBackgroundIntelligenceGeneration(document.basket_id, document.id).catch(error => {
+        console.warn('Background intelligence generation failed:', error);
       });
     }
 
