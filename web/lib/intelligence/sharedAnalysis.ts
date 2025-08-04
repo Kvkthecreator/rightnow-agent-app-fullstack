@@ -19,42 +19,60 @@ export async function analyzeBasketIntelligence(
   workspaceId: string
 ): Promise<BasketIntelligenceData | null> {
   try {
-    // Fetch basket data with all related content in a single query
-    const { data: basket, error: basketError } = await supabase
+    console.log(`[SharedAnalysis] Fetching basket ${basketId} for workspace ${workspaceId}`);
+    
+    // First, try to get just the basket to ensure it exists
+    const { data: basketData, error: basketError } = await supabase
       .from("baskets")
-      .select(`
-        *,
-        documents (
-          id,
-          title,
-          content_raw,
-          created_at
-        ),
-        blocks (
-          id,
-          semantic_type,
-          content,
-          canonical_value,
-          created_at
-        ),
-        context_items (
-          id,
-          type,
-          content,
-          created_at
-        )
-      `)
+      .select("*")
       .eq("id", basketId)
       .eq("workspace_id", workspaceId)
       .single();
 
-    if (basketError || !basket) {
+    if (basketError) {
+      console.error(`[SharedAnalysis] Basket query error:`, basketError);
       return null;
     }
 
+    if (!basketData) {
+      console.warn(`[SharedAnalysis] Basket ${basketId} not found`);
+      return null;
+    }
+
+    console.log(`[SharedAnalysis] Found basket: ${basketData.name}`);
+
+    // Now fetch related data separately for better error handling
+    const [documentsResult, blocksResult, contextResult] = await Promise.all([
+      supabase
+        .from("documents")
+        .select("id, title, content_raw, created_at")
+        .eq("basket_id", basketId)
+        .eq("workspace_id", workspaceId),
+      supabase
+        .from("blocks")
+        .select("id, semantic_type, content, canonical_value, created_at")
+        .eq("basket_id", basketId)
+        .eq("workspace_id", workspaceId),
+      supabase
+        .from("context_items")
+        .select("id, type, content, created_at")
+        .eq("basket_id", basketId)
+        .eq("workspace_id", workspaceId)
+    ]);
+
+    // Combine the data
+    const basket = {
+      ...basketData,
+      documents: documentsResult.data || [],
+      blocks: blocksResult.data || [],
+      context_items: contextResult.data || []
+    };
+
+    console.log(`[SharedAnalysis] Analysis data: ${basket.documents.length} docs, ${basket.blocks.length} blocks, ${basket.context_items.length} context items`);
+
     return analyzeBasketContent(basket);
   } catch (error) {
-    console.error('Shared analysis error:', error);
+    console.error('[SharedAnalysis] Unexpected error:', error);
     return null;
   }
 }

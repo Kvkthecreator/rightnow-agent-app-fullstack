@@ -28,12 +28,17 @@ export async function GET(
       return NextResponse.json({ error: 'Workspace access required' }, { status: 403 });
     }
 
+    console.log(`[Substrate API] Analyzing basket ${basketId} for workspace ${workspace.id}`);
+    
     // Use shared analysis instead of making HTTP requests - much faster!
     const intelligenceData = await analyzeBasketIntelligence(supabase, basketId, workspace.id);
     
     if (!intelligenceData) {
+      console.error(`[Substrate API] Failed to analyze basket ${basketId} - returning 404`);
       return NextResponse.json({ error: 'Basket not found' }, { status: 404 });
     }
+    
+    console.log(`[Substrate API] Successfully analyzed basket ${basketId}`)
 
     // Transform to substrate format
     const substrateIntelligence = transformToSubstrateFormat(intelligenceData);
@@ -51,19 +56,21 @@ export async function GET(
 
 function transformToSubstrateFormat(intelligenceData: any): SubstrateIntelligence {
   // Transform shared analysis data to substrate format
+  console.log(`[Substrate API] Transforming intelligence data:`, { themes: intelligenceData.themes?.length, confidence: intelligenceData.confidenceScore });
+  
   return {
     basketInfo: {
-      id: 'basket-id', // Will be populated from the analysis
-      name: 'Workspace', // Will be populated from the analysis
+      id: 'basket-id', // Placeholder - could be populated from intelligenceData if needed
+      name: 'Workspace', // Placeholder - could be populated from intelligenceData if needed  
       status: 'active',
       lastUpdated: intelligenceData.lastUpdated,
-      documentCount: 0, // Will be calculated from analysis
+      documentCount: intelligenceData.insights?.length || 0,
       workspaceId: 'workspace-id'
     },
     contextUnderstanding: {
-      intent: intelligenceData.understanding,
+      intent: intelligenceData.understanding || 'No understanding available',
       themes: intelligenceData.themes || [],
-      coherenceScore: intelligenceData.confidenceScore / 100,
+      coherenceScore: Math.max(0.1, (intelligenceData.confidenceScore || 0) / 100),
       lastAnalysis: intelligenceData.lastUpdated
     },
     documents: [], // Simplified - documents aren't needed for basic substrate display
@@ -74,10 +81,10 @@ function transformToSubstrateFormat(intelligenceData: any): SubstrateIntelligenc
       recentActivity: []
     },
     substrateHealth: {
-      contextQuality: intelligenceData.confidenceScore / 100,
-      documentAlignment: Math.min(intelligenceData.memoryGrowth / 25, 1.0),
-      evolutionRate: intelligenceData.confidenceScore > 60 ? 'active' : 
-                     intelligenceData.confidenceScore > 30 ? 'growing' : 'stable'
+      contextQuality: Math.max(0.1, (intelligenceData.confidenceScore || 0) / 100),
+      documentAlignment: Math.min((intelligenceData.memoryGrowth || 0) / 25, 1.0),
+      evolutionRate: (intelligenceData.confidenceScore || 0) > 60 ? 'active' : 
+                     (intelligenceData.confidenceScore || 0) > 30 ? 'growing' : 'stable'
     }
   };
 }
