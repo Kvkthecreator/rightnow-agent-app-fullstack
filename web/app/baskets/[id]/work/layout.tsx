@@ -1,6 +1,7 @@
 import BasketWorkLayout from "@/components/basket/BasketWorkLayout";
 import { getBasketData, getBasketDocuments, getUserAndWorkspace } from "@/lib/data/basketData";
 import { redirect, notFound } from "next/navigation";
+import { BasketProvider } from "@/contexts/BasketContext";
 
 interface BasketWorkLayoutProps {
   children: React.ReactNode;
@@ -41,14 +42,26 @@ export default async function WorkLayout({ children, params }: BasketWorkLayoutP
       documentsCount: documents.length
     });
 
+    // Transform basketData to match the Basket type in context
+    const basketForContext = {
+      id: basketData.id,
+      name: basketData.name,
+      status: basketData.status,
+      created_at: basketData.createdAt,
+      updated_at: basketData.createdAt, // Use createdAt as fallback for now
+      description: undefined
+    };
+
     return (
-      <BasketWorkLayout
-        basketId={id}
-        basketName={basketData.name}
-        documents={documents}
-      >
-        {children}
-      </BasketWorkLayout>
+      <BasketProvider initialBasket={basketForContext}>
+        <BasketWorkLayout
+          basketId={id}
+          basketName={basketData.name}
+          documents={documents}
+        >
+          {children}
+        </BasketWorkLayout>
+      </BasketProvider>
     );
   } catch (error) {
     console.error('Error loading basket work layout:', error);

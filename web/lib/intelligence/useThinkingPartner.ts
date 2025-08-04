@@ -67,22 +67,23 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
         setCurrentIntelligence(data.intelligence);
         setLastUpdateTime(data.lastApprovalDate);
       } else if (response.status === 404) {
-        // No approved intelligence, fallback to real-time generation
+        // No approved intelligence exists yet - this is normal for new baskets
+        // Try substrate intelligence, but if that also doesn't exist, show honest empty state
         try {
           const fallbackResponse = await fetchWithToken(`/api/substrate/basket/${basketId}`);
           if (fallbackResponse.ok) {
             const fallbackData = await fallbackResponse.json();
             setCurrentIntelligence(fallbackData);
           } else {
-            // If substrate also fails, set null and let UI handle empty state
+            // No intelligence available yet - show transparent empty state
             setCurrentIntelligence(null);
           }
         } catch (fallbackErr) {
-          console.log('Substrate fallback also failed, will show empty state');
+          // Network error or substrate not ready - show honest empty state
           setCurrentIntelligence(null);
         }
       } else {
-        console.log(`Approved intelligence API returned ${response.status}, will try substrate fallback`);
+        // Other status codes - still try substrate fallback
         try {
           const fallbackResponse = await fetchWithToken(`/api/substrate/basket/${basketId}`);
           if (fallbackResponse.ok) {
@@ -96,9 +97,7 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch current intelligence:', err);
-      // Don't set error for network failures, just log and continue
-      console.log('Will try substrate fallback due to network error');
+      // Network or other errors - try substrate fallback without logging errors
       try {
         const fallbackResponse = await fetchWithToken(`/api/substrate/basket/${basketId}`);
         if (fallbackResponse.ok) {

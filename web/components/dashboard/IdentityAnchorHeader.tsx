@@ -29,11 +29,21 @@ export function IdentityAnchorHeader({
 }: IdentityAnchorHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(basketName);
+  const [displayName, setDisplayName] = useState(basketName);
   const [showSuggestion, setShowSuggestion] = useState(true);
 
+  // Update edit name when basketName prop changes
+  React.useEffect(() => {
+    setEditName(basketName);
+    setDisplayName(basketName);
+  }, [basketName]);
+
   const handleSave = () => {
-    if (onNameChange && editName.trim() !== basketName) {
-      onNameChange(editName.trim());
+    if (onNameChange && editName.trim() !== displayName) {
+      const newName = editName.trim();
+      // Update display name immediately for better UX
+      setDisplayName(newName);
+      onNameChange(newName);
     }
     setIsEditing(false);
   };
@@ -42,15 +52,21 @@ export function IdentityAnchorHeader({
     if (e.key === 'Enter') {
       handleSave();
     } else if (e.key === 'Escape') {
-      setEditName(basketName);
+      setEditName(displayName);
       setIsEditing(false);
     }
   };
 
+  const handleEditClick = () => {
+    setEditName(displayName);
+    setIsEditing(true);
+  };
+
   const applySuggestion = () => {
     if (suggestedName && onNameChange) {
-      onNameChange(suggestedName);
+      setDisplayName(suggestedName);
       setEditName(suggestedName);
+      onNameChange(suggestedName);
       setShowSuggestion(false);
     }
   };
@@ -92,12 +108,12 @@ export function IdentityAnchorHeader({
               />
             ) : (
               <h1 className="text-xl font-semibold text-gray-900 flex-1">
-                {basketName}
+                {displayName}
               </h1>
             )}
             {!isEditing && onNameChange && (
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={handleEditClick}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
                 title="Edit basket name"
               >

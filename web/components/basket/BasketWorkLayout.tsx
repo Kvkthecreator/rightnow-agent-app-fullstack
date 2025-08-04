@@ -2,6 +2,7 @@
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
 import { BasketNavigationHub } from "@/components/navigation/BasketNavigationHub";
+import { useBasket } from "@/contexts/BasketContext";
 import type { Document } from "@/types";
 
 // Clean, simplified layout interface
@@ -19,6 +20,7 @@ export default function BasketWorkLayout({
   children
 }: BasketWorkLayoutProps) {
   const pathname = usePathname();
+  const { basket } = useBasket();
 
   // Clean view detection based on URL structure
   const getCurrentView = (): 'dashboard' | 'documents' | 'timeline' | 'detailed-view' => {
@@ -38,7 +40,7 @@ export default function BasketWorkLayout({
     <div className="basket-work-layout h-screen flex bg-gray-50">
       <BasketNavigationHub
         basketId={basketId}
-        basketName={basketName}
+        basketName={basket?.name || basketName}
         documents={documents}
         currentView={getCurrentView()}
         activeDocumentId={getActiveDocumentId()}

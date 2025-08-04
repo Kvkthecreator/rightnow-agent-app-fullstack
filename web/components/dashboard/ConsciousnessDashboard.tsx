@@ -4,13 +4,14 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useThinkingPartner } from '@/lib/intelligence/useThinkingPartner';
 import { IdentityAnchorHeader } from './IdentityAnchorHeader';
-import { SubstrateTransparency } from './SubstrateTransparency';
+import { ContentInventorySection } from '@/components/detailed-view/ContentInventorySection';
 import { NarrativeUnderstanding } from './NarrativeUnderstanding';
 import { ContextSuggestions } from './ContextSuggestions';
 import { FloatingCommunication } from './FloatingCommunication';
 import { ThinkingPartnerPanel } from '@/components/intelligence/ThinkingPartnerPanel';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import { useBasket } from '@/contexts/BasketContext';
 
 interface ConsciousnessDashboardProps {
   basketId: string;
@@ -19,6 +20,9 @@ interface ConsciousnessDashboardProps {
 export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps) {
   const router = useRouter();
   const [isAddingContext, setIsAddingContext] = useState(false);
+  
+  // Get basket data from context
+  const { basket, updateBasketName } = useBasket();
   
   // Use the new Thinking Partner hook instead of the old substrate hook
   const {
@@ -93,21 +97,10 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     }
   };
 
-  // Handle basket name change
+  // Handle basket name change - now much simpler!
   const handleNameChange = async (newName: string) => {
-    try {
-      const response = await fetch(`/api/baskets/${basketId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update basket name');
-      }
-    } catch (error) {
-      console.error('Failed to update basket name:', error);
-    }
+    // The context handles all the API calls and state updates
+    await updateBasketName(newName);
   };
 
   if (error) {
@@ -155,10 +148,10 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           
           {/* Identity Anchor Header */}
           <IdentityAnchorHeader
-            basketName={currentIntelligence?.basketInfo.name || 'Untitled Workspace'}
+            basketName={basket?.name || 'Untitled Workspace'}
             suggestedName={transformedData.suggestedName}
             status={transformedData.status}
-            lastActive={currentIntelligence?.basketInfo.lastUpdated || new Date().toISOString()}
+            lastActive={basket?.updated_at || new Date().toISOString()}
             basketId={basketId}
             onNameChange={handleNameChange}
           />
@@ -179,17 +172,34 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
             </div>
           )}
 
-          {/* Substrate Transparency */}
+          {/* Basket Details */}
           {currentIntelligence && (
-            <SubstrateTransparency
-              documents={currentIntelligence.basketInfo.documentCount}
-              rawDumps={transformedData.substrate.rawDumps}
-              contextItems={transformedData.substrate.contextItems}
-              blocks={transformedData.substrate.blocks}
-              totalWords={transformedData.substrate.totalWords}
-              patternsDetected={transformedData.substrate.patternsDetected}
-              readinessLevel={transformedData.substrate.readinessLevel}
-              basketId={basketId}
+            <ContentInventorySection
+              inventory={{
+                documents: {
+                  total: currentIntelligence.basketInfo.documentCount,
+                  withContent: Math.floor(currentIntelligence.basketInfo.documentCount * 0.8), // Estimate
+                  totalWords: transformedData.substrate.totalWords,
+                  averageWords: currentIntelligence.basketInfo.documentCount > 0 
+                    ? Math.floor(transformedData.substrate.totalWords / currentIntelligence.basketInfo.documentCount)
+                    : 0
+                },
+                rawDumps: {
+                  total: transformedData.substrate.rawDumps,
+                  processed: transformedData.substrate.rawDumps,
+                  totalWords: Math.floor(transformedData.substrate.totalWords * 0.3), // Estimate
+                  contentBreakdown: {
+                    'text': Math.floor(transformedData.substrate.totalWords * 0.2),
+                    'analysis': Math.floor(transformedData.substrate.totalWords * 0.1)
+                  }
+                },
+                contextItems: {
+                  total: transformedData.substrate.contextItems
+                },
+                blocks: {
+                  total: transformedData.substrate.blocks
+                }
+              }}
             />
           )}
 

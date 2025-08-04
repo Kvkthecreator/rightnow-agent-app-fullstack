@@ -43,10 +43,10 @@ export function ContentInventorySection({ inventory }: ContentInventoryProps) {
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center">
           <Server className="h-5 w-5 mr-2 text-gray-500" />
-          Content Inventory
+          Basket Details
         </h2>
         <p className="mt-1 text-sm text-gray-600">
-          What actually exists in your workspace
+          What exists in current basket
         </p>
       </div>
 
