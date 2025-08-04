@@ -53,6 +53,7 @@ type IntelligenceAction =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_CURRENT_INTELLIGENCE'; payload: SubstrateIntelligence | null }
   | { type: 'SET_PENDING_CHANGES'; payload: IntelligenceEvent[] }
+  | { type: 'REMOVE_PENDING_CHANGE'; payload: string }
   | { type: 'SET_BATCHED_CHANGES'; payload: BatchedChange[] }
   | { type: 'SET_CONVERSATION_CONTEXT'; payload: ConversationTriggeredGeneration | null }
   | { type: 'SET_CHANGE_STATE'; payload: ChangeState }
@@ -100,6 +101,14 @@ function intelligenceReducer(state: IntelligenceState, action: IntelligenceActio
         ...state, 
         pendingChanges: action.payload,
         changeState: action.payload.length > 0 ? ChangeState.PENDING_REVIEW : ChangeState.IDLE
+      };
+    
+    case 'REMOVE_PENDING_CHANGE':
+      const filteredChanges = state.pendingChanges.filter(change => change.id !== action.payload);
+      return { 
+        ...state, 
+        pendingChanges: filteredChanges,
+        changeState: filteredChanges.length > 0 ? ChangeState.PENDING_REVIEW : ChangeState.IDLE
       };
     
     case 'SET_CONVERSATION_CONTEXT':
@@ -264,11 +273,12 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
           dispatch({ type: 'INCREMENT_AUTO_APPROVED' });
         };
         
-        // Process each event through fatigue prevention
+        // Process each event through fatigue prevention - get current pageContext
+        const currentPageContext = pageContext;
         for (const event of rawEvents) {
           const result = changeFatigueManager.processIntelligenceEvent(
             event,
-            pageContext,
+            currentPageContext,
             handleBatchReady,
             handleAutoApproved
           );
@@ -298,7 +308,7 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
       dispatch({ type: 'SET_PENDING_CHANGES', payload: [] });
       dispatch({ type: 'SET_BATCHED_CHANGES', payload: [] });
     }
-  }, [basketId, pageContext]);
+  }, [basketId]);
 
   // Initial data load
   useEffect(() => {
@@ -410,9 +420,8 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
         throw new Error(errorData.error || 'Failed to approve changes');
       }
 
-      // Optimistic update: remove from pending and refresh intelligence
-      const updatedPending = state.pendingChanges.filter(change => change.id !== eventId);
-      dispatch({ type: 'SET_PENDING_CHANGES', payload: updatedPending });
+      // Optimistic update: remove from pending
+      dispatch({ type: 'REMOVE_PENDING_CHANGE', payload: eventId });
       
       // Clear conversation context
       dispatch({ type: 'SET_CONVERSATION_CONTEXT', payload: null });
@@ -429,7 +438,7 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
     } finally {
       dispatch({ type: 'SET_PROCESSING', payload: { isProcessing: false } });
     }
-  }, [basketId, state.pendingChanges, fetchCurrentIntelligence, fetchPendingChanges]);
+  }, [basketId, fetchCurrentIntelligence, fetchPendingChanges]);
 
   // Reject changes
   const rejectChanges = useCallback(async (eventId: string, reason?: string) => {
@@ -452,8 +461,7 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
       }
 
       // Optimistic update: remove from pending
-      const updatedPending = state.pendingChanges.filter(change => change.id !== eventId);
-      dispatch({ type: 'SET_PENDING_CHANGES', payload: updatedPending });
+      dispatch({ type: 'REMOVE_PENDING_CHANGE', payload: eventId });
       
       // Clear conversation context
       dispatch({ type: 'SET_CONVERSATION_CONTEXT', payload: null });
@@ -467,7 +475,7 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
     } finally {
       dispatch({ type: 'SET_PROCESSING', payload: { isProcessing: false } });
     }
-  }, [basketId, state.pendingChanges, fetchPendingChanges]);
+  }, [basketId, fetchPendingChanges]);
 
   // Add context through unified endpoint
   const addContext = useCallback(async (content: any[], metadata?: Record<string, any>) => {
