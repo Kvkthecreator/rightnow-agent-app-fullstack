@@ -54,7 +54,7 @@ export function NarrativeOverview({ contextUnderstanding, substrateHealth }: Nar
             </p>
             <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
               <p className="mb-0 text-blue-800">
-                <strong>Your intent:</strong> {contextUnderstanding.intent}
+                <strong>Current Status:</strong> Workspace contains {contextUnderstanding.themes.length > 0 ? `${contextUnderstanding.themes.length} strategic themes` : 'insufficient content for comprehensive analysis'}
               </p>
             </div>
             <p className="mb-0 text-base">
