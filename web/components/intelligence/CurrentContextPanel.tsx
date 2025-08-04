@@ -41,7 +41,7 @@ export default function CurrentContextPanel({
       {/* Panel Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-medium text-sm">👁️ What I'm seeing</h3>
+          <h3 className="font-medium text-sm">📋 Executive Summary</h3>
           <p className="text-xs text-muted-foreground">
             Real-time context analysis
           </p>

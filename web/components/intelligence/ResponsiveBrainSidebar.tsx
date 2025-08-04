@@ -363,9 +363,9 @@ interface PanelButtonProps {
 function PanelButton({ type, active, onClick, collapsed = false, hasActivity = false }: PanelButtonProps) {
   const config = {
     context: {
-      icon: "👁️",
+      icon: "📋",
       label: "Context",
-      description: "What I'm seeing"
+      description: "Executive Summary"
     },
     suggestions: {
       icon: "💡",

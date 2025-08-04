@@ -41,8 +41,8 @@ export function NarrativeUnderstanding({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-lg">🌊</span>
-          <h2 className="text-lg font-semibold text-gray-900">What I'm Sensing</h2>
+          <span className="text-lg">📋</span>
+          <h2 className="text-lg font-semibold text-gray-900">Executive Summary</h2>
         </div>
         
         <div className={`px-3 py-1 rounded-full border text-xs font-medium ${getConfidenceColor(confidenceLevel)}`}>
