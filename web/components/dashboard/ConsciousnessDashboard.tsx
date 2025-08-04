@@ -29,6 +29,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     currentIntelligence,
     pendingChanges,
     isProcessing,
+    isInitialLoading,
     error,
     generateIntelligence,
     approveChanges,
@@ -113,22 +114,26 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     );
   }
 
+  // Show loading spinner during initial data fetch or processing
+  if (isInitialLoading || isProcessing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <OrganicSpinner size="lg" />
+          <p className="text-lg text-gray-600 mt-6">Basket loading... please wait</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state only after loading is complete
   if (!currentIntelligence && pendingChanges.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          {isProcessing ? (
-            <>
-              <OrganicSpinner size="lg" />
-              <p className="text-lg text-gray-600 mt-6">Basket loading... please wait</p>
-            </>
-          ) : (
-            <>
-              <div className="text-4xl mb-4">🧠</div>
-              <h2 className="text-xl font-semibold mb-2">Thinking partner ready...</h2>
-              <p className="text-gray-600">This workspace is ready for your thoughts and ideas.</p>
-            </>
-          )}
+          <div className="text-4xl mb-4">🧠</div>
+          <h2 className="text-xl font-semibold mb-2">Thinking partner ready...</h2>
+          <p className="text-gray-600">This workspace is ready for your thoughts and ideas.</p>
         </div>
       </div>
     );

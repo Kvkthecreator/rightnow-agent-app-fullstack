@@ -9,6 +9,7 @@ interface UseThinkingPartnerReturn {
   currentIntelligence: SubstrateIntelligence | null;
   pendingChanges: IntelligenceEvent[];
   isProcessing: boolean;
+  isInitialLoading: boolean;
   error: string | null;
   hasActiveSessions: boolean;
   lastUpdateTime: string | null;
@@ -28,6 +29,7 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
   const [error, setError] = useState<string | null>(null);
   const [hasActiveSessions, setHasActiveSessions] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Activity detection for pausing background generation
   useEffect(() => {
@@ -137,11 +139,15 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
   // Initial data load - run in parallel for better performance
   useEffect(() => {
     if (basketId) {
+      setIsInitialLoading(true);
       Promise.all([
         fetchCurrentIntelligence(),
         fetchPendingChanges()
-      ]).catch(err => {
+      ]).then(() => {
+        setIsInitialLoading(false);
+      }).catch(err => {
         console.error('Failed to load initial data:', err);
+        setIsInitialLoading(false);
       });
     }
   }, [basketId, fetchCurrentIntelligence, fetchPendingChanges]);
@@ -282,6 +288,7 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
     currentIntelligence,
     pendingChanges,
     isProcessing,
+    isInitialLoading,
     error,
     hasActiveSessions,
     lastUpdateTime,
