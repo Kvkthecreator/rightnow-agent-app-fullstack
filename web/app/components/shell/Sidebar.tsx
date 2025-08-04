@@ -61,13 +61,47 @@ export default function Sidebar({ className }: SidebarProps) {
   }, [openDropdown, collapsible, closeSidebar]);
 
   const handleLogout = async () => {
+    console.log('🔄 Sidebar: Logging out...');
     await supabase.auth.signOut();
     router.push("/");
   };
 
   const handleNewBasket = async () => {
-    const { id } = await createBasketNew({});
-    router.push(`/baskets/${id}/work`);
+    console.log('🔄 Sidebar: Creating new basket...');
+    try {
+      const { id } = await createBasketNew({});
+      console.log('✅ Sidebar: Created basket:', id);
+      router.push(`/baskets/${id}/work`);
+    } catch (error) {
+      console.error('❌ Sidebar: Failed to create basket:', error);
+    }
+  };
+
+  const handleNavigateToBaskets = () => {
+    console.log('🔄 Sidebar: Navigating to /baskets');
+    try {
+      router.push("/baskets");
+    } catch (error) {
+      console.error('❌ Sidebar: Failed to navigate to baskets:', error);
+    }
+  };
+
+  const handleNavigateToBasketWork = (basketId: string) => {
+    console.log('🔄 Sidebar: Navigating to basket work:', basketId);
+    try {
+      router.push(`/baskets/${basketId}/work`);
+    } catch (error) {
+      console.error('❌ Sidebar: Failed to navigate to basket work:', error);
+    }
+  };
+
+  const handleNavigateToSettings = () => {
+    console.log('🔄 Sidebar: Navigating to settings');
+    try {
+      router.push("/dashboard/settings");
+    } catch (error) {
+      console.error('❌ Sidebar: Failed to navigate to settings:', error);
+    }
   };
 
   const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
@@ -88,7 +122,11 @@ export default function Sidebar({ className }: SidebarProps) {
       {/* Top header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3">
         <button
-          onClick={() => router.push("/baskets")}
+          onClick={(e) => {
+            e.preventDefault();
+            console.log('🖱️ Sidebar: Logo clicked');
+            handleNavigateToBaskets();
+          }}
           className="font-brand text-xl tracking-tight hover:underline"
         >
           yarnnn
@@ -105,7 +143,11 @@ export default function Sidebar({ className }: SidebarProps) {
       {/* New Basket */}
       <div className="px-4 py-3 border-b">
         <button
-          onClick={handleNewBasket}
+          onClick={(e) => {
+            e.preventDefault();
+            console.log('🖱️ Sidebar: New basket clicked');
+            handleNewBasket();
+          }}
           className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted font-medium text-muted-foreground hover:text-foreground transition"
         >
           <Plus size={16} />
@@ -128,7 +170,11 @@ export default function Sidebar({ className }: SidebarProps) {
           baskets.map((b) => (
             <button
               key={b.id}
-              onClick={() => router.push(`/baskets/${b.id}/work`)}
+              onClick={(e) => {
+                e.preventDefault();
+                console.log('🖱️ Sidebar: Basket clicked:', b.id, b.name);
+                handleNavigateToBasketWork(b.id);
+              }}
               className={cn(
                 "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition",
                 pathname?.includes(b.id)
@@ -156,9 +202,11 @@ export default function Sidebar({ className }: SidebarProps) {
             {openDropdown && (
               <div className="absolute bottom-12 left-0 w-52 rounded-md border bg-popover shadow-md z-50 py-1 text-sm">
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    console.log('🖱️ Sidebar: Settings clicked');
                     setOpenDropdown(false);
-                    router.push("/dashboard/settings");
+                    handleNavigateToSettings();
                   }}
                   className="flex w-full items-center gap-2 px-4 py-2 hover:bg-muted text-muted-foreground hover:text-foreground"
                 >
@@ -166,7 +214,11 @@ export default function Sidebar({ className }: SidebarProps) {
                   Settings
                 </button>
                 <button
-                  onClick={handleLogout}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    console.log('🖱️ Sidebar: Logout clicked');
+                    handleLogout();
+                  }}
                   className="flex w-full items-center gap-2 px-4 py-2 text-destructive hover:bg-muted"
                 >
                   <LogOut size={14} />
