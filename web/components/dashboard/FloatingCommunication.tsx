@@ -123,7 +123,7 @@ export function FloatingCommunication({
           onClick={handleToggle}
           disabled={isProcessing}
           className={`
-            fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500/20
+            fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500/20 relative
             ${isProcessing 
               ? 'bg-gray-400 cursor-not-allowed' 
               : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
@@ -135,13 +135,20 @@ export function FloatingCommunication({
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mx-auto mt-1"></div>
             </div>
           ) : (
-            <Image
-              src="/assets/logos/yarn-logo-light.png"
-              alt="Yarnnn Intelligence"
-              width={32}
-              height={32}
-              className="mx-auto filter brightness-0 invert"
-            />
+            <>
+              <Image
+                src="/assets/logos/yarn-logo-light.png"
+                alt="Yarnnn Intelligence"
+                width={32}
+                height={32}
+                className="mx-auto filter brightness-0 invert"
+              />
+              {hasPendingChanges && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full border-2 border-white flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                </div>
+              )}
+            </>
           )}
         </button>
       )}

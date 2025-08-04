@@ -8,10 +8,17 @@ import { ContentInventorySection } from '@/components/detailed-view/ContentInven
 import { NarrativeUnderstanding } from './NarrativeUnderstanding';
 import { ContextSuggestions } from './ContextSuggestions';
 import { FloatingCommunication } from './FloatingCommunication';
-import { ThinkingPartnerPanel } from '@/components/intelligence/ThinkingPartnerPanel';
+import { UniversalChangeModal } from '@/components/intelligence/UniversalChangeModal';
 import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { useBasket } from '@/contexts/BasketContext';
+import { 
+  analyzeConversationIntent, 
+  createConversationGenerationRequest,
+  getLoadingMessage,
+  type ConversationTriggeredGeneration 
+} from '@/lib/intelligence/conversationAnalyzer';
+import { ToastContainer, useToast } from '@/components/ui/Toast';
 
 interface ConsciousnessDashboardProps {
   basketId: string;
@@ -20,6 +27,9 @@ interface ConsciousnessDashboardProps {
 export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps) {
   const router = useRouter();
   const [isAddingContext, setIsAddingContext] = useState(false);
+  const [conversationContext, setConversationContext] = useState<ConversationTriggeredGeneration | null>(null);
+  const [processingMessage, setProcessingMessage] = useState<string>('');
+  const { toasts, removeToast, showSuccess, showInfo } = useToast();
   
   // Get basket data from context
   const { basket, updateBasketName } = useBasket();
@@ -36,29 +46,72 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     rejectChanges,
   } = useThinkingPartner(basketId);
 
-  // Handle context capture from floating communication
+  // Handle context capture from floating communication with conversation analysis
   const handleContextCapture = async (capturedContent: any) => {
     setIsAddingContext(true);
+    setConversationContext(null); // Clear previous conversation context
+    
     try {
       if (capturedContent.type === 'text') {
-        // Use add context API
-        const response = await fetch('/api/substrate/add-context', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            basketId,
-            content: [{
-              type: 'text',
-              content: capturedContent.content,
-              metadata: { timestamp: capturedContent.timestamp }
-            }]
-          })
+        // Analyze conversation intent
+        const intent = analyzeConversationIntent({
+          userInput: capturedContent.content,
+          timestamp: capturedContent.timestamp
         });
+
+        console.log('🤖 Conversation intent analyzed:', intent);
         
-        if (!response.ok) throw new Error('Failed to add context');
+        if (intent.shouldGenerateIntelligence) {
+          // Store conversation context for modal
+          const conversationGenRequest = createConversationGenerationRequest(
+            {
+              userInput: capturedContent.content,
+              timestamp: capturedContent.timestamp
+            },
+            intent
+          );
+          setConversationContext(conversationGenRequest);
+          
+          // Set appropriate processing message
+          setProcessingMessage(getLoadingMessage(intent));
+          
+          // Generate intelligence with conversation context
+          await generateIntelligence();
+        } else {
+          // For context addition or direct responses, add to substrate
+          const response = await fetch('/api/substrate/add-context', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              basketId,
+              content: [{
+                type: 'text',
+                content: capturedContent.content,
+                metadata: { 
+                  timestamp: capturedContent.timestamp,
+                  conversationIntent: intent.type,
+                  confidence: intent.confidence
+                }
+              }]
+            })
+          });
+          
+          if (!response.ok) throw new Error('Failed to add context');
+          
+          // Show appropriate feedback for non-intelligence conversations
+          if (intent.type === 'context_addition') {
+            showSuccess('Context Added', 'Your input has been added to the workspace');
+          } else if (intent.type === 'direct_response') {
+            showInfo('Noted', 'Thanks for the input - let me know if you need analysis!');
+          } else if (intent.type === 'clarification') {
+            showInfo('Got it', 'Feel free to ask me to analyze patterns or generate insights');
+          }
+          
+          console.log('📝 Context added successfully for:', intent.type);
+        }
         
       } else if (capturedContent.type === 'file') {
-        // Handle file upload
+        // Handle file upload (unchanged)
         const formData = new FormData();
         formData.append('basketId', basketId);
         formData.append('files', capturedContent.file);
@@ -71,7 +124,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         if (!response.ok) throw new Error('Failed to upload file');
         
       } else if (capturedContent.type === 'generate') {
-        // Generate new intelligence
+        // Manual intelligence generation (unchanged)
         await generateIntelligence();
       }
       
@@ -79,13 +132,13 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
       console.error('Failed to process captured content:', error);
     } finally {
       setIsAddingContext(false);
+      setProcessingMessage('');
     }
   };
 
-  // Handle checking pending changes from FAB
+  // Handle checking pending changes from FAB - now opens modal
   const handleCheckPendingChanges = () => {
-    // This could open the Thinking Partner panel or show a notification
-    // For now, we'll just log it
+    // The modal will automatically open when pendingChanges exist
     console.log('User requested to check pending changes:', pendingChanges);
   };
 
@@ -116,11 +169,19 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
 
   // Show loading spinner during initial data fetch or processing
   if (isInitialLoading || isProcessing) {
+    const loadingMessage = processingMessage || 
+      (isInitialLoading ? 'Basket loading... please wait' : 'Processing your request...');
+    
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <OrganicSpinner size="lg" />
-          <p className="text-lg text-gray-600 mt-6">Basket loading... please wait</p>
+          <p className="text-lg text-gray-600 mt-6">{loadingMessage}</p>
+          {conversationContext && (
+            <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+              "{conversationContext.userQuery}"
+            </p>
+          )}
         </div>
       </div>
     );
@@ -150,12 +211,9 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 flex">
-      {/* Main Dashboard Content */}
-      <div className={`flex-1 transition-all duration-300 ${
-        // Adjust width based on panel state
-        pendingChanges.length > 0 ? 'mr-80 md:mr-96' : 'mr-12'
-      }`}>
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Main Dashboard Content - No more width adjustment needed for modal */}
+      <div className="w-full">
         <div className="container mx-auto py-6 space-y-6 max-w-6xl px-4">
           
           {/* Identity Anchor Header */}
@@ -209,15 +267,33 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         </div>
       </div>
 
-      {/* Thinking Partner Panel */}
-      <ThinkingPartnerPanel
-        basketId={basketId}
+      {/* Universal Change Modal */}
+      <UniversalChangeModal
+        isOpen={pendingChanges.length > 0}
+        changes={pendingChanges.length > 0 ? pendingChanges[0] : null}
+        context={{ page: 'dashboard' }}
+        onApprove={(selectedSections) => {
+          if (pendingChanges.length > 0) {
+            approveChanges(pendingChanges[0].id, selectedSections);
+          }
+          // Clear conversation context after approval
+          setConversationContext(null);
+        }}
+        onReject={(reason) => {
+          if (pendingChanges.length > 0) {
+            rejectChanges(pendingChanges[0].id, reason);
+          }
+          // Clear conversation context after rejection
+          setConversationContext(null);
+        }}
+        onClose={() => {
+          // Modal closes automatically when pendingChanges becomes empty
+          setConversationContext(null);
+          console.log('Change modal closed');
+        }}
         currentIntelligence={currentIntelligence}
-        pendingChanges={pendingChanges}
-        onApproveChanges={approveChanges}
-        onRejectChanges={rejectChanges}
-        onGenerateNew={generateIntelligence}
         isProcessing={isProcessing}
+        conversationContext={conversationContext}
       />
 
       {/* Floating Communication Interface */}
@@ -227,6 +303,9 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         hasPendingChanges={pendingChanges.length > 0}
         onCheckPendingChanges={handleCheckPendingChanges}
       />
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }
