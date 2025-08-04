@@ -23,13 +23,22 @@ const isBasketWorkPage = (pathname: string | null): boolean => {
 
 export default function ClientLayoutShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-
+  
+  const isWorkPage = isBasketWorkPage(pathname);
   const shouldShowSidebar =
-    pathname && !isBasketWorkPage(pathname)
+    pathname && !isWorkPage
       ? SHOW_SIDEBAR_ROUTES.some((prefix) =>
           prefix === "/" ? pathname === "/" : pathname.startsWith(prefix)
         )
       : false;
+
+  // Debug sidebar visibility logic
+  console.log('🔍 ClientLayoutShell Debug:', {
+    pathname,
+    isWorkPage,
+    shouldShowSidebar,
+    showSidebarRoutes: SHOW_SIDEBAR_ROUTES
+  });
 
   if (!shouldShowSidebar) {
     return <>{children}</>;
