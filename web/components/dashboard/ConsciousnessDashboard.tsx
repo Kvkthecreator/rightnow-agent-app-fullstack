@@ -141,6 +141,13 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
 
   // Transform intelligence data for display (fallback to safe defaults)
   const transformedData = currentIntelligence ? transformToConsciousnessData(currentIntelligence) : getDefaultTransformedData();
+  
+  // Debug: log what data we're actually getting
+  console.log('🔍 ConsciousnessDashboard Debug:', {
+    hasCurrentIntelligence: !!currentIntelligence,
+    personalizedInsight: transformedData.narrative.personalizedInsight?.substring(0, 100),
+    intelligenceSource: currentIntelligence ? 'substrate' : 'default'
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 flex">
@@ -226,6 +233,13 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
 
 // Helper functions (reused from original ConsciousnessDashboard)
 function transformToConsciousnessData(intelligence: any) {
+  console.log('🔍 transformToConsciousnessData received:', {
+    hasContextUnderstanding: !!intelligence.contextUnderstanding,
+    hasIntelligence: !!intelligence.intelligence,
+    intelligenceKeys: Object.keys(intelligence),
+    contextKeys: intelligence.contextUnderstanding ? Object.keys(intelligence.contextUnderstanding) : []
+  });
+
   const themes = intelligence.contextUnderstanding?.themes || [];
   const insights = intelligence.intelligence?.insights || [];
   const recommendations = intelligence.intelligence?.recommendations || [];
@@ -308,6 +322,7 @@ function transformToConsciousnessData(intelligence: any) {
       summary += `The workspace requires significant content expansion and strategic focus development. Priority should be placed on adding comprehensive business context, strategic objectives, and substantive project documentation before attempting advanced intelligence operations.`;
     }
     
+    console.log('🔍 generateExecutiveSummary returning:', summary.substring(0, 100));
     return summary;
   };
 
@@ -373,7 +388,7 @@ function transformToConsciousnessData(intelligence: any) {
         .filter((rec: any) => rec.priority === 'high')
         .map((rec: any) => rec.title),
       readinessForExecution: intelligence.substrateHealth?.contextQuality > 0.6,
-      personalizedInsight: generateExecutiveSummary(),
+      personalizedInsight: generateExecutiveSummary(), // Always generate fresh, ignore stored intent
       confidenceLevel: intelligence.substrateHealth?.contextQuality || 0.3
     },
     suggestions: generateSuggestions()

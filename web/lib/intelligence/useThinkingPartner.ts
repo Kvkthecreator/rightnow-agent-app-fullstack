@@ -62,10 +62,16 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
   // Fetch current intelligence - use substrate API directly since it has our real data logic
   const fetchCurrentIntelligence = useCallback(async () => {
     try {
-      const response = await fetchWithToken(`/api/substrate/basket/${basketId}`);
+      // Add cache-busting parameter to force fresh data
+      const timestamp = Date.now();
+      const response = await fetchWithToken(`/api/substrate/basket/${basketId}?t=${timestamp}`);
       
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 fetchCurrentIntelligence received:', {
+          hasData: !!data,
+          contextIntent: data.contextUnderstanding?.intent?.substring(0, 100)
+        });
         setCurrentIntelligence(data);
         setLastUpdateTime(data.basketInfo?.lastUpdated || new Date().toISOString());
       } else {

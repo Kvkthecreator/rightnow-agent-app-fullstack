@@ -30,10 +30,10 @@ export function NarrativeUnderstanding({
   };
 
   const getConfidenceText = (level: number) => {
-    if (level >= 0.8) return 'High confidence in understanding';
-    if (level >= 0.6) return 'Good understanding developing';
-    if (level >= 0.4) return 'Building understanding';
-    return 'Early stage understanding';
+    if (level >= 0.8) return 'High confidence analysis';
+    if (level >= 0.6) return 'Substantial content analysis';
+    if (level >= 0.4) return 'Moderate content analysis';
+    return 'Insufficient content for analysis';
   };
 
   return (
@@ -91,8 +91,8 @@ export function NarrativeUnderstanding({
           <div className={`w-3 h-3 rounded-full ${readinessForExecution ? 'bg-green-500' : 'bg-yellow-500'}`} />
           <span className="text-sm font-medium text-gray-700">
             {readinessForExecution 
-              ? "Ready to help you bridge insights into strategic frameworks"
-              : "Building understanding to enable strategic support"
+              ? "Analysis indicates readiness for strategic framework development"
+              : "Content analysis shows foundational development in progress"
             }
           </span>
         </div>
