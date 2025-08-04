@@ -31,16 +31,23 @@ export default function Sidebar({ className }: SidebarProps) {
         const {
           data: { user },
         } = await supabase.auth.getUser();
+        console.log('🔍 Sidebar: User authenticated:', !!user, user?.email);
         setUserEmail(user?.email || null);
         const data = await getAllBaskets();
+        console.log('🔍 Sidebar: Loaded baskets:', data.length);
         setBaskets(data);
       } catch (err) {
-        console.error("sidebar init", err);
+        console.error("❌ Sidebar: Init error:", err);
         setBaskets([]);
       }
     }
     init();
   }, [supabase]);
+
+  // Debug pathname changes
+  useEffect(() => {
+    console.log('🔍 Sidebar: Pathname changed to:', pathname);
+  }, [pathname]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -79,8 +86,11 @@ export default function Sidebar({ className }: SidebarProps) {
 
   const handleNavigateToBaskets = () => {
     console.log('🔄 Sidebar: Navigating to /baskets');
+    console.log('🔍 Sidebar: Current pathname:', pathname);
+    console.log('🔍 Sidebar: User email:', userEmail);
     try {
       router.push("/baskets");
+      console.log('✅ Sidebar: Navigation call completed');
     } catch (error) {
       console.error('❌ Sidebar: Failed to navigate to baskets:', error);
     }
@@ -88,8 +98,11 @@ export default function Sidebar({ className }: SidebarProps) {
 
   const handleNavigateToBasketWork = (basketId: string) => {
     console.log('🔄 Sidebar: Navigating to basket work:', basketId);
+    console.log('🔍 Sidebar: Current pathname:', pathname);
+    console.log('🔍 Sidebar: Target path:', `/baskets/${basketId}/work`);
     try {
       router.push(`/baskets/${basketId}/work`);
+      console.log('✅ Sidebar: Basket navigation call completed');
     } catch (error) {
       console.error('❌ Sidebar: Failed to navigate to basket work:', error);
     }
@@ -123,8 +136,10 @@ export default function Sidebar({ className }: SidebarProps) {
       <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3">
         <button
           onClick={(e) => {
+            console.log('🖱️ Sidebar: Logo clicked - event triggered');
             e.preventDefault();
-            console.log('🖱️ Sidebar: Logo clicked');
+            e.stopPropagation();
+            console.log('🖱️ Sidebar: Logo clicked - prevented default');
             handleNavigateToBaskets();
           }}
           className="font-brand text-xl tracking-tight hover:underline"
@@ -144,8 +159,10 @@ export default function Sidebar({ className }: SidebarProps) {
       <div className="px-4 py-3 border-b">
         <button
           onClick={(e) => {
+            console.log('🖱️ Sidebar: New basket clicked - event triggered');
             e.preventDefault();
-            console.log('🖱️ Sidebar: New basket clicked');
+            e.stopPropagation();
+            console.log('🖱️ Sidebar: New basket clicked - prevented default');
             handleNewBasket();
           }}
           className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted font-medium text-muted-foreground hover:text-foreground transition"
@@ -171,8 +188,10 @@ export default function Sidebar({ className }: SidebarProps) {
             <button
               key={b.id}
               onClick={(e) => {
+                console.log('🖱️ Sidebar: Basket clicked - event triggered:', b.id, b.name);
                 e.preventDefault();
-                console.log('🖱️ Sidebar: Basket clicked:', b.id, b.name);
+                e.stopPropagation();
+                console.log('🖱️ Sidebar: Basket clicked - prevented default:', b.id);
                 handleNavigateToBasketWork(b.id);
               }}
               className={cn(
