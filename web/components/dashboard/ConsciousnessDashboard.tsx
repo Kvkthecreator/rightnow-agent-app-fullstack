@@ -180,31 +180,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           {/* Basket Details */}
           {currentIntelligence && (
             <ContentInventorySection
-              inventory={{
-                documents: {
-                  total: currentIntelligence.basketInfo.documentCount,
-                  withContent: Math.floor(currentIntelligence.basketInfo.documentCount * 0.8), // Estimate
-                  totalWords: transformedData.substrate.totalWords,
-                  averageWords: currentIntelligence.basketInfo.documentCount > 0 
-                    ? Math.floor(transformedData.substrate.totalWords / currentIntelligence.basketInfo.documentCount)
-                    : 0
-                },
-                rawDumps: {
-                  total: transformedData.substrate.rawDumps,
-                  processed: transformedData.substrate.rawDumps,
-                  totalWords: Math.floor(transformedData.substrate.totalWords * 0.3), // Estimate
-                  contentBreakdown: {
-                    'text': Math.floor(transformedData.substrate.totalWords * 0.2),
-                    'analysis': Math.floor(transformedData.substrate.totalWords * 0.1)
-                  }
-                },
-                contextItems: {
-                  total: transformedData.substrate.contextItems
-                },
-                blocks: {
-                  total: transformedData.substrate.blocks
-                }
-              }}
+              inventory={createInventoryFromIntelligence(currentIntelligence)}
             />
           )}
 
@@ -324,7 +300,7 @@ function transformToConsciousnessData(intelligence: any) {
       rawDumps: intelligence.intelligence?.recentActivity?.length || 0,
       contextItems: insights.length,
       blocks: recommendations.length,
-      totalWords: Math.floor(Math.random() * 2000) + 500,
+      totalWords: calculateRealWordCount(intelligence),
       patternsDetected: themes.length,
       readinessLevel: intelligence.substrateHealth?.contextQuality > 0.6 
         ? 'Ready for strategic document creation'
@@ -347,6 +323,111 @@ function transformToConsciousnessData(intelligence: any) {
     },
     suggestions: generateSuggestions()
   };
+}
+
+function createInventoryFromIntelligence(intelligence: any) {
+  // Calculate real document statistics
+  const documents = intelligence.documents || [];
+  const documentStats = {
+    total: documents.length,
+    withContent: 0,
+    totalWords: 0,
+    averageWords: 0
+  };
+  
+  // Count documents with content and calculate word counts
+  documents.forEach((doc: any) => {
+    if (doc.content_raw && typeof doc.content_raw === 'string' && doc.content_raw.trim().length > 0) {
+      documentStats.withContent++;
+      const wordCount = doc.content_raw.split(/\s+/).filter((word: string) => word.length > 0).length;
+      documentStats.totalWords += wordCount;
+    }
+  });
+  
+  documentStats.averageWords = documentStats.withContent > 0 
+    ? Math.floor(documentStats.totalWords / documentStats.withContent)
+    : 0;
+
+  // Calculate insights and recommendations word counts (these might be "raw dumps")
+  let insightsWords = 0;
+  if (intelligence.intelligence?.insights) {
+    insightsWords = intelligence.intelligence.insights.reduce((sum: number, insight: any) => {
+      if (insight.description && typeof insight.description === 'string') {
+        return sum + insight.description.split(/\s+/).filter((word: string) => word.length > 0).length;
+      }
+      return sum;
+    }, 0);
+  }
+
+  let recommendationsWords = 0;
+  if (intelligence.intelligence?.recommendations) {
+    recommendationsWords = intelligence.intelligence.recommendations.reduce((sum: number, rec: any) => {
+      if (rec.description && typeof rec.description === 'string') {
+        return sum + rec.description.split(/\s+/).filter((word: string) => word.length > 0).length;
+      }
+      return sum;
+    }, 0);
+  }
+
+  const rawDumpWords = insightsWords + recommendationsWords;
+
+  return {
+    documents: documentStats,
+    rawDumps: {
+      total: (intelligence.intelligence?.insights?.length || 0) + (intelligence.intelligence?.recommendations?.length || 0),
+      processed: (intelligence.intelligence?.insights?.length || 0) + (intelligence.intelligence?.recommendations?.length || 0),
+      totalWords: rawDumpWords,
+      contentBreakdown: rawDumpWords > 0 ? {
+        'insights': insightsWords,
+        'recommendations': recommendationsWords
+      } : {
+        'insights': 0,
+        'recommendations': 0
+      }
+    },
+    contextItems: {
+      total: intelligence.intelligence?.contextAlerts?.length || 0
+    },
+    blocks: {
+      total: intelligence.documents?.length || 0
+    }
+  };
+}
+
+function calculateRealWordCount(intelligence: any): number {
+  let totalWords = 0;
+  
+  // Count words from documents if available
+  if (intelligence.documents && Array.isArray(intelligence.documents)) {
+    totalWords += intelligence.documents.reduce((sum: number, doc: any) => {
+      if (doc.content_raw && typeof doc.content_raw === 'string') {
+        return sum + doc.content_raw.split(/\s+/).filter((word: string) => word.length > 0).length;
+      }
+      return sum;
+    }, 0);
+  }
+  
+  // Count words from insights descriptions
+  if (intelligence.intelligence?.insights && Array.isArray(intelligence.intelligence.insights)) {
+    totalWords += intelligence.intelligence.insights.reduce((sum: number, insight: any) => {
+      if (insight.description && typeof insight.description === 'string') {
+        return sum + insight.description.split(/\s+/).filter((word: string) => word.length > 0).length;
+      }
+      return sum;
+    }, 0);
+  }
+  
+  // Count words from recommendations
+  if (intelligence.intelligence?.recommendations && Array.isArray(intelligence.intelligence.recommendations)) {
+    totalWords += intelligence.intelligence.recommendations.reduce((sum: number, rec: any) => {
+      if (rec.description && typeof rec.description === 'string') {
+        return sum + rec.description.split(/\s+/).filter((word: string) => word.length > 0).length;
+      }
+      return sum;
+    }, 0);
+  }
+  
+  return totalWords;
 }
 
 function getDefaultTransformedData() {
