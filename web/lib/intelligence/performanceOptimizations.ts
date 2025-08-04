@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import type { PageContext } from './pageContextDetection';
 import type { SynthesisContext } from './crossPageSynthesis';
 import type { BehavioralContext } from './behavioralTriggers';
@@ -736,11 +736,14 @@ export function useThrottledCallback<T extends (...args: any[]) => any>(
       throttledRef.current.cancel();
     }
     
-    throttledRef.current = performanceManager.createThrottledFunction(
-      (...args: Parameters<T>) => callbackRef.current(...args),
-      delay,
-      { leading: true, trailing: true }
-    );
+    // Check if performanceManager is available
+    if (typeof performanceManager !== 'undefined') {
+      throttledRef.current = performanceManager.createThrottledFunction(
+        (...args: Parameters<T>) => callbackRef.current(...args),
+        delay,
+        { leading: true, trailing: true }
+      );
+    }
 
     return () => {
       if (throttledRef.current) {
@@ -749,7 +752,12 @@ export function useThrottledCallback<T extends (...args: any[]) => any>(
     };
   }, [delay, ...deps]);
 
-  return throttledRef.current!;
+  // Return a fallback if throttled function not ready
+  if (!throttledRef.current) {
+    return callback as unknown as ThrottledFunction<T>;
+  }
+
+  return throttledRef.current;
 }
 
 // Hook for debounced callbacks
@@ -772,11 +780,14 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
       debouncedRef.current.cancel();
     }
     
-    debouncedRef.current = performanceManager.createDebouncedFunction(
-      (...args: Parameters<T>) => callbackRef.current(...args),
-      delay,
-      { leading: false, trailing: true }
-    );
+    // Check if performanceManager is available
+    if (typeof performanceManager !== 'undefined') {
+      debouncedRef.current = performanceManager.createDebouncedFunction(
+        (...args: Parameters<T>) => callbackRef.current(...args),
+        delay,
+        { leading: false, trailing: true }
+      );
+    }
 
     return () => {
       if (debouncedRef.current) {
@@ -785,7 +796,12 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
     };
   }, [delay, ...deps]);
 
-  return debouncedRef.current!;
+  // Return a fallback if debounced function not ready
+  if (!debouncedRef.current) {
+    return callback as unknown as DebouncedFunction<T>;
+  }
+
+  return debouncedRef.current;
 }
 
 // Hook for optimized computation with caching
@@ -796,6 +812,12 @@ export function useOptimizedComputation<T>(
 ): T {
   const computationRef = useRef<T | undefined>(undefined);
   const depsRef = useRef<React.DependencyList | undefined>(undefined);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Ensure performanceManager is available
+  useEffect(() => {
+    setIsInitialized(true);
+  }, []);
 
   // Check if dependencies have changed
   const depsChanged = !depsRef.current || 
@@ -803,11 +825,16 @@ export function useOptimizedComputation<T>(
     dependencies.some((dep, index) => dep !== depsRef.current![index]);
 
   if (depsChanged || computationRef.current === undefined) {
-    computationRef.current = performanceManager.optimizeSynthesisComputation(
-      computeFn,
-      cacheKey,
-      [...dependencies]
-    );
+    // Direct computation if manager not ready yet
+    if (!isInitialized || typeof performanceManager === 'undefined') {
+      computationRef.current = computeFn();
+    } else {
+      computationRef.current = performanceManager.optimizeSynthesisComputation(
+        computeFn,
+        cacheKey,
+        [...dependencies]
+      );
+    }
     depsRef.current = dependencies;
   }
 
