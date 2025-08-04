@@ -7,7 +7,7 @@ import { ProcessingResultsSection } from './ProcessingResultsSection';
 import { HonestAssessmentSection } from './HonestAssessmentSection';
 import { TruthVsFictionSection } from './TruthVsFictionSection';
 import { RawDataExportSection } from './RawDataExportSection';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 
 interface DetailedViewContentProps {
@@ -22,8 +22,8 @@ export function DetailedViewContent({ basketId, basketName }: DetailedViewConten
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <LoadingSpinner size="lg" />
-          <p className="mt-4 text-lg text-gray-600">Analyzing your workspace in detail...</p>
+          <OrganicSpinner size="lg" />
+          <p className="mt-6 text-lg text-gray-600">Basket loading... please wait</p>
         </div>
       </div>
     );

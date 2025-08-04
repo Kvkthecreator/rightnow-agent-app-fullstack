@@ -134,11 +134,15 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
     }
   }, [basketId]);
 
-  // Initial data load
+  // Initial data load - run in parallel for better performance
   useEffect(() => {
     if (basketId) {
-      fetchCurrentIntelligence();
-      fetchPendingChanges();
+      Promise.all([
+        fetchCurrentIntelligence(),
+        fetchPendingChanges()
+      ]).catch(err => {
+        console.error('Failed to load initial data:', err);
+      });
     }
   }, [basketId, fetchCurrentIntelligence, fetchPendingChanges]);
 

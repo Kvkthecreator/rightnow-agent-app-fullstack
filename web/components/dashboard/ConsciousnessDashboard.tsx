@@ -9,7 +9,7 @@ import { NarrativeUnderstanding } from './NarrativeUnderstanding';
 import { ContextSuggestions } from './ContextSuggestions';
 import { FloatingCommunication } from './FloatingCommunication';
 import { ThinkingPartnerPanel } from '@/components/intelligence/ThinkingPartnerPanel';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { useBasket } from '@/contexts/BasketContext';
 
@@ -119,8 +119,8 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         <div className="text-center">
           {isProcessing ? (
             <>
-              <LoadingSpinner size="lg" />
-              <p className="ml-3 text-lg text-gray-600 mt-4">Preparing your thinking partner...</p>
+              <OrganicSpinner size="lg" />
+              <p className="text-lg text-gray-600 mt-6">Basket loading... please wait</p>
             </>
           ) : (
             <>

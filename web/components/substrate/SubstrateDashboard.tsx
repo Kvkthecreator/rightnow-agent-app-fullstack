@@ -7,7 +7,7 @@ import { GeneralInfoSection } from './GeneralInfoSection';
 import { NarrativeOverview } from './NarrativeOverview';
 import { DocumentGrid } from './DocumentGrid';
 import { InsightsAndActions } from './InsightsAndActions';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 
 interface SubstrateDashboardProps {
@@ -62,8 +62,8 @@ export function SubstrateDashboard({ basketId }: SubstrateDashboardProps) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <LoadingSpinner size="lg" />
-          <p className="ml-3 text-lg text-gray-600 mt-4">Loading your substrate intelligence...</p>
+          <OrganicSpinner size="lg" />
+          <p className="text-lg text-gray-600 mt-6">Basket loading... please wait</p>
         </div>
       </div>
     );
