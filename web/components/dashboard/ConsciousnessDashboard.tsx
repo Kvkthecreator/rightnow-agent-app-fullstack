@@ -184,17 +184,15 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
             />
           )}
 
-          {/* Narrative Understanding */}
-          {currentIntelligence && (
-            <NarrativeUnderstanding
-              userThinkingPatterns={transformedData.narrative.userThinkingPatterns}
-              dominantThemes={transformedData.narrative.dominantThemes}
-              uncertainty={transformedData.narrative.uncertainty}
-              readinessForExecution={transformedData.narrative.readinessForExecution}
-              personalizedInsight={transformedData.narrative.personalizedInsight}
-              confidenceLevel={transformedData.narrative.confidenceLevel}
-            />
-          )}
+          {/* Executive Summary - Always show for honest assessment */}
+          <NarrativeUnderstanding
+            userThinkingPatterns={transformedData.narrative.userThinkingPatterns}
+            dominantThemes={transformedData.narrative.dominantThemes}
+            uncertainty={transformedData.narrative.uncertainty}
+            readinessForExecution={transformedData.narrative.readinessForExecution}
+            personalizedInsight={transformedData.narrative.personalizedInsight}
+            confidenceLevel={transformedData.narrative.confidenceLevel}
+          />
 
           {/* Context Suggestions */}
           <ContextSuggestions
@@ -504,7 +502,7 @@ function getDefaultTransformedData() {
       dominantThemes: [],
       uncertainty: [],
       readinessForExecution: false,
-      personalizedInsight: "Welcome to your thinking workspace. Start by adding some content and I'll help you develop insights about your work.",
+      personalizedInsight: "This workspace currently contains insufficient content for executive analysis. Add strategic documents, project plans, or contextual information to enable comprehensive intelligence reporting.",
       confidenceLevel: 0.1
     },
     suggestions: []

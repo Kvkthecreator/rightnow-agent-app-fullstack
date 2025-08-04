@@ -59,58 +59,22 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
     };
   }, []);
 
-  // Fetch current approved intelligence
+  // Fetch current intelligence - use substrate API directly since it has our real data logic
   const fetchCurrentIntelligence = useCallback(async () => {
     try {
-      const response = await fetchWithToken(`/api/intelligence/approved/${basketId}`);
+      const response = await fetchWithToken(`/api/substrate/basket/${basketId}`);
       
       if (response.ok) {
         const data = await response.json();
-        setCurrentIntelligence(data.intelligence);
-        setLastUpdateTime(data.lastApprovalDate);
-      } else if (response.status === 404) {
-        // No approved intelligence exists yet - this is normal for new baskets
-        // Try substrate intelligence, but if that also doesn't exist, show honest empty state
-        try {
-          const fallbackResponse = await fetchWithToken(`/api/substrate/basket/${basketId}`);
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
-            setCurrentIntelligence(fallbackData);
-          } else {
-            // No intelligence available yet - show transparent empty state
-            setCurrentIntelligence(null);
-          }
-        } catch (fallbackErr) {
-          // Network error or substrate not ready - show honest empty state
-          setCurrentIntelligence(null);
-        }
+        setCurrentIntelligence(data);
+        setLastUpdateTime(data.basketInfo?.lastUpdated || new Date().toISOString());
       } else {
-        // Other status codes - still try substrate fallback
-        try {
-          const fallbackResponse = await fetchWithToken(`/api/substrate/basket/${basketId}`);
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
-            setCurrentIntelligence(fallbackData);
-          } else {
-            setCurrentIntelligence(null);
-          }
-        } catch (fallbackErr) {
-          setCurrentIntelligence(null);
-        }
-      }
-    } catch (err) {
-      // Network or other errors - try substrate fallback without logging errors
-      try {
-        const fallbackResponse = await fetchWithToken(`/api/substrate/basket/${basketId}`);
-        if (fallbackResponse.ok) {
-          const fallbackData = await fallbackResponse.json();
-          setCurrentIntelligence(fallbackData);
-        } else {
-          setCurrentIntelligence(null);
-        }
-      } catch (fallbackErr) {
+        // No intelligence available yet - show transparent empty state
         setCurrentIntelligence(null);
       }
+    } catch (err) {
+      // Network or other errors - show honest empty state without console errors
+      setCurrentIntelligence(null);
     }
   }, [basketId]);
 
