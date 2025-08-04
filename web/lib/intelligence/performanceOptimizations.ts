@@ -709,8 +709,22 @@ export const defaultPerformanceConfig: PerformanceOptimizations = {
   }
 };
 
-// Singleton performance manager
-export const performanceManager = new PerformanceOptimizationManager(defaultPerformanceConfig);
+// Lazy initialization to avoid circular dependency issues
+let _performanceManager: PerformanceOptimizationManager | null = null;
+
+export function getPerformanceManager(): PerformanceOptimizationManager {
+  if (!_performanceManager) {
+    _performanceManager = new PerformanceOptimizationManager(defaultPerformanceConfig);
+  }
+  return _performanceManager;
+}
+
+// Export for backward compatibility
+export const performanceManager = new Proxy({} as PerformanceOptimizationManager, {
+  get(target, prop) {
+    return getPerformanceManager()[prop as keyof PerformanceOptimizationManager];
+  }
+});
 
 /**
  * React hooks for performance optimization
@@ -736,13 +750,17 @@ export function useThrottledCallback<T extends (...args: any[]) => any>(
       throttledRef.current.cancel();
     }
     
-    // Check if performanceManager is available
-    if (typeof performanceManager !== 'undefined') {
-      throttledRef.current = performanceManager.createThrottledFunction(
+    // Use lazy initialization
+    try {
+      const manager = getPerformanceManager();
+      throttledRef.current = manager.createThrottledFunction(
         (...args: Parameters<T>) => callbackRef.current(...args),
         delay,
         { leading: true, trailing: true }
       );
+    } catch (error) {
+      // Fallback if initialization fails
+      console.warn('Performance manager not ready:', error);
     }
 
     return () => {
@@ -780,13 +798,17 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
       debouncedRef.current.cancel();
     }
     
-    // Check if performanceManager is available
-    if (typeof performanceManager !== 'undefined') {
-      debouncedRef.current = performanceManager.createDebouncedFunction(
+    // Use lazy initialization
+    try {
+      const manager = getPerformanceManager();
+      debouncedRef.current = manager.createDebouncedFunction(
         (...args: Parameters<T>) => callbackRef.current(...args),
         delay,
         { leading: false, trailing: true }
       );
+    } catch (error) {
+      // Fallback if initialization fails
+      console.warn('Performance manager not ready:', error);
     }
 
     return () => {
@@ -825,15 +847,17 @@ export function useOptimizedComputation<T>(
     dependencies.some((dep, index) => dep !== depsRef.current![index]);
 
   if (depsChanged || computationRef.current === undefined) {
-    // Direct computation if manager not ready yet
-    if (!isInitialized || typeof performanceManager === 'undefined') {
-      computationRef.current = computeFn();
-    } else {
-      computationRef.current = performanceManager.optimizeSynthesisComputation(
+    // Use lazy initialization with fallback
+    try {
+      const manager = getPerformanceManager();
+      computationRef.current = manager.optimizeSynthesisComputation(
         computeFn,
         cacheKey,
         [...dependencies]
       );
+    } catch (error) {
+      // Fallback to direct computation
+      computationRef.current = computeFn();
     }
     depsRef.current = dependencies;
   }
