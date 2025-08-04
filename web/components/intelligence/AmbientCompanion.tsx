@@ -6,6 +6,10 @@ import { usePageContext, generateAmbientMessage, getContextCapabilities, type Pa
 import { useUnifiedIntelligence } from '@/lib/intelligence/useUnifiedIntelligence';
 import { analyzeConversationIntent, createConversationGenerationRequest } from '@/lib/intelligence/conversationAnalyzer';
 import { createContextualConversationRequest } from '@/lib/intelligence/contextualIntelligence';
+import { useBehavioralTriggers } from '@/lib/intelligence/behavioralTriggers';
+import { useCrossPageSynthesis, generateSynthesisMessage, enhancePromptWithSynthesis } from '@/lib/intelligence/crossPageSynthesis';
+import { useConversationThreading } from '@/lib/intelligence/conversationThreading';
+import { AdaptiveConversationRouter, RouteEnhancementProcessor, type RoutingContext } from '@/lib/intelligence/adaptiveRouting';
 
 interface AmbientCompanionProps {
   basketId: string;
@@ -41,6 +45,31 @@ export function AmbientCompanion({
     addContext
   } = useUnifiedIntelligence(basketId);
 
+  // Initialize synthesis context first (without behavioral context)
+  const { synthesisContext, recordInteraction, getContextualRecommendations, hasSynthesisOpportunities } = useCrossPageSynthesis(
+    pageContext,
+    null, // Initial pass without behavioral context
+    currentIntelligence
+  );
+
+  // Get behavioral context with synthesis context
+  const { behavioralContext, activeTriggers, recordInteraction: recordBehavioralInteraction, activateTrigger } = useBehavioralTriggers(
+    pageContext,
+    synthesisContext
+  );
+
+  // Conversation threading and adaptive routing
+  const {
+    activeThread,
+    conversationMemory,
+    addMessage,
+    recordIntelligenceRequest,
+    recordOutcome,
+    getThreadContext
+  } = useConversationThreading(pageContext, synthesisContext);
+
+  const adaptiveRouter = useRef(new AdaptiveConversationRouter());
+
   // Determine initial state based on context
   useEffect(() => {
     if (pageContext.page === 'unknown') {
@@ -52,9 +81,29 @@ export function AmbientCompanion({
     }
   }, [pageContext.page, pageContext.userActivity.isActivelyEngaged]);
 
-  // Generate ambient message
-  const ambientMessage = generateAmbientMessage(pageContext, currentIntelligence);
+  // Generate enhanced ambient message with behavioral and synthesis awareness
+  const getEnhancedAmbientMessage = useCallback(() => {
+    // Check for active behavioral triggers first
+    if (activeTriggers.length > 0) {
+      const highestConfidenceTrigger = activeTriggers.reduce((best, current) => 
+        current.confidence > best.confidence ? current : best
+      );
+      return highestConfidenceTrigger.message(behavioralContext, pageContext);
+    }
+
+    // Check for synthesis opportunities
+    const synthesisMessage = generateSynthesisMessage(synthesisContext, pageContext);
+    if (synthesisMessage && hasSynthesisOpportunities()) {
+      return synthesisMessage;
+    }
+
+    // Fallback to standard ambient message
+    return generateAmbientMessage(pageContext, currentIntelligence);
+  }, [activeTriggers, behavioralContext, pageContext, synthesisContext, hasSynthesisOpportunities, currentIntelligence]);
+
+  const ambientMessage = getEnhancedAmbientMessage();
   const capabilities = getContextCapabilities(pageContext);
+  const contextualRecommendations = getContextualRecommendations();
 
   // Handle companion click
   const handleCompanionClick = useCallback(() => {
@@ -110,38 +159,56 @@ export function AmbientCompanion({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Handle quick input submission
+  // Handle quick input submission with adaptive routing
   const handleQuickSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickInput.trim()) return;
 
     try {
+      // Record message in conversation thread
+      addMessage('user_input', quickInput.trim());
+
+      // Record interaction for cross-page synthesis
+      recordInteraction({
+        type: 'intelligence_request',
+        content: quickInput.trim(),
+        context: { 
+          companionState,
+          hasTriggers: activeTriggers.length > 0,
+          hasSynthesis: hasSynthesisOpportunities()
+        }
+      });
+
       // Analyze conversation intent
       const intent = analyzeConversationIntent({
         userInput: quickInput.trim(),
         timestamp: new Date().toISOString()
       });
 
-      if (intent.shouldGenerateIntelligence) {
-        // Create contextual conversation request with page information
-        const conversationGenRequest = createConversationGenerationRequest(
-          {
-            userInput: quickInput.trim(),
-            timestamp: new Date().toISOString()
-          },
-          intent
-        );
+      // Create routing context
+      const routingContext: RoutingContext = {
+        userQuery: quickInput.trim(),
+        intent,
+        pageContext,
+        behavioralContext,
+        synthesisContext,
+        conversationMemory,
+        activeThread,
+        activeTriggers
+      };
 
-        // Enhance with page context for intelligent analysis
-        const contextualRequest = createContextualConversationRequest(
-          conversationGenRequest,
-          pageContext
-        );
+      // Get adaptive routing decision
+      const routingDecision = adaptiveRouter.current.routeConversation(routingContext);
+      
+      console.log('🎯 Adaptive routing decision:', {
+        route: routingDecision.route,
+        confidence: routingDecision.confidence,
+        reasoning: routingDecision.reasoning,
+        enhancements: routingDecision.enhancements.length
+      });
 
-        // Generate intelligence with full contextual awareness
-        await generateIntelligence(contextualRequest);
-      } else {
-        // Add context with page information
+      if (routingDecision.route === 'simple_context_add') {
+        // Simple context addition - no intelligence generation
         await addContext([{
           type: 'text',
           content: quickInput.trim(),
@@ -153,15 +220,108 @@ export function AmbientCompanion({
               page: pageContext.page,
               userActivity: pageContext.userActivity.lastAction,
               content: pageContext.content
+            },
+            routingDecision: {
+              route: routingDecision.route,
+              confidence: routingDecision.confidence
             }
           }
         }]);
+
+        recordOutcome('context_added', quickInput.trim(), 'low');
+        addMessage('system_response', 'Context added to your workspace');
+
+      } else {
+        // Intelligence generation with adaptive enhancements
+        const conversationGenRequest = createConversationGenerationRequest(
+          {
+            userInput: quickInput.trim(),
+            timestamp: new Date().toISOString()
+          },
+          intent
+        );
+
+        // Start with basic contextual request
+        let contextualRequest = createContextualConversationRequest(
+          conversationGenRequest,
+          pageContext
+        );
+
+        // Apply route-specific enhancements
+        let enhancedQuery = contextualRequest.userQuery;
+
+        if (routingDecision.enhancements.length > 0) {
+          switch (routingDecision.route) {
+            case 'synthesis_generation':
+              enhancedQuery = RouteEnhancementProcessor.processSynthesisEnhancements(
+                routingDecision.enhancements,
+                enhancedQuery
+              );
+              break;
+
+            case 'behavioral_response':
+              enhancedQuery = RouteEnhancementProcessor.processBehavioralEnhancements(
+                routingDecision.enhancements,
+                enhancedQuery
+              );
+              break;
+
+            case 'memory_assisted':
+              enhancedQuery = RouteEnhancementProcessor.processMemoryEnhancements(
+                routingDecision.enhancements,
+                enhancedQuery
+              );
+              break;
+
+            case 'workflow_guidance':
+              enhancedQuery = RouteEnhancementProcessor.processWorkflowEnhancements(
+                routingDecision.enhancements,
+                enhancedQuery
+              );
+              break;
+
+            default:
+              // For other routes, apply cross-page synthesis if available
+              if (hasSynthesisOpportunities()) {
+                enhancedQuery = enhancePromptWithSynthesis(enhancedQuery, synthesisContext, pageContext);
+              }
+          }
+        }
+
+        // Update contextual request with enhanced query
+        contextualRequest = {
+          ...contextualRequest,
+          userQuery: enhancedQuery,
+          routingDecision,
+          threadContext: getThreadContext()
+        };
+
+        // Record intelligence request in thread
+        const requestId = recordIntelligenceRequest(quickInput.trim());
+
+        // Generate intelligence with adaptive routing
+        await generateIntelligence(contextualRequest);
+
+        // Record behavioral interaction
+        recordBehavioralInteraction({
+          type: 'proactive_suggestion',
+          timestamp: Date.now(),
+          userResponse: 'engaged',
+          contextualRelevance: routingDecision.confidence,
+          timingScore: activeTriggers.length > 0 ? 0.8 : 0.6
+        });
+
+        recordOutcome('intelligence_approved', { requestId, route: routingDecision.route }, 'high');
       }
 
       setQuickInput('');
       setCompanionState('ambient');
+
     } catch (error) {
-      console.error('Failed to process quick input:', error);
+      console.error('Failed to process adaptive conversation:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      recordOutcome('session_ended', { error: errorMessage }, 'low');
+      addMessage('system_response', 'Sorry, I encountered an error processing your request');
     }
   };
 
@@ -314,7 +474,7 @@ export function AmbientCompanion({
             </div>
           </form>
 
-          {/* Capabilities */}
+          {/* Enhanced Capabilities with Contextual Recommendations */}
           <div className="space-y-2">
             <button
               onClick={() => setShowCapabilities(!showCapabilities)}
@@ -325,13 +485,42 @@ export function AmbientCompanion({
             </button>
             
             {showCapabilities && (
-              <div className="space-y-1 pl-2 border-l-2 border-gray-100">
-                {capabilities.map((capability, index) => (
-                  <div key={index} className="flex items-center gap-2 text-xs text-gray-600">
-                    <Lightbulb className="h-3 w-3 text-purple-500 flex-shrink-0" />
-                    <span>{capability}</span>
+              <div className="space-y-2">
+                {/* Contextual Recommendations */}
+                {contextualRecommendations.length > 0 && (
+                  <div className="p-2 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="text-xs font-medium text-purple-700 mb-1">Smart Recommendations</div>
+                    {contextualRecommendations.map((rec, index) => (
+                      <div key={index} className="flex items-start gap-2 text-xs text-purple-600 mb-1 last:mb-0">
+                        <Sparkles className="h-3 w-3 text-purple-500 flex-shrink-0 mt-0.5" />
+                        <span>{rec}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+
+                {/* Active Triggers */}
+                {activeTriggers.length > 0 && (
+                  <div className="p-2 bg-orange-50 rounded-lg border border-orange-200">
+                    <div className="text-xs font-medium text-orange-700 mb-1">Behavioral Insights</div>
+                    {activeTriggers.slice(0, 2).map((trigger, index) => (
+                      <div key={trigger.id} className="flex items-start gap-2 text-xs text-orange-600 mb-1 last:mb-0">
+                        <MessageCircle className="h-3 w-3 text-orange-500 flex-shrink-0 mt-0.5" />
+                        <span>{trigger.message(behavioralContext, pageContext)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Standard Capabilities */}
+                <div className="space-y-1 pl-2 border-l-2 border-gray-100">
+                  {capabilities.map((capability, index) => (
+                    <div key={index} className="flex items-center gap-2 text-xs text-gray-600">
+                      <Lightbulb className="h-3 w-3 text-purple-500 flex-shrink-0" />
+                      <span>{capability}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

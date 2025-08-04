@@ -2,6 +2,7 @@
 
 import type { PageContext } from './pageContextDetection';
 import type { ConversationTriggeredGeneration } from './conversationAnalyzer';
+import type { RoutingDecision } from './adaptiveRouting';
 
 /**
  * Enhanced conversation context with page-specific information
@@ -10,6 +11,16 @@ export interface ContextualConversationRequest extends ConversationTriggeredGene
   pageContext: PageContext;
   contextualHints: string[];
   intelligenceType: 'dashboard' | 'document' | 'timeline' | 'detailed-view' | 'general';
+  
+  // Enhanced adaptive routing fields
+  routingDecision?: RoutingDecision;
+  threadContext?: {
+    recentMessages: any[];
+    relatedIntelligence: any[];
+    conversationTopic?: string;
+    threadContinuity: boolean;
+  };
+  synthesisContext?: any;
 }
 
 /**
