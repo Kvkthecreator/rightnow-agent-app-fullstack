@@ -155,8 +155,8 @@ function generateMinimalStateIntelligence(basket: any, documents: any[], blocks:
       { type: "create_document", label: "Create Document", enabled: true },
       { type: "analyze_deeper", label: "Deep Analysis", enabled: true }
     ],
-    confidenceScore: Math.min(25 + (documents.length * 8) + (blocks.length * 3) + (contextItems.length * 2), 60),
-    memoryGrowth: Math.min(totalItems * 2, 15),
+    confidenceScore: calculateRealConfidenceScore(documents, blocks, contextItems),
+    memoryGrowth: calculateRealMemoryGrowth(documents, blocks, contextItems),
     lastUpdated: new Date().toISOString(),
     insights: generateBasicInsights(themes, documents),
     recommendations: generateBasicRecommendations(themes, totalItems)
@@ -195,8 +195,8 @@ function generateRichStateIntelligence(basket: any, documents: any[], blocks: an
       { type: "find_gaps", label: "Find Gaps", enabled: true },
       { type: "strategic_planning", label: "Strategic Planning", enabled: true }
     ],
-    confidenceScore: Math.min(60 + (documents.length * 3) + (blocks.length * 2) + (contextItems.length * 1), 95),
-    memoryGrowth: Math.min(totalItems * 0.8, 25),
+    confidenceScore: calculateRealConfidenceScore(documents, blocks, contextItems),
+    memoryGrowth: calculateRealMemoryGrowth(documents, blocks, contextItems),
     lastUpdated: new Date().toISOString(),
     insights: generateAdvancedInsights(themes, patterns, documents),
     recommendations: generateAdvancedRecommendations(themes, patterns, totalItems)
@@ -358,6 +358,77 @@ function isCommonWord(word: string): boolean {
     'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was', 'one', 'our', 'had', 'have', 'this', 'that', 'with', 'they', 'from', 'will', 'been', 'said', 'each', 'which', 'their', 'time', 'would', 'there', 'what', 'about', 'when', 'where', 'some', 'more', 'very', 'into', 'after', 'first', 'well', 'work', 'way', 'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most'
   ]);
   return commonWords.has(word.toLowerCase());
+}
+
+function calculateRealConfidenceScore(documents: any[], blocks: any[], contextItems: any[]): number {
+  let score = 0;
+  
+  // Base score from content existence
+  const hasDocuments = documents.length > 0;
+  const hasBlocks = blocks.length > 0;
+  const hasContext = contextItems.length > 0;
+  
+  if (!hasDocuments && !hasBlocks && !hasContext) return 0;
+  
+  // Calculate actual content words
+  let totalContentWords = 0;
+  documents.forEach(doc => {
+    if (doc.content_raw && typeof doc.content_raw === 'string') {
+      totalContentWords += doc.content_raw.split(/\s+/).filter((word: string) => word.length > 0).length;
+    }
+  });
+  
+  blocks.forEach(block => {
+    if (block.content && typeof block.content === 'string') {
+      totalContentWords += block.content.split(/\s+/).filter((word: string) => word.length > 0).length;
+    }
+  });
+  
+  contextItems.forEach(item => {
+    if (item.content && typeof item.content === 'string') {
+      totalContentWords += item.content.split(/\s+/).filter((word: string) => word.length > 0).length;
+    }
+  });
+  
+  // Score based on actual content depth
+  if (totalContentWords === 0) return 5; // Has items but no content
+  if (totalContentWords < 100) return 15;
+  if (totalContentWords < 500) return 35;
+  if (totalContentWords < 1000) return 60;
+  if (totalContentWords < 2000) return 80;
+  return 95;
+}
+
+function calculateRealMemoryGrowth(documents: any[], blocks: any[], contextItems: any[]): number {
+  // Calculate growth based on actual content recency and activity
+  const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  
+  let recentActivity = 0;
+  
+  // Check document recency
+  documents.forEach(doc => {
+    const updated = new Date(doc.updated_at || doc.created_at);
+    if (updated > dayAgo) recentActivity += 3;
+    else if (updated > weekAgo) recentActivity += 1;
+  });
+  
+  // Check block recency  
+  blocks.forEach(block => {
+    const updated = new Date(block.updated_at || block.created_at);
+    if (updated > dayAgo) recentActivity += 2;
+    else if (updated > weekAgo) recentActivity += 0.5;
+  });
+  
+  // Check context recency
+  contextItems.forEach(item => {
+    const updated = new Date(item.updated_at || item.created_at);
+    if (updated > dayAgo) recentActivity += 1;
+    else if (updated > weekAgo) recentActivity += 0.3;
+  });
+  
+  return Math.min(Math.round(recentActivity), 25);
 }
 
 function capitalizeWord(word: string): string {

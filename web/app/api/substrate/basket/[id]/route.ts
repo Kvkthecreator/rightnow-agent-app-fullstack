@@ -82,11 +82,47 @@ function transformToSubstrateFormat(intelligenceData: any): SubstrateIntelligenc
     },
     substrateHealth: {
       contextQuality: Math.max(0.1, (intelligenceData.confidenceScore || 0) / 100),
-      documentAlignment: Math.min((intelligenceData.memoryGrowth || 0) / 25, 1.0),
-      evolutionRate: (intelligenceData.confidenceScore || 0) > 60 ? 'active' : 
-                     (intelligenceData.confidenceScore || 0) > 30 ? 'growing' : 'stable'
+      documentAlignment: calculateDocumentAlignment(intelligenceData),
+      evolutionRate: calculateEvolutionRate(intelligenceData)
     }
   };
+}
+
+function calculateDocumentAlignment(intelligenceData: any): number {
+  // Calculate alignment based on theme consistency and content quality
+  const themes = intelligenceData.themes || [];
+  const insights = intelligenceData.insights || [];
+  const recommendations = intelligenceData.recommendations || [];
+  
+  if (themes.length === 0 && insights.length === 0) return 0.1;
+  
+  // Higher alignment when themes are consistent with insights/recommendations
+  let alignmentScore = 0.1;
+  
+  // Theme consistency bonus
+  if (themes.length > 0) {
+    alignmentScore += 0.3;
+    if (themes.length > 1) alignmentScore += 0.2; // Multiple themes show depth
+  }
+  
+  // Content consistency bonus
+  if (insights.length > 0) alignmentScore += 0.2;
+  if (recommendations.length > 0) alignmentScore += 0.2;
+  
+  // Bonus for having both insights and recommendations
+  if (insights.length > 0 && recommendations.length > 0) alignmentScore += 0.1;
+  
+  return Math.min(alignmentScore, 1.0);
+}
+
+function calculateEvolutionRate(intelligenceData: any): 'stable' | 'growing' | 'active' {
+  const confidence = intelligenceData.confidenceScore || 0;
+  const memoryGrowth = intelligenceData.memoryGrowth || 0;
+  
+  // Base on actual activity metrics
+  if (memoryGrowth > 10 && confidence > 60) return 'active';
+  if (memoryGrowth > 5 || confidence > 35) return 'growing';
+  return 'stable';
 }
 
 // All analysis logic moved to shared utility - this file is now much simpler!
