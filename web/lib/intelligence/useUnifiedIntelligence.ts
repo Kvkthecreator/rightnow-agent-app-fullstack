@@ -5,6 +5,7 @@ import { fetchWithToken } from '@/lib/fetchWithToken';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
 import type { IntelligenceEvent } from './changeDetection';
 import type { ConversationTriggeredGeneration } from './conversationAnalyzer';
+import type { ContextualConversationRequest } from './contextualIntelligence';
 
 // Unified State Machine for Intelligence Management
 export enum ChangeState {
@@ -138,7 +139,7 @@ const initialState: IntelligenceState = {
 
 export interface UseUnifiedIntelligenceReturn extends IntelligenceState {
   // Core actions
-  generateIntelligence: (conversationContext?: ConversationTriggeredGeneration) => Promise<void>;
+  generateIntelligence: (conversationContext?: ConversationTriggeredGeneration | ContextualConversationRequest) => Promise<void>;
   approveChanges: (eventId: string, sections: string[]) => Promise<void>;
   rejectChanges: (eventId: string, reason?: string) => Promise<void>;
   refreshIntelligence: () => Promise<void>;
@@ -258,25 +259,31 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
     return () => clearInterval(interval);
   }, [basketId, state.isProcessing, fetchPendingChanges]);
 
-  // Generate new intelligence
-  const generateIntelligence = useCallback(async (conversationContext?: ConversationTriggeredGeneration) => {
+  // Generate new intelligence with enhanced context support
+  const generateIntelligence = useCallback(async (conversationContext?: ConversationTriggeredGeneration | ContextualConversationRequest) => {
     if (state.isProcessing) return;
 
-    // Set conversation context and processing state
+    // Determine message based on context type
+    let loadingMessage = 'Generating insights...';
+    let origin = 'manual';
+
     if (conversationContext) {
+      // Handle both regular and contextual conversation requests
+      if ('pageContext' in conversationContext) {
+        // Contextual request with page information
+        const contextualRequest = conversationContext as ContextualConversationRequest;
+        loadingMessage = getContextualLoadingMessage(contextualRequest);
+        origin = 'contextual_conversation';
+      } else {
+        // Regular conversation request
+        loadingMessage = getLoadingMessage(conversationContext.intent);
+        origin = 'conversation';
+      }
+
       dispatch({ type: 'SET_CONVERSATION_CONTEXT', payload: conversationContext });
-      dispatch({ 
-        type: 'SET_PROCESSING', 
-        payload: { 
-          isProcessing: true, 
-          message: getLoadingMessage(conversationContext.intent) 
-        }
-      });
+      dispatch({ type: 'SET_PROCESSING', payload: { isProcessing: true, message: loadingMessage }});
     } else {
-      dispatch({ 
-        type: 'SET_PROCESSING', 
-        payload: { isProcessing: true, message: 'Generating insights...' }
-      });
+      dispatch({ type: 'SET_PROCESSING', payload: { isProcessing: true, message: loadingMessage }});
     }
 
     dispatch({ type: 'SET_ERROR', payload: null });
@@ -286,7 +293,7 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          origin: conversationContext ? 'conversation' : 'manual',
+          origin,
           conversationContext,
           checkPending: true
         })
@@ -497,4 +504,40 @@ function getLoadingMessage(intent: any): string {
     return 'Creating comprehensive summary...';
   }
   return 'Generating insights from your content...';
+}
+
+// Helper function for contextual loading messages
+function getContextualLoadingMessage(contextualRequest: ContextualConversationRequest): string {
+  const { pageContext, intent } = contextualRequest;
+  const page = pageContext.page;
+
+  // Base message from intent
+  let baseMessage = getLoadingMessage(intent);
+
+  // Enhance with page context
+  switch (page) {
+    case 'dashboard':
+      if (intent.triggerPhrase?.toLowerCase().includes('pattern')) {
+        return 'Analyzing patterns across your workspace...';
+      }
+      return 'Synthesizing insights from your dashboard...';
+      
+    case 'document':
+      if (pageContext.userActivity.selectedText) {
+        return 'Analyzing your selected text...';
+      }
+      if (pageContext.userActivity.recentEdits.length > 0) {
+        return 'Reviewing your recent edits...';
+      }
+      return 'Analyzing your document content...';
+      
+    case 'timeline':
+      return 'Examining patterns over time...';
+      
+    case 'detailed-view':
+      return 'Performing deep substrate analysis...';
+      
+    default:
+      return baseMessage;
+  }
 }

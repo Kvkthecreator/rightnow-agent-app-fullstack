@@ -9,6 +9,7 @@ import { NarrativeUnderstanding } from './NarrativeUnderstanding';
 import { ContextSuggestions } from './ContextSuggestions';
 import { FloatingCommunication } from './FloatingCommunication';
 import { UniversalChangeModal } from '@/components/intelligence/UniversalChangeModal';
+import { AmbientCompanion } from '@/components/intelligence/AmbientCompanion';
 import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { useBasket } from '@/contexts/BasketContext';
@@ -282,6 +283,14 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         isProcessing={isProcessing}
         hasPendingChanges={pendingChanges.length > 0}
         onCheckPendingChanges={handleCheckPendingChanges}
+      />
+
+      {/* Ambient Companion */}
+      <AmbientCompanion
+        basketId={basketId}
+        onExpandedChange={(expanded) => {
+          console.log('Ambient companion expanded:', expanded);
+        }}
       />
 
       {/* Toast notifications */}
