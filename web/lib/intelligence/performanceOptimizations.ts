@@ -42,6 +42,7 @@ export interface CacheEntry<T> {
   accessCount: number;
   lastAccessed: number;
   computationCost: number;
+  size?: number;
 }
 
 export interface PerformanceMetrics {
@@ -469,8 +470,16 @@ export class PerformanceOptimizationManager {
       if (!this.cache.has(cacheKey)) {
         try {
           const data = await preloadFn(page);
-          const cache = this.createCache<any>();
-          cache.set(cacheKey, data, 2); // Higher computation cost for preloaded data
+          const now = Date.now();
+          const entry: CacheEntry<any> = {
+            data,
+            timestamp: now,
+            lastAccessed: now,
+            accessCount: 0,
+            size: 1,
+            computationCost: 2 // Higher computation cost for preloaded data
+          };
+          this.cache.set(cacheKey, entry);
         } catch (error) {
           console.warn(`Failed to preload context for ${page}:`, error);
         }
@@ -493,12 +502,14 @@ export class PerformanceOptimizationManager {
     const dependencyHash = this.hashDependencies(dependencies);
     const fullCacheKey = `${cacheKey}_${dependencyHash}`;
 
-    const cache = this.createCache<T>();
-    
     // Check cache first
-    const cached = cache.get(fullCacheKey);
-    if (cached !== undefined) {
-      return cached;
+    const cachedEntry = this.cache.get(fullCacheKey);
+    if (cachedEntry) {
+      // Update access statistics
+      cachedEntry.accessCount++;
+      cachedEntry.lastAccessed = Date.now();
+      this.updateCacheHitRate(true);
+      return cachedEntry.data as T;
     }
 
     // Update cache miss rate
@@ -514,7 +525,23 @@ export class PerformanceOptimizationManager {
 
     // Cache with computation cost based on time
     const computationCost = Math.max(1, Math.floor(computationTime / 10));
-    cache.set(fullCacheKey, result, computationCost);
+    const now = Date.now();
+    const entry: CacheEntry<T> = {
+      data: result,
+      timestamp: now,
+      lastAccessed: now,
+      accessCount: 1,
+      size: 1, // Default size
+      computationCost
+    };
+    
+    this.cache.set(fullCacheKey, entry);
+    
+    // Check if cache needs eviction (default max 100 entries)
+    const maxEntries = 100;
+    if (this.cache.size > maxEntries) {
+      this.evictLeastUseful();
+    }
 
     return result;
   }
