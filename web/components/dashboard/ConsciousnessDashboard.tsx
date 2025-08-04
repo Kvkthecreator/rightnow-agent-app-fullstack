@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useThinkingPartner } from '@/lib/intelligence/useThinkingPartner';
+import { useUnifiedIntelligence } from '@/lib/intelligence/useUnifiedIntelligence';
 import { IdentityAnchorHeader } from './IdentityAnchorHeader';
 import { ContentInventorySection } from '@/components/detailed-view/ContentInventorySection';
 import { NarrativeUnderstanding } from './NarrativeUnderstanding';
@@ -15,7 +15,6 @@ import { useBasket } from '@/contexts/BasketContext';
 import { 
   analyzeConversationIntent, 
   createConversationGenerationRequest,
-  getLoadingMessage,
   type ConversationTriggeredGeneration 
 } from '@/lib/intelligence/conversationAnalyzer';
 import { ToastContainer, useToast } from '@/components/ui/Toast';
@@ -26,31 +25,30 @@ interface ConsciousnessDashboardProps {
 
 export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps) {
   const router = useRouter();
-  const [isAddingContext, setIsAddingContext] = useState(false);
-  const [conversationContext, setConversationContext] = useState<ConversationTriggeredGeneration | null>(null);
-  const [processingMessage, setProcessingMessage] = useState<string>('');
   const { toasts, removeToast, showSuccess, showInfo } = useToast();
   
   // Get basket data from context
   const { basket, updateBasketName } = useBasket();
   
-  // Use the new Thinking Partner hook instead of the old substrate hook
+  // Use the unified intelligence hook (replaces useThinkingPartner, useBasketIntelligence, etc.)
   const {
     currentIntelligence,
     pendingChanges,
     isProcessing,
     isInitialLoading,
     error,
+    processingMessage,
+    conversationContext,
     generateIntelligence,
     approveChanges,
     rejectChanges,
-  } = useThinkingPartner(basketId);
+    addContext,
+    setConversationContext,
+    clearError
+  } = useUnifiedIntelligence(basketId);
 
   // Handle context capture from floating communication with conversation analysis
   const handleContextCapture = async (capturedContent: any) => {
-    setIsAddingContext(true);
-    setConversationContext(null); // Clear previous conversation context
-    
     try {
       if (capturedContent.type === 'text') {
         // Analyze conversation intent
@@ -62,7 +60,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         console.log('🤖 Conversation intent analyzed:', intent);
         
         if (intent.shouldGenerateIntelligence) {
-          // Store conversation context for modal
+          // Create conversation context and generate intelligence
           const conversationGenRequest = createConversationGenerationRequest(
             {
               userInput: capturedContent.content,
@@ -70,33 +68,20 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
             },
             intent
           );
-          setConversationContext(conversationGenRequest);
           
-          // Set appropriate processing message
-          setProcessingMessage(getLoadingMessage(intent));
-          
-          // Generate intelligence with conversation context
-          await generateIntelligence();
+          // Generate intelligence with conversation context - unified hook handles all state
+          await generateIntelligence(conversationGenRequest);
         } else {
-          // For context addition or direct responses, add to substrate
-          const response = await fetch('/api/substrate/add-context', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              basketId,
-              content: [{
-                type: 'text',
-                content: capturedContent.content,
-                metadata: { 
-                  timestamp: capturedContent.timestamp,
-                  conversationIntent: intent.type,
-                  confidence: intent.confidence
-                }
-              }]
-            })
-          });
-          
-          if (!response.ok) throw new Error('Failed to add context');
+          // For context addition or direct responses, use unified addContext
+          await addContext([{
+            type: 'text',
+            content: capturedContent.content,
+            metadata: { 
+              timestamp: capturedContent.timestamp,
+              conversationIntent: intent.type,
+              confidence: intent.confidence
+            }
+          }]);
           
           // Show appropriate feedback for non-intelligence conversations
           if (intent.type === 'context_addition') {
@@ -111,7 +96,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         }
         
       } else if (capturedContent.type === 'file') {
-        // Handle file upload (unchanged)
+        // Handle file upload through unified context addition
         const formData = new FormData();
         formData.append('basketId', basketId);
         formData.append('files', capturedContent.file);
@@ -124,15 +109,12 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         if (!response.ok) throw new Error('Failed to upload file');
         
       } else if (capturedContent.type === 'generate') {
-        // Manual intelligence generation (unchanged)
+        // Manual intelligence generation
         await generateIntelligence();
       }
       
     } catch (error) {
       console.error('Failed to process captured content:', error);
-    } finally {
-      setIsAddingContext(false);
-      setProcessingMessage('');
     }
   };
 
@@ -276,19 +258,17 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           if (pendingChanges.length > 0) {
             approveChanges(pendingChanges[0].id, selectedSections);
           }
-          // Clear conversation context after approval
-          setConversationContext(null);
+          // Conversation context cleanup handled by unified hook
         }}
         onReject={(reason) => {
           if (pendingChanges.length > 0) {
             rejectChanges(pendingChanges[0].id, reason);
           }
-          // Clear conversation context after rejection
-          setConversationContext(null);
+          // Conversation context cleanup handled by unified hook
         }}
         onClose={() => {
           // Modal closes automatically when pendingChanges becomes empty
-          setConversationContext(null);
+          // Conversation context cleanup handled by unified hook
           console.log('Change modal closed');
         }}
         currentIntelligence={currentIntelligence}
@@ -299,7 +279,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
       {/* Floating Communication Interface */}
       <FloatingCommunication
         onCapture={handleContextCapture}
-        isProcessing={isAddingContext || isProcessing}
+        isProcessing={isProcessing}
         hasPendingChanges={pendingChanges.length > 0}
         onCheckPendingChanges={handleCheckPendingChanges}
       />

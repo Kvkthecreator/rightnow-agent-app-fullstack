@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * @deprecated Use useUnifiedIntelligence instead. This hook will be removed in a future version.
+ * useUnifiedIntelligence provides better state management, optimistic updates, and conversation integration.
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';

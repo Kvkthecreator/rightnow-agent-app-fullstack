@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * @deprecated Use useUnifiedIntelligence instead. This hook will be removed in a future version.
+ * useUnifiedIntelligence provides better state management, unified API calls, and modal integration.
+ */
+
 import useSWR from "swr";
 import { useAuth } from "@/lib/useAuth";
 import { fetchWithToken } from "@/lib/fetchWithToken";
