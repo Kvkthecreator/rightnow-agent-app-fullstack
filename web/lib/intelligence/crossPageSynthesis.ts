@@ -98,6 +98,49 @@ export function useCrossPageSynthesis(
     []
   );
 
+  // Build workflow patterns from session history - defined early to avoid temporal dead zone
+  const analyzeWorkflowPatterns = useCallback((): WorkflowPattern[] => {
+    const patterns: Map<string, { count: number; durations: number[]; outcomes: string[] }> = new Map();
+    
+    // Look for sequences of 2-4 pages
+    for (let seqLength = 2; seqLength <= 4; seqLength++) {
+      for (let i = 0; i <= sessionsHistory.current.length - seqLength; i++) {
+        const sequence = sessionsHistory.current
+          .slice(i, i + seqLength)
+          .map(s => s.page);
+        
+        const key = sequence.join(' → ');
+        const existing = patterns.get(key) || { count: 0, durations: [], outcomes: [] };
+        
+        existing.count++;
+        existing.durations.push(
+          sessionsHistory.current.slice(i, i + seqLength)
+            .reduce((sum, s) => sum + s.activitySummary.timeSpent, 0)
+        );
+        
+        // Determine outcome based on final session interactions
+        const finalSession = sessionsHistory.current[i + seqLength - 1];
+        const hasSuccessfulInteraction = finalSession.interactions.some(
+          interaction => interaction.outcome === 'successful'
+        );
+        existing.outcomes.push(hasSuccessfulInteraction ? 'successful' : 'incomplete');
+        
+        patterns.set(key, existing);
+      }
+    }
+
+    return Array.from(patterns.entries())
+      .filter(([_, data]) => data.count >= 2) // Only patterns that occurred at least twice
+      .map(([sequence, data]) => ({
+        sequence: sequence.split(' → '),
+        frequency: data.count,
+        avgDuration: data.durations.reduce((sum, d) => sum + d, 0) / data.durations.length,
+        successRate: data.outcomes.filter(o => o === 'successful').length / data.outcomes.length,
+        commonOutcomes: [...new Set(data.outcomes)]
+      }))
+      .sort((a, b) => b.frequency - a.frequency);
+  }, []);
+
   // Optimized cross-page insight generation with caching
   const optimizedInsightGeneration = useOptimizedComputation(
     () => {
@@ -343,49 +386,6 @@ export function useCrossPageSynthesis(
       }
     };
   }, [generateCrossPageInsights]);
-
-  // Build workflow patterns from session history
-  const analyzeWorkflowPatterns = useCallback((): WorkflowPattern[] => {
-    const patterns: Map<string, { count: number; durations: number[]; outcomes: string[] }> = new Map();
-    
-    // Look for sequences of 2-4 pages
-    for (let seqLength = 2; seqLength <= 4; seqLength++) {
-      for (let i = 0; i <= sessionsHistory.current.length - seqLength; i++) {
-        const sequence = sessionsHistory.current
-          .slice(i, i + seqLength)
-          .map(s => s.page);
-        
-        const key = sequence.join(' → ');
-        const existing = patterns.get(key) || { count: 0, durations: [], outcomes: [] };
-        
-        existing.count++;
-        existing.durations.push(
-          sessionsHistory.current.slice(i, i + seqLength)
-            .reduce((sum, s) => sum + s.activitySummary.timeSpent, 0)
-        );
-        
-        // Determine outcome based on final session interactions
-        const finalSession = sessionsHistory.current[i + seqLength - 1];
-        const hasSuccessfulInteraction = finalSession.interactions.some(
-          interaction => interaction.outcome === 'successful'
-        );
-        existing.outcomes.push(hasSuccessfulInteraction ? 'successful' : 'incomplete');
-        
-        patterns.set(key, existing);
-      }
-    }
-
-    return Array.from(patterns.entries())
-      .filter(([_, data]) => data.count >= 2) // Only patterns that occurred at least twice
-      .map(([sequence, data]) => ({
-        sequence: sequence.split(' → '),
-        frequency: data.count,
-        avgDuration: data.durations.reduce((sum, d) => sum + d, 0) / data.durations.length,
-        successRate: data.outcomes.filter(o => o === 'successful').length / data.outcomes.length,
-        commonOutcomes: [...new Set(data.outcomes)]
-      }))
-      .sort((a, b) => b.frequency - a.frequency);
-  }, []);
 
   // Build memory connections between pages
   const buildMemoryConnections = useCallback((): MemoryConnection[] => {
