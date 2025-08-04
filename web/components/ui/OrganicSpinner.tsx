@@ -1,5 +1,4 @@
 "use client";
-
 import { motion } from "framer-motion";
 
 interface OrganicSpinnerProps {
@@ -15,48 +14,86 @@ const OrganicSpinner = ({ size = "md", className = "" }: OrganicSpinnerProps) =>
     xl: "w-48 h-48"
   };
 
-  const paths = Array.from({ length: 6 }, (_, i) => ({
-    id: i,
-    d: `
-      M ${50 - i * 2},${50 - i * 10}
-      C ${30 + i * 2},${30 + i * 4} ${70 - i * 4},${70 - i * 2} ${50 + i * 2},${50 + i * 10}
-    `,
-    opacity: 0.2 + i * 0.1,
-    strokeWidth: 0.8 + i * 0.3,
-    delay: i * 0.3,
-  }));
+  // Many flowing yarn strands to fill the entire circular view
+  const yarnStrands = Array.from({ length: 16 }, (_, i) => {
+    const yOffset = (i * 8) - 20; // Distribute vertically across the view
+    const xVariation = (i % 3) * 10; // Slight horizontal variations
+    const waveHeight = 15 + (i % 4) * 5; // Varying wave amplitudes
+    
+    return {
+      id: i,
+      d: `M ${-10 + xVariation},${35 + yOffset} C ${15 + xVariation},${35 + yOffset - waveHeight} ${35 + xVariation},${35 + yOffset + waveHeight} ${50 + xVariation},${35 + yOffset} C ${65 + xVariation},${35 + yOffset - waveHeight} ${85 + xVariation},${35 + yOffset + waveHeight} ${110 + xVariation},${35 + yOffset}`,
+      delay: i * 0.15,
+      strokeWidth: 2.8 - (i % 5) * 0.3,
+      opacity: 0.8 - (i % 6) * 0.08
+    };
+  });
 
   return (
-    <div className={`relative ${sizeClasses[size]} text-[#0F172A] dark:text-white ${className}`}>
-      <motion.svg
-        viewBox="0 0 100 100"
-        className="w-full h-full"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        initial={{ rotate: 0 }}
-        animate={{ rotate: 360 }}
-        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-      >
-        {paths.map((path) => (
-          <motion.path
-            key={path.id}
-            d={path.d}
-            stroke="currentColor"
-            strokeWidth={path.strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeOpacity={path.opacity}
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: [0, 1, 0] }}
-            transition={{
-              duration: 2.5,
-              delay: path.delay,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
-      </motion.svg>
+    <div className={`relative ${sizeClasses[size]} ${className}`}>
+      {/* Circular mask/container */}
+      <div className="w-full h-full rounded-full overflow-hidden bg-white">
+        <motion.svg
+          viewBox="0 0 120 100"
+          className="w-full h-full"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {yarnStrands.map((strand) => (
+            <motion.path
+              key={strand.id}
+              d={strand.d}
+              stroke="#FF5722"
+              strokeWidth={strand.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeOpacity={strand.opacity}
+              fill="none"
+              initial={{ pathLength: 0, x: -40 }}
+              animate={{ 
+                pathLength: [0, 1, 1, 0],
+                x: [-40, 0, 0, 40]
+              }}
+              transition={{
+                pathLength: {
+                  duration: 3 + (strand.id % 3) * 0.3,
+                  delay: strand.delay,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  times: [0, 0.3, 0.7, 1]
+                },
+                x: {
+                  duration: 4 + (strand.id % 4) * 0.2,
+                  delay: strand.delay,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }
+              }}
+            />
+          ))}
+          
+          {/* Additional flowing waves for extra density */}
+          {Array.from({ length: 8 }, (_, i) => (
+            <motion.path
+              key={`extra-${i}`}
+              d={`M ${5 + i * 15},${20 + i * 12} C ${25 + i * 15},${40 + i * 12} ${45 + i * 15},${10 + i * 12} ${85 + i * 15},${30 + i * 12}`}
+              stroke="#FF5722"
+              strokeWidth={1.8 - (i % 3) * 0.2}
+              strokeLinecap="round"
+              strokeOpacity={0.4 - i * 0.03}
+              fill="none"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: [0, 1, 0] }}
+              transition={{
+                duration: 4 + i * 0.3,
+                delay: 2 + i * 0.2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+          ))}
+        </motion.svg>
+      </div>
     </div>
   );
 };

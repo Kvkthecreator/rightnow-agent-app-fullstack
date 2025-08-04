@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { PageContext } from './pageContextDetection';
 import type { SynthesisContext, CrossPageInsight } from './crossPageSynthesis';
+import { performanceManager, useThrottledCallback, useDebouncedCallback } from './performanceOptimizations';
 
 // Behavioral states and patterns
 export type WritingFlow = 'active' | 'paused' | 'reviewing' | 'planning' | 'idle';
@@ -81,8 +82,32 @@ export function useBehavioralTriggers(
   const pauseBuffer = useRef<number[]>([]);
   const interactionHistory = useRef<InteractionEvent[]>([]);
 
-  // Analyze typing patterns in real-time
+  // Throttled behavioral context update for performance
+  const throttledUpdateBehavior = useThrottledCallback(
+    (updater: (context: BehavioralContext) => BehavioralContext) => {
+      setBehavioralContext(updater);
+    },
+    500, // 500ms throttle
+    []
+  );
+
+  // Debounced typing pattern analysis for performance
+  const debouncedPatternAnalysis = useDebouncedCallback(
+    (keystrokeTimestamp: number) => {
+      performTypingAnalysis(keystrokeTimestamp);
+    },
+    300, // 300ms debounce
+    []
+  );
+
+  // Analyze typing patterns in real-time with performance optimization
   const analyzeTypingPattern = useCallback((keystrokeTimestamp: number) => {
+    // Use debounced analysis to avoid excessive computations
+    debouncedPatternAnalysis(keystrokeTimestamp);
+  }, [debouncedPatternAnalysis]);
+
+  // Core typing analysis function
+  const performTypingAnalysis = useCallback((keystrokeTimestamp: number) => {
     const now = keystrokeTimestamp;
     typingBuffer.current.push(now);
     

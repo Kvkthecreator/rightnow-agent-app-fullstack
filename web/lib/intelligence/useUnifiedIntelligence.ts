@@ -6,6 +6,8 @@ import type { SubstrateIntelligence } from '@/lib/substrate/types';
 import type { IntelligenceEvent } from './changeDetection';
 import type { ConversationTriggeredGeneration } from './conversationAnalyzer';
 import type { ContextualConversationRequest } from './contextualIntelligence';
+import { changeFatigueManager, type BatchedChange } from './changeFatiguePrevention';
+import { usePageContext } from './pageContextDetection';
 
 // Unified State Machine for Intelligence Management
 export enum ChangeState {
@@ -24,6 +26,7 @@ export interface IntelligenceState {
   // Change management state
   changeState: ChangeState;
   pendingChanges: IntelligenceEvent[];
+  batchedChanges: BatchedChange[];
   
   // Conversation context
   conversationContext: ConversationTriggeredGeneration | null;
@@ -37,6 +40,10 @@ export interface IntelligenceState {
   // Activity tracking
   hasActiveSessions: boolean;
   lastUpdateTime: string | null;
+  
+  // Fatigue prevention
+  autoApprovedCount: number;
+  filteredCount: number;
 }
 
 // Action types for state reducer
@@ -46,10 +53,13 @@ type IntelligenceAction =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_CURRENT_INTELLIGENCE'; payload: SubstrateIntelligence | null }
   | { type: 'SET_PENDING_CHANGES'; payload: IntelligenceEvent[] }
+  | { type: 'SET_BATCHED_CHANGES'; payload: BatchedChange[] }
   | { type: 'SET_CONVERSATION_CONTEXT'; payload: ConversationTriggeredGeneration | null }
   | { type: 'SET_CHANGE_STATE'; payload: ChangeState }
   | { type: 'SET_ACTIVE_SESSIONS'; payload: boolean }
   | { type: 'SET_LAST_UPDATE_TIME'; payload: string | null }
+  | { type: 'INCREMENT_AUTO_APPROVED' }
+  | { type: 'INCREMENT_FILTERED' }
   | { type: 'RESET_STATE' };
 
 // State reducer for predictable state management
@@ -104,18 +114,34 @@ function intelligenceReducer(state: IntelligenceState, action: IntelligenceActio
     case 'SET_LAST_UPDATE_TIME':
       return { ...state, lastUpdateTime: action.payload };
     
+    case 'SET_BATCHED_CHANGES':
+      return { 
+        ...state, 
+        batchedChanges: action.payload,
+        changeState: action.payload.length > 0 ? ChangeState.PENDING_REVIEW : state.changeState
+      };
+    
+    case 'INCREMENT_AUTO_APPROVED':
+      return { ...state, autoApprovedCount: state.autoApprovedCount + 1 };
+    
+    case 'INCREMENT_FILTERED':
+      return { ...state, filteredCount: state.filteredCount + 1 };
+    
     case 'RESET_STATE':
       return {
         currentIntelligence: null,
         changeState: ChangeState.IDLE,
         pendingChanges: [],
+        batchedChanges: [],
         conversationContext: null,
         isInitialLoading: true,
         isProcessing: false,
         error: null,
         processingMessage: '',
         hasActiveSessions: false,
-        lastUpdateTime: null
+        lastUpdateTime: null,
+        autoApprovedCount: 0,
+        filteredCount: 0
       };
     
     default:
@@ -128,13 +154,16 @@ const initialState: IntelligenceState = {
   currentIntelligence: null,
   changeState: ChangeState.IDLE,
   pendingChanges: [],
+  batchedChanges: [],
   conversationContext: null,
   isInitialLoading: true,
   isProcessing: false,
   error: null,
   processingMessage: '',
   hasActiveSessions: false,
-  lastUpdateTime: null
+  lastUpdateTime: null,
+  autoApprovedCount: 0,
+  filteredCount: 0
 };
 
 export interface UseUnifiedIntelligenceReturn extends IntelligenceState {
@@ -160,6 +189,7 @@ export interface UseUnifiedIntelligenceReturn extends IntelligenceState {
  */
 export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligenceReturn {
   const [state, dispatch] = useReducer(intelligenceReducer, initialState);
+  const pageContext = usePageContext(basketId);
 
   // Activity detection for pausing background generation
   useEffect(() => {
@@ -211,25 +241,64 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
     }
   }, [basketId]);
 
-  // Fetch pending changes from events table
+  // Fetch pending changes from events table with fatigue prevention
   const fetchPendingChanges = useCallback(async () => {
     try {
       const response = await fetchWithToken(`/api/intelligence/pending/${basketId}`);
       
       if (response.ok) {
         const data = await response.json();
-        dispatch({ type: 'SET_PENDING_CHANGES', payload: data.events || [] });
+        const rawEvents = data.events || [];
+        
+        // Process events through fatigue prevention system
+        const batchedChanges: BatchedChange[] = [];
+        
+        // Handle batch ready callback
+        const handleBatchReady = (batch: BatchedChange) => {
+          batchedChanges.push(batch);
+        };
+        
+        // Handle auto-approved callback
+        const handleAutoApproved = (events: IntelligenceEvent[]) => {
+          console.log(`Auto-approved ${events.length} minor changes`);
+          dispatch({ type: 'INCREMENT_AUTO_APPROVED' });
+        };
+        
+        // Process each event through fatigue prevention
+        for (const event of rawEvents) {
+          const result = changeFatigueManager.processIntelligenceEvent(
+            event,
+            pageContext,
+            handleBatchReady,
+            handleAutoApproved
+          );
+          
+          if (result === 'filtered') {
+            dispatch({ type: 'INCREMENT_FILTERED' });
+          }
+        }
+        
+        // Update state with processed batches
+        dispatch({ type: 'SET_BATCHED_CHANGES', payload: batchedChanges });
+        
+        // Convert batched changes back to individual events for backward compatibility
+        const pendingEvents = batchedChanges.flatMap(batch => batch.events);
+        dispatch({ type: 'SET_PENDING_CHANGES', payload: pendingEvents });
+        
       } else if (response.status === 404) {
         dispatch({ type: 'SET_PENDING_CHANGES', payload: [] });
+        dispatch({ type: 'SET_BATCHED_CHANGES', payload: [] });
       } else {
         console.log(`Pending changes API returned ${response.status}`);
         dispatch({ type: 'SET_PENDING_CHANGES', payload: [] });
+        dispatch({ type: 'SET_BATCHED_CHANGES', payload: [] });
       }
     } catch (err) {
       console.error('Failed to fetch pending changes:', err);
       dispatch({ type: 'SET_PENDING_CHANGES', payload: [] });
+      dispatch({ type: 'SET_BATCHED_CHANGES', payload: [] });
     }
-  }, [basketId]);
+  }, [basketId, pageContext]);
 
   // Initial data load
   useEffect(() => {

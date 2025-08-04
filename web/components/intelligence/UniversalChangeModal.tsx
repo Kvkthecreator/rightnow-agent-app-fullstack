@@ -18,15 +18,18 @@ import { Button } from '@/components/ui/Button';
 import type { IntelligenceEvent, IntelligenceChange } from '@/lib/intelligence/changeDetection';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
 import type { ConversationTriggeredGeneration } from '@/lib/intelligence/conversationAnalyzer';
+import type { BatchedChange } from '@/lib/intelligence/changeFatiguePrevention';
+import { mobileManager, useTouchGestures, type TouchGesture } from '@/lib/intelligence/mobileOptimizations';
 
 interface PageContext {
-  page: 'dashboard' | 'document' | 'timeline';
+  page: 'dashboard' | 'document' | 'timeline' | 'detailed-view';
   documentId?: string;
 }
 
 interface UniversalChangeModalProps {
   isOpen: boolean;
   changes: IntelligenceEvent | null;
+  batchedChanges?: BatchedChange[];
   context: PageContext;
   onApprove: (selectedSections: string[]) => void;
   onReject: (reason?: string) => void;
@@ -39,6 +42,7 @@ interface UniversalChangeModalProps {
 export function UniversalChangeModal({
   isOpen,
   changes,
+  batchedChanges = [],
   context,
   onApprove,
   onReject,
@@ -51,6 +55,35 @@ export function UniversalChangeModal({
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showRejectReason, setShowRejectReason] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Determine what to display - batched changes or single change
+  const displayData = batchedChanges.length > 0 ? batchedChanges[0] : changes;
+  const isBatchedView = batchedChanges.length > 0;
+
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile); 
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Touch gesture handling for mobile swipe-to-approve
+  const { handleTouchStart, handleTouchEnd } = useTouchGestures((gesture: TouchGesture) => {
+    return mobileManager.handleModalSwipeGestures(
+      gesture,
+      () => {
+        // Swipe right to approve
+        const sectionsToApprove = Array.from(selectedSections);
+        onApprove(sectionsToApprove);
+      },
+      () => {
+        // Swipe left to reject
+        onReject(rejectReason || 'Swiped to reject');
+      }
+    );
+  });
 
   // Reset state when modal opens/closes or changes update
   useEffect(() => {

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { PageContext } from './pageContextDetection';
 import type { BehavioralContext } from './behavioralTriggers';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
+import { performanceManager, useOptimizedComputation, useThrottledCallback } from './performanceOptimizations';
 
 // Cross-page synthesis types
 export interface PageSession {
@@ -87,6 +88,37 @@ export function useCrossPageSynthesis(
 
   const sessionsHistory = useRef<PageSession[]>([]);
   const insightGeneration = useRef<NodeJS.Timeout | null>(null);
+
+  // Throttled synthesis context updates for performance
+  const throttledUpdateSynthesis = useThrottledCallback(
+    (updater: (context: SynthesisContext) => SynthesisContext) => {
+      setSynthesisContext(updater);
+    },
+    1000, // 1 second throttle for synthesis updates
+    []
+  );
+
+  // Optimized cross-page insight generation with caching
+  const optimizedInsightGeneration = useOptimizedComputation(
+    () => {
+      if (!behavioralContext || sessionsHistory.current.length < 2) {
+        return [];
+      }
+      // Return current active insights from synthesis context
+      return synthesisContext.activeInsights;
+    },
+    [behavioralContext, currentIntelligence, sessionsHistory.current.length, synthesisContext.activeInsights],
+    `cross_page_insights_${pageContext.page}`
+  );
+
+  // Optimized workflow pattern detection with caching
+  const optimizedWorkflowPatterns = useOptimizedComputation(
+    () => {
+      return analyzeWorkflowPatterns();
+    },
+    [sessionsHistory.current.length],
+    `workflow_patterns_${pageContext.page}`
+  );
 
   // Track page sessions
   useEffect(() => {
