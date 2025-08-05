@@ -353,8 +353,8 @@ function transformToConsciousnessData(intelligence: any) {
     }
     
     // Only mention insights/recommendations if they actually exist and are substantive
-    const substantiveInsights = insights.filter(i => i.description && i.description.length > 50);
-    const substantiveRecommendations = recommendations.filter(r => r.description && r.description.length > 50);
+    const substantiveInsights = insights.filter((i: any) => i.description && i.description.length > 50);
+    const substantiveRecommendations = recommendations.filter((r: any) => r.description && r.description.length > 50);
     
     if (substantiveInsights.length > 0 || substantiveRecommendations.length > 0) {
       summary += `\n\nContent analysis generated ${substantiveInsights.length} insight${substantiveInsights.length !== 1 ? 's' : ''} and ${substantiveRecommendations.length} recommendation${substantiveRecommendations.length !== 1 ? 's' : ''} based on available material. `;
