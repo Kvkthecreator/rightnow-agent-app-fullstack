@@ -35,6 +35,7 @@ export interface SecurityContext {
   };
   deviceFingerprint?: string;
   riskScore: number;
+  metadata?: Record<string, any>;
 }
 
 export interface SecurityEvent {
@@ -830,7 +831,7 @@ export class SecurityManager {
       resourceId: classification.resourceId,
       description: 'Data encrypted',
       metadata: {
-        algorithm: encryptionResult.algorithm,
+        algorithm: encryptionResult.encryptionMetadata.algorithm,
         classificationLevel: classification.classificationLevel
       }
     });
@@ -891,7 +892,7 @@ export class SecurityManager {
       location: partialContext.location,
       deviceFingerprint: partialContext.deviceFingerprint,
       riskScore: 0,
-      metadata: {}
+      metadata: partialContext.metadata || {}
     };
 
     context.riskScore = this.threatDetector.calculateRiskScore(context);
