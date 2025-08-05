@@ -229,7 +229,7 @@ function generateAdvancedInsights(themes: string[], patterns: string[], document
     return []; // No fake insights for insufficient content
   }
   
-  const insights = [];
+  const insights: any[] = [];
   
   // Generate honest theme-based insights only when warranted
   themes.slice(0, 3).forEach((theme, index) => {
