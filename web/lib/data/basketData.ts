@@ -93,9 +93,15 @@ export async function getBasketDocuments(basketId: string) {
 
     const docs = await getDocumentsServer(workspaceId);
     
-    // Filter documents by basketId if needed
-    // For now, return all documents associated with the workspace
-    return docs || [];
+    // Filter documents by basketId to ensure consistency with dashboard metrics
+    const basketDocs = docs?.filter(doc => doc.basket_id === basketId) || [];
+    
+    console.log(`📊 Filtered documents for basket ${basketId}:`, {
+      totalWorkspaceDocs: docs?.length || 0,
+      basketSpecificDocs: basketDocs.length
+    });
+    
+    return basketDocs;
   } catch (error) {
     console.error('Error fetching documents:', error);
     // In development, provide mock data as fallback
