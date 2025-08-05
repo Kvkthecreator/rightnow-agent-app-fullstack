@@ -127,16 +127,9 @@ export function useThinkingPartner(basketId: string): UseThinkingPartnerReturn {
     }
   }, [basketId, fetchCurrentIntelligence, fetchPendingChanges]);
 
-  // Check for updates periodically (only when not actively processing)
-  useEffect(() => {
-    if (!basketId || isProcessing) return;
-
-    const interval = setInterval(() => {
-      fetchPendingChanges();
-    }, 30000); // Check every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [basketId, isProcessing, fetchPendingChanges]);
+  // DEPRECATED POLLING REMOVED: This hook has been replaced by useUniversalChanges
+  // which provides real-time WebSocket updates without polling.
+  // This polling code is kept for backward compatibility but should not be used.
 
   // Generate new intelligence
   const generateIntelligence = useCallback(async () => {

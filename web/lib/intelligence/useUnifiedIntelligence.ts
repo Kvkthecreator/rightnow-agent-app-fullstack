@@ -327,16 +327,9 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
     }
   }, [basketId, fetchCurrentIntelligence, fetchPendingChanges]);
 
-  // Periodic updates for pending changes
-  useEffect(() => {
-    if (!basketId || state.isProcessing) return;
-
-    const interval = setInterval(() => {
-      fetchPendingChanges();
-    }, 30000); // Check every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [basketId, state.isProcessing, fetchPendingChanges]);
+  // NOTE: Periodic polling REMOVED - WebSocket provides real-time updates!
+  // This legacy intelligence hook is deprecated in favor of useUniversalChanges
+  // which provides WebSocket-based real-time updates without polling
 
   // Generate new intelligence with enhanced context support
   const generateIntelligence = useCallback(async (conversationContext?: ConversationTriggeredGeneration | ContextualConversationRequest) => {

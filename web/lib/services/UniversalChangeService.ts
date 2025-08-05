@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
+import { WebSocketServer } from '@/lib/websocket/WebSocketServer';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -218,7 +219,7 @@ export interface Revision {
 }
 
 export interface WebSocketPayload {
-  event: 'change_applied' | 'change_failed' | 'conflict_detected' | 'user_activity';
+  event: 'change_applied' | 'change_failed' | 'conflict_detected' | 'user_activity' | 'user_joined' | 'user_left' | 'user_editing';
   basketId: string;
   changeId?: string;
   data: any;
@@ -849,9 +850,10 @@ export class UniversalChangeService {
       timestamp: change.timestamp
     };
 
-    // TODO: Implement WebSocket notification
-    // This will be implemented in Phase 4
-    console.log('📡 Change notification (WebSocket not yet implemented):', payload);
+    // Broadcast change to all connected clients in the basket
+    await WebSocketServer.broadcastToBasket(change.basketId, payload);
+    
+    console.log('📡 Change notification broadcasted via WebSocket:', payload.event);
   }
 
   // ========================================================================

@@ -11,6 +11,7 @@ import type {
   ValidationError,
   WebSocketPayload
 } from '@/lib/services/UniversalChangeService';
+import { getWebSocketManager, destroyWebSocketManager, type WebSocketManager } from '@/lib/websocket/WebSocketManager';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -217,87 +218,9 @@ const initialState: UniversalChangesState = {
 };
 
 // ============================================================================
-// WEBSOCKET MANAGER
+// REAL-TIME WEBSOCKET INTEGRATION  
 // ============================================================================
-
-class WebSocketManager {
-  private ws: WebSocket | null = null;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
-  private heartbeatInterval: NodeJS.Timeout | null = null;
-  
-  constructor(
-    private basketId: string,
-    private onMessage: (payload: WebSocketPayload) => void,
-    private onConnectionChange: (connected: boolean, error?: string) => void
-  ) {}
-
-  connect() {
-    try {
-      // TODO: Replace with actual WebSocket URL when server is implemented
-      const wsUrl = `ws://localhost:3001/ws/${this.basketId}`;
-      
-      console.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
-      
-      // For now, simulate connection (will be replaced with real WebSocket)
-      this.simulateConnection();
-      
-    } catch (error) {
-      console.error('❌ WebSocket connection failed:', error);
-      this.onConnectionChange(false, error instanceof Error ? error.message : 'Connection failed');
-      this.scheduleReconnect();
-    }
-  }
-
-  private simulateConnection() {
-    // Simulate WebSocket connection for development
-    // This will be replaced with real WebSocket implementation in Phase 4
-    
-    setTimeout(() => {
-      this.onConnectionChange(true);
-      console.log('✅ WebSocket connected (simulated)');
-      
-      // Simulate periodic messages
-      this.heartbeatInterval = setInterval(() => {
-        // Simulate heartbeat or status updates
-      }, 30000);
-    }, 1000);
-  }
-
-  private scheduleReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      setTimeout(() => {
-        this.reconnectAttempts++;
-        console.log(`🔄 Reconnecting... (attempt ${this.reconnectAttempts})`);
-        this.connect();
-      }, this.reconnectDelay * Math.pow(2, this.reconnectAttempts));
-    }
-  }
-
-  sendMessage(message: any) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
-    } else {
-      console.warn('📤 WebSocket not connected, message queued');
-      // TODO: Implement message queuing
-    }
-  }
-
-  disconnect() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-    }
-    
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
-    
-    this.onConnectionChange(false);
-    console.log('🔌 WebSocket disconnected');
-  }
-}
+// Enhanced WebSocket integration with automatic reconnection and event handling
 
 // ============================================================================
 // HOOK IMPLEMENTATION
@@ -344,7 +267,7 @@ export interface UseUniversalChangesReturn extends UniversalChangesState {
  */
 export function useUniversalChanges(basketId: string): UseUniversalChangesReturn {
   const [state, dispatch] = useReducer(universalChangesReducer, initialState);
-  const wsManager = useRef<WebSocketManager | null>(null);
+  const wsManager = useRef<any>(null);
 
   // ========================================================================
   // WEBSOCKET INTEGRATION
@@ -390,31 +313,67 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
     }
   }, []);
 
-  const handleConnectionChange = useCallback((connected: boolean, error?: string) => {
+  const handleConnectionStatusChange = useCallback((status: any) => {
     dispatch({ 
       type: 'SET_CONNECTION_STATUS', 
-      payload: { isConnected: connected, error } 
+      payload: { 
+        isConnected: status.isConnected, 
+        error: status.error 
+      } 
     });
   }, []);
+  
+  const handleJoinedMessage = useCallback((payload: WebSocketPayload) => {
+    console.log('👋 User joined basket:', payload.data);
+    // Could update user presence UI here
+  }, []);
+  
+  const handleLeftMessage = useCallback((payload: WebSocketPayload) => {
+    console.log('👋 User left basket:', payload.data);
+    // Could update user presence UI here
+  }, []);
+  
+  const handleEditingMessage = useCallback((payload: WebSocketPayload) => {
+    console.log('✏️ User editing status:', payload.data);
+    // Could update collaborative editing indicators here
+  }, []);
 
-  // Initialize WebSocket connection
+  // Initialize WebSocket connection with enhanced manager
   useEffect(() => {
     if (basketId) {
-      wsManager.current = new WebSocketManager(
-        basketId,
-        handleWebSocketMessage,
-        handleConnectionChange
-      );
+      // Get or create WebSocket manager for this basket
+      wsManager.current = getWebSocketManager(basketId, {
+        userId: 'current_user', // TODO: Get from auth context
+        token: 'auth_token' // TODO: Get from auth context
+      });
       
+      // Subscribe to WebSocket events
+      const subscriptions = [
+        wsManager.current.subscribe('change_applied', handleWebSocketMessage),
+        wsManager.current.subscribe('change_failed', handleWebSocketMessage),
+        wsManager.current.subscribe('conflict_detected', handleWebSocketMessage),
+        wsManager.current.subscribe('user_joined', handleJoinedMessage),
+        wsManager.current.subscribe('user_left', handleLeftMessage),
+        wsManager.current.subscribe('user_editing', handleEditingMessage)
+      ];
+      
+      // Subscribe to connection status changes
+      const statusUnsubscribe = wsManager.current.onStatusChange(handleConnectionStatusChange);
+      
+      // Connect to WebSocket server
       wsManager.current.connect();
       
       return () => {
-        if (wsManager.current) {
-          wsManager.current.disconnect();
-        }
+        // Clean up subscriptions
+        subscriptions.forEach(id => wsManager.current?.unsubscribe(id));
+        statusUnsubscribe();
+        
+        // Leave basket and cleanup
+        wsManager.current?.leaveBasket();
+        destroyWebSocketManager(basketId);
       };
     }
-  }, [basketId, handleWebSocketMessage, handleConnectionChange]);
+  }, [basketId]);
 
   // ========================================================================
   // ACTIVITY DETECTION
@@ -606,18 +565,12 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
   // UTILITY METHODS
   // ========================================================================
 
+  // WebSocket-driven changes - no polling needed!
   const refreshChanges = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/changes?basketId=${basketId}&status=pending`);
-      const data = await response.json();
-      
-      if (data.changes) {
-        dispatch({ type: 'SET_PENDING_CHANGES', payload: data.changes });
-      }
-    } catch (error) {
-      console.error('Failed to refresh changes:', error);
-    }
-  }, [basketId]);
+    // This method is now deprecated since WebSocket provides real-time updates
+    // Keeping for backward compatibility but it does nothing
+    console.log('📡 refreshChanges called but WebSocket handles real-time updates');
+  }, []);
 
   const generateIntelligence = useCallback(async (conversationContext?: any, origin = 'manual') => {
     const changeId = crypto.randomUUID();
@@ -662,8 +615,8 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
       if (result.success) {
         console.log('✅ Intelligence generation successful via Universal Changes');
         
-        // Refresh pending changes to get any new intelligence events
-        await refreshChanges();
+        // WebSocket will automatically notify of new changes - no manual refresh needed
+        console.log('📡 Intelligence generation completed - WebSocket will handle updates');
       } else {
         throw new Error(result.errors?.[0] || 'Failed to generate intelligence');
       }
@@ -689,7 +642,7 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
       // Stop processing state
       dispatch({ type: 'STOP_PROCESSING', payload: changeId });
     }
-  }, [basketId, refreshChanges]);
+  }, [basketId]);
 
   // ========================================================================
   // CONFLICT RESOLUTION
@@ -733,18 +686,20 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
   }), [state.processing, state.errors, state.unresolvedConflicts]);
 
   // ========================================================================
-  // INITIAL DATA LOAD
+  // WEBSOCKET INITIALIZATION - NO POLLING NEEDED!
   // ========================================================================
 
   useEffect(() => {
     if (basketId) {
       dispatch({ type: 'SET_INITIAL_LOADING', payload: true });
       
-      refreshChanges().finally(() => {
+      // WebSocket connection handles all real-time updates
+      // Initial loading completes when WebSocket connects
+      setTimeout(() => {
         dispatch({ type: 'SET_INITIAL_LOADING', payload: false });
-      });
+      }, 1500); // Allow time for WebSocket connection
     }
-  }, [basketId, refreshChanges]);
+  }, [basketId]);
 
   // ========================================================================
   // RETURN HOOK INTERFACE

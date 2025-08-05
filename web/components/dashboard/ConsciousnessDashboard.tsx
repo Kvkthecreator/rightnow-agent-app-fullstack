@@ -20,6 +20,8 @@ import {
   type ConversationTriggeredGeneration 
 } from '@/lib/intelligence/conversationAnalyzer';
 import { ToastContainer, useToast } from '@/components/ui/Toast';
+import { ConnectionStatus, ConnectionBanner } from '@/components/ui/ConnectionStatus';
+import { RealTimeNotifications } from '@/components/ui/RealTimeNotifications';
 
 interface ConsciousnessDashboardProps {
   basketId: string;
@@ -200,19 +202,48 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Real-time Notifications */}
+      <RealTimeNotifications />
+      
+      {/* Connection Status Banner */}
+      <div className="container mx-auto px-4 pt-4 max-w-6xl">
+        <ConnectionBanner
+          isConnected={changeManager.isConnected}
+          isReconnecting={changeManager.connectionError ? true : false}
+          error={changeManager.connectionError || undefined}
+          onRetry={() => {
+            // The WebSocket manager handles reconnection automatically
+            console.log('Retry connection requested');
+          }}
+        />
+      </div>
+
       {/* Main Dashboard Content - No more width adjustment needed for modal */}
       <div className="w-full">
         <div className="container mx-auto py-6 space-y-6 max-w-6xl px-4">
           
-          {/* Identity Anchor Header */}
-          <IdentityAnchorHeader
-            basketName={basket?.name || 'Untitled Workspace'}
-            suggestedName={transformedData.suggestedName}
-            status={transformedData.status}
-            lastActive={basket?.updated_at || new Date().toISOString()}
-            basketId={basketId}
-            onNameChange={handleNameChange}
-          />
+          {/* Identity Anchor Header with Connection Status */}
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <IdentityAnchorHeader
+                basketName={basket?.name || 'Untitled Workspace'}
+                suggestedName={transformedData.suggestedName}
+                status={transformedData.status}
+                lastActive={basket?.updated_at || new Date().toISOString()}
+                basketId={basketId}
+                onNameChange={handleNameChange}
+              />
+            </div>
+            <div className="ml-4">
+              <ConnectionStatus
+                isConnected={changeManager.isConnected}
+                isConnecting={changeManager.isInitialLoading}
+                isReconnecting={changeManager.connectionError ? true : false}
+                error={changeManager.connectionError || undefined}
+                showLabel={true}
+              />
+            </div>
+          </div>
 
           {/* Show pending changes banner if any */}
           {(pendingChanges.length > 0 || changeManager.pendingChanges.length > 0) && (
