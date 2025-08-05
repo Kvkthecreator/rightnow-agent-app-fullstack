@@ -204,57 +204,85 @@ function generateRichStateIntelligence(basket: any, documents: any[], blocks: an
 }
 
 function generateBasicInsights(themes: string[], documents: any[]): any[] {
-  return themes.slice(0, 3).map((theme, index) => ({
+  // Only generate insights when there's substantial content to analyze
+  const totalWords = calculateTotalContentWords(documents);
+  
+  if (totalWords < 200 || themes.length === 0) {
+    return []; // No fake insights for insufficient content
+  }
+  
+  // Generate honest insights only when themes are meaningful
+  return themes.slice(0, Math.min(2, themes.length)).map((theme, index) => ({
     id: `insight-${index}`,
     type: 'pattern_detected',
-    title: `${theme} Pattern Detected`,
-    description: `Early patterns emerging around ${theme.toLowerCase()}`,
-    confidence: 0.6 + (index * 0.1)
+    title: `${theme} Theme Identified`,
+    description: `Initial theme emerging around ${theme.toLowerCase()} based on ${totalWords} words of content`,
+    confidence: 0.4 + (Math.min(totalWords / 1000, 0.3))
   }));
 }
 
 function generateAdvancedInsights(themes: string[], patterns: string[], documents: any[]): any[] {
-  const insights = themes.slice(0, 5).map((theme, index) => ({
-    id: `insight-${index}`,
-    type: 'pattern_detected',  
-    title: `${theme} Analysis`,
-    description: `Strong patterns identified in ${theme.toLowerCase()} with ${documents.length} supporting documents`,
-    confidence: 0.8 + (index * 0.05)
-  }));
-
-  patterns.forEach((pattern, index) => {
-    insights.push({
-      id: `pattern-${index}`,
-      type: 'strategic_pattern',
-      title: `${pattern} Strategy`,
-      description: `Strategic pattern detected in ${pattern}`,
-      confidence: 0.85
-    });
+  const totalWords = calculateTotalContentWords(documents);
+  
+  // Only generate insights for substantial content with real analysis potential
+  if (totalWords < 1000 || themes.length < 2) {
+    return []; // No fake insights for insufficient content
+  }
+  
+  const insights = [];
+  
+  // Generate honest theme-based insights only when warranted
+  themes.slice(0, 3).forEach((theme, index) => {
+    const themeWords = countThemeWords(theme, documents);
+    if (themeWords > 50) { // Only if theme has substantial content
+      insights.push({
+        id: `insight-${index}`,
+        type: 'pattern_detected',  
+        title: `${theme} Theme Analysis`,
+        description: `Theme identified across ${themeWords} words in ${documents.length} documents`,
+        confidence: Math.min(0.7, 0.4 + (themeWords / 500))
+      });
+    }
   });
 
-  return insights.slice(0, 5);
+  // Only include pattern insights if patterns are validated by content
+  patterns.forEach((pattern, index) => {
+    if (validatePatternInContent(pattern, documents)) {
+      insights.push({
+        id: `pattern-${index}`,
+        type: 'strategic_pattern',
+        title: `${pattern} Pattern`,
+        description: `Pattern validated across multiple documents`,
+        confidence: 0.6
+      });
+    }
+  });
+
+  return insights;
 }
 
 function generateBasicRecommendations(themes: string[], totalItems: number): any[] {
   const recommendations = [];
   
-  if (themes.length > 0) {
+  // Only recommend theme expansion if there's actual thematic content
+  if (themes.length > 0 && totalItems >= 3) {
     recommendations.push({
       id: 'expand-theme',
       priority: 'medium',
       title: `Expand on ${themes[0]}`,
-      description: `Add more content around ${themes[0].toLowerCase()} to deepen understanding`,
-      reasoning: 'Theme shows potential for deeper analysis'
+      description: `Add more content around ${themes[0].toLowerCase()} to strengthen analysis`,
+      reasoning: 'Theme has sufficient foundation for expansion'
     });
   }
   
-  if (totalItems < 10) {
+  // Always recommend adding content for insufficient workspaces
+  if (totalItems < 5) {
     recommendations.push({
       id: 'add-content',
       priority: 'high', 
-      title: 'Add more content',
-      description: 'Add more documents or context to enable advanced insights',
-      reasoning: 'More content needed for comprehensive analysis'
+      title: 'Add substantial content',
+      description: 'Add strategic documents, project plans, or detailed notes to enable meaningful analysis',
+      reasoning: 'Insufficient content for reliable intelligence generation'
     });
   }
   
@@ -433,4 +461,42 @@ function calculateRealMemoryGrowth(documents: any[], blocks: any[], contextItems
 
 function capitalizeWord(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+}
+
+// Helper functions for honest content analysis
+function calculateTotalContentWords(documents: any[]): number {
+  return documents.reduce((total, doc) => {
+    if (doc.content_raw && typeof doc.content_raw === 'string') {
+      return total + doc.content_raw.split(/\s+/).filter((word: string) => word.length > 0).length;
+    }
+    return total;
+  }, 0);
+}
+
+function countThemeWords(theme: string, documents: any[]): number {
+  const themeLower = theme.toLowerCase();
+  return documents.reduce((count, doc) => {
+    if (doc.content_raw && typeof doc.content_raw === 'string') {
+      const content = doc.content_raw.toLowerCase();
+      const matches = (content.match(new RegExp(themeLower, 'g')) || []).length;
+      return count + matches;
+    }
+    return count;
+  }, 0);
+}
+
+function validatePatternInContent(pattern: string, documents: any[]): boolean {
+  const patternWords = pattern.toLowerCase().split(' ');
+  let documentMatches = 0;
+  
+  documents.forEach(doc => {
+    if (doc.content_raw && typeof doc.content_raw === 'string') {
+      const content = doc.content_raw.toLowerCase();
+      const hasAllWords = patternWords.every(word => content.includes(word));
+      if (hasAllWords) documentMatches++;
+    }
+  });
+  
+  // Pattern is valid only if found in multiple documents
+  return documentMatches >= 2;
 }

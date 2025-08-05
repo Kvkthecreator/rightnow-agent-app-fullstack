@@ -331,65 +331,44 @@ function transformToConsciousnessData(intelligence: any) {
     const contextQuality = intelligence.substrateHealth?.contextQuality || 0;
     const totalWords = calculateRealWordCount(intelligence);
     
-    // Honest assessment for insufficient content
-    if (themes.length === 0 && documents.length === 0 && totalWords < 100) {
-      return "This workspace currently contains insufficient content for executive analysis. Add strategic documents, project plans, or contextual information to enable comprehensive intelligence reporting.";
+    // Honest assessment - no fake intelligence claims
+    if (totalWords < 100) {
+      return `This workspace contains ${totalWords} words across ${documents.length} item${documents.length !== 1 ? 's' : ''}. Insufficient content for executive analysis. Add strategic documents, project plans, or detailed notes to enable meaningful intelligence generation.`;
     }
     
-    if (themes.length === 0 && totalWords < 200) {
-      return `This workspace contains ${totalWords} words across ${documents.length} document${documents.length !== 1 ? 's' : ''}, but lacks sufficient thematic content for strategic analysis. Consider adding more substantial business context, strategic objectives, or project documentation to enable meaningful intelligence insights.`;
+    if (totalWords < 500) {
+      return `This workspace contains ${totalWords} words across ${documents.length} document${documents.length !== 1 ? 's' : ''}. Content volume is too limited for comprehensive analysis. Add substantial strategic content, business context, or project documentation to enable reliable intelligence insights.`;
     }
 
-    // Generate comprehensive executive summary for substantial content
-    let summary = '';
+    // Only generate analysis claims when there's actual content to support them
+    let summary = `This workspace contains ${totalWords.toLocaleString()} words across ${documents.length} document${documents.length !== 1 ? 's' : ''}. `;
     
-    // Opening paragraph - overall context and scope
-    if (themes.length > 0 && totalWords >= 200) {
-      const documentCount = documents.length;
+    if (themes.length > 0) {
       const themeList = themes.length > 2 
-        ? `${themes.slice(0, 2).join(', ')}, and ${themes.length - 2} other strategic area${themes.length > 3 ? 's' : ''}`
+        ? `${themes.slice(0, 2).join(', ')}, and ${themes.length - 2} other theme${themes.length > 3 ? 's' : ''}`
         : themes.join(' and ');
-      
-      summary += `This workspace encompasses ${totalWords.toLocaleString()} words of strategic content across ${documentCount} document${documentCount !== 1 ? 's' : ''}, with primary focus on ${themeList}. `;
-      
-      if (contextQuality > 0.6) {
-        summary += `The content demonstrates strong thematic coherence and strategic alignment, indicating well-developed thinking around these core areas.`;
-      } else if (contextQuality > 0.3) {
-        summary += `The content shows emerging patterns and developing strategic direction, with opportunities for deeper thematic integration.`;
-      } else {
-        summary += `The content represents early-stage exploration with foundational concepts that require further development and strategic focus.`;
-      }
-    }
-    
-    // Second paragraph - key insights and intelligence findings
-    if (insights.length > 0 || recommendations.length > 0) {
-      summary += `\n\nIntelligence analysis reveals ${insights.length} key insight${insights.length !== 1 ? 's' : ''} and ${recommendations.length} strategic recommendation${recommendations.length !== 1 ? 's' : ''}. `;
-      
-      if (insights.length > 0) {
-        const topInsight = insights[0];
-        summary += `Primary intelligence indicates ${topInsight.title?.toLowerCase() || 'strategic opportunities'} with ${Math.round((topInsight.confidence || 0.5) * 100)}% confidence level. `;
-      }
-      
-      if (recommendations.length > 0) {
-        const highPriorityRecs = recommendations.filter((r: any) => r.priority === 'high').length;
-        if (highPriorityRecs > 0) {
-          summary += `${highPriorityRecs} high-priority recommendation${highPriorityRecs !== 1 ? 's require' : ' requires'} immediate strategic attention.`;
-        } else {
-          summary += `Strategic recommendations focus on content expansion and thematic development to enhance intelligence capabilities.`;
-        }
-      }
-    }
-    
-    // Third paragraph - readiness assessment and next steps
-    const readinessLevel = contextQuality > 0.6 ? 'advanced' : contextQuality > 0.3 ? 'intermediate' : 'foundational';
-    summary += `\n\nStrategic readiness assessment indicates ${readinessLevel} capability for business intelligence operations. `;
-    
-    if (contextQuality > 0.6) {
-      summary += `The workspace demonstrates sufficient depth and coherence for advanced strategic synthesis, framework development, and executive decision support. Recommend proceeding with high-level strategic document creation and insight implementation.`;
-    } else if (contextQuality > 0.3) {
-      summary += `The workspace shows solid foundation with capacity for strategic document development and pattern analysis. Recommend expanding thematic content and developing clearer strategic frameworks to enable advanced intelligence capabilities.`;
+      summary += `Identified themes include ${themeList}. `;
     } else {
-      summary += `The workspace requires significant content expansion and strategic focus development. Priority should be placed on adding comprehensive business context, strategic objectives, and substantive project documentation before attempting advanced intelligence operations.`;
+      summary += `No clear thematic patterns have emerged yet. `;
+    }
+    
+    // Only mention insights/recommendations if they actually exist and are substantive
+    const substantiveInsights = insights.filter(i => i.description && i.description.length > 50);
+    const substantiveRecommendations = recommendations.filter(r => r.description && r.description.length > 50);
+    
+    if (substantiveInsights.length > 0 || substantiveRecommendations.length > 0) {
+      summary += `\n\nContent analysis generated ${substantiveInsights.length} insight${substantiveInsights.length !== 1 ? 's' : ''} and ${substantiveRecommendations.length} recommendation${substantiveRecommendations.length !== 1 ? 's' : ''} based on available material. `;
+    } else {
+      summary += `\n\nContent requires further development to generate substantive insights and strategic recommendations. `;
+    }
+    
+    // Honest readiness assessment
+    if (totalWords < 1000) {
+      summary += `\n\nWorkspace readiness: Early stage. Add more comprehensive content to enable advanced intelligence capabilities.`;
+    } else if (contextQuality > 0.6) {
+      summary += `\n\nWorkspace readiness: Sufficient content for strategic analysis and document generation.`;
+    } else {
+      summary += `\n\nWorkspace readiness: Developing. Content volume adequate but thematic coherence needs strengthening.`;
     }
     
     console.log('🔍 generateExecutiveSummary returning:', summary.substring(0, 100));
