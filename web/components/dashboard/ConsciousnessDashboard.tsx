@@ -32,25 +32,23 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   // Get basket data from context
   const { basket, updateBasketName } = useBasket();
   
-  // Use the unified intelligence hook (replaces useThinkingPartner, useBasketIntelligence, etc.)
+  // Use Universal Changes hook for ALL change management (replaces useUnifiedIntelligence)
+  const changeManager = useUniversalChanges(basketId);
+
+  // For now, still use legacy intelligence for substrate data until fully migrated
   const {
     currentIntelligence,
-    pendingChanges,
-    isProcessing,
-    isInitialLoading,
-    error,
-    processingMessage,
     conversationContext,
-    generateIntelligence,
-    approveChanges,
-    rejectChanges,
-    addContext,
     setConversationContext,
-    clearError
+    addContext,
+    pendingChanges,
+    error,
+    isInitialLoading,
+    isProcessing,
+    processingMessage,
+    approveChanges,
+    rejectChanges
   } = useUnifiedIntelligence(basketId);
-
-  // Use universal changes hook for all change types (basket updates, documents, etc.)
-  const changeManager = useUniversalChanges(basketId);
 
   // Handle context capture from floating communication with conversation analysis
   const handleContextCapture = async (capturedContent: any) => {
@@ -74,11 +72,11 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
             intent
           );
           
-          // Generate intelligence with conversation context - unified hook handles all state
-          await generateIntelligence(conversationGenRequest);
+          // Generate intelligence with conversation context - now through Universal Changes
+          await changeManager.generateIntelligence(conversationGenRequest, 'conversation');
         } else {
-          // For context addition or direct responses, use unified addContext
-          await addContext([{
+          // For context addition or direct responses, use Universal Changes addContext
+          await changeManager.addContext([{
             type: 'text',
             content: capturedContent.content,
             metadata: { 
@@ -114,8 +112,8 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         if (!response.ok) throw new Error('Failed to upload file');
         
       } else if (capturedContent.type === 'generate') {
-        // Manual intelligence generation
-        await generateIntelligence();
+        // Manual intelligence generation through Universal Changes
+        await changeManager.generateIntelligence();
       }
       
     } catch (error) {
@@ -126,7 +124,10 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   // Handle checking pending changes from FAB - now opens modal
   const handleCheckPendingChanges = () => {
     // The modal will automatically open when pendingChanges exist
-    console.log('User requested to check pending changes:', pendingChanges);
+    console.log('User requested to check pending changes:', {
+      legacyPending: pendingChanges?.length || 0,
+      universalPending: changeManager.pendingChanges?.length || 0
+    });
   };
 
   // Handle suggestion selection
@@ -144,10 +145,10 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     await updateBasketName(newName);
   };
 
-  if (error) {
+  if (error || changeManager.hasErrors) {
     return (
       <ErrorMessage 
-        error={error} 
+        error={error || changeManager.errors[0]?.message || 'Unknown error'} 
         onRetry={() => window.location.reload()}
         title="Failed to load thinking partner dashboard"
       />
@@ -155,9 +156,9 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   }
 
   // Show loading spinner during initial data fetch or processing
-  if (isInitialLoading || isProcessing) {
+  if (isInitialLoading || isProcessing || changeManager.isInitialLoading || changeManager.isProcessing) {
     const loadingMessage = processingMessage || 
-      (isInitialLoading ? 'Basket loading... please wait' : 'Processing your request...');
+      (isInitialLoading || changeManager.isInitialLoading ? 'Basket loading... please wait' : 'Processing your request...');
     
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -175,7 +176,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   }
 
   // Show empty state only after loading is complete
-  if (!currentIntelligence && pendingChanges.length === 0) {
+  if (!currentIntelligence && pendingChanges.length === 0 && changeManager.pendingChanges.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -214,12 +215,12 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           />
 
           {/* Show pending changes banner if any */}
-          {pendingChanges.length > 0 && (
+          {(pendingChanges.length > 0 || changeManager.pendingChanges.length > 0) && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-medium text-orange-900">
-                    {pendingChanges.length} updated understanding{pendingChanges.length !== 1 ? 's' : ''} pending review
+                    {Math.max(pendingChanges.length, changeManager.pendingChanges.length)} updated understanding{Math.max(pendingChanges.length, changeManager.pendingChanges.length) !== 1 ? 's' : ''} pending review
                   </h3>
                   <p className="text-xs text-orange-700">
                     Review changes in the Thinking Partner panel →
@@ -292,8 +293,8 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
       {/* Floating Communication Interface */}
       <FloatingCommunication
         onCapture={handleContextCapture}
-        isProcessing={isProcessing}
-        hasPendingChanges={pendingChanges.length > 0}
+        isProcessing={isProcessing || changeManager.isProcessing}
+        hasPendingChanges={pendingChanges.length > 0 || changeManager.pendingChanges.length > 0}
         onCheckPendingChanges={handleCheckPendingChanges}
       />
 

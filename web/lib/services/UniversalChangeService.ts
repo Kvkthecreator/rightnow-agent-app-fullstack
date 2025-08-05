@@ -12,6 +12,7 @@ export type ChangeType =
   | 'document_delete'
   | 'intelligence_approve' 
   | 'intelligence_reject'
+  | 'intelligence_generate'
   | 'context_add'
   | 'block_create'
   | 'block_update'
@@ -40,6 +41,7 @@ export type ChangeData =
   | DocumentDeleteData
   | IntelligenceApprovalData
   | IntelligenceRejectionData
+  | IntelligenceGenerateData
   | ContextAddData
   | BlockCreateData
   | BlockUpdateData
@@ -82,6 +84,12 @@ export interface IntelligenceApprovalData {
 export interface IntelligenceRejectionData {
   eventId: string;
   reason?: string;
+}
+
+export interface IntelligenceGenerateData {
+  origin: string;
+  conversationContext?: any;
+  checkPending?: boolean;
 }
 
 export interface ContextAddData {
@@ -447,6 +455,12 @@ export class UniversalChangeService {
           appliedData = intelligenceResult.data;
           break;
 
+        case 'intelligence_generate':
+          const generateResult = await this.applyIntelligenceGenerate(validatedChange);
+          databaseChanges.push(...generateResult.changes);
+          appliedData = generateResult.data;
+          break;
+
         case 'context_add':
           const contextResult = await this.applyContextAdd(validatedChange);
           databaseChanges.push(...contextResult.changes);
@@ -626,6 +640,51 @@ export class UniversalChangeService {
       }],
       data: result
     };
+  }
+
+  private async applyIntelligenceGenerate(change: ValidatedChange): Promise<{ changes: DatabaseChange[], data: any }> {
+    const data = change.data as IntelligenceGenerateData;
+    
+    console.log('🧠 Processing intelligence generation through Universal Change Service');
+    
+    try {
+      // Make API call to legacy intelligence generation endpoint for now
+      // This maintains compatibility while moving through the unified pipeline
+      const response = await fetch(`/api/intelligence/generate/${change.basketId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin: data.origin,
+          conversationContext: data.conversationContext,
+          checkPending: data.checkPending
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to generate intelligence');
+      }
+
+      const result = await response.json();
+      
+      console.log('✅ Intelligence generation completed through Universal Change Service');
+      
+      // For now, we don't create database changes since intelligence generation
+      // triggers background processes that create their own events
+      return {
+        changes: [],
+        data: {
+          success: true,
+          hasPendingChanges: result.hasPendingChanges,
+          message: 'Intelligence generation initiated'
+        }
+      };
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Intelligence generation failed in Universal Change Service:', errorMessage);
+      throw error;
+    }
   }
 
   private async applyContextAdd(change: ValidatedChange): Promise<{ changes: DatabaseChange[], data: any }> {

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { UnifiedAmbientCompanion } from '@/components/intelligence/UnifiedAmbientCompanion';
 import { UniversalChangeModal } from '@/components/intelligence/UniversalChangeModal';
+import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
 import { useUnifiedIntelligence } from '@/lib/intelligence/useUnifiedIntelligence';
 import { ToastContainer, useToast } from '@/components/ui/Toast';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -50,16 +51,21 @@ export function BasketPageLayout({
   const [companionKey, setCompanionKey] = useState(0);
   const { toasts, removeToast } = useToast();
   
-  // Unified intelligence for modal management
+  // Universal Changes for primary change management
+  const changeManager = useUniversalChanges(basketId);
+  
+  // Legacy unified intelligence for substrate data (temporary)
   const {
     currentIntelligence,
-    pendingChanges,
-    isProcessing,
     conversationContext,
-    approveChanges,
-    rejectChanges,
     clearError
   } = useUnifiedIntelligence(basketId);
+  
+  // Use Universal Changes for state management
+  const pendingChanges = changeManager.pendingChanges.length > 0 ? [changeManager.pendingChanges[0]] : [];
+  const isProcessing = changeManager.isProcessing;
+  const approveChanges = changeManager.approveChanges;
+  const rejectChanges = changeManager.rejectChanges;
 
   // Handle companion expansion state
   const [isCompanionExpanded, setIsCompanionExpanded] = useState(false);
@@ -82,7 +88,7 @@ export function BasketPageLayout({
   // Handle modal actions
   const handleApproveChanges = async (eventId: string, sections: string[]) => {
     try {
-      await approveChanges(eventId, sections);
+      await approveChanges([eventId], sections);
     } catch (error) {
       console.error('Failed to approve changes:', error);
     }
@@ -90,7 +96,7 @@ export function BasketPageLayout({
 
   const handleRejectChanges = async (eventId: string, reason?: string) => {
     try {
-      await rejectChanges(eventId, reason);
+      await rejectChanges([eventId], reason);
     } catch (error) {
       console.error('Failed to reject changes:', error);
     }
@@ -128,22 +134,26 @@ export function BasketPageLayout({
 
       {/* Universal Change Modal with Batched Changes Support */}
       <UniversalChangeModal
-        isOpen={pendingChanges.length > 0}
-        changes={pendingChanges[0] || null}
+        isOpen={changeManager.pendingChanges.length > 0}
+        
+        // Legacy support
+        changes={null}
+        
+        // Universal changes (new)
+        pendingChanges={changeManager.pendingChanges}
+        conflicts={changeManager.unresolvedConflicts}
+        changeManager={changeManager}
+        
         context={{ page: pageType }}
         onApprove={(selectedSections) => {
-          if (pendingChanges.length > 0) {
-            handleApproveChanges(pendingChanges[0].id, selectedSections);
-          }
+          // Legacy approval handler - not used with Universal Changes
         }}
         onReject={(reason) => {
-          if (pendingChanges.length > 0) {
-            handleRejectChanges(pendingChanges[0].id, reason);
-          }
+          // Legacy rejection handler - not used with Universal Changes
         }}
         onClose={handleModalClose}
         currentIntelligence={currentIntelligence}
-        isProcessing={isProcessing}
+        isProcessing={changeManager.isProcessing}
         conversationContext={conversationContext}
       />
 

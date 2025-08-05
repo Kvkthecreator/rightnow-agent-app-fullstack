@@ -309,6 +309,9 @@ export interface UseUniversalChangesReturn extends UniversalChangesState {
   approveChanges: (changeIds: string[], sections?: string[]) => Promise<void>;
   rejectChanges: (changeIds: string[], reason?: string) => Promise<void>;
   
+  // Intelligence operations  
+  generateIntelligence: (conversationContext?: any, origin?: string) => Promise<void>;
+  
   // Convenience methods for specific change types
   updateBasket: (updates: { name?: string; description?: string; status?: string }) => Promise<ChangeResult>;
   createDocument: (title: string, content: string, documentType?: string) => Promise<ChangeResult>;
@@ -596,6 +599,99 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
   }, [submitChange]);
 
   // ========================================================================
+  // INTELLIGENCE OPERATIONS
+  // ========================================================================
+
+  // ========================================================================
+  // UTILITY METHODS
+  // ========================================================================
+
+  const refreshChanges = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/changes?basketId=${basketId}&status=pending`);
+      const data = await response.json();
+      
+      if (data.changes) {
+        dispatch({ type: 'SET_PENDING_CHANGES', payload: data.changes });
+      }
+    } catch (error) {
+      console.error('Failed to refresh changes:', error);
+    }
+  }, [basketId]);
+
+  const generateIntelligence = useCallback(async (conversationContext?: any, origin = 'manual') => {
+    const changeId = crypto.randomUUID();
+    
+    try {
+      // Start processing state
+      dispatch({ 
+        type: 'START_PROCESSING', 
+        payload: { 
+          changeId, 
+          type: 'intelligence_generate', 
+          message: 'Generating intelligence insights...' 
+        } 
+      });
+
+      console.log('🧠 Generating intelligence via Universal Change System:', { basketId, origin });
+
+      // Submit intelligence generation request through unified API
+      const response = await fetch('/api/changes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: changeId,
+          type: 'intelligence_generate',
+          basketId,
+          data: {
+            origin,
+            conversationContext,
+            checkPending: true
+          },
+          metadata: {
+            timestamp: new Date().toISOString()
+          },
+          origin: 'user'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('✅ Intelligence generation successful via Universal Changes');
+        
+        // Refresh pending changes to get any new intelligence events
+        await refreshChanges();
+      } else {
+        throw new Error(result.errors?.[0] || 'Failed to generate intelligence');
+      }
+
+    } catch (error) {
+      console.error('❌ Intelligence generation failed via Universal Changes:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      dispatch({
+        type: 'ADD_ERROR',
+        payload: {
+          id: crypto.randomUUID(),
+          changeId,
+          message: errorMessage,
+          code: 'INTELLIGENCE_GENERATION_FAILED',
+          timestamp: new Date().toISOString(),
+          dismissible: true
+        }
+      });
+      
+    } finally {
+      // Stop processing state
+      dispatch({ type: 'STOP_PROCESSING', payload: changeId });
+    }
+  }, [basketId, refreshChanges]);
+
+  // ========================================================================
   // CONFLICT RESOLUTION
   // ========================================================================
 
@@ -614,23 +710,6 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
       console.error('Failed to resolve conflict:', error);
     }
   }, []);
-
-  // ========================================================================
-  // UTILITY METHODS
-  // ========================================================================
-
-  const refreshChanges = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/changes?basketId=${basketId}&status=pending`);
-      const data = await response.json();
-      
-      if (data.changes) {
-        dispatch({ type: 'SET_PENDING_CHANGES', payload: data.changes });
-      }
-    } catch (error) {
-      console.error('Failed to refresh changes:', error);
-    }
-  }, [basketId]);
 
   const dismissError = useCallback((errorId: string) => {
     dispatch({ type: 'REMOVE_ERROR', payload: errorId });
@@ -681,6 +760,9 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
     approveChanges,
     rejectChanges,
     
+    // Intelligence operations
+    generateIntelligence,
+    
     // Convenience methods
     updateBasket,
     createDocument,
@@ -713,6 +795,8 @@ function getProcessingMessage(type: ChangeType): string {
       return 'Applying intelligence changes...';
     case 'intelligence_reject':
       return 'Rejecting changes...';
+    case 'intelligence_generate':
+      return 'Generating intelligence insights...';
     case 'context_add':
       return 'Adding context...';
     case 'block_create':

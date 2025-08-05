@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Brain, Sparkles, ChevronUp, ChevronDown, MessageCircle, Lightbulb, ArrowRight, History, Zap } from 'lucide-react';
 import { usePageContext, generateAmbientMessage, getContextCapabilities, type PageContext } from '@/lib/intelligence/pageContextDetection';
+import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
 import { useUnifiedIntelligence } from '@/lib/intelligence/useUnifiedIntelligence';
 import { analyzeConversationIntent, createConversationGenerationRequest } from '@/lib/intelligence/conversationAnalyzer';
 import { createContextualConversationRequest } from '@/lib/intelligence/contextualIntelligence';
@@ -62,14 +63,21 @@ export function UnifiedAmbientCompanion({
   
   // Get page context and intelligence state
   const pageContext = usePageContext(basketId);
+  
+  // Universal Changes for primary change management
+  const changeManager = useUniversalChanges(basketId);
+  
+  // Legacy unified intelligence for substrate data (temporary)
   const {
     currentIntelligence,
-    pendingChanges,
-    isProcessing,
-    conversationContext,
-    generateIntelligence,
-    addContext
+    conversationContext
   } = useUnifiedIntelligence(basketId);
+  
+  // Use Universal Changes for operations
+  const pendingChanges = changeManager.pendingChanges;
+  const isProcessing = changeManager.isProcessing;
+  const generateIntelligence = changeManager.generateIntelligence;
+  const addContext = changeManager.addContext;
 
   // Initialize synthesis context first
   const { synthesisContext, recordInteraction, getContextualRecommendations, hasSynthesisOpportunities } = useCrossPageSynthesis(
