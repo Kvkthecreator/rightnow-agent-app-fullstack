@@ -8,9 +8,8 @@ import { IdentityAnchorHeader } from './IdentityAnchorHeader';
 import { ContentInventorySection } from '@/components/detailed-view/ContentInventorySection';
 import { NarrativeUnderstanding } from './NarrativeUnderstanding';
 import { ContextSuggestions } from './ContextSuggestions';
-import { FloatingCommunication } from './FloatingCommunication';
 import { UniversalChangeModal } from '@/components/intelligence/UniversalChangeModal';
-import { UnifiedAmbientCompanion } from '@/components/intelligence/UnifiedAmbientCompanion';
+import { SimplifiedThinkingPartner } from './SimplifiedThinkingPartner';
 import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { useBasket } from '@/contexts/BasketContext';
@@ -34,22 +33,22 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   // Get basket data from context
   const { basket, updateBasketName } = useBasket();
   
-  // Use Universal Changes hook for ALL change management (replaces useUnifiedIntelligence)
+  // Unified change management system
   const changeManager = useUniversalChanges(basketId);
-
-  // For now, still use legacy intelligence for substrate data until fully migrated
+  
+  // Extract simplified state for UI
+  const pendingChanges = changeManager.pendingChanges;
+  const isProcessing = changeManager.isProcessing;
+  const hasErrors = changeManager.hasErrors;
+  const errors = changeManager.errors;
+  
+  // Legacy intelligence for substrate data (simplified access)
   const {
     currentIntelligence,
     conversationContext,
     setConversationContext,
-    addContext,
-    pendingChanges,
     error,
-    isInitialLoading,
-    isProcessing,
-    processingMessage,
-    approveChanges,
-    rejectChanges
+    isInitialLoading
   } = useUnifiedIntelligence(basketId);
 
   // Handle context capture from floating communication with conversation analysis
@@ -62,7 +61,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           timestamp: capturedContent.timestamp
         });
 
-        console.log('🤖 Conversation intent analyzed:', intent);
+        // Intelligence generation based on conversation intent
         
         if (intent.shouldGenerateIntelligence) {
           // Create conversation context and generate intelligence
@@ -97,7 +96,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
             showInfo('Got it', 'Feel free to ask me to analyze patterns or generate insights');
           }
           
-          console.log('📝 Context added successfully for:', intent.type);
+          // Context added successfully
         }
         
       } else if (capturedContent.type === 'file') {
@@ -126,10 +125,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   // Handle checking pending changes from FAB - now opens modal
   const handleCheckPendingChanges = () => {
     // The modal will automatically open when pendingChanges exist
-    console.log('User requested to check pending changes:', {
-      legacyPending: pendingChanges?.length || 0,
-      universalPending: changeManager.pendingChanges?.length || 0
-    });
+    // This provides a clean way for users to review insights
   };
 
   // Handle suggestion selection
@@ -147,38 +143,30 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     await updateBasketName(newName);
   };
 
-  if (error || changeManager.hasErrors) {
+  if (error || hasErrors) {
     return (
       <ErrorMessage 
-        error={error || changeManager.errors[0]?.message || 'Unknown error'} 
+        error={error || errors[0]?.message || 'Unknown error'} 
         onRetry={() => window.location.reload()}
         title="Failed to load thinking partner dashboard"
       />
     );
   }
 
-  // Show loading spinner during initial data fetch or processing
-  if (isInitialLoading || isProcessing || changeManager.isInitialLoading || changeManager.isProcessing) {
-    const loadingMessage = processingMessage || 
-      (isInitialLoading || changeManager.isInitialLoading ? 'Basket loading... please wait' : 'Processing your request...');
-    
+  // Simplified loading state - only show for initial load
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <OrganicSpinner size="lg" />
-          <p className="text-lg text-gray-600 mt-6">{loadingMessage}</p>
-          {conversationContext && (
-            <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
-              "{conversationContext.userQuery}"
-            </p>
-          )}
+          <p className="text-lg text-gray-600 mt-6">Loading your workspace...</p>
         </div>
       </div>
     );
   }
 
   // Show empty state only after loading is complete
-  if (!currentIntelligence && pendingChanges.length === 0 && changeManager.pendingChanges.length === 0) {
+  if (!currentIntelligence && pendingChanges.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -290,26 +278,19 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
       <UniversalChangeModal
         isOpen={pendingChanges.length > 0 || changeManager.pendingChanges.length > 0}
         
-        // Legacy intelligence changes
-        changes={pendingChanges.length > 0 ? pendingChanges[0] : null}
-        
-        // Universal changes (basket updates, documents, etc.)
+        // Unified change management - use Universal Changes system
         pendingChanges={changeManager.pendingChanges}
         conflicts={changeManager.unresolvedConflicts}
         changeManager={changeManager}
         
         context={{ page: 'dashboard' }}
-        onApprove={(selectedSections) => {
-          if (pendingChanges.length > 0) {
-            approveChanges(pendingChanges[0].id, selectedSections);
-          }
-          // Conversation context cleanup handled by unified hook
+        onApprove={() => {
+          // Universal Changes handles approval automatically
+          // The modal will close when changes are processed
         }}
-        onReject={(reason) => {
-          if (pendingChanges.length > 0) {
-            rejectChanges(pendingChanges[0].id, reason);
-          }
-          // Conversation context cleanup handled by unified hook
+        onReject={() => {
+          // Universal Changes handles rejection automatically  
+          // The modal will close when changes are processed
         }}
         onClose={() => {
           // Modal closes automatically when pendingChanges becomes empty
@@ -321,22 +302,13 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         conversationContext={conversationContext}
       />
 
-      {/* Floating Communication Interface */}
-      <FloatingCommunication
-        onCapture={handleContextCapture}
-        isProcessing={isProcessing || changeManager.isProcessing}
-        hasPendingChanges={pendingChanges.length > 0 || changeManager.pendingChanges.length > 0}
-        onCheckPendingChanges={handleCheckPendingChanges}
-      />
-
-      {/* Unified Ambient Companion */}
-      <UnifiedAmbientCompanion
+      {/* Simplified Thinking Partner - Single Interface */}
+      <SimplifiedThinkingPartner
         basketId={basketId}
-        onExpandedChange={(expanded) => {
-          console.log('Unified ambient companion expanded:', expanded);
-        }}
-        persistentState={true}
-        transitionEnabled={true}
+        onCapture={handleContextCapture}
+        isProcessing={isProcessing}
+        hasPendingChanges={pendingChanges.length > 0}
+        onCheckPendingChanges={handleCheckPendingChanges}
       />
 
       {/* Toast notifications */}
@@ -347,12 +319,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
 
 // Helper functions (reused from original ConsciousnessDashboard)
 function transformToConsciousnessData(intelligence: any) {
-  console.log('🔍 transformToConsciousnessData received:', {
-    hasContextUnderstanding: !!intelligence.contextUnderstanding,
-    hasIntelligence: !!intelligence.intelligence,
-    intelligenceKeys: Object.keys(intelligence),
-    contextKeys: intelligence.contextUnderstanding ? Object.keys(intelligence.contextUnderstanding) : []
-  });
+  // Transform intelligence data for consciousness display
 
   const themes = intelligence.contextUnderstanding?.themes || [];
   const insights = intelligence.intelligence?.insights || [];
