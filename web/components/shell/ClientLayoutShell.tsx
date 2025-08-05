@@ -14,10 +14,18 @@ const SHOW_SIDEBAR_ROUTES = [
   "/context",
 ];
 
+// These specific routes should NOT show global sidebar (they have custom layouts)
+const isBasketWorkPage = (pathname: string | null): boolean => {
+  if (!pathname) return false;
+  // Match /baskets/[id]/work and all sub-routes
+  return pathname.includes('/baskets/') && pathname.includes('/work');
+};
+
 export default function ClientLayoutShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   
-  const shouldShowSidebar = pathname
+  const isWorkPage = isBasketWorkPage(pathname);
+  const shouldShowSidebar = pathname && !isWorkPage
     ? SHOW_SIDEBAR_ROUTES.some((prefix) =>
         prefix === "/" ? pathname === "/" : pathname.startsWith(prefix)
       )
@@ -26,6 +34,7 @@ export default function ClientLayoutShell({ children }: { children: ReactNode })
   // Debug sidebar visibility logic
   console.log('🔍 ClientLayoutShell Debug:', {
     pathname,
+    isWorkPage,
     shouldShowSidebar,
     showSidebarRoutes: SHOW_SIDEBAR_ROUTES
   });
