@@ -1,5 +1,8 @@
 import { fetchWithToken } from "@/lib/fetchWithToken";
 
+// NOTE: This utility is being phased out in favor of useUniversalChanges.createDocument()
+// Individual components should use the hook directly for better state management
+
 export interface DocumentCreationData {
   basket_id: string;
   title: string;
@@ -18,6 +21,10 @@ export interface CreatedDocument {
 }
 
 export async function createDocument(data: DocumentCreationData): Promise<CreatedDocument> {
+  console.warn('⚠️ DEPRECATED: createDocument utility should be replaced with useUniversalChanges.createDocument()');
+  
+  // For now, maintain compatibility by making direct API call
+  // TODO: This function should be removed once all components are migrated
   const response = await fetchWithToken('/api/documents', {
     method: 'POST',
     headers: {
@@ -29,7 +36,7 @@ export async function createDocument(data: DocumentCreationData): Promise<Create
       content: data.content || `# ${data.title}\n\nStart writing your content here...`,
       document_type: data.document_type || 'general',
       metadata: {
-        createdVia: 'manual',
+        createdVia: 'manual_legacy',
         ...data.metadata
       }
     })

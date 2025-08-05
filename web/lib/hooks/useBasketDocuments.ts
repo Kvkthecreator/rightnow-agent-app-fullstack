@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { fetchWithToken } from "@/lib/fetchWithToken";
+import { useUniversalChanges } from "@/lib/hooks/useUniversalChanges";
 
 interface Document {
   id: string;
@@ -13,6 +14,7 @@ interface Document {
 }
 
 export function useBasketDocuments(basketId: string) {
+  // Keep legacy SWR fetching for GET operations (not migrated yet)
   const { data, error, isLoading, mutate } = useSWR(
     basketId ? `/api/documents?basketId=${basketId}` : null,
     async (url: string) => {
@@ -24,43 +26,43 @@ export function useBasketDocuments(basketId: string) {
     }
   );
 
+  // Use Universal Changes for CRUD operations
+  const changeManager = useUniversalChanges(basketId);
+
   const createDocument = async (title: string, content_raw: string = '') => {
     try {
-      const response = await fetchWithToken(`/api/documents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title, 
-          content_raw, 
-          basketId // Include basketId to associate with this basket
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to create document');
+      console.log('🔄 Creating document via Universal Change System:', { title, basketId });
       
-      const newDocument = await response.json();
-      mutate(); // Refresh the list
-      return newDocument;
+      const result = await changeManager.createDocument(title, content_raw);
+      
+      if (result.success) {
+        mutate(); // Refresh the list
+        console.log('✅ Document created successfully via Universal Changes');
+        return result.appliedData;
+      } else {
+        throw new Error(result.errors?.[0] || 'Failed to create document');
+      }
     } catch (error) {
-      console.error('Error creating document:', error);
+      console.error('❌ Error creating document via Universal Changes:', error);
       throw error;
     }
   };
 
   const updateDocument = async (documentId: string, updates: Partial<Document>) => {
     try {
-      const response = await fetchWithToken(`/api/documents/${documentId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
-
-      if (!response.ok) throw new Error('Failed to update document');
+      console.log('🔄 Updating document via Universal Change System:', { documentId, updates });
       
-      mutate(); // Refresh the list
-      return await response.json();
+      const result = await changeManager.updateDocument(documentId, updates);
+      
+      if (result.success) {
+        mutate(); // Refresh the list
+        console.log('✅ Document updated successfully via Universal Changes');
+        return result.appliedData;
+      } else {
+        throw new Error(result.errors?.[0] || 'Failed to update document');
+      }
     } catch (error) {
-      console.error('Error updating document:', error);
+      console.error('❌ Error updating document via Universal Changes:', error);
       throw error;
     }
   };

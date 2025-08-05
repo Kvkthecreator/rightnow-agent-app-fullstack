@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { useUniversalChanges } from "@/lib/hooks/useUniversalChanges";
 import type { Document } from "@/types";
 
 interface DocumentEditorProps {
@@ -21,6 +22,9 @@ export default function DocumentEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
+  // Use Universal Changes for document operations
+  const changeManager = useUniversalChanges(basketId);
+
   // Auto-save functionality (every 3 seconds after changes)
   useEffect(() => {
     const saveTimer = setTimeout(() => {
@@ -37,28 +41,24 @@ export default function DocumentEditor({
 
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/documents/${document.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title,
-          content_raw: content,
-        }),
+      console.log('🔄 Auto-saving document via Universal Change System:', { documentId: document.id, title });
+      
+      const result = await changeManager.updateDocument(document.id, {
+        title,
+        content: content  // Using 'content' instead of 'content_raw' for consistency
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save document');
+      if (result.success) {
+        if (result.appliedData) {
+          onDocumentUpdate(result.appliedData);
+        }
+        setLastSaved(new Date());
+        console.log('✅ Document auto-saved successfully via Universal Changes');
+      } else {
+        throw new Error(result.errors?.[0] || 'Failed to save document');
       }
-
-      const { document: updatedDocument } = await response.json();
-      
-      onDocumentUpdate(updatedDocument);
-      setLastSaved(new Date());
     } catch (error) {
-      console.error("Failed to save document:", error);
+      console.error("❌ Failed to save document via Universal Changes:", error);
       alert("Failed to save document. Please try again.");
     } finally {
       setIsSaving(false);
