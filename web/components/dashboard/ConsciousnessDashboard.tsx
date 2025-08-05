@@ -8,8 +8,10 @@ import { IdentityAnchorHeader } from './IdentityAnchorHeader';
 import { ContentInventorySection } from '@/components/detailed-view/ContentInventorySection';
 import { NarrativeUnderstanding } from './NarrativeUnderstanding';
 import { ContextSuggestions } from './ContextSuggestions';
-import { UniversalChangeModal } from '@/components/intelligence/UniversalChangeModal';
-import { SimplifiedThinkingPartner } from './SimplifiedThinkingPartner';
+import { YarnnnInsightApproval } from '@/components/thinking/YarnnnInsightApproval';
+import { YarnnnThinkingPartner } from '@/components/thinking/YarnnnThinkingPartner';
+import { SimpleConnectionStatus, SimpleToast } from '@/components/ui/SimpleConnectionStatus';
+import { YarnnnMemorySubstrate } from '@/components/thinking/YarnnnMemorySubstrate';
 import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { useBasket } from '@/contexts/BasketContext';
@@ -18,9 +20,7 @@ import {
   createConversationGenerationRequest,
   type ConversationTriggeredGeneration 
 } from '@/lib/intelligence/conversationAnalyzer';
-import { ToastContainer, useToast } from '@/components/ui/Toast';
-import { ConnectionStatus, ConnectionBanner } from '@/components/ui/ConnectionStatus';
-import { RealTimeNotifications } from '@/components/ui/RealTimeNotifications';
+import { useState as useToastState } from 'react';
 
 interface ConsciousnessDashboardProps {
   basketId: string;
@@ -28,7 +28,18 @@ interface ConsciousnessDashboardProps {
 
 export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps) {
   const router = useRouter();
-  const { toasts, removeToast, showSuccess, showInfo } = useToast();
+  // Simple toast state - no complex toast system
+  const [toast, setToast] = useToastState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
+  
+  const showSuccess = (title: string, message: string) => {
+    setToast({ message: `${title}: ${message}`, type: 'success' });
+    setTimeout(() => setToast(null), 4000);
+  };
+  
+  const showInfo = (title: string, message: string) => {
+    setToast({ message: `${title}: ${message}`, type: 'info' });
+    setTimeout(() => setToast(null), 4000);
+  };
   
   // Get basket data from context
   const { basket, updateBasketName } = useBasket();
@@ -51,15 +62,12 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     isInitialLoading
   } = useUnifiedIntelligence(basketId);
 
-  // Handle context capture from floating communication with conversation analysis
-  const handleContextCapture = async (capturedContent: any) => {
+  // Handle context capture from Yarnnn thinking partner
+  const handleThoughtCapture = async (capturedContent: any) => {
     try {
-      if (capturedContent.type === 'text') {
-        // Analyze conversation intent
-        const intent = analyzeConversationIntent({
-          userInput: capturedContent.content,
-          timestamp: capturedContent.timestamp
-        });
+      if (capturedContent.type === 'conversation') {
+        // Use pre-analyzed intent from thinking partner
+        const intent = capturedContent.intent;
 
         // Intelligence generation based on conversation intent
         
@@ -87,13 +95,13 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
             }
           }]);
           
-          // Show appropriate feedback for non-intelligence conversations
+          // Show warm, human feedback
           if (intent.type === 'context_addition') {
-            showSuccess('Context Added', 'Your input has been added to the workspace');
+            showSuccess('Memory updated', 'I\'ll remember this for our future conversations');
           } else if (intent.type === 'direct_response') {
-            showInfo('Noted', 'Thanks for the input - let me know if you need analysis!');
+            showInfo('Thanks', 'I\'m here when you want to explore patterns or insights');
           } else if (intent.type === 'clarification') {
-            showInfo('Got it', 'Feel free to ask me to analyze patterns or generate insights');
+            showInfo('Got it', 'Let me know when you\'d like me to help you understand your work');
           }
           
           // Context added successfully
@@ -111,6 +119,20 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         });
         
         if (!response.ok) throw new Error('Failed to upload file');
+        showSuccess('Material added', 'I\'ll learn from this and incorporate it into our conversations');
+        
+      } else if (capturedContent.type === 'voice') {
+        // Handle voice input
+        await changeManager.addContext([{
+          type: 'voice',
+          content: capturedContent.content,
+          metadata: { 
+            timestamp: capturedContent.timestamp,
+            duration: capturedContent.context?.duration,
+            page: capturedContent.context?.page
+          }
+        }]);
+        showSuccess('Voice captured', 'I heard your thoughts and will remember them');
         
       } else if (capturedContent.type === 'generate') {
         // Manual intelligence generation through Universal Changes
@@ -119,13 +141,15 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
       
     } catch (error) {
       console.error('Failed to process captured content:', error);
+      setToast({ message: 'Something went wrong processing your thought', type: 'warning' });
+      setTimeout(() => setToast(null), 4000);
     }
   };
 
-  // Handle checking pending changes from FAB - now opens modal
-  const handleCheckPendingChanges = () => {
-    // The modal will automatically open when pendingChanges exist
-    // This provides a clean way for users to review insights
+  // Handle checking pending insights - human language
+  const handleCheckPendingInsights = () => {
+    // The insight approval modal will automatically open when pendingChanges exist
+    // This provides a warm way for users to review what I've discovered
   };
 
   // Handle suggestion selection
@@ -189,32 +213,17 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Real-time Notifications */}
-      <RealTimeNotifications />
-      
-      {/* Connection Status Banner */}
-      <div className="container mx-auto px-4 pt-4 max-w-6xl">
-        <ConnectionBanner
-          isConnected={changeManager.isConnected}
-          isReconnecting={changeManager.connectionError ? true : false}
-          error={changeManager.connectionError || undefined}
-          onRetry={() => {
-            // The WebSocket manager handles reconnection automatically
-            console.log('Retry connection requested');
-          }}
-        />
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 pb-20">
 
-      {/* Main Dashboard Content - No more width adjustment needed for modal */}
+      {/* Main Dashboard Content - Clean, human-focused */}
       <div className="w-full">
-        <div className="container mx-auto py-6 space-y-6 max-w-6xl px-4">
+        <div className="container mx-auto py-6 space-y-8 max-w-4xl px-4">
           
-          {/* Identity Anchor Header with Connection Status */}
+          {/* Header with simple connection status */}
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <IdentityAnchorHeader
-                basketName={basket?.name || 'Untitled Workspace'}
+                basketName={basket?.name || 'Untitled Research'}
                 suggestedName={transformedData.suggestedName}
                 status={transformedData.status}
                 lastActive={basket?.updated_at || new Date().toISOString()}
@@ -222,97 +231,108 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
                 onNameChange={handleNameChange}
               />
             </div>
-            <div className="ml-4">
-              <ConnectionStatus
-                isConnected={changeManager.isConnected}
-                isConnecting={changeManager.isInitialLoading}
-                isReconnecting={changeManager.connectionError ? true : false}
-                error={changeManager.connectionError || undefined}
-                showLabel={true}
-              />
-            </div>
+            <SimpleConnectionStatus 
+              isConnected={changeManager.isConnected}
+              className="ml-4"
+            />
           </div>
 
-          {/* Show pending changes banner if any */}
+          {/* Show pending insights banner with warm language */}
           {(pendingChanges.length > 0 || changeManager.pendingChanges.length > 0) && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
+            <div className="bg-gradient-to-r from-orange-50 to-pink-50 border border-orange-200 rounded-xl p-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-pink-400 rounded-full flex items-center justify-center">
+                  <div className="w-5 h-5 text-white">✨</div>
+                </div>
                 <div>
-                  <h3 className="text-sm font-medium text-orange-900">
-                    {Math.max(pendingChanges.length, changeManager.pendingChanges.length)} updated understanding{Math.max(pendingChanges.length, changeManager.pendingChanges.length) !== 1 ? 's' : ''} pending review
+                  <h3 className="text-base font-medium text-orange-900">
+                    I have new insights about your research
                   </h3>
-                  <p className="text-xs text-orange-700">
-                    Review changes in the Thinking Partner panel →
+                  <p className="text-sm text-orange-700 mt-1">
+                    {Math.max(pendingChanges.length, changeManager.pendingChanges.length)} discovery{Math.max(pendingChanges.length, changeManager.pendingChanges.length) !== 1 ? 'ies' : 'y'} ready for you to review
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Basket Details */}
-          {currentIntelligence && (
-            <ContentInventorySection
-              inventory={createInventoryFromIntelligence(currentIntelligence)}
+          {/* Memory Substrate Display - Human, Warm */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                  <div className="w-4 h-4 text-white">🧠</div>
+                </div>
+                Our shared understanding
+              </h2>
+              <p className="text-gray-600 mt-2">
+                This is what I remember about your research journey
+              </p>
+            </div>
+            
+            <YarnnnMemorySubstrate 
+              intelligence={currentIntelligence}
+              basketName={basket?.name || 'Your Research'}
             />
-          )}
+          </div>
 
-          {/* Executive Summary - Always show for honest assessment */}
-          <NarrativeUnderstanding
-            userThinkingPatterns={transformedData.narrative.userThinkingPatterns}
-            dominantThemes={transformedData.narrative.dominantThemes}
-            uncertainty={transformedData.narrative.uncertainty}
-            readinessForExecution={transformedData.narrative.readinessForExecution}
-            personalizedInsight={transformedData.narrative.personalizedInsight}
-            confidenceLevel={transformedData.narrative.confidenceLevel}
-          />
+          {/* Research Development Areas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Content Inventory - Simplified */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <ContentInventorySection
+                intelligence={currentIntelligence}
+                basketId={basketId}
+                onSuggestionSelect={handleSuggestionSelect}
+              />
+            </div>
 
-          {/* Context Suggestions */}
-          <ContextSuggestions
-            suggestions={transformedData.suggestions}
-            onSuggestionSelect={handleSuggestionSelect}
-          />
+            {/* Context Suggestions - Simplified */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <ContextSuggestions
+                suggestions={transformedData.contextSuggestions || []}
+                onSuggestionSelect={handleSuggestionSelect}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Universal Change Modal */}
-      <UniversalChangeModal
+      {/* Yarnnn Insight Approval - Human, Warm Experience */}
+      <YarnnnInsightApproval
         isOpen={pendingChanges.length > 0 || changeManager.pendingChanges.length > 0}
         
-        // Unified change management - use Universal Changes system
+        // Universal changes support
         pendingChanges={changeManager.pendingChanges}
-        conflicts={changeManager.unresolvedConflicts}
         changeManager={changeManager}
         
         context={{ page: 'dashboard' }}
-        onApprove={() => {
-          // Universal Changes handles approval automatically
-          // The modal will close when changes are processed
-        }}
-        onReject={() => {
-          // Universal Changes handles rejection automatically  
-          // The modal will close when changes are processed
-        }}
         onClose={() => {
           // Modal closes automatically when pendingChanges becomes empty
-          // Conversation context cleanup handled by unified hook
-          console.log('Change modal closed');
+          console.log('Insight approval closed');
         }}
         currentIntelligence={currentIntelligence}
         isProcessing={isProcessing || changeManager.isProcessing}
         conversationContext={conversationContext}
       />
 
-      {/* Simplified Thinking Partner - Single Interface */}
-      <SimplifiedThinkingPartner
+      {/* Yarnnn Thinking Partner - Pure, Context-Aware */}
+      <YarnnnThinkingPartner
         basketId={basketId}
-        onCapture={handleContextCapture}
+        onCapture={handleThoughtCapture}
         isProcessing={isProcessing}
-        hasPendingChanges={pendingChanges.length > 0}
-        onCheckPendingChanges={handleCheckPendingChanges}
+        hasPendingInsights={pendingChanges.length > 0}
+        onCheckPendingInsights={handleCheckPendingInsights}
       />
 
-      {/* Toast notifications */}
-      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+      {/* Simple toast notifications */}
+      {toast && (
+        <SimpleToast 
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

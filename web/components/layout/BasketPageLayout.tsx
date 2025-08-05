@@ -1,110 +1,30 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { UnifiedAmbientCompanion } from '@/components/intelligence/UnifiedAmbientCompanion';
-import { UniversalChangeModal } from '@/components/intelligence/UniversalChangeModal';
-import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
-import { useUnifiedIntelligence } from '@/lib/intelligence/useUnifiedIntelligence';
-import { ToastContainer, useToast } from '@/components/ui/Toast';
-import { ErrorBoundary } from 'react-error-boundary';
+// Legacy ambient companion removed - Yarnnn system handles everything
+// All intelligence interactions now flow through ConsciousnessDashboard
 
 interface BasketPageLayoutProps {
   basketId: string;
   children: React.ReactNode;
   pageType: 'dashboard' | 'document' | 'timeline' | 'detailed-view';
   className?: string;
-  showCompanion?: boolean;
-  companionConfig?: {
-    persistentState?: boolean;
-    transitionEnabled?: boolean;
-    responsiveBreakpoint?: number;
-  };
 }
 
-function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
-  return (
-    <div className="min-h-[200px] flex items-center justify-center">
-      <div className="text-center p-6 bg-red-50 border border-red-200 rounded-lg max-w-md">
-        <h2 className="text-lg font-semibold text-red-800 mb-2">Something went wrong</h2>
-        <p className="text-sm text-red-600 mb-4">
-          The ambient companion encountered an error and needs to be reset.
-        </p>
-        <button
-          onClick={resetErrorBoundary}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-        >
-          Reset Companion
-        </button>
-      </div>
-    </div>
-  );
-}
+// Error boundary removed - simplified architecture
 
 export function BasketPageLayout({
   basketId,
   children,
   pageType,
-  className = '',
-  showCompanion = true,
-  companionConfig = {}
+  className = ''
 }: BasketPageLayoutProps) {
-  const [companionKey, setCompanionKey] = useState(0);
-  const { toasts, removeToast } = useToast();
-  
-  // Universal Changes for primary change management
-  const changeManager = useUniversalChanges(basketId);
-  
-  // Legacy unified intelligence for substrate data (temporary)
-  const {
-    currentIntelligence,
-    conversationContext,
-    clearError
-  } = useUnifiedIntelligence(basketId);
-  
-  // Use Universal Changes for state management
-  const pendingChanges = changeManager.pendingChanges.length > 0 ? [changeManager.pendingChanges[0]] : [];
-  const isProcessing = changeManager.isProcessing;
-  const approveChanges = changeManager.approveChanges;
-  const rejectChanges = changeManager.rejectChanges;
 
-  // Handle companion expansion state
-  const [isCompanionExpanded, setIsCompanionExpanded] = useState(false);
-
-  // Reset companion on critical errors
-  const handleCompanionReset = () => {
-    setCompanionKey(prev => prev + 1);
-  };
-
-  // Page transition effects
+  // Simple page transition effects
   useEffect(() => {
-    // Add page identifier for CSS transitions
     document.body.setAttribute('data-page-type', pageType);
-    
-    return () => {
-      document.body.removeAttribute('data-page-type');
-    };
+    return () => document.body.removeAttribute('data-page-type');
   }, [pageType]);
-
-  // Handle modal actions
-  const handleApproveChanges = async (eventId: string, sections: string[]) => {
-    try {
-      await approveChanges([eventId], sections);
-    } catch (error) {
-      console.error('Failed to approve changes:', error);
-    }
-  };
-
-  const handleRejectChanges = async (eventId: string, reason?: string) => {
-    try {
-      await rejectChanges([eventId], reason);
-    } catch (error) {
-      console.error('Failed to reject changes:', error);
-    }
-  };
-
-  const handleModalClose = () => {
-    clearError();
-  };
 
   return (
     <div className={`relative min-h-screen ${className}`}>
@@ -113,55 +33,7 @@ export function BasketPageLayout({
         {children}
       </main>
 
-      {/* Unified Ambient Companion */}
-      {showCompanion && (
-        <ErrorBoundary
-          FallbackComponent={ErrorFallback}
-          onReset={handleCompanionReset}
-          resetKeys={[companionKey, basketId, pageType]}
-        >
-          <UnifiedAmbientCompanion
-            key={companionKey}
-            basketId={basketId}
-            onExpandedChange={setIsCompanionExpanded}
-            persistentState={companionConfig.persistentState ?? true}
-            transitionEnabled={companionConfig.transitionEnabled ?? true}
-            responsiveBreakpoint={companionConfig.responsiveBreakpoint ?? 768}
-            className="z-40"
-          />
-        </ErrorBoundary>
-      )}
-
-      {/* Universal Change Modal with Batched Changes Support */}
-      <UniversalChangeModal
-        isOpen={changeManager.pendingChanges.length > 0}
-        
-        // Legacy support
-        changes={null}
-        
-        // Universal changes (new)
-        pendingChanges={changeManager.pendingChanges}
-        conflicts={changeManager.unresolvedConflicts}
-        changeManager={changeManager}
-        
-        context={{ page: pageType }}
-        onApprove={(selectedSections) => {
-          // Legacy approval handler - not used with Universal Changes
-        }}
-        onReject={(reason) => {
-          // Legacy rejection handler - not used with Universal Changes
-        }}
-        onClose={handleModalClose}
-        currentIntelligence={currentIntelligence}
-        isProcessing={changeManager.isProcessing}
-        conversationContext={conversationContext}
-      />
-
-      {/* Toast notifications */}
-      <ToastContainer 
-        toasts={toasts} 
-        onDismiss={removeToast}
-      />
+      {/* No companion needed - Yarnnn system is integrated into dashboard */}
 
       {/* Page transition styles */}
       <style jsx global>{`
