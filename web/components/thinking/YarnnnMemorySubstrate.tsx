@@ -31,8 +31,8 @@ export function YarnnnMemorySubstrate({
     );
   }
 
-  const themes = intelligence.insights?.themes || [];
-  const keyInsights = intelligence.insights?.keyInsights || [];
+  const themes = intelligence.contextUnderstanding?.themes || [];
+  const keyInsights = intelligence.intelligence?.insights || [];
   const understanding = intelligence.contextUnderstanding?.intent || '';
 
   return (
@@ -63,11 +63,8 @@ export function YarnnnMemorySubstrate({
             {themes.slice(0, 5).map((theme, index) => (
               <div key={index} className="p-3 bg-amber-50 rounded-lg border border-amber-100">
                 <h5 className="font-medium text-amber-900 text-sm">
-                  {theme.title || theme.name || theme}
+                  {String(theme)}
                 </h5>
-                {theme.description && (
-                  <p className="text-amber-800 text-xs mt-1">{theme.description}</p>
-                )}
               </div>
             ))}
           </div>
@@ -85,7 +82,7 @@ export function YarnnnMemorySubstrate({
             {keyInsights.slice(0, 4).map((insight, index) => (
               <div key={index} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
                 <p className="text-blue-800 text-sm leading-relaxed">
-                  {insight.description || insight.title || insight}
+                  {insight.description || insight.title || 'Insight discovered'}
                 </p>
               </div>
             ))}

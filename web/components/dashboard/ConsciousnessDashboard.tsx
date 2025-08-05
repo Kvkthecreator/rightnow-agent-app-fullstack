@@ -12,6 +12,7 @@ import { YarnnnInsightApproval } from '@/components/thinking/YarnnnInsightApprov
 import { YarnnnThinkingPartner } from '@/components/thinking/YarnnnThinkingPartner';
 import { SimpleConnectionStatus, SimpleToast } from '@/components/ui/SimpleConnectionStatus';
 import { YarnnnMemorySubstrate } from '@/components/thinking/YarnnnMemorySubstrate';
+import { Brain, Sparkles } from 'lucide-react';
 import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { useBasket } from '@/contexts/BasketContext';
@@ -280,17 +281,23 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Content Inventory - Simplified */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <ContentInventorySection
-                intelligence={currentIntelligence}
-                basketId={basketId}
-                onSuggestionSelect={handleSuggestionSelect}
-              />
+              {currentIntelligence ? (
+                <ContentInventorySection
+                  inventory={createInventoryFromIntelligence(currentIntelligence)}
+                />
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-3">📚</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Content inventory</h3>
+                  <p className="text-gray-600">Add materials to see what you're working with</p>
+                </div>
+              )}
             </div>
 
             {/* Context Suggestions - Simplified */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <ContextSuggestions
-                suggestions={transformedData.contextSuggestions || []}
+                suggestions={transformedData.suggestions || []}
                 onSuggestionSelect={handleSuggestionSelect}
               />
             </div>
