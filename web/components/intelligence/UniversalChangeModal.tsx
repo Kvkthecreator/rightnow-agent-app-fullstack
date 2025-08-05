@@ -11,7 +11,11 @@ import {
   Info,
   Clock,
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  FileText,
+  Folder,
+  MessageSquare,
+  Blocks
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -19,6 +23,11 @@ import type { IntelligenceEvent, IntelligenceChange } from '@/lib/intelligence/c
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
 import type { ConversationTriggeredGeneration } from '@/lib/intelligence/conversationAnalyzer';
 import type { BatchedChange } from '@/lib/intelligence/changeFatiguePrevention';
+import type { 
+  PendingChange, 
+  UseUniversalChangesReturn 
+} from '@/lib/hooks/useUniversalChanges';
+import type { ChangeType, Conflict } from '@/lib/services/UniversalChangeService';
 import { mobileManager, useTouchGestures, type TouchGesture } from '@/lib/intelligence/mobileOptimizations';
 
 interface PageContext {
@@ -26,13 +35,24 @@ interface PageContext {
   documentId?: string;
 }
 
+// Enhanced props to support all change types
 interface UniversalChangeModalProps {
   isOpen: boolean;
-  changes: IntelligenceEvent | null;
+  
+  // Legacy intelligence support (for backward compatibility)
+  changes?: IntelligenceEvent | null;
   batchedChanges?: BatchedChange[];
+  
+  // New universal changes support
+  pendingChanges?: PendingChange[];
+  conflicts?: Conflict[];
+  
+  // Universal change management
+  changeManager?: UseUniversalChangesReturn;
+  
   context: PageContext;
-  onApprove: (selectedSections: string[]) => void;
-  onReject: (reason?: string) => void;
+  onApprove?: (selectedSections: string[]) => void;
+  onReject?: (reason?: string) => void;
   onClose: () => void;
   currentIntelligence?: SubstrateIntelligence | null;
   isProcessing?: boolean;
@@ -43,6 +63,9 @@ export function UniversalChangeModal({
   isOpen,
   changes,
   batchedChanges = [],
+  pendingChanges = [],
+  conflicts = [],
+  changeManager,
   context,
   onApprove,
   onReject,
@@ -57,7 +80,17 @@ export function UniversalChangeModal({
   const [rejectReason, setRejectReason] = useState('');
   const [isMobile, setIsMobile] = useState(false);
 
-  // Determine what to display - batched changes or single change
+  // Enhanced modal state for all change types
+  const [selectedChanges, setSelectedChanges] = useState<Set<string>>(new Set());
+  const [conflictResolutions, setConflictResolutions] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<'changes' | 'conflicts'>('changes');
+
+  // Determine what to display - universal changes take precedence
+  const hasUniversalChanges = pendingChanges.length > 0;
+  const hasConflicts = conflicts.length > 0;
+  const hasLegacyChanges = changes !== null && changes !== undefined;
+  
+  // Legacy support - batched changes or single change
   const displayData = batchedChanges.length > 0 ? batchedChanges[0] : changes;
   const isBatchedView = batchedChanges.length > 0;
 
@@ -69,39 +102,157 @@ export function UniversalChangeModal({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Touch gesture handling for mobile swipe-to-approve
+  // Enhanced touch gesture handling for all change types
   const { handleTouchStart, handleTouchEnd } = useTouchGestures((gesture: TouchGesture) => {
     return mobileManager.handleModalSwipeGestures(
       gesture,
       () => {
         // Swipe right to approve
-        const sectionsToApprove = Array.from(selectedSections);
-        onApprove(sectionsToApprove);
+        if (hasUniversalChanges && changeManager) {
+          handleUniversalApprove();
+        } else if (onApprove) {
+          const sectionsToApprove = Array.from(selectedSections);
+          onApprove(sectionsToApprove);
+        }
       },
       () => {
         // Swipe left to reject
-        onReject(rejectReason || 'Swiped to reject');
+        if (hasUniversalChanges && changeManager) {
+          handleUniversalReject();
+        } else if (onReject) {
+          onReject(rejectReason || 'Swiped to reject');
+        }
       }
     );
   });
 
-  // Reset state when modal opens/closes or changes update
+  // Universal change handlers
+  const handleUniversalApprove = async () => {
+    if (!changeManager) return;
+    
+    const changesToApprove = Array.from(selectedChanges);
+    if (changesToApprove.length === 0) return;
+    
+    try {
+      await changeManager.approveChanges(changesToApprove);
+      onClose();
+    } catch (error) {
+      console.error('Failed to approve changes:', error);
+    }
+  };
+
+  const handleUniversalReject = async () => {
+    if (!changeManager) return;
+    
+    const changesToReject = Array.from(selectedChanges);
+    if (changesToReject.length === 0) return;
+    
+    try {
+      await changeManager.rejectChanges(changesToReject, rejectReason);
+      onClose();
+    } catch (error) {
+      console.error('Failed to reject changes:', error);
+    }
+  };
+
+  const handleConflictResolve = async (conflictId: string, resolution: string) => {
+    if (!changeManager) return;
+    
+    try {
+      await changeManager.resolveConflict(conflictId, resolution as any);
+      setConflictResolutions(prev => ({ ...prev, [conflictId]: resolution }));
+    } catch (error) {
+      console.error('Failed to resolve conflict:', error);
+    }
+  };
+
+  // Enhanced state reset for all change types
   useEffect(() => {
-    if (isOpen && changes) {
-      // Pre-select all sections by default
-      const allSections = Object.keys(groupChangesByField(changes.changes));
-      setSelectedSections(new Set(allSections));
+    if (isOpen) {
+      // Reset universal changes state
+      if (hasUniversalChanges) {
+        const allChangeIds = pendingChanges.map(change => change.id);
+        setSelectedChanges(new Set(allChangeIds));
+        setActiveTab(hasConflicts ? 'conflicts' : 'changes');
+      }
+      
+      // Reset legacy changes state
+      if (hasLegacyChanges && changes) {
+        const allSections = Object.keys(groupChangesByField(changes.changes));
+        setSelectedSections(new Set(allSections));
+      }
+      
+      // Reset common state
       setExpandedSections(new Set());
       setShowRejectReason(false);
       setRejectReason('');
+      setConflictResolutions({});
     }
-  }, [isOpen, changes]);
+  }, [isOpen, hasUniversalChanges, hasLegacyChanges, pendingChanges, changes, hasConflicts]);
 
-  if (!isOpen || !changes) return null;
+  // Enhanced visibility condition - show if any changes exist
+  if (!isOpen || (!hasUniversalChanges && !hasLegacyChanges && !hasConflicts)) {
+    return null;
+  }
 
-  const changesByField = groupChangesByField(changes.changes);
-  const totalChanges = changes.changes.length;
-  const selectedCount = selectedSections.size;
+  // Legacy changes logic (when using old intelligence system)
+  const legacyChangesByField = hasLegacyChanges && changes ? groupChangesByField(changes.changes) : {};
+  const legacyTotalChanges = hasLegacyChanges && changes ? changes.changes.length : 0;
+  const legacySelectedCount = selectedSections.size;
+
+  // Universal changes logic
+  const universalTotalChanges = pendingChanges.length;
+  const universalSelectedCount = selectedChanges.size;
+
+  // Helper functions for universal changes
+  const getChangeIcon = (type: ChangeType) => {
+    switch (type) {
+      case 'basket_update': return <Folder className="h-4 w-4" />;
+      case 'document_create':
+      case 'document_update': return <FileText className="h-4 w-4" />;
+      case 'intelligence_approve':
+      case 'intelligence_reject': return <Sparkles className="h-4 w-4" />;
+      case 'context_add': return <MessageSquare className="h-4 w-4" />;
+      case 'block_create':
+      case 'block_update': return <Blocks className="h-4 w-4" />;
+      default: return <Info className="h-4 w-4" />;
+    }
+  };
+
+  const getChangeTypeLabel = (type: ChangeType) => {
+    switch (type) {
+      case 'basket_update': return 'Basket Update';
+      case 'document_create': return 'Document Creation';
+      case 'document_update': return 'Document Update';
+      case 'document_delete': return 'Document Deletion';
+      case 'intelligence_approve': return 'Intelligence Approval';
+      case 'intelligence_reject': return 'Intelligence Rejection';
+      case 'context_add': return 'Context Addition';
+      case 'block_create': return 'Block Creation';
+      case 'block_update': return 'Block Update';
+      case 'block_delete': return 'Block Deletion';
+      default: return 'Unknown Change';
+    }
+  };
+
+  const getChangeDescription = (change: PendingChange) => {
+    switch (change.type) {
+      case 'basket_update':
+        const basketData = change.data as any;
+        return `Update basket: ${basketData.name ? `name to "${basketData.name}"` : 'properties'}`;
+      case 'document_create':
+        const docCreateData = change.data as any;
+        return `Create document: "${docCreateData.title || 'Untitled'}"`;
+      case 'document_update':
+        const docUpdateData = change.data as any;
+        return `Update document content and properties`;
+      case 'context_add':
+        const contextData = change.data as any;
+        return `Add ${contextData.content?.length || 1} context item(s)`;
+      default:
+        return 'Process change request';
+    }
+  };
 
   const handleSectionToggle = (section: string) => {
     const newSelected = new Set(selectedSections);
@@ -124,7 +275,7 @@ export function UniversalChangeModal({
   };
 
   const handleSelectAll = () => {
-    const allSections = Object.keys(changesByField);
+    const allSections = Object.keys(legacyChangesByField);
     setSelectedSections(new Set(allSections));
   };
 
@@ -133,12 +284,14 @@ export function UniversalChangeModal({
   };
 
   const handleApprove = () => {
-    if (selectedSections.size > 0) {
+    if (selectedSections.size > 0 && onApprove) {
       onApprove(Array.from(selectedSections));
     }
   };
 
   const handleReject = () => {
+    if (!onReject) return;
+    
     if (showRejectReason && rejectReason.trim()) {
       onReject(rejectReason.trim());
     } else {
@@ -200,16 +353,58 @@ export function UniversalChangeModal({
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative w-full max-w-3xl bg-white rounded-lg shadow-xl">
-          {/* Header */}
+          {/* Enhanced Header with Tabs */}
           <div className="sticky top-0 z-10 bg-white border-b border-gray-200 rounded-t-lg">
             <div className="px-6 py-4">
               <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-purple-600" />
-                    {getModalTitle()}
-                  </h2>
-                  <p className="text-sm text-gray-600">{getContextDescription()}</p>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      {hasUniversalChanges ? (
+                        <Info className="h-5 w-5 text-blue-600" />
+                      ) : (
+                        <Sparkles className="h-5 w-5 text-purple-600" />
+                      )}
+                      {hasUniversalChanges ? 'Change Management' : getModalTitle()}
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      {hasUniversalChanges 
+                        ? `Review and approve ${universalTotalChanges} pending change${universalTotalChanges !== 1 ? 's' : ''}`
+                        : getContextDescription()
+                      }
+                    </p>
+                  </div>
+                  
+                  {/* Tab Navigation for Universal Changes */}
+                  {(hasUniversalChanges || hasConflicts) && (
+                    <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                      {hasUniversalChanges && (
+                        <button
+                          onClick={() => setActiveTab('changes')}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                            activeTab === 'changes'
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          Changes ({universalTotalChanges})
+                        </button>
+                      )}
+                      {hasConflicts && (
+                        <button
+                          onClick={() => setActiveTab('conflicts')}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1 ${
+                            activeTab === 'conflicts'
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <AlertTriangle className="h-3 w-3" />
+                          Conflicts ({conflicts.length})
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={onClose}
@@ -219,41 +414,282 @@ export function UniversalChangeModal({
                 </button>
               </div>
 
-              <div className="flex items-center gap-4 mt-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">
-                    {new Date(changes.timestamp).toLocaleString()}
-                  </span>
-                </div>
-                {conversationContext ? (
-                  <Badge variant="default" className="text-xs bg-blue-100 text-blue-800 border-blue-300">
-                    Conversation-triggered
+              {/* Show timestamp and badges for legacy changes */}
+              {hasLegacyChanges && changes && (
+                <div className="flex items-center gap-4 mt-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-600">
+                      {new Date(changes.timestamp).toLocaleString()}
+                    </span>
+                  </div>
+                  {conversationContext ? (
+                    <Badge variant="default" className="text-xs bg-blue-100 text-blue-800 border-blue-300">
+                      Conversation-triggered
+                    </Badge>
+                  ) : (
+                    getOriginBadge(changes.origin)
+                  )}
+                  <Badge 
+                    variant="outline" 
+                    className="text-xs bg-orange-50 text-orange-700 border-orange-200"
+                  >
+                    {legacyTotalChanges} change{legacyTotalChanges !== 1 ? 's' : ''}
                   </Badge>
-                ) : (
-                  getOriginBadge(changes.origin)
-                )}
-                <Badge 
-                  variant="outline" 
-                  className="text-xs bg-orange-50 text-orange-700 border-orange-200"
-                >
-                  {totalChanges} change{totalChanges !== 1 ? 's' : ''}
-                </Badge>
-              </div>
+                </div>
+              )}
+
+              {/* Show status for universal changes */}
+              {hasUniversalChanges && (
+                <div className="flex items-center gap-4 mt-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-600">
+                      Real-time updates
+                    </span>
+                  </div>
+                  <Badge variant="default" className="text-xs bg-green-100 text-green-800 border-green-300">
+                    Universal System
+                  </Badge>
+                  {changeManager?.isProcessing && (
+                    <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                      Processing {changeManager.processingCount} change{changeManager.processingCount !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Content */}
+          {/* Enhanced Content for All Change Types */}
           <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
-            {/* Selection summary */}
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+            
+            {/* Universal Changes Content */}
+            {hasUniversalChanges && activeTab === 'changes' && (
+              <>
+                {/* Selection Summary for Universal Changes */}
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCheck className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-900">
+                        {universalSelectedCount} of {universalTotalChanges} change{universalTotalChanges !== 1 ? 's' : ''} selected
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedChanges(new Set())}
+                        className="text-xs h-7"
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedChanges(new Set(pendingChanges.map(c => c.id)))}
+                        className="text-xs h-7"
+                      >
+                        Select All
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Universal Changes List */}
+                <div className="space-y-3">
+                  {pendingChanges.map((change) => (
+                    <div 
+                      key={change.id}
+                      className={`border rounded-lg p-4 transition-colors ${
+                        selectedChanges.has(change.id)
+                          ? 'border-blue-300 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Selection Checkbox */}
+                        <div className="mt-1">
+                          <input
+                            type="checkbox"
+                            checked={selectedChanges.has(change.id)}
+                            onChange={(e) => {
+                              const newSelected = new Set(selectedChanges);
+                              if (e.target.checked) {
+                                newSelected.add(change.id);
+                              } else {
+                                newSelected.delete(change.id);
+                              }
+                              setSelectedChanges(newSelected);
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        {/* Change Icon and Content */}
+                        <div className="flex-1">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5">
+                              {getChangeIcon(change.type)}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-medium text-gray-900">
+                                  {getChangeTypeLabel(change.type)}
+                                </h4>
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs ${
+                                    change.status === 'completed' ? 'bg-green-50 text-green-700 border-green-200' :
+                                    change.status === 'failed' ? 'bg-red-50 text-red-700 border-red-200' :
+                                    change.status === 'processing' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                    'bg-gray-50 text-gray-700 border-gray-200'
+                                  }`}
+                                >
+                                  {change.status}
+                                </Badge>
+                              </div>
+                              
+                              <p className="text-sm text-gray-600 mb-2">
+                                {getChangeDescription(change)}
+                              </p>
+
+                              {/* Change Details */}
+                              <div className="text-xs text-gray-500 space-y-1">
+                                <div className="flex items-center gap-4">
+                                  <span>
+                                    <Clock className="h-3 w-3 inline mr-1" />
+                                    {new Date(change.timestamp).toLocaleString()}
+                                  </span>
+                                  <span>
+                                    ID: {change.id.slice(-8)}
+                                  </span>
+                                </div>
+                                
+                                {/* Show errors if any */}
+                                {change.errors && change.errors.length > 0 && (
+                                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700">
+                                    <div className="flex items-center gap-1 mb-1">
+                                      <AlertTriangle className="h-3 w-3" />
+                                      <span className="font-medium">Errors:</span>
+                                    </div>
+                                    <ul className="text-xs space-y-1">
+                                      {change.errors.map((error, idx) => (
+                                        <li key={idx}>• {error}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {/* Show warnings if any */}
+                                {change.warnings && change.warnings.length > 0 && (
+                                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-700">
+                                    <div className="flex items-center gap-1 mb-1">
+                                      <AlertTriangle className="h-3 w-3" />
+                                      <span className="font-medium">Warnings:</span>
+                                    </div>
+                                    <ul className="text-xs space-y-1">
+                                      {change.warnings.map((warning, idx) => (
+                                        <li key={idx}>• {warning}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Conflicts Content */}
+            {hasConflicts && activeTab === 'conflicts' && (
+              <>
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <span className="text-sm font-medium text-red-900">
+                      {conflicts.length} conflict{conflicts.length !== 1 ? 's' : ''} need{conflicts.length === 1 ? 's' : ''} resolution
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {conflicts.map((conflict) => (
+                    <div key={conflict.id} className="border border-red-200 rounded-lg p-4 bg-red-50">
+                      <div className="space-y-3">
+                        <div>
+                          <h4 className="font-medium text-red-900 mb-1">
+                            {conflict.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </h4>
+                          <p className="text-sm text-red-700">{conflict.description}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                          <div className="p-2 bg-white rounded border">
+                            <div className="font-medium text-gray-700 mb-1">Current Value:</div>
+                            <pre className="text-gray-600 whitespace-pre-wrap">
+                              {JSON.stringify(conflict.currentValue, null, 2)}
+                            </pre>
+                          </div>
+                          <div className="p-2 bg-white rounded border">
+                            <div className="font-medium text-gray-700 mb-1">Incoming Value:</div>
+                            <pre className="text-gray-600 whitespace-pre-wrap">
+                              {JSON.stringify(conflict.incomingValue, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="font-medium text-gray-700 mb-2 text-sm">Resolution Options:</div>
+                          <div className="space-y-2">
+                            {conflict.suggestions.map((suggestion, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => handleConflictResolve(conflict.id, suggestion.strategy)}
+                                disabled={conflictResolutions[conflict.id] === suggestion.strategy}
+                                className={`w-full text-left p-2 rounded border transition-colors text-sm ${
+                                  conflictResolutions[conflict.id] === suggestion.strategy
+                                    ? 'bg-green-100 border-green-300 text-green-800'
+                                    : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                                }`}
+                              >
+                                <div className="font-medium mb-1">{suggestion.strategy.replace(/_/g, ' ')}</div>
+                                <div className="text-xs text-gray-600">{suggestion.description}</div>
+                                {conflictResolutions[conflict.id] === suggestion.strategy && (
+                                  <div className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                    <Check className="h-3 w-3" />
+                                    Applied
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Legacy Intelligence Changes Content */}
+            {hasLegacyChanges && !hasUniversalChanges && (
+              <>
+                {/* Selection summary */}
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
                   <Info className="h-4 w-4 text-blue-600" />
                   <span className="text-sm text-blue-900">
-                    {selectedCount === 0 
+                    {legacySelectedCount === 0 
                       ? 'No sections selected' 
-                      : `${selectedCount} of ${Object.keys(changesByField).length} sections selected`
+                      : `${legacySelectedCount} of ${Object.keys(legacyChangesByField).length} sections selected`
                     }
                   </span>
                 </div>
@@ -277,7 +713,7 @@ export function UniversalChangeModal({
 
             {/* Changes by section */}
             <div className="space-y-3">
-              {Object.entries(changesByField).map(([field, fieldChanges]) => (
+              {Object.entries(legacyChangesByField).map(([field, fieldChanges]) => (
                 <SectionChanges
                   key={field}
                   field={field}
@@ -307,9 +743,43 @@ export function UniversalChangeModal({
                 />
               </div>
             )}
+                
+                {/* Reject reason input for legacy changes */}
+                {showRejectReason && (
+                  <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason for rejection (optional)
+                    </label>
+                    <textarea
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      placeholder="Provide feedback to improve future suggestions..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      rows={3}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Reject reason input for universal changes */}
+            {hasUniversalChanges && showRejectReason && (
+              <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for rejection (optional)
+                </label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Provide feedback to improve future changes..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                />
+              </div>
+            )}
           </div>
 
-          {/* Actions */}
+          {/* Enhanced Actions for All Change Types */}
           <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 rounded-b-lg">
             <div className="flex items-center justify-between">
               <button
@@ -320,31 +790,78 @@ export function UniversalChangeModal({
               </button>
               
               <div className="flex gap-3">
-                <Button
-                  onClick={handleReject}
-                  variant="outline"
-                  disabled={isProcessing}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Dismiss All
-                </Button>
-                <Button
-                  onClick={handleApprove}
-                  disabled={selectedSections.size === 0 || isProcessing}
-                  className="min-w-[140px]"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Approve Selected
-                    </>
-                  )}
-                </Button>
+                {/* Universal Changes Actions */}
+                {hasUniversalChanges && (
+                  <>
+                    <Button
+                      onClick={handleUniversalReject}
+                      variant="outline"
+                      disabled={changeManager?.isProcessing || universalSelectedCount === 0}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject Selected ({universalSelectedCount})
+                    </Button>
+                    <Button
+                      onClick={handleUniversalApprove}
+                      disabled={changeManager?.isProcessing || universalSelectedCount === 0}
+                      className="min-w-[140px]"
+                    >
+                      {changeManager?.isProcessing ? (
+                        <>
+                          <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Approve Selected ({universalSelectedCount})
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
+
+                {/* Legacy Intelligence Actions */}
+                {hasLegacyChanges && !hasUniversalChanges && (
+                  <>
+                    <Button
+                      onClick={() => onReject?.(rejectReason || 'Dismissed')}
+                      variant="outline"
+                      disabled={isProcessing}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Dismiss All
+                    </Button>
+                    <Button
+                      onClick={() => onApprove?.(Array.from(selectedSections))}
+                      disabled={legacySelectedCount === 0 || isProcessing}
+                      className="min-w-[140px]"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Approve Selected ({legacySelectedCount})
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
+
+                {/* Conflicts Only Actions */}
+                {hasConflicts && !hasUniversalChanges && !hasLegacyChanges && (
+                  <Button
+                    onClick={onClose}
+                    className="min-w-[140px]"
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Done
+                  </Button>
+                )}
               </div>
             </div>
           </div>

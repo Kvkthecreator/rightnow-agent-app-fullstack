@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUnifiedIntelligence } from '@/lib/intelligence/useUnifiedIntelligence';
+import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
 import { IdentityAnchorHeader } from './IdentityAnchorHeader';
 import { ContentInventorySection } from '@/components/detailed-view/ContentInventorySection';
 import { NarrativeUnderstanding } from './NarrativeUnderstanding';
@@ -47,6 +48,9 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     setConversationContext,
     clearError
   } = useUnifiedIntelligence(basketId);
+
+  // Use universal changes hook for all change types (basket updates, documents, etc.)
+  const changeManager = useUniversalChanges(basketId);
 
   // Handle context capture from floating communication with conversation analysis
   const handleContextCapture = async (capturedContent: any) => {
@@ -252,8 +256,16 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
 
       {/* Universal Change Modal */}
       <UniversalChangeModal
-        isOpen={pendingChanges.length > 0}
+        isOpen={pendingChanges.length > 0 || changeManager.pendingChanges.length > 0}
+        
+        // Legacy intelligence changes
         changes={pendingChanges.length > 0 ? pendingChanges[0] : null}
+        
+        // Universal changes (basket updates, documents, etc.)
+        pendingChanges={changeManager.pendingChanges}
+        conflicts={changeManager.unresolvedConflicts}
+        changeManager={changeManager}
+        
         context={{ page: 'dashboard' }}
         onApprove={(selectedSections) => {
           if (pendingChanges.length > 0) {
@@ -273,7 +285,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           console.log('Change modal closed');
         }}
         currentIntelligence={currentIntelligence}
-        isProcessing={isProcessing}
+        isProcessing={isProcessing || changeManager.isProcessing}
         conversationContext={conversationContext}
       />
 

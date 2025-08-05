@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { fetchWithToken } from '@/lib/fetchWithToken';
+import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
 
 // Think of this as a "shared data store" that all components can access
 // Like having a central database that updates everywhere at once
@@ -38,7 +38,10 @@ export function BasketProvider({
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Function to update basket name
+  // Get universal changes hook for this basket
+  const changeManager = useUniversalChanges(basket?.id || '');
+
+  // Function to update basket name using Universal Change System
   const updateBasketName = useCallback(async (newName: string) => {
     if (!basket) return;
     
@@ -49,31 +52,28 @@ export function BasketProvider({
       // Optimistically update the UI (show change immediately)
       setBasket(prev => prev ? { ...prev, name: newName } : null);
       
-      // Make API call
-      const response = await fetchWithToken(`/api/baskets/${basket.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName }),
-      });
+      // Submit change through unified system
+      const result = await changeManager.updateBasket({ name: newName });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update basket name');
+      if (result.success) {
+        // Update with the applied data from the universal system
+        if (result.appliedData) {
+          setBasket(result.appliedData);
+        }
+        console.log('✅ Basket name updated through Universal Change System');
+      } else {
+        throw new Error(result.errors?.[0] || 'Failed to update basket name');
       }
-
-      const updatedBasket = await response.json();
-      // Update with server response
-      setBasket(updatedBasket);
       
     } catch (err) {
       // Revert on error
       setBasket(basket);
       setError(err instanceof Error ? err.message : 'Failed to update basket name');
-      console.error('Failed to update basket name:', err);
+      console.error('❌ Failed to update basket name via Universal Changes:', err);
     } finally {
       setIsUpdating(false);
     }
-  }, [basket]);
+  }, [basket, changeManager]);
 
   return (
     <BasketContext.Provider value={{
