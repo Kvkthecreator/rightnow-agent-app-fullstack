@@ -651,9 +651,18 @@ export class UniversalChangeService {
     console.log('🧠 Processing intelligence generation through Universal Change Service');
     
     try {
+      // Construct absolute URL for server-side fetch
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                      'http://localhost:3000';
+      
+      const url = `${baseUrl}/api/intelligence/generate/${change.basketId}`;
+      
+      console.log('📡 Fetching intelligence from:', url);
+      
       // Make API call to legacy intelligence generation endpoint for now
       // This maintains compatibility while moving through the unified pipeline
-      const response = await fetch(`/api/intelligence/generate/${change.basketId}`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
