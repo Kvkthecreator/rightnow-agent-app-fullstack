@@ -9,7 +9,7 @@ import { ContentInventorySection } from '@/components/detailed-view/ContentInven
 import { NarrativeUnderstanding } from './NarrativeUnderstanding';
 import { ContextSuggestions } from './ContextSuggestions';
 import { YarnnnInsightApproval } from '@/components/thinking/YarnnnInsightApproval';
-import { YarnnnThinkingPartner } from '@/components/thinking/YarnnnThinkingPartner';
+import { FloatingCompanion } from '@/components/thinking/FloatingCompanion';
 import { SimpleConnectionStatus, SimpleToast } from '@/components/ui/SimpleConnectionStatus';
 import { YarnnnMemorySubstrate } from '@/components/thinking/YarnnnMemorySubstrate';
 import { Brain, Sparkles } from 'lucide-react';
@@ -323,8 +323,8 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         conversationContext={conversationContext}
       />
 
-      {/* Yarnnn Thinking Partner - Pure, Context-Aware */}
-      <YarnnnThinkingPartner
+      {/* Floating Companion - Watching With You, Thinking Together */}
+      <FloatingCompanion
         basketId={basketId}
         onCapture={handleThoughtCapture}
         isProcessing={isProcessing}
