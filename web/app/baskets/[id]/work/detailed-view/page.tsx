@@ -1,7 +1,7 @@
 import { DetailedViewContent } from "@/components/detailed-view/DetailedViewContent";
 import { getBasketData } from "@/lib/data/basketData";
 import { notFound } from "next/navigation";
-import { DetailedViewPageLayout } from "@/components/layout/BasketPageLayout";
+import { BasketPageLayout } from "@/components/layout/BasketPageLayout";
 
 interface DetailedViewPageProps {
   params: Promise<{ id: string }>;
@@ -16,11 +16,11 @@ export default async function DetailedViewPage({ params }: DetailedViewPageProps
   }
 
   return (
-    <DetailedViewPageLayout basketId={id}>
+    <BasketPageLayout basketId={id} pageType="detailed-view">
       <DetailedViewContent
         basketId={id}
         basketName={basketData.name}
       />
-    </DetailedViewPageLayout>
+    </BasketPageLayout>
   );
 }

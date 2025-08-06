@@ -1,7 +1,7 @@
 import { DocumentsView } from "@/components/views/DocumentsView";
 import { getBasketData, getDocument } from "@/lib/data/basketData";
 import { notFound } from "next/navigation";
-import { DocumentPageLayout } from "@/components/layout/BasketPageLayout";
+import { BasketPageLayout } from "@/components/layout/BasketPageLayout";
 
 interface DocumentPageProps {
   params: Promise<{ id: string; docId: string }>;
@@ -25,13 +25,13 @@ export default async function DocumentPage({ params }: DocumentPageProps) {
     // This allows for direct URL access to documents that may not be fully loaded yet
 
     return (
-      <DocumentPageLayout basketId={id}>
+      <BasketPageLayout basketId={id} pageType="document">
         <DocumentsView
           basketId={id}
           basketName={basketData.name}
           documentId={docId}
         />
-      </DocumentPageLayout>
+      </BasketPageLayout>
     );
   } catch (error) {
     console.error('Error loading document page:', error);

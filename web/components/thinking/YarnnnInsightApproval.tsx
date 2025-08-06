@@ -286,14 +286,18 @@ export function YarnnnInsightApproval({
   };
 
   const getModalTitle = () => {
-    if (conversationContext?.intent.triggerPhrase?.toLowerCase().includes('pattern')) {
-      return 'I found patterns in your research';
-    }
-    if (conversationContext?.intent.triggerPhrase?.toLowerCase().includes('recommend')) {
-      return 'I have recommendations for you';
-    }
-    if (conversationContext?.intent.triggerPhrase?.toLowerCase().includes('summary')) {
-      return 'I created a summary of your work';
+    const triggerPhrase = conversationContext?.intent?.triggerPhrase;
+    if (typeof triggerPhrase === 'string') {
+      const phrase = triggerPhrase.toLowerCase();
+      if (phrase.includes('pattern')) {
+        return 'I found patterns in your research';
+      }
+      if (phrase.includes('recommend')) {
+        return 'I have recommendations for you';
+      }
+      if (phrase.includes('summary')) {
+        return 'I created a summary of your work';
+      }
     }
     return 'I discovered insights about your research';
   };

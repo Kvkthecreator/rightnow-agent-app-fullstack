@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Clock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
-import { TimelinePageLayout } from "@/components/layout/BasketPageLayout";
+import { BasketPageLayout } from "@/components/layout/BasketPageLayout";
 
 interface TimelinePageProps {
   params: Promise<{ id: string }>;
@@ -18,7 +18,7 @@ export default async function TimelinePage({ params }: TimelinePageProps) {
   }
 
   return (
-    <TimelinePageLayout basketId={id}>
+    <BasketPageLayout basketId={id} pageType="timeline">
       <div className="timeline-view p-6 h-full flex items-center justify-center">
         <div className="text-center max-w-md">
           <Clock className="h-16 w-16 text-gray-300 mx-auto mb-6" />
@@ -37,6 +37,6 @@ export default async function TimelinePage({ params }: TimelinePageProps) {
           </Link>
         </div>
       </div>
-    </TimelinePageLayout>
+    </BasketPageLayout>
   );
 }
