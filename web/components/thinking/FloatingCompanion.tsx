@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, Upload, Mic, Sparkles, X, Send, Minimize2, Eye } from 'lucide-react';
 import { usePageContext } from '@/lib/intelligence/pageContextDetection';
 import { analyzeConversationIntent } from '@/lib/intelligence/conversationAnalyzer';
+import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
 import styles from './FloatingCompanion.module.css';
 
 interface FloatingCompanionProps {
@@ -28,6 +29,13 @@ export function FloatingCompanion({
   const [message, setMessage] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [recentActivity, setRecentActivity] = useState('');
+  
+  // Connect to Universal Change Manager
+  const changeManager = useUniversalChanges(basketId);
+  
+  // Use changeManager's processing state for real-time updates
+  const actuallyProcessing = isProcessing || changeManager.isProcessing;
+  const actualPendingInsights = hasPendingInsights || changeManager.pendingChanges.length > 0;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
@@ -106,7 +114,7 @@ export function FloatingCompanion({
     }
   };
 
-  const handleTextSubmit = (e: React.FormEvent) => {
+  const handleTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
@@ -116,37 +124,90 @@ export function FloatingCompanion({
       timestamp: new Date().toISOString()
     });
 
-    onCapture({
-      type: 'conversation',
-      content: message.trim(),
-      timestamp: new Date().toISOString(),
-      intent,
-      context: {
-        page: pageContext.page,
-        userActivity: pageContext.userActivity
+    // If intent suggests intelligence generation, use changeManager
+    if (intent.shouldGenerateIntelligence) {
+      try {
+        await changeManager.generateIntelligence({
+          userInput: message.trim(),
+          timestamp: new Date().toISOString(),
+          intent,
+          context: {
+            page: pageContext.page,
+            userActivity: pageContext.userActivity,
+            selectedText: window.getSelection()?.toString() || ''
+          }
+        }, 'companion');
+      } catch (error) {
+        console.error('Failed to generate intelligence from text:', error);
+        // Fallback to capture method
+        onCapture({
+          type: 'conversation',
+          content: message.trim(),
+          timestamp: new Date().toISOString(),
+          intent,
+          context: {
+            page: pageContext.page,
+            userActivity: pageContext.userActivity
+          }
+        });
       }
-    });
+    } else {
+      // For other intents, use the capture method
+      onCapture({
+        type: 'conversation',
+        content: message.trim(),
+        timestamp: new Date().toISOString(),
+        intent,
+        context: {
+          page: pageContext.page,
+          userActivity: pageContext.userActivity
+        }
+      });
+    }
     
     setMessage('');
     setActiveMode(null);
     setIsExpanded(false);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       const file = files[0];
-      onCapture({
-        type: 'file',
-        content: file.name,
-        file: file,
-        timestamp: new Date().toISOString(),
-        context: {
-          page: pageContext.page,
-          fileType: file.type,
-          fileSize: file.size
-        }
-      });
+      
+      try {
+        // Use changeManager to add context and potentially trigger intelligence
+        await changeManager.addContext([{
+          type: file.type.startsWith('image/') ? 'image' : 
+                file.type === 'application/pdf' ? 'pdf' : 'file',
+          content: file.name,
+          metadata: { 
+            filename: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            fileObject: file,
+            uploadContext: {
+              page: pageContext.page,
+              timestamp: new Date().toISOString()
+            }
+          }
+        }]);
+      } catch (error) {
+        console.error('Failed to upload file via changeManager:', error);
+        // Fallback to capture method
+        onCapture({
+          type: 'file',
+          content: file.name,
+          file: file,
+          timestamp: new Date().toISOString(),
+          context: {
+            page: pageContext.page,
+            fileType: file.type,
+            fileSize: file.size
+          }
+        });
+      }
+      
       setActiveMode(null);
       setIsExpanded(false);
     }
@@ -170,20 +231,41 @@ export function FloatingCompanion({
     }, 3000);
   };
 
-  const handleGenerateInsights = () => {
-    if (hasPendingInsights && onCheckPendingInsights) {
+  const handleGenerateInsights = async () => {
+    if (actualPendingInsights && onCheckPendingInsights) {
       onCheckPendingInsights();
     } else {
-      onCapture({
-        type: 'generate',
-        content: 'Generate insights from current understanding',
-        timestamp: new Date().toISOString(),
-        context: {
-          page: pageContext.page,
-          userActivity: pageContext.userActivity,
-          trigger: 'manual'
-        }
-      });
+      // Direct intelligence generation via changeManager
+      try {
+        await changeManager.generateIntelligence({
+          userInput: 'Generate insights from current understanding',
+          timestamp: new Date().toISOString(),
+          intent: {
+            type: 'intelligence_request',
+            shouldGenerateIntelligence: true,
+            triggerPhrase: 'Generate insights'
+          },
+          context: {
+            page: pageContext.page,
+            userActivity: pageContext.userActivity,
+            trigger: 'manual',
+            selectedText: window.getSelection()?.toString() || ''
+          }
+        }, 'companion');
+      } catch (error) {
+        console.error('Failed to generate insights:', error);
+        // Fallback to old capture method
+        onCapture({
+          type: 'generate',
+          content: 'Generate insights from current understanding',
+          timestamp: new Date().toISOString(),
+          context: {
+            page: pageContext.page,
+            userActivity: pageContext.userActivity,
+            trigger: 'manual'
+          }
+        });
+      }
     }
     setActiveMode(null);
     setIsExpanded(false);
@@ -290,7 +372,7 @@ export function FloatingCompanion({
         <div className="fixed bottom-6 right-6 z-50">
           <button
             onClick={handleToggle}
-            disabled={isProcessing}
+            disabled={actuallyProcessing}
             className={`${styles.floatingCompanionClosed} group relative`}
             aria-label="Open thinking companion"
           >
@@ -298,12 +380,12 @@ export function FloatingCompanion({
             <div className={`
               w-16 h-16 transition-all duration-500 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-purple-500/20 relative
               bg-white/70 backdrop-blur-md shadow-lg
-              ${isProcessing 
+              ${actuallyProcessing 
                 ? 'opacity-50 cursor-not-allowed' 
                 : 'hover:bg-white/80'
               }
             `}>
-              {isProcessing ? (
+              {actuallyProcessing ? (
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
                 </div>
@@ -318,7 +400,7 @@ export function FloatingCompanion({
                   <div className={`absolute top-2 right-2 w-3 h-3 bg-purple-500 rounded-full ${styles.awarenessIndicator}`}></div>
                   
                   {/* Insights notification */}
-                  {hasPendingInsights && (
+                  {actualPendingInsights && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-400 to-pink-500 rounded-full border-2 border-white flex items-center justify-center">
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                     </div>
@@ -382,7 +464,7 @@ export function FloatingCompanion({
                     What I'm sensing here...
                   </div>
                   <div className="text-xs text-gray-600">
-                    {hasPendingInsights 
+                    {actualPendingInsights 
                       ? "I have new insights about your patterns and connections"
                       : "Still listening and learning from your context..."
                     }
@@ -430,11 +512,11 @@ export function FloatingCompanion({
                         placeholder="Share your thoughts..."
                         className="w-full p-3 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent pr-12 bg-gray-50/50"
                         rows={3}
-                        disabled={isProcessing}
+                        disabled={actuallyProcessing}
                       />
                       <button
                         type="submit"
-                        disabled={!message.trim() || isProcessing}
+                        disabled={!message.trim() || actuallyProcessing}
                         className="absolute bottom-2 right-2 p-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all"
                         aria-label="Share thoughts"
                       >
@@ -461,7 +543,7 @@ export function FloatingCompanion({
                   <div className="grid grid-cols-1 gap-2">
                     {getContextualActions().map((action, idx) => {
                       const IconComponent = action.icon;
-                      const isHighlighted = action.mode === 'generate' && hasPendingInsights;
+                      const isHighlighted = action.mode === 'generate' && actualPendingInsights;
                       
                       return (
                         <button
@@ -493,7 +575,7 @@ export function FloatingCompanion({
               )}
 
               {/* Processing indicator */}
-              {isProcessing && (
+              {actuallyProcessing && (
                 <div className="mt-4 pt-3 border-t border-gray-100">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <div className="w-4 h-4 border border-gray-300 border-t-purple-600 rounded-full animate-spin"></div>

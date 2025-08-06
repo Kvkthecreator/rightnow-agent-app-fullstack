@@ -615,8 +615,47 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
       if (result.success) {
         console.log('✅ Intelligence generation successful via Universal Changes');
         
-        // WebSocket will automatically notify of new changes - no manual refresh needed
-        console.log('📡 Intelligence generation completed - WebSocket will handle updates');
+        // Check if intelligence was generated and create pending changes for approval
+        if (result.data?.requiresReview || result.data?.changesDetected > 0) {
+          console.log('🔔 Intelligence generated insights that require approval - creating pending changes');
+          
+          try {
+            // Fetch the generated intelligence data for approval
+            const intelligenceResponse = await fetch(`/api/substrate/basket/${basketId}`);
+            if (intelligenceResponse.ok) {
+              const intelligence = await intelligenceResponse.json();
+              
+              // Transform intelligence generation result into pending changes
+              const intelligencePendingChange: PendingChange = {
+                id: crypto.randomUUID(),
+                type: 'intelligence_approve',
+                data: {
+                  eventId: result.data.eventId,
+                  approvedSections: ['all'], // Default to all sections approved
+                  partialApproval: false,
+                  intelligence: intelligence
+                },
+                timestamp: new Date().toISOString(),
+                status: 'pending',
+                actorId: '' // Will be set by the reducer
+              };
+              
+              // Add to pending changes
+              dispatch({
+                type: 'ADD_PENDING_CHANGE',
+                payload: intelligencePendingChange
+              });
+              
+              console.log('✨ Created pending change for intelligence approval:', intelligencePendingChange.id);
+            } else {
+              console.warn('⚠️ Could not fetch intelligence data for approval');
+            }
+          } catch (fetchError) {
+            console.error('❌ Failed to fetch intelligence for approval:', fetchError);
+          }
+        } else {
+          console.log('📡 Intelligence generation completed - no new insights to review');
+        }
       } else {
         throw new Error(result.errors?.[0] || 'Failed to generate intelligence');
       }
