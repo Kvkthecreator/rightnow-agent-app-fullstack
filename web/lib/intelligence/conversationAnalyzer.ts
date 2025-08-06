@@ -152,6 +152,10 @@ export function analyzeConversationIntent(context: ConversationContext): Convers
  * Get appropriate response hint for intelligence generation requests
  */
 function getIntelligenceGenerationHint(triggerPhrase: string): string {
+  if (!triggerPhrase || typeof triggerPhrase !== 'string') {
+    return 'Generate insights from available content';
+  }
+  
   const phrase = triggerPhrase.toLowerCase();
   
   if (phrase.includes('pattern') || phrase.includes('theme')) {

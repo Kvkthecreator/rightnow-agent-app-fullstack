@@ -176,16 +176,15 @@ export function FloatingCompanion({
       const file = files[0];
       
       try {
-        // Use changeManager to add context and potentially trigger intelligence
+        // Use changeManager to add context (file handling will be done via FormData)
         await changeManager.addContext([{
           type: file.type.startsWith('image/') ? 'image' : 
                 file.type === 'application/pdf' ? 'pdf' : 'file',
-          content: file.name,
+          content: `File uploaded: ${file.name}`,
           metadata: { 
             filename: file.name,
             fileSize: file.size,
             fileType: file.type,
-            fileObject: file,
             uploadContext: {
               page: pageContext.page,
               timestamp: new Date().toISOString()
