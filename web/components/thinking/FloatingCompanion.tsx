@@ -210,9 +210,17 @@ export function FloatingCompanion({
 
   // Context-adaptive prompts
   const getContextualPrompt = () => {
+    if (pageContext.page === 'document') {
+      // More specific document prompts based on what might be selected
+      const selectedText = window.getSelection()?.toString();
+      if (selectedText && selectedText.length > 0) {
+        return "What would you like to do with this selection?";
+      }
+      return "What are you thinking about this section?";
+    }
+    
     const prompts = {
       dashboard: "What patterns should we explore?",
-      document: "What are you thinking about this?",
       timeline: "What evolution do you notice?",
       'detailed-view': "What would strengthen your substrate?"
     };
@@ -234,16 +242,31 @@ export function FloatingCompanion({
 
   // Get contextual actions based on current page
   const getContextualActions = () => {
+    if (pageContext.page === 'document') {
+      const selectedText = window.getSelection()?.toString();
+      
+      if (selectedText && selectedText.length > 0) {
+        // Actions for selected text
+        return [
+          { mode: 'text' as InputMode, label: 'Expand this', icon: MessageCircle },
+          { mode: 'generate' as InputMode, label: 'Connect to themes', icon: Sparkles },
+          { mode: 'voice' as InputMode, label: 'Reflect on this', icon: Mic }
+        ];
+      } else {
+        // General document actions
+        return [
+          { mode: 'text' as InputMode, label: 'Continue writing', icon: MessageCircle },
+          { mode: 'generate' as InputMode, label: 'Find connections', icon: Sparkles },
+          { mode: 'voice' as InputMode, label: 'Voice note', icon: Mic }
+        ];
+      }
+    }
+    
     const actions = {
       dashboard: [
         { mode: 'generate' as InputMode, label: 'Generate insights', icon: Sparkles },
         { mode: 'voice' as InputMode, label: 'Voice note', icon: Mic },
         { mode: 'text' as InputMode, label: 'Add context', icon: MessageCircle }
-      ],
-      document: [
-        { mode: 'text' as InputMode, label: 'Expand section', icon: MessageCircle },
-        { mode: 'generate' as InputMode, label: 'Find connections', icon: Sparkles },
-        { mode: 'voice' as InputMode, label: 'Add reflection', icon: Mic }
       ],
       timeline: [
         { mode: 'text' as InputMode, label: 'Mark milestone', icon: MessageCircle },
