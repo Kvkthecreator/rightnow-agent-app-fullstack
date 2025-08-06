@@ -712,12 +712,16 @@ export class UniversalChangeService {
   private async applyContextAdd(change: ValidatedChange): Promise<{ changes: DatabaseChange[], data: any }> {
     const data = change.data as ContextAddData;
     
+    console.log('🎯 Step 9: UniversalChangeService.applyContextAdd called with:', { basketId: change.basketId, content: data.content });
+    
     // Create consolidated raw dump
     const consolidatedContent = data.content.map(item => {
       if (item.type === 'text') return item.content;
       if (item.type === 'file') return `[File: ${item.metadata?.filename}]\n${item.content}`;
       return `[${item.type}]: ${item.content}`;
     }).join('\n\n');
+
+    console.log('🎯 Step 10: Consolidated content for raw_dumps:', { content: consolidatedContent, length: consolidatedContent.length });
 
     const { data: dumpResult, error: dumpError } = await this.supabase
       .from('raw_dumps')
@@ -732,7 +736,12 @@ export class UniversalChangeService {
       .select()
       .single();
 
-    if (dumpError) throw new Error(`Failed to create raw dump: ${dumpError.message}`);
+    if (dumpError) {
+      console.error('🎯 CRITICAL ERROR: Failed to create raw dump:', dumpError);
+      throw new Error(`Failed to create raw dump: ${dumpError.message}`);
+    }
+
+    console.log('🎯 Step 11: Raw dump created successfully:', { id: dumpResult.id, content_length: consolidatedContent.length });
 
     return {
       changes: [{

@@ -429,6 +429,8 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
       });
 
       // Submit change to API
+      console.log('🎯 Step 6: Sending POST /api/changes with:', { id: changeId, type, basketId, data, metadata });
+      
       const response = await fetch('/api/changes', {
         method: 'POST',
         headers: {
@@ -444,7 +446,9 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
         }),
       });
 
+      console.log('🎯 Step 7: API response status:', response.status, response.statusText);
       const result: ChangeResult = await response.json();
+      console.log('🎯 Step 8: API response data:', result);
 
       if (result.success) {
         console.log(`✅ Change submitted successfully: ${type}`);
@@ -534,7 +538,10 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
   }, [submitChange]);
 
   const addContext = useCallback(async (content: any[], triggerIntelligence = true) => {
-    return submitChange('context_add', { content, triggerIntelligenceRefresh: triggerIntelligence });
+    console.log('🎯 Step 4: changeManager.addContext called with:', { content, triggerIntelligence });
+    const result = await submitChange('context_add', { content, triggerIntelligenceRefresh: triggerIntelligence });
+    console.log('🎯 Step 5: submitChange completed with result:', result);
+    return result;
   }, [submitChange]);
 
   const approveChanges = useCallback(async (changeIds: string[], sections: string[] = []) => {

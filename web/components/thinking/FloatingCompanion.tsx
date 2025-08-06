@@ -171,19 +171,43 @@ export function FloatingCompanion({
         });
       }
     } else {
-      showFeedback('Added to substrate memory ✓', 'success');
+      showFeedback('Adding to substrate memory...', 'processing');
+      console.log('🎯 Step 1: Text context addition clicked');
+      console.log('🎯 Step 2: Calling changeManager.addContext with:', message.trim());
       
-      // For other intents, use the capture method
-      onCapture({
-        type: 'conversation',
-        content: message.trim(),
-        timestamp: new Date().toISOString(),
-        intent,
-        context: {
-          page: pageContext.page,
-          userActivity: pageContext.userActivity
-        }
-      });
+      try {
+        // CRITICAL FIX: Use changeManager.addContext directly instead of onCapture
+        await changeManager.addContext([{
+          type: 'text',
+          content: message.trim(),
+          metadata: { 
+            timestamp: new Date().toISOString(),
+            conversationIntent: intent.type,
+            confidence: intent.confidence,
+            page: pageContext.page,
+            userActivity: pageContext.userActivity
+          }
+        }]);
+        
+        console.log('🎯 Step 3: changeManager.addContext completed successfully');
+        showFeedback('Added to substrate memory ✓', 'success');
+        
+      } catch (error) {
+        console.error('🎯 CRITICAL ERROR: changeManager.addContext failed:', error);
+        showFeedback('Failed to add to substrate memory', 'info');
+        
+        // Fallback to capture method only if changeManager fails
+        onCapture({
+          type: 'conversation',
+          content: message.trim(),
+          timestamp: new Date().toISOString(),
+          intent,
+          context: {
+            page: pageContext.page,
+            userActivity: pageContext.userActivity
+          }
+        });
+      }
     }
     
     setMessage('');
