@@ -219,6 +219,7 @@ export async function POST(
     });
 
   } catch (error) {
+    const { basketId } = await params;
     console.error('Intelligence generation API error:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
