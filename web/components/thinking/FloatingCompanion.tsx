@@ -34,6 +34,30 @@ export function FloatingCompanion({
   // Get contextual awareness
   const pageContext = usePageContext(basketId);
 
+  // Listen for custom events from dashboard
+  useEffect(() => {
+    const handleOpenCompanion = (event: CustomEvent) => {
+      const { context, action } = event.detail;
+      setIsExpanded(true);
+      
+      // Set appropriate mode based on context
+      if (context === 'add-content') {
+        setActiveMode('file'); // Start with file upload for content addition
+      } else if (context === 'explore-patterns') {
+        setActiveMode('text'); // Start with text input for pattern exploration
+      }
+      
+      // Could also set a specific message or context here
+      setRecentActivity(`Helping with: ${action}`);
+    };
+
+    window.addEventListener('openFloatingCompanion', handleOpenCompanion as EventListener);
+    
+    return () => {
+      window.removeEventListener('openFloatingCompanion', handleOpenCompanion as EventListener);
+    };
+  }, []);
+
   // Simulate awareness indicators
   useEffect(() => {
     const activities = [

@@ -6,8 +6,8 @@ import { useUnifiedIntelligence } from '@/lib/intelligence/useUnifiedIntelligenc
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
 import { IdentityAnchorHeader } from './IdentityAnchorHeader';
 import { ContentInventorySection } from '@/components/detailed-view/ContentInventorySection';
-import { NarrativeUnderstanding } from './NarrativeUnderstanding';
-import { ContextSuggestions } from './ContextSuggestions';
+import { ExecutiveSummary } from './ExecutiveSummary';
+import { DashboardNextSteps } from './DashboardNextSteps';
 import { YarnnnInsightApproval } from '@/components/thinking/YarnnnInsightApproval';
 import { FloatingCompanion } from '@/components/thinking/FloatingCompanion';
 import { SimpleConnectionStatus, SimpleToast } from '@/components/ui/SimpleConnectionStatus';
@@ -153,6 +153,53 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     // This provides a warm way for users to review what I've discovered
   };
 
+  // Handle "Begin" action from NextSteps - triggers FloatingCompanion
+  const handleBeginAction = (action: string) => {
+    // Different actions trigger different behaviors in the FloatingCompanion
+    switch (action) {
+      case 'add-first-document':
+        // Navigate directly to document creation for first-time users
+        router.push(`/baskets/${basketId}/work/documents/new`);
+        break;
+        
+      case 'build-substrate':
+      case 'diversify-content':
+        // Open companion with content-focused context
+        // The FloatingCompanion will adapt its prompt based on the dashboard context
+        window.dispatchEvent(new CustomEvent('openFloatingCompanion', { 
+          detail: { context: 'add-content', action } 
+        }));
+        break;
+        
+      case 'process-content':
+        // Trigger processing through changeManager
+        changeManager.generateIntelligence();
+        break;
+        
+      case 'review-insights':
+        // This will be handled by the existing insight approval flow
+        break;
+        
+      case 'generate-insights':
+        // Trigger insight generation
+        changeManager.generateIntelligence();
+        break;
+        
+      case 'explore-patterns':
+        // Open companion with pattern exploration context
+        window.dispatchEvent(new CustomEvent('openFloatingCompanion', { 
+          detail: { context: 'explore-patterns', action } 
+        }));
+        break;
+        
+      default:
+        // Fallback - open companion
+        window.dispatchEvent(new CustomEvent('openFloatingCompanion', { 
+          detail: { context: 'general', action } 
+        }));
+    }
+  };
+
   // Handle suggestion selection
   const handleSuggestionSelect = (suggestion: any) => {
     if (suggestion.type === 'document_creation') {
@@ -214,11 +261,11 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20">
 
-      {/* Main Dashboard Content - Clean, human-focused */}
+      {/* Main Dashboard Content - Clean, card-based layout */}
       <div className="w-full">
-        <div className="container mx-auto py-6 space-y-8 max-w-4xl px-4">
+        <div className="container mx-auto py-6 space-y-6 max-w-4xl px-4">
           
           {/* Header with simple connection status */}
           <div className="flex items-center justify-between">
@@ -240,16 +287,14 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
 
           {/* Show pending insights banner with warm language */}
           {(pendingChanges.length > 0 || changeManager.pendingChanges.length > 0) && (
-            <div className="bg-gradient-to-r from-orange-50 to-pink-50 border border-orange-200 rounded-xl p-5">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-pink-400 rounded-full flex items-center justify-center">
-                  <div className="w-5 h-5 text-white">✨</div>
-                </div>
+                <span className="text-xl">✨</span>
                 <div>
-                  <h3 className="text-base font-medium text-orange-900">
+                  <h3 className="text-sm font-medium text-orange-900">
                     I have new insights about your research
                   </h3>
-                  <p className="text-sm text-orange-700 mt-1">
+                  <p className="text-xs text-orange-700 mt-1">
                     {Math.max(pendingChanges.length, changeManager.pendingChanges.length)} discovery{Math.max(pendingChanges.length, changeManager.pendingChanges.length) !== 1 ? 'ies' : 'y'} ready for you to review
                   </p>
                 </div>
@@ -257,51 +302,52 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
             </div>
           )}
 
-          {/* Memory Substrate Display - Human, Warm */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                  <div className="w-4 h-4 text-white">🧠</div>
-                </div>
-                Our shared understanding
-              </h2>
-              <p className="text-gray-600 mt-2">
-                This is what I remember about your research journey
-              </p>
-            </div>
-            
-            <YarnnnMemorySubstrate 
-              intelligence={currentIntelligence}
-              basketName={basket?.name || 'Your Research'}
+          {/* Basket Details - Moved to 2nd position */}
+          {currentIntelligence ? (
+            <ContentInventorySection
+              inventory={createInventoryFromIntelligence(currentIntelligence)}
             />
-          </div>
-
-          {/* Research Development Areas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Content Inventory - Simplified */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              {currentIntelligence ? (
-                <ContentInventorySection
-                  inventory={createInventoryFromIntelligence(currentIntelligence)}
-                />
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-4xl mb-3">📚</div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Content inventory</h3>
-                  <p className="text-gray-600">Add materials to see what you're working with</p>
-                </div>
-              )}
+          ) : (
+            <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
+              <span className="text-4xl mb-3 block">📚</span>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Content inventory</h3>
+              <p className="text-gray-600">Add materials to see what you're working with</p>
             </div>
+          )}
 
-            {/* Context Suggestions - Simplified */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <ContextSuggestions
-                suggestions={transformedData.suggestions || []}
-                onSuggestionSelect={handleSuggestionSelect}
+          {/* Executive Summary */}
+          {(() => {
+            const inventory = currentIntelligence ? createInventoryFromIntelligence(currentIntelligence) : null;
+            const documentCount = inventory?.documents?.total || 0;
+            const totalWords = (inventory?.documents?.totalWords || 0) + (inventory?.rawDumps?.totalWords || 0);
+            
+            return (
+              <ExecutiveSummary
+                intelligence={currentIntelligence}
+                basketName={basket?.name || 'Your Research'}
+                documentCount={documentCount}
+                totalWords={totalWords}
               />
-            </div>
-          </div>
+            );
+          })()}
+
+          {/* What You Could Do Next */}
+          {(() => {
+            const inventory = currentIntelligence ? createInventoryFromIntelligence(currentIntelligence) : null;
+            const documentCount = inventory?.documents?.total || 0;
+            const totalWords = (inventory?.documents?.totalWords || 0) + (inventory?.rawDumps?.totalWords || 0);
+            
+            return (
+              <DashboardNextSteps
+                documentCount={documentCount}
+                totalWords={totalWords}
+                hasProcessingQueue={(inventory?.rawDumps?.total || 0) > (inventory?.rawDumps?.processed || 0)}
+                hasInsights={(pendingChanges.length > 0 || changeManager.pendingChanges.length > 0)}
+                basketId={basketId}
+                onBeginAction={handleBeginAction}
+              />
+            );
+          })()}
         </div>
       </div>
 
