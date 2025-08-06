@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { getWorkspaceFromBasket } from "@/lib/utils/workspace";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +20,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Ensure workspace access
+    const workspace = await ensureWorkspaceServer(supabase);
+    if (!workspace) {
+      return NextResponse.json(
+        { error: "Workspace access required" },
+        { status: 403 }
+      );
+    }
+
     // Get basketId from query params
     const { searchParams } = new URL(request.url);
     const basketId = searchParams.get('basketId');
@@ -30,7 +40,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get documents for this basket
+    // Validate basket access and get workspace_id
+    const basketResult = await getWorkspaceFromBasket(supabase, basketId);
+    if ('error' in basketResult) {
+      return NextResponse.json(
+        { error: basketResult.error },
+        { status: 404 }
+      );
+    }
+    
+    const { workspaceId } = basketResult;
+    
+    // Verify user has access to this workspace
+    if (workspaceId !== workspace.id) {
+      return NextResponse.json(
+        { error: "Unauthorized access to workspace" },
+        { status: 403 }
+      );
+    }
+
+    // Get documents for this basket (now with validated access)
     const { data: documents, error: fetchError } = await supabase
       .from("documents")
       .select("*")

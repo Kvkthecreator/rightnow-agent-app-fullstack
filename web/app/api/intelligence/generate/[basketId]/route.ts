@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { getWorkspaceFromBasket } from "@/lib/utils/workspace";
 import { 
   generateContentHash, 
   detectIntelligenceChanges, 
@@ -78,18 +79,22 @@ export async function POST(
       rateLimitMap.set(basketId, now);
     }
 
-    // Verify basket access
-    const { data: basket, error: basketError } = await supabase
-      .from("baskets")
-      .select("id, name, workspace_id")
-      .eq("id", basketId)
-      .eq("workspace_id", workspace.id)
-      .single();
-
-    if (basketError || !basket) {
+    // Get workspace_id from basket using utility
+    const basketResult = await getWorkspaceFromBasket(supabase, basketId);
+    if ('error' in basketResult) {
       return NextResponse.json(
-        { error: "Basket not found" },
+        { error: basketResult.error },
         { status: 404 }
+      );
+    }
+    
+    const { workspaceId, basket } = basketResult;
+    
+    // Verify user has access to this workspace
+    if (workspaceId !== workspace.id) {
+      return NextResponse.json(
+        { error: "Unauthorized access to workspace" },
+        { status: 403 }
       );
     }
 
@@ -196,7 +201,7 @@ export async function POST(
     // Store intelligence generation event
     const intelligenceEvent = await storeIntelligenceEvent(supabase, {
       basketId,
-      workspaceId: workspace.id,
+      workspaceId, // Use workspaceId from basket
       kind: 'intelligence_generation',
       intelligence: newIntelligence,
       contentHash,

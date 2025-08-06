@@ -3,6 +3,7 @@ import type { SubstrateIntelligence } from '@/lib/substrate/types';
 import { WebSocketServer } from '@/lib/websocket/WebSocketServer';
 import { getConflictDetectionEngine, type ChangeVector } from '@/lib/collaboration/ConflictDetectionEngine';
 import { getOperationalTransform } from '@/lib/collaboration/OperationalTransform';
+import { getWorkspaceFromBasket } from '@/lib/utils/workspace';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -413,14 +414,12 @@ export class UniversalChangeService {
 
   private async verifyBasketAccess(basketId: string, workspaceId: string): Promise<boolean> {
     try {
-      const { data, error } = await this.supabase
-        .from('baskets')
-        .select('id')
-        .eq('id', basketId)
-        .eq('workspace_id', workspaceId)
-        .single();
-
-      return !error && !!data;
+      const result = await getWorkspaceFromBasket(this.supabase, basketId);
+      if ('error' in result) {
+        return false;
+      }
+      
+      return result.workspaceId === workspaceId;
     } catch {
       return false;
     }
