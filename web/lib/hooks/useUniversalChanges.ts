@@ -538,6 +538,8 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
   }, [submitChange]);
 
   const approveChanges = useCallback(async (changeIds: string[], sections: string[] = []) => {
+    console.log('✅ APPROVING: Changes', changeIds);
+    
     for (const changeId of changeIds) {
       await submitChange('intelligence_approve', {
         eventId: changeId,
@@ -546,6 +548,8 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
         intelligence: {} as any // Will be filled by server
       });
     }
+    
+    console.log('🔄 CHANGES APPROVED: Substrate should now evolve via WebSocket');
   }, [submitChange]);
 
   const rejectChanges = useCallback(async (changeIds: string[], reason = '') => {

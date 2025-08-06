@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUnifiedIntelligence } from '@/lib/intelligence/useUnifiedIntelligence';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
@@ -62,6 +62,26 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     error,
     isInitialLoading
   } = useUnifiedIntelligence(basketId);
+  
+  // Substrate Evolution Verification Logging
+  useEffect(() => {
+    if (currentIntelligence) {
+      const substrateState = {
+        timestamp: new Date().toISOString(),
+        documents: currentIntelligence.documents?.length || 0,
+        insights: currentIntelligence.intelligence?.insights?.length || 0,
+        recommendations: currentIntelligence.intelligence?.recommendations?.length || 0,
+        contextAlerts: currentIntelligence.intelligence?.contextAlerts?.length || 0,
+        themes: currentIntelligence.contextUnderstanding?.themes?.length || 0,
+        coherenceScore: currentIntelligence.contextUnderstanding?.coherenceScore || 0,
+        substrateHealth: currentIntelligence.substrateHealth?.evolutionRate || 'stable',
+        pendingChanges: pendingChanges.length,
+        wsConnected: changeManager.isConnected
+      };
+      
+      console.log('🔍 SUBSTRATE STATE:', substrateState);
+    }
+  }, [currentIntelligence, pendingChanges.length, changeManager.isConnected]);
 
   // Handle context capture from Yarnnn thinking partner
   const handleThoughtCapture = async (capturedContent: any) => {
@@ -154,7 +174,15 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   };
 
   // Handle "Begin" action from NextSteps - triggers FloatingCompanion
-  const handleBeginAction = (action: string) => {
+  const handleBeginAction = async (action: string) => {
+    console.log('🎯 DASHBOARD ACTION:', action);
+    console.log('🔍 BEFORE ACTION - Substrate state:', {
+      documents: currentIntelligence?.documents?.length || 0,
+      themes: currentIntelligence?.contextUnderstanding?.themes?.length || 0,
+      insights: currentIntelligence?.intelligence?.insights?.length || 0,
+      pendingChanges: pendingChanges.length
+    });
+    
     // Different actions trigger different behaviors in the FloatingCompanion
     switch (action) {
       case 'add-first-document':
@@ -173,16 +201,19 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         
       case 'process-content':
         // Trigger processing through changeManager
-        changeManager.generateIntelligence();
+        console.log('⚡ GENERATING: Intelligence from dashboard');
+        await changeManager.generateIntelligence();
         break;
         
       case 'review-insights':
         // This will be handled by the existing insight approval flow
+        console.log('👁️ REVIEWING: Existing insights');
         break;
         
       case 'generate-insights':
         // Trigger insight generation
-        changeManager.generateIntelligence();
+        console.log('⚡ GENERATING: Intelligence from dashboard');
+        await changeManager.generateIntelligence();
         break;
         
       case 'explore-patterns':
@@ -377,6 +408,49 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         hasPendingInsights={pendingChanges.length > 0}
         onCheckPendingInsights={handleCheckPendingInsights}
       />
+      
+      {/* Development Substrate Monitor */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-6 left-6 z-40 bg-black/90 text-white text-xs p-4 rounded-lg max-w-sm">
+          <div className="font-bold mb-2">📊 Substrate Monitor</div>
+          <div>Documents: {currentIntelligence?.documents?.length || 0}</div>
+          <div>Themes: {currentIntelligence?.contextUnderstanding?.themes?.length || 0}</div>
+          <div>Insights: {currentIntelligence?.intelligence?.insights?.length || 0}</div>
+          <div>Recommendations: {currentIntelligence?.intelligence?.recommendations?.length || 0}</div>
+          <div>Health: {currentIntelligence?.substrateHealth?.evolutionRate || 'unknown'}</div>
+          <div>Pending Changes: {pendingChanges.length}</div>
+          <div>WebSocket: {changeManager.isConnected ? '🟢' : '🔴'}</div>
+          <div>Processing: {changeManager.isProcessing ? '⚡' : '💤'}</div>
+          
+          <button 
+            onClick={() => {
+              console.log('🔍 CURRENT SUBSTRATE STATE:', {
+                intelligence: currentIntelligence,
+                pendingChanges,
+                wsConnected: changeManager.isConnected,
+                documents: currentIntelligence?.documents,
+                errors: changeManager.errors
+              });
+            }}
+            className="mt-2 px-2 py-1 bg-white/20 rounded text-xs hover:bg-white/30 transition-colors"
+          >
+            Log Full State
+          </button>
+          
+          <button 
+            onClick={async () => {
+              console.log('🧪 TESTING: Evolution verification');
+              console.log('➕ CREATING: Test context via FloatingCompanion');
+              window.dispatchEvent(new CustomEvent('openFloatingCompanion', { 
+                detail: { context: 'add-content', action: 'test-evolution' } 
+              }));
+            }}
+            className="mt-1 px-2 py-1 bg-blue-500/50 rounded text-xs hover:bg-blue-500/70 transition-colors w-full"
+          >
+            Test Evolution
+          </button>
+        </div>
+      )}
 
       {/* Simple toast notifications */}
       {toast && (

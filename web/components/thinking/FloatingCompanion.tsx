@@ -29,6 +29,10 @@ export function FloatingCompanion({
   const [message, setMessage] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [recentActivity, setRecentActivity] = useState('');
+  const [actionFeedback, setActionFeedback] = useState<{
+    message: string;
+    type: 'success' | 'info' | 'processing';
+  } | null>(null);
   
   // Connect to Universal Change Manager
   const changeManager = useUniversalChanges(basketId);
@@ -41,6 +45,14 @@ export function FloatingCompanion({
   
   // Get contextual awareness
   const pageContext = usePageContext(basketId);
+  
+  // Feedback helper
+  const showFeedback = (message: string, type: 'success' | 'info' | 'processing') => {
+    setActionFeedback({ message, type });
+    if (type !== 'processing') {
+      setTimeout(() => setActionFeedback(null), 3000);
+    }
+  };
 
   // Listen for custom events from dashboard
   useEffect(() => {
@@ -126,6 +138,8 @@ export function FloatingCompanion({
 
     // If intent suggests intelligence generation, use changeManager
     if (intent.shouldGenerateIntelligence) {
+      showFeedback('Generating insights from your input...', 'processing');
+      
       try {
         await changeManager.generateIntelligence({
           userInput: message.trim(),
@@ -137,8 +151,13 @@ export function FloatingCompanion({
             selectedText: window.getSelection()?.toString() || ''
           }
         }, 'companion');
+        
+        showFeedback('Intelligence generated - review insights', 'success');
+        
       } catch (error) {
         console.error('Failed to generate intelligence from text:', error);
+        showFeedback('Failed to generate intelligence', 'info');
+        
         // Fallback to capture method
         onCapture({
           type: 'conversation',
@@ -152,6 +171,8 @@ export function FloatingCompanion({
         });
       }
     } else {
+      showFeedback('Added to substrate memory ✓', 'success');
+      
       // For other intents, use the capture method
       onCapture({
         type: 'conversation',
@@ -175,6 +196,8 @@ export function FloatingCompanion({
     if (files && files.length > 0) {
       const file = files[0];
       
+      showFeedback(`Processing ${file.name}...`, 'processing');
+      
       try {
         // Use changeManager to add context (file handling will be done via FormData)
         await changeManager.addContext([{
@@ -191,8 +214,13 @@ export function FloatingCompanion({
             }
           }
         }]);
+        
+        showFeedback(`File added to context ✓`, 'success');
+        
       } catch (error) {
         console.error('Failed to upload file via changeManager:', error);
+        showFeedback('Failed to process file', 'info');
+        
         // Fallback to capture method
         onCapture({
           type: 'file',
@@ -232,9 +260,12 @@ export function FloatingCompanion({
 
   const handleGenerateInsights = async () => {
     if (actualPendingInsights && onCheckPendingInsights) {
+      showFeedback('Opening pending insights for review', 'info');
       onCheckPendingInsights();
     } else {
       // Direct intelligence generation via changeManager
+      showFeedback('Analyzing patterns and insights...', 'processing');
+      
       try {
         await changeManager.generateIntelligence({
           userInput: 'Generate insights from current understanding',
@@ -251,8 +282,14 @@ export function FloatingCompanion({
             selectedText: window.getSelection()?.toString() || ''
           }
         }, 'companion');
+        
+        // Success feedback will show when modal appears
+        showFeedback('Intelligence generated - review insights', 'success');
+        
       } catch (error) {
         console.error('Failed to generate insights:', error);
+        showFeedback('Failed to generate insights', 'info');
+        
         // Fallback to old capture method
         onCapture({
           type: 'generate',
@@ -453,6 +490,24 @@ export function FloatingCompanion({
                 </button>
               </div>
             </div>
+
+            {/* Action Feedback Toast */}
+            {actionFeedback && (
+              <div className={`mx-4 mt-2 p-3 rounded-lg border ${
+                actionFeedback.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+                actionFeedback.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+                'bg-purple-50 border-purple-200 text-purple-800'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {actionFeedback.type === 'success' && <span>✓</span>}
+                  {actionFeedback.type === 'info' && <span>ℹ</span>}
+                  {actionFeedback.type === 'processing' && (
+                    <div className="animate-spin rounded-full h-3 w-3 border border-current border-t-transparent"></div>
+                  )}
+                  <span className="text-sm font-medium">{actionFeedback.message}</span>
+                </div>
+              </div>
+            )}
 
             {/* Current Understanding */}
             <div className="p-4 border-b border-gray-100/50 bg-gradient-to-r from-blue-50/30 to-purple-50/30">
