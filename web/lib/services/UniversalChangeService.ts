@@ -809,6 +809,7 @@ export class UniversalChangeService {
       .insert({
         id: event.id,
         basket_id: event.basketId,
+        workspace_id: change.workspaceId, // CRITICAL: Store workspace_id as direct column for RLS
         kind: `change_${event.type}`,
         payload: {
           changeId: event.changeId,
@@ -816,7 +817,8 @@ export class UniversalChangeService {
           status: event.status,
           actorId: event.actorId,
           data: event.data,
-          metadata: event.metadata
+          metadata: event.metadata,
+          workspaceId: change.workspaceId // Also keep in payload for backwards compatibility
         },
         ts: event.timestamp
       });

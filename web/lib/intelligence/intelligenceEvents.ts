@@ -21,6 +21,7 @@ export async function storeIntelligenceEvent(
     .from('events')
     .insert({
       basket_id: event.basketId,
+      workspace_id: event.workspaceId, // CRITICAL: Store workspace_id as direct column for RLS
       kind: event.kind,
       payload: {
         intelligence: event.intelligence,
@@ -28,7 +29,7 @@ export async function storeIntelligenceEvent(
         changes: event.changes,
         approvalState: event.approvalState,
         approvedSections: event.approvedSections,
-        workspaceId: event.workspaceId,
+        workspaceId: event.workspaceId, // Also keep in payload for backwards compatibility
         actorId: event.actorId,
         origin: event.origin,
         eventId: fullEvent.id
