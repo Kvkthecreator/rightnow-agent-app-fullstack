@@ -116,8 +116,14 @@ export async function POST(
     });
 
     // Generate new intelligence using existing endpoint
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace('yarnnn.com', 'www.yarnnn.com') || 
+                    'https://www.yarnnn.com';
+    const intelligenceUrl = `${baseUrl}/api/intelligence/basket/${basketId}/dashboard`;
+    
+    console.log('🧠 Fetching intelligence from:', intelligenceUrl);
+    
     const intelligenceResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/intelligence/basket/${basketId}/dashboard`,
+      intelligenceUrl,
       {
         method: 'GET',
         headers: {
@@ -128,14 +134,24 @@ export async function POST(
     );
 
     if (!intelligenceResponse.ok) {
-      throw new Error('Failed to generate intelligence');
+      const errorText = await intelligenceResponse.text().catch(() => 'No response body');
+      console.error('❗ Intelligence API error:', {
+        status: intelligenceResponse.status,
+        statusText: intelligenceResponse.statusText,
+        url: intelligenceUrl,
+        response: errorText
+      });
+      throw new Error(`Failed to generate intelligence: ${intelligenceResponse.status} ${intelligenceResponse.statusText}`);
     }
 
     const intelligenceData = await intelligenceResponse.json();
 
     // Transform to substrate format
+    const substrateUrl = `${baseUrl}/api/substrate/basket/${basketId}`;
+    console.log('🔄 Fetching substrate from:', substrateUrl);
+    
     const substrateResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/substrate/basket/${basketId}`,
+      substrateUrl,
       {
         method: 'GET',
         headers: {
@@ -146,7 +162,14 @@ export async function POST(
     );
 
     if (!substrateResponse.ok) {
-      throw new Error('Failed to transform intelligence to substrate format');
+      const errorText = await substrateResponse.text().catch(() => 'No response body');
+      console.error('❗ Substrate API error:', {
+        status: substrateResponse.status,
+        statusText: substrateResponse.statusText,
+        url: substrateUrl,
+        response: errorText
+      });
+      throw new Error(`Failed to transform intelligence to substrate format: ${substrateResponse.status} ${substrateResponse.statusText}`);
     }
 
     const newIntelligence = await substrateResponse.json();
@@ -196,12 +219,18 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error("Intelligence generation API error:", error);
+    console.error('Intelligence generation API error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      basketId,
+      userId: await supabase.auth.getUser().then(({data}) => data.user?.id),
+      url: request.url,
+      method: request.method,
+      headers: Object.fromEntries(request.headers.entries())
+    });
+    
     return NextResponse.json(
-      { 
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error"
-      },
+      { error: error instanceof Error ? error.message : 'Failed to generate intelligence' },
       { status: 500 }
     );
   }
