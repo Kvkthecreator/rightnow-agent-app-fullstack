@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`📝 Processing ${changeRequest.type} change for basket ${changeRequest.basketId} by user ${user.email}`);
     
-    const changeService = createUniversalChangeService(supabase);
+    const changeService = createUniversalChangeService(supabase, request);
     const result: ChangeResult = await changeService.processChange(changeRequest);
 
     // ========================================================================

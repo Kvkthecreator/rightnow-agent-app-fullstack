@@ -234,9 +234,11 @@ export interface WebSocketPayload {
 
 export class UniversalChangeService {
   private supabase: SupabaseClient;
+  private request?: Request;
   
-  constructor(supabase: SupabaseClient) {
+  constructor(supabase: SupabaseClient, request?: Request) {
     this.supabase = supabase;
+    this.request = request;
   }
 
   // ========================================================================
@@ -659,15 +661,25 @@ export class UniversalChangeService {
       
       console.log('📡 Fetching intelligence from:', url);
       
+      // Get the authorization header from the original request
+      const authHeader = this.request?.headers?.get('authorization') || '';
+      
       // Make API call to legacy intelligence generation endpoint for now
       // This maintains compatibility while moving through the unified pipeline
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': authHeader,  // Pass through the auth token
+          'Cookie': this.request?.headers?.get('cookie') || ''  // Pass cookies too
+        },
         body: JSON.stringify({
+          basketId: change.basketId,
           origin: data.origin,
           conversationContext: data.conversationContext,
-          checkPending: data.checkPending
+          checkPending: data.checkPending,
+          // Include auth context
+          userId: change.actorId
         })
       });
 
@@ -1066,6 +1078,6 @@ export class UniversalChangeService {
 // FACTORY FUNCTION
 // ============================================================================
 
-export function createUniversalChangeService(supabase: SupabaseClient): UniversalChangeService {
-  return new UniversalChangeService(supabase);
+export function createUniversalChangeService(supabase: SupabaseClient, request?: Request): UniversalChangeService {
+  return new UniversalChangeService(supabase, request);
 }
