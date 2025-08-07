@@ -378,8 +378,9 @@ export async function POST(
       );
     }
 
-    // Generate content hash for change detection - fix data structure
-    const currentContent = {
+    // Generate content hash for change detection
+    // Map data structures to match generateContentHash requirements
+    const hashableData = {
       documents: (documents || []).map(doc => ({
         id: doc.id,
         content_raw: doc.content || '',
@@ -393,7 +394,7 @@ export async function POST(
       basketId
     };
     
-    const currentHash = await generateContentHash(currentContent);
+    const currentHash = await generateContentHash(hashableData);
     
     // Get last approved intelligence to compare
     const lastApproved = await getLastApprovedIntelligence(supabase, basketId);
