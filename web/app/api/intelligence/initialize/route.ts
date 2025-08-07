@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
-interface CreateWorkspaceRequest {
+interface InitializeRequest {
   intelligence: {
     themes: string[];
     context_items: Array<{
@@ -32,9 +32,13 @@ interface CreateWorkspaceRequest {
     };
   };
   user_modifications?: {
-    workspace_name?: string;
+    basket_name?: string;
     selected_documents?: string[];
     additional_context?: string;
+  };
+  raw_dump?: {
+    body_md: string;
+    file_refs?: string[];
   };
 }
 
@@ -64,8 +68,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body: CreateWorkspaceRequest = await request.json();
-    const { intelligence, suggested_structure, user_modifications } = body;
+    const body: InitializeRequest = await request.json();
+    const { intelligence, suggested_structure, user_modifications, raw_dump } = body;
 
     // Validate required data
     if (!intelligence || !suggested_structure) {
@@ -75,23 +79,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create the basket (workspace container)
-    const basketName = user_modifications?.workspace_name || suggested_structure.organization.suggested_name;
-    const basketDescription = suggested_structure.organization.description;
+    // Create the basket
+    const basketName = user_modifications?.basket_name || suggested_structure.organization.suggested_name;
 
     const { data: basket, error: basketError } = await supabase
       .from("baskets")
       .insert({
         name: basketName,
         status: "ACTIVE",
-        workspace_id: workspace.id,
-        metadata: {
-          created_via: 'universal_intelligence',
-          organization_strategy: suggested_structure.organization.organization_strategy,
-          confidence_score: intelligence.confidence_score,
-          themes: intelligence.themes,
-          creation_timestamp: new Date().toISOString()
-        }
+        workspace_id: workspace.id
       })
       .select()
       .single();
@@ -99,9 +95,24 @@ export async function POST(request: NextRequest) {
     if (basketError || !basket) {
       console.error("Basket creation error:", basketError);
       return NextResponse.json(
-        { error: "Failed to create workspace basket" },
+        { error: "Failed to create initial basket" },
         { status: 500 }
       );
+    }
+
+    // Optionally create raw dump
+    if (raw_dump) {
+      const { error: dumpError } = await supabase
+        .from('raw_dumps')
+        .insert({
+          basket_id: basket.id,
+          workspace_id: workspace.id,
+          body_md: raw_dump.body_md,
+          file_refs: raw_dump.file_refs || null
+        });
+      if (dumpError) {
+        console.error('Raw dump creation error:', dumpError);
+      }
     }
 
     // Create context items
@@ -109,13 +120,7 @@ export async function POST(request: NextRequest) {
       basket_id: basket.id,
       type: item.type,
       content: item.content,
-      summary: item.content.length > 100 ? item.content.substring(0, 100) + '...' : item.content,
-      status: 'active',
-      workspace_id: workspace.id,
-      metadata: {
-        relevance_score: item.relevance_score,
-        created_via: 'universal_intelligence'
-      }
+      status: 'active'
     }));
 
     const { data: contextItems, error: contextError } = await supabase
@@ -173,11 +178,11 @@ export async function POST(request: NextRequest) {
       content: `${pattern.description} (Confidence: ${Math.round(pattern.confidence * 100)}%)`,
       state: 'ACCEPTED',
       workspace_id: workspace.id,
-      metadata: {
+      meta_agent_notes: JSON.stringify({
         pattern_type: pattern.pattern_type,
         confidence: pattern.confidence,
         created_via: 'universal_intelligence'
-      }
+      })
     }));
 
     const { data: blocks, error: blocksError } = await supabase
@@ -216,14 +221,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       result,
-      message: "Intelligent workspace created successfully"
+      message: "Basket initialized successfully"
     });
 
   } catch (error) {
-    console.error("Workspace creation error:", error);
+    console.error("Basket initialization error:", error);
     return NextResponse.json(
-      { 
-        error: "Failed to create workspace",
+      {
+        error: "Failed to initialize basket",
         details: error instanceof Error ? error.message : "Unknown error"
       },
       { status: 500 }
@@ -263,7 +268,7 @@ function generateNextSteps(
   }
   
   // General next steps
-  steps.push("Invite team members to collaborate on the workspace");
+  steps.push("Invite team members to collaborate on the basket");
   steps.push("Start adding your own content and insights");
   
   return steps.slice(0, 5); // Limit to 5 next steps

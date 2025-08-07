@@ -4,7 +4,6 @@ import { useAuth } from "@/lib/useAuth";
 import { redirect } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Suspense } from "react";
-import UniversalWorkspaceCreator from "@/components/onboarding/UniversalWorkspaceCreator";
 import OnboardingContent from "./OnboardingContent";
 
 export default function OnboardingPage() {
@@ -71,7 +70,7 @@ export default function OnboardingPage() {
                 <div className="text-3xl mb-3">🔗</div>
                 <h4 className="font-medium mb-2">Contextual Connections</h4>
                 <p className="text-sm text-muted-foreground">
-                  Links related ideas and suggests next steps for your project
+                  Links related ideas and suggests next steps for your basket
                 </p>
               </div>
             </div>

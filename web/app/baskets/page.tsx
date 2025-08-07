@@ -68,7 +68,7 @@ export default function BasketsPage() {
         description="Lightweight containers for your tasks, context, and thoughts"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => router.push('/onboarding')}>✨ Create Workspace</Button>
+            <Button onClick={() => router.push('/onboarding')}>✨ Create Project</Button>
             <Select value={sort} onValueChange={(v) => setSort(v)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Sort by" />

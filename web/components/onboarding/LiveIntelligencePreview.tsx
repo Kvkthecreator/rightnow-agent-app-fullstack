@@ -125,9 +125,9 @@ export default function LiveIntelligencePreview({
           </div>
         )}
 
-        {/* Suggested Workspace */}
+        {/* Suggested Basket */}
         <div>
-          <h4 className="text-xs font-medium text-green-800 mb-2">Suggested Workspace</h4>
+          <h4 className="text-xs font-medium text-green-800 mb-2">Suggested Basket</h4>
           <div className="p-3 bg-white/60 rounded-lg border border-green-200">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm">🗂️</span>
@@ -192,7 +192,7 @@ export default function LiveIntelligencePreview({
         {/* Next Steps Hint */}
         <div className="text-center pt-2 border-t border-green-200">
           <p className="text-xs text-green-600">
-            ✨ Ready to create your intelligent workspace
+            ✨ Ready to create your basket
           </p>
         </div>
       </CardContent>
