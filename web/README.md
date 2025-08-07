@@ -90,3 +90,4 @@ await apiFetch('/workspaces', { method: 'POST' });
 ```
 This automatically appends `/api` to the path.
 # Force Vercel rebuild
+Vercel build timestamp: Thu Aug  7 13:50:31 KST 2025
