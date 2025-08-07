@@ -404,9 +404,9 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         </div>
       </div>
 
-      {/* Yarnnn Insight Approval - Human, Warm Experience */}
+      {/* Yarnnn Insight Approval - FORCED OPEN FOR TESTING */}
       <YarnnnInsightApproval
-        isOpen={pendingChanges.length > 0 || changeManager.pendingChanges.length > 0}
+        isOpen={true} // 🚨 FORCE OPEN FOR TESTING
         
         // Universal changes support
         pendingChanges={changeManager.pendingChanges}

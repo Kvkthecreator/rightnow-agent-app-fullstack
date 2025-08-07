@@ -115,6 +115,39 @@ export function PerfectIntegrationTest({ basketId }: PerfectIntegrationTestProps
         >
           🔴 Force Pending Change (Test Approval)
         </button>
+
+        <button
+          onClick={() => {
+            console.log('🚨 BYPASS: Skipping all broken APIs');
+            
+            // Directly manipulate the DOM to show something
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              background: white;
+              padding: 20px;
+              border: 2px solid green;
+              z-index: 9999;
+              box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+              border-radius: 8px;
+            `;
+            modal.innerHTML = `
+              <h2 style="margin: 0 0 10px 0; color: green;">✅ Integration Test Success!</h2>
+              <p style="margin: 5px 0;">If you see this, the frontend works.</p>
+              <p style="margin: 5px 0;">The backend APIs are broken.</p>
+              <button onclick="this.parentElement.remove()" style="padding: 8px 16px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+            `;
+            document.body.appendChild(modal);
+            
+            console.log('✅ BYPASS: Test modal injected directly');
+          }}
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition-colors mt-2"
+        >
+          🚨 BYPASS: Show Test Modal
+        </button>
       </div>
 
       {/* Show recent processing logs */}

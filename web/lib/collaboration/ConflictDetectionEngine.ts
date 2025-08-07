@@ -512,11 +512,26 @@ export class ConflictDetectionEngine {
   }
 
   private async analyzeSemanticIntent(change: ChangeVector): Promise<any> {
+    // 🚨 CRITICAL FIX: Check if content is an array (from context_add) to prevent toLowerCase() crash
+    const content = change.content || '';
+    
+    // If content is an array, convert to string or skip analysis
+    let safeContent = '';
+    if (Array.isArray(content)) {
+      console.log('⚠️ CONFLICT DETECTION: Received array content, converting to string');
+      safeContent = JSON.stringify(content);
+    } else if (typeof content === 'string') {
+      safeContent = content;
+    } else {
+      console.log('⚠️ CONFLICT DETECTION: Unknown content type, converting to string');
+      safeContent = String(content);
+    }
+    
     // Simplified semantic analysis - in production this would use NLP
     return {
       intent: this.classifyChangeIntent(change),
       confidence: 0.7,
-      keywords: this.extractKeywords(change.content || '')
+      keywords: this.extractKeywords(safeContent)
     };
   }
 
