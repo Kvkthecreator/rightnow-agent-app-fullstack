@@ -89,3 +89,4 @@ import { apiFetch } from '@/lib/api';
 await apiFetch('/workspaces', { method: 'POST' });
 ```
 This automatically appends `/api` to the path.
+# Force Vercel rebuild
