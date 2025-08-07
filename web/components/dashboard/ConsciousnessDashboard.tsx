@@ -10,7 +10,7 @@ import { ExecutiveSummary } from './ExecutiveSummary';
 import { DashboardNextSteps } from './DashboardNextSteps';
 import { YarnnnInsightApproval } from '@/components/thinking/YarnnnInsightApproval';
 import { YarnnnThinkingPartner } from '@/components/thinking/YarnnnThinkingPartner';
-import { FloatingCompanion } from '@/components/thinking/FloatingCompanion';
+// Removed FloatingCompanion - using only YarnnnThinkingPartner
 import { SimpleConnectionStatus, SimpleToast } from '@/components/ui/SimpleConnectionStatus';
 import { YarnnnMemorySubstrate } from '@/components/thinking/YarnnnMemorySubstrate';
 import { Brain, Sparkles } from 'lucide-react';
@@ -194,10 +194,8 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
       case 'build-substrate':
       case 'diversify-content':
         // Open companion with content-focused context
-        // The FloatingCompanion will adapt its prompt based on the dashboard context
-        window.dispatchEvent(new CustomEvent('openFloatingCompanion', { 
-          detail: { context: 'add-content', action } 
-        }));
+        // Content addition handled by YarnnnThinkingPartner - user can describe what they want to add
+        console.log('📝 Content addition request - use YarnnnThinkingPartner');
         break;
         
       case 'process-content':
@@ -218,17 +216,13 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         break;
         
       case 'explore-patterns':
-        // Open companion with pattern exploration context
-        window.dispatchEvent(new CustomEvent('openFloatingCompanion', { 
-          detail: { context: 'explore-patterns', action } 
-        }));
+        // Pattern exploration handled by YarnnnThinkingPartner
+        console.log('🔍 Pattern exploration request - use YarnnnThinkingPartner');
         break;
         
       default:
-        // Fallback - open companion
-        window.dispatchEvent(new CustomEvent('openFloatingCompanion', { 
-          detail: { context: 'general', action } 
-        }));
+        // All actions handled by YarnnnThinkingPartner
+        console.log('⚡ Action request - use YarnnnThinkingPartner:', action);
     }
   };
 
@@ -410,14 +404,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         conversationContext={conversationContext}
       />
 
-      {/* Floating Companion - Watching With You, Thinking Together */}
-      <FloatingCompanion
-        basketId={basketId}
-        onCapture={handleThoughtCapture}
-        isProcessing={isProcessing}
-        hasPendingInsights={pendingChanges.length > 0}
-        onCheckPendingInsights={handleCheckPendingInsights}
-      />
+      {/* FloatingCompanion removed - using only YarnnnThinkingPartner for consistency */}
       
       {/* Development Substrate Monitor */}
       {process.env.NODE_ENV === 'development' && (
@@ -450,10 +437,8 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           <button 
             onClick={async () => {
               console.log('🧪 TESTING: Evolution verification');
-              console.log('➕ CREATING: Test context via FloatingCompanion');
-              window.dispatchEvent(new CustomEvent('openFloatingCompanion', { 
-                detail: { context: 'add-content', action: 'test-evolution' } 
-              }));
+              console.log('➕ CREATING: Test context via YarnnnThinkingPartner');
+              // Test content creation handled by YarnnnThinkingPartner
             }}
             className="mt-1 px-2 py-1 bg-blue-500/50 rounded text-xs hover:bg-blue-500/70 transition-colors w-full"
           >
