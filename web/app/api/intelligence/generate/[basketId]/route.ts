@@ -378,13 +378,22 @@ export async function POST(
       );
     }
 
-    // Generate content hash for change detection
+    // Generate content hash for change detection - fix data structure
     const currentContent = {
-      documents: documents || [],
-      contextItems: contextItems || []
+      documents: (documents || []).map(doc => ({
+        id: doc.id,
+        content_raw: doc.content || '',
+        updated_at: doc.updated_at
+      })),
+      rawDumps: (contextItems || []).map(item => ({
+        id: item.id,
+        text_dump: item.content || '',
+        created_at: item.created_at
+      })),
+      basketId
     };
     
-    const currentHash = generateContentHash(currentContent);
+    const currentHash = await generateContentHash(currentContent);
     
     // Get last approved intelligence to compare
     const lastApproved = await getLastApprovedIntelligence(supabase, basketId);
