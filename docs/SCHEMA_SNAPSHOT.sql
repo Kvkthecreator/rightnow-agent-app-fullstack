@@ -136,8 +136,7 @@ CREATE TABLE public.context_items (
     content text NOT NULL,
     status text DEFAULT 'active'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT context_items_status_check CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text]))),
-    CONSTRAINT context_items_type_check CHECK ((type = 'guideline'::text))
+    CONSTRAINT context_items_status_check CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
 );
 CREATE TABLE public.documents (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
