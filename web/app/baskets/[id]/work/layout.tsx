@@ -76,6 +76,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   
   return {
     title: `${basketData?.name || 'Basket'} - Yarnnn`,
-    description: 'Strategic intelligence workspace'
+    description: 'Strategic intelligence project'
   };
 }

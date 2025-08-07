@@ -16,7 +16,7 @@ export default function OnboardingLayout({ children }: Props) {
                 🧠 RightNow
               </div>
               <div className="text-sm text-muted-foreground">
-                Workspace Creation
+                Project Creation
               </div>
             </div>
             <div className="text-sm text-muted-foreground">

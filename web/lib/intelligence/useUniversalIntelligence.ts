@@ -33,7 +33,7 @@ export interface SuggestedDocument {
   relevance: number;
 }
 
-export interface WorkspaceStructure {
+export interface BasketStructure {
   suggested_name: string;
   description: string;
   organization_strategy: string;
@@ -43,14 +43,14 @@ export interface ProcessingResponse {
   intelligence: IntelligenceResult;
   suggested_structure: {
     documents: SuggestedDocument[];
-    organization: WorkspaceStructure;
+    organization: BasketStructure;
   };
   processing_summary: string;
   processed_at: string;
   processing_intent: string;
 }
 
-export interface WorkspaceCreationResult {
+export interface BasketInitializationResult {
   basket: {
     id: string;
     name: string;
@@ -120,25 +120,25 @@ export function useUniversalIntelligence() {
     }
   };
 
-  const createWorkspace = async (
+  const createInitialBasket = async (
     intelligence: IntelligenceResult,
     suggested_structure: {
       documents: SuggestedDocument[];
-      organization: WorkspaceStructure;
+      organization: BasketStructure;
     },
     user_modifications?: {
-      workspace_name?: string;
+      basket_name?: string;
       selected_documents?: string[];
       additional_context?: string;
     }
-  ): Promise<WorkspaceCreationResult | null> => {
+  ): Promise<BasketInitializationResult | null> => {
     if (!user) return null;
 
     setIsProcessing(true);
     setError(null);
 
     try {
-      const response = await fetchWithToken('/api/intelligence/create-workspace', {
+      const response = await fetchWithToken('/api/intelligence/initialize', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,16 +152,16 @@ export function useUniversalIntelligence() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create workspace');
+        throw new Error(errorData.error || 'Failed to initialize basket');
       }
 
       const { result } = await response.json();
-      return result as WorkspaceCreationResult;
+      return result as BasketInitializationResult;
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
-      console.error('Workspace creation error:', err);
+      console.error('Basket initialization error:', err);
       return null;
     } finally {
       setIsProcessing(false);
@@ -176,7 +176,7 @@ export function useUniversalIntelligence() {
 
   return {
     processContent,
-    createWorkspace,
+    createInitialBasket,
     reset,
     isProcessing,
     processingResult,
@@ -186,7 +186,7 @@ export function useUniversalIntelligence() {
     themes: processingResult?.intelligence.themes || [],
     confidence: processingResult?.intelligence.confidence_score || 0,
     suggestedDocuments: processingResult?.suggested_structure.documents || [],
-    workspaceName: processingResult?.suggested_structure.organization.suggested_name || '',
+    basketName: processingResult?.suggested_structure.organization.suggested_name || '',
   };
 }
 

@@ -48,7 +48,7 @@ interface SuggestedDocument {
   relevance: number;
 }
 
-interface WorkspaceStructure {
+interface BasketStructure {
   suggested_name: string;
   description: string;
   organization_strategy: string;
@@ -94,8 +94,8 @@ export async function POST(request: NextRequest) {
     // Process content through universal intelligence engine
     const intelligence = await processUniversalContent(inputs, workspace_context);
     
-    // Generate workspace structure suggestions
-    const suggested_structure = await suggestWorkspaceStructure(intelligence, processing_intent);
+    // Generate basket structure suggestions
+    const suggested_structure = await suggestBasketStructure(intelligence, processing_intent);
     
     // Generate processing summary
     const processing_summary = generateProcessingSummary(inputs, intelligence);
@@ -336,7 +336,7 @@ function identifyPatterns(
   if (semantics.themes.length > 3) {
     patterns.push({
       pattern_type: 'theme_rich',
-      description: `Multiple themes indicate cross-functional project scope`,
+      description: `Multiple themes indicate cross-functional basket scope`,
       confidence: 0.7
     });
   }
@@ -368,12 +368,12 @@ function calculateConfidenceScore(
   return Math.min(score, 0.95); // Cap at 95%
 }
 
-async function suggestWorkspaceStructure(
+async function suggestBasketStructure(
   intelligence: IntelligenceResult,
   processing_intent: string
 ): Promise<{
   documents: SuggestedDocument[];
-  organization: WorkspaceStructure;
+  organization: BasketStructure;
 }> {
   const primaryThemes = intelligence.themes.slice(0, 3);
   
@@ -412,12 +412,12 @@ async function suggestWorkspaceStructure(
     });
   }
   
-  // Generate workspace organization
-  const organization: WorkspaceStructure = {
-    suggested_name: generateWorkspaceName(intelligence.themes),
-    description: `Intelligent workspace focused on ${primaryThemes.join(', ').replace(/-/g, ' ')}`,
-    organization_strategy: intelligence.confidence_score > 0.7 
-      ? 'theme-based' 
+  // Generate basket organization
+  const organization: BasketStructure = {
+    suggested_name: generateBasketName(intelligence.themes),
+    description: `Basket focused on ${primaryThemes.join(', ').replace(/-/g, ' ')}`,
+    organization_strategy: intelligence.confidence_score > 0.7
+      ? 'theme-based'
       : 'exploratory'
   };
   
@@ -427,14 +427,14 @@ async function suggestWorkspaceStructure(
   };
 }
 
-function generateWorkspaceName(themes: string[]): string {
-  if (themes.length === 0) return 'New Project Workspace';
-  
+function generateBasketName(themes: string[]): string {
+  if (themes.length === 0) return 'New Basket';
+
   const primaryTheme = themes[0].split('-')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
-  
-  return `${primaryTheme} Project`;
+
+  return `${primaryTheme} Basket`;
 }
 
 function generateProcessingSummary(

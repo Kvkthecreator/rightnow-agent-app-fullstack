@@ -5,29 +5,29 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
-import { ProcessingResponse, WorkspaceCreationResult } from '@/lib/intelligence/useUniversalIntelligence';
+import { ProcessingResponse, BasketInitializationResult } from '@/lib/intelligence/useUniversalIntelligence';
 
-interface ProjectCreationTriggerProps {
+interface BasketCreationTriggerProps {
   processingResult: ProcessingResponse | null;
-  onCreateProject: (modifications?: {
-    project_name?: string;
+  onCreateBasket: (modifications?: {
+    basket_name?: string;
     selected_documents?: string[];
     additional_context?: string;
-  }) => Promise<WorkspaceCreationResult | null>;
+  }) => Promise<BasketInitializationResult | null>;
   isCreating: boolean;
-  creationResult: WorkspaceCreationResult | null;
+  creationResult: BasketInitializationResult | null;
   disabled?: boolean;
   className?: string;
 }
 
-export default function ProjectCreationTrigger({
+export default function BasketCreationTrigger({
   processingResult,
-  onCreateProject,
+  onCreateBasket,
   isCreating,
   creationResult,
   disabled = false,
   className
-}: ProjectCreationTriggerProps) {
+}: BasketCreationTriggerProps) {
   const [showCustomization, setShowCustomization] = useState(false);
   const [customName, setCustomName] = useState('');
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
@@ -41,14 +41,14 @@ export default function ProjectCreationTrigger({
     }
   });
 
-  const handleCreateProject = async () => {
+  const handleCreateBasket = async () => {
     const modifications = showCustomization ? {
-      project_name: customName || undefined,
+      basket_name: customName || undefined,
       selected_documents: selectedDocs.length > 0 ? selectedDocs : undefined,
       additional_context: additionalContext || undefined
     } : undefined;
 
-    await onCreateProject(modifications);
+    await onCreateBasket(modifications);
   };
 
   const toggleDocSelection = (docTitle: string) => {
@@ -66,10 +66,10 @@ export default function ProjectCreationTrigger({
         <CardContent className="text-center py-8">
           <div className="text-5xl mb-4">🎉</div>
           <h3 className="text-xl font-bold mb-2 text-green-800">
-            Project Created Successfully!
+            Basket Created Successfully!
           </h3>
           <p className="text-sm text-green-700 mb-4">
-            Your intelligent project "{creationResult.basket.name}" is ready with AI-powered insights
+            Your basket "{creationResult.basket.name}" is ready with AI-powered insights
           </p>
           
           <div className="flex flex-wrap justify-center gap-2 mb-6">
@@ -99,7 +99,7 @@ export default function ProjectCreationTrigger({
 
           <div className="flex items-center justify-center gap-2 text-sm text-green-600">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-600 border-t-transparent"></div>
-            <span>Taking you to your project...</span>
+            <span>Taking you to your basket...</span>
           </div>
         </CardContent>
       </Card>
@@ -112,9 +112,9 @@ export default function ProjectCreationTrigger({
       <Card className={cn("border-primary bg-primary/5", className)}>
         <CardContent className="text-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-3 border-primary border-t-transparent mx-auto mb-4"></div>
-          <h3 className="text-lg font-semibold mb-2">Creating Your Intelligent Project</h3>
+          <h3 className="text-lg font-semibold mb-2">Creating Your Basket</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
-            Setting up your project with documents, AI analysis, and intelligent insights. 
+            Setting up your basket with documents, AI analysis, and intelligent insights.
             This will just take a moment...
           </p>
           <div className="flex flex-wrap justify-center gap-2">
@@ -134,7 +134,7 @@ export default function ProjectCreationTrigger({
         <CardContent className="text-center py-6">
           <span className="text-2xl mb-2 block opacity-40">✨</span>
           <p className="text-sm text-muted-foreground">
-            Add content above to create your project
+            Add content above to create your basket
           </p>
         </CardContent>
       </Card>
@@ -153,24 +153,24 @@ export default function ProjectCreationTrigger({
         {/* Main Creation Button */}
         <div className="text-center">
           <Button
-            onClick={handleCreateProject}
+            onClick={handleCreateBasket}
             disabled={disabled || !isReady}
             size="lg"
             className="w-full mb-3"
           >
             <span className="mr-2">✨</span>
-            Create My Project
+            Create My Basket
           </Button>
           
           {!isReady && (
             <p className="text-xs text-muted-foreground">
-              Add more content to improve project creation
+              Add more content to improve basket creation
             </p>
           )}
           
           {isReady && (
             <p className="text-xs text-muted-foreground">
-              Ready to create project with {processingResult.suggested_structure.documents.length} documents
+              Ready to create basket with {processingResult.suggested_structure.documents.length} documents
             </p>
           )}
         </div>
@@ -193,10 +193,10 @@ export default function ProjectCreationTrigger({
         {/* Customization Panel */}
         {showCustomization && (
           <div className="border-t pt-4 space-y-4">
-            {/* Workspace Name */}
+            {/* Basket Name */}
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Project Name
+                Basket Name
               </label>
               <input
                 type="text"
@@ -243,7 +243,7 @@ export default function ProjectCreationTrigger({
               <textarea
                 value={additionalContext}
                 onChange={(e) => setAdditionalContext(e.target.value)}
-                placeholder="Any additional information to help customize your project..."
+                placeholder="Any additional information to help customize your basket..."
                 className="w-full p-2 border border-input rounded-lg text-sm bg-background resize-none h-20 focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>

@@ -290,7 +290,7 @@ export default function UniversalContentInput({
             value={textContent}
             onChange={(e) => setTextContent(e.target.value)}
             disabled={disabled}
-            placeholder="Paste your content here... (project notes, business requirements, ideas, etc.)"
+            placeholder="Paste your content here... (basket notes, business requirements, ideas, etc.)"
             className="w-full min-h-[100px] p-3 border border-input rounded-lg text-sm bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
           />
           <div className="flex items-center justify-between">

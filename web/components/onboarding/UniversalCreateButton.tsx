@@ -21,7 +21,7 @@ export default function UniversalCreateButton({
 }: Props) {
   const router = useRouter();
 
-  const handleCreateProject = () => {
+  const handleCreateBasket = () => {
     router.push("/onboarding");
   };
 
@@ -33,9 +33,9 @@ export default function UniversalCreateButton({
           <>
             <div className="text-xl mb-2">✨</div>
             <div>
-              <div className="font-semibold">Create Intelligent Project</div>
+              <div className="font-semibold">Create Basket</div>
               <div className="text-sm opacity-90">
-                I'll help you set up a complete project with AI insights
+                I'll help you set up a complete basket with AI insights
               </div>
             </div>
           </>
@@ -45,7 +45,7 @@ export default function UniversalCreateButton({
         return (
           <>
             <span className="mr-2">✨</span>
-            Create Project
+            Create Basket
           </>
         );
       
@@ -53,9 +53,9 @@ export default function UniversalCreateButton({
         return (
           <>
             <div className="text-2xl mb-3">🚀</div>
-            <div className="font-semibold mb-1">Create Your First Project</div>
+            <div className="font-semibold mb-1">Create Your First Basket</div>
             <div className="text-sm text-muted-foreground">
-              I'll guide you through creating an intelligent project in just a few minutes
+              I'll guide you through creating your basket in just a few minutes
             </div>
           </>
         );
@@ -64,7 +64,7 @@ export default function UniversalCreateButton({
         return children || (
           <>
             <span className="mr-2">✨</span>
-            Create Project
+            Create Basket
           </>
         );
     }
@@ -97,7 +97,7 @@ export default function UniversalCreateButton({
     <Button
       variant={variant}
       size={size}
-      onClick={handleCreateProject}
+      onClick={handleCreateBasket}
       className={getButtonClassName()}
     >
       {getButtonContent()}
@@ -155,7 +155,7 @@ export function NewBasketButton({
       {children || (
         <>
           <span className="mr-2">✨</span>
-          Create Workspace
+          Create Basket
         </>
       )}
     </UniversalCreateButton>

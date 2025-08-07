@@ -4,32 +4,32 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import UniversalContentInput from './UniversalContentInput';
 import LiveIntelligencePreview from './LiveIntelligencePreview';
-import ProjectCreationTrigger from './WorkspaceCreationTrigger';
+import BasketCreationTrigger from './BasketCreationTrigger';
 import { useEnhancedUniversalIntelligence, EnhancedContentInput } from '@/lib/intelligence/useEnhancedUniversalIntelligence';
-import { WorkspaceCreationResult } from '@/lib/intelligence/useUniversalIntelligence';
+import { BasketInitializationResult } from '@/lib/intelligence/useUniversalIntelligence';
 import { cn } from '@/lib/utils';
 
-interface UniversalProjectCreatorProps {
-  onProjectCreated?: (basketId: string) => void;
+interface InitialBasketSetupProps {
+  onBasketCreated?: (basketId: string) => void;
   className?: string;
   existingBasketId?: string | null;
   mode?: string | null;
 }
 
-export default function UniversalProjectCreator({
-  onProjectCreated,
+export default function InitialBasketSetup({
+  onBasketCreated,
   className,
   existingBasketId,
   mode
-}: UniversalProjectCreatorProps) {
+}: InitialBasketSetupProps) {
   const router = useRouter();
   const [inputs, setInputs] = useState<EnhancedContentInput[]>([]);
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [creationResult, setCreationResult] = useState<WorkspaceCreationResult | null>(null);
-  
+  const [isCreatingBasket, setIsCreatingBasket] = useState(false);
+  const [creationResult, setCreationResult] = useState<BasketInitializationResult | null>(null);
+
   const {
     processContent,
-    createWorkspace,
+    createInitialBasket,
     isProcessing,
     processingResult,
     error,
@@ -50,45 +50,45 @@ export default function UniversalProjectCreator({
     return () => clearTimeout(timeoutId);
   }, [inputs, processContent]);
 
-  const handleCreateProject = async (modifications?: any) => {
+  const handleCreateBasket = async (modifications?: any) => {
     if (!processingResult) return null;
 
-    setIsCreatingProject(true);
-    
+    setIsCreatingBasket(true);
+
     try {
-      const result = await createWorkspace(
+      const result = await createInitialBasket(
         processingResult.intelligence,
         processingResult.suggested_structure,
         modifications
       );
-      
+
       if (result) {
         setCreationResult(result);
-        
+
         // Redirect after showing success
         setTimeout(() => {
           const basketId = result.basket.id;
-          if (onProjectCreated) {
-            onProjectCreated(basketId);
+          if (onBasketCreated) {
+            onBasketCreated(basketId);
           } else {
             router.push(`/baskets/${basketId}/work`);
           }
         }, 3000);
       }
-      
+
       return result;
     } catch (err) {
-      console.error('Project creation failed:', err);
+      console.error('Basket creation failed:', err);
       return null;
     } finally {
-      setIsCreatingProject(false);
+      setIsCreatingBasket(false);
     }
   };
 
   const handleReset = () => {
     setInputs([]);
     setCreationResult(null);
-    setIsCreatingProject(false);
+    setIsCreatingBasket(false);
     reset();
   };
 
@@ -117,15 +117,15 @@ export default function UniversalProjectCreator({
           <div className="text-center mb-6">
             <h2 className="text-2xl font-bold mb-2">Add Your Content</h2>
             <p className="text-muted-foreground">
-              Share your ideas, documents, or requirements. Our AI will analyze them 
-              and create an intelligent project tailored to your needs.
+              Share your ideas, documents, or requirements. Our AI will analyze them
+              and create a basket tailored to your needs.
             </p>
           </div>
           
           <UniversalContentInput
             inputs={inputs}
             onInputsChange={setInputs}
-            disabled={isCreatingProject}
+            disabled={isCreatingBasket}
           />
         </div>
       )}
@@ -139,11 +139,11 @@ export default function UniversalProjectCreator({
         />
       )}
 
-      {/* Project Creation */}
-      <ProjectCreationTrigger
+      {/* Basket Creation */}
+      <BasketCreationTrigger
         processingResult={processingResult}
-        onCreateProject={handleCreateProject}
-        isCreating={isCreatingProject}
+        onCreateBasket={handleCreateBasket}
+        isCreating={isCreatingBasket}
         creationResult={creationResult}
         disabled={isProcessing || !!error}
       />
@@ -152,7 +152,7 @@ export default function UniversalProjectCreator({
       {!creationResult && (
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
-            💡 Tip: Add multiple sources (files, text, URLs) for richer workspace intelligence
+            💡 Tip: Add multiple sources (files, text, URLs) for richer basket intelligence
           </p>
         </div>
       )}
@@ -164,7 +164,7 @@ export default function UniversalProjectCreator({
             onClick={handleReset}
             className="text-sm text-muted-foreground hover:text-foreground underline"
           >
-            Create another workspace
+            Create another basket
           </button>
         </div>
       )}

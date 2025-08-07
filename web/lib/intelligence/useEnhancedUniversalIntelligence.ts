@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/useAuth';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { processContent, DataTypeIdentifier, ProcessingResult } from '@/lib/processors';
-import { ContentInput, IntelligenceResult, ProcessingResponse, WorkspaceCreationResult } from './useUniversalIntelligence';
+import { ContentInput, IntelligenceResult, ProcessingResponse, BasketInitializationResult } from './useUniversalIntelligence';
 
 export interface EnhancedContentInput extends ContentInput {
   // Add processor-specific metadata
@@ -74,7 +74,7 @@ export function useEnhancedUniversalIntelligence() {
       // Step 2: Convert processor results to legacy format for API compatibility
       const legacyInputs = await convertToLegacyFormat(inputs, processorResult.results!);
 
-      // Step 3: Send to existing intelligence API for theme analysis and workspace suggestions
+      // Step 3: Send to existing intelligence API for theme analysis and basket suggestions
       const response = await fetchWithToken('/api/intelligence/process-content', {
         method: 'POST',
         headers: {
@@ -115,25 +115,25 @@ export function useEnhancedUniversalIntelligence() {
     }
   };
 
-  const createWorkspace = async (
+  const createInitialBasket = async (
     intelligence: IntelligenceResult,
     suggested_structure: {
       documents: any[];
       organization: any;
     },
     user_modifications?: {
-      workspace_name?: string;
+      basket_name?: string;
       selected_documents?: string[];
       additional_context?: string;
     }
-  ): Promise<WorkspaceCreationResult | null> => {
+  ): Promise<BasketInitializationResult | null> => {
     if (!user) return null;
 
     setIsProcessing(true);
     setError(null);
 
     try {
-      const response = await fetchWithToken('/api/intelligence/create-workspace', {
+      const response = await fetchWithToken('/api/intelligence/initialize', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -149,16 +149,16 @@ export function useEnhancedUniversalIntelligence() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create workspace');
+        throw new Error(errorData.error || 'Failed to initialize basket');
       }
 
       const { result } = await response.json();
-      return result as WorkspaceCreationResult;
+      return result as BasketInitializationResult;
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
-      console.error('Enhanced workspace creation error:', err);
+      console.error('Enhanced basket initialization error:', err);
       return null;
     } finally {
       setIsProcessing(false);
@@ -174,7 +174,7 @@ export function useEnhancedUniversalIntelligence() {
 
   return {
     processContent,
-    createWorkspace,
+    createInitialBasket,
     reset,
     isProcessing,
     processingResult,
@@ -185,7 +185,7 @@ export function useEnhancedUniversalIntelligence() {
     themes: processingResult?.intelligence.themes || [],
     confidence: processingResult?.intelligence.confidence_score || 0,
     suggestedDocuments: processingResult?.suggested_structure.documents || [],
-    workspaceName: processingResult?.suggested_structure.organization.suggested_name || '',
+    basketName: processingResult?.suggested_structure.organization.suggested_name || '',
     // Enhanced properties
     processorMetadata: processingResult?.processor_metadata,
     cohesiveAnalysis: processingResult?.cohesive_analysis
