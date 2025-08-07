@@ -82,7 +82,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         wsConnected: changeManager.isConnected
       };
       
-      console.log('🔍 SUBSTRATE STATE:', substrateState);
+      // console.log('🔍 SUBSTRATE STATE:', substrateState);
     }
   }, [currentIntelligence, pendingChanges.length, changeManager.isConnected]);
 
@@ -292,12 +292,12 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   // Transform intelligence data for display (fallback to safe defaults)
   const transformedData = currentIntelligence ? transformToConsciousnessData(currentIntelligence) : getDefaultTransformedData();
   
-  // Debug: log what data we're actually getting
-  console.log('🔍 ConsciousnessDashboard Debug:', {
-    hasCurrentIntelligence: !!currentIntelligence,
-    personalizedInsight: transformedData.narrative.personalizedInsight?.substring(0, 100),
-    intelligenceSource: currentIntelligence ? 'substrate' : 'default'
-  });
+  // Debug: log what data we're actually getting (disabled for production)
+  // console.log('🔍 ConsciousnessDashboard Debug:', {
+  //   hasCurrentIntelligence: !!currentIntelligence,
+  //   personalizedInsight: transformedData.narrative.personalizedInsight?.substring(0, 100),
+  //   intelligenceSource: currentIntelligence ? 'substrate' : 'default'
+  // });
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -406,7 +406,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
 
       {/* Yarnnn Insight Approval - FORCED OPEN FOR TESTING */}
       <YarnnnInsightApproval
-        isOpen={true} // 🚨 FORCE OPEN FOR TESTING
+        isOpen={pendingChanges.length > 0 || changeManager.pendingChanges.length > 0}
         
         // Universal changes support
         pendingChanges={changeManager.pendingChanges}
