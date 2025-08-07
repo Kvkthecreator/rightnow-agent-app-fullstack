@@ -370,7 +370,7 @@ export async function POST(
       })),
       rawDumps: rawDumps.map(dump => ({
         id: dump.id,
-        text_dump: dump.content || '',
+        body_md: dump.content || '',
         created_at: dump.created_at
       })),
       basketId

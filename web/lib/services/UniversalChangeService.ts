@@ -727,11 +727,12 @@ export class UniversalChangeService {
       .from('raw_dumps')
       .insert({
         basket_id: change.basketId,
-        text_dump: consolidatedContent,
-        file_urls: data.content
+        body_md: consolidatedContent,
+        file_refs: data.content
           .filter(item => item.metadata?.fileObject)
           .map(item => item.metadata!.filename)
-          .filter(Boolean)
+          .filter(Boolean),
+        workspace_id: change.workspaceId
       })
       .select()
       .single();

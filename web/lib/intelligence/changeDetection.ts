@@ -36,7 +36,7 @@ export interface IntelligenceEvent {
  */
 export async function generateContentHash(basketData: {
   documents: Array<{ id: string; content_raw: string; updated_at: string }>;
-  rawDumps: Array<{ id: string; text_dump: string; created_at: string }>;
+  rawDumps: Array<{ id: string; body_md: string; created_at: string }>;
   basketId: string;
 }): Promise<ContentHash> {
   // Sort documents by ID for consistent hashing
@@ -48,7 +48,7 @@ export async function generateContentHash(basketData: {
   // Sort raw dumps by creation time
   const sortedDumps = basketData.rawDumps
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
-    .map(dump => `${dump.id}:${dump.text_dump}:${dump.created_at}`)
+    .map(dump => `${dump.id}:${dump.body_md}:${dump.created_at}`)
     .join('|');
 
   // Use a simple hash function that works in both browser and Node.js

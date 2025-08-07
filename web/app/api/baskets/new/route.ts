@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       name = "Untitled Basket",
       status = "active", 
       tags = [],
-      text_dump = ""
+      body_md = ""
     } = body;
 
     console.log("[/api/baskets/new] Creating basket:", { name, status, tags, userId: user.id, workspaceId: workspace.id });
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         workspace_id: workspace.id,
         user_id: user.id,
         tags,
-        origin_template: text_dump || undefined
+        origin_template: body_md || undefined
       })
       .select()
       .single();
