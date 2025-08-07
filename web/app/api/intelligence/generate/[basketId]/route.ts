@@ -175,7 +175,7 @@ export async function POST(
           
         supabase
           .from('raw_dumps')
-          .select('id, content, source_type, word_count, created_at')
+          .select('id, body_md, source_type, word_count, created_at')
           .eq('basket_id', basketId)
           .order('created_at', { ascending: false })
           .limit(20)
@@ -347,7 +347,7 @@ export async function POST(
         .eq('workspace_id', workspaceId),
       supabase
         .from('raw_dumps')
-        .select('id, content, created_at')
+        .select('id, body_md, created_at')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspaceId),
       supabase
@@ -370,7 +370,7 @@ export async function POST(
       })),
       rawDumps: rawDumps.map(dump => ({
         id: dump.id,
-        body_md: dump.content || '',
+        body_md: dump.body_md || '',
         created_at: dump.created_at
       })),
       basketId
