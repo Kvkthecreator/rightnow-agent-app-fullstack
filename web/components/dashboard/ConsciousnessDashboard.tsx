@@ -9,6 +9,7 @@ import { ContentInventorySection } from '@/components/detailed-view/ContentInven
 import { ExecutiveSummary } from './ExecutiveSummary';
 import { DashboardNextSteps } from './DashboardNextSteps';
 import { YarnnnInsightApproval } from '@/components/thinking/YarnnnInsightApproval';
+import { YarnnnThinkingPartner } from '@/components/thinking/YarnnnThinkingPartner';
 import { FloatingCompanion } from '@/components/thinking/FloatingCompanion';
 import { SimpleConnectionStatus, SimpleToast } from '@/components/ui/SimpleConnectionStatus';
 import { YarnnnMemorySubstrate } from '@/components/thinking/YarnnnMemorySubstrate';
@@ -379,6 +380,15 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
               />
             );
           })()}
+          
+          {/* Thinking Partner - Context-Aware Intelligence Generation */}
+          <div className="space-y-6">
+            <YarnnnThinkingPartner
+              basketId={basketId}
+              className="max-w-2xl"
+              onCapture={handleThoughtCapture}
+            />
+          </div>
         </div>
       </div>
 
