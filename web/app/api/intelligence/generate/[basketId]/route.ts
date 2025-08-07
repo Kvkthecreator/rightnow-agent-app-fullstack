@@ -7,11 +7,14 @@ import {
   detectIntelligenceChanges, 
   filterSignificantChanges 
 } from "@/lib/intelligence/changeDetection";
+import type { SubstrateIntelligence } from "@/lib/substrate/types";
+import type { IntelligenceChange } from "@/lib/intelligence/changeDetection";
 import { 
   storeIntelligenceEvent, 
   getLastApprovedIntelligence, 
   hasPendingIntelligenceChanges,
-  cleanupOldIntelligenceEvents 
+  cleanupOldIntelligenceEvents,
+  getIntelligenceEvents 
 } from "@/lib/intelligence/intelligenceEvents";
 
 // Rate limiting for background generation
@@ -335,131 +338,171 @@ export async function POST(
     }
 
     // ✅ CANON: Legacy intelligence generation (existing flow)
-    // Get the substrate data
-    const { data: documents, error: documentsError } = await supabase
-      .from('documents')
-      .select(`
-        id,
-        title,
-        content,
-        type,
-        status,
-        created_at,
-        updated_at
-      `)
-      .eq('basket_id', basketId)
-      .eq('workspace_id', workspaceId);
+    // Fetch current content for hashing and analysis
+    const [documentsResult, rawDumpsResult, contextItemsResult] = await Promise.all([
+      supabase
+        .from('documents')
+        .select('id, content, updated_at')
+        .eq('basket_id', basketId)
+        .eq('workspace_id', workspaceId),
+      supabase
+        .from('raw_dumps')
+        .select('id, content, created_at')
+        .eq('basket_id', basketId)
+        .eq('workspace_id', workspaceId),
+      supabase
+        .from('context_items')
+        .select('id, content, type, metadata, created_at')
+        .eq('basket_id', basketId)
+        .eq('workspace_id', workspaceId)
+    ]);
 
-    if (documentsError) {
-      console.error('Error fetching documents:', documentsError);
-      return NextResponse.json(
-        { error: "Failed to fetch documents" },
-        { status: 500 }
-      );
-    }
-
-    const { data: contextItems, error: contextError } = await supabase
-      .from('context_items')
-      .select(`
-        id,
-        content,
-        type,
-        metadata,
-        created_at
-      `)
-      .eq('basket_id', basketId)
-      .eq('workspace_id', workspaceId);
-
-    if (contextError) {
-      console.error('Error fetching context items:', contextError);
-      return NextResponse.json(
-        { error: "Failed to fetch context items" },
-        { status: 500 }
-      );
-    }
+    const documents = documentsResult.data || [];
+    const rawDumps = rawDumpsResult.data || [];
+    const contextItems = contextItemsResult.data || [];
 
     // Generate content hash for change detection
-    // Map data structures to match generateContentHash requirements
-    const hashableData = {
-      documents: (documents || []).map(doc => ({
+    const currentHash = await generateContentHash({
+      documents: documents.map(doc => ({
         id: doc.id,
         content_raw: doc.content || '',
         updated_at: doc.updated_at
       })),
-      rawDumps: (contextItems || []).map(item => ({
-        id: item.id,
-        text_dump: item.content || '',
-        created_at: item.created_at
+      rawDumps: rawDumps.map(dump => ({
+        id: dump.id,
+        text_dump: dump.content || '',
+        created_at: dump.created_at
       })),
       basketId
-    };
-    
-    const currentHash = await generateContentHash(hashableData);
-    
-    // Get last approved intelligence to compare
+    });
+
+    // Get last approved intelligence for comparison
     const lastApproved = await getLastApprovedIntelligence(supabase, basketId);
-    const lastHash = lastApproved?.content_hash;
     
-    // If content hasn't changed significantly, check if we should generate anyway
-    if (lastHash === currentHash && origin !== 'manual') {
-      return NextResponse.json({
-        noChangesDetected: true,
-        message: "No significant changes detected since last intelligence generation.",
-        lastGenerated: lastApproved?.created_at
+    // Check if content has changed by comparing hashes
+    let hasContentChanged = true;
+    if (lastApproved) {
+      // Get the last event to retrieve the stored content hash
+      const lastEvent = await getIntelligenceEvents(supabase, basketId, { 
+        kind: 'intelligence_generation', 
+        limit: 1 
       });
-    }
-
-    // Detect and filter significant changes
-    const changes = detectIntelligenceChanges(currentContent, lastApproved?.substrate_data);
-    const significantChanges = filterSignificantChanges(changes);
-    
-    if (significantChanges.length === 0 && origin !== 'manual') {
-      return NextResponse.json({
-        noSignificantChanges: true,
-        message: "Changes detected but not significant enough for intelligence generation.",
-        changes: changes.map(c => ({ type: c.type, count: c.items.length }))
-      });
-    }
-
-    // Generate intelligence based on current substrate
-    // This would typically call your AI/ML service
-    // For now, we'll create structured intelligence based on content analysis
-    
-    const intelligence = {
-      id: `intelligence_${Date.now()}`,
-      basket_id: basketId,
-      type: 'comprehensive',
-      insights: [],
-      recommendations: [],
-      contextAlerts: [],
-      metadata: {
-        contentHash: currentHash,
-        changesDetected: significantChanges.length,
-        generatedAt: new Date().toISOString(),
-        origin
+      
+      if (lastEvent.length > 0 && lastEvent[0].contentHash) {
+        const lastHash = lastEvent[0].contentHash;
+        hasContentChanged = currentHash.basketHash !== lastHash.basketHash;
+        
+        if (!hasContentChanged && origin !== 'manual') {
+          return NextResponse.json({
+            success: true,
+            message: "No significant content changes detected. Skipping intelligence generation.",
+            lastHash: lastHash.basketHash,
+            currentHash: currentHash.basketHash
+          });
+        }
       }
-    };
+    }
+
+    // Generate new intelligence using existing endpoint
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace('yarnnn.com', 'www.yarnnn.com') || 
+                    'https://www.yarnnn.com';
+    const intelligenceUrl = `${baseUrl}/api/intelligence/basket/${basketId}/dashboard`;
+    
+    console.log('🧠 Fetching intelligence from:', intelligenceUrl);
+    
+    const intelligenceResponse = await fetch(
+      intelligenceUrl,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': request.headers.get('authorization') || '',
+          'Cookie': request.headers.get('cookie') || '',
+        }
+      }
+    );
+
+    if (!intelligenceResponse.ok) {
+      const errorText = await intelligenceResponse.text().catch(() => 'No response body');
+      console.error('❗ Intelligence API error:', {
+        status: intelligenceResponse.status,
+        statusText: intelligenceResponse.statusText,
+        url: intelligenceUrl,
+        response: errorText
+      });
+      throw new Error(`Failed to generate intelligence: ${intelligenceResponse.status} ${intelligenceResponse.statusText}`);
+    }
+
+    const intelligenceData = await intelligenceResponse.json();
+
+    // Transform to substrate format
+    const substrateUrl = `${baseUrl}/api/substrate/basket/${basketId}`;
+    console.log('🔄 Fetching substrate from:', substrateUrl);
+    
+    const substrateResponse = await fetch(
+      substrateUrl,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': request.headers.get('authorization') || '',
+          'Cookie': request.headers.get('cookie') || '',
+        }
+      }
+    );
+
+    if (!substrateResponse.ok) {
+      const errorText = await substrateResponse.text().catch(() => 'No response body');
+      console.error('❗ Substrate API error:', {
+        status: substrateResponse.status,
+        statusText: substrateResponse.statusText,
+        url: substrateUrl,
+        response: errorText
+      });
+      throw new Error(`Failed to transform intelligence to substrate format: ${substrateResponse.status} ${substrateResponse.statusText}`);
+    }
+
+    const newIntelligence: SubstrateIntelligence = await substrateResponse.json();
+
+    // Detect changes between last approved and new intelligence
+    let changes: IntelligenceChange[] = [];
+    if (lastApproved) {
+      changes = detectIntelligenceChanges(lastApproved, newIntelligence);
+      changes = filterSignificantChanges(changes, 'moderate');
+      
+      if (changes.length === 0 && origin !== 'manual') {
+        return NextResponse.json({
+          success: true,
+          message: "No significant intelligence changes detected.",
+          intelligence: lastApproved
+        });
+      }
+    }
 
     // Store the intelligence event
-    const eventData = await storeIntelligenceEvent(
-      supabase,
+    const intelligenceEvent = await storeIntelligenceEvent(supabase, {
       basketId,
       workspaceId,
-      user.id,
-      intelligence,
-      currentContent,
-      currentHash
-    );
+      kind: 'intelligence_generation',
+      intelligence: newIntelligence,
+      contentHash: currentHash,
+      changes,
+      approvalState: 'pending',
+      approvedSections: [],
+      actorId: user.id,
+      origin
+    });
 
     // Cleanup old intelligence events
     await cleanupOldIntelligenceEvents(supabase, basketId);
 
     return NextResponse.json({
       success: true,
-      intelligence,
-      event: eventData,
-      changes: significantChanges,
-      message: "Intelligence generated successfully"
+      intelligence: newIntelligence,
+      event: intelligenceEvent,
+      changes,
+      contentHash: currentHash,
+      message: changes.length > 0 
+        ? `Generated intelligence with ${changes.length} significant changes`
+        : "Intelligence generated successfully"
     });
 
   } catch (error) {

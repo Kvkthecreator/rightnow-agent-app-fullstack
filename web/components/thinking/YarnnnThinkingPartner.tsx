@@ -33,7 +33,9 @@ export function YarnnnThinkingPartner({
   
   // Track pending changes specific to thinking partner
   const pendingIntelligence = changeManager.pendingChanges?.filter(
-    change => change.metadata?.source === 'thinking_partner'
+    change => change.type === 'intelligence_generate' || 
+              change.type === 'intelligence_approve' ||
+              change.type === 'intelligence_reject'
   ) || [];
 
   // Clear feedback after delay
@@ -55,7 +57,6 @@ export function YarnnnThinkingPartner({
         return "I can identify patterns in your research evolution and highlight key turning points.";
       case 'detailed-view':
         return "I can provide technical analysis of your substrate health and memory patterns.";
-      case 'work':
       default:
         return "Ask me about patterns, insights, or connections in your research. I see what you see.";
     }
@@ -75,11 +76,10 @@ export function YarnnnThinkingPartner({
       // Build comprehensive context package
       const contextPackage = {
         page: context?.page || 'unknown',
-        documentId: context?.documentId,
-        capabilities: context?.capabilities || [],
         userActivity: context?.userActivity || {},
         confidence: context?.confidence || 0,
-        timestamp: new Date().toISOString(),
+        content: context?.content || {},
+        timestamp: context?.timestamp || Date.now(),
         visibleContent: {
           route: typeof window !== 'undefined' ? window.location.pathname : '',
           search: typeof window !== 'undefined' ? window.location.search : '',
@@ -266,7 +266,7 @@ export function YarnnnThinkingPartner({
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             <span className="text-xs text-gray-600">
               Context confidence: {Math.round(context.confidence * 100)}%
-              {context.documentId && ` • Analyzing document`}
+              {context.page === 'document' && ` • Analyzing document`}
               {context.userActivity?.recentEdits && ` • Tracking ${context.userActivity.recentEdits.length} recent edits`}
             </span>
           </div>
