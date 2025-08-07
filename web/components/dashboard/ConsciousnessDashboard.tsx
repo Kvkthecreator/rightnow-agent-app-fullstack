@@ -10,6 +10,8 @@ import { ExecutiveSummary } from './ExecutiveSummary';
 import { DashboardNextSteps } from './DashboardNextSteps';
 import { YarnnnInsightApproval } from '@/components/thinking/YarnnnInsightApproval';
 import { YarnnnThinkingPartner } from '@/components/thinking/YarnnnThinkingPartner';
+import { PerfectIntegrationTest } from '@/components/test/PerfectIntegrationTest';
+import { IntegrationDebugPanel } from '@/components/debug/IntegrationDebugPanel';
 // Removed FloatingCompanion - using only YarnnnThinkingPartner
 import { SimpleConnectionStatus, SimpleToast } from '@/components/ui/SimpleConnectionStatus';
 import { YarnnnMemorySubstrate } from '@/components/thinking/YarnnnMemorySubstrate';
@@ -135,13 +137,24 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
         formData.append('basketId', basketId);
         formData.append('files', capturedContent.file);
         
-        const response = await fetch('/api/substrate/add-context', {
-          method: 'POST',
-          body: formData
+        console.log('✅ Step 1: File upload via Universal Changes pipeline');
+        
+        // Use Universal Changes pipeline for file uploads
+        await changeManager.submitChange('context_add', {
+          content: [{
+            type: 'file',
+            content: '', // File content will be processed by the service
+            metadata: { 
+              file: capturedContent.file,
+              basketId,
+              source: 'dashboard_file_upload'
+            }
+          }],
+          triggerIntelligenceRefresh: true
         });
         
-        if (!response.ok) throw new Error('Failed to upload file');
-        showSuccess('Material added', 'I\'ll learn from this and incorporate it into our conversations');
+        console.log('✅ Step 2: File upload submitted through pipeline');
+        showSuccess('Material added', 'Processing through Universal Changes pipeline');
         
       } else if (capturedContent.type === 'voice') {
         // Handle voice input
@@ -375,6 +388,11 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
             );
           })()}
           
+          {/* PERFECT INTEGRATION TEST - TEMPORARY FOR DEBUGGING */}
+          <div className="space-y-6">
+            <PerfectIntegrationTest basketId={basketId} />
+          </div>
+
           {/* Thinking Partner - Context-Aware Intelligence Generation */}
           <div className="space-y-6">
             <YarnnnThinkingPartner
@@ -455,6 +473,9 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           onDismiss={() => setToast(null)}
         />
       )}
+
+      {/* TEMPORARY DEBUG PANEL FOR INTEGRATION TESTING */}
+      <IntegrationDebugPanel />
     </div>
   );
 }

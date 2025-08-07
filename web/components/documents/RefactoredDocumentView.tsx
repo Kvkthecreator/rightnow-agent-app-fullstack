@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { UnifiedDocumentEditor } from './UnifiedDocumentEditor';
-import { FloatingCompanion } from '@/components/thinking/FloatingCompanion';
+import { YarnnnThinkingPartner } from '@/components/thinking/YarnnnThinkingPartner';
 import { YarnnnInsightApproval } from '@/components/thinking/YarnnnInsightApproval';
 import { SimpleConnectionStatus, SimpleToast } from '@/components/ui/SimpleConnectionStatus';
 import { useBasketDocuments } from '@/lib/hooks/useBasketDocuments';
@@ -100,13 +100,25 @@ export function RefactoredDocumentView({
         formData.append('documentId', documentId);
         formData.append('files', capturedContent.file);
         
-        const response = await fetch('/api/substrate/add-context', {
-          method: 'POST',
-          body: formData
+        console.log('✅ Step 1: Document file upload via Universal Changes pipeline');
+        
+        // Use Universal Changes pipeline for file uploads
+        await changeManager.submitChange('context_add', {
+          content: [{
+            type: 'file',
+            content: '', // File content will be processed by the service
+            metadata: { 
+              file: capturedContent.file,
+              basketId,
+              documentId,
+              source: 'document_file_upload'
+            }
+          }],
+          triggerIntelligenceRefresh: true
         });
         
-        if (!response.ok) throw new Error('Failed to upload file');
-        setToast({ message: 'File added to your research context', type: 'success' });
+        console.log('✅ Step 2: Document file upload submitted through pipeline');
+        setToast({ message: 'File processed through Universal Changes pipeline', type: 'success' });
         setTimeout(() => setToast(null), 4000);
         
       } else if (capturedContent.type === 'generate') {
@@ -195,16 +207,14 @@ export function RefactoredDocumentView({
         </div>
       </div>
 
-      {/* Document-Aware FloatingCompanion */}
-      <FloatingCompanion
-        basketId={basketId}
-        onCapture={handleDocumentThoughtCapture}
-        isProcessing={changeManager.isProcessing}
-        hasPendingInsights={changeManager.pendingChanges.length > 0}
-        onCheckPendingInsights={() => {
-          // Insights will show in approval modal
-        }}
-      />
+      {/* Document-Aware Thinking Partner */}
+      <div className="fixed bottom-6 left-6 max-w-md">
+        <YarnnnThinkingPartner
+          basketId={basketId}
+          onCapture={handleDocumentThoughtCapture}
+          className="bg-white shadow-lg rounded-lg"
+        />
+      </div>
 
       {/* Document-Specific Insight Approval */}
       <YarnnnInsightApproval
