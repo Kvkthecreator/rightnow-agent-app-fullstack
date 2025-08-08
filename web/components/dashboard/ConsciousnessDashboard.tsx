@@ -86,6 +86,15 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     }
   }, [currentIntelligence, pendingChanges.length, changeManager.isConnected]);
 
+  // Debug pending changes for modal
+  useEffect(() => {
+    console.log('🎯 Modal Debug:', { 
+      pendingCount: changeManager.pendingChanges.length,
+      isOpen: changeManager.pendingChanges.length > 0,
+      changes: changeManager.pendingChanges
+    });
+  }, [changeManager.pendingChanges]);
+
   // Handle context capture from Yarnnn thinking partner
   const handleThoughtCapture = async (capturedContent: any) => {
     try {
@@ -405,11 +414,6 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
       </div>
 
       {/* Yarnnn Insight Approval - FORCED OPEN FOR TESTING */}
-      {console.log('🎯 Modal Debug:', { 
-        pendingCount: changeManager.pendingChanges.length,
-        isOpen: changeManager.pendingChanges.length > 0,
-        changes: changeManager.pendingChanges
-      })}
       <YarnnnInsightApproval
         isOpen={changeManager.pendingChanges.length > 0}
         
