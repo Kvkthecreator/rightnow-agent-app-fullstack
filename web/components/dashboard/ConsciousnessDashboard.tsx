@@ -422,6 +422,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           <div className="space-y-6">
             <YarnnnThinkingPartner
               basketId={basketId}
+              workspaceId="default"
               className="max-w-2xl"
               onCapture={handleThoughtCapture}
             />

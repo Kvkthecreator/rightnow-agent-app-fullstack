@@ -207,10 +207,12 @@ export function RefactoredDocumentView({
         </div>
       </div>
 
-      {/* Document-Aware Thinking Partner */}
+      {/* Substrate-Aware Thinking Partner */}
       <div className="fixed bottom-6 left-6 max-w-md">
         <YarnnnThinkingPartner
           basketId={basketId}
+          workspaceId="default"
+          mode="substrate"
           onCapture={handleDocumentThoughtCapture}
           className="bg-white shadow-lg rounded-lg"
         />

@@ -4,23 +4,31 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { AgentAttribution } from '@/components/ui/AgentAttribution';
-import { Send, Sparkles, Brain, Loader2, AlertCircle, CheckCircle2, X, Cpu } from 'lucide-react';
+import { Send, Sparkles, Brain, Loader2, AlertCircle, CheckCircle2, X, Cpu, Paperclip } from 'lucide-react';
 import { usePageContext } from '@/lib/intelligence/pageContextDetection';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
+import { useSubstrate } from '@/lib/substrate/useSubstrate';
+import { FileFragmentHandler } from '@/lib/substrate/FileFragmentHandler';
+import { getFragmentType, type Fragment } from '@/lib/substrate/FragmentTypes';
 import { cn } from '@/lib/utils';
 
 interface YarnnnThinkingPartnerProps {
   basketId: string;
+  workspaceId: string;
   className?: string;
+  mode?: 'substrate' | 'intelligence'; // substrate = unified input
   onCapture?: (params: any) => void; // Keep for backward compatibility
 }
 
 export function YarnnnThinkingPartner({ 
   basketId,
+  workspaceId,
   className = '',
+  mode = 'substrate',
   onCapture
 }: YarnnnThinkingPartnerProps) {
   const [input, setInput] = useState('');
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [processingStep, setProcessingStep] = useState<string>('');
   const [lastGenerationTime, setLastGenerationTime] = useState<Date | null>(null);
@@ -32,6 +40,10 @@ export function YarnnnThinkingPartner({
   } | null>(null);
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Substrate mode - unified input
+  const substrate = useSubstrate(basketId, workspaceId);
   
   // ✅ CANON: Context awareness - knows where user is and what they see
   const context = usePageContext(basketId);
@@ -54,9 +66,13 @@ export function YarnnnThinkingPartner({
     }
   }, [feedback]);
 
-  // ✅ CANON: Context-aware prompt based on current location
+  // Context-aware prompt based on mode and location
   const getContextualPrompt = useCallback(() => {
     if (!context) return "Loading context...";
+    
+    if (mode === 'substrate') {
+      return "Share your thoughts, paste content, or add files...";
+    }
     
     switch (context.page) {
       case 'document':
@@ -68,7 +84,7 @@ export function YarnnnThinkingPartner({
       default:
         return "Ask me about patterns, insights, or connections in your research. I see what you see.";
     }
-  }, [context?.page]);
+  }, [context?.page, mode]);
 
   // ✅ CANON: Generate intelligence WITH full context
   const generateIntelligence = useCallback(async () => {
@@ -187,13 +203,126 @@ export function YarnnnThinkingPartner({
     }
   }, [input, basketId, context, changeManager]);
 
+  // SUBSTRATE MODE: Handle file attachments
+  const handleAddAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => {
+      const type = getFragmentType(file);
+      return type !== null;
+    });
+    
+    setAttachments(prev => [...prev, ...validFiles]);
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // SUBSTRATE MODE: Submit unified context
+  const submitSubstrate = useCallback(async () => {
+    if (!input.trim() && attachments.length === 0) {
+      setFeedback({ message: 'Please enter text or add files', type: 'error' });
+      return;
+    }
+    
+    setIsGenerating(true);
+    setFeedback(null);
+    setProcessingStep('Creating unified context...');
+    
+    try {
+      const fragments: Fragment[] = [];
+      let position = 0;
+      
+      // Add text fragment if present
+      if (input.trim()) {
+        fragments.push({
+          id: `fragment-${Date.now()}-${position}`,
+          type: input.length > 1000 ? 'text-dump' : 'text',
+          content: input,
+          position: position++,
+          metadata: {
+            processing: 'complete'
+          }
+        });
+      }
+      
+      // Add file fragments
+      for (const file of attachments) {
+        fragments.push({
+          id: `fragment-${Date.now()}-${position}`,
+          type: getFragmentType(file),
+          content: file,
+          position: position++,
+          metadata: {
+            filename: file.name,
+            mimeType: file.type,
+            size: file.size,
+            processing: 'pending'
+          }
+        });
+      }
+      
+      setProcessingStep('Processing files...');
+      
+      // Process fragments
+      const processedFragments = await FileFragmentHandler.processFragments(
+        fragments,
+        (status, fragmentIndex) => {
+          setProcessingStep(`[${fragmentIndex + 1}/${fragments.length}] ${status}`);
+        }
+      );
+      
+      setProcessingStep('Adding to substrate...');
+      
+      // Submit to substrate
+      await substrate.addRawDump(processedFragments);
+      
+      // Clear inputs
+      setInput('');
+      setAttachments([]);
+      
+      setFeedback({
+        message: `Added ${processedFragments.length} fragment${processedFragments.length !== 1 ? 's' : ''} to substrate`,
+        type: 'success'
+      });
+      
+    } catch (error) {
+      console.error('Failed to submit substrate:', error);
+      setFeedback({
+        message: error instanceof Error ? error.message : 'Failed to add to substrate',
+        type: 'error'
+      });
+    } finally {
+      setIsGenerating(false);
+      setProcessingStep('');
+    }
+  }, [input, attachments, substrate]);
+
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
+      if (mode === 'substrate') {
+        submitSubstrate();
+      } else {
+        generateIntelligence();
+      }
+    }
+  }, [mode, submitSubstrate, generateIntelligence]);
+
+  // Primary submit handler
+  const handleSubmit = useCallback(() => {
+    if (mode === 'substrate') {
+      submitSubstrate();
+    } else {
       generateIntelligence();
     }
-  }, [generateIntelligence]);
+  }, [mode, submitSubstrate, generateIntelligence]);
 
   // Auto-focus on mount
   useEffect(() => {
@@ -201,6 +330,8 @@ export function YarnnnThinkingPartner({
       textareaRef.current.focus();
     }
   }, []);
+
+  const hasContent = input.trim() || attachments.length > 0;
 
   // Backward compatibility: if parent provides onCapture, call it
   useEffect(() => {
@@ -283,35 +414,96 @@ export function YarnnnThinkingPartner({
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about patterns, request analysis, or explore connections..."
+            placeholder={mode === 'substrate' ? getContextualPrompt() : "Ask about patterns, request analysis, or explore connections..."}
             className="w-full min-h-[120px] p-3 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             disabled={isGenerating}
             onKeyDown={handleKeyDown}
           />
           
+          {/* File attachments (substrate mode only) */}
+          {mode === 'substrate' && attachments.length > 0 && (
+            <div className="space-y-2 mt-3">
+              {attachments.map((file, index) => (
+                <div 
+                  key={`${file.name}-${index}`}
+                  className="flex items-center gap-2 p-2 bg-gray-50 rounded-md text-sm"
+                >
+                  {getFragmentType(file) === 'pdf' && <div className="w-4 h-4 text-red-600">📄</div>}
+                  {getFragmentType(file) === 'image' && <div className="w-4 h-4 text-blue-600">🖼️</div>}
+                  {getFragmentType(file) === 'text-dump' && <div className="w-4 h-4 text-green-600">📝</div>}
+                  <span className="flex-1 truncate">{file.name}</span>
+                  <span className="text-xs text-gray-500">
+                    {(file.size / 1024).toFixed(1)}KB
+                  </span>
+                  <button
+                    onClick={() => handleRemoveAttachment(index)}
+                    className="text-gray-400 hover:text-red-600 transition-colors"
+                    disabled={isGenerating}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span>Press</span>
-              <kbd className="px-1.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-600 rounded border">
-                {typeof navigator !== 'undefined' && navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+Enter
-              </kbd>
-              <span>to send</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span>Press</span>
+                <kbd className="px-1.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-600 rounded border">
+                  {typeof navigator !== 'undefined' && navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+Enter
+                </kbd>
+                <span>to send</span>
+              </div>
+              
+              {/* File upload (substrate mode only) */}
+              {mode === 'substrate' && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".txt,.pdf,.png,.jpg,.jpeg"
+                    onChange={handleAddAttachment}
+                    className="hidden"
+                    id="thinking-partner-file-input"
+                    disabled={isGenerating}
+                  />
+                  <label 
+                    htmlFor="thinking-partner-file-input"
+                    className="flex items-center gap-1 text-xs text-gray-600 hover:text-purple-600 cursor-pointer transition-colors"
+                  >
+                    <Paperclip className="w-3 h-3" />
+                    Attach
+                  </label>
+                </>
+              )}
             </div>
             
             <Button
-              onClick={generateIntelligence}
-              disabled={!input.trim() || isGenerating}
+              onClick={handleSubmit}
+              disabled={mode === 'substrate' ? !hasContent || isGenerating : !input.trim() || isGenerating}
               className="min-w-[140px]"
             >
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Thinking...
+                  {mode === 'substrate' ? 'Processing...' : 'Thinking...'}
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Insights
+                  {mode === 'substrate' ? (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Add to Research
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Generate Insights
+                    </>
+                  )}
                 </>
               )}
             </Button>

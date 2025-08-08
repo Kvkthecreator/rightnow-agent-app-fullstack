@@ -109,17 +109,6 @@ export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps)
         {/* Left Panel - Substrate Explorer */}
         <div className="w-1/3 border-r bg-white p-6">
           <div className="space-y-6">
-            {/* Composite Raw Dump Input */}
-            <div>
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                ➕ Add to Research
-                <span className="text-xs font-normal text-gray-500">(unified context)</span>
-              </h3>
-              <CompositeRawDumpInput 
-                onSubmit={handleSubmitComposite}
-                className="border-0 shadow-sm"
-              />
-            </div>
 
             {/* Substrate Types */}
             {[
@@ -165,12 +154,10 @@ export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps)
               }
             ].map(({ key, label, icon, color, description, helpText }) => (
               <div key={key} className={`border-l-4 border-${color}-200 rounded-lg p-4 bg-${color}-50`}>
-                <h3 className="text-sm font-semibold mb-1 flex items-center gap-2">
+                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
                   <span>{icon}</span>
                   {label} ({(substrate.substrate as any)[key].length})
                 </h3>
-                <p className="text-xs text-gray-600 mb-2">{description}</p>
-                <p className="text-xs text-gray-500 italic mb-3">{helpText}</p>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {(substrate.substrate as any)[key].length === 0 && (
                     <div className="text-center text-gray-500 text-sm py-4">
@@ -186,35 +173,14 @@ export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps)
         {/* Center Panel - Composition Area */}
         <div className="flex-1 p-6">
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Substrate Overview</h2>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { label: 'RAW DUMPS', count: substrate.substrate.rawDumps.length, icon: '📄' },
-                { label: 'BLOCKS', count: substrate.substrate.blocks.length, icon: '🧱' },
-                { label: 'CONTEXT ITEMS', count: substrate.substrate.contextItems.length, icon: '🔗' },
-                { label: 'DOCUMENTS', count: substrate.substrate.documents.length, icon: '📝' }
-              ].map(({ label, count, icon }) => (
-                <div key={label} className="border rounded-lg p-4 bg-white">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{icon}</span>
-                    <div>
-                      <div className="font-medium text-sm">{label}</div>
-                      <div className="text-2xl font-bold">{count}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <h2 className="text-xl font-semibold">Substrate Composition</h2>
             
             <div className="mt-8 text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Welcome to the TRUE Context OS
+                Context OS
               </h3>
               <p className="text-gray-600 mb-4">
-                All substrate types are now treated as equals in this unified system.
-              </p>
-              <p className="text-sm text-gray-500">
-                Start by adding some raw content in the left panel.
+                Use Thinking Partner to add content and build substrate.
               </p>
             </div>
           </div>
@@ -273,9 +239,8 @@ export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps)
             </div>
             
             <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-md">
-              <p className="font-semibold mb-1">Context OS Revolution Complete</p>
-              <p>No more hierarchy. All substrate types are peers.</p>
-              <p className="mt-2 text-gray-600">💡 Upload multiple files with text to create unified context</p>
+              <p className="font-semibold mb-1">Unified Context OS</p>
+              <p>All substrate types are peers.</p>
             </div>
           </div>
         </div>
