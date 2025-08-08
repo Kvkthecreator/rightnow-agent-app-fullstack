@@ -24,37 +24,78 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'input' | 'blocks' | 'context' | 'documents'>('input');
 
-  // Load all substrate data
-  const loadSubstrate = async () => {
-    try {
-      const data = await substrateService.getAllSubstrate(basketId);
-      setSubstrate(data);
-    } catch (err) {
-      console.error('Failed to load substrate:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load data');
-    }
-  };
+  // Note: Substrate loading moved into useEffect for better lifecycle management
 
   useEffect(() => {
-    loadSubstrate();
-    
-    // Set up real-time subscriptions
+    let isMounted = true;
     let channel: any = null;
-    
-    const setupSubscription = async () => {
-      channel = await substrateService.subscribeToBasket(basketId, () => {
-        loadSubstrate(); // Reload on any change
-      });
-    };
-    
-    setupSubscription();
 
-    return () => {
+    const loadSubstrateData = async () => {
+      if (!isMounted) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await substrateService.getAllSubstrate(basketId);
+        if (isMounted) {
+          setSubstrate(data);
+        }
+      } catch (err) {
+        console.error('Failed to load substrate:', err);
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load data');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const setupSubscription = async () => {
+      if (!isMounted) return;
+      
+      // Clean up any existing subscription
       if (channel) {
+        console.log('Cleaning up existing subscription');
+        await channel.unsubscribe();
+      }
+      
+      try {
+        channel = await substrateService.subscribeToBasket(basketId, () => {
+          if (isMounted) {
+            console.log('Realtime update received, reloading substrate...');
+            loadSubstrateData();
+          }
+        });
+        
+        if (isMounted && channel) {
+          console.log('Subscription established for basket:', basketId);
+        }
+      } catch (error) {
+        console.error('Failed to setup subscription:', error);
+      }
+    };
+
+    // Initial load
+    loadSubstrateData();
+    
+    // Setup subscription after a small delay to ensure auth is ready
+    const timer = setTimeout(() => {
+      setupSubscription();
+    }, 1000);
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+      
+      if (channel) {
+        console.log('Unsubscribing from channel');
         channel.unsubscribe();
       }
     };
-  }, [basketId]);
+  }, [basketId]); // Only re-run if basketId changes
 
   // Add new raw dump
   const handleAddContent = async () => {

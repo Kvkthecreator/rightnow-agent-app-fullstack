@@ -335,78 +335,90 @@ export class SubstrateService {
 
   async subscribeToBasket(basketId: string, callback: (data: any) => void) {
     try {
-      // Ensure we have a valid session before subscribing
-      const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+      // Check authentication first
+      const { data: { user }, error: userError } = await this.supabase.auth.getUser();
       
-      if (sessionError) {
-        console.error('Session error:', sessionError);
+      if (userError || !user) {
+        console.error('User not authenticated:', userError);
         return null;
       }
 
-      if (!session) {
-        console.warn('No active session for realtime subscription');
-        return null;
-      }
+      console.log('Subscribing to basket:', basketId, 'User:', user.id);
 
-      // Log the actual URL being used (for debugging)
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'URL not set';
-      console.log('Supabase URL:', supabaseUrl);
+      // Create a unique channel name to avoid conflicts
+      const channelName = `basket-${basketId}-${Date.now()}`;
       
-      if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-        if (supabaseUrl.includes('localhost') || supabaseUrl.includes('127.0.0.1')) {
-          console.error('CRITICAL: Using localhost URL in production!');
-        }
-      }
-
-      // Create channel with proper configuration
-      const channel = this.supabase.channel(`basket-${basketId}`, {
-        config: {
-          presence: {
-            key: session.user.id,
-          },
-          broadcast: {
-            self: true,
-            ack: false
-          }
-        },
-      });
-      
-      // Subscribe to substrate changes
-      ['raw_dumps', 'blocks'].forEach(table => {
-        channel.on(
+      const channel = this.supabase
+        .channel(channelName)
+        .on(
           'postgres_changes',
-          { 
-            event: '*', 
-            schema: 'public', 
-            table: table,
+          {
+            event: '*',
+            schema: 'public',
+            table: 'raw_dumps',
             filter: `basket_id=eq.${basketId}`
           },
           (payload) => {
-            console.log(`Change in ${table}:`, payload);
+            console.log('Raw dumps change:', payload);
+            callback(payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'blocks',
+            filter: `basket_id=eq.${basketId}`
+          },
+          (payload) => {
+            console.log('Blocks change:', payload);
             callback(payload);
           }
         );
-      });
 
-      // Handle subscription status
-      channel.subscribe((status, error) => {
-        console.log(`Subscription status for basket ${basketId}:`, status);
+      // Subscribe with better error handling
+      const subscription = await new Promise<any>((resolve, reject) => {
+        let timeoutId: NodeJS.Timeout;
         
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to realtime changes');
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error('Realtime subscription error:', error);
-          // Attempt to reconnect after a delay
-          setTimeout(() => {
-            console.log('Attempting to reconnect...');
-            this.subscribeToBasket(basketId, callback);
-          }, 5000);
-        }
+        channel.subscribe((status, err) => {
+          console.log(`Channel ${channelName} status:`, status);
+          
+          if (status === 'SUBSCRIBED') {
+            clearTimeout(timeoutId);
+            console.log('✅ Successfully subscribed to basket:', basketId);
+            resolve(channel);
+          } else if (status === 'CHANNEL_ERROR') {
+            clearTimeout(timeoutId);
+            console.error('❌ Channel error:', err);
+            
+            // Common causes and solutions
+            console.log('Troubleshooting:');
+            console.log('1. Check RLS policies: Ensure user has SELECT permission');
+            console.log('2. Check table exists in supabase_realtime publication');
+            console.log('3. Verify authentication token is valid');
+            
+            reject(new Error(`Subscription failed: ${err?.message || 'Unknown error'}`));
+          } else if (status === 'TIMED_OUT') {
+            clearTimeout(timeoutId);
+            console.error('⏱️ Subscription timed out');
+            reject(new Error('Subscription timed out'));
+          }
+        });
+        
+        // Timeout after 10 seconds
+        timeoutId = setTimeout(() => {
+          console.error('Subscription timeout - no response after 10s');
+          reject(new Error('Subscription timeout'));
+        }, 10000);
+      }).catch(error => {
+        console.error('Failed to subscribe:', error);
+        return null;
       });
       
-      return channel;
+      return subscription;
     } catch (error) {
-      console.error('Error setting up realtime subscription:', error);
+      console.error('Error in subscribeToBasket:', error);
       return null;
     }
   }

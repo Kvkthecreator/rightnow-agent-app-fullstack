@@ -385,12 +385,13 @@ export class WebSocketServer {
 }
 
 // ============================================================================
-// SIMULATED WEBSOCKET FUNCTIONS
+// WEBSOCKET FUNCTIONS - DEPRECATED
 // ============================================================================
-// These would be replaced with actual WebSocket implementations
+// WebSocket functionality has been replaced with Supabase Realtime subscriptions
+// This code is kept for reference but is no longer used
 
 async function sendWebSocketMessage(connectionId: string, payload: WebSocketPayload): Promise<void> {
-  // In a real implementation, this would send the message over WebSocket
-  // For development, we simulate this
-  console.log(`📡 [SIMULATED] Sending WebSocket message to ${connectionId}:`, payload);
+  // DEPRECATED: Use Supabase Realtime subscriptions instead
+  console.log(`📡 [DEPRECATED] WebSocket message would be sent to ${connectionId}:`, payload);
+  console.log('ℹ️ Use Supabase Realtime subscriptions for real-time updates');
 }

@@ -99,9 +99,17 @@ export class WebSocketManager {
       
       console.log(`🔌 Connecting to WebSocket: ${wsUrl}`);
 
-      // For development, simulate WebSocket connection
-      // In production, this would create a real WebSocket
-      await this.simulateConnection();
+      // Use Supabase realtime instead of custom WebSocket
+      // This WebSocket functionality is now handled by SubstrateService
+      console.log('📡 WebSocket functionality delegated to Supabase realtime subscriptions');
+      
+      this.updateStatus({
+        isConnected: true,
+        isConnecting: false,
+        isReconnecting: false,
+        lastConnected: new Date().toISOString(),
+        reconnectAttempts: 0
+      });
 
     } catch (error) {
       console.error('❌ WebSocket connection failed:', error);
