@@ -1,4 +1,5 @@
 import { ConsciousnessDashboard } from "@/components/dashboard/ConsciousnessDashboard";
+import { BlockReview } from "@/components/blocks/BlockReview";
 import { getBasketData } from "@/lib/data/basketData";
 import { notFound } from "next/navigation";
 
@@ -15,6 +16,14 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
   }
 
   return (
-    <ConsciousnessDashboard basketId={id} />
+    <div className="space-y-6">
+      {/* Context OS Block Review - Show proposed blocks first */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <BlockReview basketId={id} />
+      </div>
+
+      {/* Existing Consciousness Dashboard */}
+      <ConsciousnessDashboard basketId={id} />
+    </div>
   );
 }

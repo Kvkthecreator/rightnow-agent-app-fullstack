@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUnifiedIntelligence } from '@/lib/intelligence/useUnifiedIntelligence';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
+import { useProposedBlocksCount } from '@/lib/hooks/useProposedBlocksCount';
 import { IdentityAnchorHeader } from './IdentityAnchorHeader';
 import { ContentInventorySection } from '@/components/detailed-view/ContentInventorySection';
 import { ExecutiveSummary } from './ExecutiveSummary';
@@ -15,7 +16,7 @@ import { IntegrationDebugPanel } from '@/components/debug/IntegrationDebugPanel'
 // Removed FloatingCompanion - using only YarnnnThinkingPartner
 import { SimpleConnectionStatus, SimpleToast } from '@/components/ui/SimpleConnectionStatus';
 import { YarnnnMemorySubstrate } from '@/components/thinking/YarnnnMemorySubstrate';
-import { Brain, Sparkles } from 'lucide-react';
+import { Brain, Sparkles, FileCheck } from 'lucide-react';
 import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
 import { useBasket } from '@/contexts/BasketContext';
@@ -47,6 +48,9 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   
   // Get basket data from context
   const { basket, updateBasketName } = useBasket();
+  
+  // Context OS state
+  const { data: proposedCount = 0, isLoading: countLoading } = useProposedBlocksCount(basketId);
   
   // Unified change management system
   const changeManager = useUniversalChanges(basketId);
@@ -315,7 +319,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
       <div className="w-full">
         <div className="container mx-auto py-6 space-y-6 max-w-4xl px-4">
           
-          {/* Header with simple connection status */}
+          {/* Header with simple connection status and Context OS indicators */}
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <IdentityAnchorHeader
@@ -327,10 +331,22 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
                 onNameChange={handleNameChange}
               />
             </div>
-            <SimpleConnectionStatus 
-              isConnected={changeManager.isConnected}
-              className="ml-4"
-            />
+            <div className="flex items-center space-x-3">
+              {/* Context OS Proposed Blocks Badge */}
+              {!countLoading && proposedCount > 0 && (
+                <div className="flex items-center space-x-1 px-3 py-1.5 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                  <FileCheck className="h-4 w-4 text-yellow-600" />
+                  <span className="text-yellow-800 font-medium">
+                    {proposedCount} block{proposedCount !== 1 ? 's' : ''} awaiting review
+                  </span>
+                </div>
+              )}
+              
+              <SimpleConnectionStatus 
+                isConnected={changeManager.isConnected}
+                className=""
+              />
+            </div>
           </div>
 
           {/* Show pending insights banner with warm language */}

@@ -3,7 +3,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Send, Sparkles, Brain, Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { AgentAttribution } from '@/components/ui/AgentAttribution';
+import { Send, Sparkles, Brain, Loader2, AlertCircle, CheckCircle2, X, Cpu } from 'lucide-react';
 import { usePageContext } from '@/lib/intelligence/pageContextDetection';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
 import { cn } from '@/lib/utils';
@@ -21,7 +22,14 @@ export function YarnnnThinkingPartner({
 }: YarnnnThinkingPartnerProps) {
   const [input, setInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [processingStep, setProcessingStep] = useState<string>('');
   const [lastGenerationTime, setLastGenerationTime] = useState<Date | null>(null);
+  const [lastResponse, setLastResponse] = useState<{
+    message: string;
+    agentSource?: string;
+    confidence?: number;
+    timestamp: Date;
+  } | null>(null);
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
@@ -71,6 +79,7 @@ export function YarnnnThinkingPartner({
     
     setIsGenerating(true);
     setFeedback(null);
+    setProcessingStep('Analyzing your input...');
     
     try {
       // Build comprehensive context package
@@ -86,6 +95,8 @@ export function YarnnnThinkingPartner({
           hash: typeof window !== 'undefined' ? window.location.hash : ''
         }
       };
+      
+      setProcessingStep('Connecting to Context OS agents...');
       
       // ✅ CANON: Call intelligence generation endpoint with full context
       const response = await fetch(`/api/intelligence/generate/${basketId}`, {
@@ -111,6 +122,7 @@ export function YarnnnThinkingPartner({
         throw new Error(error.message || 'Failed to generate intelligence');
       }
 
+      setProcessingStep('Processing agent response...');
       const result = await response.json();
       
       // ✅ CANON: Use Universal Changes to handle intelligence generation
@@ -121,6 +133,14 @@ export function YarnnnThinkingPartner({
           context: contextPackage,
           prompt: input,
           source: 'thinking_partner'
+        });
+        
+        // Set response with agent attribution
+        setLastResponse({
+          message: `Generated ${result.insights.length} insight${result.insights.length !== 1 ? 's' : ''} for review`,
+          agentSource: result.metadata?.agent_source || 'Context OS Agent',
+          confidence: result.metadata?.confidence,
+          timestamp: new Date()
         });
         
         setFeedback({
@@ -134,19 +154,36 @@ export function YarnnnThinkingPartner({
         
       } else if (result.message) {
         // Agent provided a direct response without structured insights
+        setLastResponse({
+          message: result.message,
+          agentSource: result.metadata?.agent_source || 'Context OS Agent',
+          confidence: result.metadata?.confidence,
+          timestamp: new Date()
+        });
         setFeedback({ message: result.message, type: 'info' });
       } else {
+        setLastResponse({
+          message: 'No new insights generated. Try rephrasing your question.',
+          agentSource: 'Context OS',
+          timestamp: new Date()
+        });
         setFeedback({ message: 'No new insights generated. Try rephrasing your question.', type: 'info' });
       }
       
     } catch (error) {
       console.error('Failed to generate intelligence:', error);
+      setLastResponse({
+        message: error instanceof Error ? error.message : 'Failed to connect to Context OS agents',
+        agentSource: 'System Error',
+        timestamp: new Date()
+      });
       setFeedback({
         message: error instanceof Error ? error.message : 'Failed to generate insights',
         type: 'error'
       });
     } finally {
       setIsGenerating(false);
+      setProcessingStep('');
     }
   }, [input, basketId, context, changeManager]);
 
@@ -216,6 +253,27 @@ export function YarnnnThinkingPartner({
             >
               <X className="h-4 w-4" />
             </button>
+          </div>
+        )}
+
+        {/* Processing state */}
+        {isGenerating && processingStep && (
+          <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+            <Cpu className="h-4 w-4 text-purple-600 animate-pulse" />
+            <span className="text-sm text-purple-800">{processingStep}</span>
+          </div>
+        )}
+
+        {/* Last response with agent attribution */}
+        {lastResponse && !isGenerating && (
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <p className="text-sm text-gray-700 mb-2">{lastResponse.message}</p>
+            <AgentAttribution
+              agentSource={lastResponse.agentSource}
+              createdByAgent={true}
+              confidence={lastResponse.confidence}
+              timestamp={lastResponse.timestamp.toISOString()}
+            />
           </div>
         )}
 
