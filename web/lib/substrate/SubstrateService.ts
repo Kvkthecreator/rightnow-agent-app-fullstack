@@ -335,31 +335,29 @@ export class SubstrateService {
 
   async subscribeToBasket(basketId: string, callback: (data: any) => void) {
     try {
-      // Check authentication first
+      // Get current user
       const { data: { user }, error: userError } = await this.supabase.auth.getUser();
       
       if (userError || !user) {
-        console.error('User not authenticated:', userError);
+        console.error('Authentication required for realtime:', userError);
         return null;
       }
 
-      console.log('Subscribing to basket:', basketId, 'User:', user.id);
+      console.log(`Setting up realtime for basket ${basketId}, user: ${user.id}`);
 
-      // Create a unique channel name to avoid conflicts
-      const channelName = `basket-${basketId}-${Date.now()}`;
-      
+      // Create channel with simpler setup
       const channel = this.supabase
-        .channel(channelName)
+        .channel(`basket_${basketId}`)
         .on(
           'postgres_changes',
           {
             event: '*',
-            schema: 'public',
-            table: 'raw_dumps',
+            schema: 'public', 
+            table: 'blocks',
             filter: `basket_id=eq.${basketId}`
           },
           (payload) => {
-            console.log('Raw dumps change:', payload);
+            console.log('Block change detected:', payload);
             callback(payload);
           }
         )
@@ -368,57 +366,35 @@ export class SubstrateService {
           {
             event: '*',
             schema: 'public',
-            table: 'blocks',
+            table: 'raw_dumps', 
             filter: `basket_id=eq.${basketId}`
           },
           (payload) => {
-            console.log('Blocks change:', payload);
+            console.log('Raw dump change detected:', payload);
             callback(payload);
           }
         );
 
-      // Subscribe with better error handling
-      const subscription = await new Promise<any>((resolve, reject) => {
-        let timeoutId: NodeJS.Timeout;
+      // Subscribe and handle status
+      channel.subscribe((status) => {
+        console.log(`Realtime status for basket ${basketId}: ${status}`);
         
-        channel.subscribe((status, err) => {
-          console.log(`Channel ${channelName} status:`, status);
-          
-          if (status === 'SUBSCRIBED') {
-            clearTimeout(timeoutId);
-            console.log('✅ Successfully subscribed to basket:', basketId);
-            resolve(channel);
-          } else if (status === 'CHANNEL_ERROR') {
-            clearTimeout(timeoutId);
-            console.error('❌ Channel error:', err);
-            
-            // Common causes and solutions
-            console.log('Troubleshooting:');
-            console.log('1. Check RLS policies: Ensure user has SELECT permission');
-            console.log('2. Check table exists in supabase_realtime publication');
-            console.log('3. Verify authentication token is valid');
-            
-            reject(new Error(`Subscription failed: ${err?.message || 'Unknown error'}`));
-          } else if (status === 'TIMED_OUT') {
-            clearTimeout(timeoutId);
-            console.error('⏱️ Subscription timed out');
-            reject(new Error('Subscription timed out'));
-          }
-        });
-        
-        // Timeout after 10 seconds
-        timeoutId = setTimeout(() => {
-          console.error('Subscription timeout - no response after 10s');
-          reject(new Error('Subscription timeout'));
-        }, 10000);
-      }).catch(error => {
-        console.error('Failed to subscribe:', error);
-        return null;
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Realtime active for basket:', basketId);
+        } else if (status === 'TIMED_OUT') {
+          console.log('⏱️ Subscription timed out - retrying...');
+          setTimeout(() => {
+            channel.unsubscribe();
+            this.subscribeToBasket(basketId, callback);
+          }, 2000);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Channel error - check RLS policies and table publication');
+        }
       });
-      
-      return subscription;
+
+      return channel;
     } catch (error) {
-      console.error('Error in subscribeToBasket:', error);
+      console.error('Subscription setup failed:', error);
       return null;
     }
   }

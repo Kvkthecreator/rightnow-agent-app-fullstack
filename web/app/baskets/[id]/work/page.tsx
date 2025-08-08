@@ -1,5 +1,6 @@
 import { SubstrateManager } from "@/components/substrate/SubstrateManager";
 import { RealtimeDebug } from "@/components/debug/RealtimeDebug";
+import { TestRealtime } from "@/components/TestRealtime";
 import { getBasketData } from "@/lib/data/basketData";
 import { notFound } from "next/navigation";
 
@@ -22,6 +23,7 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     <>
       <SubstrateManager basketId={id} />
       <RealtimeDebug />
+      <TestRealtime basketId={id} />
     </>
   );
 }

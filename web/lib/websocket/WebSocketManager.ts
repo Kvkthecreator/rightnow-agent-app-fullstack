@@ -316,30 +316,7 @@ export class WebSocketManager {
     }
   }
 
-  private async simulateConnection(): Promise<void> {
-    // Simulate connection delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Simulate successful connection
-    this.updateStatus({
-      isConnected: true,
-      isConnecting: false,
-      isReconnecting: false,
-      lastConnected: new Date().toISOString(),
-      reconnectAttempts: 0
-    });
-
-    // Start heartbeat
-    this.startHeartbeat();
-
-    // Process queued messages
-    this.processMessageQueue();
-
-    // Join basket
-    await this.joinBasket();
-
-    console.log('✅ WebSocket connected (simulated)');
-  }
+  // Mock connection method removed - using Supabase Realtime instead
 
   private scheduleReconnect(): void {
     if (this.status.reconnectAttempts >= this.config.reconnectAttempts) {

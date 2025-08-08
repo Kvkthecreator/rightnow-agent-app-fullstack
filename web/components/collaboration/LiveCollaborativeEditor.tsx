@@ -198,15 +198,15 @@ export function LiveCollaborativeEditor({
     broadcastPresence(userPresence);
   }, [currentUserId, getUserColor]);
 
-  // Simulated broadcasting functions (would use WebSocket in production)
+  // Broadcasting functions for collaborative editing (would use Supabase Realtime in production)
   const broadcastChange = (operation: TransformableOperation) => {
     console.log('Broadcasting change:', operation);
-    // In production: WebSocket.send({ type: 'operation', operation, documentId });
+    // In production: Use Supabase Realtime or WebSocket to broadcast { type: 'operation', operation, documentId }
   };
 
   const broadcastCursor = (cursor: UserCursor) => {
     console.log('Broadcasting cursor:', cursor);
-    // In production: WebSocket.send({ type: 'cursor', cursor, documentId });
+    // In production: Use Supabase Realtime or WebSocket to broadcast { type: 'cursor', cursor, documentId }
   };
 
   const broadcastPresence = (presence: UserPresence) => {
