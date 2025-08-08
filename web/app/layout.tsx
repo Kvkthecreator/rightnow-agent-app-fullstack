@@ -11,6 +11,19 @@ import ClientLayoutShell from "@/components/shell/ClientLayoutShell";
 // ✅ NEW: Import SupabaseProvider
 import { SupabaseProvider } from "@/components/SupabaseProvider";
 
+// Environment validation
+import { validateEnvironment, logEnvironmentInfo } from "@/lib/config/validate";
+
+// Run validation on initialization
+if (typeof window !== 'undefined') {
+  try {
+    validateEnvironment();
+    logEnvironmentInfo();
+  } catch (error) {
+    console.error('Environment validation failed:', error);
+  }
+}
+
 const geistSans = Geist({
   subsets: ["latin"],
   variable: "--font-geist-sans",

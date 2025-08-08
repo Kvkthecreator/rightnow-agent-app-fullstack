@@ -11,7 +11,27 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
 
-  webpack(config) {
+  // Validate environment variables at build time
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  },
+
+  webpack(config, { isServer, dev }) {
+    // Add build-time validation for production builds
+    if (!dev && !isServer) {
+      // Production client build
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+      
+      if (supabaseUrl?.includes('localhost') || supabaseUrl?.includes('127.0.0.1')) {
+        throw new Error('Build error: Localhost Supabase URL detected in production build!');
+      }
+      
+      if (apiUrl?.includes('localhost') || apiUrl?.includes('127.0.0.1')) {
+        console.warn('Warning: Localhost API URL detected in production build!');
+      }
+    }
     // Handle PDF.js and Tesseract.js dependencies
     config.resolve.alias = {
       ...config.resolve.alias,

@@ -1,7 +1,7 @@
 // SYSTEMATIC REBUILD - Single service for ALL substrate operations
 // Direct Supabase, no abstractions, simple async/await patterns
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseClient } from '@/lib/supabase/client';
 
 export interface RawDump {
   id: string;
@@ -49,7 +49,7 @@ export interface SubstrateData {
 }
 
 export class SubstrateService {
-  private supabase = createClientComponentClient();
+  private supabase = createSupabaseClient();
 
   // ==========================================
   // RAW DUMPS - Primary input mechanism
@@ -334,46 +334,81 @@ export class SubstrateService {
   // ==========================================
 
   async subscribeToBasket(basketId: string, callback: (data: any) => void) {
-    // Ensure we have a valid session before subscribing
-    const { data: { session } } = await this.supabase.auth.getSession();
-    
-    if (!session) {
-      console.warn('No active session for realtime subscription');
+    try {
+      // Ensure we have a valid session before subscribing
+      const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        return null;
+      }
+
+      if (!session) {
+        console.warn('No active session for realtime subscription');
+        return null;
+      }
+
+      // Log the actual URL being used (for debugging)
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'URL not set';
+      console.log('Supabase URL:', supabaseUrl);
+      
+      if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+        if (supabaseUrl.includes('localhost') || supabaseUrl.includes('127.0.0.1')) {
+          console.error('CRITICAL: Using localhost URL in production!');
+        }
+      }
+
+      // Create channel with proper configuration
+      const channel = this.supabase.channel(`basket-${basketId}`, {
+        config: {
+          presence: {
+            key: session.user.id,
+          },
+          broadcast: {
+            self: true,
+            ack: false
+          }
+        },
+      });
+      
+      // Subscribe to substrate changes
+      ['raw_dumps', 'blocks'].forEach(table => {
+        channel.on(
+          'postgres_changes',
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: table,
+            filter: `basket_id=eq.${basketId}`
+          },
+          (payload) => {
+            console.log(`Change in ${table}:`, payload);
+            callback(payload);
+          }
+        );
+      });
+
+      // Handle subscription status
+      channel.subscribe((status, error) => {
+        console.log(`Subscription status for basket ${basketId}:`, status);
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to realtime changes');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('Realtime subscription error:', error);
+          // Attempt to reconnect after a delay
+          setTimeout(() => {
+            console.log('Attempting to reconnect...');
+            this.subscribeToBasket(basketId, callback);
+          }, 5000);
+        }
+      });
+      
+      return channel;
+    } catch (error) {
+      console.error('Error setting up realtime subscription:', error);
       return null;
     }
-
-    // Create channel with auth token
-    const channel = this.supabase.channel(`basket-${basketId}`, {
-      config: {
-        presence: {
-          key: session.user.id,
-        },
-      },
-    });
-    
-    // Subscribe to substrate changes - only tables that exist
-    ['raw_dumps', 'blocks'].forEach(table => {
-      channel.on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table,
-          filter: `basket_id=eq.${basketId}`
-        },
-        callback
-      );
-    });
-
-    // Gracefully handle potential subscription errors
-    channel.subscribe((status) => {
-      console.log(`Subscription status for basket ${basketId}:`, status);
-      if (status === 'CHANNEL_ERROR') {
-        console.error('Realtime subscription error - may need to refresh auth');
-      }
-    });
-    
-    return channel;
   }
 }
 

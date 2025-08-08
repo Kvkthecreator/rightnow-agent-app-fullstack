@@ -290,7 +290,20 @@ export class WebSocketManager {
       return data.wsUrl;
     } catch (error) {
       console.error('Failed to get WebSocket URL:', error);
-      // Fallback URL
+      
+      // Use environment variable or appropriate fallback
+      const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
+      if (wsUrl) {
+        return `${wsUrl}/ws/${this.config.basketId}`;
+      }
+      
+      // In production, never use localhost
+      if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+        console.error('WebSocket URL not configured for production');
+        return `wss://${window.location.hostname}/ws/${this.config.basketId}`;
+      }
+      
+      // Only use localhost in development
       return `ws://localhost:3001/ws/${this.config.basketId}`;
     }
   }

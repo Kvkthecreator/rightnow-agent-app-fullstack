@@ -119,9 +119,10 @@ export class SubstrateMessageBus {
     }
 
     try {
-      const wsUrl = process.env.NODE_ENV === 'production' 
-        ? 'wss://api.yarnnn.com/ws'
-        : 'ws://localhost:3001/ws';
+      const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL ||
+        (process.env.NODE_ENV === 'production' 
+          ? `wss://${typeof window !== 'undefined' ? window.location.hostname : 'api.yarnnn.com'}/ws`
+          : 'ws://localhost:3001/ws');
       
       this.websocket = new WebSocket(`${wsUrl}?basketId=${basketId}`);
       

@@ -27,7 +27,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       message: 'WebSocket connection endpoint',
       basketId,
-      wsUrl: process.env.WEBSOCKET_URL || `ws://localhost:3001/ws/${basketId}`,
+      wsUrl: process.env.WEBSOCKET_URL || process.env.NEXT_PUBLIC_WEBSOCKET_URL || 
+             (process.env.NODE_ENV === 'production' 
+               ? `wss://${process.env.NEXT_PUBLIC_SITE_URL?.replace('https://', '') || 'api.yarnnn.com'}/ws/${basketId}`
+               : `ws://localhost:3001/ws/${basketId}`),
       instructions: 'Connect to the WebSocket URL with your authentication token'
     });
 
