@@ -97,11 +97,14 @@ function transformToSubstrateFormat(intelligenceData: any, rawDumps: any[] = [])
       recommendations: intelligenceData.recommendations || [],
       contextAlerts: rawDumps.map((dump: any) => ({
         id: dump.id,
-        type: 'context_item',
+        type: 'quality' as const,
         priority: 'medium',
+        severity: 'info' as const,
         title: 'Context Added',
         description: (dump.body_md || '').substring(0, 200) + '...',
-        timestamp: dump.created_at
+        timestamp: dump.created_at,
+        affectedDocuments: [],
+        suggestedActions: []
       })),
       recentActivity: []
     },

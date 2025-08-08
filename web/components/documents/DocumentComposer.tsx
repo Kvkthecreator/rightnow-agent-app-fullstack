@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientSupabaseClient } from '@/lib/supabaseClient';
+import { createBrowserSupabaseClient } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { AgentAttribution } from '@/components/ui/AgentAttribution';
@@ -37,7 +37,7 @@ export function DocumentComposer({ basketId, onDocumentCreated }: DocumentCompos
 
   const fetchAcceptedBlocks = async () => {
     try {
-      const supabase = createClientSupabaseClient();
+      const supabase = createBrowserSupabaseClient();
       const { data, error } = await supabase
         .from('blocks')
         .select('*')
@@ -73,7 +73,7 @@ export function DocumentComposer({ basketId, onDocumentCreated }: DocumentCompos
 
     setCreating(true);
     try {
-      const supabase = createClientSupabaseClient();
+      const supabase = createBrowserSupabaseClient();
       
       // Get selected block data for composition
       const selectedBlockData = acceptedBlocks.filter(block => 

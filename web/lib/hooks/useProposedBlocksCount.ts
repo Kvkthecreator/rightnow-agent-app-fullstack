@@ -1,35 +1,59 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { createClientSupabaseClient } from '@/lib/supabaseClient';
+import { useState, useEffect } from 'react';
+import { createBrowserSupabaseClient } from '@/lib/supabaseClient';
 
 export function useProposedBlocksCount(basketId: string) {
-  return useQuery({
-    queryKey: ['proposed-blocks-count', basketId],
-    queryFn: async () => {
-      if (!basketId) return 0;
+  const [data, setData] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchCount = async () => {
+    if (!basketId) {
+      setData(0);
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      const supabase = createBrowserSupabaseClient();
+      const { count, error } = await supabase
+        .from('blocks')
+        .select('*', { count: 'exact', head: true })
+        .eq('basket_id', basketId)
+        .eq('state', 'PROPOSED');
       
-      try {
-        const supabase = createClientSupabaseClient();
-        const { count, error } = await supabase
-          .from('blocks')
-          .select('*', { count: 'exact', head: true })
-          .eq('basket_id', basketId)
-          .eq('state', 'PROPOSED');
-        
-        if (error) {
-          console.error('Error fetching proposed blocks count:', error);
-          return 0;
-        }
-        
-        return count || 0;
-      } catch (error) {
-        console.error('Failed to fetch proposed blocks count:', error);
-        return 0;
+      if (error) {
+        console.error('Error fetching proposed blocks count:', error);
+        setError(error.message);
+        setData(0);
+      } else {
+        setData(count || 0);
+        setError(null);
       }
-    },
-    refetchInterval: 30000, // Refresh every 30 seconds
-    enabled: !!basketId,
-    staleTime: 10000, // Consider data fresh for 10 seconds
-  });
+    } catch (error) {
+      console.error('Failed to fetch proposed blocks count:', error);
+      setError(error instanceof Error ? error.message : 'Unknown error');
+      setData(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCount();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchCount, 30000);
+    
+    return () => clearInterval(interval);
+  }, [basketId]);
+
+  return {
+    data,
+    isLoading,
+    error,
+    refetch: fetchCount
+  };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientSupabaseClient } from '@/lib/supabaseClient';
+import { createBrowserSupabaseClient } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 
@@ -32,7 +32,7 @@ export function BlockReview({ basketId }: BlockReviewProps) {
 
   const fetchProposedBlocks = async () => {
     try {
-      const supabase = createClientSupabaseClient();
+      const supabase = createBrowserSupabaseClient();
       const { data, error } = await supabase
         .from('blocks')
         .select('*')
@@ -56,7 +56,7 @@ export function BlockReview({ basketId }: BlockReviewProps) {
   const handleAccept = async (blockId: string) => {
     setProcessingBlock(blockId);
     try {
-      const supabase = createClientSupabaseClient();
+      const supabase = createBrowserSupabaseClient();
       
       // Update block state to ACCEPTED
       const { error } = await supabase
@@ -97,7 +97,7 @@ export function BlockReview({ basketId }: BlockReviewProps) {
   const handleReject = async (blockId: string) => {
     setProcessingBlock(blockId);
     try {
-      const supabase = createClientSupabaseClient();
+      const supabase = createBrowserSupabaseClient();
       
       // Update block state to REJECTED
       const { error } = await supabase

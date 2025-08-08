@@ -239,6 +239,9 @@ export async function POST(
           });
           throw new Error(`Agent backend failed: ${response.status} - ${errorText}`);
         }
+      } catch (error) {
+        console.error('🚨 Agent backend connection failed:', error);
+        throw new Error('Backend connection failed - Context OS agents unavailable');
       }
 
       // Transform agent response to frontend format
