@@ -212,13 +212,13 @@ export async function POST(
         options: enhancedContext.options
       };
 
-      // Call Python agent backend (mock response for now since agents may not be fully connected)
+      // Call Python agent backend at deployed URL
       let agentResponse;
       try {
-        const agentUrl = process.env.PYTHON_AGENT_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        console.log('🤖 Calling agent backend:', `${agentUrl}/api/intelligence/generate`);
+        const agentUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
+        console.log('🤖 Calling agent backend:', `${agentUrl}/api/agent`);
         
-        const response = await fetch(`${agentUrl}/api/intelligence/generate`, {
+        const response = await fetch(`${agentUrl}/api/agent`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -231,58 +231,14 @@ export async function POST(
         if (response.ok) {
           agentResponse = await response.json();
         } else {
-          console.warn('Agent backend unavailable, using mock response');
-          throw new Error('Agent backend unavailable');
-        }
-      } catch (error) {
-        console.log('🔄 Agent backend unavailable, generating mock insights based on context');
-        
-        // Generate context-aware mock insights
-        const mockInsights = [];
-        
-        if (context.page === 'document' && substrateMetrics.documentCount > 0) {
-          mockInsights.push({
-            id: `mock_doc_${Date.now()}`,
-            type: 'document_analysis',
-            title: 'Document Analysis Opportunity',
-            description: `Based on your current document context, I can help analyze patterns across your ${substrateMetrics.documentCount} documents.`,
-            confidence: 0.8,
-            evidence: [`${substrateMetrics.documentCount} documents in substrate`, 'Document page context detected'],
-            suggestions: ['Compare themes across documents', 'Extract key insights', 'Find connection patterns']
+          const errorText = await response.text();
+          console.error('❗ Agent backend error:', {
+            status: response.status,
+            statusText: response.statusText,
+            response: errorText
           });
+          throw new Error(`Agent backend failed: ${response.status} - ${errorText}`);
         }
-        
-        if (context.page === 'dashboard' && substrateMetrics.totalWords > 1000) {
-          mockInsights.push({
-            id: `mock_dash_${Date.now()}`,
-            type: 'substrate_overview',
-            title: 'Research Substrate Analysis',
-            description: `Your research contains ${substrateMetrics.totalWords} words across multiple sources. I can identify key patterns and connections.`,
-            confidence: 0.7,
-            evidence: [`${substrateMetrics.totalWords} total words`, `${substrateMetrics.rawDumpCount} raw dumps processed`],
-            suggestions: ['Synthesize main themes', 'Identify research gaps', 'Generate executive summary']
-          });
-        }
-        
-        // Always provide a context-aware insight
-        mockInsights.push({
-          id: `mock_context_${Date.now()}`,
-          type: 'contextual_insight',
-          title: `${context.page === 'document' ? 'Document' : 'Research'} Context Understood`,
-          description: `I see you're working in the ${context.page} context. "${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}"`,
-          confidence: 0.9,
-          evidence: [`Page context: ${context.page}`, `User activity tracked`, `Prompt analyzed`],
-          suggestions: ['Ask more specific questions', 'Request detailed analysis', 'Explore related concepts']
-        });
-
-        agentResponse = {
-          success: true,
-          insights: mockInsights,
-          metadata: {
-            source: 'mock_generation',
-            context_used: true
-          }
-        };
       }
 
       // Transform agent response to frontend format
