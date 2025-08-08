@@ -160,9 +160,9 @@ export async function POST(
         
         supabase
           .from('blocks')
-          .select('id, content, state, type, created_at')
+          .select('id, content, status, type, created_at')
           .eq('basket_id', basketId)
-          .in('state', ['ACCEPTED', 'LOCKED'])
+          .in('status', ['ACCEPTED', 'LOCKED'])
           .order('created_at', { ascending: false })
           .limit(20),
           

@@ -43,6 +43,21 @@ export async function POST(request: NextRequest) {
     // ATOMIC UPDATE: Store all substrate types in one transaction
     const storedResults = await storeCompleteSubstrate(supabase, basketId, rawDumpId, substrateResults);
 
+    // Update raw dump processing status
+    await supabase
+      .from('raw_dumps')
+      .update({
+        processing_status: 'processed',
+        processed_at: new Date().toISOString(),
+        fragments: JSON.stringify({
+          blocks: storedResults.blocks.length,
+          contextItems: storedResults.contextItems.length,
+          narrative: storedResults.narrative.length,
+          relationships: storedResults.relationships.length
+        })
+      })
+      .eq('id', rawDumpId);
+
     console.log('✅ Manager Agent: Complete substrate generated', {
       blocks: storedResults.blocks.length,
       contextItems: storedResults.contextItems.length,
@@ -246,6 +261,8 @@ async function storeCompleteSubstrate(supabase: any, basketId: string, rawDumpId
             title: block.title,
             body_md: block.content,
             status: 'proposed',
+            confidence_score: block.confidence,
+            processing_agent: 'block_proposer',
             metadata: {
               confidence: block.confidence,
               keywords: block.keywords,
@@ -271,9 +288,12 @@ async function storeCompleteSubstrate(supabase: any, basketId: string, rawDumpId
           .insert(
             results.contextItems.map((item: any) => ({
               basket_id: basketId,
+              raw_dump_id: rawDumpId,
               title: item.title,
               description: item.description,
+              content: item.description, // Using description as content for now
               type: item.type,
+              confidence_score: item.confidence,
               metadata: {
                 confidence: item.confidence,
                 generated_by: 'manager_agent'
@@ -289,10 +309,60 @@ async function storeCompleteSubstrate(supabase: any, basketId: string, rawDumpId
       }
     }
 
-    // Note: Narrative and relationships stored in logs for now
-    // Will be stored in database when tables are created
-    storedResults.narrative = results.narrative;
-    storedResults.relationships = results.relationships;
+    // Store narrative elements
+    if (results.narrative.length > 0) {
+      try {
+        const { data: narrative } = await supabase
+          .from('narrative')
+          .insert(
+            results.narrative.map((item: any) => ({
+              basket_id: basketId,
+              raw_dump_id: rawDumpId,
+              type: item.type,
+              title: item.title,
+              content: item.narrative,
+              confidence_score: item.confidence,
+              metadata: {
+                generated_by: 'manager_agent'
+              }
+            }))
+          )
+          .select();
+
+        storedResults.narrative = narrative || [];
+        console.log('✅ Stored narrative:', narrative?.length);
+      } catch (err) {
+        console.warn('⚠️ Narrative table not available - continuing without');
+        storedResults.narrative = results.narrative;
+      }
+    }
+
+    // Store relationships
+    if (results.relationships.length > 0) {
+      try {
+        const { data: relationships } = await supabase
+          .from('substrate_relationships')
+          .insert(
+            results.relationships.map((rel: any) => ({
+              basket_id: basketId,
+              from_type: rel.from.type,
+              from_id: rel.from.id,
+              to_type: rel.to.type,
+              to_id: rel.to.id,
+              relationship_type: rel.type,
+              description: rel.description,
+              strength: rel.confidence
+            }))
+          )
+          .select();
+
+        storedResults.relationships = relationships || [];
+        console.log('✅ Stored relationships:', relationships?.length);
+      } catch (err) {
+        console.warn('⚠️ Relationships table not available - continuing without');
+        storedResults.relationships = results.relationships;
+      }
+    }
     
     return storedResults;
 
