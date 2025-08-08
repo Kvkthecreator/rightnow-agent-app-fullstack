@@ -1,5 +1,4 @@
-import { ConsciousnessDashboard } from "@/components/dashboard/ConsciousnessDashboard";
-import { BlockReview } from "@/components/blocks/BlockReview";
+import { SubstrateCanvas } from "@/components/substrate/SubstrateCanvas";
 import { getBasketData } from "@/lib/data/basketData";
 import { notFound } from "next/navigation";
 
@@ -15,15 +14,13 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     notFound();
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Context OS Block Review - Show proposed blocks first */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <BlockReview basketId={id} />
-      </div>
+  // Extract workspaceId from basketData
+  const workspaceId = basketData.workspace_id || 'default';
 
-      {/* Existing Consciousness Dashboard */}
-      <ConsciousnessDashboard basketId={id} />
+  return (
+    <div className="min-h-screen">
+      {/* TRUE CONTEXT OS - The ONLY interface */}
+      <SubstrateCanvas basketId={id} workspaceId={workspaceId} />
     </div>
   );
 }

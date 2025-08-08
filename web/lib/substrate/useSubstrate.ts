@@ -1,0 +1,214 @@
+// TRUE CONTEXT OS - The ONE Hook to Rule Them All
+// Replaces all fragmented intelligence hooks
+
+import { useState, useEffect, useCallback } from 'react';
+import { UnifiedSubstrateComposer } from './UnifiedSubstrateComposer';
+import { SubstrateElement, SubstrateType, SubstrateResponse } from './SubstrateTypes';
+
+export function useSubstrate(basketId: string, workspaceId: string) {
+  const [composer] = useState(() => UnifiedSubstrateComposer.getInstance());
+  const [substrate, setSubstrate] = useState<{
+    rawDumps: SubstrateElement[];
+    blocks: SubstrateElement[];
+    contextItems: SubstrateElement[];
+    narrative: SubstrateElement[];
+    documents: SubstrateElement[];
+  }>({
+    rawDumps: [],
+    blocks: [],
+    contextItems: [],
+    narrative: [],
+    documents: []
+  });
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load substrate from composer
+  const refreshSubstrate = useCallback(() => {
+    setSubstrate({
+      rawDumps: composer.getSubstrateByType('raw_dump', basketId),
+      blocks: composer.getSubstrateByType('block', basketId),
+      contextItems: composer.getSubstrateByType('context_item', basketId),
+      narrative: composer.getSubstrateByType('narrative', basketId),
+      documents: composer.getSubstrateByType('document', basketId),
+    });
+  }, [composer, basketId]);
+
+  useEffect(() => {
+    refreshSubstrate();
+  }, [refreshSubstrate]);
+
+  // UNIFIED OPERATIONS - All substrate operations through here
+
+  const addRawDump = useCallback(async (content: string): Promise<SubstrateResponse> => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await composer.addRawDump(content, basketId, workspaceId);
+      if (response.success) {
+        refreshSubstrate();
+      } else {
+        setError(response.error || 'Failed to add raw dump');
+      }
+      return response;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to add raw dump';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, [composer, basketId, workspaceId, refreshSubstrate]);
+
+  const proposeBlocks = useCallback(async (rawDumpId: string): Promise<SubstrateResponse> => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await composer.proposeBlocks(rawDumpId);
+      if (response.success) {
+        refreshSubstrate();
+      } else {
+        setError(response.error || 'Failed to propose blocks');
+      }
+      return response;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to propose blocks';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, [composer, refreshSubstrate]);
+
+  const createContextItem = useCallback(async (
+    title: string,
+    semanticType: 'theme' | 'question' | 'insight' | 'connection' | 'tag',
+    references: { id: string; type: SubstrateType; basketId: string }[],
+    description?: string
+  ): Promise<SubstrateResponse> => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await composer.createContextItem(
+        title, 
+        semanticType, 
+        references, 
+        basketId, 
+        workspaceId, 
+        description
+      );
+      if (response.success) {
+        refreshSubstrate();
+      } else {
+        setError(response.error || 'Failed to create context item');
+      }
+      return response;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create context item';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, [composer, basketId, workspaceId, refreshSubstrate]);
+
+  const composeDocument = useCallback(async (
+    title: string,
+    composition: { type: SubstrateType; id: string; order: number; excerpt?: string }[]
+  ): Promise<SubstrateResponse> => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await composer.composeDocument(title, composition, basketId, workspaceId);
+      if (response.success) {
+        refreshSubstrate();
+      } else {
+        setError(response.error || 'Failed to compose document');
+      }
+      return response;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to compose document';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, [composer, basketId, workspaceId, refreshSubstrate]);
+
+  const processWithAgent = useCallback(async (
+    agentType: string,
+    operation: string,
+    data: any
+  ): Promise<SubstrateResponse> => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await composer.processWithAgent(agentType, operation, {
+        ...data,
+        basketId,
+        workspaceId
+      });
+      if (response.success) {
+        refreshSubstrate();
+      } else {
+        setError(response.error || `Failed to process with agent ${agentType}`);
+      }
+      return response;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : `Failed to process with agent ${agentType}`;
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, [composer, basketId, workspaceId, refreshSubstrate]);
+
+  const findConnections = useCallback((elementId: string) => {
+    return composer.findConnections(elementId);
+  }, [composer]);
+
+  const getRelationships = useCallback((substrateId: string) => {
+    return composer.getRelationships(substrateId);
+  }, [composer]);
+
+  // Computed values
+  const proposedBlocksCount = substrate.blocks.filter(block => 
+    'status' in block && block.status === 'proposed'
+  ).length;
+
+  const acceptedBlocksCount = substrate.blocks.filter(block => 
+    'status' in block && block.status === 'accepted'
+  ).length;
+
+  const totalSubstrateCount = Object.values(substrate).reduce((sum, arr) => sum + arr.length, 0);
+
+  return {
+    // State
+    substrate,
+    loading,
+    error,
+    
+    // Operations
+    addRawDump,
+    proposeBlocks,
+    createContextItem,
+    composeDocument,
+    processWithAgent,
+    
+    // Queries
+    findConnections,
+    getRelationships,
+    refreshSubstrate,
+    
+    // Computed
+    proposedBlocksCount,
+    acceptedBlocksCount,
+    totalSubstrateCount,
+  };
+}

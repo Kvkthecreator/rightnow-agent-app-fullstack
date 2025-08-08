@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUnifiedIntelligence } from '@/lib/intelligence/useUnifiedIntelligence';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
-import { useProposedBlocksCount } from '@/lib/hooks/useProposedBlocksCount';
+import { useSubstrate } from '@/lib/substrate/useSubstrate';
 import { IdentityAnchorHeader } from './IdentityAnchorHeader';
 import { ContentInventorySection } from '@/components/detailed-view/ContentInventorySection';
 import { ExecutiveSummary } from './ExecutiveSummary';
@@ -50,7 +50,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   const { basket, updateBasketName } = useBasket();
   
   // Context OS state
-  const { data: proposedCount = 0, isLoading: countLoading } = useProposedBlocksCount(basketId);
+  const substrate = useSubstrate(basketId, basket?.workspace_id || 'default');
   
   // Unified change management system
   const changeManager = useUniversalChanges(basketId);
@@ -333,11 +333,11 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
             </div>
             <div className="flex items-center space-x-3">
               {/* Context OS Proposed Blocks Badge */}
-              {!countLoading && proposedCount > 0 && (
+              {!substrate.loading && substrate.proposedBlocksCount > 0 && (
                 <div className="flex items-center space-x-1 px-3 py-1.5 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
                   <FileCheck className="h-4 w-4 text-yellow-600" />
                   <span className="text-yellow-800 font-medium">
-                    {proposedCount} block{proposedCount !== 1 ? 's' : ''} awaiting review
+                    {substrate.proposedBlocksCount} block{substrate.proposedBlocksCount !== 1 ? 's' : ''} awaiting review
                   </span>
                 </div>
               )}

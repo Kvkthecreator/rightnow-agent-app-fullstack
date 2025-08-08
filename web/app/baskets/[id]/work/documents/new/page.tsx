@@ -1,7 +1,6 @@
-import { DocumentComposer } from "@/components/documents/DocumentComposer";
+import { SubstrateCanvas } from "@/components/substrate/SubstrateCanvas";
 import { getBasketData } from "@/lib/data/basketData";
-import { notFound, useRouter } from "next/navigation";
-import { BasketPageLayout } from "@/components/layout/BasketPageLayout";
+import { notFound } from "next/navigation";
 
 interface NewDocumentPageProps {
   params: Promise<{ id: string }>;
@@ -15,27 +14,13 @@ export default async function NewDocumentPage({ params }: NewDocumentPageProps) 
     notFound();
   }
 
-  return (
-    <BasketPageLayout basketId={id} pageType="document">
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Create New Document
-          </h1>
-          <p className="text-gray-600 mb-6">
-            Compose a document from your accepted blocks in <strong>{basketData.name}</strong>
-          </p>
-        </div>
+  // Extract workspaceId from basketData
+  const workspaceId = basketData.workspace_id || 'default';
 
-        {/* Context OS Document Composer */}
-        <DocumentComposer 
-          basketId={id}
-          onDocumentCreated={(documentId) => {
-            // Navigate to the created document
-            window.location.href = `/baskets/${id}/work/documents/${documentId}`;
-          }}
-        />
-      </div>
-    </BasketPageLayout>
+  return (
+    <div className="min-h-screen">
+      {/* TRUE CONTEXT OS - Document composition through unified substrate system */}
+      <SubstrateCanvas basketId={id} workspaceId={workspaceId} />
+    </div>
   );
 }
