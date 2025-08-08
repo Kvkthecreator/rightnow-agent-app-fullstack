@@ -323,7 +323,34 @@ export class UnifiedSubstrateComposer {
   // QUERY OPERATIONS
 
   getSubstrateByType(type: SubstrateType, basketId: string): SubstrateElement[] {
-    const typeMap = this.substrate[`${type}s` as keyof typeof this.substrate] as Map<string, any>;
+    let typeMap: Map<string, any>;
+    
+    switch (type) {
+      case 'raw_dump':
+        typeMap = this.substrate.rawDumps;
+        break;
+      case 'block':
+        typeMap = this.substrate.blocks;
+        break;
+      case 'context_item':
+        typeMap = this.substrate.contextItems;
+        break;
+      case 'narrative':
+        typeMap = this.substrate.narrative;
+        break;
+      case 'document':
+        typeMap = this.substrate.documents;
+        break;
+      default:
+        console.warn(`Unknown substrate type: ${type}`);
+        return [];
+    }
+    
+    if (!typeMap) {
+      console.warn(`Type map not found for: ${type}`);
+      return [];
+    }
+    
     return Array.from(typeMap.values()).filter(element => element.basketId === basketId);
   }
 
@@ -339,10 +366,34 @@ export class UnifiedSubstrateComposer {
       const connectedId = rel.from.id === elementId ? rel.to.id : rel.from.id;
       const connectedType = rel.from.id === elementId ? rel.to.type : rel.from.type;
       
-      const typeMap = this.substrate[`${connectedType}s` as keyof typeof this.substrate] as Map<string, any>;
-      const element = typeMap.get(connectedId);
-      if (element) {
-        connections.push(element);
+      let typeMap: Map<string, any>;
+      
+      switch (connectedType) {
+        case 'raw_dump':
+          typeMap = this.substrate.rawDumps;
+          break;
+        case 'block':
+          typeMap = this.substrate.blocks;
+          break;
+        case 'context_item':
+          typeMap = this.substrate.contextItems;
+          break;
+        case 'narrative':
+          typeMap = this.substrate.narrative;
+          break;
+        case 'document':
+          typeMap = this.substrate.documents;
+          break;
+        default:
+          console.warn(`Unknown connected type: ${connectedType}`);
+          return;
+      }
+      
+      if (typeMap) {
+        const element = typeMap.get(connectedId);
+        if (element) {
+          connections.push(element);
+        }
       }
     });
 
