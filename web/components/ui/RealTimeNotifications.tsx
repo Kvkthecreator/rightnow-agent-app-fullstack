@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Users, Edit3, Bell } from 'lucide-react';
-import type { WebSocketPayload } from '@/lib/services/UniversalChangeService';
+// import type { WebSocketPayload } from '@/lib/services/UniversalChangeService'; // DISABLED - Using Supabase Realtime
 
 export interface RealTimeNotification {
   id: string;
@@ -65,8 +65,8 @@ export function RealTimeNotifications({
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  // Process WebSocket payload into notification
-  const processWebSocketEvent = (payload: WebSocketPayload) => {
+  // Process WebSocket payload into notification - DISABLED for Supabase Realtime
+  const processWebSocketEvent = (payload: any) => {
     switch (payload.event) {
       case 'change_applied':
         addNotification({
@@ -321,8 +321,8 @@ export function useRealTimeNotifications() {
   const addNotification = (notification: Omit<RealTimeNotification, 'id'>) => {
     const notificationSystem = (window as any).__realTimeNotifications;
     if (notificationSystem) {
-      // Convert to WebSocket payload format for consistency
-      const payload: WebSocketPayload = {
+      // Convert to payload format for consistency
+      const payload: any = {
         event: notification.type,
         basketId: 'system',
         data: {

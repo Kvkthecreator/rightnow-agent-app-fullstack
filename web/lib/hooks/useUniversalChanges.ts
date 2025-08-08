@@ -9,9 +9,9 @@ import type {
   ChangeStatus,
   Conflict,
   ValidationError,
-  WebSocketPayload
+  // WebSocketPayload // DISABLED - Using Supabase Realtime
 } from '@/lib/services/UniversalChangeService';
-import { getWebSocketManager, destroyWebSocketManager, type WebSocketManager } from '@/lib/websocket/WebSocketManager';
+// import { getWebSocketManager, destroyWebSocketManager, type WebSocketManager } from '@/lib/websocket/WebSocketManager'; // DISABLED - Using Supabase Realtime
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -273,7 +273,7 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
   // WEBSOCKET INTEGRATION
   // ========================================================================
 
-  const handleWebSocketMessage = useCallback((payload: WebSocketPayload) => {
+  const handleWebSocketMessage = useCallback((payload: any) => { // WebSocketPayload type disabled
     console.log('📨 WebSocket message received:', payload);
     
     switch (payload.event) {
@@ -323,57 +323,57 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
     });
   }, []);
   
-  const handleJoinedMessage = useCallback((payload: WebSocketPayload) => {
+  const handleJoinedMessage = useCallback((payload: any) => { // WebSocketPayload type disabled
     console.log('👋 User joined basket:', payload.data);
     // Could update user presence UI here
   }, []);
   
-  const handleLeftMessage = useCallback((payload: WebSocketPayload) => {
+  const handleLeftMessage = useCallback((payload: any) => { // WebSocketPayload type disabled
     console.log('👋 User left basket:', payload.data);
     // Could update user presence UI here
   }, []);
   
-  const handleEditingMessage = useCallback((payload: WebSocketPayload) => {
+  const handleEditingMessage = useCallback((payload: any) => { // WebSocketPayload type disabled
     console.log('✏️ User editing status:', payload.data);
     // Could update collaborative editing indicators here
   }, []);
 
-  // Initialize WebSocket connection with enhanced manager
-  useEffect(() => {
-    if (basketId) {
-      // Get or create WebSocket manager for this basket
-      wsManager.current = getWebSocketManager(basketId, {
-        userId: 'current_user', // TODO: Get from auth context
-        token: 'auth_token' // TODO: Get from auth context
-      });
-      
-      // Subscribe to WebSocket events
-      const subscriptions = [
-        wsManager.current.subscribe('change_applied', handleWebSocketMessage),
-        wsManager.current.subscribe('change_failed', handleWebSocketMessage),
-        wsManager.current.subscribe('conflict_detected', handleWebSocketMessage),
-        wsManager.current.subscribe('user_joined', handleJoinedMessage),
-        wsManager.current.subscribe('user_left', handleLeftMessage),
-        wsManager.current.subscribe('user_editing', handleEditingMessage)
-      ];
-      
-      // Subscribe to connection status changes
-      const statusUnsubscribe = wsManager.current.onStatusChange(handleConnectionStatusChange);
-      
-      // Connect to WebSocket server
-      wsManager.current.connect();
-      
-      return () => {
-        // Clean up subscriptions
-        subscriptions.forEach(id => wsManager.current?.unsubscribe(id));
-        statusUnsubscribe();
-        
-        // Leave basket and cleanup
-        wsManager.current?.leaveBasket();
-        destroyWebSocketManager(basketId);
-      };
-    }
-  }, [basketId]);
+  // WebSocket functionality disabled - using Supabase Realtime instead
+  // useEffect(() => {
+  //   if (basketId) {
+  //     // Get or create WebSocket manager for this basket
+  //     wsManager.current = getWebSocketManager(basketId, {
+  //       userId: 'current_user', // TODO: Get from auth context
+  //       token: 'auth_token' // TODO: Get from auth context
+  //     });
+  //     
+  //     // Subscribe to WebSocket events
+  //     const subscriptions = [
+  //       wsManager.current.subscribe('change_applied', handleWebSocketMessage),
+  //       wsManager.current.subscribe('change_failed', handleWebSocketMessage),
+  //       wsManager.current.subscribe('conflict_detected', handleWebSocketMessage),
+  //       wsManager.current.subscribe('user_joined', handleJoinedMessage),
+  //       wsManager.current.subscribe('user_left', handleLeftMessage),
+  //       wsManager.current.subscribe('user_editing', handleEditingMessage)
+  //     ];
+  //     
+  //     // Subscribe to connection status changes
+  //     const statusUnsubscribe = wsManager.current.onStatusChange(handleConnectionStatusChange);
+  //     
+  //     // Connect to WebSocket server
+  //     wsManager.current.connect();
+  //     
+  //     return () => {
+  //       // Clean up subscriptions
+  //       subscriptions.forEach(id => wsManager.current?.unsubscribe(id));
+  //       statusUnsubscribe();
+  //       
+  //       // Leave basket and cleanup
+  //       wsManager.current?.leaveBasket();
+  //       destroyWebSocketManager(basketId);
+  //     };
+  //   }
+  // }, [basketId]);
 
   // ========================================================================
   // ACTIVITY DETECTION

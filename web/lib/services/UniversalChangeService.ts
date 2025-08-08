@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
-import { WebSocketServer } from '@/lib/websocket/WebSocketServer';
+// import { WebSocketServer } from '@/lib/websocket/WebSocketServer'; // DISABLED - Using Supabase Realtime
 import { getConflictDetectionEngine, type ChangeVector } from '@/lib/collaboration/ConflictDetectionEngine';
 import { getOperationalTransform } from '@/lib/collaboration/OperationalTransform';
 import { getWorkspaceFromBasket } from '@/lib/utils/workspace';
@@ -869,7 +869,7 @@ export class UniversalChangeService {
   // ========================================================================
 
   async notifyChange(change: AppliedChange): Promise<void> {
-    const payload: WebSocketPayload = {
+    const payload: any = { // WebSocketPayload type for compatibility
       event: change.result.success ? 'change_applied' : 'change_failed',
       basketId: change.basketId,
       changeId: change.id,
@@ -884,9 +884,9 @@ export class UniversalChangeService {
     };
 
     // Broadcast change to all connected clients in the basket
-    await WebSocketServer.broadcastToBasket(change.basketId, payload);
+    // await WebSocketServer.broadcastToBasket(change.basketId, payload); // DISABLED - Using Supabase Realtime
     
-    console.log('📡 Change notification broadcasted via WebSocket:', payload.event);
+    console.log('📡 Change notification (would be broadcasted via Supabase Realtime):', payload.event);
   }
 
   // ========================================================================

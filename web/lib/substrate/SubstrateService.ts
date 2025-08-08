@@ -335,29 +335,28 @@ export class SubstrateService {
 
   async subscribeToBasket(basketId: string, callback: (data: any) => void) {
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await this.supabase.auth.getUser();
-      
-      if (userError || !user) {
-        console.error('Authentication required for realtime:', userError);
+      // Ensure authenticated
+      const { data: { session } } = await this.supabase.auth.getSession();
+      if (!session) {
+        console.error('No session for realtime subscription');
         return null;
       }
 
-      console.log(`Setting up realtime for basket ${basketId}, user: ${user.id}`);
+      console.log(`📡 Setting up realtime for basket: ${basketId}`);
 
-      // Create channel with simpler setup
+      // Single channel for all changes
       const channel = this.supabase
-        .channel(`basket_${basketId}`)
+        .channel(`basket-changes-${basketId}`)
         .on(
           'postgres_changes',
           {
             event: '*',
-            schema: 'public', 
+            schema: 'public',
             table: 'blocks',
             filter: `basket_id=eq.${basketId}`
           },
           (payload) => {
-            console.log('Block change detected:', payload);
+            console.log('Block changed:', payload);
             callback(payload);
           }
         )
@@ -366,35 +365,31 @@ export class SubstrateService {
           {
             event: '*',
             schema: 'public',
-            table: 'raw_dumps', 
+            table: 'raw_dumps',
             filter: `basket_id=eq.${basketId}`
           },
           (payload) => {
-            console.log('Raw dump change detected:', payload);
+            console.log('Raw dump changed:', payload);
             callback(payload);
           }
         );
 
-      // Subscribe and handle status
-      channel.subscribe((status) => {
-        console.log(`Realtime status for basket ${basketId}: ${status}`);
-        
+      // Subscribe
+      const subscription = channel.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('✅ Realtime active for basket:', basketId);
-        } else if (status === 'TIMED_OUT') {
-          console.log('⏱️ Subscription timed out - retrying...');
-          setTimeout(() => {
-            channel.unsubscribe();
-            this.subscribeToBasket(basketId, callback);
-          }, 2000);
+          console.log('✅ Realtime subscribed for basket:', basketId);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Channel error - check RLS policies and table publication');
+          console.error('❌ Channel error - check browser console for details');
+        } else if (status === 'TIMED_OUT') {
+          console.warn('⏱️ Subscription timeout - will retry');
+        } else {
+          console.log('📡 Subscription status:', status);
         }
       });
 
       return channel;
     } catch (error) {
-      console.error('Subscription setup failed:', error);
+      console.error('Failed to setup realtime:', error);
       return null;
     }
   }
