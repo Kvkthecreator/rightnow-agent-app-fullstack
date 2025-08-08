@@ -1,4 +1,4 @@
-import { SimplifiedSubstrate } from "@/components/substrate/SimplifiedSubstrate";
+import { SubstrateManager } from "@/components/substrate/SubstrateManager";
 import { getBasketData } from "@/lib/data/basketData";
 import { notFound } from "next/navigation";
 
@@ -18,6 +18,6 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
   const workspaceId = basketData.workspace?.id || 'default';
 
   return (
-    <SimplifiedSubstrate basketId={id} />
+    <SubstrateManager basketId={id} />
   );
 }
