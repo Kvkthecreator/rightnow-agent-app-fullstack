@@ -11,6 +11,8 @@ export interface BasketIntelligenceData {
   lastUpdated: string;
   insights?: any[];
   recommendations?: any[];
+  rawDumps?: any[];
+  contextItems?: any[];
 }
 
 export async function analyzeBasketIntelligence(
@@ -42,7 +44,7 @@ export async function analyzeBasketIntelligence(
     console.log(`[SharedAnalysis] Found basket: ${basketData.name}`);
 
     // Now fetch related data separately for better error handling
-    const [documentsResult, blocksResult, contextResult] = await Promise.all([
+    const [documentsResult, blocksResult, contextResult, rawDumpsResult] = await Promise.all([
       supabase
         .from("documents")
         .select("id, title, content_raw, created_at")
@@ -57,6 +59,11 @@ export async function analyzeBasketIntelligence(
         .from("context_items")
         .select("id, type, content, created_at")
         .eq("basket_id", basketId)
+        .eq("workspace_id", workspaceId),
+      supabase
+        .from("raw_dumps")
+        .select("id, body_md, created_at")
+        .eq("basket_id", basketId)
         .eq("workspace_id", workspaceId)
     ]);
 
@@ -65,10 +72,11 @@ export async function analyzeBasketIntelligence(
       ...basketData,
       documents: documentsResult.data || [],
       blocks: blocksResult.data || [],
-      context_items: contextResult.data || []
+      context_items: contextResult.data || [],
+      rawDumps: rawDumpsResult.data || []
     };
 
-    console.log(`[SharedAnalysis] Analysis data: ${basket.documents.length} docs, ${basket.blocks.length} blocks, ${basket.context_items.length} context items`);
+    console.log(`[SharedAnalysis] Analysis data: ${basket.documents.length} docs, ${basket.blocks.length} blocks, ${basket.context_items.length} context items, ${basket.rawDumps.length} raw dumps`);
 
     return analyzeBasketContent(basket);
   } catch (error) {
@@ -81,9 +89,11 @@ function analyzeBasketContent(basket: any): BasketIntelligenceData {
   const documents = basket.documents || [];
   const blocks = basket.blocks || [];
   const contextItems = basket.context_items || [];
+  const rawDumps = basket.rawDumps || [];
   
-  // Determine basket state based on real content
-  const isEmpty = documents.length === 0 && blocks.length === 0 && contextItems.length === 0;
+  // Determine basket state based on real content (including raw dumps as context)
+  const totalContextItems = contextItems.length + rawDumps.length;
+  const isEmpty = documents.length === 0 && blocks.length === 0 && totalContextItems === 0;
   const isMinimal = documents.length <= 2 && blocks.length <= 5;
   const isRich = documents.length > 5 || blocks.length > 15;
 

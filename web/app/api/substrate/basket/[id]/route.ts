@@ -40,8 +40,22 @@ export async function GET(
     
     console.log(`[Substrate API] Successfully analyzed basket ${basketId}`)
 
-    // Transform to substrate format
-    const substrateIntelligence = transformToSubstrateFormat(intelligenceData);
+    // Get basket data separately for transformation
+    const { data: basketData } = await supabase
+      .from('baskets')
+      .select('*')
+      .eq('id', basketId)
+      .eq('workspace_id', workspace.id)
+      .single();
+      
+    const { data: rawDumps } = await supabase
+      .from('raw_dumps')
+      .select('id, body_md, created_at')
+      .eq('basket_id', basketId)
+      .eq('workspace_id', workspace.id);
+    
+    // Transform to substrate format  
+    const substrateIntelligence = transformToSubstrateFormat(intelligenceData, rawDumps || []);
 
     return NextResponse.json(substrateIntelligence);
 
@@ -54,9 +68,13 @@ export async function GET(
   }
 }
 
-function transformToSubstrateFormat(intelligenceData: any): SubstrateIntelligence {
+function transformToSubstrateFormat(intelligenceData: any, rawDumps: any[] = []): SubstrateIntelligence {
   // Transform shared analysis data to substrate format
-  console.log(`[Substrate API] Transforming intelligence data:`, { themes: intelligenceData.themes?.length, confidence: intelligenceData.confidenceScore });
+  console.log(`[Substrate API] Transforming intelligence data:`, { 
+    themes: intelligenceData.themes?.length, 
+    confidence: intelligenceData.confidenceScore,
+    rawDumps: rawDumps.length
+  });
   
   return {
     basketInfo: {
@@ -77,7 +95,14 @@ function transformToSubstrateFormat(intelligenceData: any): SubstrateIntelligenc
     intelligence: {
       insights: intelligenceData.insights || [],
       recommendations: intelligenceData.recommendations || [],
-      contextAlerts: [],
+      contextAlerts: rawDumps.map((dump: any) => ({
+        id: dump.id,
+        type: 'context_item',
+        priority: 'medium',
+        title: 'Context Added',
+        description: (dump.body_md || '').substring(0, 200) + '...',
+        timestamp: dump.created_at
+      })),
       recentActivity: []
     },
     substrateHealth: {
