@@ -405,8 +405,13 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
       </div>
 
       {/* Yarnnn Insight Approval - FORCED OPEN FOR TESTING */}
+      {console.log('🎯 Modal Debug:', { 
+        pendingCount: changeManager.pendingChanges.length,
+        isOpen: changeManager.pendingChanges.length > 0,
+        changes: changeManager.pendingChanges
+      })}
       <YarnnnInsightApproval
-        isOpen={pendingChanges.length > 0 || changeManager.pendingChanges.length > 0}
+        isOpen={changeManager.pendingChanges.length > 0}
         
         // Universal changes support
         pendingChanges={changeManager.pendingChanges}
@@ -433,7 +438,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           <div>Insights: {currentIntelligence?.intelligence?.insights?.length || 0}</div>
           <div>Recommendations: {currentIntelligence?.intelligence?.recommendations?.length || 0}</div>
           <div>Health: {currentIntelligence?.substrateHealth?.evolutionRate || 'unknown'}</div>
-          <div>Pending Changes: {pendingChanges.length}</div>
+          <div>Pending Changes: {changeManager.pendingChanges.length}</div>
           <div>WebSocket: {changeManager.isConnected ? '🟢' : '🔴'}</div>
           <div>Processing: {changeManager.isProcessing ? '⚡' : '💤'}</div>
           
