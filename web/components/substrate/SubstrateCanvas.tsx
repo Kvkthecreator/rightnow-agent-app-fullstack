@@ -4,6 +4,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useSubstrate } from '@/lib/substrate/useSubstrate';
+import { CompositeRawDumpInput } from './CompositeRawDumpInput';
+import { FileFragmentHandler } from '@/lib/substrate/FileFragmentHandler';
+import { Fragment } from '@/lib/substrate/FragmentTypes';
 
 interface SubstrateCanvasProps {
   basketId: string;
@@ -12,20 +16,38 @@ interface SubstrateCanvasProps {
 
 export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps) {
   const [isClient, setIsClient] = useState(false);
-  const [substrate, setSubstrate] = useState({
-    rawDumps: [],
-    blocks: [],
-    contextItems: [],
-    narrative: [],
-    documents: [],
-    loading: false,
-    error: null
-  });
+  const [processingStatus, setProcessingStatus] = useState('');
+  const substrate = useSubstrate(basketId, workspaceId);
 
   useEffect(() => {
     setIsClient(true);
-    // TODO: Initialize substrate composer here
   }, []);
+
+  const handleSubmitComposite = async (fragments: Fragment[]) => {
+    setProcessingStatus('Processing your input...');
+    
+    try {
+      // Process any file fragments
+      const processedFragments = await FileFragmentHandler.processFragments(
+        fragments,
+        (status, fragmentIndex) => {
+          setProcessingStatus(`[${fragmentIndex + 1}/${fragments.length}] ${status}`);
+        }
+      );
+      
+      setProcessingStatus('Creating unified raw dump...');
+      
+      // Submit as unified raw dump
+      await substrate.addRawDump(processedFragments);
+      
+      setProcessingStatus('Complete!');
+      setTimeout(() => setProcessingStatus(''), 2000);
+      
+    } catch (error) {
+      setProcessingStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setTimeout(() => setProcessingStatus(''), 5000);
+    }
+  };
 
   if (!isClient) {
     // Server-side render: show loading state
@@ -42,7 +64,7 @@ export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps)
         <div className="flex min-h-[calc(100vh-80px)] items-center justify-center">
           <div className="text-center">
             <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading Context OS...</p>
+            <p className="text-gray-600">{processingStatus || 'Loading Context OS...'}</p>
           </div>
         </div>
       </div>
@@ -87,36 +109,70 @@ export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps)
         {/* Left Panel - Substrate Explorer */}
         <div className="w-1/3 border-r bg-white p-6">
           <div className="space-y-6">
-            {/* Add Raw Dump */}
-            <div className="border rounded-lg p-4">
+            {/* Composite Raw Dump Input */}
+            <div>
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                ➕ Add Raw Dump
+                ➕ Add to Research
+                <span className="text-xs font-normal text-gray-500">(unified context)</span>
               </h3>
-              <textarea
-                placeholder="Enter your raw thoughts, ideas, or content..."
-                className="w-full p-3 border rounded-md text-sm resize-none"
-                rows={3}
+              <CompositeRawDumpInput 
+                onSubmit={handleSubmitComposite}
+                className="border-0 shadow-sm"
               />
-              <button className="mt-2 w-full px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors">
-                Add to Substrate
-              </button>
             </div>
 
             {/* Substrate Types */}
             {[
-              { key: 'rawDumps', label: 'RAW DUMPS', icon: '📄', color: 'blue' },
-              { key: 'blocks', label: 'BLOCKS', icon: '🧱', color: 'green' },
-              { key: 'contextItems', label: 'CONTEXT ITEMS', icon: '🔗', color: 'purple' },
-              { key: 'narrative', label: 'NARRATIVE', icon: '📖', color: 'orange' },
-              { key: 'documents', label: 'DOCUMENTS', icon: '📝', color: 'gray' }
-            ].map(({ key, label, icon, color }) => (
+              { 
+                key: 'rawDumps', 
+                label: 'RAW DUMPS', 
+                icon: '📄', 
+                color: 'blue',
+                description: 'Unprocessed content from files, text, or clipboard',
+                helpText: 'Your original input materials'
+              },
+              { 
+                key: 'blocks', 
+                label: 'BLOCKS', 
+                icon: '🧱', 
+                color: 'green',
+                description: 'Structured knowledge fragments proposed by AI',
+                helpText: 'AI-identified key concepts and insights'
+              },
+              { 
+                key: 'contextItems', 
+                label: 'CONTEXT ITEMS', 
+                icon: '🔗', 
+                color: 'purple',
+                description: 'Tagged connections and relationships',
+                helpText: 'Themes, questions, and cross-references'
+              },
+              { 
+                key: 'narrative', 
+                label: 'NARRATIVE', 
+                icon: '📖', 
+                color: 'orange',
+                description: 'Coherent stories and explanations',
+                helpText: 'Synthesized understanding and insights'
+              },
+              { 
+                key: 'documents', 
+                label: 'DOCUMENTS', 
+                icon: '📝', 
+                color: 'gray',
+                description: 'Final composed outputs and reports',
+                helpText: 'Polished deliverables and presentations'
+              }
+            ].map(({ key, label, icon, color, description, helpText }) => (
               <div key={key} className={`border-l-4 border-${color}-200 rounded-lg p-4 bg-${color}-50`}>
-                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-semibold mb-1 flex items-center gap-2">
                   <span>{icon}</span>
-                  {label} ({(substrate as any)[key].length})
+                  {label} ({(substrate.substrate as any)[key].length})
                 </h3>
+                <p className="text-xs text-gray-600 mb-2">{description}</p>
+                <p className="text-xs text-gray-500 italic mb-3">{helpText}</p>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {(substrate as any)[key].length === 0 && (
+                  {(substrate.substrate as any)[key].length === 0 && (
                     <div className="text-center text-gray-500 text-sm py-4">
                       No {key.replace(/([A-Z])/g, ' $1').toLowerCase()} yet
                     </div>
@@ -133,10 +189,10 @@ export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps)
             <h2 className="text-xl font-semibold">Substrate Overview</h2>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { label: 'RAW DUMPS', count: substrate.rawDumps.length, icon: '📄' },
-                { label: 'BLOCKS', count: substrate.blocks.length, icon: '🧱' },
-                { label: 'CONTEXT ITEMS', count: substrate.contextItems.length, icon: '🔗' },
-                { label: 'DOCUMENTS', count: substrate.documents.length, icon: '📝' }
+                { label: 'RAW DUMPS', count: substrate.substrate.rawDumps.length, icon: '📄' },
+                { label: 'BLOCKS', count: substrate.substrate.blocks.length, icon: '🧱' },
+                { label: 'CONTEXT ITEMS', count: substrate.substrate.contextItems.length, icon: '🔗' },
+                { label: 'DOCUMENTS', count: substrate.substrate.documents.length, icon: '📝' }
               ].map(({ label, count, icon }) => (
                 <div key={label} className="border rounded-lg p-4 bg-white">
                   <div className="flex items-center gap-3">
@@ -186,9 +242,40 @@ export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps)
               </div>
             </div>
             
+            {/* Processing Status Display */}
+            {processingStatus && (
+              <div className="border rounded-lg p-3 bg-blue-50 border-blue-200">
+                <h4 className="text-sm font-semibold mb-2 text-blue-800">Processing</h4>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm text-blue-700">{processingStatus}</span>
+                </div>
+              </div>
+            )}
+            
+            {/* Executive Summary */}
+            <div className="border rounded-lg p-4">
+              <h4 className="text-sm font-semibold mb-3">Executive Summary</h4>
+              <div className="text-xs space-y-2">
+                <div className="flex justify-between">
+                  <span>Total Items:</span>
+                  <span className="font-medium">{substrate.totalSubstrateCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Confidence:</span>
+                  <span className="font-medium text-green-600">High</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Coverage:</span>
+                  <span className="font-medium text-yellow-600">Partial</span>
+                </div>
+              </div>
+            </div>
+            
             <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-md">
               <p className="font-semibold mb-1">Context OS Revolution Complete</p>
               <p>No more hierarchy. All substrate types are peers.</p>
+              <p className="mt-2 text-gray-600">💡 Upload multiple files with text to create unified context</p>
             </div>
           </div>
         </div>

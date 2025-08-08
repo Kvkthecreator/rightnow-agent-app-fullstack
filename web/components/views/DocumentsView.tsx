@@ -217,7 +217,7 @@ function DocumentEditorView({
         } : undefined
       }];
       
-      await substrate.addRawDump(contextContent);
+      await substrate.addTextRawDump(contextContent);
       await substrate.refreshSubstrate();
       
       // Optionally append context to current document content

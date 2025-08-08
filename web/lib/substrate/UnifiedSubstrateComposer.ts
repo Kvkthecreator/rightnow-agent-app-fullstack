@@ -17,6 +17,7 @@ import {
   AgentResponse,
   CompositionElement
 } from './SubstrateTypes';
+import { Fragment, UnifiedRawDump } from './FragmentTypes';
 
 export class UnifiedSubstrateComposer {
   private static instance: UnifiedSubstrateComposer;
@@ -42,27 +43,44 @@ export class UnifiedSubstrateComposer {
 
   // CORE OPERATIONS - One method for each substrate operation
 
-  async addRawDump(content: string, basketId: string, workspaceId: string): Promise<SubstrateResponse> {
+  async addRawDump(fragments: Fragment[], basketId: string, workspaceId: string): Promise<SubstrateResponse> {
     try {
-      const rawDump: RawDump = {
+      const rawDump: UnifiedRawDump = {
         id: this.generateId(),
-        type: 'raw_dump',
-        content,
         basketId,
         workspaceId,
+        fragments,
+        context: 'unified',
         createdAt: new Date(),
         updatedAt: new Date(),
+        metadata: {
+          totalFragments: fragments.length,
+          hasText: fragments.some(f => f.type === 'text' || f.type === 'text-dump'),
+          hasFiles: fragments.some(f => f.type === 'pdf' || f.type === 'image'),
+          processingStatus: fragments.every(f => f.metadata.processing === 'complete') ? 'complete' : 'partial'
+        }
       };
 
-      // Store locally
-      this.substrate.rawDumps.set(rawDump.id, rawDump);
+      // Store locally (convert to compatible format for now)
+      const compatibleRawDump = {
+        id: rawDump.id,
+        type: 'raw_dump' as const,
+        content: this.serializeFragments(fragments),
+        basketId,
+        workspaceId,
+        createdAt: rawDump.createdAt,
+        updatedAt: rawDump.updatedAt,
+        metadata: rawDump.metadata
+      };
+      
+      this.substrate.rawDumps.set(rawDump.id, compatibleRawDump);
 
-      // Send to backend for processing
-      await this.persistSubstrate(rawDump);
+      // Send to backend for unified processing
+      await this.persistUnifiedRawDump(rawDump);
 
       return {
         success: true,
-        data: rawDump
+        data: compatibleRawDump
       };
     } catch (error) {
       return {
@@ -70,6 +88,20 @@ export class UnifiedSubstrateComposer {
         error: error instanceof Error ? error.message : 'Failed to add raw dump'
       };
     }
+  }
+
+  // Helper method to serialize fragments for display
+  private serializeFragments(fragments: Fragment[]): string {
+    return fragments.map((fragment, index) => {
+      const prefix = `[Fragment ${index + 1} - ${fragment.type.toUpperCase()}]`;
+      
+      if (fragment.type === 'text' || fragment.type === 'text-dump') {
+        return `${prefix}\n${fragment.content}`;
+      } else {
+        const filename = fragment.metadata.filename || 'Unknown file';
+        return `${prefix} ${filename}`;
+      }
+    }).join('\n\n');
   }
 
   async proposeBlocks(rawDumpId: string): Promise<SubstrateResponse> {
@@ -356,6 +388,21 @@ export class UnifiedSubstrateComposer {
 
     if (!response.ok) {
       throw new Error(`Failed to persist substrate: ${response.statusText}`);
+    }
+  }
+
+  private async persistUnifiedRawDump(rawDump: UnifiedRawDump): Promise<void> {
+    // Persist unified raw dump with fragments to database
+    const response = await fetch('/api/substrate/persist-unified', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(rawDump)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to persist unified raw dump: ${response.statusText}`);
     }
   }
 

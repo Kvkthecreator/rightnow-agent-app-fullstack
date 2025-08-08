@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UnifiedSubstrateComposer } from './UnifiedSubstrateComposer';
 import { SubstrateElement, SubstrateType, SubstrateResponse } from './SubstrateTypes';
+import { Fragment } from './FragmentTypes';
 
 export function useSubstrate(basketId: string, workspaceId: string) {
   const [composer] = useState(() => UnifiedSubstrateComposer.getInstance());
@@ -41,12 +42,12 @@ export function useSubstrate(basketId: string, workspaceId: string) {
 
   // UNIFIED OPERATIONS - All substrate operations through here
 
-  const addRawDump = useCallback(async (content: string): Promise<SubstrateResponse> => {
+  const addRawDump = useCallback(async (fragments: Fragment[]): Promise<SubstrateResponse> => {
     setLoading(true);
     setError(null);
     
     try {
-      const response = await composer.addRawDump(content, basketId, workspaceId);
+      const response = await composer.addRawDump(fragments, basketId, workspaceId);
       if (response.success) {
         refreshSubstrate();
       } else {
@@ -61,6 +62,21 @@ export function useSubstrate(basketId: string, workspaceId: string) {
       setLoading(false);
     }
   }, [composer, basketId, workspaceId, refreshSubstrate]);
+
+  // Convenience method for simple text input (backward compatibility)
+  const addTextRawDump = useCallback(async (content: string): Promise<SubstrateResponse> => {
+    const fragments: Fragment[] = [{
+      id: `fragment-${Date.now()}`,
+      type: content.length > 1000 ? 'text-dump' : 'text',
+      content,
+      position: 0,
+      metadata: {
+        processing: 'complete'
+      }
+    }];
+    
+    return addRawDump(fragments);
+  }, [addRawDump]);
 
   const proposeBlocks = useCallback(async (rawDumpId: string): Promise<SubstrateResponse> => {
     setLoading(true);
@@ -195,7 +211,8 @@ export function useSubstrate(basketId: string, workspaceId: string) {
     error,
     
     // Operations
-    addRawDump,
+    addRawDump, // Now takes Fragment[] for unified context
+    addTextRawDump, // Convenience method for simple text
     proposeBlocks,
     createContextItem,
     composeDocument,
