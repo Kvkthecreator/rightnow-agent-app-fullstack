@@ -31,13 +31,7 @@ export default function ClientLayoutShell({ children }: { children: ReactNode })
       )
     : false;
 
-  // Debug sidebar visibility logic
-  console.log('🔍 ClientLayoutShell Debug:', {
-    pathname,
-    isWorkPage,
-    shouldShowSidebar,
-    showSidebarRoutes: SHOW_SIDEBAR_ROUTES
-  });
+  // Removed debug logging to prevent build spam
 
   if (!shouldShowSidebar) {
     return <>{children}</>;
