@@ -8,7 +8,7 @@ import { YarnnnInsightApproval } from '@/components/thinking/YarnnnInsightApprov
 import { SimpleConnectionStatus, SimpleToast } from '@/components/ui/SimpleConnectionStatus';
 import { useBasketDocuments } from '@/lib/hooks/useBasketDocuments';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
-import { useSubstrateIntelligence } from '@/lib/substrate/useSubstrateIntelligence';
+import { useSubstrate } from '@/lib/substrate/useSubstrate';
 import { analyzeConversationIntent } from '@/lib/intelligence/conversationAnalyzer';
 
 interface RefactoredDocumentViewProps {
@@ -34,7 +34,7 @@ export function RefactoredDocumentView({
   const changeManager = useUniversalChanges(basketId);
   
   // Substrate intelligence for document context
-  const { intelligence: currentIntelligence } = useSubstrateIntelligence(basketId);
+  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
   
   // Initialize document data
   useEffect(() => {
@@ -228,7 +228,7 @@ export function RefactoredDocumentView({
         onClose={() => {
           // Modal closes automatically when pendingChanges becomes empty
         }}
-        currentIntelligence={currentIntelligence}
+        currentIntelligence={null}
         isProcessing={changeManager.isProcessing}
       />
 

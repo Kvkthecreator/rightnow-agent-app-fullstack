@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
-import { useBasketIntelligence } from "@/lib/intelligence/useBasketIntelligence";
+import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { useDocumentContext } from "@/lib/intelligence/useDocumentContext";
 import { TriggerEvent } from "@/lib/intelligence/useBehavioralTriggers";
 // Local type definition for ContextualInsight
@@ -100,10 +100,10 @@ function FocusAreaCard({
   documentId?: string; 
   focusMode: "document" | "basket";
 }) {
-  const { data: intelligence, isLoading } = useBasketIntelligence(basketId);
+  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
   const { data: docContext, isLoading: docLoading } = useDocumentContext(documentId);
 
-  if (isLoading || docLoading) {
+  if (substrate.loading || docLoading) {
     return (
       <Card className="p-3">
         <div className="flex items-center gap-2">
@@ -118,7 +118,7 @@ function FocusAreaCard({
 
   const focusArea = focusMode === "document" && docContext?.focus_area 
     ? docContext.focus_area 
-    : intelligence?.thematic_analysis?.dominant_themes?.[0] || "General exploration";
+    : "General exploration"; // TODO: use substrate data
 
   return (
     <Card className="p-3 space-y-2">
@@ -150,10 +150,10 @@ function ActiveThemesCard({
   documentId?: string; 
   focusMode: "document" | "basket";
 }) {
-  const { data: intelligence, isLoading } = useBasketIntelligence(basketId);
+  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
   const { data: docContext, isLoading: docLoading } = useDocumentContext(documentId);
 
-  if (isLoading || docLoading) {
+  if (substrate.loading || docLoading) {
     return (
       <Card className="p-3">
         <div className="text-xs font-medium text-muted-foreground mb-2">
@@ -170,7 +170,7 @@ function ActiveThemesCard({
 
   const themes = focusMode === "document" && docContext?.current_themes 
     ? docContext.current_themes 
-    : intelligence?.thematic_analysis?.dominant_themes || [];
+    : []; // TODO: use substrate data
 
   if (themes.length === 0) {
     return (

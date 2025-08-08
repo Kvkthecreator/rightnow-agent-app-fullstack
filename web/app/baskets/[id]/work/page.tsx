@@ -15,7 +15,7 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
   }
 
   // Extract workspaceId from basketData
-  const workspaceId = basketData.workspace_id || 'default';
+  const workspaceId = basketData.workspace?.id || 'default';
 
   return (
     <div className="min-h-screen">

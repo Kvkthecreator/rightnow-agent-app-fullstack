@@ -264,7 +264,7 @@ export class UnifiedSubstrateComposer {
 
       return {
         success: true,
-        data: relationship
+        relationships: [relationship]
       };
     } catch (error) {
       return {

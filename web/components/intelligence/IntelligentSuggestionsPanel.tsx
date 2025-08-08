@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
-import { useBasketIntelligence } from "@/lib/intelligence/useBasketIntelligence";
+import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { useState } from "react";
 
 interface IntelligentSuggestionsPanelProps {
@@ -49,10 +49,10 @@ export default function IntelligentSuggestionsPanel({
 }
 
 function CoherenceSuggestionsCard({ basketId }: { basketId: string }) {
-  const { data: intelligence, isLoading } = useBasketIntelligence(basketId);
+  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
-  if (isLoading) {
+  if (substrate.loading) {
     return (
       <Card className="p-3">
         <div className="flex items-center gap-2 mb-2">
@@ -65,8 +65,8 @@ function CoherenceSuggestionsCard({ basketId }: { basketId: string }) {
     );
   }
 
-  const suggestions = intelligence?.coherence_suggestions?.suggestions || [];
-  const visibleSuggestions = suggestions.filter(s => !dismissedSuggestions.has(s.suggestion_id));
+  const suggestions: any[] = []; // TODO: use substrate data for suggestions
+  const visibleSuggestions = suggestions.filter((s: any) => !dismissedSuggestions.has(s.suggestion_id));
 
   if (visibleSuggestions.length === 0) {
     return (
@@ -75,8 +75,7 @@ function CoherenceSuggestionsCard({ basketId }: { basketId: string }) {
           Coherence Ideas
         </div>
         <div className="text-xs text-muted-foreground text-center py-2">
-          {intelligence?.coherence_suggestions?.accommodation_note || 
-           "Your basket is working fine as-is"}
+          {"Your basket is working fine as-is"}
         </div>
       </Card>
     );
@@ -107,11 +106,7 @@ function CoherenceSuggestionsCard({ basketId }: { basketId: string }) {
         ))}
       </div>
 
-      {intelligence?.coherence_suggestions?.accommodation_note && (
-        <div className="text-xs text-muted-foreground p-2 bg-muted/30 rounded border-l-2 border-muted">
-          {intelligence.coherence_suggestions.accommodation_note}
-        </div>
-      )}
+      {/* TODO: Add accommodation note when substrate data is available */}
     </Card>
   );
 }
@@ -316,9 +311,9 @@ function MissingContextCard({ basketId }: { basketId: string }) {
 }
 
 function ConnectionOpportunitiesCard({ basketId }: { basketId: string }) {
-  const { data: intelligence, isLoading } = useBasketIntelligence(basketId);
+  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
 
-  if (isLoading) {
+  if (substrate.loading) {
     return (
       <Card className="p-3">
         <div className="text-xs font-medium text-muted-foreground mb-2">
@@ -333,7 +328,7 @@ function ConnectionOpportunitiesCard({ basketId }: { basketId: string }) {
     );
   }
 
-  const connections = intelligence?.document_relationships?.suggested_connections || [];
+  const connections: any[] = []; // TODO: use substrate data for connections
 
   return (
     <Card className="p-3 space-y-2">

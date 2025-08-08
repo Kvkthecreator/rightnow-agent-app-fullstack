@@ -27,7 +27,7 @@ import { DocumentCreationModal } from "@/components/documents/DocumentCreationMo
 import { MarkdownDisplay } from "@/components/documents/MarkdownDisplay";
 
 // Import substrate integration
-import { useSubstrateIntelligence } from "@/lib/substrate/useSubstrateIntelligence";
+import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { SubstrateContentInput } from "@/components/substrate/SubstrateContentInput";
 
 interface DocumentsViewProps {
@@ -202,7 +202,7 @@ function DocumentEditorView({
   const [showPreview, setShowPreview] = useState(false);
 
   // Add substrate integration
-  const { addContext, refresh: refreshSubstrate } = useSubstrateIntelligence(basketId);
+  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
 
   // Handle adding context through substrate system
   const handleAddContext = async (contextContent: string, type: 'text' | 'file' | 'pdf' | 'image', files?: File[]): Promise<void> => {
@@ -217,8 +217,8 @@ function DocumentEditorView({
         } : undefined
       }];
       
-      await addContext(substrateInput);
-      await refreshSubstrate();
+      await substrate.addRawDump(contextContent);
+      await substrate.refreshSubstrate();
       
       // Optionally append context to current document content
       if (type === 'text') {

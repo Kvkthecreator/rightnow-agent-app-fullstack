@@ -58,11 +58,7 @@ export class SubstrateMessageBus {
       return response;
     } catch (error) {
       // Emit error event
-      this.emitEvent({
-        ...message,
-        type: 'substrate.error',
-        data: { error: error instanceof Error ? error.message : 'Unknown error' }
-      } as SubstrateEvent);
+      // Emit error via message bus - TODO: implement proper error event type
 
       return {
         success: false,

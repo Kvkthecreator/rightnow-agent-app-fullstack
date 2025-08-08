@@ -50,7 +50,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   const { basket, updateBasketName } = useBasket();
   
   // Context OS state
-  const substrate = useSubstrate(basketId, basket?.workspace_id || 'default');
+  const substrate = useSubstrate(basketId, 'default'); // TODO: get actual workspaceId
   
   // Unified change management system
   const changeManager = useUniversalChanges(basketId);

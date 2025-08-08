@@ -6,11 +6,11 @@
 import React, { useState } from 'react';
 import { useSubstrate } from '@/lib/substrate/useSubstrate';
 import { SubstrateType, SubstrateElement } from '@/lib/substrate/SubstrateTypes';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Textarea';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
 import { 
   FileText, 
   Package, 
@@ -193,11 +193,11 @@ export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps)
                           onClick={() => toggleElementSelection(element)}
                         >
                           <div className="text-sm font-medium truncate">
-                            {'title' in element ? element.title : `${type} ${element.id.slice(0, 8)}`}
+                            {'title' in element ? (element as any).title : `${type} ${element.id.slice(0, 8)}`}
                           </div>
                           <div className="text-xs text-gray-500 truncate mt-1">
-                            {'content' in element && element.content 
-                              ? element.content.substring(0, 100) + '...'
+                            {'content' in element && (element as any).content 
+                              ? (element as any).content.substring(0, 100) + '...'
                               : 'No preview available'}
                           </div>
                           
@@ -269,7 +269,7 @@ export function SubstrateCanvas({ basketId, workspaceId }: SubstrateCanvasProps)
                           <span className="text-sm font-mono">{index + 1}.</span>
                           <Badge variant="outline">{element.type}</Badge>
                           <span className="text-sm truncate">
-                            {'title' in element ? element.title : `${element.type} ${element.id.slice(0, 8)}`}
+                            {'title' in element ? (element as any).title : `${element.type} ${element.id.slice(0, 8)}`}
                           </span>
                         </div>
                       ))}

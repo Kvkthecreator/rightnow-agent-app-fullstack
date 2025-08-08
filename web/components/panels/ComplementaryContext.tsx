@@ -5,7 +5,7 @@ import { Sparkles, Brain, BookOpen, PenTool, Target, TrendingUp } from "lucide-r
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ProgressiveDisclosure } from "../narrative/ProgressiveDisclosure";
-import { useBasketIntelligence } from "@/lib/intelligence/useBasketIntelligence";
+import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { useMemoryInsights } from "@/lib/intelligence/useMemoryInsights";
 
 interface ComplementaryContextProps {
@@ -32,7 +32,7 @@ export function ComplementaryContext({
   className = "" 
 }: ComplementaryContextProps) {
   
-  const basketIntelligence = useBasketIntelligence(basketId || '');
+  const basketIntelligence = useSubstrate(basketId || '', 'default');
   const memoryInsights = useMemoryInsights(basketId || '');
   
   if (priority === 'hidden') return null;

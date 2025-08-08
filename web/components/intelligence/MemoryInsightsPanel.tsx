@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
-import { useBasketIntelligence } from "@/lib/intelligence/useBasketIntelligence";
+import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { useMemoryInsights } from "@/lib/intelligence/useMemoryInsights";
 import { useState } from "react";
 
@@ -46,9 +46,9 @@ export default function MemoryInsightsPanel({
 }
 
 function RelatedDocumentsCard({ basketId }: { basketId: string }) {
-  const { data: intelligence, isLoading } = useBasketIntelligence(basketId);
+  const substrate = useSubstrate(basketId, "default"); // TODO: get workspaceId properly
 
-  if (isLoading) {
+  if (substrate.loading) {
     return (
       <Card className="p-3">
         <div className="flex items-center gap-2 mb-2">
@@ -61,7 +61,7 @@ function RelatedDocumentsCard({ basketId }: { basketId: string }) {
     );
   }
 
-  const relationships = intelligence?.document_relationships?.document_pairs || [];
+  const relationships: any[] = []; // TODO: use substrate data
   const highValueRelationships = relationships.filter(r => r.potential_value === "high");
 
   return (
@@ -245,9 +245,9 @@ function ForgottenInsightsCard({ basketId }: { basketId: string }) {
 }
 
 function PatternEvolutionCard({ basketId }: { basketId: string }) {
-  const { data: intelligence, isLoading } = useBasketIntelligence(basketId);
+  const substrate = useSubstrate(basketId, "default"); // TODO: get workspaceId properly
 
-  if (isLoading) {
+  if (substrate.loading) {
     return (
       <Card className="p-3">
         <div className="text-xs font-medium text-muted-foreground mb-2">
@@ -262,7 +262,7 @@ function PatternEvolutionCard({ basketId }: { basketId: string }) {
     );
   }
 
-  const patterns = intelligence?.thematic_analysis?.discovered_patterns || [];
+  const patterns: any[] = []; // TODO: use substrate data
   const strongPatterns = patterns.filter(p => p.pattern_strength === "strong");
 
   return (
