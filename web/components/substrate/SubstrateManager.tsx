@@ -39,12 +39,20 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
     loadSubstrate();
     
     // Set up real-time subscriptions
-    const channel = substrateService.subscribeToBasket(basketId, () => {
-      loadSubstrate(); // Reload on any change
-    });
+    let channel: any = null;
+    
+    const setupSubscription = async () => {
+      channel = await substrateService.subscribeToBasket(basketId, () => {
+        loadSubstrate(); // Reload on any change
+      });
+    };
+    
+    setupSubscription();
 
     return () => {
-      channel.unsubscribe();
+      if (channel) {
+        channel.unsubscribe();
+      }
     };
   }, [basketId]);
 

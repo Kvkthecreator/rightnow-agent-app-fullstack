@@ -333,8 +333,23 @@ export class SubstrateService {
   // REAL-TIME SUBSCRIPTIONS
   // ==========================================
 
-  subscribeToBasket(basketId: string, callback: (data: any) => void) {
-    const channel = this.supabase.channel(`basket-${basketId}`);
+  async subscribeToBasket(basketId: string, callback: (data: any) => void) {
+    // Ensure we have a valid session before subscribing
+    const { data: { session } } = await this.supabase.auth.getSession();
+    
+    if (!session) {
+      console.warn('No active session for realtime subscription');
+      return null;
+    }
+
+    // Create channel with auth token
+    const channel = this.supabase.channel(`basket-${basketId}`, {
+      config: {
+        presence: {
+          key: session.user.id,
+        },
+      },
+    });
     
     // Subscribe to substrate changes - only tables that exist
     ['raw_dumps', 'blocks'].forEach(table => {
@@ -353,6 +368,9 @@ export class SubstrateService {
     // Gracefully handle potential subscription errors
     channel.subscribe((status) => {
       console.log(`Subscription status for basket ${basketId}:`, status);
+      if (status === 'SUBSCRIPTION_ERROR') {
+        console.error('Realtime subscription error - may need to refresh auth');
+      }
     });
     
     return channel;
