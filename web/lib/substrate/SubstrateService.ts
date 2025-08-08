@@ -368,7 +368,7 @@ export class SubstrateService {
     // Gracefully handle potential subscription errors
     channel.subscribe((status) => {
       console.log(`Subscription status for basket ${basketId}:`, status);
-      if (status === 'SUBSCRIPTION_ERROR') {
+      if (status === 'CHANNEL_ERROR') {
         console.error('Realtime subscription error - may need to refresh auth');
       }
     });
