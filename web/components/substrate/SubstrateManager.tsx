@@ -21,6 +21,7 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'input' | 'blocks' | 'context' | 'documents'>('input');
 
   // Load all substrate data
@@ -66,15 +67,33 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
     }
   };
 
-  // Generate blocks from raw dump
-  const handleGenerateBlocks = async (rawDumpId: string) => {
+  // Process raw dump to generate ALL substrate types
+  const handleProcessRawDump = async (rawDumpId: string) => {
     setLoading(true);
+    setProcessingStatus('Processing substrate with agent orchestra...');
+    
     try {
-      await substrateService.generateBlocksFromRawDump(rawDumpId);
-      setActiveTab('blocks'); // Switch to blocks view
+      const results = await substrateService.processRawDump(rawDumpId);
+      
+      // Show results summary
+      const totalGenerated = results.blocks.length + results.contextItems.length + 
+                            results.narrative.length + results.relationships.length;
+      
+      setProcessingStatus(
+        `✅ Generated: ${results.blocks.length} blocks, ${results.contextItems.length} context items, ${results.narrative.length} narrative, ${results.relationships.length} relationships`
+      );
+      
+      setError(null);
+      // Switch to blocks tab to show results
+      setActiveTab('blocks');
+      
+      // Clear status after delay
+      setTimeout(() => setProcessingStatus(''), 5000);
+      
     } catch (err) {
-      console.error('Failed to generate blocks:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate blocks');
+      console.error('Failed to process raw dump:', err);
+      setError(err instanceof Error ? err.message : 'Failed to process substrate');
+      setProcessingStatus('');
     } finally {
       setLoading(false);
     }
@@ -160,6 +179,12 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
                 >
                   <X className="w-3 h-3" />
                 </button>
+              </div>
+            )}
+
+            {processingStatus && (
+              <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-md text-purple-800 text-sm">
+                {processingStatus}
               </div>
             )}
 
@@ -305,12 +330,12 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
                         {new Date(dump.created_at).toLocaleString()}
                       </div>
                       <button
-                        onClick={() => handleGenerateBlocks(dump.id)}
+                        onClick={() => handleProcessRawDump(dump.id)}
                         disabled={loading}
-                        className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded hover:bg-blue-200 disabled:opacity-50"
+                        className="flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded hover:bg-purple-200 disabled:opacity-50"
                       >
                         <Brain className="w-3 h-3" />
-                        Generate Blocks
+                        Process Substrate
                       </button>
                     </div>
                     <div className="prose prose-sm max-w-none">

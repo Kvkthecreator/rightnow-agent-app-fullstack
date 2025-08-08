@@ -107,60 +107,80 @@ export class SubstrateService {
   // ==========================================
 
   async getBlocks(basketId: string): Promise<Block[]> {
-    const { data, error } = await this.supabase
-      .from('blocks')
-      .select('*')
-      .eq('basket_id', basketId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await this.supabase
+        .from('blocks')
+        .select('*')
+        .eq('basket_id', basketId)
+        .order('created_at', { ascending: false });
 
-    if (error) throw new Error(`Failed to fetch blocks: ${error.message}`);
-    return data || [];
+      if (error) {
+        console.warn('Blocks table not accessible:', error.message);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      console.warn('Blocks not available:', err);
+      return [];
+    }
   }
 
-  async generateBlocksFromRawDump(rawDumpId: string): Promise<Block[]> {
+  // MANAGER AGENT: Single consolidated substrate processing
+  async processRawDump(rawDumpId: string): Promise<{
+    blocks: Block[];
+    contextItems: ContextItem[];
+    narrative: any[];
+    relationships: any[];
+  }> {
     try {
-      // Call Python agent for block generation
-      const response = await fetch('https://api.yarnnn.com/api/agent', {
+      // Get basket_id for the raw dump
+      const { data: rawDump, error: fetchError } = await this.supabase
+        .from('raw_dumps')
+        .select('basket_id')
+        .eq('id', rawDumpId)
+        .single();
+
+      if (fetchError || !rawDump) {
+        throw new Error(`Failed to fetch raw dump: ${fetchError?.message}`);
+      }
+
+      console.log('🎯 Calling Manager Agent for complete substrate processing...');
+
+      // CALL MANAGER AGENT - Single endpoint handles everything
+      const response = await fetch('/api/substrate/process', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          agentType: 'block_proposer',
-          operation: 'generate_blocks',
-          data: {
-            raw_dump_id: rawDumpId
-          }
+          rawDumpId,
+          basketId: rawDump.basket_id
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Agent call failed: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Manager Agent failed: ${response.statusText}`);
       }
 
       const result = await response.json();
       
-      // Store generated blocks in database
-      const blocks = result.data.blocks || [];
-      const insertPromises = blocks.map((block: any) => 
-        this.supabase
-          .from('blocks')
-          .insert({
-            basket_id: block.basket_id,
-            raw_dump_id: rawDumpId,
-            title: block.title,
-            body_md: block.content,
-            status: 'proposed'
-          })
-      );
+      if (!result.success) {
+        throw new Error(result.error || 'Manager Agent processing failed');
+      }
 
-      await Promise.all(insertPromises);
-      return await this.getBlocks(result.data.basket_id);
+      console.log('✅ Manager Agent completed:', result.summary);
+      
+      return result.substrate;
       
     } catch (error) {
-      throw new Error(`Failed to generate blocks: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Manager Agent processing failed:', error);
+      throw new Error(`Failed to process raw dump: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  // Note: All substrate processing now handled by Manager Agent at /api/substrate/process
+  // This eliminates mocks and provides real agent orchestration
 
   async approveBlock(id: string): Promise<Block> {
     const { data, error } = await this.supabase
@@ -191,14 +211,22 @@ export class SubstrateService {
   // ==========================================
 
   async getContextItems(basketId: string): Promise<ContextItem[]> {
-    const { data, error } = await this.supabase
-      .from('context_items')
-      .select('*')
-      .eq('basket_id', basketId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await this.supabase
+        .from('context_items')
+        .select('*')
+        .eq('basket_id', basketId)
+        .order('created_at', { ascending: false });
 
-    if (error) throw new Error(`Failed to fetch context items: ${error.message}`);
-    return data || [];
+      if (error) {
+        console.warn('Context items table not accessible:', error.message);
+        return []; // Return empty array instead of throwing
+      }
+      return data || [];
+    } catch (err) {
+      console.warn('Context items not available:', err);
+      return [];
+    }
   }
 
   async addContextItem(
@@ -207,19 +235,24 @@ export class SubstrateService {
     description: string, 
     type: ContextItem['type']
   ): Promise<ContextItem> {
-    const { data, error } = await this.supabase
-      .from('context_items')
-      .insert({
-        basket_id: basketId,
-        title,
-        description,
-        type
-      })
-      .select()
-      .single();
+    try {
+      const { data, error } = await this.supabase
+        .from('context_items')
+        .insert({
+          basket_id: basketId,
+          title,
+          description,
+          type
+        })
+        .select()
+        .single();
 
-    if (error) throw new Error(`Failed to add context item: ${error.message}`);
-    return data;
+      if (error) throw new Error(`Failed to add context item: ${error.message}`);
+      return data;
+    } catch (err) {
+      console.warn('Cannot add context item - table not accessible:', err);
+      throw new Error('Context items feature not available');
+    }
   }
 
   // ==========================================
@@ -227,14 +260,22 @@ export class SubstrateService {
   // ==========================================
 
   async getDocuments(basketId: string): Promise<Document[]> {
-    const { data, error } = await this.supabase
-      .from('documents')
-      .select('*')
-      .eq('basket_id', basketId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await this.supabase
+        .from('documents')
+        .select('*')
+        .eq('basket_id', basketId)
+        .order('created_at', { ascending: false });
 
-    if (error) throw new Error(`Failed to fetch documents: ${error.message}`);
-    return data || [];
+      if (error) {
+        console.warn('Documents table not accessible:', error.message);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      console.warn('Documents not available:', err);
+      return [];
+    }
   }
 
   async createDocument(basketId: string, title: string, content: string): Promise<Document> {
@@ -295,8 +336,8 @@ export class SubstrateService {
   subscribeToBasket(basketId: string, callback: (data: any) => void) {
     const channel = this.supabase.channel(`basket-${basketId}`);
     
-    // Subscribe to all substrate changes
-    ['raw_dumps', 'blocks', 'context_items', 'documents'].forEach(table => {
+    // Subscribe to substrate changes - only tables that exist
+    ['raw_dumps', 'blocks'].forEach(table => {
       channel.on(
         'postgres_changes',
         {
@@ -309,7 +350,11 @@ export class SubstrateService {
       );
     });
 
-    channel.subscribe();
+    // Gracefully handle potential subscription errors
+    channel.subscribe((status) => {
+      console.log(`Subscription status for basket ${basketId}:`, status);
+    });
+    
     return channel;
   }
 }

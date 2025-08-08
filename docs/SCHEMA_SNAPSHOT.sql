@@ -125,6 +125,13 @@ CREATE TABLE public.blocks (
     label text,
     meta_tags text[],
     is_required boolean DEFAULT false,
+    raw_dump_id uuid,
+    title text,
+    body_md text,
+    confidence_score double precision DEFAULT 0.5,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    processing_agent text,
+    status text DEFAULT 'proposed'::text,
     CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state)))
 )
 WITH (autovacuum_enabled='true');
@@ -133,9 +140,15 @@ CREATE TABLE public.context_items (
     basket_id uuid NOT NULL,
     document_id uuid,
     type text NOT NULL,
-    content text NOT NULL,
+    content text,
     status text DEFAULT 'active'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    raw_dump_id uuid,
+    title text,
+    description text,
+    confidence_score double precision DEFAULT 0.5,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT context_items_status_check CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
 );
 CREATE TABLE public.documents (
@@ -165,6 +178,18 @@ CREATE TABLE public.events (
     agent_type text,
     CONSTRAINT events_origin_check CHECK ((origin = ANY (ARRAY['user'::text, 'agent'::text, 'daemon'::text, 'system'::text])))
 );
+CREATE TABLE public.narrative (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid,
+    raw_dump_id uuid,
+    type text NOT NULL,
+    title text NOT NULL,
+    content text NOT NULL,
+    confidence_score double precision DEFAULT 0.5,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
 CREATE TABLE public.raw_dumps (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid NOT NULL,
@@ -173,7 +198,10 @@ CREATE TABLE public.raw_dumps (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     workspace_id uuid NOT NULL,
     file_url text,
-    document_id uuid
+    document_id uuid,
+    fragments jsonb DEFAULT '[]'::jsonb,
+    processing_status text DEFAULT 'unprocessed'::text,
+    processed_at timestamp with time zone
 );
 CREATE TABLE public.revisions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -182,6 +210,18 @@ CREATE TABLE public.revisions (
     summary text,
     diff_json jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE TABLE public.substrate_relationships (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid,
+    from_type text NOT NULL,
+    from_id uuid NOT NULL,
+    to_type text NOT NULL,
+    to_id uuid NOT NULL,
+    relationship_type text NOT NULL,
+    description text,
+    strength double precision DEFAULT 0.5,
+    created_at timestamp with time zone DEFAULT now()
 );
 CREATE TABLE public.workspace_memberships (
     id bigint NOT NULL,
@@ -219,10 +259,14 @@ ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.events
     ADD CONSTRAINT events_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.narrative
+    ADD CONSTRAINT narrative_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.substrate_relationships
+    ADD CONSTRAINT substrate_relationships_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_memberships
@@ -236,11 +280,16 @@ CREATE INDEX idx_baskets_workspace ON public.baskets USING btree (workspace_id);
 CREATE INDEX idx_blocks_workspace ON public.blocks USING btree (workspace_id);
 CREATE INDEX idx_context_basket ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_doc ON public.context_items USING btree (document_id);
+CREATE INDEX idx_context_items_basket ON public.context_items USING btree (basket_id);
+CREATE INDEX idx_context_items_basket_id ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_documents_workspace ON public.documents USING btree (workspace_id);
 CREATE INDEX idx_events_agent_type ON public.events USING btree (agent_type);
 CREATE INDEX idx_events_origin_kind ON public.events USING btree (origin, kind);
 CREATE INDEX idx_events_workspace_ts ON public.events USING btree (workspace_id, ts DESC);
+CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
 CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
+CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
+CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
 CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
@@ -258,10 +307,14 @@ ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_parent_block_id_fkey FOREIGN KEY (parent_block_id) REFERENCES public.blocks(id);
+ALTER TABLE ONLY public.blocks
+    ADD CONSTRAINT blocks_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
 ALTER TABLE ONLY public.context_items
     ADD CONSTRAINT context_items_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.context_items
     ADD CONSTRAINT context_items_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.context_items
+    ADD CONSTRAINT context_items_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
 ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.documents
@@ -284,10 +337,16 @@ ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT fk_rawdump_document FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT fk_rawdump_workspace FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.narrative
+    ADD CONSTRAINT narrative_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
+ALTER TABLE ONLY public.narrative
+    ADD CONSTRAINT narrative_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.substrate_relationships
+    ADD CONSTRAINT substrate_relationships_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_memberships
@@ -344,9 +403,6 @@ CREATE POLICY "allow agent insert" ON public.revisions FOR INSERT TO authenticat
   WHERE (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
-CREATE POLICY authenticated_users_insert_raw_dumps ON public.raw_dumps FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
-   FROM public.workspace_memberships
-  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY basket_member_delete ON public.baskets FOR DELETE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -373,8 +429,25 @@ CREATE POLICY block_member_update ON public.blocks FOR UPDATE USING ((workspace_
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
 ALTER TABLE public.block_revisions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.context_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY context_items_delete ON public.context_items FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY context_items_insert ON public.context_items FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY context_items_select ON public.context_items FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY context_items_update ON public.context_items FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid()))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY ctx_member_delete ON public.context_items FOR DELETE USING ((basket_id IN ( SELECT b.id
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
@@ -392,10 +465,6 @@ CREATE POLICY ctx_member_update ON public.context_items FOR UPDATE USING ((baske
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE (wm.user_id = auth.uid()))));
 CREATE POLICY "debug insert bypass" ON public.workspaces FOR INSERT TO authenticated WITH CHECK (true);
-ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
-CREATE POLICY dump_member_insert ON public.raw_dumps FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
-   FROM public.workspace_memberships
-  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY dump_member_read ON public.raw_dumps FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -410,7 +479,9 @@ CREATE POLICY event_member_update ON public.events FOR UPDATE USING ((EXISTS ( S
   WHERE ((workspace_memberships.workspace_id = events.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY member_self_crud ON public.workspace_memberships USING ((user_id = auth.uid()));
 CREATE POLICY member_self_insert ON public.workspace_memberships FOR INSERT TO authenticated WITH CHECK ((auth.uid() = user_id));
-ALTER TABLE public.raw_dumps ENABLE ROW LEVEL SECURITY;
+CREATE POLICY raw_dumps_workspace_insert ON public.raw_dumps FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY revision_member_delete ON public.block_revisions FOR DELETE USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
