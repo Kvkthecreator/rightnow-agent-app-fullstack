@@ -7,6 +7,8 @@
  * - Pauses during active user sessions
  */
 
+import { apiClient } from '@/lib/api/client';
+
 interface BackgroundGenerationOptions {
   basketId: string;
   origin: 'document_update' | 'raw_dump_added';
@@ -37,20 +39,12 @@ async function hasActiveUserSessions(basketId: string): Promise<boolean> {
   try {
     // This would ideally check WebSocket connections, recent API activity, etc.
     // For now, we'll use a simple heuristic based on recent activity
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/activity/check/${basketId}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    if (response.ok) {
-      const { hasActivity } = await response.json();
-      return hasActivity;
-    }
+    const response = await apiClient.request(`/api/activity/check/${basketId}`);
+    return (response as any)?.hasActivity || false;
   } catch (error) {
     console.warn('Failed to check user activity:', error);
+    return false; // Default to not blocking generation
   }
-  
-  return false; // Default to not blocking generation
 }
 
 /**
@@ -80,25 +74,18 @@ async function executeBackgroundGeneration(basketId: string, origin: string): Pr
     console.log(`Executing background intelligence generation for basket ${basketId} (${origin})`);
 
     // Make the generation request
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/intelligence/generate/${basketId}`, {
+    const result = await apiClient.request(`/api/intelligence/generate/${basketId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         origin: 'background',
         checkPending: false // Background generation can run even with pending changes
       })
     });
 
-    if (response.ok) {
-      const result = await response.json();
-      console.log(`Background intelligence generation completed for basket ${basketId}:`, result);
-      
-      // Update last generation time
-      lastGenerationTimes.set(basketId, now);
-    } else {
-      const error = await response.json();
-      console.error(`Background intelligence generation failed for basket ${basketId}:`, error);
-    }
+    console.log(`Background intelligence generation completed for basket ${basketId}:`, result);
+    
+    // Update last generation time
+    lastGenerationTimes.set(basketId, now);
 
   } catch (error) {
     console.error(`Background intelligence generation error for basket ${basketId}:`, error);

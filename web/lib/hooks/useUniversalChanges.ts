@@ -11,6 +11,7 @@ import type {
   ValidationError,
   // WebSocketPayload // DISABLED - Using Supabase Realtime
 } from '@/lib/services/UniversalChangeService';
+import { apiClient } from '@/lib/api/client';
 // import { getWebSocketManager, destroyWebSocketManager, type WebSocketManager } from '@/lib/websocket/WebSocketManager'; // DISABLED - Using Supabase Realtime
 
 // ============================================================================
@@ -431,11 +432,8 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
       // Submit change to API
       console.log('🎯 Step 6: Sending POST /api/changes with:', { id: changeId, type, basketId, data, metadata });
       
-      const response = await fetch('/api/changes', {
+      const result: ChangeResult = await apiClient.request('/api/changes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           id: changeId,
           type,
@@ -446,11 +444,10 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
         }),
       });
 
-      console.log('🎯 Step 7: API response status:', response.status, response.statusText);
-      const result: ChangeResult = await response.json();
+      console.log('🎯 Step 7: API response result:', result);
       console.log('🎯 Step 8: API response data:', result);
 
-      if (result.success) {
+      if ((result as any).success) {
         console.log(`✅ Change submitted successfully: ${type}`);
         
         // Add to pending changes for optimistic UI
@@ -468,7 +465,7 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
           });
         }
       } else {
-        console.error(`❌ Change submission failed: ${type}`, result.errors);
+        console.error(`❌ Change submission failed: ${type}`, (result as any).errors);
         
         // Add error to state
         dispatch({
@@ -476,7 +473,7 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
           payload: {
             id: crypto.randomUUID(),
             changeId,
-            message: result.errors?.[0] || 'Change failed',
+            message: (result as any).errors?.[0] || 'Change failed',
             code: 'CHANGE_FAILED',
             timestamp: new Date().toISOString(),
             dismissible: true
@@ -484,8 +481,8 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
         });
 
         // Handle conflicts
-        if (result.conflicts && result.conflicts.length > 0) {
-          dispatch({ type: 'SET_CONFLICTS', payload: result.conflicts });
+        if ((result as any).conflicts && (result as any).conflicts.length > 0) {
+          dispatch({ type: 'SET_CONFLICTS', payload: (result as any).conflicts });
         }
       }
 
@@ -600,11 +597,8 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
       console.log('🧠 Generating intelligence via Universal Change System:', { basketId, origin });
 
       // Submit intelligence generation request through unified API
-      const response = await fetch('/api/changes', {
+      const result = await apiClient.request('/api/changes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           id: changeId,
           type: 'intelligence_generate',
@@ -621,46 +615,39 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
         }),
       });
 
-      const result = await response.json();
-
-      if (result.success) {
+      if ((result as any).success) {
         console.log('✅ Intelligence generation successful via Universal Changes');
         
         // Check if intelligence was generated and create pending changes for approval
-        if (result.data?.requiresReview || result.data?.changesDetected > 0) {
+        if ((result as any).data?.requiresReview || (result as any).data?.changesDetected > 0) {
           console.log('🔔 Intelligence generated insights that require approval - creating pending changes');
           
           try {
             // Fetch the generated intelligence data for approval
-            const intelligenceResponse = await fetch(`/api/substrate/basket/${basketId}`);
-            if (intelligenceResponse.ok) {
-              const intelligence = await intelligenceResponse.json();
+            const intelligence = await apiClient.request(`/api/substrate/basket/${basketId}`);
               
-              // Transform intelligence generation result into pending changes
-              const intelligencePendingChange: PendingChange = {
-                id: crypto.randomUUID(),
-                type: 'intelligence_approve',
-                data: {
-                  eventId: result.data.eventId,
-                  approvedSections: ['all'], // Default to all sections approved
-                  partialApproval: false,
-                  intelligence: intelligence
-                },
-                timestamp: new Date().toISOString(),
-                status: 'pending',
-                actorId: '' // Will be set by the reducer
-              };
-              
-              // Add to pending changes
-              dispatch({
-                type: 'ADD_PENDING_CHANGE',
-                payload: intelligencePendingChange
-              });
-              
-              console.log('✨ Created pending change for intelligence approval:', intelligencePendingChange.id);
-            } else {
-              console.warn('⚠️ Could not fetch intelligence data for approval');
-            }
+            // Transform intelligence generation result into pending changes
+            const intelligencePendingChange: PendingChange = {
+              id: crypto.randomUUID(),
+              type: 'intelligence_approve',
+              data: {
+                eventId: (result as any).data.eventId,
+                approvedSections: ['all'], // Default to all sections approved
+                partialApproval: false,
+                intelligence: intelligence as any
+              },
+              timestamp: new Date().toISOString(),
+              status: 'pending',
+              actorId: '' // Will be set by the reducer
+            };
+            
+            // Add to pending changes
+            dispatch({
+              type: 'ADD_PENDING_CHANGE',
+              payload: intelligencePendingChange
+            });
+            
+            console.log('✨ Created pending change for intelligence approval:', intelligencePendingChange.id);
           } catch (fetchError) {
             console.error('❌ Failed to fetch intelligence for approval:', fetchError);
           }
@@ -668,7 +655,7 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
           console.log('📡 Intelligence generation completed - no new insights to review');
         }
       } else {
-        throw new Error(result.errors?.[0] || 'Failed to generate intelligence');
+        throw new Error((result as any).errors?.[0] || 'Failed to generate intelligence');
       }
 
     } catch (error) {
