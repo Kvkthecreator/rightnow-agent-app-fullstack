@@ -49,7 +49,6 @@ routers = (
     commits_router,
     blocks_router,
     change_queue_router,
-    basket_router,
     basket_new_router,
     snapshot_router,
     inputs_router,
@@ -69,6 +68,8 @@ routers = (
 
 for r in routers:
     app.include_router(r, prefix="/api")
+
+app.include_router(basket_router)
 
 # Agent endpoints
 @app.post("/api/agent")
