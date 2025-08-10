@@ -1,40 +1,49 @@
 import sys
 import os
-import json
 
 # Add src to path for imports  
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from contracts.basket import BasketDelta
+from repositories.delta_repository import DeltaRepository
+from repositories.event_repository import EventRepository
 
 async def persist_delta(db, delta: BasketDelta, request_id: str) -> None:
-    payload = delta.dict()
-    query = """
-        INSERT INTO basket_deltas (delta_id, basket_id, payload, created_at)
-        VALUES (:delta_id, :basket_id, :payload, :created_at)
-    """
-    await db.execute(query, {
-        "delta_id": delta.delta_id,
-        "basket_id": delta.basket_id,
-        "payload": json.dumps(payload),
-        "created_at": delta.created_at
-    })
+    """Persist delta and publish event as documented"""
+    # Use repository for database operation
+    delta_repo = DeltaRepository(db)
+    await delta_repo.persist_delta(delta.dict(), request_id)
+    
+    # Publish event as documented
+    event_repo = EventRepository(db)
+    await event_repo.publish_event(
+        "delta.created",
+        {
+            "basket_id": delta.basket_id,
+            "delta_id": delta.delta_id,
+            "summary": delta.summary
+        }
+    )
 
 async def list_deltas(db, basket_id: str):
-    query = """
-        SELECT payload FROM basket_deltas 
-        WHERE basket_id = :basket_id 
-        ORDER BY created_at DESC
-    """
-    rows = await db.fetch_all(query, {"basket_id": basket_id})
-    return [json.loads(row["payload"]) for row in rows]
+    """List deltas using repository"""
+    delta_repo = DeltaRepository(db)
+    return await delta_repo.list_deltas(basket_id)
 
 async def try_apply_delta(db, basket_id: str, delta_id: str) -> bool:
-    # For now, just mark as applied - add version checks later
-    query = """
-        UPDATE basket_deltas 
-        SET applied_at = NOW() 
-        WHERE delta_id = :delta_id AND basket_id = :basket_id
-    """
-    result = await db.execute(query, {"delta_id": delta_id, "basket_id": basket_id})
-    return result > 0
+    """Apply delta using repository"""
+    delta_repo = DeltaRepository(db)
+    success = await delta_repo.apply_delta(basket_id, delta_id)
+    
+    if success:
+        # Publish event for successful application
+        event_repo = EventRepository(db)
+        await event_repo.publish_event(
+            "delta.applied",
+            {
+                "basket_id": basket_id,
+                "delta_id": delta_id
+            }
+        )
+    
+    return success

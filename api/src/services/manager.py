@@ -6,20 +6,11 @@ from typing import List
 # Add src to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from contracts.basket import BasketChangeRequest, EntityChangeBlock
+from contracts.basket import BasketChangeRequest, BasketDelta, EntityChangeBlock
 from services.clock import now_iso
 from services.worker_adapter import WorkerAgentAdapter, WorkerOutputAggregator
 
-class PlanResult:
-    def __init__(self, delta_id, summary, changes, recommended_actions, explanations, confidence):
-        self.delta_id = delta_id
-        self.summary = summary
-        self.changes = changes
-        self.recommended_actions = recommended_actions
-        self.explanations = explanations
-        self.confidence = confidence
-
-async def run_manager_plan(db, req: BasketChangeRequest) -> PlanResult:
+async def run_manager_plan(db, req: BasketChangeRequest) -> BasketDelta:
     """
     REAL Manager Agent Orchestration - No more fake data!
     
@@ -78,29 +69,30 @@ async def run_manager_plan(db, req: BasketChangeRequest) -> PlanResult:
         
         print(f"  ✅ Manager plan complete: {len(final_changes)} final changes, confidence: {final_confidence}")
         
-        return PlanResult(
+        return BasketDelta(
             delta_id=str(uuid4()),
+            basket_id=req.basket_id,
             summary=aggregated["summary"],
             changes=final_changes,
-            recommended_actions=aggregated["recommended_actions"],
-            explanations=aggregated["explanations"], 
-            confidence=final_confidence
+            recommended_actions=aggregated.get("recommended_actions", []),
+            explanations=aggregated.get("explanations", []),
+            confidence=final_confidence,
+            created_at=now_iso()
         )
         
     except Exception as e:
         print(f"  ❌ Manager orchestration failed: {e}")
         
-        # Fallback to minimal safe response
-        return PlanResult(
+        # Fallback to error delta
+        return BasketDelta(
             delta_id=str(uuid4()),
-            summary=f"Manager analysis partially completed (error: {str(e)[:50]}...)",
+            basket_id=req.basket_id,
+            summary=f"Processing failed: {str(e)}",
             changes=[],
             recommended_actions=[],
-            explanations=[
-                {"by": "manager", "text": f"Orchestration encountered issues: {str(e)}"},
-                {"by": "manager", "text": "Safe fallback applied - no changes proposed"}
-            ],
-            confidence=0.2
+            explanations=[{"by": "manager", "text": str(e)}],
+            confidence=0.0,
+            created_at=now_iso()
         )
 
 
