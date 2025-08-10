@@ -45,8 +45,9 @@ export async function POST(
 
   } catch (error) {
     console.error('❌ API Bridge error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'API bridge failed', details: error.message },
+      { error: 'API bridge failed', details: errorMessage },
       { status: 500 }
     );
   }
