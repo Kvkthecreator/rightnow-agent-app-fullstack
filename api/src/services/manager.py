@@ -1,6 +1,7 @@
+from ..contracts.basket import BasketChangeRequest, EntityChangeBlock
 from uuid import uuid4
-from typing import List, Dict, Any
-from ..contracts.basket import BasketChangeRequest
+from typing import List
+from ..services.clock import now_iso
 
 class PlanResult:
     def __init__(self, delta_id, summary, changes, recommended_actions, explanations, confidence):
@@ -12,9 +13,29 @@ class PlanResult:
         self.confidence = confidence
 
 async def run_manager_plan(db, req: BasketChangeRequest) -> PlanResult:
-    summary = "No material change detected." if not (req.sources or req.intent) else "Consolidated incoming changes."
-    changes: List[Dict[str, Any]] = []
-    recs: List[Dict[str, Any]] = []
-    explanations = [{"by": "manager", "text": summary}]
-    confidence = 0.8
-    return PlanResult(str(uuid4()), summary, changes, recs, explanations, confidence)
+    # Minimal implementation - just create a no-op delta for now
+    # Replace with actual worker orchestration later
+    
+    changes = []
+    if req.sources:
+        # Create a placeholder change for each source
+        for i, source in enumerate(req.sources):
+            if source.type == "raw_dump":
+                changes.append(EntityChangeBlock(
+                    entity="context_block",
+                    id=f"block_{i}",
+                    from_version=0,
+                    to_version=1,
+                    diff="[Processing raw dump]"
+                ))
+    
+    summary = f"Processed {len(req.sources or [])} sources" if req.sources else "No changes needed"
+    
+    return PlanResult(
+        delta_id=str(uuid4()),
+        summary=summary,
+        changes=changes,
+        recommended_actions=[],
+        explanations=[{"by": "manager", "text": summary}],
+        confidence=0.8 if changes else 1.0
+    )

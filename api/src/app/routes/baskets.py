@@ -1,11 +1,16 @@
 from fastapi import APIRouter, HTTPException, Depends
 from ...contracts.basket import BasketChangeRequest, BasketDelta
-from ...services.idempotency import already_processed, mark_processed, fetch_delta_by_request_id
+from ...services.idempotency import (
+    already_processed,
+    mark_processed,
+    fetch_delta_by_request_id,
+)
 from ...services.manager import run_manager_plan
 from ...services.deltas import persist_delta, list_deltas, try_apply_delta
 from ...services.events import publish_event
 from ...services.clock import now_iso
 from ..deps import get_db
+import json
 
 router = APIRouter(prefix="/api/baskets", tags=["baskets"])
 
@@ -17,7 +22,7 @@ async def post_basket_work(basket_id: str, req: BasketChangeRequest, db=Depends(
         cached = await fetch_delta_by_request_id(db, req.request_id)
         if not cached:
             raise HTTPException(409, "Duplicate request but no cached delta")
-        return cached
+        return json.loads(cached["payload"])
     plan = await run_manager_plan(db, req)
     delta = BasketDelta(
         delta_id=plan.delta_id,

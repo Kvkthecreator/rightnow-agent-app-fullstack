@@ -1,3 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
+
 def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.utcnow().isoformat() + "Z"
