@@ -28,6 +28,10 @@ async def get_db() -> Database:
         if not database_url:
             raise ValueError("DATABASE_URL environment variable is required")
         
+        # Handle Render.com DATABASE_URL format which might need adjustment for databases library
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        
         _db = Database(database_url)
         await _db.connect()
         return _db

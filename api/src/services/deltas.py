@@ -1,5 +1,11 @@
-from ..contracts.basket import BasketDelta
+import sys
+import os
 import json
+
+# Add src to path for imports  
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from contracts.basket import BasketDelta
 
 async def persist_delta(db, delta: BasketDelta, request_id: str) -> None:
     payload = delta.dict()

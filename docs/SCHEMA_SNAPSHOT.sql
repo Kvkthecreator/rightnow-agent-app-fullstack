@@ -81,6 +81,28 @@ begin
   end if;
   return new;
 end $$;
+CREATE TABLE public.basket_deltas (
+    delta_id uuid NOT NULL,
+    basket_id uuid NOT NULL,
+    payload jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    applied_at timestamp with time zone
+);
+CREATE TABLE public.basket_events (
+    id integer NOT NULL,
+    event_type text NOT NULL,
+    payload jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
+);
+ALTER TABLE ONLY public.basket_events REPLICA IDENTITY FULL;
+CREATE SEQUENCE public.basket_events_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ALTER SEQUENCE public.basket_events_id_seq OWNED BY public.basket_events.id;
 CREATE TABLE public.baskets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name text,
@@ -135,6 +157,7 @@ CREATE TABLE public.blocks (
     CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state)))
 )
 WITH (autovacuum_enabled='true');
+ALTER TABLE ONLY public.blocks REPLICA IDENTITY FULL;
 CREATE TABLE public.context_items (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid NOT NULL,
@@ -151,6 +174,7 @@ CREATE TABLE public.context_items (
     updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT context_items_status_check CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
 );
+ALTER TABLE ONLY public.context_items REPLICA IDENTITY FULL;
 CREATE TABLE public.documents (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
@@ -178,6 +202,11 @@ CREATE TABLE public.events (
     agent_type text,
     CONSTRAINT events_origin_check CHECK ((origin = ANY (ARRAY['user'::text, 'agent'::text, 'daemon'::text, 'system'::text])))
 );
+CREATE TABLE public.idempotency_keys (
+    request_id text NOT NULL,
+    delta_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
 CREATE TABLE public.narrative (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
@@ -190,6 +219,7 @@ CREATE TABLE public.narrative (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now()
 );
+ALTER TABLE ONLY public.narrative REPLICA IDENTITY FULL;
 CREATE TABLE public.raw_dumps (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid NOT NULL,
@@ -203,6 +233,7 @@ CREATE TABLE public.raw_dumps (
     processing_status text DEFAULT 'unprocessed'::text,
     processed_at timestamp with time zone
 );
+ALTER TABLE ONLY public.raw_dumps REPLICA IDENTITY FULL;
 CREATE TABLE public.revisions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
@@ -223,6 +254,7 @@ CREATE TABLE public.substrate_relationships (
     strength double precision DEFAULT 0.5,
     created_at timestamp with time zone DEFAULT now()
 );
+ALTER TABLE ONLY public.substrate_relationships REPLICA IDENTITY FULL;
 CREATE TABLE public.workspace_memberships (
     id bigint NOT NULL,
     workspace_id uuid,
@@ -244,7 +276,12 @@ CREATE TABLE public.workspaces (
     is_demo boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now()
 );
+ALTER TABLE ONLY public.basket_events ALTER COLUMN id SET DEFAULT nextval('public.basket_events_id_seq'::regclass);
 ALTER TABLE ONLY public.workspace_memberships ALTER COLUMN id SET DEFAULT nextval('public.workspace_memberships_id_seq'::regclass);
+ALTER TABLE ONLY public.basket_deltas
+    ADD CONSTRAINT basket_deltas_pkey PRIMARY KEY (delta_id);
+ALTER TABLE ONLY public.basket_events
+    ADD CONSTRAINT basket_events_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.baskets
     ADD CONSTRAINT baskets_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.block_links
@@ -259,6 +296,8 @@ ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.events
     ADD CONSTRAINT events_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.idempotency_keys
+    ADD CONSTRAINT idempotency_keys_pkey PRIMARY KEY (request_id);
 ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.raw_dumps
@@ -276,6 +315,9 @@ ALTER TABLE ONLY public.workspaces
 CREATE INDEX baskets_user_idx ON public.baskets USING btree (user_id);
 CREATE INDEX blk_doc_idx ON public.block_links USING btree (block_id, document_id);
 CREATE UNIQUE INDEX docs_basket_title_idx ON public.documents USING btree (basket_id, title);
+CREATE INDEX idx_basket_deltas_basket ON public.basket_deltas USING btree (basket_id, created_at DESC);
+CREATE INDEX idx_basket_deltas_created ON public.basket_deltas USING btree (created_at DESC);
+CREATE INDEX idx_basket_events_created ON public.basket_events USING btree (created_at DESC);
 CREATE INDEX idx_baskets_workspace ON public.baskets USING btree (workspace_id);
 CREATE INDEX idx_blocks_workspace ON public.blocks USING btree (workspace_id);
 CREATE INDEX idx_context_basket ON public.context_items USING btree (basket_id);
@@ -286,6 +328,8 @@ CREATE INDEX idx_documents_workspace ON public.documents USING btree (workspace_
 CREATE INDEX idx_events_agent_type ON public.events USING btree (agent_type);
 CREATE INDEX idx_events_origin_kind ON public.events USING btree (origin, kind);
 CREATE INDEX idx_events_workspace_ts ON public.events USING btree (workspace_id, ts DESC);
+CREATE INDEX idx_idem_delta_id ON public.idempotency_keys USING btree (delta_id);
+CREATE INDEX idx_idempotency_delta ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
 CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
@@ -389,6 +433,31 @@ CREATE POLICY "Users can read blocks in their workspaces" ON public.blocks FOR S
 CREATE POLICY "Users can read documents in their workspaces" ON public.documents FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = documents.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+CREATE POLICY "Users can view blocks in their workspace" ON public.blocks FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.baskets
+  WHERE ((baskets.id = blocks.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view context_items in their workspace" ON public.context_items FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.baskets
+  WHERE ((baskets.id = context_items.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view narrative in their workspace" ON public.narrative FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.baskets
+  WHERE ((baskets.id = narrative.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view raw_dumps in their workspace" ON public.raw_dumps FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.baskets
+  WHERE ((baskets.id = raw_dumps.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view relationships in their workspace" ON public.substrate_relationships FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.baskets
+  WHERE ((baskets.id = substrate_relationships.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid())))))));
 CREATE POLICY "Workspace members can read events" ON public.events FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));

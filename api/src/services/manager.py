@@ -1,7 +1,13 @@
-from ..contracts.basket import BasketChangeRequest, EntityChangeBlock
+import sys
+import os
 from uuid import uuid4
 from typing import List
-from ..services.clock import now_iso
+
+# Add src to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from contracts.basket import BasketChangeRequest, EntityChangeBlock
+from services.clock import now_iso
 
 class PlanResult:
     def __init__(self, delta_id, summary, changes, recommended_actions, explanations, confidence):

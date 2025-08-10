@@ -1,4 +1,7 @@
 -r src/requirements.codex.txt
+# Database dependencies (duplicated for Render reliability)
+databases[postgresql]>=0.7.0
+asyncpg>=0.29.0
 pytest
 pytest-asyncio
 pytest-mock

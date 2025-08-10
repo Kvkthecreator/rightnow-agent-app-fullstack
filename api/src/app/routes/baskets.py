@@ -1,16 +1,22 @@
 from fastapi import APIRouter, HTTPException, Depends
-from ...contracts.basket import BasketChangeRequest, BasketDelta
-from ...services.idempotency import (
+import json
+import sys
+import os
+
+# Add src to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
+
+from contracts.basket import BasketChangeRequest, BasketDelta
+from services.idempotency import (
     already_processed,
     mark_processed,
     fetch_delta_by_request_id,
 )
-from ...services.manager import run_manager_plan
-from ...services.deltas import persist_delta, list_deltas, try_apply_delta
-from ...services.events import publish_event
-from ...services.clock import now_iso
+from services.manager import run_manager_plan
+from services.deltas import persist_delta, list_deltas, try_apply_delta
+from services.events import publish_event
+from services.clock import now_iso
 from ..deps import get_db
-import json
 
 router = APIRouter(prefix="/api/baskets", tags=["baskets"])
 

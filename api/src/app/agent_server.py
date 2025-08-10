@@ -8,6 +8,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 # Extend sys.path: ensure 'api/src' is added before 'api/src/app' so sibling packages resolve correctly
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")))
@@ -40,8 +41,21 @@ from .routes.block_lifecycle import router as block_lifecycle_router
 from .routes.agent_memory import router as agent_memory_router
 from .routes.context_intelligence import router as context_intelligence_router
 from .routes.narrative_intelligence import router as narrative_intelligence_router
+from .deps import close_db
 
-app = FastAPI(title="RightNow Agent Server")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger = logging.getLogger("uvicorn.error")
+    logger.info("Starting RightNow Agent Server")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down RightNow Agent Server")
+    await close_db()
+
+app = FastAPI(title="RightNow Agent Server", lifespan=lifespan)
 
 # Include routers
 routers = (
@@ -83,6 +97,26 @@ async def api_run_agent_direct(request):
 @app.get("/", include_in_schema=False)
 async def health():
     return {"status": "ok"}
+
+@app.get("/health/db", include_in_schema=False)
+async def health_db():
+    """Database health check for deployment verification"""
+    try:
+        from .deps import get_db
+        db = await get_db()
+        result = await db.fetch_one("SELECT NOW() as current_time, 'connected' as status")
+        return {
+            "status": "healthy",
+            "database_connected": True,
+            "current_time": result["current_time"].isoformat() if result else None
+        }
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        return {
+            "status": "unhealthy", 
+            "database_connected": False,
+            "error": str(e)
+        }
 
 # CORS
 app.add_middleware(
