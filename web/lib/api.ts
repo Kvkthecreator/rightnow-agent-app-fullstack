@@ -1,10 +1,11 @@
 /**
- * Simple wrapper for API calls to your FastAPI server at api.yarnnn.com.
+ * Legacy API wrapper - migrate to centralized ApiClient
+ * @deprecated Use @/lib/api/client instead
  */
-import { fetchWithToken } from "./fetchWithToken";
+import { apiClient } from './api/client';
 
 /**
- * Resolve the full backend URL for a given path.
+ * @deprecated Use apiClient.request() instead
  */
 export function apiUrl(path: string): string {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -16,86 +17,50 @@ export function apiUrl(path: string): string {
 }
 
 /**
- * Lightweight fetch wrapper that always hits the FastAPI `/api` prefix.
+ * @deprecated Use apiClient.request() instead
  */
 export function apiFetch(path: string, options: RequestInit = {}) {
   return fetch(apiUrl(path), options);
 }
 
+/**
+ * @deprecated Use apiClient.request() instead
+ */
 export async function apiGet<T = any>(path: string, token?: string): Promise<T> {
-  const res = await fetchWithToken(apiUrl(path), {}, token);
-  if (!res.ok) {
-    console.warn(`[apiGet] Non-OK response (${res.status}) for ${path}`);
-    throw new Error(`API error: ${res.status}`);
-  }
-  try {
-    const data = await res.json();
-    if (data === undefined || data === null) {
-      throw new Error("Empty JSON response");
-    }
-    return data as T;
-  } catch (err) {
-    console.warn(`[apiGet] Failed to parse JSON from ${path}:`, err);
-    throw err;
-  }
+  return apiClient.request(`/api${path}`, { method: 'GET' });
 }
 
+/**
+ * @deprecated Use apiClient.request() instead
+ */
 export async function apiPost<T = any>(
   path: string,
   body: any,
   token?: string,
 ): Promise<T> {
-  const res = await fetchWithToken(
-    apiUrl(path),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
-    token,
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `apiPost ${path} failed with status ${res.status}`);
-  }
-  return (await res.json()) as T;
+  return apiClient.request(`/api${path}`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
+/**
+ * @deprecated Use apiClient.request() instead
+ */
 export async function apiPut<T = any>(
   path: string,
   body: any,
   token?: string,
 ): Promise<T> {
-  const res = await fetchWithToken(
-    apiUrl(path),
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
-    token,
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `apiPut ${path} failed with status ${res.status}`);
-  }
-  return (await res.json()) as T;
+  return apiClient.request(`/api${path}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
 }
 
+/**
+ * @deprecated Use apiClient.request() instead
+ */
 export async function apiDelete<T = any>(path: string, token?: string): Promise<T> {
-  const res = await fetchWithToken(
-    apiUrl(path),
-    { method: "DELETE" },
-    token,
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `apiDelete ${path} failed with status ${res.status}`);
-  }
-  try {
-    const txt = await res.text();
-    return txt ? (JSON.parse(txt) as T) : ({} as T);
-  } catch {
-    return {} as T;
-  }
+  return apiClient.request(`/api${path}`, { method: 'DELETE' });
 }
