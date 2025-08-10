@@ -188,7 +188,7 @@ export class ProductionOptimizer {
     return [
       { name: '@/lib/collaboration/ConflictDetectionEngine', size: 180000 },
       { name: '@/lib/collaboration/OperationalTransform', size: 120000 },
-      { name: '@/lib/performance/CacheManager', size: 150000 },
+      // EXPERIMENTAL: CacheManager not yet integrated
       { name: '@/lib/intelligence/UserPreferenceLearning', size: 200000 },
       { name: '@/lib/security/SecurityManager', size: 170000 }
     ];

@@ -2,6 +2,7 @@
 // Direct Supabase, no abstractions, simple async/await patterns
 
 import { createSupabaseClient } from '@/lib/supabase/client';
+import { apiClient } from '@/lib/api/client';
 
 export interface RawDump {
   id: string;
@@ -147,31 +148,25 @@ export class SubstrateService {
       console.log('🎯 Calling Manager Agent for complete substrate processing...');
 
       // CALL MANAGER AGENT - Single endpoint handles everything
-      const response = await fetch('/api/substrate/process', {
+      const result = await apiClient.request('/api/substrate/process', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           rawDumpId,
           basketId: rawDump.basket_id
         })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Manager Agent failed: ${response.statusText}`);
+      if (!result || (result as any)?.error) {
+        throw new Error((result as any)?.error || 'Manager Agent failed');
+      }
+      
+      if (!(result as any).success) {
+        throw new Error((result as any).error || 'Manager Agent processing failed');
       }
 
-      const result = await response.json();
+      console.log('✅ Manager Agent completed:', (result as any).summary);
       
-      if (!result.success) {
-        throw new Error(result.error || 'Manager Agent processing failed');
-      }
-
-      console.log('✅ Manager Agent completed:', result.summary);
-      
-      return result.substrate;
+      return (result as any).substrate;
       
     } catch (error) {
       console.error('❌ Manager Agent processing failed:', error);

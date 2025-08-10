@@ -2,6 +2,7 @@
 // Single message bus for all substrate operations
 
 import { SubstrateOperation, SubstrateResponse, SubstrateElement } from './SubstrateTypes';
+import { apiClient } from '@/lib/api/client';
 
 export interface SubstrateMessage {
   id: string;
@@ -193,11 +194,8 @@ export class SubstrateMessageBus {
       throw new Error('Operation is required');
     }
 
-    const response = await fetch('/api/substrate/compose', {
+    const response = await apiClient.request('/api/substrate/compose', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify({
         operation: this.mapOperationType(message.operation.type),
         data: message.operation.substrate,
@@ -208,11 +206,11 @@ export class SubstrateMessageBus {
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
+    if (!response || (response as any)?.error) {
+      throw new Error(`API request failed: ${(response as any)?.error || 'Unknown error'}`);
     }
 
-    return await response.json();
+    return response as SubstrateResponse;
   }
 
   private mapOperationType(type: SubstrateOperation['type']): string {

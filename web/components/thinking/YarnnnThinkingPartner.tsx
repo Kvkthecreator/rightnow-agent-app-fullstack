@@ -11,6 +11,7 @@ import { useSubstrate } from '@/lib/substrate/useSubstrate';
 import { FileFragmentHandler } from '@/lib/substrate/FileFragmentHandler';
 import { getFragmentType, type Fragment } from '@/lib/substrate/FragmentTypes';
 import { cn } from '@/lib/utils';
+import { apiClient } from '@/lib/api/client';
 
 interface YarnnnThinkingPartnerProps {
   basketId: string;
@@ -115,11 +116,8 @@ export function YarnnnThinkingPartner({
       setProcessingStep('Connecting to Context OS agents...');
       
       // ✅ CANON: Call intelligence generation endpoint with full context
-      const response = await fetch(`/api/intelligence/generate/${basketId}`, {
+      const response = await apiClient.request(`/api/intelligence/generate/${basketId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           prompt: input,
           context: contextPackage,
@@ -133,19 +131,18 @@ export function YarnnnThinkingPartner({
         })
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to generate intelligence');
+      if (!response || (response as any)?.error) {
+        throw new Error((response as any)?.error || 'Failed to generate intelligence');
       }
 
       setProcessingStep('Processing agent response...');
-      const result = await response.json();
+      const result = response;
       
       // ✅ CANON: Use Universal Changes to handle intelligence generation
-      if (result.insights && result.insights.length > 0) {
+      if ((result as any).insights && (result as any).insights.length > 0) {
         // Create intelligence generation change
         await changeManager.generateIntelligence({
-          insights: result.insights,
+          insights: (result as any).insights,
           context: contextPackage,
           prompt: input,
           source: 'thinking_partner'
@@ -153,14 +150,14 @@ export function YarnnnThinkingPartner({
         
         // Set response with agent attribution
         setLastResponse({
-          message: `Generated ${result.insights.length} insight${result.insights.length !== 1 ? 's' : ''} for review`,
-          agentSource: result.metadata?.agent_source || 'Context OS Agent',
-          confidence: result.metadata?.confidence,
+          message: `Generated ${(result as any).insights.length} insight${(result as any).insights.length !== 1 ? 's' : ''} for review`,
+          agentSource: (result as any).metadata?.agent_source || 'Context OS Agent',
+          confidence: (result as any).metadata?.confidence,
           timestamp: new Date()
         });
         
         setFeedback({
-          message: `Generated ${result.insights.length} insight${result.insights.length !== 1 ? 's' : ''} for review`,
+          message: `Generated ${(result as any).insights.length} insight${(result as any).insights.length !== 1 ? 's' : ''} for review`,
           type: 'success'
         });
         
@@ -168,15 +165,15 @@ export function YarnnnThinkingPartner({
         setInput('');
         setLastGenerationTime(new Date());
         
-      } else if (result.message) {
+      } else if ((result as any).message) {
         // Agent provided a direct response without structured insights
         setLastResponse({
-          message: result.message,
-          agentSource: result.metadata?.agent_source || 'Context OS Agent',
-          confidence: result.metadata?.confidence,
+          message: (result as any).message,
+          agentSource: (result as any).metadata?.agent_source || 'Context OS Agent',
+          confidence: (result as any).metadata?.confidence,
           timestamp: new Date()
         });
-        setFeedback({ message: result.message, type: 'info' });
+        setFeedback({ message: (result as any).message, type: 'info' });
       } else {
         setLastResponse({
           message: 'No new insights generated. Try rephrasing your question.',

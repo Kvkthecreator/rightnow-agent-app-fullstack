@@ -18,6 +18,7 @@ import {
   CompositionElement
 } from './SubstrateTypes';
 import { Fragment, UnifiedRawDump } from './FragmentTypes';
+import { apiClient } from '@/lib/api/client';
 
 export class UnifiedSubstrateComposer {
   private static instance: UnifiedSubstrateComposer;
@@ -411,50 +412,24 @@ export class UnifiedSubstrateComposer {
       workspaceId: data.workspaceId
     };
 
-    const response = await fetch('https://api.yarnnn.com/api/agent', {
+    return await apiClient.request('/api/agent', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Add auth headers as needed
-      },
       body: JSON.stringify(request)
     });
-
-    if (!response.ok) {
-      throw new Error(`Agent call failed: ${response.statusText}`);
-    }
-
-    return await response.json();
   }
 
   private async persistSubstrate(substrate: SubstrateElement): Promise<void> {
-    // Persist to database via our API
-    const response = await fetch('/api/substrate/persist', {
+    await apiClient.request('/api/substrate/persist', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify(substrate)
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to persist substrate: ${response.statusText}`);
-    }
   }
 
   private async persistUnifiedRawDump(rawDump: UnifiedRawDump): Promise<void> {
-    // Persist unified raw dump with fragments to database
-    const response = await fetch('/api/substrate/persist-unified', {
+    await apiClient.request('/api/substrate/persist-unified', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
       body: JSON.stringify(rawDump)
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to persist unified raw dump: ${response.statusText}`);
-    }
   }
 
   private generateId(): string {

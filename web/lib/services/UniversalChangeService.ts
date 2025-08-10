@@ -1,9 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
-// import { WebSocketServer } from '@/lib/websocket/WebSocketServer'; // DISABLED - Using Supabase Realtime
 import { getConflictDetectionEngine, type ChangeVector } from '@/lib/collaboration/ConflictDetectionEngine';
 import { getOperationalTransform } from '@/lib/collaboration/OperationalTransform';
 import { getWorkspaceFromBasket } from '@/lib/utils/workspace';
+import { apiClient } from '@/lib/api/client';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -665,29 +665,22 @@ export class UniversalChangeService {
       
       // Make API call to legacy intelligence generation endpoint for now
       // This maintains compatibility while moving through the unified pipeline
-      const response = await fetch(url, {
+      const response = await apiClient.request(url.replace(baseUrl, ''), {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': authHeader,  // Pass through the auth token
-          'Cookie': this.request?.headers?.get('cookie') || ''  // Pass cookies too
+          'Authorization': authHeader,
+          'Cookie': this.request?.headers?.get('cookie') || ''
         },
         body: JSON.stringify({
           basketId: change.basketId,
           origin: data.origin,
           conversationContext: data.conversationContext,
           checkPending: data.checkPending,
-          // Include auth context
           userId: change.actorId
         })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to generate intelligence');
-      }
-
-      const result = await response.json();
+      const result = response;
       
       console.log('✅ Intelligence generation completed through Universal Change Service');
       
@@ -697,7 +690,7 @@ export class UniversalChangeService {
         changes: [],
         data: {
           success: true,
-          hasPendingChanges: result.hasPendingChanges,
+          hasPendingChanges: (result as any)?.hasPendingChanges,
           message: 'Intelligence generation initiated'
         }
       };
