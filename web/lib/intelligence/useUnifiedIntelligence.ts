@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useReducer, useMemo } from 'react';
-import { fetchWithToken } from '@/lib/fetchWithToken';
+import { apiClient } from '@/lib/api/client';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
 import type { IntelligenceEvent } from './changeDetection';
 import type { ConversationTriggeredGeneration } from './conversationAnalyzer';
@@ -232,18 +232,13 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
   const fetchCurrentIntelligence = useCallback(async () => {
     try {
       const timestamp = Date.now();
-      const response = await fetchWithToken(`/api/substrate/basket/${basketId}?t=${timestamp}`);
+      const data = await apiClient.request(`/api/substrate/basket/${basketId}?t=${timestamp}`);
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔍 Unified intelligence fetch:', {
-          hasData: !!data,
-          contextIntent: data.contextUnderstanding?.intent?.substring(0, 100)
-        });
-        dispatch({ type: 'SET_CURRENT_INTELLIGENCE', payload: data });
-      } else {
-        dispatch({ type: 'SET_CURRENT_INTELLIGENCE', payload: null });
-      }
+      console.log('🔍 Unified intelligence fetch:', {
+        hasData: !!data,
+        contextIntent: (data as any)?.contextUnderstanding?.intent?.substring(0, 100)
+      });
+      dispatch({ type: 'SET_CURRENT_INTELLIGENCE', payload: data as any });
     } catch (err) {
       console.error('Failed to fetch current intelligence:', err);
       dispatch({ type: 'SET_CURRENT_INTELLIGENCE', payload: null });
@@ -253,62 +248,52 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
   // Fetch pending changes from events table with fatigue prevention
   const fetchPendingChanges = useCallback(async () => {
     try {
-      const response = await fetchWithToken(`/api/intelligence/pending/${basketId}`);
+      const data = await apiClient.request(`/api/intelligence/pending/${basketId}`);
       
-      if (response.ok) {
-        const data = await response.json();
-        const rawEvents = data.events || [];
+      const rawEvents = (data as any)?.events || [];
+      
+      // Process events through fatigue prevention system
+      const batchedChanges: BatchedChange[] = [];
+      
+      // Handle batch ready callback
+      const handleBatchReady = (batch: BatchedChange) => {
+        batchedChanges.push(batch);
+      };
+      
+      // Handle auto-approved callback
+      const handleAutoApproved = (events: IntelligenceEvent[]) => {
+        console.log(`Auto-approved ${events.length} minor changes`);
+        dispatch({ type: 'INCREMENT_AUTO_APPROVED' });
+      };
+      
+      // Process each event through fatigue prevention - get current pageContext
+      const currentPageContext = pageContext;
+      for (const event of rawEvents) {
+        const result = changeFatigueManager.processIntelligenceEvent(
+          event,
+          currentPageContext,
+          handleBatchReady,
+          handleAutoApproved
+        );
         
-        // Process events through fatigue prevention system
-        const batchedChanges: BatchedChange[] = [];
-        
-        // Handle batch ready callback
-        const handleBatchReady = (batch: BatchedChange) => {
-          batchedChanges.push(batch);
-        };
-        
-        // Handle auto-approved callback
-        const handleAutoApproved = (events: IntelligenceEvent[]) => {
-          console.log(`Auto-approved ${events.length} minor changes`);
-          dispatch({ type: 'INCREMENT_AUTO_APPROVED' });
-        };
-        
-        // Process each event through fatigue prevention - get current pageContext
-        const currentPageContext = pageContext;
-        for (const event of rawEvents) {
-          const result = changeFatigueManager.processIntelligenceEvent(
-            event,
-            currentPageContext,
-            handleBatchReady,
-            handleAutoApproved
-          );
-          
-          if (result === 'filtered') {
-            dispatch({ type: 'INCREMENT_FILTERED' });
-          }
+        if (result === 'filtered') {
+          dispatch({ type: 'INCREMENT_FILTERED' });
         }
-        
-        // Update state with processed batches
-        dispatch({ type: 'SET_BATCHED_CHANGES', payload: batchedChanges });
-        
-        // Convert batched changes back to individual events for backward compatibility
-        const pendingEvents = batchedChanges.flatMap(batch => batch.events);
-        dispatch({ type: 'SET_PENDING_CHANGES', payload: pendingEvents });
-        
-      } else if (response.status === 404) {
-        dispatch({ type: 'SET_PENDING_CHANGES', payload: [] });
-        dispatch({ type: 'SET_BATCHED_CHANGES', payload: [] });
-      } else {
-        console.log(`Pending changes API returned ${response.status}`);
-        dispatch({ type: 'SET_PENDING_CHANGES', payload: [] });
-        dispatch({ type: 'SET_BATCHED_CHANGES', payload: [] });
       }
+      
+      // Update state with processed batches
+      dispatch({ type: 'SET_BATCHED_CHANGES', payload: batchedChanges });
+      
+      // Convert batched changes back to individual events for backward compatibility
+      const pendingEvents = batchedChanges.flatMap(batch => batch.events);
+      dispatch({ type: 'SET_PENDING_CHANGES', payload: pendingEvents });
+      
     } catch (err) {
       console.error('Failed to fetch pending changes:', err);
       dispatch({ type: 'SET_PENDING_CHANGES', payload: [] });
       dispatch({ type: 'SET_BATCHED_CHANGES', payload: [] });
     }
-  }, [basketId]);
+  }, [basketId, pageContext]);
 
   // Initial data load
   useEffect(() => {
@@ -361,24 +346,16 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const response = await fetchWithToken(`/api/intelligence/generate/${basketId}`, {
+      const result = await apiClient.request(`/api/intelligence/generate/${basketId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           origin,
           conversationContext,
           checkPending: true
         })
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate intelligence');
-      }
-
-      const result = await response.json();
       
-      if (result.hasPendingChanges) {
+      if ((result as any).hasPendingChanges) {
         await fetchPendingChanges();
       } else {
         await fetchPendingChanges();
@@ -398,20 +375,14 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const response = await fetchWithToken(`/api/intelligence/approve/${basketId}`, {
+      await apiClient.request(`/api/intelligence/approve/${basketId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           eventId,
           sections,
           partialApproval: sections.length > 0
         })
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to approve changes');
-      }
 
       // Optimistic update: remove from pending
       dispatch({ type: 'REMOVE_PENDING_CHANGE', payload: eventId });
@@ -439,19 +410,13 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const response = await fetchWithToken(`/api/intelligence/reject/${basketId}`, {
+      await apiClient.request(`/api/intelligence/reject/${basketId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           eventId,
           reason
         })
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to reject changes');
-      }
 
       // Optimistic update: remove from pending
       dispatch({ type: 'REMOVE_PENDING_CHANGE', payload: eventId });
@@ -476,19 +441,14 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const response = await fetch('/api/substrate/add-context', {
+      await apiClient.request('/api/substrate/add-context', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           basketId,
           content,
           metadata
         })
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to add context');
-      }
 
       // Smart refresh after context addition
       setTimeout(async () => {
@@ -515,9 +475,8 @@ export function useUnifiedIntelligence(basketId: string): UseUnifiedIntelligence
 
   const markAsReviewed = useCallback(async (eventId: string) => {
     try {
-      await fetchWithToken(`/api/intelligence/mark-reviewed/${basketId}`, {
+      await apiClient.request(`/api/intelligence/mark-reviewed/${basketId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ eventId })
       });
     } catch (err) {
