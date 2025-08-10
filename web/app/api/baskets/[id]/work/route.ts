@@ -3,12 +3,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
 export async function POST(
   request: NextRequest, 
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
-    const basketId = params.id;
+    const { id: basketId } = await context.params;
     const body = await request.json();
     
     // Backend Manager Agent URL
@@ -51,11 +55,13 @@ export async function POST(
 // Also handle GET for testing
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
+  const { id: basketId } = await context.params;
+  
   return NextResponse.json({
     bridge: 'active',
-    basketId: params.id,
+    basketId,
     backendUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://rightnow-api.onrender.com',
     message: 'API bridge is working. Use POST to send basket work requests.'
   });
