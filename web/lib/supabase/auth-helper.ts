@@ -73,9 +73,9 @@ export class SupabaseAuthHelper {
       const user = await this.getAuthenticatedUser()
       if (!user) return false
       
-      // Query workspace_members table with RLS policies
+      // Query workspace_memberships table with RLS policies
       const { data, error } = await this.client
-        .from('workspace_members')
+        .from('workspace_memberships')
         .select('role')
         .eq('workspace_id', workspaceId)
         .eq('user_id', user.id)
