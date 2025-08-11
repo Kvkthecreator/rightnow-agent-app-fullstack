@@ -55,7 +55,6 @@ const channel = supabase.channel('channel-name', channelConfig)
 
 ### 2. **Enhanced Components Updated**
 - **`useBasketEvents.ts`**: Explicit token in channel config
-- **`RealtimeTest.tsx`**: Authenticated channel creation
 - **`auth-helper.ts`**: Proper session token management
 
 ### 3. **Database Policies Created**
@@ -77,7 +76,6 @@ ON basket_events FOR SELECT TO anon USING (true);
 ### Core Fixes:
 - ✅ `lib/supabase/auth-helper.ts` - Enhanced session management
 - ✅ `lib/hooks/useBasketEvents.ts` - Explicit auth token passing
-- ✅ `components/RealtimeTest.tsx` - Authenticated channel config
 
 ### Database Setup:
 - ✅ `setup-rls-policies.sql` - Database policies for testing

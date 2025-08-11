@@ -340,9 +340,11 @@ export class SubstrateService {
    */
   subscribeToBasket(basketId: string, callback: (data: any) => void) {
     console.log(`📊 Starting polling subscription for basket: ${basketId}`);
-    
-    let lastTimestamp = new Date().toISOString();
-    
+
+    // Track last seen timestamps for each table
+    let lastBlockTimestamp = new Date().toISOString();
+    let lastDumpTimestamp = new Date().toISOString();
+
     const pollForChanges = async () => {
       try {
         // Poll for blocks changes
@@ -350,8 +352,8 @@ export class SubstrateService {
           .from('blocks')
           .select('*')
           .eq('basket_id', basketId)
-          .gt('updated_at', lastTimestamp)
-          .order('updated_at', { ascending: false });
+          .gt('created_at', lastBlockTimestamp)
+          .order('created_at', { ascending: false });
 
         if (blocksError) {
           console.error('Polling error for blocks:', blocksError);
@@ -366,7 +368,7 @@ export class SubstrateService {
               table: 'blocks'
             });
           });
-          lastTimestamp = blocks[0].updated_at;
+          lastBlockTimestamp = blocks[0].created_at;
         }
 
         // Poll for raw_dumps changes
@@ -374,8 +376,8 @@ export class SubstrateService {
           .from('raw_dumps')
           .select('*')
           .eq('basket_id', basketId)
-          .gt('updated_at', lastTimestamp)
-          .order('updated_at', { ascending: false });
+          .gt('created_at', lastDumpTimestamp)
+          .order('created_at', { ascending: false });
 
         if (rawDumpsError) {
           console.error('Polling error for raw_dumps:', rawDumpsError);
@@ -390,6 +392,7 @@ export class SubstrateService {
               table: 'raw_dumps'
             });
           });
+          lastDumpTimestamp = rawDumps[0].created_at;
         }
 
       } catch (error) {
