@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MemoryCapture, Input } from './components/MemoryCapture';
+import { MemoryCapture, SourceInput } from './components/MemoryCapture';
 import { apiClient } from '@/lib/api/client';
 
 export default function CreatePage() {
   const router = useRouter();
   const [basketId, setBasketId] = useState<string | null>(null);
 
-  const handleMemoryFormation = async (intent: string, inputs: Input[]) => {
+  const handleMemoryFormation = async (intent: string, inputs: SourceInput[]) => {
     const basket = await apiClient.request<{ id: string }>('/api/baskets/new', {
       method: 'POST',
       body: JSON.stringify({ intent, status: 'forming' }),
@@ -38,7 +38,7 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="container py-8">
       <MemoryCapture onFormation={handleMemoryFormation} basketId={basketId} />
     </div>
   );
