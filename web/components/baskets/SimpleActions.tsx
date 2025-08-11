@@ -23,13 +23,13 @@ export function SimpleActions({ basketId, actions }: SimpleActionsProps) {
     switch (actionType) {
       case 'add_first_content':
       case 'add_content':
-        router.push(`/onboarding?basketId=${basketId}`);
+        router.push(`/create?basketId=${basketId}`);
         break;
       case 'import_files':
-        router.push(`/onboarding?basketId=${basketId}&mode=import`);
+        router.push(`/create?basketId=${basketId}&mode=import`);
         break;
       case 'start_template':
-        router.push(`/onboarding?basketId=${basketId}&mode=template`);
+        router.push(`/create?basketId=${basketId}&mode=template`);
         break;
       case 'create_document':
         router.push(`/baskets/${basketId}/documents/new`);
