@@ -40,9 +40,18 @@ export const createSupabaseClient = () => {
         try {
           const tokenPayload = JSON.parse(atob(session.access_token.split('.')[1]))
           console.log('[DEBUG] Client JWT role:', tokenPayload.role)
+          
+          // If we have an authenticated session, log success
+          if (tokenPayload.role === 'authenticated') {
+            console.log('[DEBUG] ✅ Client has authenticated session')
+          } else {
+            console.log('[DEBUG] ⚠️ Client using anon role - may have limited permissions')
+          }
         } catch (e) {
           console.warn('[DEBUG] Could not parse client JWT:', e)
         }
+      } else {
+        console.log('[DEBUG] ⚠️ No access token - client will use anon role')
       }
     })
   }

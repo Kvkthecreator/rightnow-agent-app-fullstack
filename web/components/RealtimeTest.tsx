@@ -17,18 +17,22 @@ export function RealtimeTest({ basketId }: RealtimeTestProps) {
 
     const setupRealtime = async () => {
       try {
-        // Check auth using secure helper
+        // Check auth using secure helper (but don't fail if no auth)
         const user = await authHelper.getAuthenticatedUser();
         if (!user) {
-          setError('Not authenticated');
-          return;
-        }
-
-        // Verify basket access via workspace membership
-        const hasAccess = await authHelper.checkBasketAccess(basketId);
-        if (!hasAccess) {
-          setError('No basket access');
-          return;
+          console.warn('⚠️ No authenticated user - testing with anon permissions');
+          setError('Testing with anon permissions - some features may be limited');
+        } else {
+          console.log('✅ Authenticated user found:', user.id);
+          
+          // Verify basket access via workspace membership  
+          const hasAccess = await authHelper.checkBasketAccess(basketId);
+          if (!hasAccess) {
+            setError('No basket access');
+            return;
+          }
+          
+          setError(null); // Clear error if we have proper access
         }
 
         // Get authenticated client

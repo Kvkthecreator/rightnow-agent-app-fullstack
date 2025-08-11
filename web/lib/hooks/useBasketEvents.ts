@@ -12,20 +12,20 @@ export function useBasketEvents(basketId: string) {
     
     const setupRealtime = async () => {
       try {
-        // Check auth using secure helper
+        // Check auth using secure helper (but don't fail if no auth)
         const user = await authHelper.getAuthenticatedUser();
         if (!user) {
-          console.error('❌ No authenticated user for basket events');
-          setStatus('error');
-          return;
-        }
-
-        // Verify basket access via workspace membership
-        const hasAccess = await authHelper.checkBasketAccess(basketId);
-        if (!hasAccess) {
-          console.error('❌ No basket access for basket events');
-          setStatus('error');
-          return;
+          console.warn('⚠️ No authenticated user for basket events - trying with anon permissions');
+        } else {
+          console.log('✅ Authenticated user found:', user.id);
+          
+          // Verify basket access via workspace membership
+          const hasAccess = await authHelper.checkBasketAccess(basketId);
+          if (!hasAccess) {
+            console.error('❌ No basket access for basket events');
+            setStatus('error');
+            return;
+          }
         }
 
         // Get authenticated client that respects workspace membership
