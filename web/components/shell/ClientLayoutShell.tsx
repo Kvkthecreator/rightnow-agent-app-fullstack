@@ -12,6 +12,7 @@ const SHOW_SIDEBAR_ROUTES = [
   "/dashboard",
   "/blocks",
   "/context",
+  "/create",
 ];
 
 // These specific routes should NOT show global sidebar (they have custom layouts)
