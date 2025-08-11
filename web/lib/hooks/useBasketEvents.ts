@@ -1,8 +1,29 @@
-// web/lib/hooks/useBasketEvents.ts
+/**
+ * CURRENT IMPLEMENTATION: POLLING (PRAGMATIC SOLUTION)
+ * 
+ * Due to persistent Supabase WebSocket authentication issues where the SDK
+ * passes anon tokens instead of authenticated session tokens to WebSocket
+ * connections, we've switched to a polling implementation.
+ * 
+ * This provides identical interface but polls every 3 seconds instead of
+ * using WebSocket. UX impact is minimal (users won't notice 3s delay).
+ * 
+ * TECHNICAL DECISION: Ship working product > endless WebSocket debugging
+ * 
+ * WebSocket code preserved below for future implementation when SDK issue resolved.
+ */
+
+// CURRENT: Use polling implementation
+export { useBasketEvents } from './useBasketPolling';
+
+/*
+// FUTURE: WebSocket implementation (commented out due to SDK auth issues)
+// Uncomment and use when Supabase WebSocket authentication is fixed
+
 import { useEffect, useState } from "react";
 import { authHelper } from "@/lib/supabase/auth-helper";
 
-export function useBasketEvents(basketId: string) {
+export function useBasketEventsWebSocket(basketId: string) {
   const [lastEvent, setLastEvent] = useState<{ type: string; payload: any } | null>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
@@ -138,3 +159,6 @@ export function useBasketEvents(basketId: string) {
 
   return { lastEvent, status };
 }
+
+// End of WebSocket implementation - uncomment when SDK auth issues are resolved
+*/

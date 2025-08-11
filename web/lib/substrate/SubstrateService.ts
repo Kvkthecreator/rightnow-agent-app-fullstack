@@ -326,10 +326,97 @@ export class SubstrateService {
   }
 
   // ==========================================
-  // REAL-TIME SUBSCRIPTIONS
+  // REAL-TIME SUBSCRIPTIONS (POLLING IMPLEMENTATION)
   // ==========================================
 
-  async subscribeToBasket(basketId: string, callback: (data: any) => void) {
+  /**
+   * CURRENT IMPLEMENTATION: Polling-based subscription
+   * 
+   * Due to Supabase WebSocket authentication issues, this method now uses
+   * polling instead of WebSocket subscriptions. Returns a polling interval
+   * that can be cleared for cleanup.
+   * 
+   * WebSocket implementation preserved in comments below.
+   */
+  subscribeToBasket(basketId: string, callback: (data: any) => void) {
+    console.log(`📊 Starting polling subscription for basket: ${basketId}`);
+    
+    let lastTimestamp = new Date().toISOString();
+    
+    const pollForChanges = async () => {
+      try {
+        // Poll for blocks changes
+        const { data: blocks, error: blocksError } = await this.supabase
+          .from('blocks')
+          .select('*')
+          .eq('basket_id', basketId)
+          .gt('updated_at', lastTimestamp)
+          .order('updated_at', { ascending: false });
+
+        if (blocksError) {
+          console.error('Polling error for blocks:', blocksError);
+        } else if (blocks && blocks.length > 0) {
+          blocks.forEach(block => {
+            console.log('📊 Block changed via polling:', block.id);
+            callback({
+              eventType: 'UPDATE',
+              new: block,
+              old: null,
+              schema: 'public',
+              table: 'blocks'
+            });
+          });
+          lastTimestamp = blocks[0].updated_at;
+        }
+
+        // Poll for raw_dumps changes
+        const { data: rawDumps, error: rawDumpsError } = await this.supabase
+          .from('raw_dumps')
+          .select('*')
+          .eq('basket_id', basketId)
+          .gt('updated_at', lastTimestamp)
+          .order('updated_at', { ascending: false });
+
+        if (rawDumpsError) {
+          console.error('Polling error for raw_dumps:', rawDumpsError);
+        } else if (rawDumps && rawDumps.length > 0) {
+          rawDumps.forEach(dump => {
+            console.log('📊 Raw dump changed via polling:', dump.id);
+            callback({
+              eventType: 'UPDATE',
+              new: dump,
+              old: null,
+              schema: 'public',
+              table: 'raw_dumps'
+            });
+          });
+        }
+
+      } catch (error) {
+        console.error('📊 Polling failed:', error);
+      }
+    };
+
+    // Initial poll
+    pollForChanges();
+
+    // Set up polling interval (3 seconds)
+    const interval = setInterval(pollForChanges, 3000);
+
+    console.log(`📊 Polling interval started for basket: ${basketId}`);
+
+    // Return interval for cleanup (same interface as WebSocket channel)
+    return {
+      unsubscribe: () => {
+        clearInterval(interval);
+        console.log(`📊 Polling stopped for basket: ${basketId}`);
+      }
+    };
+  }
+
+  /*
+  // FUTURE: WebSocket implementation (commented out due to SDK auth issues)
+  async subscribeToBasketWebSocket(basketId: string, callback: (data: any) => void) {
     try {
       // Ensure authenticated with secure helper
       const user = await authHelper.getAuthenticatedUser();
@@ -403,6 +490,9 @@ export class SubstrateService {
       return null;
     }
   }
+  
+  // End of WebSocket implementation - uncomment when SDK auth issues are resolved
+  */
 }
 
 // Singleton instance
