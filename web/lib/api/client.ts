@@ -4,6 +4,7 @@
  */
 
 import { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
+import { fetchWithToken } from '@/lib/fetchWithToken'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://rightnow-api.onrender.com'
 
@@ -28,7 +29,12 @@ export class ApiClient {
       ...options,
     }
 
-    const response = await fetch(url, config)
+    let response = await fetchWithToken(url, config)
+
+    // Single retry on 401 to handle token race conditions
+    if (response.status === 401) {
+      response = await fetchWithToken(url, config)
+    }
 
     if (!response.ok) {
       throw new Error(`API Error: ${response.status} ${response.statusText}`)

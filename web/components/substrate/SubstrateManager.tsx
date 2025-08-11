@@ -6,6 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import { Send, FileText, Loader2, Brain, CheckCircle, X, Plus, Eye } from 'lucide-react';
 import { substrateService, type SubstrateData, type RawDump, type Block } from '@/lib/substrate/SubstrateService';
+import { useBasketOperations } from '@/hooks/useBasketOperations';
+import { BasketChangeRequest } from '@shared/contracts/basket';
 
 interface SubstrateManagerProps {
   basketId: string;
@@ -23,6 +25,8 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
   const [error, setError] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'input' | 'blocks' | 'context' | 'documents'>('input');
+
+  const { processWork } = useBasketOperations(basketId);
 
   // Note: Substrate loading moved into useEffect for better lifecycle management
 
@@ -120,25 +124,24 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
   const handleProcessRawDump = async (rawDumpId: string) => {
     setLoading(true);
     setProcessingStatus('Processing substrate with agent orchestra...');
-    
+
     try {
-      const results = await substrateService.processRawDump(rawDumpId);
-      
-      // Show results summary
-      const totalGenerated = results.blocks.length + results.contextItems.length + 
-                            results.narrative.length + results.relationships.length;
-      
-      setProcessingStatus(
-        `✅ Generated: ${results.blocks.length} blocks, ${results.contextItems.length} context items, ${results.narrative.length} narrative, ${results.relationships.length} relationships`
-      );
-      
+      const request: BasketChangeRequest = {
+        request_id: crypto.randomUUID(),
+        basket_id: basketId,
+        type: 'raw_dump_process',
+        rawDumpId,
+      };
+
+      await processWork(request);
+
       setError(null);
-      // Switch to blocks tab to show results
       setActiveTab('blocks');
-      
+      setProcessingStatus('✅ Work request submitted');
+
       // Clear status after delay
       setTimeout(() => setProcessingStatus(''), 5000);
-      
+
     } catch (err) {
       console.error('Failed to process raw dump:', err);
       setError(err instanceof Error ? err.message : 'Failed to process substrate');

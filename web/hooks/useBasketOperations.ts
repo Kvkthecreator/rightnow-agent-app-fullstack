@@ -10,22 +10,22 @@ import { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
 interface UseBasketOperationsReturn {
   isLoading: boolean
   error: string | null
-  processWork: (basketId: string, request: BasketChangeRequest) => Promise<BasketDelta | null>
-  getDeltas: (basketId: string) => Promise<BasketDelta[] | null>
-  applyDelta: (basketId: string, deltaId: string) => Promise<boolean>
+  processWork: (request: BasketChangeRequest) => Promise<BasketDelta | null>
+  getDeltas: () => Promise<BasketDelta[] | null>
+  applyDelta: (deltaId: string) => Promise<boolean>
   clearError: () => void
 }
 
-export function useBasketOperations(): UseBasketOperationsReturn {
+export function useBasketOperations(basketId: string): UseBasketOperationsReturn {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const clearError = () => setError(null)
 
-  const processWork = async (basketId: string, request: BasketChangeRequest): Promise<BasketDelta | null> => {
+  const processWork = async (request: BasketChangeRequest): Promise<BasketDelta | null> => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       const delta = await basketApi.processWork(basketId, request)
       return delta
@@ -38,10 +38,10 @@ export function useBasketOperations(): UseBasketOperationsReturn {
     }
   }
 
-  const getDeltas = async (basketId: string): Promise<BasketDelta[] | null> => {
+  const getDeltas = async (): Promise<BasketDelta[] | null> => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       const deltas = await basketApi.getDeltas(basketId)
       return deltas
@@ -54,10 +54,10 @@ export function useBasketOperations(): UseBasketOperationsReturn {
     }
   }
 
-  const applyDelta = async (basketId: string, deltaId: string): Promise<boolean> => {
+  const applyDelta = async (deltaId: string): Promise<boolean> => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       await basketApi.applyDelta(basketId, deltaId)
       return true
