@@ -17,9 +17,15 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
 }
 
 export const createSupabaseClient = () => {
-  // createClientComponentClient doesn't accept these options directly
-  // It automatically uses NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
-  return createClientComponentClient<Database>()
+  // createClientComponentClient automatically handles:
+  // - Authentication state from cookies/session storage
+  // - Proper token refresh
+  // - Workspace-based RLS policies
+  const client = createClientComponentClient<Database>()
+  
+  // Client will handle realtime connections automatically with proper auth
+  
+  return client
 }
 
 // Export singleton for backward compatibility

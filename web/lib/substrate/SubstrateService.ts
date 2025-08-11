@@ -2,6 +2,7 @@
 // Direct Supabase, no abstractions, simple async/await patterns
 
 import { createSupabaseClient } from '@/lib/supabase/client';
+import { authHelper } from '@/lib/supabase/auth-helper';
 import { apiClient } from '@/lib/api/client';
 
 export interface RawDump {
@@ -330,10 +331,17 @@ export class SubstrateService {
 
   async subscribeToBasket(basketId: string, callback: (data: any) => void) {
     try {
-      // Ensure authenticated
-      const { data: { session } } = await this.supabase.auth.getSession();
-      if (!session) {
-        console.error('No session for realtime subscription');
+      // Ensure authenticated with secure helper
+      const user = await authHelper.getAuthenticatedUser();
+      if (!user) {
+        console.error('No authenticated user for realtime subscription');
+        return null;
+      }
+
+      // Verify basket access via workspace membership
+      const hasAccess = await authHelper.checkBasketAccess(basketId);
+      if (!hasAccess) {
+        console.error('No basket access for basket subscription');
         return null;
       }
 

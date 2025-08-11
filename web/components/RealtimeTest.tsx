@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createSupabaseClient } from '@/lib/supabase/client';
+import { authHelper } from '@/lib/supabase/auth-helper';
 
 interface RealtimeTestProps {
   basketId: string;
@@ -13,18 +13,27 @@ export function RealtimeTest({ basketId }: RealtimeTestProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const supabase = createSupabaseClient();
     let channel: any = null;
 
     const setupRealtime = async () => {
       try {
-        // Check auth first
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        // Check auth using secure helper
+        const user = await authHelper.getAuthenticatedUser();
+        if (!user) {
           setError('Not authenticated');
           return;
         }
 
+        // Verify basket access via workspace membership
+        const hasAccess = await authHelper.checkBasketAccess(basketId);
+        if (!hasAccess) {
+          setError('No basket access');
+          return;
+        }
+
+        // Get authenticated client
+        const supabase = authHelper.getAuthenticatedClient();
+        
         // Simple subscription to test
         channel = supabase
           .channel(`test-${basketId}`)
