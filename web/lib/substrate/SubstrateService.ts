@@ -3,7 +3,6 @@
 
 import { createSupabaseClient } from '@/lib/supabase/client';
 import { authHelper } from '@/lib/supabase/auth-helper';
-import { apiClient } from '@/lib/api/client';
 
 export interface RawDump {
   id: string;
@@ -127,56 +126,6 @@ export class SubstrateService {
     }
   }
 
-  // MANAGER AGENT: Single consolidated substrate processing
-  async processRawDump(rawDumpId: string): Promise<{
-    blocks: Block[];
-    contextItems: ContextItem[];
-    narrative: any[];
-    relationships: any[];
-  }> {
-    try {
-      // Get basket_id for the raw dump
-      const { data: rawDump, error: fetchError } = await this.supabase
-        .from('raw_dumps')
-        .select('basket_id')
-        .eq('id', rawDumpId)
-        .single();
-
-      if (fetchError || !rawDump) {
-        throw new Error(`Failed to fetch raw dump: ${fetchError?.message}`);
-      }
-
-      console.log('🎯 Calling Manager Agent for complete substrate processing...');
-
-      // CALL MANAGER AGENT - Single endpoint handles everything
-      const result = await apiClient.request('/api/substrate/process', {
-        method: 'POST',
-        body: JSON.stringify({
-          rawDumpId,
-          basketId: rawDump.basket_id
-        })
-      });
-
-      if (!result || (result as any)?.error) {
-        throw new Error((result as any)?.error || 'Manager Agent failed');
-      }
-      
-      if (!(result as any).success) {
-        throw new Error((result as any).error || 'Manager Agent processing failed');
-      }
-
-      console.log('✅ Manager Agent completed:', (result as any).summary);
-      
-      return (result as any).substrate;
-      
-    } catch (error) {
-      console.error('❌ Manager Agent processing failed:', error);
-      throw new Error(`Failed to process raw dump: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  // Note: All substrate processing now handled by Manager Agent at /api/substrate/process
-  // This eliminates mocks and provides real agent orchestration
 
   async approveBlock(id: string): Promise<Block> {
     const { data, error } = await this.supabase

@@ -10,6 +10,14 @@ export interface BasketChangeRequest {
   sources?: Source[];
   agent_hints?: string[];
   user_context?: Record<string, unknown>;
+  /**
+   * Work request type handled by Manager Agent
+   * e.g. "raw_dump_process" or "block_update"
+   */
+  type?: string;
+  rawDumpId?: string;
+  blockId?: string;
+  payload?: unknown;
 }
 
 export type EntityChange =
