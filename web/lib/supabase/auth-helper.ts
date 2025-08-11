@@ -137,8 +137,8 @@ export class SupabaseAuthHelper {
   }
   
   /**
-   * Setup authenticated realtime client with session handling
-   * Returns client with best available authentication
+   * Setup authenticated realtime client with explicit token handling
+   * This is the CRITICAL FIX for WebSocket authentication issues
    */
   async getAuthenticatedClient() {
     // Get current session to check auth state
@@ -161,6 +161,12 @@ export class SupabaseAuthHelper {
         
         if (tokenPayload.role === 'authenticated') {
           console.log('[DEBUG] ✅ Using authenticated session for Realtime')
+          
+          // CRITICAL FIX: The main fix is in the channel creation with explicit config
+          // The realtime client properties are read-only, so we handle auth in channel config
+          console.log('[DEBUG] 🔧 Authenticated session available for Realtime channels')
+          console.log('[DEBUG] ✅ Channels will be created with explicit access token')
+          
           return this.client
         } else {
           console.warn('[DEBUG] ⚠️ Session has unexpected role:', tokenPayload.role)
@@ -170,12 +176,11 @@ export class SupabaseAuthHelper {
       }
     } else {
       console.warn('[DEBUG] ⚠️ No authenticated session available')
-      console.log('[DEBUG] Proceeding with anon client - some features may be limited')
+      console.log('[DEBUG] Proceeding with anon client - WebSocket will use anon key')
     }
     
-    // Return the client regardless - let RLS policies handle permissions
-    // This allows for graceful degradation when not authenticated
-    console.log('[DEBUG] Returning client (authenticated or anon)')
+    // Return the client - if no session, it will use anon key
+    console.log('[DEBUG] Returning client (authenticated token set if available)')
     return this.client
   }
 }

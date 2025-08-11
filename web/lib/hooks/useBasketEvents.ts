@@ -44,8 +44,28 @@ export function useBasketEvents(basketId: string) {
         console.log('[DEBUG] Basket ID:', basketId)
         console.log('[DEBUG] Channel name will be:', `basket-${basketId}`)
         
+        // Get current session to explicitly pass token to channel if available
+        const { data: { session } } = await supabase.auth.getSession()
+        let channelConfig: any = {}
+        
+        if (session?.access_token) {
+          console.log('[DEBUG] 🔧 Creating channel with explicit access token')
+          channelConfig = {
+            config: {
+              broadcast: { self: true },
+              presence: { key: session.user.id },
+              params: {
+                apikey: session.access_token
+              }
+            }
+          }
+          console.log('[DEBUG] ✅ Channel config with auth token set')
+        } else {
+          console.log('[DEBUG] ⚠️ No session token - channel will use anon key')
+        }
+        
         channel = supabase
-          .channel(`basket-${basketId}`)
+          .channel(`basket-${basketId}`, channelConfig)
           .on(
             "postgres_changes",
             {

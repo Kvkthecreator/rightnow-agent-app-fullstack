@@ -46,8 +46,28 @@ export function RealtimeTest({ basketId }: RealtimeTestProps) {
         console.log('[DEBUG REALTIME TEST] About to create test channel');
         console.log('[DEBUG REALTIME TEST] Basket ID:', basketId);
         
+        // Get current session to explicitly pass token to channel if available
+        const { data: { session } } = await supabase.auth.getSession()
+        let channelConfig: any = {}
+        
+        if (session?.access_token) {
+          console.log('[DEBUG REALTIME TEST] 🔧 Creating channel with explicit access token')
+          channelConfig = {
+            config: {
+              broadcast: { self: true },
+              presence: { key: session.user.id },
+              params: {
+                apikey: session.access_token
+              }
+            }
+          }
+          console.log('[DEBUG REALTIME TEST] ✅ Channel config with auth token set')
+        } else {
+          console.log('[DEBUG REALTIME TEST] ⚠️ No session token - channel will use anon key')
+        }
+        
         channel = supabase
-          .channel(`test-${basketId}`)
+          .channel(`test-${basketId}`, channelConfig)
           .on(
             'postgres_changes',
             {
