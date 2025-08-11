@@ -22,7 +22,7 @@ export default function UniversalCreateButton({
   const router = useRouter();
 
   const handleCreateBasket = () => {
-    router.push("/onboarding");
+    router.push("/create");
   };
 
   // Context-specific button content and styling
@@ -134,30 +134,5 @@ export function EmptyStateCreateButton({ className }: { className?: string }) {
       size="lg"
       className={className}
     />
-  );
-}
-
-// Legacy compatibility - gradually replace existing "New Basket" buttons
-export function NewBasketButton({ 
-  children, 
-  className,
-  ...props 
-}: { 
-  children?: React.ReactNode;
-  className?: string;
-  [key: string]: any;
-}) {
-  return (
-    <UniversalCreateButton
-      className={cn("bg-primary hover:bg-primary/90", className)}
-      {...props}
-    >
-      {children || (
-        <>
-          <span className="mr-2">✨</span>
-          Create Basket
-        </>
-      )}
-    </UniversalCreateButton>
   );
 }

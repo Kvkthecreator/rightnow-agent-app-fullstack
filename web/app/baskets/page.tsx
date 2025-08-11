@@ -15,7 +15,7 @@ import {
 import { Card } from "@/components/ui/Card";
 import BasketCard from "@/components/BasketCard";
 import PageHeader from "@/components/page/PageHeader";
-import { EmptyStateCreateButton } from "@/components/onboarding/UniversalCreateButton";
+import { EmptyStateCreateButton } from "@/components/create/UniversalCreateButton";
 import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
 
 export default function BasketsPage() {
@@ -68,7 +68,7 @@ export default function BasketsPage() {
         description="Lightweight containers for your tasks, context, and thoughts"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => router.push('/onboarding')}>✨ Create Project</Button>
+            <Button onClick={() => router.push('/create')}>✨ Create Project</Button>
             <Select value={sort} onValueChange={(v) => setSort(v)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Sort by" />
