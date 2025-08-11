@@ -345,10 +345,17 @@ export class SubstrateService {
         return null;
       }
 
+      // Get authenticated client for realtime connections
+      const authenticatedClient = await authHelper.getAuthenticatedClient();
+      if (!authenticatedClient) {
+        console.error('Failed to get authenticated client for realtime');
+        return null;
+      }
+
       console.log(`📡 Setting up realtime for basket: ${basketId}`);
 
       // Single channel for all changes
-      const channel = this.supabase
+      const channel = authenticatedClient
         .channel(`basket-changes-${basketId}`)
         .on(
           'postgres_changes',

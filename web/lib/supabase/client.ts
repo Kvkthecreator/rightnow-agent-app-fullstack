@@ -23,7 +23,29 @@ export const createSupabaseClient = () => {
   // - Workspace-based RLS policies
   const client = createClientComponentClient<Database>()
   
-  // Client will handle realtime connections automatically with proper auth
+  // Add debug logging for client creation
+  if (typeof window !== 'undefined') {
+    console.log('[DEBUG] Creating Supabase client')
+    
+    // Log current authentication state
+    client.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('[DEBUG] Client session check:', {
+        hasSession: !!session,
+        hasAccessToken: !!session?.access_token,
+        userId: session?.user?.id,
+        error: error?.message
+      })
+      
+      if (session?.access_token) {
+        try {
+          const tokenPayload = JSON.parse(atob(session.access_token.split('.')[1]))
+          console.log('[DEBUG] Client JWT role:', tokenPayload.role)
+        } catch (e) {
+          console.warn('[DEBUG] Could not parse client JWT:', e)
+        }
+      }
+    })
+  }
   
   return client
 }

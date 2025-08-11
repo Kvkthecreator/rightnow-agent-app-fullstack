@@ -4,6 +4,8 @@
  */
 
 import { createSupabaseClient } from './client'
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/dbTypes'
 
 export class SupabaseAuthHelper {
   private static instance: SupabaseAuthHelper
@@ -135,11 +137,63 @@ export class SupabaseAuthHelper {
   }
   
   /**
-   * Setup authenticated realtime client
-   * Returns a client that will work with your workspace RLS policies
+   * Setup authenticated realtime client with explicit session token
+   * Creates a new client instance with the current authenticated session
    */
-  getAuthenticatedClient() {
-    return this.client
+  async getAuthenticatedClient() {
+    // Get current session to ensure we have valid auth
+    const session = await this.getCurrentSession()
+    
+    console.log('[DEBUG] Getting authenticated client')
+    console.log('[DEBUG] Current session:', session ? 'exists' : 'null')
+    console.log('[DEBUG] Session user:', session?.user?.id)
+    console.log('[DEBUG] Session token expires at:', new Date((session?.expires_at || 0) * 1000))
+    console.log('[DEBUG] Access token (first 50 chars):', session?.access_token?.substring(0, 50))
+    
+    if (!session) {
+      console.error('[DEBUG] No session available for realtime connection')
+      return null
+    }
+    
+    // Log the JWT payload to see what role we have
+    try {
+      const tokenPayload = JSON.parse(atob(session.access_token.split('.')[1]))
+      console.log('[DEBUG] JWT role:', tokenPayload.role)
+      console.log('[DEBUG] JWT aud:', tokenPayload.aud)
+      console.log('[DEBUG] JWT exp:', new Date(tokenPayload.exp * 1000))
+    } catch (e) {
+      console.warn('[DEBUG] Could not parse JWT token:', e)
+    }
+    
+    // Create a new client instance with explicit auth for Realtime
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    
+    console.log('[DEBUG] Creating explicit authenticated client for Realtime')
+    
+    const authenticatedClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: false, // Don't persist to avoid conflicts
+        detectSessionInUrl: false
+      },
+      realtime: {
+        params: {
+          // Explicitly pass the access token to Realtime
+          apikey: session.access_token
+        }
+      }
+    })
+    
+    // Set the session on the new client
+    await authenticatedClient.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token
+    })
+    
+    console.log('[DEBUG] Authenticated client created and session set')
+    
+    return authenticatedClient
   }
 }
 

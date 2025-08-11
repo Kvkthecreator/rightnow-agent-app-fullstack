@@ -32,9 +32,16 @@ export function RealtimeTest({ basketId }: RealtimeTestProps) {
         }
 
         // Get authenticated client
-        const supabase = authHelper.getAuthenticatedClient();
+        const supabase = await authHelper.getAuthenticatedClient();
+        if (!supabase) {
+          setError('Failed to get authenticated client');
+          return;
+        }
         
         // Simple subscription to test
+        console.log('[DEBUG REALTIME TEST] About to create test channel');
+        console.log('[DEBUG REALTIME TEST] Basket ID:', basketId);
+        
         channel = supabase
           .channel(`test-${basketId}`)
           .on(
@@ -46,19 +53,30 @@ export function RealtimeTest({ basketId }: RealtimeTestProps) {
               filter: `basket_id=eq.${basketId}`
             },
             () => {
+              console.log('[DEBUG REALTIME TEST] Received blocks change');
               setChanges(prev => prev + 1);
             }
           )
           .subscribe((status) => {
-            console.log('Realtime status:', status);
+            console.log('[DEBUG REALTIME TEST] Subscription status:', status);
             setStatus(status);
+            
+            // Log WebSocket connection details
+            if ((channel as any)._socket) {
+              const socket = (channel as any)._socket;
+              console.log('[DEBUG REALTIME TEST] WebSocket endpoint:', socket.endPoint);
+              console.log('[DEBUG REALTIME TEST] WebSocket params:', socket.params);
+            }
             
             if (status === 'CHANNEL_ERROR') {
               setError('Channel error - check RLS policies');
+              console.error('[DEBUG REALTIME TEST] Channel error occurred');
             } else if (status === 'TIMED_OUT') {
               setError('Connection timeout');
+              console.error('[DEBUG REALTIME TEST] Connection timeout');
             } else if (status === 'SUBSCRIBED') {
               setError(null);
+              console.log('[DEBUG REALTIME TEST] Successfully subscribed');
             }
           });
       } catch (err) {

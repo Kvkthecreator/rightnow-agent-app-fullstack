@@ -8,6 +8,7 @@ export function useBasketEvents(basketId: string) {
 
   useEffect(() => {
     let channel: any = null;
+    let supabaseInstance: any = null;
     
     const setupRealtime = async () => {
       try {
@@ -28,9 +29,21 @@ export function useBasketEvents(basketId: string) {
         }
 
         // Get authenticated client that respects workspace membership
-        const supabase = authHelper.getAuthenticatedClient();
+        const supabase = await authHelper.getAuthenticatedClient();
+        if (!supabase) {
+          console.error('❌ Failed to get authenticated client');
+          setStatus('error');
+          return;
+        }
+        
+        // Store for cleanup
+        supabaseInstance = supabase;
 
         // Subscribe to basket_events table for this basket with proper error handling
+        console.log('[DEBUG] About to create channel subscription')
+        console.log('[DEBUG] Basket ID:', basketId)
+        console.log('[DEBUG] Channel name will be:', `basket-${basketId}`)
+        
         channel = supabase
           .channel(`basket-${basketId}`)
           .on(
@@ -52,7 +65,16 @@ export function useBasketEvents(basketId: string) {
             }
           )
           .subscribe((status, err) => {
-            console.log(`📡 Realtime status for basket ${basketId}:`, status);
+            console.log(`[DEBUG] Realtime subscription status changed: ${status}`);
+            
+            // Log WebSocket connection details if available
+            if ((channel as any)._socket) {
+              const socket = (channel as any)._socket;
+              console.log('[DEBUG] WebSocket endpoint:', socket.endPoint);
+              console.log('[DEBUG] WebSocket params:', socket.params);
+              console.log('[DEBUG] WebSocket state:', socket.readyState);
+            }
+            
             if (status === 'SUBSCRIBED') {
               setStatus('connected');
               console.log('✅ Successfully subscribed to basket events');
@@ -62,6 +84,14 @@ export function useBasketEvents(basketId: string) {
               if (err) {
                 console.error('Channel error details:', err);
               }
+              
+              // Additional debugging for channel errors
+              console.error('[DEBUG] Channel error - full details:', {
+                status,
+                error: err,
+                channel: channel,
+                basketId
+              });
             } else if (status === 'TIMED_OUT') {
               setStatus('error');
               console.error('❌ Channel subscription timed out');
@@ -79,10 +109,9 @@ export function useBasketEvents(basketId: string) {
     setupRealtime();
 
     return () => {
-      if (channel) {
+      if (channel && supabaseInstance) {
         console.log(`📡 Cleaning up realtime subscription for basket ${basketId}`);
-        const supabase = authHelper.getAuthenticatedClient();
-        supabase.removeChannel(channel);
+        supabaseInstance.removeChannel(channel);
       }
     };
   }, [basketId]);
