@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
+import type { Document } from '@/types';
 
 // Think of this as a "shared data store" that all components can access
 // Like having a central database that updates everywhere at once
@@ -17,8 +18,10 @@ interface Basket {
 
 interface BasketContextType {
   basket: Basket | null;
+  documents: Document[];
   updateBasketName: (newName: string) => Promise<void>;
   setBasket: (basket: Basket) => void;
+  setDocuments: (docs: Document[]) => void;
   isUpdating: boolean;
   error: string | null;
 }
@@ -27,14 +30,17 @@ interface BasketContextType {
 const BasketContext = createContext<BasketContextType | undefined>(undefined);
 
 // Provider component that wraps around parts of your app
-export function BasketProvider({ 
-  children, 
-  initialBasket 
-}: { 
+export function BasketProvider({
+  children,
+  initialBasket,
+  initialDocuments = []
+}: {
   children: ReactNode;
   initialBasket: Basket | null;
+  initialDocuments?: Document[];
 }) {
   const [basket, setBasket] = useState<Basket | null>(initialBasket);
+  const [documents, setDocuments] = useState<Document[]>(initialDocuments);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,8 +84,10 @@ export function BasketProvider({
   return (
     <BasketContext.Provider value={{
       basket,
+      documents,
       updateBasketName,
       setBasket,
+      setDocuments,
       isUpdating,
       error
     }}>
