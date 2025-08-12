@@ -29,6 +29,7 @@ import { MarkdownDisplay } from "@/components/documents/MarkdownDisplay";
 // Import substrate integration
 import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { SubstrateContentInput } from "@/components/substrate/SubstrateContentInput";
+import { useWorkspaceId } from "@/hooks/useWorkspaceId";
 
 interface DocumentsViewProps {
   basketId: string;
@@ -202,7 +203,8 @@ function DocumentEditorView({
   const [showPreview, setShowPreview] = useState(false);
 
   // Add substrate integration
-  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
+  const workspaceId = useWorkspaceId(basketId);
+  const substrate = useSubstrate(basketId, workspaceId || 'default');
 
   // Handle adding context through substrate system
   const handleAddContext = async (contextContent: string, type: 'text' | 'file' | 'pdf' | 'image', files?: File[]): Promise<void> => {

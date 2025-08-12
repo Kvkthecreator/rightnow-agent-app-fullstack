@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSubstrate } from '@/lib/substrate/useSubstrate';
 import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import { useWorkspaceId } from '@/hooks/useWorkspaceId';
 
 interface SubstrateDashboardProps {
   basketId: string;
@@ -12,7 +13,8 @@ interface SubstrateDashboardProps {
 
 export function SubstrateDashboard({ basketId }: SubstrateDashboardProps) {
   const router = useRouter();
-  const substrate = useSubstrate(basketId, 'default');
+  const workspaceId = useWorkspaceId(basketId);
+  const substrate = useSubstrate(basketId, workspaceId || 'default');
 
   if (substrate.loading) {
     return (

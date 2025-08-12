@@ -1,6 +1,7 @@
 import { uploadFile } from "@/lib/uploadFile";
 import { createClient } from "@/lib/supabaseClient";
 import { fetchWithToken } from "@/lib/fetchWithToken";
+import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
 
 export interface CreateBasketArgs {
   userId: string;
@@ -32,7 +33,8 @@ export async function createBasketWithInput({
     for (const item of files) {
       if (item instanceof File) {
         try {
-          const filename = `${Date.now()}-${item.name}`;
+          const sanitizedName = sanitizeFilename(item.name);
+          const filename = `${Date.now()}-${sanitizedName}`;
           const url = await uploadFile(
             item,
             `dump_${userId}/${filename}`,

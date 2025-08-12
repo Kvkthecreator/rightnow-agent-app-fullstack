@@ -10,10 +10,13 @@ import type { Document } from '@/types';
 interface Basket {
   id: string;
   name: string;
-  description?: string;
+  description?: string; // Mapped from origin_template
   status?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string; // Optional - not in current schema
+  workspace_id: string;
+  tags?: string[];
+  origin_template?: string;
 }
 
 interface BasketContextType {

@@ -26,6 +26,7 @@ import {
   type ConversationTriggeredGeneration 
 } from '@/lib/intelligence/conversationAnalyzer';
 import { useState as useToastState } from 'react';
+import { useWorkspaceId } from '@/hooks/useWorkspaceId';
 
 interface ConsciousnessDashboardProps {
   basketId: string;
@@ -50,7 +51,8 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   const { basket, updateBasketName } = useBasket();
   
   // Context OS state
-  const substrate = useSubstrate(basketId, 'default'); // TODO: get actual workspaceId
+  const workspaceId = useWorkspaceId(basketId);
+  const substrate = useSubstrate(basketId, workspaceId || 'default');
   
   // Unified change management system
   const changeManager = useUniversalChanges(basketId);
@@ -422,7 +424,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
           <div className="space-y-6">
             <YarnnnThinkingPartner
               basketId={basketId}
-              workspaceId="default"
+              workspaceId={workspaceId || 'default'}
               className="max-w-2xl"
               onCapture={handleThoughtCapture}
             />

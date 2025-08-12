@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { uploadFile } from "@/lib/uploadFile";
 import { cn } from "@/lib/utils";
+import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
 
 export interface UploadAreaProps {
   /** Storage path prefix (folder) within the bucket */
@@ -115,7 +116,8 @@ export function UploadArea({
         }, 500);
         progressIntervals.current[id] = interval;
       }
-      const filename = `${Date.now()}-${file.name}`;
+      const sanitizedName = sanitizeFilename(file.name);
+      const filename = `${Date.now()}-${sanitizedName}`;
       uploadFile(file, `${prefix}/${filename}`, bucket)
         .then((url) => {
           if (progressIntervals.current[id]) {

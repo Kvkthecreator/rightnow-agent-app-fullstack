@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { useDocumentContext } from "@/lib/intelligence/useDocumentContext";
 import { TriggerEvent } from "@/lib/intelligence/useBehavioralTriggers";
+import { useWorkspaceId } from "@/hooks/useWorkspaceId";
 // Local type definition for ContextualInsight
 interface ContextualInsight {
   insight_id: string;
@@ -100,7 +101,8 @@ function FocusAreaCard({
   documentId?: string; 
   focusMode: "document" | "basket";
 }) {
-  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
+  const workspaceId = useWorkspaceId(basketId);
+  const substrate = useSubstrate(basketId, workspaceId || 'default');
   const { data: docContext, isLoading: docLoading } = useDocumentContext(documentId);
 
   if (substrate.loading || docLoading) {
@@ -150,7 +152,8 @@ function ActiveThemesCard({
   documentId?: string; 
   focusMode: "document" | "basket";
 }) {
-  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
+  const workspaceId = useWorkspaceId(basketId);
+  const substrate = useSubstrate(basketId, workspaceId || 'default');
   const { data: docContext, isLoading: docLoading } = useDocumentContext(documentId);
 
   if (substrate.loading || docLoading) {

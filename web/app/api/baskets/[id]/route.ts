@@ -38,7 +38,7 @@ export async function GET(
     
     const { data: basket, error: fetchError } = await supabase
       .from("baskets")
-      .select("id, name, description, status, created_at, updated_at, metadata, title, workspace_id")
+      .select("id, name, status, created_at, workspace_id, raw_dump_id, origin_template, tags")
       .eq("id", id)
       .eq("workspace_id", workspace.id)
       .single();
@@ -71,8 +71,17 @@ export async function GET(
       );
     }
 
+    // Map fields for API compatibility
+    const mappedBasket = {
+      ...basket,
+      description: basket.origin_template || "", // Map origin_template to description
+      updated_at: basket.created_at, // Use created_at as fallback for updated_at
+      metadata: {}, // Provide empty metadata object
+      origin_template: undefined // Remove internal field from response
+    };
+
     // Add CORS headers
-    const response = NextResponse.json(basket);
+    const response = NextResponse.json(mappedBasket);
     response.headers.set('Access-Control-Allow-Origin', '*');
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');

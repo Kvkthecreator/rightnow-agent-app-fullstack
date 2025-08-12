@@ -10,6 +10,7 @@ import { useBasketDocuments } from '@/lib/hooks/useBasketDocuments';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
 import { useSubstrate } from '@/lib/substrate/useSubstrate';
 import { analyzeConversationIntent } from '@/lib/intelligence/conversationAnalyzer';
+import { useWorkspaceId } from '@/hooks/useWorkspaceId';
 
 interface RefactoredDocumentViewProps {
   basketId: string;
@@ -34,7 +35,8 @@ export function RefactoredDocumentView({
   const changeManager = useUniversalChanges(basketId);
   
   // Substrate intelligence for document context
-  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
+  const workspaceId = useWorkspaceId(basketId);
+  const substrate = useSubstrate(basketId, workspaceId || 'default');
   
   // Initialize document data
   useEffect(() => {
@@ -211,7 +213,7 @@ export function RefactoredDocumentView({
       <div className="fixed bottom-6 left-6 max-w-md">
         <YarnnnThinkingPartner
           basketId={basketId}
-          workspaceId="default"
+          workspaceId={workspaceId || 'default'}
           mode="substrate"
           onCapture={handleDocumentThoughtCapture}
           className="bg-white shadow-lg rounded-lg"

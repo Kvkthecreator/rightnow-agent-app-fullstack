@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { ProgressiveDisclosure } from "../narrative/ProgressiveDisclosure";
 import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { useMemoryInsights } from "@/lib/intelligence/useMemoryInsights";
+import { useWorkspaceId } from "@/hooks/useWorkspaceId";
 
 interface ComplementaryContextProps {
   view: 'dashboard' | 'documents' | 'insights' | 'understanding';
@@ -32,7 +33,8 @@ export function ComplementaryContext({
   className = "" 
 }: ComplementaryContextProps) {
   
-  const basketIntelligence = useSubstrate(basketId || '', 'default');
+  const workspaceId = useWorkspaceId(basketId || '');
+  const basketIntelligence = useSubstrate(basketId || '', workspaceId || 'default');
   const memoryInsights = useMemoryInsights(basketId || '');
   
   if (priority === 'hidden') return null;

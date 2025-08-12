@@ -7,6 +7,7 @@ import { IntentField } from './IntentField';
 import UnifiedIngest, { IngestItem } from './UnifiedIngest';
 import { Button } from '@/components/ui/Button';
 import { uploadFile } from '@/lib/uploadFile';
+import { sanitizeFilename } from '@/lib/utils/sanitizeFilename';
 
 export interface SourceInput {
   type: 'file' | 'text';
@@ -36,7 +37,8 @@ export function MemoryCapture({ onFormation, basketId }: Props) {
       const sources: SourceInput[] = await Promise.all(
         items.map(async (item) => {
           if (item.kind === 'file') {
-            const url = await uploadFile(item.file, `ingest/${item.file.name}`);
+            const sanitizedName = sanitizeFilename(item.file.name);
+            const url = await uploadFile(item.file, `ingest/${sanitizedName}`);
             return { type: 'file', id: url, name: item.file.name, size: item.file.size };
           }
           if (item.kind === 'url') {

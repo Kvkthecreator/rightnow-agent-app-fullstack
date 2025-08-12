@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
 import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { useState } from "react";
+import { useWorkspaceId } from "@/hooks/useWorkspaceId";
 
 interface IntelligentSuggestionsPanelProps {
   basketId: string;
@@ -49,7 +50,8 @@ export default function IntelligentSuggestionsPanel({
 }
 
 function CoherenceSuggestionsCard({ basketId }: { basketId: string }) {
-  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
+  const workspaceId = useWorkspaceId(basketId);
+  const substrate = useSubstrate(basketId, workspaceId || 'default');
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
   if (substrate.loading) {
@@ -311,7 +313,8 @@ function MissingContextCard({ basketId }: { basketId: string }) {
 }
 
 function ConnectionOpportunitiesCard({ basketId }: { basketId: string }) {
-  const substrate = useSubstrate(basketId, 'default'); // TODO: get workspaceId properly
+  const workspaceId = useWorkspaceId(basketId);
+  const substrate = useSubstrate(basketId, workspaceId || 'default');
 
   if (substrate.loading) {
     return (

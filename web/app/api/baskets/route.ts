@@ -43,14 +43,10 @@ export async function POST(request: NextRequest) {
       .from("baskets")
       .insert({
         name,
-        description,
         status,
         workspace_id: workspace.id,
-        metadata: {
-          createdBy: user.id,
-          tags,
-          ...metadata
-        }
+        tags,
+        origin_template: description || null // Store description in origin_template if provided
       })
       .select()
       .single();
@@ -67,7 +63,7 @@ export async function POST(request: NextRequest) {
       { 
         id: basket.id,
         name: basket.name,
-        description: basket.description,
+        description: basket.origin_template || "", // Map origin_template back to description for API compatibility
         status: basket.status,
         created_at: basket.created_at
       },
@@ -116,7 +112,7 @@ export async function GET(request: NextRequest) {
     // Get baskets for the workspace
     const { data: baskets, error: fetchError } = await supabase
       .from("baskets")
-      .select("id, name, description, status, created_at")
+      .select("id, name, status, created_at, origin_template")
       .eq("workspace_id", workspace.id)
       .order("created_at", { ascending: false });
 
@@ -128,7 +124,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(baskets || []);
+    // Map origin_template to description for API compatibility
+    const mappedBaskets = (baskets || []).map(basket => ({
+      ...basket,
+      description: basket.origin_template || "",
+      origin_template: undefined // Remove internal field from response
+    }));
+
+    return NextResponse.json(mappedBaskets);
 
   } catch (error) {
     console.error("Baskets GET API error:", error);

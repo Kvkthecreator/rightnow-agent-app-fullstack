@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { useMemoryInsights } from "@/lib/intelligence/useMemoryInsights";
 import { useState } from "react";
+import { useWorkspaceId } from "@/hooks/useWorkspaceId";
 
 interface MemoryInsightsPanelProps {
   basketId: string;
@@ -46,7 +47,8 @@ export default function MemoryInsightsPanel({
 }
 
 function RelatedDocumentsCard({ basketId }: { basketId: string }) {
-  const substrate = useSubstrate(basketId, "default"); // TODO: get workspaceId properly
+  const workspaceId = useWorkspaceId(basketId);
+  const substrate = useSubstrate(basketId, workspaceId || 'default');
 
   if (substrate.loading) {
     return (
@@ -245,7 +247,8 @@ function ForgottenInsightsCard({ basketId }: { basketId: string }) {
 }
 
 function PatternEvolutionCard({ basketId }: { basketId: string }) {
-  const substrate = useSubstrate(basketId, "default"); // TODO: get workspaceId properly
+  const workspaceId = useWorkspaceId(basketId);
+  const substrate = useSubstrate(basketId, workspaceId || 'default');
 
   if (substrate.loading) {
     return (
