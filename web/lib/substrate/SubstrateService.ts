@@ -69,8 +69,25 @@ export class SubstrateService {
     return data || [];
   }
 
-  async addRawDump(basketId: string, content: string, workspaceId = 'default'): Promise<RawDump> {
+  async addRawDump(basketId: string, content: string, workspaceId?: string): Promise<RawDump> {
     try {
+      // If workspace not provided, fetch from basket
+      let actualWorkspaceId = workspaceId;
+      
+      if (!actualWorkspaceId) {
+        const { data: basket, error: basketError } = await this.supabase
+          .from('baskets')
+          .select('workspace_id')
+          .eq('id', basketId)
+          .single();
+          
+        if (basketError || !basket) {
+          throw new Error(`Failed to fetch basket workspace: ${basketError?.message || 'Basket not found'}`);
+        }
+        
+        actualWorkspaceId = basket.workspace_id;
+      }
+      
       // Use API route instead of direct Supabase insert
       // This ensures events are fired and proper processing happens
       const result = await createDump(basketId, content, []);

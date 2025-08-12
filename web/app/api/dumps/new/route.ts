@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
       .from("raw_dumps")
       .insert({
         basket_id,
+        workspace_id: workspace.id,  // Use real workspace ID from authenticated user
         body_md: content,  // Use mapped content
         file_refs: files,  // Use mapped files
         processing_status: 'pending',
