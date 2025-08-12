@@ -12,7 +12,7 @@ export default function CreatePage() {
   const handleMemoryFormation = async (intent: string, inputs: SourceInput[]) => {
     const basket = await apiClient.request<{ id: string }>('/api/baskets/new', {
       method: 'POST',
-      body: JSON.stringify({ intent, status: 'forming' }),
+      body: JSON.stringify({ intent, status: 'INIT' }),
     });
 
     setBasketId(basket.id);
