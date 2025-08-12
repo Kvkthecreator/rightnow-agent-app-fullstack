@@ -30,11 +30,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { basket_id, body_md, file_refs = [] } = body;
+    // Support both old and new field names for compatibility
+    const { 
+      basket_id, 
+      body_md, 
+      text_dump,
+      file_refs = [], 
+      file_urls = [] 
+    } = body;
 
-    if (!basket_id || !body_md) {
+    // Use new field names if provided, fall back to old names
+    const content = text_dump || body_md;
+    const files = file_urls.length > 0 ? file_urls : file_refs;
+
+    if (!basket_id || !content) {
       return NextResponse.json(
-        { error: "basket_id and body_md are required" },
+        { error: "basket_id and content (text_dump or body_md) are required" },
         { status: 400 }
       );
     }
@@ -67,7 +78,11 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
           'User-Agent': 'NextJS-Proxy/1.0',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          basket_id,
+          text_dump: content,  // Use mapped field name
+          file_urls: files     // Use mapped field name
+        }),
         signal: AbortSignal.timeout(15000), // 15 second timeout
       });
 
@@ -96,8 +111,8 @@ export async function POST(request: NextRequest) {
       .from("raw_dumps")
       .insert({
         basket_id,
-        body_md,
-        file_refs,
+        body_md: content,  // Use mapped content
+        file_refs: files,  // Use mapped files
         processing_status: 'pending',
         created_at: new Date().toISOString(),
         metadata: {
