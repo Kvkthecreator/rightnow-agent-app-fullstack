@@ -6,7 +6,6 @@ import { Plus, Package2, LogOut, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabaseClient";
 import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
-import { createBasketNew } from "@/lib/baskets/createBasketNew";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 
@@ -74,14 +73,8 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
   const handleNewBasket = async () => {
-    console.log('🔄 Sidebar: Creating new basket...');
-    try {
-      const { id } = await createBasketNew({});
-      console.log('✅ Sidebar: Created basket:', id);
-      router.push(`/baskets/${id}/work`);
-    } catch (error) {
-      console.error('❌ Sidebar: Failed to create basket:', error);
-    }
+    console.log('🔄 Sidebar: Redirecting to create page...');
+    router.push('/app/create');
   };
 
   const handleNavigateToBaskets = () => {
