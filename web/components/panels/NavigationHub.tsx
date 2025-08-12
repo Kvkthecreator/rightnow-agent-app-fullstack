@@ -33,7 +33,7 @@ const getNavItems = (basketId?: string): NavItem[] => [
     key: 'dashboard',
     label: 'Strategic Intelligence',
     icon: BarChart3,
-    href: basketId ? `/baskets/${basketId}/work` : '/dashboard/home',
+    href: basketId ? `/baskets/${basketId}/work` : '/home',
     description: 'AI insights and project understanding'
   },
   {

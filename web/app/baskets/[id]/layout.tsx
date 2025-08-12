@@ -23,7 +23,7 @@ export default async function BasketLayout({ children, params }: BasketLayoutPro
     }
 
     if (!workspace?.id) {
-      redirect("/dashboard/home");
+      redirect("/home");
     }
 
     const [basketData, documents] = await Promise.all([

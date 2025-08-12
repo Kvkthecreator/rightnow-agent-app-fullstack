@@ -4,14 +4,14 @@
  */
 
 import { useState } from 'react'
-import { basketApi } from '@/lib/api/client'
-import { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
+import { processBasketWork, listDeltas, applyBasketDelta } from '@/lib/api/baskets'
+import { BasketChangeRequest } from '@shared/contracts/basket'
 
 interface UseBasketOperationsReturn {
   isLoading: boolean
   error: string | null
-  processWork: (request: BasketChangeRequest) => Promise<BasketDelta | null>
-  getDeltas: () => Promise<BasketDelta[] | null>
+  processWork: (request: BasketChangeRequest) => Promise<any | null>
+  getDeltas: () => Promise<any[] | null>
   applyDelta: (deltaId: string) => Promise<boolean>
   clearError: () => void
 }
@@ -22,12 +22,12 @@ export function useBasketOperations(basketId: string): UseBasketOperationsReturn
 
   const clearError = () => setError(null)
 
-  const processWork = async (request: BasketChangeRequest): Promise<BasketDelta | null> => {
+  const processWork = async (request: BasketChangeRequest): Promise<any | null> => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const delta = await basketApi.processWork(basketId, request)
+      const delta = await processBasketWork(basketId, request as any)
       return delta
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to process work'
@@ -38,12 +38,12 @@ export function useBasketOperations(basketId: string): UseBasketOperationsReturn
     }
   }
 
-  const getDeltas = async (): Promise<BasketDelta[] | null> => {
+  const getDeltas = async (): Promise<any[] | null> => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const deltas = await basketApi.getDeltas(basketId)
+      const deltas = await listDeltas(basketId)
       return deltas
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get deltas'
@@ -59,7 +59,7 @@ export function useBasketOperations(basketId: string): UseBasketOperationsReturn
     setError(null)
 
     try {
-      await basketApi.applyDelta(basketId, deltaId)
+      await applyBasketDelta(basketId, deltaId)
       return true
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to apply delta'

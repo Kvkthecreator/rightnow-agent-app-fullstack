@@ -1,25 +1,15 @@
-import { SubstrateManager } from "@/components/substrate/SubstrateManager";
-import { getBasketData } from "@/lib/data/basketData";
-import { notFound } from "next/navigation";
+import BasketWorkLayout from '@/components/layouts/BasketWorkLayout';
+import WorkLeft from '@/components/features/basket/WorkLeft';
+import WorkRight from '@/components/features/basket/WorkRight';
+import DashboardCenter from '@/components/features/basket/centers/DashboardCenter';
 
-interface DashboardPageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default async function DashboardPage({ params }: DashboardPageProps) {
+export default async function BasketWorkPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const basketData = await getBasketData(id);
-  
-  if (!basketData) {
-    notFound();
-  }
-
-  // Extract workspaceId from basketData
-  const workspaceId = basketData.workspace?.id || 'default';
-
   return (
-    <>
-      <SubstrateManager basketId={id} />
-    </>
+    <BasketWorkLayout
+      left={<WorkLeft basketId={id} />}
+      center={<DashboardCenter basketId={id} />}
+      right={<WorkRight basketId={id} />}
+    />
   );
 }
