@@ -1,33 +1,22 @@
-import { RefactoredDocumentView } from "@/components/documents/RefactoredDocumentView";
-import { getBasketData } from "@/lib/data/basketData";
-import { notFound } from "next/navigation";
+import BasketWorkLayout from '@/components/layouts/BasketWorkLayout';
+import WorkLeft from '@/components/features/basket/WorkLeft';
+import WorkRight from '@/components/features/basket/WorkRight';
+import DocumentDetailCenter from '@/components/features/basket/centers/DocumentDetailCenter';
+import { FocusProvider } from '@/components/features/basket/FocusContext';
 
-interface DocumentPageProps {
+interface DocumentDetailPageProps {
   params: Promise<{ id: string; docId: string }>;
 }
 
-export default async function DocumentPage({ params }: DocumentPageProps) {
+export default async function DocumentDetailPage({ params }: DocumentDetailPageProps) {
   const { id, docId } = await params;
-  
-  try {
-    const basketData = await getBasketData(id);
-    
-    if (!basketData) {
-      notFound();
-    }
-
-    // The RefactoredDocumentView handles document loading internally
-    // This provides a cleaner architecture with unified editing experience
-
-    return (
-      <RefactoredDocumentView
-        basketId={id}
-        basketName={basketData.name}
-        documentId={docId}
+  return (
+    <FocusProvider>
+      <BasketWorkLayout
+        left={<WorkLeft basketId={id} />}
+        center={<DocumentDetailCenter basketId={id} docId={docId} />}
+        right={<WorkRight basketId={id} />}
       />
-    );
-  } catch (error) {
-    console.error('Error loading document page:', error);
-    notFound();
-  }
+    </FocusProvider>
+  );
 }

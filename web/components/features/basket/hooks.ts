@@ -15,6 +15,6 @@ export function useBasketDeltas(id: string) {
     queryKey: ['basket', id, 'deltas'],
     queryFn: () => get(`/api/baskets/${id}/deltas`),
     refetchInterval: 3000,
-    select: (rows: any[]) => rows?.sort((a,b)=> (a.created_at < b.created_at ? 1 : -1)) ?? [],
+    select: (rows: any[]) => rows?.slice().sort((a,b)=> (a.created_at < b.created_at ? 1 : -1)) ?? [],
   });
 }
