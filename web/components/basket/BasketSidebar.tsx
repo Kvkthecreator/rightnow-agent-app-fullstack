@@ -67,7 +67,7 @@ export default function BasketSidebar({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push("/dashboard/home")}
+              onClick={() => router.push("/home")}
               className="text-xs px-2 py-1 h-7"
             >
               ← Back

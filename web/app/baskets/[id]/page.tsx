@@ -1,12 +1,6 @@
-import { redirect } from "next/navigation";
+import DashboardCenter from '@/components/features/basket/centers/DashboardCenter';
 
-interface BasketDetailPageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default async function BasketDetailPage({ params }: BasketDetailPageProps) {
+export default async function BasketIndex({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  
-  // Redirect to work interface - this eliminates navigation confusion
-  redirect(`/baskets/${id}/work`);
+  return <DashboardCenter basketId={id} />;
 }

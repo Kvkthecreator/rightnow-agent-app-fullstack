@@ -1,78 +1,20 @@
-/**
- * Centralized API client - ONE source of truth for ALL API calls
- * No more scattered fetch() calls across components
- */
-
-import { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
-import { fetchWithToken } from '@/lib/fetchWithToken'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://rightnow-api.onrender.com'
-
 export class ApiClient {
-  private baseUrl: string
-
-  constructor(baseUrl = API_BASE_URL) {
-    this.baseUrl = baseUrl
+  async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(path, { cache: 'no-store', ...init });
+    if (!res.ok) throw new Error(`[${init?.method ?? 'GET'}] ${path} → ${res.status}`);
+    return res.json();
   }
-
-  async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`
-    
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    }
-
-    let response = await fetchWithToken(url, config)
-
-    // Single retry on 401 to handle token race conditions
-    if (response.status === 401) {
-      response = await fetchWithToken(url, config)
-    }
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`)
-    }
-
-    return response.json()
+  async get<T>(path: string, init?: RequestInit): Promise<T> {
+    return this.request(path, { ...init, method: 'GET' });
   }
-
-  // Basket operations
-  async processBasketWork(basketId: string, request: BasketChangeRequest): Promise<BasketDelta> {
-    return this.request(`/api/baskets/${basketId}/work`, {
+  async post<T>(path: string, data?: any, init?: RequestInit): Promise<T> {
+    return this.request(path, {
       method: 'POST',
-      body: JSON.stringify(request),
-    })
-  }
-
-  async getBasketDeltas(basketId: string): Promise<BasketDelta[]> {
-    return this.request(`/api/baskets/${basketId}/deltas`)
-  }
-
-  async applyBasketDelta(basketId: string, deltaId: string): Promise<{ status: string; basket_id: string; delta_id: string }> {
-    return this.request(`/api/baskets/${basketId}/apply/${deltaId}`, {
-      method: 'POST',
-    })
+      headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+      body: data ? JSON.stringify(data) : undefined,
+      ...init,
+    });
   }
 }
-
-// Singleton instance
-export const apiClient = new ApiClient()
-
-// Helper functions for direct usage
-export const basketApi = {
-  processWork: (basketId: string, request: BasketChangeRequest) =>
-    apiClient.processBasketWork(basketId, request),
-  
-  getDeltas: (basketId: string) =>
-    apiClient.getBasketDeltas(basketId),
-  
-  applyDelta: (basketId: string, deltaId: string) =>
-    apiClient.applyBasketDelta(basketId, deltaId),
-}
+export const api = new ApiClient();
+export const apiClient = api;

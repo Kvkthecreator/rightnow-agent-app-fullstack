@@ -1,6 +1,6 @@
 'use client'
 
-import DumpModal from './DumpModal';
+import DumpModal from '@/components/DumpModal';
 import useDumpHotkey from '@/lib/hooks/useDumpHotkey';
 import { useBasket } from '@/lib/context/BasketContext';
 

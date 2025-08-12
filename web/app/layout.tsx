@@ -4,9 +4,10 @@ import "./globals.css";
 import "../styles/diff.css";
 
 import { BasketProvider } from "@/lib/context/BasketContext";
-import DumpModalWrapper from "@/components/DumpModalWrapper";
+import DumpModalWrapper from "@/components/modals/DumpModalWrapper";
 import { Toaster } from "react-hot-toast";
 import ClientLayoutShell from "@/components/shell/ClientLayoutShell";
+import Providers from './providers';
 
 // ✅ NEW: Import SupabaseProvider
 import { SupabaseProvider } from "@/components/SupabaseProvider";
@@ -53,13 +54,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable}`}
     >
       <body className="antialiased min-h-screen">
-        <SupabaseProvider>
-          <BasketProvider>
-            <ClientLayoutShell>{children}</ClientLayoutShell>
-            <DumpModalWrapper />
-          </BasketProvider>
-        </SupabaseProvider>
-        <Toaster position="top-right" />
+        <Providers>
+          <SupabaseProvider>
+            <BasketProvider>
+              <ClientLayoutShell>{children}</ClientLayoutShell>
+              <DumpModalWrapper />
+            </BasketProvider>
+          </SupabaseProvider>
+          <Toaster position="top-right" />
+        </Providers>
       </body>
     </html>
   );

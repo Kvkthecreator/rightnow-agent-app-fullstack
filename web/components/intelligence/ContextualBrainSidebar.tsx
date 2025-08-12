@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import BrainSidebar from "./BrainSidebar";
-import type { ContextType, IntelligenceMode } from "@/components/basket/StandardizedBasketLayout";
+export type ContextType = "dashboard" | "document" | "settings" | "insights";
+export type IntelligenceMode = "ambient" | "active" | "detailed";
 
 interface ContextualBrainSidebarProps {
   basketId: string;
