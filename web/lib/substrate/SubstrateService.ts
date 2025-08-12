@@ -4,6 +4,7 @@
 import { createSupabaseClient } from '@/lib/supabase/client';
 import { authHelper } from '@/lib/supabase/auth-helper';
 import { createDump } from '@/lib/dumps/createDump';
+import { apiClient } from '@/lib/api/client';
 
 export interface RawDump {
   id: string;
@@ -134,27 +135,39 @@ export class SubstrateService {
 
 
   async approveBlock(id: string): Promise<Block> {
-    const { data, error } = await this.supabase
-      .from('blocks')
-      .update({ status: 'accepted', updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to approve block: ${error.message}`);
-    return data;
+    try {
+      // Use lifecycle service API instead of direct update
+      const response = await apiClient.request<{ success: boolean; block: Block }>(
+        `/api/blocks/${id}/accept`,
+        { method: 'POST' }
+      );
+      
+      if (!response.success || !response.block) {
+        throw new Error('Failed to approve block through lifecycle service');
+      }
+      
+      return response.block;
+    } catch (error) {
+      throw new Error(`Failed to approve block: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async rejectBlock(id: string): Promise<Block> {
-    const { data, error } = await this.supabase
-      .from('blocks')
-      .update({ status: 'rejected', updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to reject block: ${error.message}`);
-    return data;
+    try {
+      // Use lifecycle service API instead of direct update
+      const response = await apiClient.request<{ success: boolean; block: Block }>(
+        `/api/blocks/${id}/reject`,
+        { method: 'POST' }
+      );
+      
+      if (!response.success || !response.block) {
+        throw new Error('Failed to reject block through lifecycle service');
+      }
+      
+      return response.block;
+    } catch (error) {
+      throw new Error(`Failed to reject block: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   // ==========================================
