@@ -16,7 +16,7 @@ export default async function WorkLayout({ children, center, params }: LayoutPro
     <FocusProvider>
       <BasketWorkLayout
         left={<WorkLeft basketId={id} />}
-        center={center || children}
+        center={center}
         right={<WorkRight basketId={id} />}
       />
     </FocusProvider>
