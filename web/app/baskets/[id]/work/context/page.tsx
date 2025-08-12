@@ -1,18 +1,18 @@
 import BasketWorkLayout from '@/components/layouts/BasketWorkLayout';
 import WorkLeft from '@/components/features/basket/WorkLeft';
 import WorkRight from '@/components/features/basket/WorkRight';
-import DashboardCenter from '@/components/features/basket/centers/DashboardCenter';
+import ContextCenter from '@/components/features/basket/centers/ContextCenter';
 
-interface BasketWorkPageProps {
+interface ContextPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function BasketWorkPage({ params }: BasketWorkPageProps) {
+export default async function ContextPage({ params }: ContextPageProps) {
   const { id } = await params;
   return (
     <BasketWorkLayout
       left={<WorkLeft basketId={id} />}
-      center={<DashboardCenter basketId={id} />}
+      center={<ContextCenter basketId={id} />}
       right={<WorkRight basketId={id} />}
     />
   );

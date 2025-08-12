@@ -10,6 +10,7 @@ import ClientLayoutShell from "@/components/shell/ClientLayoutShell";
 
 // ✅ NEW: Import SupabaseProvider
 import { SupabaseProvider } from "@/components/SupabaseProvider";
+import Providers from "./providers";
 
 // Environment validation
 import { validateEnvironment, logEnvironmentInfo } from "@/lib/config/validate";
@@ -53,13 +54,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable}`}
     >
       <body className="antialiased min-h-screen">
-        <SupabaseProvider>
-          <BasketProvider>
-            <ClientLayoutShell>{children}</ClientLayoutShell>
-            <DumpModalWrapper />
-          </BasketProvider>
-        </SupabaseProvider>
-        <Toaster position="top-right" />
+        <Providers>
+          <SupabaseProvider>
+            <BasketProvider>
+              <ClientLayoutShell>{children}</ClientLayoutShell>
+              <DumpModalWrapper />
+            </BasketProvider>
+          </SupabaseProvider>
+          <Toaster position="top-right" />
+        </Providers>
       </body>
     </html>
   );

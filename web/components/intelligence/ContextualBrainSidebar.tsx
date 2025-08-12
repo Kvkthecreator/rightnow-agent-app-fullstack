@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import BrainSidebar from "./BrainSidebar";
-import type { ContextType, IntelligenceMode } from "@/components/basket/StandardizedBasketLayout";
+
+type ContextType = "dashboard" | "document" | "settings" | "insights";
+type IntelligenceMode = "ambient" | "active" | "detailed";
 
 interface ContextualBrainSidebarProps {
   basketId: string;
