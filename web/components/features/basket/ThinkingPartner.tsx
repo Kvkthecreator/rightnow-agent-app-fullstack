@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { requestId } from '@/lib/utils/id';
-import { postBasketWork } from '@/lib/api/baskets';
+import { basketApi } from '@/lib/api/client';
 import { useFocus } from './FocusContext';
 
 type Suggestion = {
@@ -17,7 +17,6 @@ function useSuggestions(basketId: string) {
   return useMemo<Suggestion[]>(() => {
     switch (focus.kind) {
       case 'document': {
-        const sel = focus.selection ? `(${focus.selection.start},${focus.selection.end})` : '';
         return [
           { label: 'Summarize selection', intent: 'document_summarize_selection', agent_hints: ['document', `doc:${focus.id}`] },
           { label: 'Insert related blocks', intent: 'document_insert_related_blocks', agent_hints: ['document', `doc:${focus.id}`, 'blocks'] },
@@ -55,14 +54,14 @@ export default function ThinkingPartner({ basketId }:{ basketId:string }) {
     setError(null);
     setPending(s.intent);
     try {
-      await postBasketWork(basketId, {
+      await basketApi.processWork(basketId, {
         request_id: requestId(),
         basket_id: basketId,
         intent: s.intent,
         sources: s.sources ?? [],
         agent_hints: s.agent_hints ?? [],
         user_context: { focus },
-      });
+      } as any);
       // polling will surface the proposed delta → right rail Change Review will update
     } catch (e:any) {
       setError(e?.message ?? 'Failed to propose change');

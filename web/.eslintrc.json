@@ -1,6 +1,13 @@
 {
   "extends": ["next/core-web-vitals"],
   "rules": {
-    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }]
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-restricted-globals": [
+      "error",
+      {
+        "name": "fetch",
+        "message": "Use apiClient from @/lib/api/client instead of direct fetch(). This ensures consistent error handling, request formatting, and centralized API management."
+      }
+    ]
   }
 }

@@ -1,5 +1,5 @@
 'use client';
-import { useBasket, useBasketDeltas } from '../hooks';
+import { useBasket, useBasketDeltas } from '@/hooks/useBasket';
 
 export default function DashboardCenter({ basketId }:{ basketId:string }) {
   const { data: basket } = useBasket(basketId);

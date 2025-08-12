@@ -1,5 +1,5 @@
 'use client';
-import { useBasketDeltas } from './hooks';
+import { useBasketDeltas } from '@/hooks/useBasket';
 import ThinkingPartner from './ThinkingPartner';
 export default function WorkRight({ basketId }:{ basketId:string }) {
   const { data: deltas } = useBasketDeltas(basketId);

@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useBasket } from './hooks';
+import { useBasket } from '@/hooks/useBasket';
 
 export default function WorkLeft({ basketId }:{ basketId:string }) {
   const { data } = useBasket(basketId);

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useBasketDeltas } from '../hooks';
+import { useBasketDeltas } from '@/hooks/useBasket';
 import { useFocus } from '../FocusContext';
 
 export default function DocumentDetailCenter({ basketId, docId }:{ basketId:string; docId:string }) {

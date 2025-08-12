@@ -22,7 +22,7 @@ interface BasketContextType {
   updateBasketName: (newName: string) => Promise<void>;
   setBasket: (basket: Basket) => void;
   setDocuments: (docs: Document[]) => void;
-  isUpdating: boolean;
+  isLoading: boolean;
   error: string | null;
 }
 
@@ -41,7 +41,7 @@ export function BasketProvider({
 }) {
   const [basket, setBasket] = useState<Basket | null>(initialBasket);
   const [documents, setDocuments] = useState<Document[]>(initialDocuments);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Get universal changes hook for this basket
@@ -51,7 +51,7 @@ export function BasketProvider({
   const updateBasketName = useCallback(async (newName: string) => {
     if (!basket) return;
     
-    setIsUpdating(true);
+    setIsLoading(true);
     setError(null);
     
     try {
@@ -77,7 +77,7 @@ export function BasketProvider({
       setError(err instanceof Error ? err.message : 'Failed to update basket name');
       console.error('❌ Failed to update basket name via Universal Changes:', err);
     } finally {
-      setIsUpdating(false);
+      setIsLoading(false);
     }
   }, [basket, changeManager]);
 
@@ -88,7 +88,7 @@ export function BasketProvider({
       updateBasketName,
       setBasket,
       setDocuments,
-      isUpdating,
+      isLoading,
       error
     }}>
       {children}
