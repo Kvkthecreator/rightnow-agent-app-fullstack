@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useBasketEvents } from '@/lib/hooks/useBasketEvents';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface EvolutionState {
@@ -12,37 +11,16 @@ interface EvolutionState {
 }
 
 export function SubstrateEvolution({ basketId }: { basketId: string }) {
-  const { lastEvent } = useBasketEvents(basketId);
-  const [evolution, setEvolution] = useState<EvolutionState>({
-    rawDumps: [],
+  // REMOVED: useBasketEvents polling - this was causing infinite loops
+  // Polling should only start after redirecting to the work page
+  // Show static loading animation instead of real-time updates
+  // This prevents polling loops during basket creation
+  const [evolution] = useState<EvolutionState>({
+    rawDumps: [{ id: '1', type: 'text', content: 'Processing your input...' }],
     blocks: [],
     narrative: null,
     threads: [],
   });
-
-  useEffect(() => {
-    if (!lastEvent) return;
-    switch (lastEvent.type) {
-      case 'raw_dump:created':
-        setEvolution((prev) => ({
-          ...prev,
-          rawDumps: [...prev.rawDumps, lastEvent.payload],
-        }));
-        break;
-      case 'block:created':
-        setEvolution((prev) => ({
-          ...prev,
-          blocks: [...prev.blocks, lastEvent.payload],
-        }));
-        break;
-      case 'narrative:generated':
-        setEvolution((prev) => ({
-          ...prev,
-          narrative: lastEvent.payload,
-        }));
-        break;
-    }
-  }, [lastEvent]);
 
   return (
     <div className="p-8 space-y-6">

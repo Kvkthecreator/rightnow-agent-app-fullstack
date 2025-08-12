@@ -27,20 +27,31 @@ export function MemoryCapture({ onFormation, basketId }: Props) {
   const [isForming, setIsForming] = useState(false);
 
   const handleCreate = async () => {
+    // Prevent multiple submissions
+    if (isForming) return;
+    
     setIsForming(true);
-    const sources: SourceInput[] = await Promise.all(
-      items.map(async (item) => {
-        if (item.kind === 'file') {
-          const url = await uploadFile(item.file, `ingest/${item.file.name}`);
-          return { type: 'file', id: url, name: item.file.name, size: item.file.size };
-        }
-        if (item.kind === 'url') {
-          return { type: 'text', content: item.url, name: item.url };
-        }
-        return { type: 'text', content: item.text };
-      })
-    );
-    onFormation(intent, sources);
+    
+    try {
+      const sources: SourceInput[] = await Promise.all(
+        items.map(async (item) => {
+          if (item.kind === 'file') {
+            const url = await uploadFile(item.file, `ingest/${item.file.name}`);
+            return { type: 'file', id: url, name: item.file.name, size: item.file.size };
+          }
+          if (item.kind === 'url') {
+            return { type: 'text', content: item.url, name: item.url };
+          }
+          return { type: 'text', content: item.text };
+        })
+      );
+      
+      await onFormation(intent, sources);
+    } catch (error) {
+      console.error('❌ Memory formation failed:', error);
+      // Reset loading state on error so user can retry
+      setIsForming(false);
+    }
   };
 
   return (
@@ -55,6 +66,14 @@ export function MemoryCapture({ onFormation, basketId }: Props) {
           <Sparkles size={20} />
           Begin Formation
         </Button>
+      )}
+      
+      {isForming && (
+        <div className="text-center">
+          <Button size="lg" className="w-full" disabled>
+            Creating Basket...
+          </Button>
+        </div>
       )}
     </div>
   );

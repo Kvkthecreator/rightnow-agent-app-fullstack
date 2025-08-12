@@ -10,31 +10,45 @@ export default function CreatePage() {
   const [basketId, setBasketId] = useState<string | null>(null);
 
   const handleMemoryFormation = async (intent: string, inputs: SourceInput[]) => {
-    const basket = await apiClient.request<{ id: string }>('/api/baskets/new', {
-      method: 'POST',
-      body: JSON.stringify({ intent, status: 'INIT' }),
-    });
+    try {
+      // 1. Create basket with correct endpoint
+      const basket = await apiClient.request<{ id: string }>('/api/baskets', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          name: intent || 'New Basket',
+          description: intent,
+          status: 'INIT' 
+        }),
+      });
 
-    setBasketId(basket.id);
+      // 2. Set basket ID for loading UI
+      setBasketId(basket.id);
 
-    const rawDumps = await Promise.all(
-      inputs.map((input) =>
-        apiClient.request<{ id: string }>(`/api/baskets/${basket.id}/raw_dumps`, {
-          method: 'POST',
-          body: JSON.stringify(input),
-        })
-      )
-    );
+      // 3. Create raw dumps using the correct dump API
+      if (inputs.length > 0) {
+        await Promise.all(
+          inputs.map((input) =>
+            apiClient.request('/api/dumps/new', {
+              method: 'POST',
+              body: JSON.stringify({
+                basket_id: basket.id,
+                text_dump: input.content || `File: ${input.name}`,
+                file_urls: input.type === 'file' ? [input.id] : []
+              }),
+            })
+          )
+        );
+      }
 
-    await apiClient.request(`/api/baskets/${basket.id}/work`, {
-      method: 'POST',
-      body: JSON.stringify({
-        operation: 'INITIAL_FORMATION',
-        raw_dump_ids: rawDumps.map((d) => d.id),
-      }),
-    });
-
-    setTimeout(() => router.push(`/baskets/${basket.id}`), 3000);
+      // 4. Redirect immediately to work page (remove delay)
+      router.push(`/baskets/${basket.id}/work`);
+      
+    } catch (error) {
+      console.error('❌ Basket creation failed:', error);
+      // Reset loading state on error
+      setBasketId(null);
+      alert('Failed to create basket. Please try again.');
+    }
   };
 
   return (
