@@ -3,6 +3,7 @@
 
 import { createSupabaseClient } from '@/lib/supabase/client';
 import { authHelper } from '@/lib/supabase/auth-helper';
+import { createDump } from '@/lib/dumps/createDump';
 
 export interface RawDump {
   id: string;
@@ -68,18 +69,23 @@ export class SubstrateService {
   }
 
   async addRawDump(basketId: string, content: string, workspaceId = 'default'): Promise<RawDump> {
-    const { data, error } = await this.supabase
-      .from('raw_dumps')
-      .insert({
-        basket_id: basketId,
-        workspace_id: workspaceId,
-        body_md: content
-      })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to add raw dump: ${error.message}`);
-    return data;
+    try {
+      // Use API route instead of direct Supabase insert
+      // This ensures events are fired and proper processing happens
+      const result = await createDump(basketId, content, []);
+      
+      // Fetch the created dump to return full data
+      const { data, error } = await this.supabase
+        .from('raw_dumps')
+        .select('*')
+        .eq('id', result.raw_dump_id)
+        .single();
+      
+      if (error) throw new Error(`Failed to fetch created dump: ${error.message}`);
+      return data;
+    } catch (error) {
+      throw new Error(`Failed to add raw dump: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async updateRawDump(id: string, content: string): Promise<RawDump> {
