@@ -74,7 +74,7 @@ export default function Sidebar({ className }: SidebarProps) {
 
   const handleNewBasket = async () => {
     console.log('🔄 Sidebar: Redirecting to create page...');
-    router.push('/app/create');
+    window.location.href = 'https://www.yarnnn.com/create';
   };
 
   const handleNavigateToBaskets = () => {
