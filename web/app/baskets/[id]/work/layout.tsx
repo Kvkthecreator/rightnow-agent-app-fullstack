@@ -1,20 +1,22 @@
 import BasketWorkLayout from '@/components/layouts/BasketWorkLayout';
 import WorkLeft from '@/components/features/basket/WorkLeft';
 import WorkRight from '@/components/features/basket/WorkRight';
-import DocumentsCenter from '@/components/features/basket/centers/DocumentsCenter';
 import { FocusProvider } from '@/components/features/basket/FocusContext';
 
-interface DocumentsPageProps {
+interface LayoutProps {
+  children: React.ReactNode;
+  center: React.ReactNode;
   params: Promise<{ id: string }>;
 }
 
-export default async function DocumentsPage({ params }: DocumentsPageProps) {
+export default async function WorkLayout({ children, center, params }: LayoutProps) {
   const { id } = await params;
+  
   return (
     <FocusProvider>
       <BasketWorkLayout
         left={<WorkLeft basketId={id} />}
-        center={<DocumentsCenter basketId={id} />}
+        center={center || children}
         right={<WorkRight basketId={id} />}
       />
     </FocusProvider>
