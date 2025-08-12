@@ -6,7 +6,8 @@ import { LoadingSkeleton } from '@/components/ui/states';
 
 export default function DashboardCenter({ basketId }: { basketId: string }) {
   const { data: basket, isLoading } = useBasket(basketId);
-  const { data: recentDeltas } = useBasketDeltas(basketId, { limit: 3 });
+  const { data: allDeltas } = useBasketDeltas(basketId);
+  const recentDeltas = allDeltas?.slice(0, 3);
   
   // Subscribe to real-time events for this basket
   useBasketEvents(basketId);

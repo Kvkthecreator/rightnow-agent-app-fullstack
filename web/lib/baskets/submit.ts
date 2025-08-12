@@ -65,7 +65,7 @@ export function buildContextBlocks(values: BasketValues): ContextBlock[] {
   return blocks;
 }
 
-import { apiPost } from "../api";
+import { apiClient } from "../api/client";
 
 export async function createBasket(values: BasketValues): Promise<{ id: string }> {
   const payload = {
@@ -74,5 +74,8 @@ export async function createBasket(values: BasketValues): Promise<{ id: string }
     insight: values.insight,
     reference_file_ids: values.reference_file_ids,
   };
-  return apiPost<{ id: string }>("/baskets", payload);
+  return apiClient.request<{ id: string }>("/api/baskets", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }

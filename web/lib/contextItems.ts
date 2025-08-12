@@ -1,4 +1,4 @@
-import { apiPost, apiPut, apiDelete } from './api';
+import { apiClient } from './api/client';
 
 export interface ContextItemPayload {
   basket_id?: string;
@@ -9,13 +9,21 @@ export interface ContextItemPayload {
 }
 
 export function createContextItem(body: ContextItemPayload) {
-  return apiPost('/api/context_items', body);
+  return apiClient.request('/api/context_items', {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
 }
 
 export function updateContextItem(id: string, body: Partial<ContextItemPayload>) {
-  return apiPut(`/api/context_items/${id}`, body);
+  return apiClient.request(`/api/context_items/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body)
+  });
 }
 
 export function deleteContextItem(id: string) {
-  return apiDelete(`/api/context_items/${id}`);
+  return apiClient.request(`/api/context_items/${id}`, {
+    method: 'DELETE'
+  });
 }
