@@ -66,7 +66,6 @@ export function BasketProvider({
         if (result.appliedData) {
           setBasket(result.appliedData);
         }
-        console.log('✅ Basket name updated through Universal Change System');
       } else {
         throw new Error(result.errors?.[0] || 'Failed to update basket name');
       }

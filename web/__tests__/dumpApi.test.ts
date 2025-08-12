@@ -1,5 +1,6 @@
 import { postDump } from "@/lib/baskets/dumpApi";
-import { API_BASE_URL } from "@/lib/api";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://rightnow-api.onrender.com';
 
 beforeEach(() => {
   global.fetch = vi.fn().mockResolvedValue({
