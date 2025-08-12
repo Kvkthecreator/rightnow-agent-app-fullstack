@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { apiGet } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 
 export interface CommitRow {
   id: string;
@@ -11,7 +11,7 @@ export interface CommitRow {
 }
 
 async function fetchCommits(url: string): Promise<CommitRow[]> {
-  return apiGet<CommitRow[]>(url);
+  return apiClient.request<CommitRow[]>(url);
 }
 
 export function useCommits(basketId: string) {

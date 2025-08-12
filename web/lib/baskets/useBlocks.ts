@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { apiGet } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 
 export interface BlockRow {
   id: string;
@@ -9,10 +9,11 @@ export interface BlockRow {
   commit_id: string | null;
 }
 
-const fetcher = (url: string) => apiGet<BlockRow[]>(url);
+const fetcher = (url: string) => apiClient.request<BlockRow[]>(url);
 
 export function useBlocks(basketId: string) {
   const { data, isLoading, error } = useSWR(
+    `/api/baskets/${basketId}/blocks`,
     fetcher,
     { refreshInterval: 10_000 },
   );

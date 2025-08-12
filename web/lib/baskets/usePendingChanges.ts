@@ -1,7 +1,7 @@
 import useSWR from "swr";
-import { apiGet } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 
-const fetcher = (url: string) => apiGet<{ count: number }>(url);
+const fetcher = (url: string) => apiClient.request<{ count: number }>(url);
 
 export function usePendingChanges(basketId: string) {
   const { data } = useSWR(

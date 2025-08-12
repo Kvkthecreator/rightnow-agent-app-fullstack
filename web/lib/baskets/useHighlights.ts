@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { apiGet } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 
 export interface HighlightSuggestion {
   dump_input_id: string;
@@ -7,7 +7,7 @@ export interface HighlightSuggestion {
   reason: string;
 }
 
-const fetcher = (url: string) => apiGet<HighlightSuggestion[]>(url);
+const fetcher = (url: string) => apiClient.request<HighlightSuggestion[]>(url);
 
 export function useHighlights(basketId: string) {
   const { data, isLoading, error } = useSWR(

@@ -1,6 +1,6 @@
 
 import { createClient } from "@/lib/supabaseClient";
-import { apiPost, apiPut, apiDelete } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 
 export interface BlockInsert {
   user_id?: string;
@@ -42,13 +42,19 @@ export async function fetchBlocks(
 
 
 export async function createBlock(block: BlockInsert) {
-  return apiPost("/context-blocks/create", block);
+  return apiClient.request("/api/context-blocks/create", {
+    method: "POST",
+    body: JSON.stringify(block)
+  });
 }
 
 export async function toggleAuto(id: string, enable: boolean) {
-  return apiPut("/context-blocks/update", {
-    id,
-    update_policy: enable ? "auto" : "manual",
+  return apiClient.request("/api/context-blocks/update", {
+    method: "PUT",
+    body: JSON.stringify({
+      id,
+      update_policy: enable ? "auto" : "manual",
+    })
   });
 }
 
@@ -64,9 +70,14 @@ export async function fetchBlock(id: string, workspaceId: string) {
 }
 
 export async function updateBlock(id: string, updates: Record<string, any>) {
-  return apiPut("/context-blocks/update", { id, ...updates });
+  return apiClient.request("/api/context-blocks/update", {
+    method: "PUT",
+    body: JSON.stringify({ id, ...updates })
+  });
 }
 
 export async function deleteBlock(id: string) {
-  return apiDelete(`/context-blocks/${id}`);
+  return apiClient.request(`/api/context-blocks/${id}`, {
+    method: "DELETE"
+  });
 }

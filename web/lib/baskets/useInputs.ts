@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { apiGet } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 
 export interface BasketInput {
   id: string;
@@ -7,7 +7,7 @@ export interface BasketInput {
   created_at: string;
 }
 
-const fetcher = (url: string) => apiGet<BasketInput[]>(url);
+const fetcher = (url: string) => apiClient.request<BasketInput[]>(url);
 
 export function useInputs(basketId: string) {
   const { data, error, isLoading } = useSWR(

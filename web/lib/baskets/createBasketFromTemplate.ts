@@ -1,4 +1,4 @@
-import { apiPost } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 
 export interface TemplateBasketArgs {
   template_id: string;
@@ -7,5 +7,8 @@ export interface TemplateBasketArgs {
 }
 
 export async function createBasketFromTemplate(args: TemplateBasketArgs) {
-  return apiPost<{ basket_id: string }>("/baskets/new-from-template", args);
+  return apiClient.request<{ basket_id: string }>("/api/baskets/new-from-template", {
+    method: "POST",
+    body: JSON.stringify(args)
+  });
 }

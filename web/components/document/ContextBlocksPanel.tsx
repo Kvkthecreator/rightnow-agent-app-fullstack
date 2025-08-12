@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useFeatureFlag } from "@/lib/hooks/useFeatureFlag";
 import ContextPanel from "@/components/context/ContextPanel";
 import type { Block, ContextItem } from "@/types";
-import { apiDelete, apiPut } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 import {
   createContextItem,
   updateContextItem,

@@ -1,5 +1,5 @@
 // web/lib/baskets/getSnapshot.ts
-import { apiGet } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/dbTypes";
 import type { BlockWithHistory } from "@/types";
@@ -31,7 +31,7 @@ export async function getSnapshot(
   }
   const session = await supabase.auth.getSession();
   const token = session.data.session?.access_token ?? "";
-  const res = await apiGet<any>(`${SNAPSHOT_PREFIX}/${id}`, token);
+  const res = await apiClient.request<any>(`${SNAPSHOT_PREFIX}/${id}`);
   const payload = res as any;
   const flatBlocks = [
     ...(payload.accepted_blocks ?? []),

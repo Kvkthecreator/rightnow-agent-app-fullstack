@@ -1,5 +1,5 @@
 import { fetchWithToken } from "@/lib/fetchWithToken";
-import { apiUrl } from "@/lib/api";
+import { apiClient } from "@/lib/api/client";
 
 interface PostDumpArgs {
   basketId: string;
@@ -28,7 +28,8 @@ export async function postDump({
   if (text) form.append("text", text);
   for (const img of images) form.append("file", img, img.name);
 
-  const res = await fetchWithToken(apiUrl("/dump"), {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://rightnow-api.onrender.com';
+  const res = await fetchWithToken(`${API_BASE_URL}/api/dump`, {
     method: "POST",
     body: form,
   });
