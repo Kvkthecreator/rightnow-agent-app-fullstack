@@ -5,14 +5,35 @@ import { LoadingSkeleton } from '@/components/ui/states';
 
 
 export default function DashboardCenter({ basketId }: { basketId: string }) {
-  const { data: basket, isLoading } = useBasket(basketId);
-  const { data: allDeltas } = useBasketDeltas(basketId);
+  const { data: basket, isLoading, error: basketError } = useBasket(basketId);
+  const { data: allDeltas, error: deltasError } = useBasketDeltas(basketId);
   const recentDeltas = allDeltas?.slice(0, 3);
   
   // Subscribe to real-time events for this basket
   useBasketEvents(basketId);
   
   if (isLoading) return <LoadingSkeleton type="dashboard" />;
+  
+  // Handle API connection errors gracefully
+  if (basketError || deltasError) {
+    return (
+      <div className="flex flex-col h-full p-8 items-center justify-center text-center">
+        <div className="w-16 h-16 bg-gray-100 rounded-full mb-4 flex items-center justify-center">
+          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Connection Issue</h3>
+        <p className="text-sm text-gray-500 mb-4">Unable to load basket data. The API may be temporarily unavailable.</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
   
   // Premium: Single most important metric - Memory Density
   const memoryDensity = (basket?.blocks ?? 0);

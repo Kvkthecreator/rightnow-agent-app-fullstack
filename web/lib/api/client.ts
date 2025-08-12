@@ -30,18 +30,26 @@ export class ApiClient {
       ...options,
     }
 
-    let response = await fetchWithToken(url, config)
+    try {
+      let response = await fetchWithToken(url, config)
 
-    // Single retry on 401 to handle token race conditions
-    if (response.status === 401) {
-      response = await fetchWithToken(url, config)
+      // Single retry on 401 to handle token race conditions
+      if (response.status === 401) {
+        response = await fetchWithToken(url, config)
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => response.statusText)
+        throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`)
+      }
+
+      return response.json()
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error(`Network Error: Unable to connect to ${url}. Please check your internet connection.`)
+      }
+      throw error
     }
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`)
-    }
-
-    return response.json()
   }
 
   // Basket operations
