@@ -42,6 +42,7 @@ export default async function BasketLayout({ children, params }: BasketLayoutPro
       created_at: basketData.createdAt,
       updated_at: basketData.createdAt,
       description: undefined,
+      workspace_id: basketData.workspace?.id || workspace?.id || 'default',
     };
 
     return (
