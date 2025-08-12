@@ -34,14 +34,37 @@ export async function GET(
     }
 
     // Get basket
+    console.log(`🔍 Fetching basket ${id} for workspace ${workspace.id}`);
+    
     const { data: basket, error: fetchError } = await supabase
       .from("baskets")
-      .select("id, name, description, status, created_at, updated_at, metadata")
+      .select("id, name, description, status, created_at, updated_at, metadata, title, workspace_id")
       .eq("id", id)
       .eq("workspace_id", workspace.id)
       .single();
 
-    if (fetchError || !basket) {
+    if (fetchError) {
+      console.error(`❌ Basket fetch error:`, fetchError);
+      
+      // Try to fetch without workspace filter to debug
+      const { data: anyBasket } = await supabase
+        .from("baskets")
+        .select("id, workspace_id")
+        .eq("id", id)
+        .single();
+        
+      if (anyBasket) {
+        console.log(`⚠️ Basket exists but in different workspace: ${anyBasket.workspace_id} vs ${workspace.id}`);
+      }
+      
+      return NextResponse.json(
+        { error: "Basket not found", details: fetchError.message },
+        { status: 404 }
+      );
+    }
+    
+    if (!basket) {
+      console.log(`❌ No basket found with id ${id}`);
       return NextResponse.json(
         { error: "Basket not found" },
         { status: 404 }
@@ -57,14 +80,21 @@ export async function GET(
     return response;
 
   } catch (error) {
-    console.error("Basket GET API error:", error);
-    return NextResponse.json(
+    console.error("❌ Basket GET API error:", error);
+    const errorResponse = NextResponse.json(
       { 
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error"
       },
       { status: 500 }
     );
+    
+    // Add CORS headers even for errors
+    errorResponse.headers.set('Access-Control-Allow-Origin', '*');
+    errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    return errorResponse;
   }
 }
 

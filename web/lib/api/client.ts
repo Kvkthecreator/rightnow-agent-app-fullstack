@@ -57,13 +57,20 @@ export class ApiClient {
 
   // Basket operations
   async getBasket(basketId: string): Promise<any> {
-    const cache = getCacheManager()
-    const cacheKey = `basket:${basketId}`
-    const cached = await cache.get<any>(cacheKey)
-    if (cached) return cached
-    const data = await this.request<any>(`/api/baskets/${basketId}`)
-    await cache.set(cacheKey, data, { tags: ['basket', cacheKey] })
-    return data
+    try {
+      const cache = getCacheManager()
+      const cacheKey = `basket:${basketId}`
+      const cached = await cache.get<any>(cacheKey)
+      if (cached) return cached
+      
+      console.log(`🔄 API Client: Fetching basket ${basketId} from ${this.baseUrl}/api/baskets/${basketId}`)
+      const data = await this.request<any>(`/api/baskets/${basketId}`)
+      await cache.set(cacheKey, data, { tags: ['basket', cacheKey] })
+      return data
+    } catch (error) {
+      console.error(`❌ API Client: Failed to get basket ${basketId}:`, error)
+      throw error
+    }
   }
 
   async listBaskets(): Promise<any[]> {
