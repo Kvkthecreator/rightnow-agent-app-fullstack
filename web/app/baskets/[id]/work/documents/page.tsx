@@ -1,7 +1,7 @@
-import { DocumentsView } from "@/components/views/DocumentsView";
-import { getBasketData } from "@/lib/data/basketData";
-import { notFound } from "next/navigation";
-import { BasketPageLayout } from "@/components/layout/BasketPageLayout";
+import BasketWorkLayout from '@/components/layouts/BasketWorkLayout';
+import WorkLeft from '@/components/features/basket/WorkLeft';
+import WorkRight from '@/components/features/basket/WorkRight';
+import DocumentsCenter from '@/components/features/basket/centers/DocumentsCenter';
 
 interface DocumentsPageProps {
   params: Promise<{ id: string }>;
@@ -9,19 +9,11 @@ interface DocumentsPageProps {
 
 export default async function DocumentsPage({ params }: DocumentsPageProps) {
   const { id } = await params;
-  const basketData = await getBasketData(id);
-  
-  if (!basketData) {
-    notFound();
-  }
-
   return (
-    <BasketPageLayout basketId={id} pageType="document">
-      <DocumentsView
-        basketId={id}
-        basketName={basketData.name}
-        // No documentId = shows documents management view
-      />
-    </BasketPageLayout>
+    <BasketWorkLayout
+      left={<WorkLeft basketId={id} />}
+      center={<DocumentsCenter basketId={id} />}
+      right={<WorkRight basketId={id} />}
+    />
   );
 }
