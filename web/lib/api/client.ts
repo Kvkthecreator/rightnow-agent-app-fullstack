@@ -5,6 +5,7 @@
 
 import { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
 import { fetchWithToken } from '@/lib/fetchWithToken'
+import { getCacheManager } from '@/lib/performance/CacheManager'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://rightnow-api.onrender.com'
 
@@ -44,21 +45,55 @@ export class ApiClient {
   }
 
   // Basket operations
-  async processBasketWork(basketId: string, request: BasketChangeRequest): Promise<BasketDelta> {
-    return this.request(`/api/baskets/${basketId}/work`, {
-      method: 'POST',
-      body: JSON.stringify(request),
-    })
+  async getBasket(basketId: string): Promise<any> {
+    const cache = getCacheManager()
+    const cacheKey = `basket:${basketId}`
+    const cached = await cache.get<any>(cacheKey)
+    if (cached) return cached
+    const data = await this.request<any>(`/api/baskets/${basketId}`)
+    await cache.set(cacheKey, data, { tags: ['basket', cacheKey] })
+    return data
+  }
+
+  async listBaskets(): Promise<any[]> {
+    const cache = getCacheManager()
+    const cacheKey = 'basketList'
+    const cached = await cache.get<any[]>(cacheKey)
+    if (cached) return cached
+    const data = await this.request<any[]>('/api/baskets')
+    await cache.set(cacheKey, data, { tags: ['basketList'] })
+    return data
   }
 
   async getBasketDeltas(basketId: string): Promise<BasketDelta[]> {
-    return this.request(`/api/baskets/${basketId}/deltas`)
+    const cache = getCacheManager()
+    const cacheKey = `basket:${basketId}:deltas`
+    const cached = await cache.get<BasketDelta[]>(cacheKey)
+    if (cached) return cached
+    const data = await this.request<BasketDelta[]>(`/api/baskets/${basketId}/deltas`)
+    await cache.set(cacheKey, data, { tags: ['basket', `basket:${basketId}`] })
+    return data
+  }
+
+  async processBasketWork(basketId: string, request: BasketChangeRequest): Promise<BasketDelta> {
+    const result = await this.request<BasketDelta>(`/api/baskets/${basketId}/work`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+    const cache = getCacheManager()
+    await cache.invalidateByPattern(`^basket:${basketId}`)
+    await cache.invalidateByPattern('^basketList')
+    return result
   }
 
   async applyBasketDelta(basketId: string, deltaId: string): Promise<{ status: string; basket_id: string; delta_id: string }> {
-    return this.request(`/api/baskets/${basketId}/apply/${deltaId}`, {
+    const result = await this.request<{ status: string; basket_id: string; delta_id: string }>(`/api/baskets/${basketId}/apply/${deltaId}`, {
       method: 'POST',
     })
+    const cache = getCacheManager()
+    await cache.invalidateByPattern(`^basket:${basketId}`)
+    await cache.invalidateByPattern('^basketList')
+    return result
   }
 }
 
@@ -67,9 +102,11 @@ export const apiClient = new ApiClient()
 
 // Helper functions for direct usage
 export const basketApi = {
+  get: (basketId: string) => apiClient.getBasket(basketId),
+  list: () => apiClient.listBaskets(),
   processWork: (basketId: string, request: BasketChangeRequest) =>
     apiClient.processBasketWork(basketId, request),
-  
+
   getDeltas: (basketId: string) =>
     apiClient.getBasketDeltas(basketId),
   
