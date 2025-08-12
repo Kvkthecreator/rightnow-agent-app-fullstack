@@ -7,7 +7,10 @@ import { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
 import { fetchWithToken } from '@/lib/fetchWithToken'
 import { getCacheManager } from '@/lib/performance/CacheManager'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://rightnow-api.onrender.com'
+// Use local Next.js API routes to avoid CORS issues
+const API_BASE_URL = typeof window !== 'undefined' 
+  ? window.location.origin 
+  : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
 export class ApiClient {
   private baseUrl: string

@@ -48,7 +48,13 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(basket);
+    // Add CORS headers
+    const response = NextResponse.json(basket);
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    return response;
 
   } catch (error) {
     console.error("Basket GET API error:", error);
@@ -65,6 +71,19 @@ export async function GET(
 // PATCH method DELETED - All basket updates now go through Universal Change System
 // Previous PATCH functionality has been migrated to /api/changes endpoint
 // Use useUniversalChanges.updateBasket() instead of direct PATCH calls
+
+// Handle preflight requests
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
 
 // DELETE basket
 export async function DELETE(
