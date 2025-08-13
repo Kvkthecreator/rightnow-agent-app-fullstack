@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { createSupabaseClient } from '@/lib/supabase/client';
 
+// Create supabase client once per module
+const supabase = createSupabaseClient();
+
 export function useBasketEventsWebSocket(basketId: string) {
   const [lastEvent, setLastEvent] = useState<{ type: string; payload: any } | null>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   useEffect(() => {
-    const supabase = createSupabaseClient();
     const channel = supabase
       .channel(`basket-${basketId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'basket_events', filter: `payload->>basket_id=eq.${basketId}` }, (payload) => {

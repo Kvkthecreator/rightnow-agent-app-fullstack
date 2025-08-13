@@ -1,18 +1,35 @@
 'use client';
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBasket, useBasketDeltas } from '@/hooks/useBasket';
 import { useBasketEvents } from '@/lib/hooks/useBasketEvents';
+import { useSessionStable } from '@/lib/hooks/useSessionStable';
 import { LoadingSkeleton } from '@/components/ui/states';
 
 
 export default function DashboardCenter({ basketId }: { basketId: string }) {
-  const { data: basket, isLoading, error: basketError } = useBasket(basketId);
-  const { data: allDeltas, error: deltasError } = useBasketDeltas(basketId);
+  const queryClient = useQueryClient();
+  const { session, jwt, status } = useSessionStable();
+
+  const { data: basket, isLoading, error: basketError } = useBasket(
+    basketId,
+    status === 'ready' && !!jwt
+  );
+  const { data: allDeltas, error: deltasError } = useBasketDeltas(
+    basketId,
+    status === 'ready' && !!jwt
+  );
   const recentDeltas = allDeltas?.slice(0, 3);
+
+  const { lastEvent } = useBasketEvents(basketId);
+  useEffect(() => {
+    if (lastEvent) {
+      queryClient.invalidateQueries({ queryKey: ['basket', basketId] });
+      queryClient.invalidateQueries({ queryKey: ['basket', basketId, 'deltas'] });
+    }
+  }, [lastEvent, basketId, queryClient]);
   
-  // Subscribe to real-time events for this basket
-  useBasketEvents(basketId);
-  
-  if (isLoading) return <LoadingSkeleton type="dashboard" />;
+  if (isLoading || status === 'loading') return <LoadingSkeleton type="dashboard" />;
   
   // Handle API connection errors gracefully
   if (basketError || deltasError) {

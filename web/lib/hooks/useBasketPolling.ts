@@ -13,11 +13,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { createSupabaseClient } from '@/lib/supabase/client';
 
+// Create supabase client once per module
+const supabase = createSupabaseClient();
+
 export function useBasketPolling(basketId: string) {
   const [lastEvent, setLastEvent] = useState<{ type: string; payload: any } | null>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const lastEventIdRef = useRef<string | null>(null);
-  const supabase = createSupabaseClient();
 
   useEffect(() => {
     if (!basketId) {
