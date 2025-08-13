@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiClient } from '@/lib/api/client';
 import { uploadFile } from '@/lib/uploadFile';
 import { sanitizeFilename } from '@/lib/utils/sanitizeFilename';
 import { dlog } from '@/lib/dev/log';
+import { toast } from 'react-hot-toast';
 
 export type CreateState =
   | 'EMPTY'
@@ -27,6 +27,8 @@ export interface AddedItem {
   text?: string;
   status: 'queued' | 'uploading' | 'uploaded' | 'parsed' | 'fetched' | 'ready' | 'error';
   error?: string;
+  storagePath?: string;
+  mime?: string;
 }
 
 export function useCreatePageMachine() {
@@ -35,6 +37,15 @@ export function useCreatePageMachine() {
   const [intent, setIntent] = useState('');
   const [items, setItems] = useState<AddedItem[]>([]);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  const logEvent = (e: any) => {
+    try {
+      const log = JSON.parse(localStorage.getItem('create:lastRun') || '[]');
+      log.push({ t: Date.now(), ...e });
+      localStorage.setItem('create:lastRun', JSON.stringify(log).slice(-5000));
+    } catch {}
+  };
 
   useEffect(() => {
     dlog('telemetry', { event: 'create_viewed' });
@@ -126,83 +137,89 @@ export function useCreatePageMachine() {
     dlog('telemetry', { event: 'create_generate_clicked' });
     setState('SUBMITTED');
     setProgress(5);
-
     try {
-      const basket = await apiClient.request<{ id: string }>(
-        '/api/baskets',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            name: intent || items[0]?.name || 'New Basket',
-            description: intent,
-            status: 'INIT',
-          }),
-        }
-      );
+      const reqId = `ui-${Date.now()}`;
 
-      setState('PROCESSING');
-
-      const results = await Promise.all(
-        items.map(async (item) => {
+      for (const item of items) {
+        if (item.kind === 'file' && item.file) {
           try {
-            if (item.kind === 'file' && item.file) {
-              item.status = 'uploading';
-              const sanitized = sanitizeFilename(item.file.name);
-              const url = await uploadFile(
-                item.file,
-                `ingest/${sanitized}`
-              );
-              item.status = 'uploaded';
-              await apiClient.request('/api/dumps/new', {
-                method: 'POST',
-                body: JSON.stringify({
-                  basket_id: basket.id,
-                  text_dump: item.name,
-                  file_urls: [url],
-                }),
-              });
-              item.status = 'parsed';
-            } else if (item.kind === 'url') {
-              await apiClient.request('/api/dumps/new', {
-                method: 'POST',
-                body: JSON.stringify({
-                  basket_id: basket.id,
-                  text_dump: item.url,
-                }),
-              });
-              item.status = 'fetched';
-            } else if (item.kind === 'note') {
-              await apiClient.request('/api/dumps/new', {
-                method: 'POST',
-                body: JSON.stringify({
-                  basket_id: basket.id,
-                  text_dump: item.text,
-                }),
-              });
-              item.status = 'ready';
-            }
-            return { ok: true };
+            item.status = 'uploading';
+            const sanitized = sanitizeFilename(item.file.name);
+            const path = `ingest/${sanitized}`;
+            await uploadFile(item.file, path);
+            item.status = 'uploaded';
+            item.storagePath = path;
+            item.mime = item.file.type;
           } catch (e: any) {
             item.status = 'error';
             item.error = e?.message || 'Unknown error';
-            return { ok: false };
+            toast.error(item.error);
+            logEvent({ event: 'upload_error', id: item.id, error: item.error });
           }
-        })
-      );
+        }
+      }
 
-      const anyFail = results.some((r) => !r.ok);
-      setState(anyFail ? 'PROCESSING_WITH_WARNINGS' : 'PROCESSING');
-      setProgress(95);
+      if (items.some((i) => i.status === 'error')) {
+        setState('ERROR');
+        setProgress(100);
+        return;
+      }
+
+      const sources = [
+        ...items
+          .filter((n) => n.kind === 'note')
+          .map((n) => ({ type: 'text', content: n.text!.trim() })),
+        ...items
+          .filter((u) => u.kind === 'url')
+          .map((u) => ({ type: 'url', url: u.url! })),
+        ...items
+          .filter((f) => f.kind === 'file' && f.status === 'uploaded' && f.storagePath)
+          .map((f) => ({
+            type: 'file' as const,
+            storage_path: f.storagePath!,
+            mime: f.mime,
+            size: f.size,
+            title: f.name,
+          })),
+      ];
+
+      const body = { basket_id: null, intent: intent || undefined, sources };
+      logEvent({ event: 'submit', reqId, body });
+
+      setState('PROCESSING');
+      const res = await fetch('/api/dumps/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Req-Id': reqId },
+        body: JSON.stringify(body),
+      });
+
+      const text = await res.text();
+      logEvent({ event: 'response', reqId, status: res.status, body: text.slice(0, 400) });
+
+      if (!res.ok) {
+        toast.error(text);
+        setState('ERROR');
+        setError(text.slice(0, 400));
+        setProgress(100);
+        return;
+      }
+
+      const data = JSON.parse(text || '{}');
+      const id = data.basket_id || data.id;
 
       dlog('telemetry', { event: 'create_complete' });
-
-      setState(anyFail ? 'PROCESSING_WITH_WARNINGS' : 'COMPLETE');
+      setState('COMPLETE');
       setProgress(100);
 
-      router.push(`/baskets/${basket.id}/work`);
-    } catch (e) {
+      const hold =
+        typeof window !== 'undefined' &&
+        new URLSearchParams(location.search).get('hold') === '1';
+      if (!hold && id) router.push(`/baskets/${id}/work?focus=insights`);
+    } catch (e: any) {
       console.error('❌ Basket creation failed:', e);
+      toast.error(e?.message || 'Unknown error');
       setState('ERROR');
+      setError(e?.message || 'Unknown error');
     }
   };
 
@@ -211,6 +228,7 @@ export function useCreatePageMachine() {
     intent,
     items,
     progress,
+    error,
     setIntent: setIntentWrapper,
     addFiles,
     addUrl,

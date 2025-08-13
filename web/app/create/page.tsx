@@ -27,6 +27,7 @@ export default function CreatePage() {
             items={machine.items}
             state={machine.state}
             progress={machine.progress}
+            error={machine.error}
           />
         </div>
       </div>
@@ -39,6 +40,7 @@ export default function CreatePage() {
             items={machine.items}
             state={machine.state}
             progress={machine.progress}
+            error={machine.error}
           />
         </details>
       </div>

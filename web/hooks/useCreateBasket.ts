@@ -66,7 +66,7 @@ export function useCreateBasket() {
         status: "active",
         tags: [],
       };
-      const { id } = await apiClient.request<{id: string}>("/api/baskets/new", {
+      const { id } = await apiClient.request<{id: string}>("/api/baskets", {
         method: "POST",
         body: JSON.stringify(payload),
       });
