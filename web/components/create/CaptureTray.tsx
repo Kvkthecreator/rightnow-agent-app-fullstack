@@ -96,6 +96,7 @@ export function CaptureTray({
   };
 
   const total = items.length;
+  const hasErrors = items.some((i) => i.status === 'error');
 
   return (
     <div className="space-y-4">
@@ -142,11 +143,14 @@ export function CaptureTray({
           <Button variant="secondary" onClick={clearAll} disabled={total === 0 && !intent}>
             Clear All
           </Button>
-          <Button onClick={generate} disabled={total === 0 && intent.trim() === ''}>
+          <Button onClick={generate} disabled={(total === 0 && intent.trim() === '') || hasErrors}>
             Generate Basket
           </Button>
         </div>
       </div>
+      {hasErrors && (
+        <div className="text-sm text-red-600">Resolve errors above before generating.</div>
+      )}
     </div>
   );
 }

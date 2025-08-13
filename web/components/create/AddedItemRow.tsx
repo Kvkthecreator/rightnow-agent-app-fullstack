@@ -30,7 +30,12 @@ export function AddedItemRow({ item, onRemove }: Props) {
           Remove
         </button>
       </div>
-      <div className="text-xs text-gray-500">{item.status}</div>
+      <div className="text-xs text-gray-500">
+        {item.status}
+        {item.status === 'error' && item.error && (
+          <span className="text-red-600 ml-1">{item.error}</span>
+        )}
+      </div>
     </div>
   );
 }
