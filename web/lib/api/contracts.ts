@@ -15,6 +15,10 @@ export const BasketSchema = z.object({
   tags: z.array(z.string()).optional(),
   created_at: TimestampSchema,
   updated_at: TimestampSchema.optional(),
+  // Aggregate counts for dashboard metrics
+  blocks: z.number().optional(),
+  raw_dumps: z.number().optional(),
+  documents: z.number().optional(),
 });
 
 export type Basket = z.infer<typeof BasketSchema>;

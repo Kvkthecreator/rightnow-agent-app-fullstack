@@ -63,7 +63,7 @@ export default function WorkLeft({ basketId }: { basketId: string }) {
         {/* Basket header */}
         <div className="mb-6">
           <div className="text-xs font-medium text-gray-500 mb-1">BASKET</div>
-          <div className="font-medium text-gray-900 truncate">{data?.title ?? 'Untitled'}</div>
+          <div className="font-medium text-gray-900 truncate">{data?.name ?? 'Untitled'}</div>
           <div className="text-xs text-gray-500 mt-1">{data?.status ?? 'INIT'}</div>
         </div>
         

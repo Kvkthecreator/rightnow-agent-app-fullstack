@@ -1,7 +1,7 @@
 "use client";
 
-import React, { Suspense } from 'react';
-import { ErrorBoundary, type ErrorInfo } from 'react-error-boundary';
+import React, { Suspense, type ErrorInfo } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
 
 interface CenterSkeletonProps {
   type?: 'dashboard' | 'blocks' | 'documents' | 'context' | 'insights' | 'history';
