@@ -46,7 +46,7 @@ TasksDocumentComposerAgent:
 
 ### Manager Service Rewritten
 ```python
-async def run_manager_plan(db, req: BasketChangeRequest) -> PlanResult:
+async def run_manager_plan(db, req: BasketChangeRequest, workspace_id: str) -> PlanResult:
     # STEP 1: Call real worker agents
     analyzer_output = await WorkerAgentAdapter.call_basket_analyzer(...)
     composer_output = await WorkerAgentAdapter.call_document_composer(...)
