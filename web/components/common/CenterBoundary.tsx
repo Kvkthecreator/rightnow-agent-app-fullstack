@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense } from 'react';
-import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorBoundary, type ErrorInfo } from 'react-error-boundary';
 
 interface CenterSkeletonProps {
   type?: 'dashboard' | 'blocks' | 'documents' | 'context' | 'insights' | 'history';
@@ -124,7 +124,7 @@ function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
 interface CenterBoundaryProps {
   children: React.ReactNode;
   skeletonType?: CenterSkeletonProps['type'];
-  onError?: (error: Error, errorInfo: { componentStack: string | null | undefined }) => void;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
 export default function CenterBoundary({ 
