@@ -1,0 +1,95 @@
+import { apiClient, timeoutSignal } from './http';
+import {
+  DocumentSchema,
+  PaginatedSchema,
+  CreateDocumentRequestSchema,
+  type Document,
+  type Paginated,
+  type CreateDocumentRequest,
+} from './contracts';
+
+/**
+ * Document API functions with Zod validation
+ */
+
+// Get single document
+export async function getDocument(documentId: string): Promise<Document> {
+  const response = await apiClient({
+    url: `/api/documents/${documentId}`,
+    method: 'GET',
+    signal: timeoutSignal(10000),
+  });
+  
+  return DocumentSchema.parse(response);
+}
+
+// List documents for a basket with cursor pagination
+export async function listDocuments(basketId: string, options?: {
+  after_created_at?: string;
+  after_id?: string;
+  limit?: number;
+  document_type?: string;
+}): Promise<Paginated<Document>> {
+  const params = new URLSearchParams();
+  params.set('basket_id', basketId);
+  
+  if (options?.after_created_at) {
+    params.set('after_created_at', options.after_created_at);
+  }
+  if (options?.after_id) {
+    params.set('after_id', options.after_id);
+  }
+  if (options?.limit) {
+    params.set('limit', options.limit.toString());
+  }
+  if (options?.document_type) {
+    params.set('document_type', options.document_type);
+  }
+  
+  const response = await apiClient({
+    url: `/api/documents?${params}`,
+    method: 'GET',
+    signal: timeoutSignal(10000),
+  });
+  
+  return PaginatedSchema(DocumentSchema).parse(response);
+}
+
+// Create new document
+export async function createDocument(request: CreateDocumentRequest): Promise<Document> {
+  // Validate request payload
+  const validatedRequest = CreateDocumentRequestSchema.parse(request);
+  
+  const response = await apiClient({
+    url: '/api/documents',
+    method: 'POST',
+    body: validatedRequest,
+    signal: timeoutSignal(15000),
+  });
+  
+  return DocumentSchema.parse(response);
+}
+
+// Update document
+export async function updateDocument(
+  documentId: string,
+  updates: Partial<Pick<Document, 'title' | 'content_raw' | 'document_type' | 'metadata'>>
+): Promise<Document> {
+  const response = await apiClient({
+    url: `/api/documents/${documentId}`,
+    method: 'PATCH',
+    body: updates,
+    signal: timeoutSignal(15000),
+  });
+  
+  return DocumentSchema.parse(response);
+}
+
+// Delete document
+export async function deleteDocument(documentId: string): Promise<void> {
+  await apiClient({
+    url: `/api/documents/${documentId}`,
+    method: 'DELETE',
+    signal: timeoutSignal(10000),
+  });
+}

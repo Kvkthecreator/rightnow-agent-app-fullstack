@@ -1,4 +1,5 @@
 import ContextCenter from '@/components/features/basket/centers/ContextCenter';
+import CenterBoundary from '@/components/common/CenterBoundary';
 
 interface ContextPageProps {
   params: Promise<{ id: string }>;
@@ -6,5 +7,9 @@ interface ContextPageProps {
 
 export default async function ContextPage({ params }: ContextPageProps) {
   const { id } = await params;
-  return <ContextCenter basketId={id} />;
+  return (
+    <CenterBoundary skeletonType="context">
+      <ContextCenter basketId={id} />
+    </CenterBoundary>
+  );
 }
