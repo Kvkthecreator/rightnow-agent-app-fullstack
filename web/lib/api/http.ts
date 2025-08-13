@@ -44,6 +44,58 @@ export class ApiError extends Error {
 // Global mock adapter instance
 let mockAdapter: MockApiAdapter | null = null;
 
+// Session cache to prevent repeated auth calls
+interface SessionCache {
+  session: any | null;
+  timestamp: number;
+  expiry: number;
+}
+
+let sessionCache: SessionCache | null = null;
+const SESSION_CACHE_TTL = 30000; // 30 seconds cache
+
+/**
+ * Clear the session cache (call this on auth state changes)
+ */
+export function clearSessionCache() {
+  dlog('api/http/session-cache-clear', { timestamp: Date.now() });
+  sessionCache = null;
+}
+
+/**
+ * Get cached session (shared utility to prevent repeated auth calls)
+ */
+export async function getCachedSession() {
+  if (typeof window === 'undefined') return null;
+  
+  const now = Date.now();
+  
+  // Check if we have a valid cached session
+  if (sessionCache && now < sessionCache.expiry) {
+    dlog('api/http/session-cache-shared-hit', { 
+      cacheAge: now - sessionCache.timestamp 
+    });
+    return sessionCache.session;
+  } else {
+    // Cache miss or expired - fetch new session
+    dlog('api/http/session-cache-shared-miss', { 
+      reason: sessionCache ? 'expired' : 'no-cache' 
+    });
+    
+    const { supabase } = await import('@/lib/supabaseClient');
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    // Update cache
+    sessionCache = {
+      session,
+      timestamp: now,
+      expiry: now + SESSION_CACHE_TTL,
+    };
+    
+    return session;
+  }
+}
+
 /**
  * Centralized API client with auth, workspace headers, and request tracking
  */
@@ -65,12 +117,10 @@ export async function apiClient(request: ApiRequest): Promise<unknown> {
   // Generate request ID for tracking
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   
-  // Get auth token if available (in browser context)
+  // Get auth token if available (in browser context) with caching
   let authToken: string | undefined;
   if (typeof window !== 'undefined') {
-    // In browser, get token from Supabase auth
-    const { supabase } = await import('@/lib/supabaseClient');
-    const { data: { session } } = await supabase.auth.getSession();
+    const session = await getCachedSession();
     authToken = session?.access_token;
   }
   

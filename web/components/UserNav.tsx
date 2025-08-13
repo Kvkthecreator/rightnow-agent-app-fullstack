@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { User as UserIcon } from "lucide-react";
 import { dlog } from "@/lib/dev/log";
+import { clearSessionCache, getCachedSession } from "@/lib/api/http";
 
 interface User {
   email: string;
@@ -38,7 +39,8 @@ export default function UserNav({ compact = false }: UserNavProps) {
     
     dlog('auth/user-nav-init', { timestamp: Date.now() });
     
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    getCachedSession().then((session) => {
+      const user = session?.user;
       dlog('auth/user-nav-result', { hasUser: !!user, userId: user?.id });
       
       if (user) {
@@ -64,6 +66,9 @@ export default function UserNav({ compact = false }: UserNavProps) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       dlog('auth/user-nav-change', { event, hasSession: !!session });
+      
+      // Clear session cache on any auth state change
+      clearSessionCache();
       
       if (session?.user) {
         setUser({ email: session.user.email || "" });
@@ -91,6 +96,9 @@ export default function UserNav({ compact = false }: UserNavProps) {
   }, []);
 
   const handleSignOut = async () => {
+    // Clear session cache before signing out
+    clearSessionCache();
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error("Error signing out:", error.message);

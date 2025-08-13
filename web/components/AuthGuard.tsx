@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Session } from "@supabase/auth-helpers-react";
 import { supabase } from "@/lib/supabaseClient";
 import { dlog } from "@/lib/dev/log";
+import { getCachedSession } from "@/lib/api/http";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
@@ -27,16 +28,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const checkAuth = async () => {
       dlog('auth/guard-check', { timestamp: Date.now() });
       
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const session = await getCachedSession();
 
       dlog('auth/guard-result', { 
-        hasSession: !!session, 
-        hasError: !!error,
+        hasSession: !!session,
         sessionId: session?.user?.id 
       });
 
-      if (!session || error) {
-        dlog('auth/guard-redirect', { reason: 'no-session-or-error' });
+      if (!session) {
+        dlog('auth/guard-redirect', { reason: 'no-session' });
         router.replace("/login");
         return;
       }
