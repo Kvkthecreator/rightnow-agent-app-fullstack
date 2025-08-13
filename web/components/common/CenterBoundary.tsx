@@ -124,7 +124,7 @@ function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
 interface CenterBoundaryProps {
   children: React.ReactNode;
   skeletonType?: CenterSkeletonProps['type'];
-  onError?: (error: Error, errorInfo: { componentStack: string }) => void;
+  onError?: (error: Error, errorInfo: { componentStack: string | null | undefined }) => void;
 }
 
 export default function CenterBoundary({ 
@@ -139,7 +139,7 @@ export default function CenterBoundary({
         // Log error for monitoring
         console.error('[CenterBoundary] Component error:', error);
         if (process.env.NODE_ENV === 'development') {
-          console.error('[CenterBoundary] Component stack:', errorInfo.componentStack);
+          console.error('[CenterBoundary] Component stack:', errorInfo.componentStack || 'No stack available');
         }
         
         // Call optional error handler
