@@ -151,10 +151,11 @@ export function useCreatePageMachine() {
             item.storagePath = path;
             item.mime = item.file.type;
           } catch (e: any) {
+            const errMsg = e?.message || 'Unknown error';
             item.status = 'error';
-            item.error = e?.message || 'Unknown error';
-            toast.error(item.error);
-            logEvent({ event: 'upload_error', id: item.id, error: item.error });
+            item.error = errMsg;
+            toast.error(errMsg);
+            logEvent({ event: 'upload_error', id: item.id, error: errMsg });
           }
         }
       }
@@ -187,9 +188,11 @@ export function useCreatePageMachine() {
       logEvent({ event: 'submit', reqId, body });
 
       setState('PROCESSING');
+      // eslint-disable-next-line @next/next/no-async-client-component
       const res = await fetch('/api/dumps/new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Req-Id': reqId },
+        credentials: 'include',
         body: JSON.stringify(body),
       });
 
