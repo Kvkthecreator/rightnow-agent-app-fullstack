@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ApiErrorSchema } from './contracts';
 import { MockApiAdapter } from './adapters/mock';
+import { dlog } from '@/lib/dev/log';
 
 export interface ApiRequest {
   url: string;
@@ -100,13 +101,13 @@ export async function apiClient(request: ApiRequest): Promise<unknown> {
   }
   
   // Log request in development
-  if (process.env.NODE_ENV === 'development') {
-    console.debug(`[apiClient] ${method} ${url}`, {
-      requestId,
-      workspaceId,
-      hasAuth: !!authToken,
-    });
-  }
+  dlog('api/http/request', {
+    url,
+    method,
+    requestId,
+    workspaceId,
+    hasAuth: !!authToken,
+  });
   
   try {
     const response = await fetch(fullUrl, {
@@ -133,11 +134,12 @@ export async function apiClient(request: ApiRequest): Promise<unknown> {
     }
     
     // Log successful response in development
-    if (process.env.NODE_ENV === 'development') {
-      console.debug(`[apiClient] ${method} ${url} → ${response.status}`, {
-        requestId,
-      });
-    }
+    dlog('api/http/response', {
+      url,
+      method,
+      status: response.status,
+      requestId,
+    });
     
     return responseData;
     

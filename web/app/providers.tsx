@@ -3,7 +3,9 @@ import { ReactNode, useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ModalRoot, { ModalProvider } from '@/components/modals/ModalRoot';
 import PreflightPanel from '@/components/config/PreflightPanel';
+import RuntimeHUD from '@/components/dev/RuntimeHUD';
 import { runPreflightChecks } from '@/lib/config/preflight';
+import { dlog } from '@/lib/dev/log';
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(() => new QueryClient({
@@ -26,9 +28,16 @@ export default function Providers({ children }: { children: ReactNode }) {
     // Check configuration on mount
     const result = runPreflightChecks();
     
+    dlog('providers/session-check', { 
+      passed: result.passed, 
+      mode: result.mode,
+      timestamp: Date.now()
+    });
+    
     // Check for localStorage override (mock mode)
     const override = localStorage.getItem('OVERRIDE_API_MODE');
     if (override === 'mock') {
+      dlog('providers/mock-mode', { override });
       setShowPreflight(false);
       return;
     }
@@ -59,6 +68,7 @@ export default function Providers({ children }: { children: ReactNode }) {
       <ModalProvider>
         {children}
         <ModalRoot />
+        <RuntimeHUD />
       </ModalProvider>
     </QueryClientProvider>
   );

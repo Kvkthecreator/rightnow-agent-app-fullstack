@@ -1,26 +1,42 @@
 // web/components/AuthGuard.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs";
 import { Session } from "@supabase/auth-helpers-react";
-import { Database } from "@/lib/dbTypes";
+import { supabase } from "@/lib/supabaseClient";
+import { dlog } from "@/lib/dev/log";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const router = useRouter();
-  const supabase = createPagesBrowserClient<Database>();
+  
+  // StrictMode guard - prevent double execution
+  const hasExecuted = useRef(false);
 
   useEffect(() => {
+    // Skip if already executed (React StrictMode prevention)
+    if (hasExecuted.current) {
+      dlog('auth/guard-skip', { reason: 'already-executed' });
+      return;
+    }
+    
+    hasExecuted.current = true;
+    
     const checkAuth = async () => {
+      dlog('auth/guard-check', { timestamp: Date.now() });
+      
       const { data: { session }, error } = await supabase.auth.getSession();
 
-      console.info("🟡 Checking session in AuthGuard:", session, error);
+      dlog('auth/guard-result', { 
+        hasSession: !!session, 
+        hasError: !!error,
+        sessionId: session?.user?.id 
+      });
 
       if (!session || error) {
-        console.warn("🔒 No session found. Redirecting to /login.");
+        dlog('auth/guard-redirect', { reason: 'no-session-or-error' });
         router.replace("/login");
         return;
       }
@@ -30,7 +46,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     };
 
     checkAuth();
-  }, []);
+  }, [router]);
 
   if (checking) {
     return <p className="p-4 text-muted-foreground">Checking authentication...</p>;

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { User as UserIcon } from "lucide-react";
+import { dlog } from "@/lib/dev/log";
 
 interface User {
   email: string;
@@ -21,23 +22,49 @@ export default function UserNav({ compact = false }: UserNavProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  
+  // StrictMode guards
+  const hasInitialized = useRef(false);
+  const hasSubscribed = useRef(false);
 
   // Fetch initial session and redirect if not authenticated
   useEffect(() => {
+    if (hasInitialized.current) {
+      dlog('auth/user-nav-skip-init', { reason: 'already-initialized' });
+      return;
+    }
+    
+    hasInitialized.current = true;
+    
+    dlog('auth/user-nav-init', { timestamp: Date.now() });
+    
     supabase.auth.getUser().then(({ data: { user } }) => {
+      dlog('auth/user-nav-result', { hasUser: !!user, userId: user?.id });
+      
       if (user) {
         setUser({ email: user.email || "" });
       } else {
         router.replace("/about");
       }
     });
-  }, [supabase, router]);
+  }, [router]);
 
   // Subscribe to auth state changes for auto-refresh and logout
   useEffect(() => {
+    if (hasSubscribed.current) {
+      dlog('auth/user-nav-skip-subscribe', { reason: 'already-subscribed' });
+      return;
+    }
+    
+    hasSubscribed.current = true;
+    
+    dlog('auth/user-nav-subscribe', { timestamp: Date.now() });
+    
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      dlog('auth/user-nav-change', { event, hasSession: !!session });
+      
       if (session?.user) {
         setUser({ email: session.user.email || "" });
       } else {
@@ -45,10 +72,12 @@ export default function UserNav({ compact = false }: UserNavProps) {
         router.replace("/about");
       }
     });
+    
     return () => {
+      dlog('auth/user-nav-unsubscribe', { timestamp: Date.now() });
       subscription.unsubscribe();
     };
-  }, [supabase, router]);
+  }, [router]);
 
   // Close dropdown on outside click
   useEffect(() => {

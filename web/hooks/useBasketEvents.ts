@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/http';
 import { EventsPageSchema, type EventsPage } from '@/lib/api/contracts';
 import { invalidateBasketScopes } from '@/lib/query/invalidate';
+import { dlog } from '@/lib/dev/log';
 
 interface EventCursor {
   created_at: string;
@@ -36,15 +37,16 @@ export function useBasketEvents(basketId: string, pollInterval = 12000) {
   
   const stateRef = useRef(state);
   stateRef.current = state;
+  
+  // StrictMode protection - track if this hook instance has already set up polling
+  const hasSetupPolling = useRef(false);
 
   // Emit invalidation for specific scopes
   const emitInvalidate = useCallback((
     targetBasketId: string, 
     scopes: Array<'basket' | 'blocks' | 'documents' | 'deltas'>
   ) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.debug(`[events] Invalidating scopes for ${targetBasketId}:`, scopes);
-    }
+    dlog('events/invalidate', { targetBasketId, scopes });
     invalidateBasketScopes(queryClient, targetBasketId, scopes);
   }, [queryClient]);
 
@@ -53,14 +55,20 @@ export function useBasketEvents(basketId: string, pollInterval = 12000) {
       setState(prev => ({ ...prev, status: 'error' }));
       return;
     }
+    
+    // StrictMode protection - prevent double setup
+    if (hasSetupPolling.current) {
+      dlog('events/strictmode-skip', { basketId, reason: 'already-setup' });
+      return;
+    }
+    
+    hasSetupPolling.current = true;
 
     // Check if we already have a poller for this basket
     const existing = activeBasketPollers.get(basketId);
     if (existing) {
       existing.count++;
-      if (process.env.NODE_ENV === 'development') {
-        console.debug(`[events] Reusing existing poller for ${basketId} (count: ${existing.count})`);
-      }
+      dlog('events/reuse', { basketId, count: existing.count });
       
       // Cleanup function for this hook instance
       return () => {
@@ -70,18 +78,14 @@ export function useBasketEvents(basketId: string, pollInterval = 12000) {
           if (current.count <= 0) {
             current.cleanup();
             activeBasketPollers.delete(basketId);
-            if (process.env.NODE_ENV === 'development') {
-              console.debug(`[events] Stopped poller for ${basketId}`);
-            }
+            dlog('events/stop', { basketId, stoppedAt: Date.now() });
           }
         }
       };
     }
 
     // Create new poller for this basket
-    if (process.env.NODE_ENV === 'development') {
-      console.debug(`[events] Starting new poller for ${basketId} (interval: ${pollInterval}ms)`);
-    }
+    dlog('events/start', { basketId, pollInterval, startedAt: Date.now() });
 
     let isActive = true;
     
@@ -113,9 +117,7 @@ export function useBasketEvents(basketId: string, pollInterval = 12000) {
         // Update connection status
         setState(prev => {
           if (prev.status !== 'connected') {
-            if (process.env.NODE_ENV === 'development') {
-              console.debug(`[events] Connected to ${basketId}`);
-            }
+            dlog('events/connected', { basketId });
             return { ...prev, status: 'connected' };
           }
           return prev;
@@ -161,12 +163,11 @@ export function useBasketEvents(basketId: string, pollInterval = 12000) {
 
           emitInvalidate(basketId, scopes);
 
-          if (process.env.NODE_ENV === 'development') {
-            console.debug(`[events] New event in ${basketId}:`, {
-              type: latestEvent.event_type,
-              scopes,
-            });
-          }
+          dlog('events/new', {
+            basketId,
+            type: latestEvent.event_type,
+            scopes,
+          });
         } else if (eventsPage.last_cursor) {
           // Update cursor even if no new events
           setState(prev => ({ ...prev, cursor: eventsPage.last_cursor }));
@@ -175,7 +176,7 @@ export function useBasketEvents(basketId: string, pollInterval = 12000) {
       } catch (error) {
         if (!isActive) return;
         
-        console.warn(`[events] Poll failed for ${basketId}:`, error);
+        dlog('events/error', { basketId, error });
         setState(prev => ({ ...prev, status: 'error' }));
       }
     };
@@ -185,11 +186,23 @@ export function useBasketEvents(basketId: string, pollInterval = 12000) {
 
     // Set up interval
     const intervalId = setInterval(pollEvents, pollInterval);
+    
+    // Track global interval count
+    if (typeof window !== 'undefined') {
+      // @ts-expect-error
+      window.__basketIntervals = (window.__basketIntervals || 0) + 1;
+    }
 
     // Register this poller
     const cleanup = () => {
       isActive = false;
       clearInterval(intervalId);
+      
+      // Decrement global interval count
+      if (typeof window !== 'undefined') {
+        // @ts-expect-error
+        window.__basketIntervals = Math.max(0, (window.__basketIntervals || 1) - 1);
+      }
     };
 
     activeBasketPollers.set(basketId, { count: 1, cleanup });
@@ -202,9 +215,7 @@ export function useBasketEvents(basketId: string, pollInterval = 12000) {
         if (current.count <= 0) {
           current.cleanup();
           activeBasketPollers.delete(basketId);
-          if (process.env.NODE_ENV === 'development') {
-            console.debug(`[events] Stopped poller for ${basketId}`);
-          }
+          dlog('events/stop', { basketId, stoppedAt: Date.now() });
         }
       }
     };
