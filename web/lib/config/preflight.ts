@@ -155,8 +155,8 @@ export function getEnvironmentSummary(): Record<string, string> {
   return {
     mode: result.mode,
     nodeEnv: process.env.NODE_ENV || 'development',
-    hasSupabase: !!(config.NEXT_PUBLIC_SUPABASE_URL && config.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-    hasBackendUrl: !!(config.NEXT_PUBLIC_API_BASE_URL || config.BACKEND_URL),
+    hasSupabase: (!!(config.NEXT_PUBLIC_SUPABASE_URL && config.NEXT_PUBLIC_SUPABASE_ANON_KEY)).toString(),
+    hasBackendUrl: (!!(config.NEXT_PUBLIC_API_BASE_URL || config.BACKEND_URL)).toString(),
     passed: result.passed.toString(),
     errors: result.errors.length.toString(),
     warnings: result.warnings.length.toString(),

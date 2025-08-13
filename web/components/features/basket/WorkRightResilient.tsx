@@ -28,7 +28,7 @@ export default function WorkRightResilient({ basketId }: { basketId: string }) {
     lastUpdate: null,
   });
   
-  const retryTimeoutRef = useRef<NodeJS.Timeout>();
+  const retryTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const latest = deltas?.[0];
 
   // Resilient suggestions query with caching and retry logic
@@ -37,6 +37,8 @@ export default function WorkRightResilient({ basketId }: { basketId: string }) {
     error: suggestionsError,
     isLoading: suggestionsLoading,
     refetch: refetchSuggestions,
+    isSuccess,
+    isError,
   } = useQuery({
     queryKey: ['suggestions', basketId],
     queryFn: () => getSuggestions(basketId),
@@ -55,22 +57,30 @@ export default function WorkRightResilient({ basketId }: { basketId: string }) {
       
       return true;
     },
-    onSuccess: () => {
+  });
+
+  // Handle success state
+  useEffect(() => {
+    if (isSuccess) {
       setRailState(prev => ({
         ...prev,
         status: 'live',
         retryDelay: 1000,
         lastUpdate: new Date(),
       }));
-    },
-    onError: (error) => {
-      console.debug('[rail] Suggestions error:', error);
+    }
+  }, [isSuccess]);
+
+  // Handle error state
+  useEffect(() => {
+    if (isError && suggestionsError) {
+      console.debug('[rail] Suggestions error:', suggestionsError);
       setRailState(prev => ({
         ...prev,
         status: prev.lastUpdate ? 'cached' : 'error',
       }));
-    },
-  });
+    }
+  }, [isError, suggestionsError]);
 
   // Auto-retry logic for failed suggestions
   useEffect(() => {
