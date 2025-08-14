@@ -12,9 +12,13 @@
   "file_urls": ["string"] // optional
 }
 ```
-**Response**:
-- Single dump: `{"raw_dump_id": "<uuid>"}`
-- Multiple dumps (chunked): `{"raw_dump_ids": ["<uuid>", ...]}`
+**Response** (always includes both shapes):
+```json
+{
+  "raw_dump_id": "<uuid>",      // First ID for backward compatibility
+  "raw_dump_ids": ["<uuid>", ...] // All IDs (includes the first)
+}
+```
 
 ### /api/baskets/{id}/work
 **Method**: POST  
@@ -34,22 +38,36 @@
 
 ## Parsing Policy v1
 
-1. **Text** → Store verbatim, chunk if > ~30k characters
-2. **PDF** → Try `extract_pdf_text`; if empty → mark ref_only (no raw_dump)
+1. **Text** → Store verbatim, chunk if > CHUNK_LEN (default 30k)
+2. **PDF** → When ENABLE_PDF_V1=1:
+   - Only processes Supabase public URLs (ALLOWED_PUBLIC_BASE)
+   - Size limit: PDF_MAX_BYTES (default 20MB)
+   - Text-based PDFs: extract text via PyMuPDF → chunk
+   - Scanned PDFs: remain as reference links only
 3. **URL** → Not crawled (saved as reference only via frontend text)
 4. **Others** → References only
+
+### Environment Configuration
+- `ENABLE_PDF_V1`: "1" to enable PDF parsing (default: "0")
+- `PDF_MAX_BYTES`: Maximum PDF size in bytes (default: 20000000)
+- `CHUNK_LEN`: Text chunk size (default: 30000)
+- `ALLOWED_PUBLIC_BASE`: Required Supabase storage URL prefix for SSRF protection
 
 ## Sequence
 
 ```
 1. Create/resolve basket
-2. Normalize inputs
-3. Parse content (server-side via ingestion module)
-4. Write raw_dumps (chunked if needed)
-5. Trigger work/ingest via POST /api/baskets/{id}/work
-6. Consolidate results
-7. Return response
-8. (Async) Run narrative agents
+2. Normalize inputs (text + file URLs)
+3. Parse content (server-side via ingestion module):
+   - Chunk text if > CHUNK_LEN
+   - If PDF enabled: fetch allowed PDFs → extract → chunk
+   - If no content: create reference dump with links
+4. Write raw_dumps (one per chunk, file_refs on first only)
+5. Log single event with all dump_ids and workspace_id
+6. Return both raw_dump_id and raw_dump_ids
+7. Frontend: POST /api/baskets/{id}/work with all dump IDs as sources
+8. Consolidate results → redirect
+9. (Async) Run narrative agents
 ```
 
 ## Single Source of Truth
@@ -57,6 +75,21 @@
 - **Parsing & substrate**: Backend responsibilities (api/src/app/ingestion/)
 - **Frontend**: Never writes DB directly (except basket create via trusted route)
 - **Auth**: Frontend always goes through Next proxy for auth/workspace headers
+- **Request tracking**: X-Req-Id header flows through all layers for debugging
+
+## Security & Reliability
+
+### SSRF Protection
+- PDFs only fetched from `ALLOWED_PUBLIC_BASE` (Supabase public storage)
+- 10-second timeout on PDF fetches
+- Content-Type validation (must contain "pdf")
+- Streaming with size limit enforcement
+
+### Error Handling
+- PDF fetch failures: soft-fail, keep URL as reference
+- Size limit exceeded: HTTPException(413, "PDF too large")
+- Empty content: creates single reference dump
+- All errors logged with X-Req-Id when present
 
 ## Implementation Details
 

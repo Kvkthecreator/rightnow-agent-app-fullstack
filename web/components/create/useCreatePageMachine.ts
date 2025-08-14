@@ -204,19 +204,29 @@ export function useCreatePageMachine() {
       }
 
       const dumpData = JSON.parse(dumpText || '{}');
-      const { basket_id: basketId, raw_dump_id: rawDumpId } = dumpData;
+      const { basket_id: basketId } = dumpData;
+      
+      // Normalize response to handle both raw_dump_id and raw_dump_ids
+      const dumpIds = dumpData.raw_dump_ids ?? (dumpData.raw_dump_id ? [dumpData.raw_dump_id] : []);
+      if (!dumpIds.length) {
+        throw new Error("No raw_dump ids returned");
+      }
 
-      // Kick off basket work using the new raw dump
+      // Kick off basket work using all raw dumps
       const workBody = {
         request_id: reqId,
         basket_id: basketId,
         intent: intent || undefined,
-        sources: rawDumpId ? [{ type: 'raw_dump', id: rawDumpId }] : undefined,
+        sources: dumpIds.map(id => ({ type: 'raw_dump', id })),
       };
       logEvent({ event: 'submit_work', reqId, workBody });
       const workRes = await fetch(`/api/baskets/${basketId}/work`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Req-Id': reqId,
+        },
+        credentials: 'include',
         body: JSON.stringify(workBody),
       });
       const workText = await workRes.text();
