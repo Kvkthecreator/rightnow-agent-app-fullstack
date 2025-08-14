@@ -29,6 +29,7 @@ export interface AddedItem {
   error?: string;
   storagePath?: string;
   mime?: string;
+  publicUrl?: string;
 }
 
 export function useCreatePageMachine() {
@@ -146,9 +147,10 @@ export function useCreatePageMachine() {
             item.status = 'uploading';
             const sanitized = sanitizeFilename(item.file.name);
             const path = `ingest/${sanitized}`;
-            await uploadFile(item.file, path);
+            const url = await uploadFile(item.file, path);
             item.status = 'uploaded';
             item.storagePath = path;
+            item.publicUrl = url;
             item.mime = item.file.type;
           } catch (e: any) {
             const errMsg = e?.message || 'Unknown error';
@@ -166,49 +168,67 @@ export function useCreatePageMachine() {
         return;
       }
 
-      const sources = [
-        ...items
-          .filter((n) => n.kind === 'note')
-          .map((n) => ({ type: 'text', content: n.text!.trim() })),
-        ...items
-          .filter((u) => u.kind === 'url')
-          .map((u) => ({ type: 'url', url: u.url! })),
-        ...items
-          .filter((f) => f.kind === 'file' && f.status === 'uploaded' && f.storagePath)
-          .map((f) => ({
-            type: 'file' as const,
-            storage_path: f.storagePath!,
-            mime: f.mime,
-            size: f.size,
-            title: f.name,
-          })),
-      ];
+      // Consolidate text and file URLs for backend DumpPayload
+      const textParts = [
+        intent.trim(),
+        ...items.filter((n) => n.kind === 'note').map((n) => n.text!.trim()),
+        ...items.filter((u) => u.kind === 'url').map((u) => u.url!),
+      ].filter(Boolean);
+      const text_dump = textParts.join('\n\n');
+      const file_urls = items
+        .filter((f) => f.kind === 'file' && f.status === 'uploaded' && f.publicUrl)
+        .map((f) => f.publicUrl!);
 
-      const body = { basket_id: null, intent: intent || undefined, sources };
-      logEvent({ event: 'submit', reqId, body });
+      const dumpBody: any = { basket_id: null, text_dump };
+      if (file_urls.length) dumpBody.file_urls = file_urls;
+      logEvent({ event: 'submit_dump', reqId, dumpBody });
 
       setState('PROCESSING');
       // eslint-disable-next-line @next/next/no-async-client-component
-      const res = await fetch('/api/dumps/new', {
+      const dumpRes = await fetch('/api/dumps/new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Req-Id': reqId },
         credentials: 'include',
-        body: JSON.stringify(body),
+        body: JSON.stringify(dumpBody),
       });
 
-      const text = await res.text();
-      logEvent({ event: 'response', reqId, status: res.status, body: text.slice(0, 400) });
+      const dumpText = await dumpRes.text();
+      logEvent({ event: 'dump_response', reqId, status: dumpRes.status, body: dumpText.slice(0, 400) });
 
-      if (!res.ok) {
-        toast.error(text);
+      if (!dumpRes.ok) {
+        toast.error(dumpText);
         setState('ERROR');
-        setError(text.slice(0, 400));
+        setError(dumpText.slice(0, 400));
         setProgress(100);
         return;
       }
 
-      const data = JSON.parse(text || '{}');
-      const id = data.basket_id || data.id;
+      const dumpData = JSON.parse(dumpText || '{}');
+      const { basket_id: basketId, raw_dump_id: rawDumpId } = dumpData;
+
+      // Kick off basket work using the new raw dump
+      const workBody = {
+        request_id: reqId,
+        basket_id: basketId,
+        intent: intent || undefined,
+        sources: rawDumpId ? [{ type: 'raw_dump', id: rawDumpId }] : undefined,
+      };
+      logEvent({ event: 'submit_work', reqId, workBody });
+      const workRes = await fetch(`/api/baskets/${basketId}/work`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(workBody),
+      });
+      const workText = await workRes.text();
+      logEvent({ event: 'work_response', reqId, status: workRes.status, body: workText.slice(0, 400) });
+
+      if (!workRes.ok) {
+        toast.error(workText);
+        setState('ERROR');
+        setError(workText.slice(0, 400));
+        setProgress(100);
+        return;
+      }
 
       dlog('telemetry', { event: 'create_complete' });
       setState('COMPLETE');
@@ -217,7 +237,7 @@ export function useCreatePageMachine() {
       const hold =
         typeof window !== 'undefined' &&
         new URLSearchParams(location.search).get('hold') === '1';
-      if (!hold && id) router.push(`/baskets/${id}/work?focus=insights`);
+      if (!hold) router.push(`/baskets/${basketId}/work?focus=insights`);
     } catch (e: any) {
       console.error('❌ Basket creation failed:', e);
       toast.error(e?.message || 'Unknown error');

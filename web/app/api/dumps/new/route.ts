@@ -4,22 +4,16 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { z } from "zod";
 
-const Source = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("text"), content: z.string().min(1) }),
-  z.object({ type: z.literal("url"), url: z.string().url() }),
-  z.object({
-    type: z.literal("file"),
-    storage_path: z.string().min(1),
-    mime: z.string().optional(),
-    size: z.number().optional(),
-    title: z.string().optional(),
-  }),
-]);
-
+/**
+ * Backend contract alignment: POST /api/dumps/new expects a DumpPayload
+ * containing a basket id, the consolidated text dump, and optional public
+ * file URLs. The previous UI contract forwarded `sources[]` directly; we now
+ * validate and forward the backend shape instead.
+ */
 const BodySchema = z.object({
-  basket_id: z.string().uuid().nullable().optional(),
-  intent: z.string().optional(),
-  sources: z.array(Source).min(1),
+  basket_id: z.string().uuid().nullable(),
+  text_dump: z.string(),
+  file_urls: z.array(z.string().url()).optional(),
 });
 
 export async function POST(req: Request) {
