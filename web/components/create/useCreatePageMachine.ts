@@ -217,7 +217,7 @@ export function useCreatePageMachine() {
         request_id: reqId,
         basket_id: basketId,
         intent: intent || undefined,
-        sources: dumpIds.map(id => ({ type: 'raw_dump', id })),
+        sources: dumpIds.map((id: string) => ({ type: 'raw_dump', id })),
       };
       logEvent({ event: 'submit_work', reqId, workBody });
       const workRes = await fetch(`/api/baskets/${basketId}/work`, {

@@ -12,7 +12,7 @@ from ..utils.supabase_client import supabase_client as supabase
 from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace
 from ..ingestion.pipeline import chunk_text
-from ..ingestion.parsers.pdf_text import extract_pdf_text
+from ..ingestion.parsers.pdf_text import extract_pdf_text, PYMUPDF_AVAILABLE
 
 router = APIRouter(prefix="/dumps", tags=["dumps"])
 
@@ -52,8 +52,8 @@ async def create_dump(p: DumpPayload, req: Request, user: dict = Depends(verify_
     if p.text_dump and p.text_dump.strip():
         texts.extend([c.text for c in chunk_text(p.text_dump, CHUNK_LEN)])
     
-    # Process PDF files if enabled
-    if ENABLE_PDF_V1 and p.file_urls:
+    # Process PDF files if enabled and PyMuPDF available
+    if ENABLE_PDF_V1 and PYMUPDF_AVAILABLE and p.file_urls:
         for url in p.file_urls:
             if not is_allowed_public_pdf(url):
                 continue
