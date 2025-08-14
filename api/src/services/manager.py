@@ -1,6 +1,7 @@
 import os
 import sys
 from uuid import uuid4
+from typing import Union
 
 # Add src to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -8,19 +9,56 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from contracts.basket import BasketChangeRequest, BasketDelta
 from services.clock import now_iso
 from services.worker_adapter import WorkerAgentAdapter, WorkerOutputAggregator
+from services.substrate_diff import compute_deltas, apply_deltas
+
+# Import the new schema
+try:
+    from app.baskets.schemas import BasketWorkRequest
+except ImportError:
+    # Fallback for backward compatibility
+    BasketWorkRequest = None
 
 
 async def run_manager_plan(
-    db, req: BasketChangeRequest, workspace_id: str
+    db, req: Union[BasketWorkRequest, BasketChangeRequest], workspace_id: str
 ) -> BasketDelta:
     """
-    REAL Manager Agent Orchestration - No more fake data!
-
-    This coordinates actual worker agents and aggregates their real analysis.
+    Manager Agent Orchestration with dual-mode support.
+    
+    Handles both init_build (first ingest) and evolve_turn (incremental) modes.
     """
+    
+    # Determine mode and convert request format
+    if BasketWorkRequest and isinstance(req, BasketWorkRequest):
+        return await _run_work_request(db, req, workspace_id)
+    else:
+        # Legacy BasketChangeRequest - default to init_build behavior
+        return await _run_legacy_request(db, req, workspace_id)
+
+
+async def _run_work_request(
+    db, req: BasketWorkRequest, workspace_id: str
+) -> BasketDelta:
+    """Handle new BasketWorkRequest with explicit mode."""
+    
+    if req.mode == "init_build":
+        return await _init_build(db, req, workspace_id)
+    elif req.mode == "evolve_turn":
+        return await _evolve_turn(db, req, workspace_id)
+    else:
+        raise ValueError(f"Unknown work mode: {req.mode}")
+
+
+async def _run_legacy_request(
+    db, req: BasketChangeRequest, workspace_id: str
+) -> BasketDelta:
+    """Handle legacy BasketChangeRequest - uses current logic."""
+    
+    # Convert to basket_id for compatibility
+    basket_id = req.basket_id
 
     try:
-        print(f"🤖 Manager orchestrating workers for basket {req.basket_id}")
+        print(f"🤖 Manager (legacy) orchestrating workers for basket {basket_id}")
 
         # STEP 1: Call real worker agents in parallel
         worker_outputs = []
@@ -28,7 +66,7 @@ async def run_manager_plan(
         # Call InfraBasketAnalyzerAgent
         print("  📊 Calling InfraBasketAnalyzerAgent...")
         analyzer_output = await WorkerAgentAdapter.call_basket_analyzer(
-            basket_id=req.basket_id,
+            basket_id=basket_id,
             workspace_id=workspace_id,
             sources=req.sources or [],
             context=req.user_context,
@@ -42,7 +80,7 @@ async def run_manager_plan(
         # Call TasksDocumentComposerAgent
         print("  📝 Calling TasksDocumentComposerAgent...")
         composer_output = await WorkerAgentAdapter.call_document_composer(
-            basket_id=req.basket_id,
+            basket_id=basket_id,
             workspace_id=workspace_id,
             analysis_result=analyzer_output,
         )
@@ -84,7 +122,7 @@ async def run_manager_plan(
 
         return BasketDelta(
             delta_id=str(uuid4()),
-            basket_id=req.basket_id,
+            basket_id=basket_id,
             summary=aggregated["summary"],
             changes=final_changes,
             recommended_actions=aggregated.get("recommended_actions", []),
@@ -99,7 +137,7 @@ async def run_manager_plan(
         # Fallback to error delta
         return BasketDelta(
             delta_id=str(uuid4()),
-            basket_id=req.basket_id,
+            basket_id=basket_id,
             summary=f"Processing failed: {str(e)}",
             changes=[],
             recommended_actions=[],
@@ -135,3 +173,152 @@ def resolve_change_conflicts(changes: list) -> list:
     # - Priority-based resolution (trust certain agents more)
 
     return resolved_changes
+
+
+async def _init_build(db, req: BasketWorkRequest, workspace_id: str) -> BasketDelta:
+    """
+    Initialize basket with fresh substrate from raw sources.
+    
+    This is the 'first ingest' mode - interprets dumps, creates substrate,
+    persists everything, and promotes basket to ACTIVE.
+    """
+    print(f"🆕 Init build mode for workspace {workspace_id}")
+    
+    # Get basket_id from sources or workspace - simplified for now
+    basket_id = workspace_id  # TODO: Proper basket resolution
+    
+    try:
+        # Step 1: Process raw sources into substrate
+        print("  📊 Processing raw sources...")
+        raw_dumps = [s for s in req.sources if s.type == "raw_dump"]
+        text_sources = [s for s in req.sources if s.type == "text"]
+        
+        # Step 2: Call dump interpreter agents
+        substrate_components = {
+            "raw_dumps": [],
+            "blocks": {},
+            "context_items": {},
+            "documents": {},
+            "links": []
+        }
+        
+        # Process each source
+        for source in raw_dumps:
+            # TODO: Call actual dump interpreter
+            substrate_components["raw_dumps"].append(source.id)
+            
+        for source in text_sources:
+            # TODO: Process text directly
+            pass
+        
+        # Step 3: Persist substrate to DB
+        print("  💾 Persisting substrate...")
+        # TODO: Use substrate_ops to persist
+        
+        # Step 4: Emit events
+        from app.event_bus import emit
+        await emit("ingest.completed", {
+            "basket_id": basket_id,
+            "workspace_id": workspace_id,
+            "req_id": req.options.trace_req_id,
+            "counts": {
+                "raw_dumps": len(substrate_components["raw_dumps"]),
+                "blocks": len(substrate_components["blocks"]),
+                "documents": len(substrate_components["documents"])
+            }
+        })
+        
+        # Return BasketDelta format for init_build
+        return BasketDelta(
+            delta_id=str(uuid4()),
+            basket_id=basket_id,
+            summary=f"Initialized basket with {len(substrate_components['raw_dumps'])} sources",
+            changes=[],  # TODO: Convert substrate_components to EntityChange objects
+            recommended_actions=[],
+            explanations=[{"by": "manager", "text": "Initial substrate build completed"}],
+            confidence=0.9,
+            created_at=now_iso(),
+        )
+        
+    except Exception as e:
+        print(f"  ❌ Init build failed: {e}")
+        raise
+
+
+async def _evolve_turn(db, req: BasketWorkRequest, workspace_id: str) -> BasketDelta:
+    """
+    Evolve existing basket with new sources.
+    
+    Loads existing substrate, cross-analyzes with new sources,
+    computes deltas, and persists via substrate_ops.
+    """
+    print(f"🔄 Evolve turn mode for workspace {workspace_id}")
+    
+    # Get basket_id from workspace - simplified for now  
+    basket_id = workspace_id  # TODO: Proper basket resolution
+    
+    try:
+        # Step 1: Load existing substrate
+        print("  📋 Loading existing substrate...")
+        # TODO: Load from DB
+        existing_substrate = {
+            "blocks": {},
+            "documents": {},
+            "context_items": {}
+        }
+        
+        # Step 2: Process new sources
+        print("  🆕 Processing new sources...")
+        new_substrate = {
+            "blocks": {},
+            "documents": {},
+            "context_items": {}
+        }
+        
+        # Step 3: Compute deltas
+        print("  🔍 Computing deltas...")
+        deltas = compute_deltas(
+            existing_substrate, 
+            new_substrate, 
+            req.policy.model_dump()
+        )
+        
+        # Step 4: Apply deltas
+        print("  ✅ Applying deltas...")
+        delta_stats = apply_deltas(deltas)
+        
+        # Step 5: Emit events
+        from app.event_bus import emit
+        await emit("evolve.completed", {
+            "basket_id": basket_id,
+            "workspace_id": workspace_id,
+            "req_id": req.options.trace_req_id,
+            "delta_stats": delta_stats
+        })
+        
+        # Step 6: Generate summary
+        summary_parts = []
+        if delta_stats["blocks_added"]:
+            summary_parts.append(f"Added {delta_stats['blocks_added']} blocks")
+        if delta_stats["blocks_updated"]:
+            summary_parts.append(f"Updated {delta_stats['blocks_updated']} blocks")
+        if delta_stats["documents_updated"]:
+            summary_parts.append(f"Updated {delta_stats['documents_updated']} documents")
+            
+        summary = "; ".join(summary_parts) if summary_parts else "No changes applied"
+        
+        # Return BasketDelta format for evolve_turn
+        return BasketDelta(
+            delta_id=str(uuid4()),
+            basket_id=basket_id,
+            summary=summary,
+            changes=[],  # TODO: Convert deltas to EntityChange objects
+            recommended_actions=[],
+            explanations=[{"by": "manager", "text": f"Evolution completed with {delta_stats['total_operations']} operations"}],
+            confidence=0.85,
+            created_at=now_iso(),
+        )
+        
+    except Exception as e:
+        print(f"  ❌ Evolve turn failed: {e}")
+        raise

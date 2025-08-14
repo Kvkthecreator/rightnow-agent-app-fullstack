@@ -1,12 +1,15 @@
 import json
 import os
 import sys
+from uuid import uuid4
 
 # CRITICAL: Add src to path BEFORE any other imports that depend on it
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 from contracts.basket import BasketChangeRequest, BasketDelta
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from ..baskets.schemas import BasketWorkRequest
+from typing import Union
 from services.deltas import list_deltas, persist_delta, try_apply_delta
 from services.idempotency import (
     already_processed,
@@ -26,29 +29,57 @@ router = APIRouter(prefix="/api/baskets", tags=["baskets"])
 @router.post("/{basket_id}/work", response_model=BasketDelta)
 async def post_basket_work(
     basket_id: str,
-    req: BasketChangeRequest,
+    request: Request,
     user: dict = Depends(verify_jwt),  # noqa: B008
     db=Depends(get_db),  # noqa: B008
 ):
-    """Process basket work request"""
-    if req.basket_id != basket_id:
-        raise HTTPException(400, "basket_id mismatch")
+    """Process basket work request with mode support"""
+    
+    # Parse request body to determine format
+    body = await request.json()
+    
+    if "mode" in body:
+        # New BasketWorkRequest format
+        from ..baskets.schemas import BasketWorkRequest
+        work_req = BasketWorkRequest.model_validate(body)
+        
+        # Create corresponding legacy request for manager
+        legacy_req = BasketChangeRequest(
+            request_id=f"work_{uuid4().hex[:8]}",
+            basket_id=basket_id,
+            sources=work_req.sources,
+            intent=None,
+            agent_hints=None,
+            user_context=None
+        )
+    else:
+        # Legacy BasketChangeRequest format
+        req = BasketChangeRequest.model_validate(body)
+        if req.basket_id != basket_id:
+            raise HTTPException(400, "basket_id mismatch")
+        work_req = None
+        legacy_req = req
 
     workspace_id = get_or_create_workspace(user["user_id"])
+    
+    # Forward X-Req-Id if present
+    trace_req_id = request.headers.get("X-Req-Id")
 
-    # Check idempotency
-    if await already_processed(db, req.request_id):
-        cached_delta = await fetch_delta_by_request_id(db, req.request_id)
+    # Check idempotency (use legacy request_id if available)
+    request_id = getattr(legacy_req, 'request_id', None) if legacy_req else None
+    if request_id and await already_processed(db, request_id):
+        cached_delta = await fetch_delta_by_request_id(db, request_id)
         if not cached_delta:
             raise HTTPException(409, "Duplicate request but missing delta")
         return BasketDelta(**json.loads(cached_delta["payload"]))
 
-    # Run manager plan - now returns BasketDelta directly
-    delta = await run_manager_plan(db, req, workspace_id)
+    # Run manager plan - always use legacy_req for compatibility
+    delta = await run_manager_plan(db, legacy_req, workspace_id)
 
     # Persist with event publishing
-    await persist_delta(db, delta, req.request_id)
-    await mark_processed(db, req.request_id, delta.delta_id)
+    if request_id:
+        await persist_delta(db, delta, request_id)
+        await mark_processed(db, request_id, delta.delta_id)
 
     return delta
 

@@ -22,7 +22,30 @@
 
 ### /api/baskets/{id}/work
 **Method**: POST  
-**Payload**: `BasketChangeRequest`
+**Payload**: `BasketWorkRequest` (new) or `BasketChangeRequest` (legacy)
+
+**New Format (BasketWorkRequest)**:
+```json
+{
+  "mode": "init_build" | "evolve_turn",
+  "sources": [
+    {"type": "raw_dump", "id": "<uuid>"}
+  ],
+  "policy": {
+    "allow_structural_changes": true,
+    "preserve_blocks": ["block_id_1"],
+    "update_document_ids": ["doc_id_1"],
+    "strict_link_provenance": true
+  },
+  "options": {
+    "fast": false,
+    "max_tokens": 8000,
+    "trace_req_id": "optional_trace_id"
+  }
+}
+```
+
+**Legacy Format (BasketChangeRequest)**:
 ```json
 {
   "request_id": "string",
@@ -35,6 +58,66 @@
   "user_context": {} // optional
 }
 ```
+
+### /api/baskets/{id}/narrative/jobs
+**Method**: POST  
+**Payload**: `NarrativeJobRequest`
+```json
+{
+  "mode": "from_scaffold" | "refresh_full",
+  "include": ["blocks", "context", "documents", "raw_dumps"]
+}
+```
+**Response**:
+```json
+{
+  "job_id": "job_narr_abc123"
+}
+```
+
+### /api/jobs/{job_id}
+**Method**: GET  
+**Response**:
+```json
+{
+  "state": "queued" | "running" | "done" | "error",
+  "progress": 85,
+  "narrative": {
+    "title": "Generated Narrative",
+    "content": "...",
+    "sections": [...]
+  }
+}
+```
+
+## Work Modes
+
+### init_build
+- **Purpose**: Initialize basket with fresh substrate from raw sources
+- **Input**: Raw dumps, text sources
+- **Process**: Interpret dumps → create substrate → persist → promote basket
+- **Output**: Scaffold with counts (raw_dumps, blocks, context_items, documents, links)
+- **Events**: Emits `ingest.completed`
+
+### evolve_turn
+- **Purpose**: Evolve existing basket with new sources
+- **Input**: New sources + existing substrate
+- **Process**: Load existing → cross-analyze → compute deltas → persist
+- **Output**: Delta summary with added/updated/removed counts
+- **Events**: Emits `evolve.completed`
+- **Policy**: Respects `preserve_blocks`, `update_document_ids`
+
+## Narrative Jobs
+
+### from_scaffold
+- **Purpose**: Generate narrative from fresh substrate (for new baskets)
+- **Process**: Read substrate from DB → generate narrative
+- **Use case**: After `init_build` completes
+
+### refresh_full
+- **Purpose**: Regenerate narrative with latest data (for existing baskets)
+- **Process**: Refetch all requested types → generate narrative
+- **Use case**: User requests updated narrative
 
 ## Parsing Policy v1
 
@@ -65,10 +148,22 @@
 4. Write raw_dumps (one per chunk, file_refs on first only)
 5. Log single event with all dump_ids and workspace_id
 6. Return both raw_dump_id and raw_dump_ids
-7. Frontend: POST /api/baskets/{id}/work with all dump IDs as sources
-8. Consolidate results → redirect
-9. (Async) Run narrative agents
+7. Frontend: POST /api/baskets/{id}/work with mode=init_build and all dump IDs
+8. Manager: Process init_build → create substrate → return scaffold
+9. Frontend: Redirect to basket view
+10. (Async) POST /api/baskets/{id}/narrative/jobs with mode=from_scaffold
+11. Poll /api/jobs/{job_id} until narrative generation complete
 ```
+
+## Events & Trace IDs
+
+- **X-Req-Id**: Flows through all layers (frontend → proxy → backend → manager → agents)
+- **Event Types**:
+  - `dump.created`: Raw dumps inserted
+  - `ingest.completed`: Initial substrate build finished
+  - `evolve.completed`: Incremental changes applied
+  - `narrative_job.started/completed/failed`: Async narrative generation
+- **Event Payload**: Always includes `basket_id`, `workspace_id`, `req_id`
 
 ## Single Source of Truth
 

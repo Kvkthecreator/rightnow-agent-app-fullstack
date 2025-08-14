@@ -212,12 +212,21 @@ export function useCreatePageMachine() {
         throw new Error("No raw_dump ids returned");
       }
 
-      // Kick off basket work using all raw dumps
+      // Kick off basket work using all raw dumps with init_build mode
       const workBody = {
-        request_id: reqId,
-        basket_id: basketId,
-        intent: intent || undefined,
+        mode: 'init_build',
         sources: dumpIds.map((id: string) => ({ type: 'raw_dump', id })),
+        policy: {
+          allow_structural_changes: true,
+          preserve_blocks: [],
+          update_document_ids: [],
+          strict_link_provenance: true
+        },
+        options: {
+          fast: false,
+          max_tokens: 8000,
+          trace_req_id: reqId
+        }
       };
       logEvent({ event: 'submit_work', reqId, workBody });
       const workRes = await fetch(`/api/baskets/${basketId}/work`, {

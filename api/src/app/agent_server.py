@@ -41,6 +41,7 @@ from .routes.block_lifecycle import router as block_lifecycle_router
 from .routes.agent_memory import router as agent_memory_router
 from .routes.context_intelligence import router as context_intelligence_router
 from .routes.narrative_intelligence import router as narrative_intelligence_router
+from .routes.narrative_jobs import router as narrative_jobs_router
 from .deps import close_db
 
 @asynccontextmanager
@@ -84,6 +85,7 @@ for r in routers:
     app.include_router(r, prefix="/api")
 
 app.include_router(basket_router)
+app.include_router(narrative_jobs_router)
 
 # Agent endpoints
 @app.post("/api/agent")
