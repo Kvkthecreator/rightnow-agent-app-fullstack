@@ -135,6 +135,7 @@
 - `PDF_MAX_BYTES`: Maximum PDF size in bytes (default: 20000000)
 - `CHUNK_LEN`: Text chunk size (default: 30000)
 - `ALLOWED_PUBLIC_BASE`: Required Supabase storage URL prefix for SSRF protection
+- `NARRATIVE_JOBS_ENABLED`: "true" to enable narrative jobs API (default: "false")
 
 ## Sequence
 
@@ -164,6 +165,16 @@
   - `evolve.completed`: Incremental changes applied
   - `narrative_job.started/completed/failed`: Async narrative generation
 - **Event Payload**: Always includes `basket_id`, `workspace_id`, `req_id`
+
+## Idempotency & Request Deduplication
+
+For `/api/baskets/{id}/work` requests, the system uses a hierarchical approach to generate `request_id`:
+
+1. **First priority**: `options.trace_req_id` from request body (enables explicit deduplication)
+2. **Second priority**: `X-Req-Id` header (enables retry deduplication)
+3. **Fallback**: Generated UUID (`work_{8-char-hex}`)
+
+This ensures retries with the same trace ID or header are safely deduplicated, returning the cached delta instead of reprocessing.
 
 ## Single Source of Truth
 

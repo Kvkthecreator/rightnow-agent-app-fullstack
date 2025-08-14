@@ -42,6 +42,10 @@ async def create_narrative_job(
     - **from_scaffold**: Read fresh substrate from DB and generate narrative
     - **refresh_full**: Refetch all requested types before generation
     """
+    # Feature gate for production
+    if not os.getenv("NARRATIVE_JOBS_ENABLED", "false").lower() == "true":
+        raise HTTPException(501, "Narrative jobs are not enabled. Set NARRATIVE_JOBS_ENABLED=true to enable.")
+    
     workspace_id = get_or_create_workspace(user["user_id"])
     
     # Validate include types

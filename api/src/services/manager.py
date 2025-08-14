@@ -6,7 +6,7 @@ from typing import Union
 # Add src to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from contracts.basket import BasketChangeRequest, BasketDelta
+from contracts.basket import BasketChangeRequest, BasketDelta, EntityChangeBlock, EntityChangeDocument
 from services.clock import now_iso
 from services.worker_adapter import WorkerAgentAdapter, WorkerOutputAggregator
 from services.substrate_diff import compute_deltas, apply_deltas
@@ -20,7 +20,7 @@ except ImportError:
 
 
 async def run_manager_plan(
-    db, req: Union[BasketWorkRequest, BasketChangeRequest], workspace_id: str
+    db, basket_id: str, req: Union[BasketWorkRequest, BasketChangeRequest], workspace_id: str
 ) -> BasketDelta:
     """
     Manager Agent Orchestration with dual-mode support.
@@ -30,32 +30,31 @@ async def run_manager_plan(
     
     # Determine mode and convert request format
     if BasketWorkRequest and isinstance(req, BasketWorkRequest):
-        return await _run_work_request(db, req, workspace_id)
+        return await _run_work_request(db, basket_id, req, workspace_id)
     else:
         # Legacy BasketChangeRequest - default to init_build behavior
-        return await _run_legacy_request(db, req, workspace_id)
+        return await _run_legacy_request(db, basket_id, req, workspace_id)
 
 
 async def _run_work_request(
-    db, req: BasketWorkRequest, workspace_id: str
+    db, basket_id: str, req: BasketWorkRequest, workspace_id: str
 ) -> BasketDelta:
     """Handle new BasketWorkRequest with explicit mode."""
     
     if req.mode == "init_build":
-        return await _init_build(db, req, workspace_id)
+        return await _init_build(db, basket_id, req, workspace_id)
     elif req.mode == "evolve_turn":
-        return await _evolve_turn(db, req, workspace_id)
+        return await _evolve_turn(db, basket_id, req, workspace_id)
     else:
         raise ValueError(f"Unknown work mode: {req.mode}")
 
 
 async def _run_legacy_request(
-    db, req: BasketChangeRequest, workspace_id: str
+    db, basket_id: str, req: BasketChangeRequest, workspace_id: str
 ) -> BasketDelta:
     """Handle legacy BasketChangeRequest - uses current logic."""
     
-    # Convert to basket_id for compatibility
-    basket_id = req.basket_id
+    # Use the passed basket_id parameter instead of req.basket_id
 
     try:
         print(f"🤖 Manager (legacy) orchestrating workers for basket {basket_id}")
@@ -175,17 +174,14 @@ def resolve_change_conflicts(changes: list) -> list:
     return resolved_changes
 
 
-async def _init_build(db, req: BasketWorkRequest, workspace_id: str) -> BasketDelta:
+async def _init_build(db, basket_id: str, req: BasketWorkRequest, workspace_id: str) -> BasketDelta:
     """
     Initialize basket with fresh substrate from raw sources.
     
     This is the 'first ingest' mode - interprets dumps, creates substrate,
     persists everything, and promotes basket to ACTIVE.
     """
-    print(f"🆕 Init build mode for workspace {workspace_id}")
-    
-    # Get basket_id from sources or workspace - simplified for now
-    basket_id = workspace_id  # TODO: Proper basket resolution
+    print(f"🆕 Init build mode for basket {basket_id} in workspace {workspace_id}")
     
     try:
         # Step 1: Process raw sources into substrate
@@ -228,12 +224,35 @@ async def _init_build(db, req: BasketWorkRequest, workspace_id: str) -> BasketDe
             }
         })
         
+        # Create EntityChange objects for substrate components
+        changes = []
+        
+        # Create blocks for each raw dump processed
+        for i, dump_id in enumerate(substrate_components["raw_dumps"]):
+            changes.append(EntityChangeBlock(
+                entity="context_block",
+                id=f"block_{dump_id}_{i}",
+                from_version=None,
+                to_version=1,
+                diff=f"Created from raw dump {dump_id}"
+            ))
+        
+        # Create document entries for any documents created
+        for doc_id in substrate_components["documents"]:
+            changes.append(EntityChangeDocument(
+                entity="document",
+                id=doc_id,
+                from_version=None,
+                to_version=1,
+                diff="Initial document creation"
+            ))
+        
         # Return BasketDelta format for init_build
         return BasketDelta(
             delta_id=str(uuid4()),
             basket_id=basket_id,
             summary=f"Initialized basket with {len(substrate_components['raw_dumps'])} sources",
-            changes=[],  # TODO: Convert substrate_components to EntityChange objects
+            changes=changes,
             recommended_actions=[],
             explanations=[{"by": "manager", "text": "Initial substrate build completed"}],
             confidence=0.9,
@@ -245,17 +264,14 @@ async def _init_build(db, req: BasketWorkRequest, workspace_id: str) -> BasketDe
         raise
 
 
-async def _evolve_turn(db, req: BasketWorkRequest, workspace_id: str) -> BasketDelta:
+async def _evolve_turn(db, basket_id: str, req: BasketWorkRequest, workspace_id: str) -> BasketDelta:
     """
     Evolve existing basket with new sources.
     
     Loads existing substrate, cross-analyzes with new sources,
     computes deltas, and persists via substrate_ops.
     """
-    print(f"🔄 Evolve turn mode for workspace {workspace_id}")
-    
-    # Get basket_id from workspace - simplified for now  
-    basket_id = workspace_id  # TODO: Proper basket resolution
+    print(f"🔄 Evolve turn mode for basket {basket_id} in workspace {workspace_id}")
     
     try:
         # Step 1: Load existing substrate
@@ -307,12 +323,47 @@ async def _evolve_turn(db, req: BasketWorkRequest, workspace_id: str) -> BasketD
             
         summary = "; ".join(summary_parts) if summary_parts else "No changes applied"
         
+        # Create EntityChange objects for delta operations
+        changes = []
+        
+        # Create changes for blocks that were added/updated
+        if delta_stats["blocks_added"] > 0:
+            for i in range(delta_stats["blocks_added"]):
+                changes.append(EntityChangeBlock(
+                    entity="context_block",
+                    id=f"new_block_{uuid4().hex[:8]}",
+                    from_version=None,
+                    to_version=1,
+                    diff="Added via evolve turn"
+                ))
+        
+        if delta_stats["blocks_updated"] > 0:
+            for i in range(delta_stats["blocks_updated"]):
+                changes.append(EntityChangeBlock(
+                    entity="context_block",
+                    id=f"updated_block_{uuid4().hex[:8]}",
+                    from_version=1,
+                    to_version=2,
+                    diff="Updated via evolve turn"
+                ))
+        
+        # Create changes for documents that were updated
+        if delta_stats["documents_updated"] > 0:
+            for i in range(delta_stats["documents_updated"]):
+                changes.append(EntityChangeDocument(
+                    entity="document",
+                    id=f"updated_doc_{uuid4().hex[:8]}",
+                    from_version=1,
+                    to_version=2,
+                    diff="Updated via evolve turn"
+                ))
+        
         # Return BasketDelta format for evolve_turn
         return BasketDelta(
             delta_id=str(uuid4()),
             basket_id=basket_id,
             summary=summary,
-            changes=[],  # TODO: Convert deltas to EntityChange objects
+            changes=changes,
             recommended_actions=[],
             explanations=[{"by": "manager", "text": f"Evolution completed with {delta_stats['total_operations']} operations"}],
             confidence=0.85,

@@ -37,51 +37,52 @@ async def post_basket_work(
     
     # Parse request body to determine format
     body = await request.json()
+    workspace_id = get_or_create_workspace(user["user_id"])
+    trace_req_id = request.headers.get("X-Req-Id")
     
     if "mode" in body:
         # New BasketWorkRequest format
         from ..baskets.schemas import BasketWorkRequest
         work_req = BasketWorkRequest.model_validate(body)
         
-        # Create corresponding legacy request for manager
-        legacy_req = BasketChangeRequest(
-            request_id=f"work_{uuid4().hex[:8]}",
-            basket_id=basket_id,
-            sources=work_req.sources,
-            intent=None,
-            agent_hints=None,
-            user_context=None
-        )
+        # Attach trace ID (don't lose it)
+        work_req.options.trace_req_id = trace_req_id
+        
+        # Idempotency for new mode - prioritize trace_req_id for deduplication
+        request_id = (work_req.options.trace_req_id 
+                      or request.headers.get("X-Req-Id") 
+                      or f"work_{uuid4().hex[:8]}")
+        if await already_processed(db, request_id):
+            cached_delta = await fetch_delta_by_request_id(db, request_id)
+            if not cached_delta:
+                raise HTTPException(409, "Duplicate request but missing delta")
+            return BasketDelta(**json.loads(cached_delta["payload"]))
+        
+        # ✅ Call manager with basket_id + new request
+        delta = await run_manager_plan(db, basket_id, work_req, workspace_id)
+        
+        await persist_delta(db, delta, request_id)
+        await mark_processed(db, request_id, delta.delta_id)
+        return delta
+    
     else:
         # Legacy BasketChangeRequest format
         req = BasketChangeRequest.model_validate(body)
         if req.basket_id != basket_id:
             raise HTTPException(400, "basket_id mismatch")
-        work_req = None
-        legacy_req = req
-
-    workspace_id = get_or_create_workspace(user["user_id"])
-    
-    # Forward X-Req-Id if present
-    trace_req_id = request.headers.get("X-Req-Id")
-
-    # Check idempotency (use legacy request_id if available)
-    request_id = getattr(legacy_req, 'request_id', None) if legacy_req else None
-    if request_id and await already_processed(db, request_id):
-        cached_delta = await fetch_delta_by_request_id(db, request_id)
-        if not cached_delta:
-            raise HTTPException(409, "Duplicate request but missing delta")
-        return BasketDelta(**json.loads(cached_delta["payload"]))
-
-    # Run manager plan - always use legacy_req for compatibility
-    delta = await run_manager_plan(db, legacy_req, workspace_id)
-
-    # Persist with event publishing
-    if request_id:
-        await persist_delta(db, delta, request_id)
-        await mark_processed(db, request_id, delta.delta_id)
-
-    return delta
+            
+        if await already_processed(db, req.request_id):
+            cached_delta = await fetch_delta_by_request_id(db, req.request_id)
+            if not cached_delta:
+                raise HTTPException(409, "Duplicate request but missing delta")
+            return BasketDelta(**json.loads(cached_delta["payload"]))
+            
+        # Legacy path with basket_id
+        delta = await run_manager_plan(db, basket_id, req, workspace_id)
+        
+        await persist_delta(db, delta, req.request_id)
+        await mark_processed(db, req.request_id, delta.delta_id)
+        return delta
 
 
 @router.get("/{basket_id}/deltas")
