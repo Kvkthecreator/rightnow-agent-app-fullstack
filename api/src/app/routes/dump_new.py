@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import os
+import json
+import logging
 from uuid import uuid4
-import requests
+from typing import List, Dict, Any, Optional
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -15,18 +18,21 @@ from ..ingestion.pipeline import chunk_text
 from ..ingestion.parsers.pdf_text import extract_pdf_text, PYMUPDF_AVAILABLE
 
 router = APIRouter(prefix="/dumps", tags=["dumps"])
+logger = logging.getLogger("uvicorn.error")
 
 # Configuration from environment
-ALLOWED_PUBLIC_BASE = os.getenv("ALLOWED_PUBLIC_BASE", "").rstrip("/") + "/"
-ENABLE_PDF_V1 = os.getenv("ENABLE_PDF_V1", "0") == "1"
+ALLOWED_PUBLIC_BASE = os.getenv("ALLOWED_PUBLIC_BASE", "").rstrip("/")
+if ALLOWED_PUBLIC_BASE:
+    ALLOWED_PUBLIC_BASE += "/"
 PDF_MAX_BYTES = int(os.getenv("PDF_MAX_BYTES", "20000000"))
 CHUNK_LEN = int(os.getenv("CHUNK_LEN", "30000"))
+FETCH_TIMEOUT_SECONDS = int(os.getenv("FETCH_TIMEOUT_SECONDS", "20"))
 
-def is_allowed_public_pdf(url: str) -> bool:
-    """Check if URL is an allowed public Supabase PDF."""
-    return bool(ALLOWED_PUBLIC_BASE and 
-                url.startswith(ALLOWED_PUBLIC_BASE) and 
-                url.lower().endswith(".pdf"))
+def is_allowed_url(url: str) -> bool:
+    """Check if URL is from allowed public base."""
+    if not ALLOWED_PUBLIC_BASE:
+        raise HTTPException(500, "ALLOWED_PUBLIC_BASE not configured")
+    return url.startswith(ALLOWED_PUBLIC_BASE)
 
 
 class DumpPayload(BaseModel):
@@ -37,7 +43,7 @@ class DumpPayload(BaseModel):
 
 @router.post("/new", status_code=201)
 async def create_dump(p: DumpPayload, req: Request, user: dict = Depends(verify_jwt)):
-    req_id = req.headers.get("X-Req-Id", "")
+    trace_id = req.headers.get("X-Req-Id") or f"dump_{uuid4().hex[:8]}"
     
     # Validate basket_id is string (no null)
     if not p.basket_id:
@@ -45,92 +51,127 @@ async def create_dump(p: DumpPayload, req: Request, user: dict = Depends(verify_
         
     workspace_id = get_or_create_workspace(user["user_id"])
     
-    # Collect all texts to process
-    texts: list[str] = []
+    # Aggregate all text content
+    agg_text = p.text_dump or ""
+    source_meta: List[Dict[str, Any]] = []
     
-    # Add main text dump if provided
-    if p.text_dump and p.text_dump.strip():
-        texts.extend([c.text for c in chunk_text(p.text_dump, CHUNK_LEN)])
-    
-    # Process PDF files if enabled and PyMuPDF available
-    if ENABLE_PDF_V1 and PYMUPDF_AVAILABLE and p.file_urls:
+    # Process file URLs if provided
+    if p.file_urls:
+        if not PYMUPDF_AVAILABLE:
+            logger.warning(f"[{trace_id}] PyMuPDF not available, files will be references only")
+            
         for url in p.file_urls:
-            if not is_allowed_public_pdf(url):
-                continue
+            # SSRF protection
+            if not is_allowed_url(url):
+                raise HTTPException(400, f"Disallowed file URL: {url}")
+                
+            meta_item = {"url": url, "parsed": False}
+            
             try:
-                # Fetch PDF with safety limits
-                with requests.get(url, stream=True, timeout=10) as r:
-                    ctype = r.headers.get("Content-Type", "")
-                    if "pdf" not in ctype.lower():
-                        continue
+                # Fetch file with timeout and size limits
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        url, 
+                        timeout=FETCH_TIMEOUT_SECONDS,
+                        follow_redirects=True
+                    )
+                    response.raise_for_status()
                     
-                    total = 0
-                    data = bytearray()
-                    for chunk in r.iter_content(65536):
-                        if not chunk:
-                            break
-                        data.extend(chunk)
-                        total += len(chunk)
-                        if total > PDF_MAX_BYTES:
-                            raise HTTPException(413, f"PDF too large: {url}")
+                    # Check content length
+                    size = int(response.headers.get("Content-Length", "0"))
+                    if size > PDF_MAX_BYTES:
+                        raise HTTPException(413, f"File too large: {size} bytes")
+                        
+                    content = response.content
+                    mime = response.headers.get("Content-Type", "")
+                    meta_item["mime"] = mime
+                    meta_item["size"] = len(content)
                     
-                    # Extract text from PDF
-                    pdf_text = extract_pdf_text(bytes(data))
-                    if pdf_text.strip():
-                        texts.extend([c.text for c in chunk_text(pdf_text, CHUNK_LEN)])
+                    # Try to parse if PDF
+                    if ("pdf" in mime.lower() or 
+                        content.startswith(b"%PDF-") or 
+                        url.lower().endswith(".pdf")) and PYMUPDF_AVAILABLE:
+                        try:
+                            pdf_text = extract_pdf_text(content)
+                            if pdf_text.strip():
+                                meta_item["parsed"] = True
+                                meta_item["chars_extracted"] = len(pdf_text)
+                                # Append with separator if we have existing text
+                                if agg_text:
+                                    agg_text += "\n\n"
+                                agg_text += pdf_text
+                                logger.info(f"[{trace_id}] Parsed PDF: {url} ({len(pdf_text)} chars)")
+                            else:
+                                meta_item["parse_error"] = "No text content found"
+                        except Exception as e:
+                            meta_item["parse_error"] = str(e)
+                            logger.warning(f"[{trace_id}] PDF parse failed for {url}: {e}")
+                            
             except HTTPException:
-                raise  # Re-raise size limit errors
+                raise  # Re-raise HTTP errors
+            except httpx.TimeoutException:
+                meta_item["parse_error"] = "Fetch timeout"
+                logger.warning(f"[{trace_id}] Timeout fetching {url}")
             except Exception as e:
-                # Soft-fail: keep URL as reference only
-                if req_id:
-                    print(f"[{req_id}] PDF extraction failed for {url}: {e}")
-                pass
+                meta_item["parse_error"] = str(e)
+                logger.warning(f"[{trace_id}] Failed to fetch {url}: {e}")
+                
+            source_meta.append(meta_item)
     
-    # If no texts extracted, create reference dump
-    if not texts:
+    # Check if we have any usable text
+    if not agg_text.strip():
+        # Check if we at least tried to parse PDFs
+        parsed_count = sum(1 for m in source_meta if m.get("parsed", False))
+        if source_meta and parsed_count == 0:
+            # All files failed to parse or were non-PDF
+            if not p.text_dump:
+                raise HTTPException(422, "No usable text to ingest (PDF parsing failed or no text content)")
+        elif not p.text_dump and not p.file_urls:
+            raise HTTPException(422, "No content provided")
+            
+        # Fall back to reference-only if we have some text or URLs
         ref_parts = []
-        if p.file_urls:
-            ref_parts.extend(f"[file]({url})" for url in p.file_urls)
         if p.text_dump and p.text_dump.strip():
             ref_parts.append(p.text_dump.strip())
-        
-        ref_md = "\n\n".join(ref_parts)
-        if not ref_md.strip():
-            raise HTTPException(400, "Nothing to ingest")
-        texts = [ref_md]
+        if p.file_urls:
+            ref_parts.extend(f"[file]({url})" for url in p.file_urls)
+        agg_text = "\n\n".join(ref_parts)
+    
+    # Chunk the aggregated text
+    chunks = chunk_text(agg_text, CHUNK_LEN)
+    dump_ids: List[str] = []
     
     # Insert all chunks as raw_dumps
-    dump_ids: list[str] = []
-    for idx, body in enumerate(texts):
+    for idx, chunk in enumerate(chunks):
         dump_id = str(uuid4())
-        resp = (
-            supabase.table("raw_dumps")
-            .insert(
-                as_json(
-                    {
-                        "id": dump_id,
-                        "basket_id": str(p.basket_id),
-                        "workspace_id": workspace_id,
-                        "body_md": body,
-                        "file_refs": p.file_urls or [] if idx == 0 else [],  # Only first gets file_refs
-                    }
-                )
-            )
-            .execute()
-        )
-        if getattr(resp, "status_code", 200) >= 400 or getattr(resp, "error", None):
+        dump_data = {
+            "id": dump_id,
+            "basket_id": str(p.basket_id),
+            "workspace_id": workspace_id,
+            "body_md": chunk.text,
+            "file_refs": p.file_urls or [] if idx == 0 else [],  # Only first gets file_refs
+            "source_meta": source_meta if idx == 0 else None,  # Only first gets metadata
+            "ingest_trace_id": trace_id,
+        }
+        
+        resp = supabase.table("raw_dumps").insert(as_json(dump_data)).execute()
+        
+        if getattr(resp, "error", None):
             err = getattr(resp, "error", None)
-            detail = err.message if getattr(err, "message", None) else str(err or resp)
-            raise HTTPException(500, detail)
+            detail = err.message if hasattr(err, "message") else str(err)
+            logger.error(f"[{trace_id}] Failed to insert dump: {detail}")
+            raise HTTPException(500, f"Database error: {detail}")
+            
         dump_ids.append(dump_id)
     
     # Log single event for all dumps created
     event_payload = {
         "dump_ids": dump_ids,
-        "count": len(dump_ids),
+        "chunk_count": len(dump_ids),
+        "trace_id": trace_id,
+        "parsed_files": sum(1 for m in source_meta if m.get("parsed", False)),
+        "total_files": len(source_meta),
     }
-    if req_id:
-        event_payload["req_id"] = req_id
         
     supabase.table("events").insert(
         as_json(
@@ -144,5 +185,10 @@ async def create_dump(p: DumpPayload, req: Request, user: dict = Depends(verify_
         )
     ).execute()
     
-    # Always return both formats for compatibility
-    return {"raw_dump_id": dump_ids[0], "raw_dump_ids": dump_ids}
+    logger.info(f"[{trace_id}] Created {len(dump_ids)} dumps for basket {p.basket_id}")
+    
+    # Return appropriate format based on chunk count
+    if len(dump_ids) == 1:
+        return {"raw_dump_id": dump_ids[0]}
+    else:
+        return {"raw_dump_ids": dump_ids}

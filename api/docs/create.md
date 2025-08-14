@@ -119,22 +119,24 @@
 - **Process**: Refetch all requested types → generate narrative
 - **Use case**: User requests updated narrative
 
-## Parsing Policy v1
+## Parsing Policy v2 (Production Ready)
 
 1. **Text** → Store verbatim, chunk if > CHUNK_LEN (default 30k)
-2. **PDF** → When ENABLE_PDF_V1=1:
-   - Only processes Supabase public URLs (ALLOWED_PUBLIC_BASE)
-   - Size limit: PDF_MAX_BYTES (default 20MB)
-   - Text-based PDFs: extract text via PyMuPDF → chunk
-   - Scanned PDFs: remain as reference links only
+2. **PDF** → Always enabled when PyMuPDF available:
+   - **SSRF Protection**: Only processes URLs from ALLOWED_PUBLIC_BASE
+   - **Size limit**: PDF_MAX_BYTES (default 20MB)
+   - **Timeout**: FETCH_TIMEOUT_SECONDS (default 20s)
+   - **Text PDFs**: Extract text via PyMuPDF → chunk → store with metadata
+   - **Scanned PDFs**: Gracefully handled as reference with parse_error
+   - **Metadata stored**: url, mime, size, parsed (bool), chars_extracted, parse_error
 3. **URL** → Not crawled (saved as reference only via frontend text)
-4. **Others** → References only
+4. **Others** → References only with metadata
 
 ### Environment Configuration
-- `ENABLE_PDF_V1`: "1" to enable PDF parsing (default: "0")
+- `ALLOWED_PUBLIC_BASE`: **Required** - Supabase storage URL prefix for SSRF protection
 - `PDF_MAX_BYTES`: Maximum PDF size in bytes (default: 20000000)
 - `CHUNK_LEN`: Text chunk size (default: 30000)
-- `ALLOWED_PUBLIC_BASE`: Required Supabase storage URL prefix for SSRF protection
+- `FETCH_TIMEOUT_SECONDS`: HTTP fetch timeout (default: 20)
 - `NARRATIVE_JOBS_ENABLED`: "true" to enable narrative jobs API (default: "false")
 
 ## Sequence
@@ -186,16 +188,19 @@ This ensures retries with the same trace ID or header are safely deduplicated, r
 ## Security & Reliability
 
 ### SSRF Protection
-- PDFs only fetched from `ALLOWED_PUBLIC_BASE` (Supabase public storage)
-- 10-second timeout on PDF fetches
-- Content-Type validation (must contain "pdf")
-- Streaming with size limit enforcement
+- Files only fetched from `ALLOWED_PUBLIC_BASE` (required config)
+- Configurable timeout via `FETCH_TIMEOUT_SECONDS`
+- Content-Type validation and magic byte detection for PDFs
+- Size limit enforcement before download
 
 ### Error Handling
-- PDF fetch failures: soft-fail, keep URL as reference
-- Size limit exceeded: HTTPException(413, "PDF too large")
-- Empty content: creates single reference dump
-- All errors logged with X-Req-Id when present
+- **400**: Invalid schema or disallowed URL
+- **401**: Missing/invalid authentication
+- **413**: File size exceeds `PDF_MAX_BYTES`
+- **422**: No usable text to ingest
+- **500**: Only for genuine server/DB errors
+- PDF parse failures: Soft-fail with metadata, continue processing
+- All errors include trace_id for debugging
 
 ## Implementation Details
 
@@ -212,35 +217,72 @@ api/src/app/ingestion/
 
 ### Key Functions
 
-**chunk_text(text: str, max_len: int = 6000) -> List[RawDumpChunk]**
+**chunk_text(text: str, max_len: int = 30000) -> List[RawDumpChunk]**
 - Splits text into chunks by paragraphs
 - Maintains order via `order_index`
 - Returns empty list for empty input
 
-**extract_pdf_text(path_or_bytes) -> str**
+**extract_pdf_text(content: bytes) -> str**
 - Uses PyMuPDF (fitz) to extract text from PDFs
-- Handles both file paths and byte streams
+- Handles byte streams with proper error handling
 - Returns empty string for scanned/image PDFs
+
+**SubstrateOps (new)**
+- `create_context_block()`: Creates real persisted blocks with IDs
+- `create_document()`: Creates documents from processed content
+- `update_context_block()`: Updates existing blocks with version control
+- `load_basket_substrate()`: Loads existing substrate for evolution
 
 ### Route Behavior
 
-The `/api/dumps/new` route:
-1. Validates basket_id (no null)
-2. Chunks text if > 30k characters
-3. For single chunk: returns `raw_dump_id`
-4. For multiple chunks: returns `raw_dump_ids` array
-5. Maintains backward compatibility with existing frontend
+**`/api/dumps/new` route**:
+1. Validates basket_id and ALLOWED_PUBLIC_BASE
+2. Fetches and parses PDFs with timeout and size limits
+3. Aggregates all text (user text + PDF content)
+4. Chunks if > CHUNK_LEN
+5. Stores with `source_meta` and `ingest_trace_id`
+6. Returns `raw_dump_id` (single) or `raw_dump_ids` (multiple)
+
+**`/api/baskets/{id}/work` route**:
+1. Supports both new mode (init_build/evolve_turn) and legacy
+2. Uses hierarchical request_id for idempotency
+3. Manager creates real persisted entities via SubstrateOps
+4. Returns BasketDelta with actual entity IDs and versions
 
 ### Dependencies
 
 - PyMuPDF >= 1.24.0 (added to requirements.txt)
 - Feature flag `ENABLE_PDF_V1=1` can guard PDF functionality if needed
 
+## Migration Instructions
+
+1. **Run database migration**:
+   ```bash
+   cd api
+   python run_migrations.py
+   ```
+   This adds `source_meta` and `ingest_trace_id` columns to raw_dumps.
+
+2. **Set environment variables**:
+   ```bash
+   export ALLOWED_PUBLIC_BASE="https://your-bucket.supabase.co/storage/v1/object/public/"
+   export PDF_MAX_BYTES=20000000
+   export FETCH_TIMEOUT_SECONDS=20
+   ```
+
+3. **Verify PyMuPDF installation**:
+   ```bash
+   pip install PyMuPDF>=1.24.0
+   ```
+
 ## Rollback Commands
 
 ```bash
-git restore --source=origin/main -- api/src/app/ingestion
+# Revert code changes
 git restore --source=origin/main -- api/src/app/routes/dump_new.py
-git restore --source=origin/main -- api/docs/create.md
-git restore --source=origin/main -- api/requirements.txt
+git restore --source=origin/main -- api/src/services/manager.py
+git restore --source=origin/main -- api/src/services/substrate_ops.py
+git restore --source=origin/main -- web/app/api/baskets/[id]/work/route.ts
+
+# Note: Database changes require manual rollback
 ```

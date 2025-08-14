@@ -19,14 +19,42 @@ export async function POST(
     const reqId = request.headers.get('X-Req-Id') || `ui-${Date.now()}`;
     const body = await request.json();
 
-    // Basic shape validation to avoid proxying junk
-    const BodySchema = z.object({
-      request_id: z.string(),
-      basket_id: z.string().uuid(),
-      intent: z.string().optional(),
-      sources: z.array(z.object({ type: z.string(), id: z.string().optional() })).optional(),
-    });
-    const parsed = BodySchema.parse(body);
+    // Support both new mode format and legacy format
+    const hasMode = 'mode' in body;
+    
+    let parsed: any;
+    if (hasMode) {
+      // New BasketWorkRequest format
+      const NewSchema = z.object({
+        mode: z.enum(['init_build', 'evolve_turn']),
+        sources: z.array(z.object({ 
+          type: z.string(), 
+          id: z.string(),
+          content: z.string().optional()
+        })),
+        policy: z.object({
+          allow_structural_changes: z.boolean().optional(),
+          preserve_blocks: z.array(z.string()).optional(),
+          update_document_ids: z.array(z.string()).optional(),
+          strict_link_provenance: z.boolean().optional()
+        }).optional(),
+        options: z.object({
+          fast: z.boolean().optional(),
+          max_tokens: z.number().optional(),
+          trace_req_id: z.string().optional()
+        }).optional()
+      });
+      parsed = NewSchema.parse(body);
+    } else {
+      // Legacy BasketChangeRequest format
+      const LegacySchema = z.object({
+        request_id: z.string(),
+        basket_id: z.string().uuid(),
+        intent: z.string().optional(),
+        sources: z.array(z.object({ type: z.string(), id: z.string().optional() })).optional(),
+      });
+      parsed = LegacySchema.parse(body);
+    }
 
     const supabase = createRouteHandlerClient({ cookies });
     const {
