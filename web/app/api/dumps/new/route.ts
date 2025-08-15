@@ -12,7 +12,7 @@ import { z } from "zod";
  */
 const BodySchema = z.object({
   basket_id: z.string().uuid().nullable(),
-  text_dump: z.string(),
+  text_dump: z.string().min(1, "Text content is required"),
   file_urls: z.array(z.string().url()).optional(),
 });
 
@@ -73,6 +73,13 @@ export async function POST(req: Request) {
     });
   } catch (e: any) {
     if (e?.name === "ZodError") {
+      // Provide user-friendly error messages for validation failures
+      const issues = e.issues;
+      if (issues.some((i: any) => i.path.includes('text_dump'))) {
+        return Response.json({ 
+          error: "Please provide some text content before submitting" 
+        }, { status: 400 });
+      }
       return Response.json({ error: e.issues }, { status: 400 });
     }
     console.error("dumps/new route crash", { reqId, err: String(e?.message ?? e) });

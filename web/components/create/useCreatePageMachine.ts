@@ -96,6 +96,12 @@ export function useCreatePageMachine() {
   };
 
   const addNote = (text: string) => {
+    // Don't add empty or whitespace-only notes
+    if (!text.trim()) {
+      toast.error('Note cannot be empty');
+      return;
+    }
+    
     const newItem: AddedItem = {
       id: crypto.randomUUID(),
       kind: 'note',
@@ -178,6 +184,14 @@ export function useCreatePageMachine() {
       const file_urls = items
         .filter((f) => f.kind === 'file' && f.status === 'uploaded' && f.publicUrl)
         .map((f) => f.publicUrl!);
+
+      // Validate we have some content before sending
+      if (!text_dump && file_urls.length === 0) {
+        toast.error('Please add some content (text, notes, or files) before generating');
+        setState('COLLECTING');
+        setProgress(0);
+        return;
+      }
 
       const dumpBody: any = { basket_id: null, text_dump };
       if (file_urls.length) dumpBody.file_urls = file_urls;
