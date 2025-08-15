@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadFile } from '@/lib/uploadFile';
 import { sanitizeFilename } from '@/lib/utils/sanitizeFilename';
@@ -39,6 +39,7 @@ export function useCreatePageMachine() {
   const [items, setItems] = useState<AddedItem[]>([]);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const isGeneratingRef = useRef(false);
 
   const logEvent = (e: any) => {
     try {
@@ -63,19 +64,19 @@ useEffect(() => {
     console.groupEnd();
   }
 
-  const safeJson = async (res: Response) => {
+  async function safeJson(res: Response) {
     try {
       return await res.json();
     } catch {
-      return null;
+      return null as any;
     }
-  };
+  }
 
-// recompute state when intent/items change
-const recompute = (nextIntent: string, nextItems: AddedItem[]) => {
-  if (nextIntent.trim() !== '' || nextItems.length > 0) {
-    setState((prev) => (prev === 'EMPTY' ? 'COLLECTING' : prev));
-  } else {
+  // recompute state when intent/items change
+  const recompute = (nextIntent: string, nextItems: AddedItem[]) => {
+    if (nextIntent.trim() !== '' || nextItems.length > 0) {
+      setState((prev) => (prev === 'EMPTY' ? 'COLLECTING' : prev));
+    } else {
       setState('EMPTY');
     }
   };
@@ -159,6 +160,8 @@ const recompute = (nextIntent: string, nextItems: AddedItem[]) => {
   const generate = async () => {
     if (items.length === 0 && intent.trim() === '') return;
     if (state === 'SUBMITTED' || state === 'PROCESSING') return;
+    if (isGeneratingRef.current) return;
+    isGeneratingRef.current = true;
 
     dlog('telemetry', { event: 'create_generate_clicked' });
     setState('SUBMITTED');
@@ -224,7 +227,7 @@ const recompute = (nextIntent: string, nextItems: AddedItem[]) => {
         const err = await safeJson(basketRes);
         throw new Error(`Basket create failed: ${basketRes.status} ${JSON.stringify(err)}`);
       }
-      const basket = await basketRes.json();
+      const basket = await safeJson(basketRes);
       const basketId: string | undefined = basket?.id;
       logStep('after basket create', { basketId });
       if (!basketId || typeof basketId !== 'string') {
@@ -232,9 +235,9 @@ const recompute = (nextIntent: string, nextItems: AddedItem[]) => {
       }
 
       // 2) Post dumps with a real basket_id
-      const dumpBody: { basket_id: string; text_dump: string; file_urls?: string[] } = {
+      const dumpBody: { basket_id: string; text_dump?: string; file_urls?: string[] } = {
         basket_id: basketId,
-        text_dump,
+        ...(text_dump?.trim() ? { text_dump: text_dump.trim() } : {}),
         ...(file_urls?.length ? { file_urls } : {}),
       };
       logStep('before dump create', dumpBody);
@@ -248,7 +251,7 @@ const recompute = (nextIntent: string, nextItems: AddedItem[]) => {
         body: JSON.stringify(dumpBody),
       });
 
-      const dumpData = await dumpRes.json();
+      const dumpData = await safeJson(dumpRes);
       logStep('dump response', { status: dumpRes.status, dumpData });
       logEvent({
         event: 'dump_response',
@@ -319,6 +322,8 @@ const recompute = (nextIntent: string, nextItems: AddedItem[]) => {
       toast.error(e?.message || 'Unknown error');
       setState('ERROR');
       setError(e?.message || 'Unknown error');
+    } finally {
+      isGeneratingRef.current = false;
     }
   };
 
