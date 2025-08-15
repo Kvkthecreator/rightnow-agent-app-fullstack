@@ -48,15 +48,34 @@ export function useCreatePageMachine() {
     } catch {}
   };
 
-  useEffect(() => {
-    dlog('telemetry', { event: 'create_viewed' });
-  }, []);
+useEffect(() => {
+  dlog('telemetry', { event: 'create_viewed' });
+}, []);
 
-  // recompute state when intent/items change
-  const recompute = (nextIntent: string, nextItems: AddedItem[]) => {
-    if (nextIntent.trim() !== '' || nextItems.length > 0) {
-      setState((prev) => (prev === 'EMPTY' ? 'COLLECTING' : prev));
-    } else {
+  // Debug helper (no-op unless window.YARNNN_DEBUG = true)
+  const DBG =
+    typeof window !== 'undefined' && (window as any).YARNNN_DEBUG === true;
+  function logStep(step: string, data?: any) {
+    if (!DBG) return;
+    // eslint-disable-next-line no-console
+    console.groupCollapsed(`[CREATE FLOW] ${step}`);
+    if (data) console.log(data);
+    console.groupEnd();
+  }
+
+  const safeJson = async (res: Response) => {
+    try {
+      return await res.json();
+    } catch {
+      return null;
+    }
+  };
+
+// recompute state when intent/items change
+const recompute = (nextIntent: string, nextItems: AddedItem[]) => {
+  if (nextIntent.trim() !== '' || nextItems.length > 0) {
+    setState((prev) => (prev === 'EMPTY' ? 'COLLECTING' : prev));
+  } else {
       setState('EMPTY');
     }
   };
@@ -193,10 +212,33 @@ export function useCreatePageMachine() {
         return;
       }
 
-      const dumpBody: any = { basket_id: null, text_dump };
-      if (file_urls.length) dumpBody.file_urls = file_urls;
-      logEvent({ event: 'submit_dump', reqId, dumpBody });
+      // 1) Create basket first
+      logStep('before basket create', { name: 'Untitled Basket' });
+      const basketRes = await fetch('/api/baskets/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: 'Untitled Basket' }),
+      });
+      if (!basketRes.ok) {
+        const err = await safeJson(basketRes);
+        throw new Error(`Basket create failed: ${basketRes.status} ${JSON.stringify(err)}`);
+      }
+      const basket = await basketRes.json();
+      const basketId: string | undefined = basket?.id;
+      logStep('after basket create', { basketId });
+      if (!basketId || typeof basketId !== 'string') {
+        throw new Error('Create flow invariant violated: basketId missing before dump creation');
+      }
 
+      // 2) Post dumps with a real basket_id
+      const dumpBody: { basket_id: string; text_dump: string; file_urls?: string[] } = {
+        basket_id: basketId,
+        text_dump,
+        ...(file_urls?.length ? { file_urls } : {}),
+      };
+      logStep('before dump create', dumpBody);
+      logEvent({ event: 'submit_dump', reqId, dumpBody });
       setState('PROCESSING');
       // eslint-disable-next-line @next/next/no-async-client-component
       const dumpRes = await fetch('/api/dumps/new', {
@@ -206,24 +248,23 @@ export function useCreatePageMachine() {
         body: JSON.stringify(dumpBody),
       });
 
-      const dumpText = await dumpRes.text();
-      logEvent({ event: 'dump_response', reqId, status: dumpRes.status, body: dumpText.slice(0, 400) });
-
+      const dumpData = await dumpRes.json();
+      logStep('dump response', { status: dumpRes.status, dumpData });
+      logEvent({
+        event: 'dump_response',
+        reqId,
+        status: dumpRes.status,
+        body: JSON.stringify(dumpData).slice(0, 400),
+      });
       if (!dumpRes.ok) {
-        toast.error(dumpText);
-        setState('ERROR');
-        setError(dumpText.slice(0, 400));
-        setProgress(100);
-        return;
+        throw new Error(`Dump create failed: ${dumpRes.status} ${JSON.stringify(dumpData)}`);
       }
+      const createdBasketId: string = dumpData?.basket_id ?? basketId;
 
-      const dumpData = JSON.parse(dumpText || '{}');
-      const { basket_id: basketId } = dumpData;
-      
       // Normalize response to handle both raw_dump_id and raw_dump_ids
       const dumpIds = dumpData.raw_dump_ids ?? (dumpData.raw_dump_id ? [dumpData.raw_dump_id] : []);
       if (!dumpIds.length) {
-        throw new Error("No raw_dump ids returned");
+        throw new Error('No raw_dump ids returned');
       }
 
       // Kick off basket work using all raw dumps with init_build mode
@@ -234,18 +275,19 @@ export function useCreatePageMachine() {
           allow_structural_changes: true,
           preserve_blocks: [],
           update_document_ids: [],
-          strict_link_provenance: true
+          strict_link_provenance: true,
         },
         options: {
           fast: false,
           max_tokens: 8000,
-          trace_req_id: reqId
-        }
+          trace_req_id: reqId,
+        },
       };
+      logStep('before work post', { createdBasketId, workBody });
       logEvent({ event: 'submit_work', reqId, workBody });
-      const workRes = await fetch(`/api/baskets/${basketId}/work`, {
+      const workRes = await fetch(`/api/baskets/${createdBasketId}/work`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'X-Req-Id': reqId,
         },
@@ -253,6 +295,7 @@ export function useCreatePageMachine() {
         body: JSON.stringify(workBody),
       });
       const workText = await workRes.text();
+      logStep('work response', { status: workRes.status });
       logEvent({ event: 'work_response', reqId, status: workRes.status, body: workText.slice(0, 400) });
 
       if (!workRes.ok) {
@@ -270,7 +313,7 @@ export function useCreatePageMachine() {
       const hold =
         typeof window !== 'undefined' &&
         new URLSearchParams(location.search).get('hold') === '1';
-      if (!hold) router.push(`/baskets/${basketId}/work?focus=insights`);
+      if (!hold) router.push(`/baskets/${createdBasketId}/work?focus=insights`);
     } catch (e: any) {
       console.error('❌ Basket creation failed:', e);
       toast.error(e?.message || 'Unknown error');
