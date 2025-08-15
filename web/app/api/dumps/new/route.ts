@@ -3,23 +3,41 @@ export const runtime = "nodejs";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { z } from "zod";
+import type { CreateDumpReq, CreateDumpRes } from "@/shared/contracts/dumps";
 
 /**
- * Backend contract alignment: POST /api/dumps/new expects a DumpPayload
- * containing a basket id, the consolidated text dump, and optional public
- * file URLs. The previous UI contract forwarded `sources[]` directly; we now
- * validate and forward the backend shape instead.
+ * Interface Spec v0.1.0 compliant: POST /api/dumps/new
+ * Accepts CreateDumpReq with idempotency via dump_request_id
  */
-const BodySchema = z.object({
-  basket_id: z.string().uuid().nullable(),
-  text_dump: z.string().min(1, "Text content is required"),
-  file_urls: z.array(z.string().url()).optional(),
-});
+const CreateDumpSchema = z.object({
+  basket_id: z.string().uuid(),
+  dump_request_id: z.string().uuid(),
+  text_dump: z.string().optional(),
+  file_url: z.string().url().optional(),
+  meta: z.record(z.unknown()).optional(),
+}).refine(
+  (data) => data.text_dump || data.file_url,
+  { message: "Either text_dump or file_url must be provided" }
+);
 
 export async function POST(req: Request) {
+  const startTime = Date.now();
   const reqId = req.headers.get("X-Req-Id") || `ui-${Date.now()}`;
+  
   try {
-    const body = BodySchema.parse(await req.json());
+    // Parse and validate request body against spec
+    const rawBody = await req.json();
+    const validationResult = CreateDumpSchema.safeParse(rawBody);
+    
+    if (!validationResult.success) {
+      console.error("dumps/new validation error:", validationResult.error);
+      return Response.json(
+        { error: { code: "INVALID_INPUT", message: "Invalid request format", details: validationResult.error.format() } },
+        { status: 400 }
+      );
+    }
+
+    const { basket_id, dump_request_id, text_dump, file_url, meta } = validationResult.data;
 
     const supabase = createRouteHandlerClient({ cookies });
     const {
@@ -28,62 +46,128 @@ export async function POST(req: Request) {
 
     if (!session?.access_token) {
       console.error("dumps/new unauthorized", { reqId });
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+      return Response.json(
+        { error: { code: "UNAUTHORIZED", message: "Authentication required", details: {} } },
+        { status: 401 }
+      );
     }
 
-    const workspaceId =
-      (session.user?.app_metadata as any)?.workspace_id ||
-      (session.user?.user_metadata as any)?.workspace_id ||
-      null;
+    // Verify basket exists and user has access via workspace membership
+    const { data: basket } = await supabase
+      .from("baskets")
+      .select(`
+        id,
+        workspace_id,
+        workspace_memberships!inner(user_id)
+      `)
+      .eq("id", basket_id)
+      .eq("workspace_memberships.user_id", session.user.id)
+      .single();
 
-    const apiBase = process.env.API_BASE ?? "https://api.yarnnn.com";
-    const upstream = await fetch(`${apiBase}/api/dumps/new`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-        ...(workspaceId ? { "X-Workspace-Id": String(workspaceId) } : {}),
-        "X-Req-Id": reqId,
-      },
-      body: JSON.stringify(body),
-    });
-
-    const text = await upstream.text();
-    if (!upstream.ok) {
-      console.error("dumps/new upstream error", {
-        reqId,
-        status: upstream.status,
-        text: text.slice(0, 500),
-      });
-      return new Response(text || `Upstream ${upstream.status}`, {
-        status: upstream.status,
-        headers: {
-          "Content-Type":
-            upstream.headers.get("content-type") ?? "text/plain",
-        },
-      });
+    if (!basket) {
+      console.error("dumps/new basket not found or access denied:", { basket_id, userId: session.user.id });
+      return Response.json(
+        { error: { code: "BASKET_NOT_FOUND", message: "Basket not found or access denied", details: {} } },
+        { status: 404 }
+      );
     }
 
-    return new Response(text, {
-      status: upstream.status,
-      headers: {
-        "Content-Type":
-          upstream.headers.get("content-type") ?? "application/json",
-      },
-    });
-  } catch (e: any) {
-    if (e?.name === "ZodError") {
-      // Provide user-friendly error messages for validation failures
-      const issues = e.issues;
-      if (issues.some((i: any) => i.path.includes('text_dump'))) {
-        return Response.json({ 
-          error: "Please provide some text content before submitting" 
-        }, { status: 400 });
+    // Check for existing dump with same idempotency key (replay detection)
+    const { data: existingDump } = await supabase
+      .from("raw_dumps")
+      .select("id")
+      .eq("basket_id", basket_id)
+      .eq("dump_request_id", dump_request_id)
+      .single();
+
+    if (existingDump) {
+      // Log replay event
+      console.log(JSON.stringify({
+        route: "/api/dumps/new",
+        user_id: session.user.id,
+        basket_id,
+        dump_request_id,
+        action: "replayed",
+        dump_id: existingDump.id,
+        duration_ms: Date.now() - startTime
+      }));
+      
+      return Response.json(
+        { dump_id: existingDump.id } satisfies CreateDumpRes,
+        { status: 200 }
+      );
+    }
+
+    // Validate content requirement
+    if (!text_dump && !file_url) {
+      return Response.json(
+        { error: { code: "EMPTY_DUMP", message: "Either text_dump or file_url must be provided", details: {} } },
+        { status: 422 }
+      );
+    }
+
+    // Create new dump
+    const { data: dump, error: createError } = await supabase
+      .from("raw_dumps")
+      .insert({
+        basket_id,
+        dump_request_id,
+        workspace_id: basket.workspace_id,
+        body_md: text_dump || null,
+        file_url: file_url || null,
+        source_meta: meta ? JSON.stringify(meta) : '{}',
+        processing_status: 'unprocessed'
+      })
+      .select("id")
+      .single();
+
+    if (createError) {
+      // Check for idempotency conflict (race condition)
+      if (createError.code === "23505" && createError.message?.includes("uq_dumps_basket_req")) {
+        console.error("dumps/new idempotency conflict:", createError);
+        return Response.json(
+          { error: { code: "IDEMPOTENCY_CONFLICT", message: "Duplicate dump_request_id for basket", details: {} } },
+          { status: 409 }
+        );
       }
-      return Response.json({ error: e.issues }, { status: 400 });
+      
+      console.error("dumps/new creation error:", createError);
+      return Response.json(
+        { error: { code: "INTERNAL_ERROR", message: "Failed to create dump", details: { dbError: createError.message } } },
+        { status: 500 }
+      );
     }
+
+    if (!dump) {
+      console.error("dumps/new creation returned no data");
+      return Response.json(
+        { error: { code: "INTERNAL_ERROR", message: "Failed to create dump - no data returned", details: {} } },
+        { status: 500 }
+      );
+    }
+
+    // Log creation event
+    console.log(JSON.stringify({
+      route: "/api/dumps/new",
+      user_id: session.user.id,
+      basket_id,
+      dump_request_id,
+      action: "created",
+      dump_id: dump.id,
+      duration_ms: Date.now() - startTime
+    }));
+
+    return Response.json(
+      { dump_id: dump.id } satisfies CreateDumpRes,
+      { status: 201 }
+    );
+
+  } catch (e: any) {
     console.error("dumps/new route crash", { reqId, err: String(e?.message ?? e) });
-    return Response.json({ error: "Bad gateway", reqId }, { status: 502 });
+    return Response.json(
+      { error: { code: "INTERNAL_ERROR", message: "Internal server error", details: { error: e?.message || "Unknown error" } } },
+      { status: 500 }
+    );
   }
 }
 

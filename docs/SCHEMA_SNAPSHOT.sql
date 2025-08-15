@@ -231,7 +231,9 @@ CREATE TABLE public.raw_dumps (
     document_id uuid,
     fragments jsonb DEFAULT '[]'::jsonb,
     processing_status text DEFAULT 'unprocessed'::text,
-    processed_at timestamp with time zone
+    processed_at timestamp with time zone,
+    source_meta jsonb DEFAULT '{}'::jsonb,
+    ingest_trace_id text
 );
 ALTER TABLE ONLY public.raw_dumps REPLICA IDENTITY FULL;
 CREATE TABLE public.revisions (
@@ -315,25 +317,41 @@ ALTER TABLE ONLY public.workspaces
 CREATE INDEX baskets_user_idx ON public.baskets USING btree (user_id);
 CREATE INDEX blk_doc_idx ON public.block_links USING btree (block_id, document_id);
 CREATE UNIQUE INDEX docs_basket_title_idx ON public.documents USING btree (basket_id, title);
+CREATE INDEX idx_basket_deltas_applied_at ON public.basket_deltas USING btree (applied_at);
 CREATE INDEX idx_basket_deltas_basket ON public.basket_deltas USING btree (basket_id, created_at DESC);
+CREATE INDEX idx_basket_deltas_basket_id ON public.basket_deltas USING btree (basket_id);
 CREATE INDEX idx_basket_deltas_created ON public.basket_deltas USING btree (created_at DESC);
+CREATE INDEX idx_basket_deltas_created_at ON public.basket_deltas USING btree (created_at DESC);
+CREATE INDEX idx_basket_deltas_unapplied ON public.basket_deltas USING btree (basket_id, created_at DESC) WHERE (applied_at IS NULL);
 CREATE INDEX idx_basket_events_created ON public.basket_events USING btree (created_at DESC);
+CREATE INDEX idx_basket_events_created_at ON public.basket_events USING btree (created_at DESC);
+CREATE INDEX idx_basket_events_event_type ON public.basket_events USING btree (event_type);
 CREATE INDEX idx_baskets_workspace ON public.baskets USING btree (workspace_id);
+CREATE INDEX idx_blocks_basket ON public.blocks USING btree (basket_id);
+CREATE INDEX idx_blocks_raw_dump ON public.blocks USING btree (raw_dump_id);
 CREATE INDEX idx_blocks_workspace ON public.blocks USING btree (workspace_id);
 CREATE INDEX idx_context_basket ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_doc ON public.context_items USING btree (document_id);
 CREATE INDEX idx_context_items_basket ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_items_basket_id ON public.context_items USING btree (basket_id);
+CREATE INDEX idx_documents_basket ON public.documents USING btree (basket_id);
 CREATE INDEX idx_documents_workspace ON public.documents USING btree (workspace_id);
 CREATE INDEX idx_events_agent_type ON public.events USING btree (agent_type);
+CREATE INDEX idx_events_basket_kind_ts ON public.events USING btree (basket_id, kind, ts);
 CREATE INDEX idx_events_origin_kind ON public.events USING btree (origin, kind);
 CREATE INDEX idx_events_workspace_ts ON public.events USING btree (workspace_id, ts DESC);
 CREATE INDEX idx_idem_delta_id ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_idempotency_delta ON public.idempotency_keys USING btree (delta_id);
+CREATE INDEX idx_idempotency_keys_delta_id ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
+CREATE INDEX idx_raw_dumps_basket ON public.raw_dumps USING btree (basket_id);
+CREATE INDEX idx_raw_dumps_file_url ON public.raw_dumps USING btree (file_url);
+CREATE INDEX idx_raw_dumps_source_meta_gin ON public.raw_dumps USING gin (source_meta);
+CREATE INDEX idx_raw_dumps_trace ON public.raw_dumps USING btree (ingest_trace_id);
 CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
 CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
+CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (basket_id, ingest_trace_id) WHERE (ingest_trace_id IS NOT NULL);
 CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
@@ -400,6 +418,7 @@ ALTER TABLE ONLY public.workspaces
 CREATE POLICY "Allow anon read events" ON public.events FOR SELECT USING (true);
 CREATE POLICY "Allow anon read raw_dumps" ON public.raw_dumps FOR SELECT USING (true);
 CREATE POLICY "Allow anon read revisions" ON public.revisions FOR SELECT USING (true);
+CREATE POLICY "Allow authenticated users to view basket events" ON public.basket_events FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Allow baskets for workspace members" ON public.baskets FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -411,6 +430,8 @@ CREATE POLICY "Allow users to see their own workspace memberships" ON public.wor
 CREATE POLICY "Allow workspace members to read baskets" ON public.baskets FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY "Anon can view events temporarily" ON public.basket_events FOR SELECT TO anon USING (true);
+CREATE POLICY "Authenticated users can view events" ON public.basket_events FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Service role full access" ON public.baskets TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Users can insert events for their workspaces" ON public.events FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -472,6 +493,7 @@ CREATE POLICY "allow agent insert" ON public.revisions FOR INSERT TO authenticat
   WHERE (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
+ALTER TABLE public.basket_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY basket_member_delete ON public.baskets FOR DELETE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));

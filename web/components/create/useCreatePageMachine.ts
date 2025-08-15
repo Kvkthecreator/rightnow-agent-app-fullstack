@@ -6,6 +6,8 @@ import { uploadFile } from '@/lib/uploadFile';
 import { sanitizeFilename } from '@/lib/utils/sanitizeFilename';
 import { dlog } from '@/lib/dev/log';
 import { toast } from 'react-hot-toast';
+import type { CreateBasketReq, CreateBasketRes } from '@/shared/contracts/baskets';
+import type { CreateDumpReq, CreateDumpRes } from '@/shared/contracts/dumps';
 
 export type CreateState =
   | 'EMPTY'
@@ -161,14 +163,18 @@ useEffect(() => {
     if (items.length === 0 && intent.trim() === '') return;
     if (state === 'SUBMITTED' || state === 'PROCESSING') return;
     if (isGeneratingRef.current) return;
+    
+    // In-flight guard - single guarded entry point
     isGeneratingRef.current = true;
 
     dlog('telemetry', { event: 'create_generate_clicked' });
     setState('SUBMITTED');
     setProgress(5);
+    
     try {
       const reqId = `ui-${Date.now()}`;
 
+      // Upload all files first
       for (const item of items) {
         if (item.kind === 'file' && item.file) {
           try {
@@ -196,81 +202,124 @@ useEffect(() => {
         return;
       }
 
-      // Consolidate text and file URLs for backend DumpPayload
+      // Get workspace_id (use ensureWorkspaceServer pattern or default)
+      const workspace_id = "00000000-0000-0000-0000-000000000001"; // TODO: Get from user context
+      
+      // Generate UUID idempotency keys per spec
+      const idempotency_key = crypto.randomUUID();
+      
+      // 1) Create basket with idempotency (spec v0.1.0 compliant)
+      logStep('before basket create', { workspace_id, idempotency_key });
+      const basketReq: CreateBasketReq = {
+        workspace_id,
+        name: intent.trim() || 'Untitled Basket',
+        idempotency_key,
+      };
+      
+      const basketRes = await fetch('/api/baskets/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(basketReq),
+      });
+      
+      if (!basketRes.ok) {
+        const err = await safeJson(basketRes);
+        throw new Error(`Basket create failed: ${basketRes.status} ${JSON.stringify(err)}`);
+      }
+      
+      const basketResult: CreateBasketRes = await safeJson(basketRes);
+      const basketId = basketResult.basket_id;
+      logStep('after basket create', { basketId });
+      
+      if (!basketId) {
+        throw new Error('Create flow invariant violated: basket_id missing');
+      }
+
+      setState('PROCESSING');
+      
+      // 2) Fan-out: Create separate dump per file + one for text content
+      const dumpPromises: Promise<CreateDumpRes>[] = [];
+      
+      // Text dump (intent + notes + URLs)
       const textParts = [
         intent.trim(),
         ...items.filter((n) => n.kind === 'note').map((n) => n.text!.trim()),
         ...items.filter((u) => u.kind === 'url').map((u) => u.url!),
       ].filter(Boolean);
-      const text_dump = textParts.join('\n\n');
-      const file_urls = items
+      
+      if (textParts.length > 0) {
+        const textDumpReq: CreateDumpReq = {
+          basket_id: basketId,
+          dump_request_id: crypto.randomUUID(),
+          text_dump: textParts.join('\n\n'),
+          meta: { source: 'text_input', type: 'combined' }
+        };
+        
+        dumpPromises.push(
+          fetch('/api/dumps/new', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Req-Id': reqId },
+            credentials: 'include',
+            body: JSON.stringify(textDumpReq),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const err = await safeJson(res);
+              throw new Error(`Text dump failed: ${res.status} ${JSON.stringify(err)}`);
+            }
+            return await res.json();
+          })
+        );
+      }
+      
+      // File dumps (one per file)
+      items
         .filter((f) => f.kind === 'file' && f.status === 'uploaded' && f.publicUrl)
-        .map((f) => f.publicUrl!);
+        .forEach((fileItem) => {
+          const fileDumpReq: CreateDumpReq = {
+            basket_id: basketId,
+            dump_request_id: crypto.randomUUID(),
+            file_url: fileItem.publicUrl!,
+            meta: { 
+              source: 'file_upload', 
+              filename: fileItem.name,
+              mime: fileItem.mime,
+              size: fileItem.size 
+            }
+          };
+          
+          dumpPromises.push(
+            fetch('/api/dumps/new', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Req-Id': reqId },
+              credentials: 'include',
+              body: JSON.stringify(fileDumpReq),
+            }).then(async (res) => {
+              if (!res.ok) {
+                const err = await safeJson(res);
+                throw new Error(`File dump failed for ${fileItem.name}: ${res.status} ${JSON.stringify(err)}`);
+              }
+              return await res.json();
+            })
+          );
+        });
 
       // Validate we have some content before sending
-      if (!text_dump && file_urls.length === 0) {
+      if (dumpPromises.length === 0) {
         toast.error('Please add some content (text, notes, or files) before generating');
         setState('COLLECTING');
         setProgress(0);
         return;
       }
 
-      // 1) Create basket first
-      logStep('before basket create', { name: 'Untitled Basket' });
-      const basketRes = await fetch('/api/baskets/new', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name: 'Untitled Basket' }),
-      });
-      if (!basketRes.ok) {
-        const err = await safeJson(basketRes);
-        throw new Error(`Basket create failed: ${basketRes.status} ${JSON.stringify(err)}`);
-      }
-      const basket = await safeJson(basketRes);
-      const basketId: string | undefined = basket?.id;
-      logStep('after basket create', { basketId });
-      if (!basketId || typeof basketId !== 'string') {
-        throw new Error('Create flow invariant violated: basketId missing before dump creation');
-      }
+      // Wait for all dumps to complete
+      const dumpResults = await Promise.all(dumpPromises);
+      const dumpIds = dumpResults.map(result => result.dump_id);
+      
+      logStep('dumps created', { dumpIds });
+      logEvent({ event: 'dumps_created', reqId, dumpIds, count: dumpIds.length });
 
-      // 2) Post dumps with a real basket_id
-      const dumpBody: { basket_id: string; text_dump?: string; file_urls?: string[] } = {
-        basket_id: basketId,
-        ...(text_dump?.trim() ? { text_dump: text_dump.trim() } : {}),
-        ...(file_urls?.length ? { file_urls } : {}),
-      };
-      logStep('before dump create', dumpBody);
-      logEvent({ event: 'submit_dump', reqId, dumpBody });
-      setState('PROCESSING');
-      // eslint-disable-next-line @next/next/no-async-client-component
-      const dumpRes = await fetch('/api/dumps/new', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Req-Id': reqId },
-        credentials: 'include',
-        body: JSON.stringify(dumpBody),
-      });
-
-      const dumpData = await safeJson(dumpRes);
-      logStep('dump response', { status: dumpRes.status, dumpData });
-      logEvent({
-        event: 'dump_response',
-        reqId,
-        status: dumpRes.status,
-        body: JSON.stringify(dumpData).slice(0, 400),
-      });
-      if (!dumpRes.ok) {
-        throw new Error(`Dump create failed: ${dumpRes.status} ${JSON.stringify(dumpData)}`);
-      }
-      const createdBasketId: string = dumpData?.basket_id ?? basketId;
-
-      // Normalize response to handle both raw_dump_id and raw_dump_ids
-      const dumpIds = dumpData.raw_dump_ids ?? (dumpData.raw_dump_id ? [dumpData.raw_dump_id] : []);
-      if (!dumpIds.length) {
-        throw new Error('No raw_dump ids returned');
-      }
-
-      // Kick off basket work using all raw dumps with init_build mode
+      // 3) Kick off basket work using all raw dumps with init_build mode
       const workBody = {
         mode: 'init_build',
         sources: dumpIds.map((id: string) => ({ type: 'raw_dump', id })),
@@ -286,9 +335,10 @@ useEffect(() => {
           trace_req_id: reqId,
         },
       };
-      logStep('before work post', { createdBasketId, workBody });
+      logStep('before work post', { basketId, workBody });
       logEvent({ event: 'submit_work', reqId, workBody });
-      const workRes = await fetch(`/api/baskets/${createdBasketId}/work`, {
+      
+      const workRes = await fetch(`/api/baskets/${basketId}/work`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -297,6 +347,7 @@ useEffect(() => {
         credentials: 'include',
         body: JSON.stringify(workBody),
       });
+      
       const workText = await workRes.text();
       logStep('work response', { status: workRes.status });
       logEvent({ event: 'work_response', reqId, status: workRes.status, body: workText.slice(0, 400) });
@@ -316,7 +367,7 @@ useEffect(() => {
       const hold =
         typeof window !== 'undefined' &&
         new URLSearchParams(location.search).get('hold') === '1';
-      if (!hold) router.push(`/baskets/${createdBasketId}/work?focus=insights`);
+      if (!hold) router.push(`/baskets/${basketId}/work?focus=insights`);
     } catch (e: any) {
       console.error('❌ Basket creation failed:', e);
       toast.error(e?.message || 'Unknown error');
