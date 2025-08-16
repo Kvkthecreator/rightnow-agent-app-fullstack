@@ -35,18 +35,55 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 2) Get Supabase access token from server-side cookies
+  // 2) Get Supabase user and session from server-side cookies
+  // Per canon: use getUser() for secure authentication
   const supabase = createRouteHandlerClient({ cookies });
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) {
-    console.error("baskets/new: No session found in server-side cookies");
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  
+  if (userError || !user) {
+    console.error("baskets/new: No authenticated user", userError);
     return NextResponse.json(
-      { error: { code: "UNAUTHORIZED", message: "Missing session" } },
+      { 
+        error: { 
+          code: "UNAUTHORIZED", 
+          message: "Not authenticated",
+          debug: {
+            location: "baskets/new route handler",
+            issue: "No authenticated user found",
+            error: userError?.message
+          }
+        } 
+      },
       { status: 401 }
     );
   }
+  
+  // Get session for access token
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  
+  if (!session?.access_token) {
+    return NextResponse.json(
+      { 
+        error: { 
+          code: "UNAUTHORIZED", 
+          message: "No access token",
+          debug: {
+            location: "baskets/new route handler", 
+            issue: "Session exists but no access token",
+            hasUser: true,
+            userId: user.id
+          }
+        } 
+      },
+      { status: 401 }
+    );
+  }
+  
   const accessToken = session.access_token;
   console.log("baskets/new: Token forwarding", { 
     hasToken: !!accessToken, 
@@ -77,6 +114,25 @@ export async function POST(req: NextRequest) {
     status: res.status, 
     body: text.substring(0, 200) + (text.length > 200 ? "..." : "")
   });
+  
+  // If FastAPI returns 401, add debug info
+  if (res.status === 401) {
+    try {
+      const errorData = JSON.parse(text);
+      return NextResponse.json({
+        ...errorData,
+        debug: {
+          location: "baskets/new -> FastAPI",
+          apiBase: API_BASE,
+          hasToken: !!accessToken,
+          tokenPrefix: accessToken?.substring(0, 20) + "...",
+          originalError: errorData
+        }
+      }, { status: 401 });
+    } catch {
+      // If response isn't JSON, return as-is
+    }
+  }
   
   return new NextResponse(text, {
     status: res.status,
