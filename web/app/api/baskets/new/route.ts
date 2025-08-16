@@ -154,6 +154,12 @@ export async function POST(req: NextRequest) {
             Authorization: `Bearer ${accessToken?.substring(0, 20)}...`,
             "sb-access-token": accessToken?.substring(0, 20) + "..."
           },
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+          expectedByBackend: {
+            hint: "Backend expects same SUPABASE_URL in its env vars",
+            issuer: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1`,
+            audience: "authenticated"
+          },
           originalError: errorData
         }
       }, { status: 401 });
