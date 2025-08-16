@@ -67,15 +67,18 @@ export function buildContextBlocks(values: BasketValues): ContextBlock[] {
 
 import { apiClient } from "../api/client";
 
-export async function createBasket(values: BasketValues): Promise<{ id: string }> {
+export async function createBasket(values: BasketValues): Promise<{ basket_id: string }> {
+  const workspaceId =
+    (typeof window !== "undefined" &&
+      localStorage.getItem("workspace_id")) ||
+    "00000000-0000-0000-0000-000000000001";
   const payload = {
-    topic: values.topic,
-    intent: values.intent,
-    insight: values.insight,
-    reference_file_ids: values.reference_file_ids,
+    workspace_id: workspaceId,
+    name: values.topic || "Untitled Basket",
+    idempotency_key: crypto.randomUUID(),
   };
-  return apiClient.request<{ id: string }>("/api/baskets", {
+  return apiClient.request<{ basket_id: string }>("/api/baskets/new", {
     method: "POST",
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 }

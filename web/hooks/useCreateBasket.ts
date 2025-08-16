@@ -61,16 +61,23 @@ export function useCreateBasket() {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
+      const workspaceId =
+        (typeof window !== "undefined" &&
+          localStorage.getItem("workspace_id")) ||
+        "00000000-0000-0000-0000-000000000001";
       const payload = {
+        workspace_id: workspaceId,
         name: state.basketName || "Untitled Basket",
-        status: "active",
-        tags: [],
+        idempotency_key: crypto.randomUUID(),
       };
-      const { id } = await apiClient.request<{id: string}>("/api/baskets", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      router.push(`/baskets/${id}/work`);
+      const { basket_id } = await apiClient.request<{ basket_id: string }>(
+        "/api/baskets/new",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      );
+      router.push(`/baskets/${basket_id}/work`);
       setState(emptyState);
     } finally {
       setSubmitting(false);
