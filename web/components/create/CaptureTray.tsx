@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { useEffect, useRef, useState } from 'react';
 import { IntentField } from '@/app/create/components/IntentField';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { UploadArea } from '@/components/ui/UploadArea';
+import { Label } from '@/components/ui/Label';
 import { AddedItem } from './useCreatePageMachine';
 import { AddedItemRow } from './AddedItemRow';
 
@@ -14,6 +16,7 @@ interface Props {
   items: AddedItem[];
   onIntent: (v: string) => void;
   addFiles: (files: File[]) => void;
+  addUploadedFile: (file: File, url: string) => void;
   addUrl: (url: string) => void;
   addNote: (text: string) => void;
   removeItem: (id: string) => void;
@@ -26,6 +29,7 @@ export function CaptureTray({
   items,
   onIntent,
   addFiles,
+  addUploadedFile,
   addUrl,
   addNote,
   removeItem,
@@ -34,15 +38,6 @@ export function CaptureTray({
 }: Props) {
   const urlRef = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState('');
-
-  const onDrop = useCallback(
-    (accepted: File[]) => {
-      addFiles(accepted);
-    },
-    [addFiles]
-  );
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, multiple: true });
 
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
@@ -100,39 +95,76 @@ export function CaptureTray({
 
   return (
     <div className="space-y-4">
-      <div>
-        <IntentField value={intent} onChange={onIntent} />
-        <p className="text-sm text-gray-500 mt-1">
-          Drop files, links, or notes. We’ll organize them into a starter basket.
-        </p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Intent</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <IntentField value={intent} onChange={onIntent} />
+          <p className="text-sm text-gray-500 mt-1">
+            Drop files, links, or notes. We’ll organize them into a starter basket.
+          </p>
+        </CardContent>
+      </Card>
 
-      <div {...getRootProps()} className={`rounded border-2 border-dashed p-6 text-center ${isDragActive ? 'opacity-100' : 'opacity-80'}`}>
-        <input {...getInputProps()} />
-        <div>Drop files here, or paste text/screenshots anywhere</div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <UploadArea
+            prefix="ingest"
+            maxFiles={10}
+            enableDrop
+            showPreviewGrid
+            internalDragState
+            onUpload={(url, file) => addUploadedFile(file, url)}
+          />
+        </CardContent>
+      </Card>
 
-      <div className="flex items-center gap-2">
-        <Input ref={urlRef} placeholder="Paste a link" onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()} />
-        <Button onClick={handleAddUrl}>Add link</Button>
-      </div>
+      <Card>
+        <CardContent className="space-y-2">
+          <Label htmlFor="url">Link</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="url"
+              ref={urlRef}
+              placeholder="Paste a link"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
+            />
+            <Button onClick={handleAddUrl}>Add link</Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="flex items-start gap-2">
-        <Textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Write a note"
-          className="h-24"
-        />
-        <Button onClick={handleAddNote}>Add note</Button>
-      </div>
+      <Card>
+        <CardContent className="space-y-2">
+          <Label htmlFor="note">Note</Label>
+          <div className="flex items-start gap-2">
+            <Textarea
+              id="note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Write a note"
+              className="h-24"
+            />
+            <Button onClick={handleAddNote}>Add note</Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {total > 0 && (
-        <div className="border rounded p-2">
-          {items.map((it) => (
-            <AddedItemRow key={it.id} item={it} onRemove={removeItem} />
-          ))}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Added items</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {items.map((it) => (
+              <AddedItemRow key={it.id} item={it} onRemove={removeItem} />
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       <div className="flex items-center justify-between text-sm text-gray-600">

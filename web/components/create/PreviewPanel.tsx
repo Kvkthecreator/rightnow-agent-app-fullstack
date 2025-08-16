@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AddedItem, CreateState } from './useCreatePageMachine';
-import { ProgressRibbon } from './ProgressRibbon';
+import { ProgressStepper } from '@/components/ui/ProgressStepper';
 
 interface Props {
   intent: string;
@@ -40,7 +40,13 @@ export function PreviewPanel({ intent, items, state, progress, error }: Props) {
         <h3 className="font-medium mb-1">First insights</h3>
         <div className="border rounded p-4 text-sm text-gray-500">We’ll auto-generate this after upload</div>
       </div>
-      <ProgressRibbon progress={progress} state={state} fileCount={items.filter(i=>i.kind==='file').length} />
+      <ProgressStepper
+        current={Math.min(4, Math.floor(progress / 25) + 1)}
+        steps={["Uploading", "Parsing", "Dumps", "Scaffolding"]}
+      />
+      <div className="w-full bg-gray-200 h-1 rounded">
+        <div className="bg-blue-600 h-1 rounded" style={{ width: `${progress}%` }} />
+      </div>
       {errorItems.length > 0 && (
         <div className="text-sm text-yellow-600">⚠︎ {errorItems.length} item{errorItems.length>1?'s':''} needs attention</div>
       )}
