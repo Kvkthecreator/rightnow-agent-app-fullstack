@@ -9,4 +9,4 @@
 
 # Start frontend
 cd ./web
-npm run dev
+npx next dev

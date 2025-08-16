@@ -5,7 +5,8 @@
     "lint": "echo \"Skipping lint\"",
     "test": "echo \"No tests\"",
     "codegen:supabase": "python scripts/gen_pydantic.py",
-    "build:check": "npm --prefix web run build"
+    "build:check": "npm --prefix web run build",
+    "postinstall": "npm --prefix web install"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
@@ -13,6 +14,7 @@
   },
   "dependencies": {
     "react-hot-toast": "^2.5.2",
-    "zustand": "^5.0.6"
+    "zustand": "^5.0.6",
+    "zod": "^3.24.4"
   }
 }
