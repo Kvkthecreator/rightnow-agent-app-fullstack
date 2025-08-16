@@ -9,6 +9,9 @@ import time
 import jwt
 import requests
 from jwt import InvalidTokenError
+import logging
+
+logger = logging.getLogger(__name__)
 
 # JWKS caching
 _JWKS_CACHE: dict[str, dict] = {}
@@ -70,13 +73,26 @@ def verify_jwt(token: str) -> dict:
     if not kid:
         raise InvalidTokenError("Missing kid")
     key = _get_key(kid)
-    return jwt.decode(
-        token,
-        key,
-        algorithms=["RS256"],
-        issuer=_expected_issuer(),
-        audience=_expected_audience(),
-    )
+    try:
+        return jwt.decode(
+            token,
+            key,
+            algorithms=["RS256"],
+            issuer=_expected_issuer(),
+            audience=_expected_audience(),
+        )
+    except InvalidTokenError as e:
+        try:
+            payload = jwt.decode(token, options={"verify_signature": False})
+            logger.error(
+                "JWT validation failed: iss=%s aud=%s error=%s",
+                payload.get("iss"),
+                payload.get("aud"),
+                e,
+            )
+        except Exception:
+            logger.error("JWT validation failed and payload could not be decoded: %s", e)
+        raise
 
 
 __all__ = ["verify_jwt"]

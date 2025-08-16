@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${accessToken}`,
+      "sb-access-token": accessToken,
     },
     body: JSON.stringify(parsed.data),
   });
