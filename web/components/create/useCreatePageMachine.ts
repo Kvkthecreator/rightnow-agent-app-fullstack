@@ -6,8 +6,8 @@ import { uploadFile } from '@/lib/uploadFile';
 import { sanitizeFilename } from '@/lib/utils/sanitizeFilename';
 import { dlog } from '@/lib/dev/log';
 import { toast } from 'react-hot-toast';
-import type { CreateBasketReq, CreateBasketRes } from '@/shared/contracts/baskets';
-import type { CreateDumpReq, CreateDumpRes } from '@/shared/contracts/dumps';
+import type { CreateBasketReq, CreateBasketRes } from '@shared/contracts/baskets';
+import type { CreateDumpReq, CreateDumpRes } from '@shared/contracts/dumps';
 
 export type CreateState =
   | 'EMPTY'
@@ -322,7 +322,7 @@ useEffect(() => {
       // 3) Kick off basket work using all raw dumps with init_build mode
       const workBody = {
         mode: 'init_build',
-        sources: dumpIds.map((id: string) => ({ type: 'raw_dump', id })),
+        sources: dumpIds.map((id: string) => ({ type: 'raw_dump' as const, id })),
         policy: {
           allow_structural_changes: true,
           preserve_blocks: [],

@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { z } from "zod";
-import type { CreateDumpReq, CreateDumpRes } from "@/shared/contracts/dumps";
+import type { CreateDumpReq, CreateDumpRes } from "@shared/contracts/dumps";
 
 /**
  * Interface Spec v0.1.0 compliant: POST /api/dumps/new
