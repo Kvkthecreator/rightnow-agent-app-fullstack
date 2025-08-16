@@ -39,8 +39,8 @@ test.describe('Idempotency Golden Path', () => {
     // Verify pre-generation state
     await expect(page.locator('text=3 added')).toBeVisible();
     
-    // Generate basket (first time)
-    await page.click('button:has-text("Generate Basket")');
+    // Create basket (first time)
+    await page.click('button:has-text("Create")');
     
     // Wait for completion and navigation
     await expect(page).toHaveURL(/\/baskets\/[^\/]+\/work/);

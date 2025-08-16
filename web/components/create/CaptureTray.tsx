@@ -8,12 +8,15 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { UploadArea } from '@/components/ui/UploadArea';
 import { Label } from '@/components/ui/Label';
-import { AddedItem } from './useCreatePageMachine';
+import { ProgressStepper } from '@/components/ui/ProgressStepper';
+import { AddedItem, CreateState } from './useCreatePageMachine';
 import { AddedItemRow } from './AddedItemRow';
 
 interface Props {
   intent: string;
   items: AddedItem[];
+  state: CreateState;
+  progress: number;
   onIntent: (v: string) => void;
   addFiles: (files: File[]) => void;
   addUploadedFile: (file: File, url: string) => void;
@@ -27,6 +30,8 @@ interface Props {
 export function CaptureTray({
   intent,
   items,
+  state,
+  progress,
   onIntent,
   addFiles,
   addUploadedFile,
@@ -92,6 +97,7 @@ export function CaptureTray({
 
   const total = items.length;
   const hasErrors = items.some((i) => i.status === 'error');
+  const isCreating = !['EMPTY', 'COLLECTING', 'COMPLETE', 'ERROR'].includes(state);
 
   return (
     <div className="space-y-4">
@@ -102,7 +108,7 @@ export function CaptureTray({
         <CardContent>
           <IntentField value={intent} onChange={onIntent} />
           <p className="text-sm text-gray-500 mt-1">
-            Drop files, links, or notes. We’ll organize them into a starter basket.
+            We’ll name it after your first item. You can edit later.
           </p>
         </CardContent>
       </Card>
@@ -167,16 +173,23 @@ export function CaptureTray({
         </Card>
       )}
 
+      {isCreating && (
+        <ProgressStepper
+          current={Math.min(4, Math.floor(progress / 25) + 1)}
+          steps={["Uploading", "Parsing", "Dumps", "Scaffolding"]}
+        />
+      )}
+
       <div className="flex items-center justify-between text-sm text-gray-600">
         <div>
           {total} added • {counts.file} file{counts.file === 1 ? '' : 's'}, {counts.url} link{counts.url === 1 ? '' : 's'}, {counts.note} note{counts.note === 1 ? '' : 's'}
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={clearAll} disabled={total === 0 && !intent}>
+          <Button variant="secondary" onClick={clearAll} disabled={(total === 0 && !intent) || isCreating}>
             Clear All
           </Button>
-          <Button onClick={generate} disabled={(total === 0 && intent.trim() === '') || hasErrors}>
-            Generate Basket
+          <Button onClick={generate} disabled={(total === 0 && intent.trim() === '') || hasErrors || isCreating}>
+            Create
           </Button>
         </div>
       </div>
