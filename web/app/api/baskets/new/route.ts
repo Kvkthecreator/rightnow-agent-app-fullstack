@@ -41,7 +41,15 @@ export async function POST(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const accessToken = session?.access_token;
+  console.log("session exists:", !!session);
+  if (!session) {
+    return NextResponse.json(
+      { error: { code: "UNAUTHORIZED", message: "Missing session" } },
+      { status: 401 }
+    );
+  }
+
+  const accessToken = session.access_token;
   if (!accessToken) {
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Missing Authorization" } },
