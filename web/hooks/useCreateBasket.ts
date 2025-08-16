@@ -62,8 +62,8 @@ export function useCreateBasket() {
     setSubmitting(true);
     try {
       const payload = {
-        name: state.basketName || "Untitled Basket",
         idempotency_key: crypto.randomUUID(),
+        basket: { name: state.basketName || "Untitled Basket" },
       };
       const { basket_id } = await apiClient.request<{ basket_id: string }>(
         "/api/baskets/new",

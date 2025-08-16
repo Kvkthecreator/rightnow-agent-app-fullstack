@@ -60,7 +60,7 @@ async def create_basket(
             {
                 "workspace_id": workspace_id,
                 "user_id": user["user_id"],
-                "name": payload.name or "Untitled Basket",
+                "name": payload.basket.name or "Untitled Basket",
                 "idempotency_key": payload.idempotency_key,
                 "status": "INIT",
             }

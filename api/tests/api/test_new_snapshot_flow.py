@@ -92,7 +92,7 @@ def test_snapshot_after_flow(monkeypatch):
     monkeypatch.setattr("app.routes.dump_new.supabase", fake)
     monkeypatch.setattr("app.routes.basket_snapshot.supabase", fake)
 
-    b_payload = {"idempotency_key": str(uuid.uuid4())}
+    b_payload = {"idempotency_key": str(uuid.uuid4()), "basket": {}}
     basket = client.post("/api/baskets/new", json=b_payload)
     bid = basket.json()["basket_id"]
 

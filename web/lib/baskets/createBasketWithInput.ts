@@ -17,10 +17,11 @@ export async function createBasketWithInput({
 }: CreateBasketArgs) {
   const supabase = createClient();
   // 1️⃣ Core basket creation via privileged API route
-  const payload: Record<string, string> = {
+  const payload: { idempotency_key: string; basket: { name?: string } } = {
     idempotency_key: crypto.randomUUID(),
+    basket: {},
   };
-  if (name) payload.name = name;
+  if (name) payload.basket.name = name;
   console.log("[createBasketWithInput] Payload:", payload);
   const resp = await fetchWithToken("/api/baskets/new", {
     method: "POST",

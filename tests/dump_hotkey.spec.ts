@@ -1,11 +1,15 @@
 import { test, expect } from '@playwright/test';
+import { randomUUID } from 'crypto';
 
 // Helper to call API directly
 async function createBasket() {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/baskets/new`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text_dump: 'init' }),
+    body: JSON.stringify({
+      idempotency_key: randomUUID(),
+      basket: { name: 'init' },
+    }),
   });
   const data = await res.json();
   return data.basket_id as string;

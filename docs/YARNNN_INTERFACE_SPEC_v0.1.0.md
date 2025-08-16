@@ -27,8 +27,8 @@ RLS: All inserts must satisfy workspace membership policies; server derives user
 ```typescript
 // shared/contracts/baskets.ts
 export type CreateBasketReq = {
-  name?: string;
   idempotency_key: string; // UUID
+  basket: { name?: string };
 };
 export type CreateBasketRes = { basket_id: string };
 // shared/contracts/dumps.ts
@@ -122,8 +122,8 @@ Content-Type: application/json
 Authorization: Bearer <jwt>
 
 {
-  "name": "Brand Sprint",
-  "idempotency_key": "6f2d4c4e-1b4a-4c4e-9b32-2b9a1e0e8f91"
+  "idempotency_key": "6f2d4c4e-1b4a-4c4e-9b32-2b9a1e0e8f91",
+  "basket": { "name": "Brand Sprint" }
 }
 
 200 OK
@@ -194,7 +194,7 @@ async function createBasketAndIngest(items: Array<{ text_dump?: string; file_url
   inFlight.current = true;
   try {
     const idem = crypto.randomUUID();
-    const { basket_id } = await api.createBasket({ name, idempotency_key: idem });
+    const { basket_id } = await api.createBasket({ idempotency_key: idem, basket: { name } });
 
     await Promise.all(items.map(it =>
       api.createDump({

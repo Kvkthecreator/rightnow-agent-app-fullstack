@@ -11,7 +11,7 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.yarnnn.com";
 
 export async function POST(req: NextRequest) {
-  // 1) Parse & validate request (canon: { idempotency_key, name? })
+  // 1) Parse & validate request (canon: { idempotency_key, basket: { name? } })
   let json: unknown;
   try {
     json = await req.json();

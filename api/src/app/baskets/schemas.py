@@ -32,8 +32,12 @@ class BasketWorkRequest(BaseModel):
     policy: WorkPolicy = WorkPolicy()
     options: WorkOptions = WorkOptions()
 
+class BasketInput(BaseModel):
+    name: Optional[str] = None
+
+
 class CreateBasketReq(BaseModel):
     """DTO matching the CreateBasketReq contract."""
 
     idempotency_key: str
-    name: Optional[str] = "Untitled Basket"
+    basket: BasketInput
