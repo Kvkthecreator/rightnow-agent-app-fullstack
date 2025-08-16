@@ -22,7 +22,9 @@ def jwks_env(monkeypatch):
 
     jwks = {"keys": [public_jwk]}
 
-    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_JWKS_URL", "https://example.supabase.co/auth/v1/keys")
+    monkeypatch.setenv("SUPABASE_JWKS_ISSUER", "https://example.supabase.co/auth/v1")
+    monkeypatch.setenv("SUPABASE_JWT_AUD", "authenticated")
 
     import auth.jwt_verifier as jv
 
