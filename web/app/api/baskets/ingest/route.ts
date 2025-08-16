@@ -9,12 +9,12 @@ export async function POST(req: NextRequest) {
     const { userId } = await getAuthenticatedUser(req);
     const workspaceId = await ensureWorkspaceForUser(userId);
     const body = IngestReqSchema.parse(await req.json());
-    const res = await ingestBasketAndDumps({ 
-      workspaceId, 
-      userId, 
+    const { raw, data } = await ingestBasketAndDumps({
+      workspaceId,
+      userId,
       idempotency_key: body.idempotency_key,
       basket: body.basket,
-      dumps: body.dumps 
+      dumps: body.dumps
     });
     // Log request and response separately per canon - no field synthesis
     console.log(JSON.stringify({
@@ -30,9 +30,9 @@ export async function POST(req: NextRequest) {
     console.log(JSON.stringify({
       route: '/api/baskets/ingest',
       user_id: userId,
-      response: res
+      response: raw
     }));
-    return NextResponse.json(res, { status: 200 });
+    return NextResponse.json(data, { status: 200 });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.message }, { status: 422 });

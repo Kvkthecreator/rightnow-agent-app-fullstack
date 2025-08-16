@@ -24,7 +24,7 @@ test.describe('Basket ingest API', () => {
     });
     expect(res1.ok()).toBeTruthy();
     const data1 = await res1.json();
-    expect(data1.basket.created).toBe(true);
+    expect(typeof data1.basket_id).toBe('string');
     expect(data1.dumps).toHaveLength(2);
 
     const res2 = await request.post('/api/baskets/ingest', {
@@ -33,9 +33,9 @@ test.describe('Basket ingest API', () => {
     });
     expect(res2.ok()).toBeTruthy();
     const data2 = await res2.json();
-    expect(data2.basket.created).toBe(false);
-    for (const d of data2.dumps) {
-      expect(d.created).toBe(false);
-    }
+    expect(data2.basket_id).toBe(data1.basket_id);
+    expect(data2.dumps.map((d: any) => d.dump_id)).toEqual(
+      data1.dumps.map((d: any) => d.dump_id)
+    );
   });
 });

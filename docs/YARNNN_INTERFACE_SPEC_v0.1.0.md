@@ -55,8 +55,7 @@ export type IngestReq = {
   dumps: IngestItem[];
 };
 export type IngestRes = {
-  workspace_id: string;
-  basket: { id: string; created: boolean };
+  basket_id: string;
   dumps: CreateDumpRes[];
 };
 ```
@@ -161,7 +160,7 @@ POST /api/baskets/ingest
     { "dump_request_id": "22222222-2222-2222-2222-222222222222", "text_dump": "first notes" }
   ]
 }
-→ 200 { "workspace_id": "d4f9f2e7-7c3b-4e13-a0ba-2d9b3c2f3a01", "basket": {"id": "ba75c8a0-...", "created": true}, "dumps": [{"id": "rd_x", "dump_request_id": "111...", "created": true}, {"id": "rd_y", "dump_request_id": "222...", "created": true}] }
+→ 200 { "basket_id": "ba75c8a0-...", "dumps": [{"dump_id": "rd_x"}, {"dump_id": "rd_y"}] }
 
 ## 7) Database Changes (SQL)
 **IMPLEMENTED**: Migration `supabase/migrations/20250815_add_create_idempotency.sql` applied.

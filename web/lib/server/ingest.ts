@@ -1,5 +1,6 @@
 import { createServiceRoleClient } from '@/lib/supabase/serviceRole';
 import type { IngestRes, IngestItem } from '@shared/contracts/ingest';
+import { IngestResSchema } from '@/lib/schemas/ingest';
 
 interface IngestArgs {
   workspaceId: string;
@@ -9,7 +10,9 @@ interface IngestArgs {
   dumps: IngestItem[];
 }
 
-export async function ingestBasketAndDumps(args: IngestArgs): Promise<IngestRes> {
+export async function ingestBasketAndDumps(
+  args: IngestArgs
+): Promise<{ raw: unknown; data: IngestRes }> {
   const supabase = createServiceRoleClient();
   const payload = {
     p_workspace_id: args.workspaceId,
@@ -21,5 +24,6 @@ export async function ingestBasketAndDumps(args: IngestArgs): Promise<IngestRes>
   if (error) {
     throw new Error(error.message);
   }
-  return data as IngestRes;
+  const parsed = IngestResSchema.parse(data);
+  return { raw: data, data: parsed };
 }
