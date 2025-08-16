@@ -1,4 +1,4 @@
-📜 /docs/AUTH_WORKFLOW.md — Canonical Authentication & Workspace Flow (v1)
+📜 docs/YARNNN_AUTH_WORKFLOW.md — Canonical Authentication & Workspace Flow (v1)
 This document is the source of truth. All code MUST conform to it.
 Terms: “MUST/SHALL/SHOULD” follow RFC-2119 semantics.
 ## 0) Scope & Guarantees
