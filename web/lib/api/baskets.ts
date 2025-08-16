@@ -7,6 +7,7 @@ import {
   type Paginated,
   type CreateBasketRequest,
 } from './contracts';
+import type { CreateBasketRes } from '@shared/contracts/baskets';
 
 /**
  * Basket API functions with Zod validation
@@ -53,18 +54,20 @@ export async function listBaskets(options?: {
 }
 
 // Create new basket
-export async function createBasket(request: CreateBasketRequest): Promise<Basket> {
+export async function createBasket(
+  request: CreateBasketRequest,
+): Promise<CreateBasketRes> {
   // Validate request payload
   const validatedRequest = CreateBasketRequestSchema.parse(request);
-  
+
   const response = await apiClient({
-    url: '/api/baskets',
+    url: '/api/baskets/new',
     method: 'POST',
     body: validatedRequest,
     signal: timeoutSignal(15000),
   });
-  
-  return BasketSchema.parse(response);
+
+  return response as CreateBasketRes;
 }
 
 // Update basket

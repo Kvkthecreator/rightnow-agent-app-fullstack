@@ -1,76 +1,110 @@
-import os
 import types
 import uuid
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("SUPABASE_URL", "http://localhost")
-os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "svc.key")
-
 from app.routes.basket_new import router as new_router
 from app.routes.basket_snapshot import router as snapshot_router
+from app.routes.dump_new import router as dump_router
 
 app = FastAPI()
 app.include_router(new_router, prefix="/api")
+app.include_router(dump_router, prefix="/api")
 app.include_router(snapshot_router, prefix="/api")
 client = TestClient(app)
 
 
 def _supabase(store):
-    def rpc(func, params):
-        bid = str(uuid.uuid4())
-        did = str(uuid.uuid4())
-        store["baskets"].append({"id": bid, "raw_dump_id": did})
-        store["raw_dumps"].append({"id": did, "basket_id": bid, "body_md": params["p_body_md"]})
-        resp = types.SimpleNamespace(data=[{"basket_id": bid}], error=None)
-        return types.SimpleNamespace(execute=lambda: resp)
-
     def table(name):
-        def insert(row):
-            store[name].append(row)
-            resp = types.SimpleNamespace(data=[row], error=None)
-            return types.SimpleNamespace(execute=lambda: resp)
+        class Q:
+            def __init__(self):
+                self._filters = []
+                self._op = None
+                self._values = None
+                self._single = False
+                self._select = None
 
-        def update(obj: dict):
-            for r in store[name]:
-                r.update(obj)
-            def eq(*_a, **_k):
-                resp = types.SimpleNamespace(data=None, error=None)
-                return types.SimpleNamespace(execute=lambda: resp)
-            return types.SimpleNamespace(eq=eq)
+            def select(self, _cols="*"):
+                if self._op is None:
+                    self._op = "select"
+                self._select = _cols
+                return self
 
-        def select(*_a, **_k):
-            class Q:
-                def eq(self, *_a, **_k):
-                    return self
+            def insert(self, row):
+                self._op = "insert"
+                self._values = row
+                return self
 
-                def order(self, *_a, **_k):
-                    return self
+            def update(self, vals):
+                self._op = "update"
+                self._values = vals
+                return self
 
-                def in_(self, *_a, **_k):
-                    return self
+            def eq(self, col, val):
+                self._filters.append((col, val))
+                return self
 
-                def execute(self):
-                    return types.SimpleNamespace(data=store.get(name, []))
+            def single(self):
+                self._single = True
+                return self
 
-            return Q()
+            def order(self, *_a, **_k):
+                return self
 
-        return types.SimpleNamespace(insert=insert, select=select, update=update)
+            def in_(self, *_a, **_k):
+                return self
 
-    return types.SimpleNamespace(table=table, rpc=rpc)
+            def execute(self):
+                data = store.setdefault(name, [])
+                if self._op == "insert":
+                    row = dict(self._values)
+                    row.setdefault("id", str(uuid.uuid4()))
+                    data.append(row)
+                    return types.SimpleNamespace(data=[row], error=None)
+                if self._op == "update":
+                    for r in data:
+                        if all(r.get(c) == v for c, v in self._filters):
+                            r.update(self._values)
+                    return types.SimpleNamespace(data=[], error=None)
+                res = data
+                for c, v in self._filters:
+                    res = [r for r in res if r.get(c) == v]
+                if self._single:
+                    return types.SimpleNamespace(data=res[0] if res else None, error=None)
+                return types.SimpleNamespace(data=res, error=None)
+
+        return Q()
+
+    return types.SimpleNamespace(table=table)
 
 
-def test_snapshot_after_creation(monkeypatch):
-    store = {"baskets": [], "raw_dumps": [], "blocks": []}
+def test_snapshot_after_flow(monkeypatch):
+    user_id = "00000000-0000-0000-0000-000000000000"
+    store = {
+        "workspace_memberships": [{"workspace_id": "ws1", "user_id": user_id}],
+        "baskets": [],
+        "raw_dumps": [],
+        "blocks": [],
+    }
     fake = _supabase(store)
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
+    monkeypatch.setattr("app.routes.dump_new.supabase", fake)
     monkeypatch.setattr("app.routes.basket_snapshot.supabase", fake)
 
-    resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
-    assert resp.status_code == 201
-    basket_id = resp.json()["id"]
+    b_payload = {"workspace_id": "ws1", "idempotency_key": str(uuid.uuid4())}
+    basket = client.post("/api/baskets/new", json=b_payload)
+    bid = basket.json()["basket_id"]
 
-    snap = client.get(f"/api/baskets/{basket_id}/snapshot")
+    d_payload = {
+        "basket_id": bid,
+        "dump_request_id": str(uuid.uuid4()),
+        "text_dump": "hello",
+    }
+    dump_resp = client.post("/api/dumps/new", json=d_payload)
+    assert dump_resp.status_code == 201
+
+    snap = client.get(f"/api/baskets/{bid}/snapshot")
     assert snap.status_code == 200
     assert snap.json()["raw_dump"] == "hello"
+

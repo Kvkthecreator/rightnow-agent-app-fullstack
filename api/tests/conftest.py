@@ -1,12 +1,13 @@
+import importlib
+import os
 import sys
 import types
-import os
-import importlib
 
 tests_dir = os.path.dirname(__file__)
-sys.path.insert(0, os.path.join(tests_dir, "../src"))  # allow `import app`
-sys.path.insert(0, os.path.join(tests_dir, ".."))  # allow `import src`
+# Ensure api/src has highest priority so tests import new code
 sys.path.insert(0, os.path.join(tests_dir, "../../src"))
+sys.path.insert(0, os.path.join(tests_dir, ".."))
+sys.path.insert(0, os.path.join(tests_dir, "../src"))
 
 
 def _stub(name: str):
@@ -23,6 +24,7 @@ for name in ("supabase", "supabase_py", "asyncpg"):
         if name == "asyncpg":
             mod.Pool = type("Pool", (), {})
             mod.create_pool = lambda *a, **k: None
+            mod.Connection = type("Connection", (), {})
 
 # ensure pytest can import supabase_py from 'supabase'
 sys.modules["supabase_py"] = sys.modules.get("supabase", sys.modules.get("supabase_py"))
@@ -58,7 +60,7 @@ try:
     ]:
         try:
             m = importlib.import_module(mod_name)
-            setattr(m, "verify_jwt", stub_user)
+            m.verify_jwt = stub_user  # type: ignore[attr-defined]
         except Exception:
             pass
 except Exception:

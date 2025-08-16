@@ -129,7 +129,7 @@ export class ApiClient {
 }
 
 // Usage throughout app
-const result = await apiClient.request('/api/baskets', { method: 'POST', ... });
+const result = await apiClient.request('/api/baskets/new', { method: 'POST', ... });
 ```
 
 ### Authentication Flow:

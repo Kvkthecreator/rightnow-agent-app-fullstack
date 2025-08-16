@@ -5,40 +5,36 @@ Provide dependencies for FastAPI routes using Supabase tokens.
 
 from __future__ import annotations
 
-import jwt
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import HTTPException, Request
 
 from .supabase_client import get_supabase
 
-bearer = HTTPBearer()
+
+async def current_user_id(request: Request) -> str:
+    """Return the authenticated user's ID from request state."""
+    user_id = getattr(request.state, "user_id", None)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
+    return str(user_id)
 
 
-async def current_user_id(
-    creds: HTTPAuthorizationCredentials = Depends(bearer),
-) -> str:
-    """Decode Supabase JWT and return the user ID."""
-    token = creds.credentials
-    try:
-        payload = jwt.decode(token, options={"verify_signature": False})
-        user_id = payload.get("sub")
-        if not user_id:
-            raise KeyError
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=401, detail="Invalid or missing authentication token") from exc
-    return user_id
-
-
-async def get_user(
-    creds: HTTPAuthorizationCredentials = Depends(bearer),
-):
+async def get_user(request: Request):
     """Return the user object for the provided Supabase JWT."""
-    token = creds.credentials
+    await current_user_id(request)
+    token = request.headers.get("sb-access-token")
+    if not token:
+        auth = request.headers.get("Authorization")
+        if auth and auth.lower().startswith("bearer "):
+            token = auth.split(" ", 1)[1]
+    if not token:
+        raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
+
     supabase = get_supabase()
     try:
         user_response = supabase.auth.get_user(token)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=401, detail="Invalid or missing authentication token") from exc
+        raise HTTPException(
+            status_code=401, detail="Invalid or missing authentication token"
+        ) from exc
 
-    # `get_user` may return a dataclass with a `user` attribute or the user dict directly
     return getattr(user_response, "user", user_response)
