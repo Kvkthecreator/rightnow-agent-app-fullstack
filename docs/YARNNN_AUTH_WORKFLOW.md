@@ -89,13 +89,13 @@ Create Basket
 POST /api/baskets/new
 Authorization: Bearer <jwt>
 
-Body: { "name": "My Basket" }
+Body: { "name": "My Basket", "idempotency_key": "<uuid>" }
 
 Behavior:
 - Verify JWT → userId
-- workspaceId = ensureWorkspaceForUser(userId)
-- Insert baskets(name, workspace_id)
-- Return { id, name, workspace_id }
+- workspace = ensureWorkspaceForUser(userId)
+- Insert baskets(name, workspace_id=workspace.id, idempotency_key)
+- Return { basket_id }
 Create Raw Dump
 POST /api/dumps/new
 Authorization: Bearer <jwt>

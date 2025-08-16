@@ -5,14 +5,12 @@ import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
 
 export interface CreateBasketArgs {
   userId: string;
-  workspaceId: string;
   text: string;
   files?: (File | string)[];
   name?: string;
 }
 export async function createBasketWithInput({
   userId,
-  workspaceId,
   text,
   files = [],
   name,
@@ -20,7 +18,6 @@ export async function createBasketWithInput({
   const supabase = createClient();
   // 1️⃣ Core basket creation via privileged API route
   const payload: Record<string, string> = {
-    workspace_id: workspaceId,
     idempotency_key: crypto.randomUUID(),
   };
   if (name) payload.name = name;

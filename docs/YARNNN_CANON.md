@@ -21,7 +21,7 @@ Schema, API, and runtime implementations must conform to these references.
 - **YARNNN_INGESTION_FLOW.md**  
   Contracts and flow for atomic basket + dump ingestion.  
 
-- **YARNNN_INTERFACE_SPEC_v.1.0.md**  
+- **YARNNN_INTERFACE_SPEC_v0.1.0.md**
   API and DTO contracts for baskets, dumps, and ingestion flows.  
 
 - **YARNNN_MEMORY_MODEL.md**  

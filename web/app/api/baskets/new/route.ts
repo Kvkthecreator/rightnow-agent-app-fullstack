@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { z } from "zod";
-import type { CreateBasketReq, CreateBasketRes } from "@shared/contracts/baskets";
+import type { CreateBasketRes } from "@shared/contracts/baskets";
 
 // Validate request against spec
 const CreateBasketSchema = z.object({
-  workspace_id: z.string().uuid(),
   name: z.string().optional(),
   idempotency_key: z.string().uuid(),
 });
@@ -42,21 +41,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { workspace_id, name = "Untitled Basket", idempotency_key } = validationResult.data;
+    const { name = "Untitled Basket", idempotency_key } = validationResult.data;
 
-    // Verify workspace membership
-    const { data: membership } = await supabase
-      .from("workspace_memberships")
-      .select("workspace_id")
-      .eq("workspace_id", workspace_id)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!membership) {
-      console.error("Workspace access denied:", { userId: user.id, workspaceId: workspace_id });
+    // Resolve or create workspace for user
+    const workspace = await ensureWorkspaceServer(supabase);
+    if (!workspace) {
+      console.error("Workspace resolution failed", { userId: user.id });
       return NextResponse.json(
-        { error: { code: "FORBIDDEN", message: "User not a member of workspace", details: {} } },
-        { status: 403 }
+        { error: { code: "WORKSPACE_RESOLUTION_FAILED", message: "Workspace unavailable", details: {} } },
+        { status: 500 }
       );
     }
 
@@ -90,7 +83,7 @@ export async function POST(request: NextRequest) {
       .from("baskets")
       .insert({
         name,
-        workspace_id,
+        workspace_id: workspace.id,
         user_id: user.id,
         idempotency_key,
         status: "INIT" // Use enum value from spec

@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 export const CreateBasketReqSchema = z.object({
-  workspace_id: z.string().uuid(),
   name: z.string().optional(),
   idempotency_key: z.string().uuid(),
 });

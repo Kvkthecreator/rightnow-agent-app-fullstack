@@ -35,6 +35,5 @@ class BasketWorkRequest(BaseModel):
 class CreateBasketReq(BaseModel):
     """DTO matching the CreateBasketReq contract."""
 
-    workspace_id: str
     idempotency_key: str
     name: Optional[str] = "Untitled Basket"

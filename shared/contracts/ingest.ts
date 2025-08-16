@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { CreateBasketReq, CreateBasketRes } from "./baskets";
+import type { CreateBasketRes } from "./baskets";
 import type { CreateDumpRes } from "./dumps";
 
 // Ingest dump schema
@@ -16,7 +16,7 @@ export const IngestReqSchema = z.object({
   basket: z.object({ name: z.string().optional() }).optional(),
   dumps: z.array(IngestDumpSchema),
 });
-export type IngestReq = CreateBasketReq & { items: IngestDump[] };
+export type IngestReq = z.infer<typeof IngestReqSchema>;
 
 // Ingest response schema
 export const IngestResSchema = z.object({
@@ -30,6 +30,6 @@ export const IngestResSchema = z.object({
     })
   ),
 });
-export type IngestRes = CreateBasketRes & { dumps: CreateDumpRes[] };
+export type IngestRes = z.infer<typeof IngestResSchema>;
 
 export type { CreateDumpRes };

@@ -63,7 +63,6 @@ def test_create_and_list(monkeypatch):
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
     payload = {
-        "workspace_id": "ws1",
         "idempotency_key": str(uuid.uuid4()),
     }
 
@@ -76,12 +75,13 @@ def test_create_and_list(monkeypatch):
     assert items.data[0]["id"] == bid
 
 
-def test_create_forbidden(monkeypatch):
-    store = {"workspace_memberships": [], "baskets": []}
+def test_auto_workspace(monkeypatch):
+    store = {"workspace_memberships": [], "baskets": [], "workspaces": []}
     fake = _supabase(store)
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
-    payload = {"workspace_id": "ws1", "idempotency_key": str(uuid.uuid4())}
+    payload = {"idempotency_key": str(uuid.uuid4())}
     resp = client.post("/api/baskets/new", json=payload)
-    assert resp.status_code == 403
+    assert resp.status_code == 201
+    assert store["workspaces"]
 

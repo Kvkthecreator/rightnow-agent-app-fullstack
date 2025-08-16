@@ -8,7 +8,7 @@ const UUIDSchema = z.string().uuid();
 export const BasketSchema = z.object({
   id: UUIDSchema,
   name: z.string(),
-  status: z.enum(['ACTIVE', 'ARCHIVED', 'DELETED']),
+  status: z.enum(['INIT', 'ACTIVE', 'ARCHIVED', 'DEPRECATED']),
   workspace_id: UUIDSchema,
   raw_dump_id: UUIDSchema.nullable().optional(),
   origin_template: z.string().nullable().optional(),
@@ -139,7 +139,6 @@ export type ApiError = z.infer<typeof ApiErrorSchema>;
 
 // Request/Response helpers
 export const CreateBasketRequestSchema = z.object({
-  workspace_id: UUIDSchema,
   name: z.string().optional(),
   idempotency_key: UUIDSchema,
 });

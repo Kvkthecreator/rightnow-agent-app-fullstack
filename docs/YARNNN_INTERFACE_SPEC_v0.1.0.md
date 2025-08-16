@@ -19,7 +19,7 @@ idempotency_key (UUID) on Basket Create, unique on (creator_user_id, idempotency
 dump_request_id (UUID) on Dump Create, unique on (basket_id, dump_request_id).
 Error envelope:
 { "error": { "code": "STRING", "message": "HUMAN_READABLE", "details": { } } }
-RLS: All inserts must satisfy workspace membership policies; server derives user_id from auth (never sent by client).
+RLS: All inserts must satisfy workspace membership policies; server derives user_id and workspace_id from auth context (never sent by client).
 
 ## 2) Data Contracts (Shared DTOs)
 **IMPLEMENTED**: All DTOs are in `shared/contracts/` and imported by both FE & BE. No inline redefinition.
@@ -27,7 +27,6 @@ RLS: All inserts must satisfy workspace membership policies; server derives user
 ```typescript
 // shared/contracts/baskets.ts
 export type CreateBasketReq = {
-  workspace_id: string;
   name?: string;
   idempotency_key: string; // UUID
 };
@@ -42,7 +41,7 @@ export type CreateDumpReq = {
 };
 export type CreateDumpRes = { dump_id: string };
 // shared/contracts/ingest.ts (optional combined flow)
-import type { CreateBasketReq, CreateBasketRes } from "./baskets";
+import type { CreateBasketRes } from "./baskets";
 import type { CreateDumpRes } from "./dumps";
 export type IngestItem = {
   dump_request_id: string; // UUID
@@ -50,11 +49,23 @@ export type IngestItem = {
   file_url?: string;
   meta?: Record<string, unknown>;
 };
-export type IngestReq = CreateBasketReq & { items: IngestItem[] };
-export type IngestRes = CreateBasketRes & { dumps: CreateDumpRes[] };
+export type IngestReq = {
+  idempotency_key: string; // UUID
+  basket?: { name?: string };
+  dumps: IngestItem[];
+};
+export type IngestRes = {
+  workspace_id: string;
+  basket: { id: string; created: boolean };
+  dumps: CreateDumpRes[];
+};
 ```
 
 **Runtime validation**: Implemented with Zod schemas validating at API boundary.
+
+**Basket schema fields**
+- `raw_dump_id` (UUID, nullable): first dump linked to this basket.
+- `status` (`basket_state` enum, default `INIT`): lifecycle state of the basket.
 
 ## 3) Endpoints (Transport + Semantics)
 POST /api/baskets/new
@@ -65,7 +76,6 @@ Response: CreateBasketRes
 Idempotency: Replay-safe on (creator_user_id, idempotency_key); returns the original basket_id if called again with same key.
 Errors:
 400.INVALID_INPUT — malformed UUIDs, missing required fields
-403.FORBIDDEN — user not a member of workspace_id
 409.IDEMPOTENCY_CONFLICT — same (creator_user_id, idempotency_key) but different payload detected (log & block)
 Notes: This endpoint must never create dumps or perform any other writes.
 POST /api/dumps/new
@@ -113,7 +123,6 @@ Content-Type: application/json
 Authorization: Bearer <jwt>
 
 {
-  "workspace_id": "d4f9f2e7-7c3b-4e13-a0ba-2d9b3c2f3a01",
   "name": "Brand Sprint",
   "idempotency_key": "6f2d4c4e-1b4a-4c4e-9b32-2b9a1e0e8f91"
 }
@@ -145,15 +154,14 @@ POST /api/dumps/new
 Combined Ingest (optional)
 POST /api/baskets/ingest
 {
-  "workspace_id": "d4f9f2e7-7c3b-4e13-a0ba-2d9b3c2f3a01",
-  "name": "Onboarding Ingest",
   "idempotency_key": "c2a8e0e2-3c9d-4c0d-9c7e-7a2f1d6e90ab",
-  "items": [
+  "basket": { "name": "Onboarding Ingest" },
+  "dumps": [
     { "dump_request_id": "11111111-1111-1111-1111-111111111111", "file_url": "https://.../a.pdf" },
     { "dump_request_id": "22222222-2222-2222-2222-222222222222", "text_dump": "first notes" }
   ]
 }
-→ 200 { "basket_id": "ba75c8a0-...", "dumps": [{"dump_id": "rd_x"}, {"dump_id": "rd_y"}] }
+→ 200 { "workspace_id": "d4f9f2e7-7c3b-4e13-a0ba-2d9b3c2f3a01", "basket": {"id": "ba75c8a0-...", "created": true}, "dumps": [{"id": "rd_x", "dump_request_id": "111...", "created": true}, {"id": "rd_y", "dump_request_id": "222...", "created": true}] }
 
 ## 7) Database Changes (SQL)
 **IMPLEMENTED**: Migration `supabase/migrations/20250815_add_create_idempotency.sql` applied.
@@ -187,7 +195,7 @@ async function createBasketAndIngest(items: Array<{ text_dump?: string; file_url
   inFlight.current = true;
   try {
     const idem = crypto.randomUUID();
-    const { basket_id } = await api.createBasket({ workspace_id, name, idempotency_key: idem });
+    const { basket_id } = await api.createBasket({ name, idempotency_key: idem });
 
     await Promise.all(items.map(it =>
       api.createDump({
@@ -253,9 +261,8 @@ components:
   schemas:
     CreateBasketReq:
       type: object
-      required: [workspace_id, idempotency_key]
+      required: [idempotency_key]
       properties:
-        workspace_id: { type: string, format: uuid }
         name: { type: string }
         idempotency_key: { type: string, format: uuid }
     CreateBasketRes:
