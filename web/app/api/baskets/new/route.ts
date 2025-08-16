@@ -1,38 +1,27 @@
 // web/app/api/baskets/new/route.ts
+export const runtime = "nodejs"; // avoid Edge so supabase-helpers work
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-
-// NOTE: runtime validation lives in web/lib/schemas (not in shared/contracts)
-import { CreateBasketReqSchema } from "@/lib/schemas/baskets"; // zod schema mirroring CreateBasketReq
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { CreateBasketReqSchema } from "@/lib/schemas/baskets";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.yarnnn.com";
 
 export async function POST(req: NextRequest) {
-  // Canon: require a verified JWT (FastAPI enforces; we forward header)
-  const token = (await cookies()).get("sb-access-token")?.value;
-
-  if (!token) {
-    return NextResponse.json(
-      { error: { code: "UNAUTHORIZED", message: "Missing Authorization" } },
-      { status: 401 }
-    );
-  }
-
-  const auth = `Bearer ${token}`;
-
-  // Validate request body against canon schema: { name?, idempotency_key }
-  let payload: unknown;
+  // 1) Parse & validate request (canon: { idempotency_key, name? })
+  let json: unknown;
   try {
-    payload = await req.json();
+    json = await req.json();
   } catch {
     return NextResponse.json(
       { error: { code: "INVALID_JSON", message: "Malformed JSON" } },
       { status: 400 }
     );
   }
-
-  const parsed = CreateBasketReqSchema.safeParse(payload);
+  const parsed = CreateBasketReqSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
       {
@@ -46,23 +35,35 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Canon: workspace is bootstrapped server-side by FastAPI.
-  // We forward only the allowed fields (no workspace_id).
-  const forwardBody = JSON.stringify(parsed.data);
+  // 2) Get Supabase access token from server-side cookies
+  const supabase = createRouteHandlerClient({ cookies });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
+  const accessToken = session?.access_token;
+  if (!accessToken) {
+    return NextResponse.json(
+      { error: { code: "UNAUTHORIZED", message: "Missing Authorization" } },
+      { status: 401 }
+    );
+  }
+
+  // 3) Forward to FastAPI with Bearer token (workspace bootstrap is server-side)
   const res = await fetch(`${API_BASE}/api/baskets/new`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: auth,
+      authorization: `Bearer ${accessToken}`,
     },
-    body: forwardBody,
+    body: JSON.stringify(parsed.data),
   });
 
-  // Pass through FastAPI response
   const text = await res.text();
   return new NextResponse(text, {
     status: res.status,
-    headers: { "content-type": res.headers.get("content-type") ?? "application/json" },
+    headers: {
+      "content-type": res.headers.get("content-type") ?? "application/json",
+    },
   });
 }
