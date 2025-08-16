@@ -1,5 +1,6 @@
 // web/app/api/baskets/new/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 // NOTE: runtime validation lives in web/lib/schemas (not in shared/contracts)
 import { CreateBasketReqSchema } from "@/lib/schemas/baskets"; // zod schema mirroring CreateBasketReq
@@ -9,18 +10,16 @@ const API_BASE =
 
 export async function POST(req: NextRequest) {
   // Canon: require a verified JWT (FastAPI enforces; we forward header)
-  const auth =
-    req.headers.get("authorization") ??
-    (req.headers.get("sb-access-token")
-      ? `Bearer ${req.headers.get("sb-access-token")}`
-      : null);
+  const token = (await cookies()).get("sb-access-token")?.value;
 
-  if (!auth) {
+  if (!token) {
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Missing Authorization" } },
       { status: 401 }
     );
   }
+
+  const auth = `Bearer ${token}`;
 
   // Validate request body against canon schema: { name?, idempotency_key }
   let payload: unknown;

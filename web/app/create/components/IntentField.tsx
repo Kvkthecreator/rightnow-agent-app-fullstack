@@ -10,6 +10,7 @@ interface IntentFieldProps {
 export function IntentField({ value, onChange }: IntentFieldProps) {
   return (
     <Input
+      data-testid="intent-field"
       type="text"
       placeholder="What are you working on right now?"
       value={value}

@@ -379,7 +379,7 @@ useEffect(() => {
       const hold =
         typeof window !== 'undefined' &&
         new URLSearchParams(location.search).get('hold') === '1';
-      if (!hold) router.push(`/baskets/${basketId}/work?focus=insights`);
+      if (!hold) router.push(`/baskets/${basketId}/work`);
     } catch (e: any) {
       console.error('❌ Basket creation failed:', e);
       toast.error(e?.message || 'Unknown error');
