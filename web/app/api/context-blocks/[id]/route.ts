@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/supabase/serviceRole";
+import { getAuthenticatedUser } from "@/lib/server/auth";
+import { createUserClient } from "@/lib/supabase/user";
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const supabase = createServiceRoleClient();
+  const { token } = await getAuthenticatedUser(req);
+  const supabase = createUserClient(token);
   const { data, error } = await supabase
     .from("blocks")
     .select("*")
@@ -22,7 +24,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const supabase = createServiceRoleClient();
+  const { token } = await getAuthenticatedUser(req);
+  const supabase = createUserClient(token);
   const { error } = await supabase
     .from("blocks")
     .delete()

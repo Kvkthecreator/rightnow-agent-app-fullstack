@@ -141,7 +141,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Log missing Supabase key
+# Log missing Supabase anon key
 logger = logging.getLogger("uvicorn.error")
-if "SUPABASE_SERVICE_ROLE_KEY" not in os.environ:
-    logger.warning("SUPABASE_SERVICE_ROLE_KEY not set; Supabase operations may fail")
+if "SUPABASE_ANON_KEY" not in os.environ:
+    logger.warning("SUPABASE_ANON_KEY not set; Supabase operations may fail")

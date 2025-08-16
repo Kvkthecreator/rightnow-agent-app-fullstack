@@ -1,4 +1,4 @@
-import { createServiceRoleClient } from '@/lib/supabase/serviceRole';
+import { createUserClient } from '@/lib/supabase/user';
 import type { IngestRes, IngestItem } from '@shared/contracts/ingest';
 import { IngestResSchema } from '@/lib/schemas/ingest';
 
@@ -8,12 +8,13 @@ interface IngestArgs {
   idempotency_key: string;
   basket?: { name?: string };
   dumps: IngestItem[];
+  token: string;
 }
 
 export async function ingestBasketAndDumps(
   args: IngestArgs
 ): Promise<{ raw: unknown; data: IngestRes }> {
-  const supabase = createServiceRoleClient();
+  const supabase = createUserClient(args.token);
   const payload = {
     p_workspace_id: args.workspaceId,
     p_idempotency_key: args.idempotency_key,

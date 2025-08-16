@@ -29,7 +29,7 @@ async def get_user(request: Request):
     if not token:
         raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
 
-    supabase = get_supabase()
+    supabase = get_supabase(token)
     try:
         user_response = supabase.auth.get_user(token)
     except Exception as exc:  # noqa: BLE001
