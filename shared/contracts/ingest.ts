@@ -1,4 +1,5 @@
 import type { CreateBasketReq, CreateBasketRes } from "./baskets";
+import type { CreateDumpRes } from "./dumps";
 
 export type IngestItem = {
   dump_request_id: string; // UUID
@@ -7,11 +8,12 @@ export type IngestItem = {
   meta?: Record<string, unknown>;
 };
 
-export type IngestReq = CreateBasketReq & { 
-  items: IngestItem[]; 
+export type IngestReq = CreateBasketReq & {
+  items: IngestItem[];
 };
 
-export type IngestRes = { 
-  basket_id: string; 
-  dump_ids: string[]; 
+export type IngestRes = CreateBasketRes & {
+  dumps: CreateDumpRes[];
 };
+
+export type { CreateDumpRes };

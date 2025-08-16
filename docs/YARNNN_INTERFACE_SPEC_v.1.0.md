@@ -42,7 +42,8 @@ export type CreateDumpReq = {
 };
 export type CreateDumpRes = { dump_id: string };
 // shared/contracts/ingest.ts (optional combined flow)
-import type { CreateBasketReq, CreateDumpRes } from "./baskets";
+import type { CreateBasketReq, CreateBasketRes } from "./baskets";
+import type { CreateDumpRes } from "./dumps";
 export type IngestItem = {
   dump_request_id: string; // UUID
   text_dump?: string;
@@ -50,7 +51,7 @@ export type IngestItem = {
   meta?: Record<string, unknown>;
 };
 export type IngestReq = CreateBasketReq & { items: IngestItem[] };
-export type IngestRes = { basket_id: string; dump_ids: string[] };
+export type IngestRes = CreateBasketRes & { dumps: CreateDumpRes[] };
 ```
 
 **Runtime validation**: Implemented with Zod schemas validating at API boundary.
@@ -152,7 +153,7 @@ POST /api/baskets/ingest
     { "dump_request_id": "22222222-2222-2222-2222-222222222222", "text_dump": "first notes" }
   ]
 }
-→ 200 { "basket_id": "ba75c8a0-...", "dump_ids": ["rd_x","rd_y"] }
+→ 200 { "basket_id": "ba75c8a0-...", "dumps": [{"dump_id": "rd_x"}, {"dump_id": "rd_y"}] }
 
 ## 7) Database Changes (SQL)
 **IMPLEMENTED**: Migration `supabase/migrations/20250815_add_create_idempotency.sql` applied.
