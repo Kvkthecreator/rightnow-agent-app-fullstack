@@ -1,12 +1,8 @@
-import os
 import types
 import uuid
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-os.environ.setdefault("SUPABASE_URL", "http://localhost")
-os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "svc.key")
 
 from app.routes.dump_new import router as dump_router
 
@@ -15,51 +11,101 @@ app.include_router(dump_router, prefix="/api")
 client = TestClient(app)
 
 
-def _fake_supabase(store):
+def _supabase(store):
     def table(name: str):
-        def insert(row):
-            row = {**row}
-            if "id" not in row:
-                row["id"] = str(uuid.uuid4())
-            store[name].append(row)
-            return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[row], error=None))
+        class Q:
+            def __init__(self):
+                self._filters = []
+                self._op = None
+                self._values = None
+                self._single = False
+                self._select = None
 
-        return types.SimpleNamespace(insert=insert)
+            def select(self, _cols="*"):
+                if self._op is None:
+                    self._op = "select"
+                self._select = _cols
+                return self
+
+            def insert(self, row: dict):
+                self._op = "insert"
+                self._values = row
+                return self
+
+            def update(self, vals: dict):
+                self._op = "update"
+                self._values = vals
+                return self
+
+            def eq(self, col: str, val):
+                self._filters.append((col, val))
+                return self
+
+            def single(self):
+                self._single = True
+                return self
+
+            def execute(self):
+                data = store.setdefault(name, [])
+                if self._op == "insert":
+                    row = dict(self._values)
+                    row.setdefault("id", str(uuid.uuid4()))
+                    data.append(row)
+                    return types.SimpleNamespace(data=[row], error=None)
+                if self._op == "update":
+                    for r in data:
+                        if all(r.get(c) == v for c, v in self._filters):
+                            r.update(self._values)
+                    return types.SimpleNamespace(data=[], error=None)
+                res = data
+                for c, v in self._filters:
+                    res = [r for r in res if r.get(c) == v]
+                if self._single:
+                    return types.SimpleNamespace(data=res[0] if res else None, error=None)
+                return types.SimpleNamespace(data=res, error=None)
+
+        return Q()
 
     return types.SimpleNamespace(table=table)
 
 
 def test_dump_new(monkeypatch):
-    store = {"raw_dumps": [], "events": []}
-    fake = _fake_supabase(store)
+    user_id = "00000000-0000-0000-0000-000000000000"
+    store = {
+        "baskets": [{"id": "b1", "workspace_id": "ws1"}],
+        "workspace_memberships": [{"workspace_id": "ws1", "user_id": user_id}],
+        "raw_dumps": [],
+    }
+    fake = _supabase(store)
     monkeypatch.setattr("app.routes.dump_new.supabase", fake)
 
-    resp = client.post(
-        "/api/dumps/new",
-        json={"basket_id": "b1", "text_dump": "hello"},
-    )
+    payload = {
+        "basket_id": "b1",
+        "dump_request_id": str(uuid.uuid4()),
+        "text_dump": "hello",
+    }
+
+    resp = client.post("/api/dumps/new", json=payload)
     assert resp.status_code == 201
-    body = resp.json()
-    assert body["raw_dump_id"]
-    assert len(store["raw_dumps"]) == 1
-    assert store["raw_dumps"][0]["basket_id"] == "b1"
+    dump_id = resp.json()["dump_id"]
+    assert store["raw_dumps"][0]["id"] == dump_id
 
 
-def test_dump_fk_error(monkeypatch):
-    class _Err:
-        message = "fk fail"
-
-    def table(name: str):
-        def insert(_row):
-            return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=None, error=_Err()))
-        return types.SimpleNamespace(insert=insert)
-
-    fake = types.SimpleNamespace(table=table)
+def test_dump_requires_content(monkeypatch):
+    store = {
+        "baskets": [{"id": "b1", "workspace_id": "ws1"}],
+        "workspace_memberships": [
+            {
+                "workspace_id": "ws1",
+                "user_id": "00000000-0000-0000-0000-000000000000",
+            }
+        ],
+        "raw_dumps": [],
+    }
+    fake = _supabase(store)
     monkeypatch.setattr("app.routes.dump_new.supabase", fake)
 
-    resp = client.post(
-        "/api/dumps/new",
-        json={"basket_id": "missing", "text_dump": "oops"},
-    )
-    assert resp.status_code == 500
-    assert "fk fail" in resp.text
+    payload = {"basket_id": "b1", "dump_request_id": str(uuid.uuid4())}
+    resp = client.post("/api/dumps/new", json=payload)
+    assert resp.status_code == 422
+

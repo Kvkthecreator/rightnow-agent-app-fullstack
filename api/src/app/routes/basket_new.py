@@ -1,124 +1,122 @@
-"""Create baskets in alignment with the Yarnnn V1 canonical flow."""
+"""Create baskets following the v1 interface spec."""
 
 from __future__ import annotations
 
+import json
 import logging
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
-
-from ..event_bus import emit
-from ..baskets.schemas import BasketCreateRequest
+from ..baskets.schemas import CreateBasketReq
 from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_client as supabase
-from ..utils.workspace import get_or_create_workspace
-from ..services.template_cloner import clone_template
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 log = logging.getLogger("uvicorn.error")
 
-# ────────────────────────────────────────────────────────────────
-# 1. Request model
-# ----------------------------------------------------------------
 
-# ────────────────────────────────────────────────────────────────
-# 2. Endpoint
-# ----------------------------------------------------------------
 @router.post("/new", status_code=201)
 async def create_basket(
-    payload: BasketCreateRequest,
-    user: Annotated[dict, Depends(verify_jwt)],
+    payload: CreateBasketReq, user: Annotated[dict, Depends(verify_jwt)]
 ):
-    """Create a basket from an atomic text dump or template."""
+    """Create a basket with idempotency and workspace membership checks."""
 
-    workspace_id = get_or_create_workspace(user["user_id"])
-    log.info("create_basket user=%s workspace=%s", user["user_id"], workspace_id)
+    start = time.time()
 
-    if payload.template_slug:
-        basket_id = clone_template(
-            payload.template_slug,
-            user["user_id"],
-            workspace_id,
-            supabase,
-        )
-        return JSONResponse({"id": basket_id}, status_code=201)
-
-    basket_id: str | None = None
-
-    if payload.text_dump:
-        # Legacy flow: create basket + raw dump via stored procedure
-        try:
-            rpc_resp = (
-                supabase.rpc(
-                    "create_basket_with_dump",
-                    {
-                        "user_id": user["user_id"],
-                        "workspace_id": workspace_id,
-                        "dump_body": payload.text_dump,
-                        "file_urls": payload.file_urls,
-                    },
-                ).execute()
-            )
-            if getattr(rpc_resp, "status_code", 200) >= 400 or getattr(rpc_resp, "error", None):
-                detail = getattr(rpc_resp, "error", rpc_resp)
-                raise HTTPException(status_code=500, detail=str(detail))
-            basket_id = rpc_resp.data[0]["basket_id"]
-            log.info("created basket %s via RPC", basket_id)
-        except Exception as err:  # pragma: no cover - network
-            log.exception("create_basket rpc failed")
-            raise HTTPException(status_code=500, detail="internal error") from err
-
-        # Update metadata after RPC creation
-        try:
-            supabase.table("baskets").update(
+    # Verify workspace membership
+    membership = (
+        supabase.table("workspace_memberships")
+        .select("workspace_id")
+        .eq("workspace_id", payload.workspace_id)
+        .eq("user_id", user["user_id"])
+        .execute()
+    )
+    if not membership.data:
+        log.info(
+            json.dumps(
                 {
-                    "name": payload.name,
-                    "status": payload.status,
-                    "tags": payload.tags,
+                    "route": "/api/baskets/new",
+                    "user_id": user["user_id"],
+                    "workspace_id": payload.workspace_id,
+                    "action": "forbidden",
                 }
-            ).eq("id", basket_id).execute()
-        except Exception:  # pragma: no cover - network
-            log.exception("post-RPC basket update failed")
+            )
+        )
+        raise HTTPException(status_code=403, detail="Workspace access denied")
 
-        # Emit compose request event
-        try:
-            await emit(
-                "basket.compose_request",
+    # Check for replay using idempotency key
+    existing = (
+        supabase.table("baskets")
+        .select("id")
+        .eq("user_id", user["user_id"])
+        .eq("idempotency_key", payload.idempotency_key)
+        .execute()
+    )
+    if existing.data:
+        basket_id = existing.data[0]["id"]
+        log.info(
+            json.dumps(
                 {
+                    "route": "/api/baskets/new",
+                    "user_id": user["user_id"],
+                    "idempotency_key": payload.idempotency_key,
+                    "action": "replayed",
                     "basket_id": basket_id,
-                    "details": payload.text_dump,
-                    "file_urls": payload.file_urls,
-                },
+                    "duration_ms": int((time.time() - start) * 1000),
+                }
             )
-        except Exception as e:  # noqa: BLE001
-            log.error(
-                "[EVENT BUS] Failed to emit 'basket.compose_request': %s", e,
-            )
-    else:
-        # Simplest flow: just insert a basket row
-        try:
-            resp = (
-                supabase.table("baskets")
-                .insert(
+        )
+        return JSONResponse({"basket_id": basket_id}, status_code=200)
+
+    # Insert new basket
+    resp = (
+        supabase.table("baskets")
+        .insert(
+            {
+                "workspace_id": payload.workspace_id,
+                "user_id": user["user_id"],
+                "name": payload.name or "Untitled Basket",
+                "idempotency_key": payload.idempotency_key,
+                "status": "INIT",
+            }
+        )
+        .select("id")
+        .execute()
+    )
+
+    if getattr(resp, "error", None):
+        err = resp.error
+        if getattr(err, "code", "") == "23505":
+            log.info(
+                json.dumps(
                     {
-                        "workspace_id": workspace_id,
+                        "route": "/api/baskets/new",
                         "user_id": user["user_id"],
-                        "name": payload.name,
-                        "status": payload.status,
-                        "tags": payload.tags,
+                        "idempotency_key": payload.idempotency_key,
+                        "action": "conflict",
+                        "duration_ms": int((time.time() - start) * 1000),
                     }
                 )
-                .execute()
             )
-            if getattr(resp, "status_code", 200) >= 400 or getattr(resp, "error", None):
-                detail = getattr(resp, "error", resp)
-                raise HTTPException(status_code=500, detail=str(detail))
-            basket_id = resp.data[0]["id"]
-            log.info("created empty basket %s", basket_id)
-        except Exception as err:  # pragma: no cover - network
-            log.exception("simple basket insert failed")
-            raise HTTPException(status_code=500, detail="internal error") from err
+            raise HTTPException(status_code=409, detail="IDEMPOTENCY_CONFLICT")
+        log.exception("basket insert failed: %s", err)
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
-    return JSONResponse({"id": basket_id}, status_code=201)
+    basket_id = resp.data[0]["id"]
+    log.info(
+        json.dumps(
+            {
+                "route": "/api/baskets/new",
+                "user_id": user["user_id"],
+                "idempotency_key": payload.idempotency_key,
+                "action": "created",
+                "basket_id": basket_id,
+                "duration_ms": int((time.time() - start) * 1000),
+            }
+        )
+    )
+    return JSONResponse({"basket_id": basket_id}, status_code=201)
+

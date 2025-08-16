@@ -8,7 +8,7 @@ Consumers: Web frontend (Next.js), FastAPI server, E2E tests.
 
 **IMPLEMENTED**: This specification has been fully implemented as of 2025-08-15. All features, database migrations, API endpoints, and frontend flows are complete and tested.
 
-Single source of truth: DTOs in `shared/contracts/*` (imported by FE & BE). This doc mirrors those contracts and defines transport semantics.
+Single source of truth: DTOs in `shared/contracts/*` (imported by FE & BE). This doc mirrors those contracts and defines transport semantics. Legacy notes in `api/docs/create.md` have been removed so this file remains canonical.
 
 ## 1) Global Conventions
 Auth: Bearer JWT (Supabase) on all endpoints.
