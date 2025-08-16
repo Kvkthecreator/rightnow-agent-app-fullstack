@@ -81,8 +81,8 @@ def test_basket_new_replay(monkeypatch):
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
     payload = {
-        "name": "Test",
         "idempotency_key": str(uuid.uuid4()),
+        "basket": {"name": "Test"},
     }
 
     r1 = client.post("/api/baskets/new", json=payload)
@@ -92,7 +92,10 @@ def test_basket_new_replay(monkeypatch):
     r2 = client.post("/api/baskets/new", json=payload)
     assert r2.status_code == 200
     assert r2.json()["basket_id"] == bid
-    payload2 = {"name": "Test", "idempotency_key": payload["idempotency_key"]}
+    payload2 = {
+        "idempotency_key": payload["idempotency_key"],
+        "basket": {"name": "Test"},
+    }
     r2 = client.post("/api/baskets/new", json=payload2)
     assert r2.status_code == 200
     assert r2.json()["basket_id"] == bid
@@ -103,7 +106,7 @@ def test_basket_new_creates_workspace(monkeypatch):
     fake = _supabase(store)
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
-    payload = {"idempotency_key": str(uuid.uuid4())}
+    payload = {"idempotency_key": str(uuid.uuid4()), "basket": {}}
     resp = client.post("/api/baskets/new", json=payload)
     assert resp.status_code == 201
     assert store["workspaces"]

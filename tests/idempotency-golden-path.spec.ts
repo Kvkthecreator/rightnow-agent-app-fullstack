@@ -120,8 +120,8 @@ test.describe('Idempotency Golden Path', () => {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          name: 'Test Basket',
-          idempotency_key: 'invalid-uuid'
+          idempotency_key: 'invalid-uuid',
+          basket: { name: 'Test Basket' }
         })
       }).then(res => ({ status: res.status, body: res.json() }));
     });
@@ -158,7 +158,7 @@ test.describe('Idempotency Golden Path', () => {
         credentials: 'include',
         body: JSON.stringify(data)
       }).then(res => ({ status: res.status, body: res.json() }));
-    }, { name: 'Test Basket', idempotency_key: idempotencyKey });
+    }, { idempotency_key: idempotencyKey, basket: { name: 'Test Basket' } });
     
     expect(firstRequest.status).toBe(201); // Created
     
@@ -170,7 +170,7 @@ test.describe('Idempotency Golden Path', () => {
         credentials: 'include',
         body: JSON.stringify(data)
       }).then(res => ({ status: res.status, body: res.json() }));
-    }, { name: 'Test Basket', idempotency_key: idempotencyKey });
+    }, { idempotency_key: idempotencyKey, basket: { name: 'Test Basket' } });
     
     expect(replayRequest.status).toBe(200); // Replayed
     

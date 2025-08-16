@@ -64,6 +64,7 @@ def test_create_and_list(monkeypatch):
 
     payload = {
         "idempotency_key": str(uuid.uuid4()),
+        "basket": {},
     }
 
     resp = client.post("/api/baskets/new", json=payload)
@@ -80,7 +81,7 @@ def test_auto_workspace(monkeypatch):
     fake = _supabase(store)
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
 
-    payload = {"idempotency_key": str(uuid.uuid4())}
+    payload = {"idempotency_key": str(uuid.uuid4()), "basket": {}}
     resp = client.post("/api/baskets/new", json=payload)
     assert resp.status_code == 201
     assert store["workspaces"]

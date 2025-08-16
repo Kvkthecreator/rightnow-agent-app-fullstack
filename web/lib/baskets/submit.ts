@@ -68,14 +68,9 @@ export function buildContextBlocks(values: BasketValues): ContextBlock[] {
 import { apiClient } from "../api/client";
 
 export async function createBasket(values: BasketValues): Promise<{ basket_id: string }> {
-  const workspaceId =
-    (typeof window !== "undefined" &&
-      localStorage.getItem("workspace_id")) ||
-    "00000000-0000-0000-0000-000000000001";
   const payload = {
-    workspace_id: workspaceId,
-    name: values.topic || "Untitled Basket",
     idempotency_key: crypto.randomUUID(),
+    basket: { name: values.topic || "Untitled Basket" },
   };
   return apiClient.request<{ basket_id: string }>("/api/baskets/new", {
     method: "POST",

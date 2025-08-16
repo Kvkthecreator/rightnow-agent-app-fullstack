@@ -89,7 +89,7 @@ Create Basket
 POST /api/baskets/new
 Authorization: Bearer <jwt>
 
-Body: { "name": "My Basket", "idempotency_key": "<uuid>" }
+Body: { "idempotency_key": "<uuid>", "basket": { "name": "My Basket" } }
 
 Behavior:
 - Verify JWT → userId

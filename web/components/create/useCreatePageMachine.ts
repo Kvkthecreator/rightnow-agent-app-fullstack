@@ -224,8 +224,8 @@ useEffect(() => {
       // 1) Create basket with idempotency (spec v0.1.0 compliant)
       logStep('before basket create', { idempotency_key });
       const basketReq: CreateBasketReq = {
-        name: intent.trim() || 'Untitled Basket',
         idempotency_key,
+        basket: { name: intent.trim() || 'Untitled Basket' },
       };
       
       const basketRes = await fetch('/api/baskets/new', {
