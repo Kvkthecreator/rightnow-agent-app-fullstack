@@ -1,12 +1,12 @@
-import { z } from 'zod';
+// shared/contracts/baskets.ts
+// Canon contracts: pure TypeScript types (no Zod).
 
-export const CreateBasketReqSchema = z.object({
-  name: z.string().optional(),
-  idempotency_key: z.string().uuid(),
-});
-export type CreateBasketReq = z.infer<typeof CreateBasketReqSchema>;
+export type CreateBasketReq = {
+  // workspace is resolved server-side; client must NOT send it
+  name?: string;
+  idempotency_key: string; // UUID
+};
 
-export const CreateBasketResSchema = z.object({
-  basket_id: z.string().uuid(),
-});
-export type CreateBasketRes = z.infer<typeof CreateBasketResSchema>;
+export type CreateBasketRes = {
+  basket_id: string; // UUID
+};

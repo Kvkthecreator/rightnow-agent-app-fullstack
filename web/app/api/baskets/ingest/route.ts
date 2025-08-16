@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { IngestReqSchema } from '@shared/contracts/ingest';
+import { IngestReqSchema } from '@/lib/schemas/ingest';
 import { getAuthenticatedUser, ensureWorkspaceForUser } from '@/lib/server/auth';
 import { ingestBasketAndDumps } from '@/lib/server/ingest';
 
