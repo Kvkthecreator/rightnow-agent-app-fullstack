@@ -1,11 +1,8 @@
-import os
 import types
 import uuid
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-os.environ.setdefault("SUPABASE_URL", "http://localhost")
-os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "svc.key")
 
 from app.routes.basket_new import router as new_router
 
@@ -16,51 +13,75 @@ client = TestClient(app)
 
 def _supabase(store):
     def table(name: str):
-        def insert(row: dict):
-            row = {**row}
-            if "id" not in row:
-                row["id"] = str(uuid.uuid4())
-            store.setdefault(name, []).append(row)
-            return types.SimpleNamespace(execute=lambda: types.SimpleNamespace(data=[row], error=None))
+        class Q:
+            def __init__(self):
+                self._filters = []
+                self._op = None
+                self._values = None
+                self._single = False
+                self._select = None
 
-        def select(_cols="*"):
-            def eq(col: str, val: str):
-                data = [r for r in store.get(name, []) if r.get(col) == val]
-                def execute():
-                    if data:
-                        return types.SimpleNamespace(data=data, error=None)
-                    return types.SimpleNamespace(status_code=403, data=None, error="forbidden")
-                return types.SimpleNamespace(execute=execute)
-            return types.SimpleNamespace(eq=eq)
+            def select(self, _cols="*"):
+                if self._op is None:
+                    self._op = "select"
+                self._select = _cols
+                return self
 
-        return types.SimpleNamespace(insert=insert, select=select)
+            def insert(self, row: dict):
+                self._op = "insert"
+                self._values = row
+                return self
+
+            def eq(self, col: str, val):
+                self._filters.append((col, val))
+                return self
+
+            def execute(self):
+                data = store.setdefault(name, [])
+                if self._op == "insert":
+                    row = dict(self._values)
+                    row.setdefault("id", str(uuid.uuid4()))
+                    data.append(row)
+                    return types.SimpleNamespace(data=[row], error=None)
+                res = data
+                for c, v in self._filters:
+                    res = [r for r in res if r.get(c) == v]
+                return types.SimpleNamespace(data=res, error=None)
+
+        return Q()
 
     return types.SimpleNamespace(table=table)
 
 
-def test_create_and_list_same_user(monkeypatch):
-    store = {"baskets": [], "raw_dumps": []}
+def test_create_and_list(monkeypatch):
+    user_id = "00000000-0000-0000-0000-000000000000"
+    store = {
+        "workspace_memberships": [{"workspace_id": "ws1", "user_id": user_id}],
+        "baskets": [],
+    }
     fake = _supabase(store)
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
-    monkeypatch.setattr("app.routes.basket_new.get_user", lambda: types.SimpleNamespace(id="u1"))
 
-    resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
+    payload = {
+        "workspace_id": "ws1",
+        "idempotency_key": str(uuid.uuid4()),
+    }
+
+    resp = client.post("/api/baskets/new", json=payload)
     assert resp.status_code == 201
-    bid = resp.json()["id"]
+    bid = resp.json()["basket_id"]
 
-    items = fake.table("baskets").select("*").eq("user_id", "u1").execute()
-    assert items.data is not None
+    items = fake.table("baskets").select("*").eq("user_id", user_id).execute()
     assert len(items.data) == 1
     assert items.data[0]["id"] == bid
 
 
-def test_cross_user_forbidden(monkeypatch):
-    store = {"baskets": [], "raw_dumps": []}
+def test_create_forbidden(monkeypatch):
+    store = {"workspace_memberships": [], "baskets": []}
     fake = _supabase(store)
     monkeypatch.setattr("app.routes.basket_new.supabase", fake)
-    monkeypatch.setattr("app.routes.basket_new.get_user", lambda: types.SimpleNamespace(id="u1"))
-    resp = client.post("/api/baskets/new", json={"text_dump": "hello"})
-    assert resp.status_code == 201
 
-    resp2 = fake.table("baskets").select("*").eq("user_id", "u2").execute()
-    assert getattr(resp2, "status_code", 200) == 403
+    payload = {"workspace_id": "ws1", "idempotency_key": str(uuid.uuid4())}
+    resp = client.post("/api/baskets/new", json=payload)
+    assert resp.status_code == 403
+
