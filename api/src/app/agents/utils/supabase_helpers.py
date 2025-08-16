@@ -3,9 +3,9 @@ from uuid import uuid4
 
 from src.utils.db import json_safe
 
-from app.utils.supabase_client import get_supabase
+from app.utils.supabase_client import get_supabase, supabase_client
 
-supabase = get_supabase()
+supabase = supabase_client
 
 
 def get_collected_fields(user_id: str, task_id: str) -> dict:

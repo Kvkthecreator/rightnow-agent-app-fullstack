@@ -1,10 +1,9 @@
 """Backfill basket_inputs rows into dump_artifacts."""
 
-from app.agents.utils.supabase_helpers import get_supabase
+from app.utils.supabase_client import supabase_client as supabase
 
 
 def main() -> None:
-    supabase = get_supabase()
     resp = supabase.table("basket_inputs").select("*").execute()
     rows = resp.data or []
 
