@@ -1,0 +1,25 @@
+import { createServiceRoleClient } from '@/lib/supabase/serviceRole';
+import type { IngestRes } from '@shared/contracts/ingest';
+
+interface IngestArgs {
+  workspaceId: string;
+  userId: string;
+  idempotency_key: string;
+  basket?: { name?: string };
+  dumps: Array<{ dump_request_id: string; text_dump?: string; file_urls?: string[] }>;
+}
+
+export async function ingestBasketAndDumps(args: IngestArgs): Promise<IngestRes> {
+  const supabase = createServiceRoleClient();
+  const payload = {
+    p_workspace_id: args.workspaceId,
+    p_idempotency_key: args.idempotency_key,
+    p_basket_name: args.basket?.name ?? null,
+    p_dumps: JSON.stringify(args.dumps),
+  };
+  const { data, error } = await supabase.rpc('ingest_basket_and_dumps', payload);
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data as IngestRes;
+}
