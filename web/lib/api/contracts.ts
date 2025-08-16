@@ -180,9 +180,10 @@ export const RawDumpSchema = z.object({
 export type RawDump = z.infer<typeof RawDumpSchema>;
 
 export const CreateDumpRequestSchema = z.object({
+  dump_request_id: UUIDSchema,
   basket_id: UUIDSchema,
   text_dump: z.string(),
-  file_urls: z.array(z.string()).optional(),
+  file_url: z.string().optional(),
 });
 
 export type CreateDumpRequest = z.infer<typeof CreateDumpRequestSchema>;
