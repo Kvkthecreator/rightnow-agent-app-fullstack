@@ -86,31 +86,30 @@ export async function POST(req: NextRequest) {
   
   const accessToken = session.access_token;
   
-  // Decode token to check claims (without verification)
-  let tokenInfo: any = {};
+  // Decode token to check header & payload (without verification)
+  let tokenHeaderAlg: string | undefined;
+  let tokenPayload: any = undefined;
   try {
-    const parts = accessToken.split('.');
+    const parts = accessToken.split(".");
     if (parts.length === 3) {
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-      tokenInfo = {
-        iss: payload.iss,
-        sub: payload.sub,
-        aud: payload.aud,
-        exp: payload.exp,
-        iat: payload.iat,
-        expiresIn: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'unknown',
-        isExpired: payload.exp ? Date.now() / 1000 > payload.exp : 'unknown'
-      };
+      tokenHeaderAlg = JSON.parse(
+        Buffer.from(parts[0], "base64").toString()
+      ).alg;
+      tokenPayload = JSON.parse(
+        Buffer.from(parts[1], "base64").toString()
+      );
     }
-  } catch (e) {
-    tokenInfo = { error: 'Failed to decode token' };
+  } catch {
+    tokenHeaderAlg = "decode-failed";
+    tokenPayload = { error: "Failed to decode token" };
   }
-  
-  console.log("baskets/new: Token forwarding", { 
-    hasToken: !!accessToken, 
+
+  console.log("baskets/new: Token forwarding", {
+    hasToken: !!accessToken,
     tokenPrefix: accessToken?.substring(0, 20) + "...",
     apiBase: API_BASE,
-    tokenInfo
+    tokenHeaderAlg,
+    tokenPayload,
   });
 
   // 3) Forward to FastAPI with Bearer token (workspace bootstrap is server-side)
@@ -149,7 +148,8 @@ export async function POST(req: NextRequest) {
           apiUrl: `${API_BASE}/api/baskets/new`,
           hasToken: !!accessToken,
           tokenPrefix: accessToken?.substring(0, 20) + "...",
-          tokenInfo,
+          tokenHeaderAlg,
+          tokenPayload,
           headers: {
             Authorization: `Bearer ${accessToken?.substring(0, 20)}...`,
             "sb-access-token": accessToken?.substring(0, 20) + "..."
