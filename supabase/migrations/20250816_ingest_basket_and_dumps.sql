@@ -48,15 +48,12 @@ BEGIN
     RETURNING id, (xmax = 0) INTO v_dump_id, v_dump_created;
 
     v_dump_results := v_dump_results || jsonb_build_object(
-      'id', v_dump_id,
-      'dump_request_id', v_dump->>'dump_request_id',
-      'created', v_dump_created
+      'dump_id', v_dump_id
     );
   END LOOP;
 
   v_out := jsonb_build_object(
-    'workspace_id', p_workspace_id,
-    'basket', jsonb_build_object('id', v_basket_id, 'created', v_basket_created),
+    'basket_id', v_basket_id,
     'dumps', v_dump_results
   );
   RETURN v_out;

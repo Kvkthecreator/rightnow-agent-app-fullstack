@@ -30,9 +30,8 @@ type IngestReq = {
 
 // IngestRes
 type IngestRes = {
-  workspace_id: string;
-  basket: { id: string; created: boolean };       // created=false => replayed
-  dumps: Array<{ id: string; dump_request_id: string; created: boolean }>;
+  basket_id: string;
+  dumps: Array<{ dump_id: string }>;
 };
 
 ## 4) Idempotency Rules (authoritative)
@@ -46,7 +45,7 @@ Idempotency keys MUST be stable, client-generated, and collision-resistant (e.g.
 The ingest operation MUST be atomic. Either:
 Use a single SQL function that wraps the process in a transaction, or
 Use a server-side transaction with equivalent guarantees.
-On success, the response MUST include created|replayed booleans for basket and each dump.
+The response returns only IDs. Created vs replayed status SHOULD be captured in logs, not in the payload.
 ## 6) Logging
 Server MUST log request_id, user_id, workspace_id, idempotency_key, and outcome per entity:
 basket.created|replayed
@@ -66,5 +65,4 @@ Elevated actions are not part of ingest; standard member privileges suffice.
 ## 9) Testability
 The combined flow MUST have an integration test that:
 Calls /api/baskets/ingest with {idempotency_key, dumps[]} and a valid user session.
-Replays the same request and observes: basket.created=false, each replayed dump created=false.
-Confirms all rows carry the same workspace_id.
+Replays the same request and observes identical basket_id and dump_ids.
