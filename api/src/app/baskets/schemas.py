@@ -1,5 +1,6 @@
+from typing import Literal, Optional, Union
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal, Union
 
 # Work Mode Types
 WorkMode = Literal["init_build", "evolve_turn"]
@@ -16,8 +17,8 @@ Source = Union[SourceRawDump, SourceText]
 
 class WorkPolicy(BaseModel):
     allow_structural_changes: bool = True
-    preserve_blocks: List[str] = []
-    update_document_ids: List[str] = []
+    preserve_blocks: list[str] = []
+    update_document_ids: list[str] = []
     strict_link_provenance: bool = True
 
 class WorkOptions(BaseModel):
@@ -27,19 +28,13 @@ class WorkOptions(BaseModel):
 
 class BasketWorkRequest(BaseModel):
     mode: WorkMode
-    sources: List[Source] = Field(default_factory=list)
+    sources: list[Source] = Field(default_factory=list)
     policy: WorkPolicy = WorkPolicy()
     options: WorkOptions = WorkOptions()
 
-class BasketCreateRequest(BaseModel):
-    """Payload for `/api/baskets/new`."""
+class CreateBasketReq(BaseModel):
+    """DTO matching the CreateBasketReq contract."""
 
-    # Optional metadata for the basket itself
+    workspace_id: str
+    idempotency_key: str
     name: Optional[str] = "Untitled Basket"
-    status: Optional[str] = "active"
-    tags: Optional[List[str]] = Field(default_factory=list)
-
-    # Legacy creation fields for bootstrapping from text/file uploads
-    text_dump: Optional[str] = None
-    file_urls: List[str] = Field(default_factory=list)
-    template_slug: Optional[str] = None  # ✅ Now valid

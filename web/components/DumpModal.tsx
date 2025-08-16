@@ -44,7 +44,7 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
     }
     setLoading(true);
     try {
-      await createDump(basketId, text, []);
+      await createDump(basketId, text);
       toast.success("Dump saved ✓");
       setOpen(false);
       setText("");

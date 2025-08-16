@@ -5,19 +5,27 @@ import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
 
 export interface CreateBasketArgs {
   userId: string;
+  workspaceId: string;
   text: string;
   files?: (File | string)[];
+  name?: string;
 }
 export async function createBasketWithInput({
   userId,
+  workspaceId,
   text,
   files = [],
+  name,
 }: CreateBasketArgs) {
   const supabase = createClient();
   // 1️⃣ Core basket creation via privileged API route
-  const payload = { body_md: text, file_refs: [] as string[] };
+  const payload: Record<string, string> = {
+    workspace_id: workspaceId,
+    idempotency_key: crypto.randomUUID(),
+  };
+  if (name) payload.name = name;
   console.log("[createBasketWithInput] Payload:", payload);
-  const resp = await fetchWithToken("/api/baskets", {
+  const resp = await fetchWithToken("/api/baskets/new", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -26,7 +34,8 @@ export async function createBasketWithInput({
     const msg = await resp.text();
     throw new Error(msg || `createBasket failed (${resp.status})`);
   }
-  const basket = (await resp.json()) as { id: string };
+  const result = (await resp.json()) as { basket_id: string };
+  const basket = { id: result.basket_id };
 
   // 2️⃣ File sidecar: decoupled, fail-safe
   if (files?.length) {

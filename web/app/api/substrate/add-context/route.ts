@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       .filter(Boolean);
     
     // Create raw_dump using existing function
-    const rawDump = await createDump(basketId, consolidatedContent, fileUrls);
+    const dump = await createDump(basketId, consolidatedContent, fileUrls[0]);
     
     // Trigger immediate background intelligence generation for raw dumps
     try {
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       triggerBackgroundIntelligenceGeneration({
         basketId,
         origin: 'raw_dump_added',
-        rawDumpId: rawDump.raw_dump_id
+        rawDumpId: dump.dump_id
       });
       
       console.log(`Background intelligence generation triggered for raw dump in basket ${basketId}`);
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     // Build response
     const result: AddContextResult = {
       success: true,
-      rawDumpId: rawDump.raw_dump_id,
+      rawDumpId: dump.dump_id,
       processingResults: {
         contentProcessed: content.length,
         insights: processingResults?.results ? 'Generated' : 'None',

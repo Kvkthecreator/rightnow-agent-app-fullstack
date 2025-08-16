@@ -1,194 +1,150 @@
+"""Create raw dumps following the v1 interface spec."""
+
 from __future__ import annotations
 
-import os
 import json
 import logging
-from uuid import uuid4
-from typing import List, Dict, Any, Optional
-import httpx
+import time
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, model_validator
 
-from ..utils.db import as_json
-from ..utils.supabase_client import supabase_client as supabase
 from ..utils.jwt import verify_jwt
-from ..utils.workspace import get_or_create_workspace
-from ..ingestion.pipeline import chunk_text
-from ..ingestion.parsers.pdf_text import extract_pdf_text, PYMUPDF_AVAILABLE
+from ..utils.supabase_client import supabase_client as supabase
 
 router = APIRouter(prefix="/dumps", tags=["dumps"])
-logger = logging.getLogger("uvicorn.error")
-
-# Configuration from environment
-ALLOWED_PUBLIC_BASE = os.getenv("ALLOWED_PUBLIC_BASE", "").rstrip("/")
-if ALLOWED_PUBLIC_BASE:
-    ALLOWED_PUBLIC_BASE += "/"
-PDF_MAX_BYTES = int(os.getenv("PDF_MAX_BYTES", "20000000"))
-CHUNK_LEN = int(os.getenv("CHUNK_LEN", "30000"))
-FETCH_TIMEOUT_SECONDS = int(os.getenv("FETCH_TIMEOUT_SECONDS", "20"))
-
-def is_allowed_url(url: str) -> bool:
-    """Check if URL is from allowed public base."""
-    if not ALLOWED_PUBLIC_BASE:
-        raise HTTPException(500, "ALLOWED_PUBLIC_BASE not configured")
-    return url.startswith(ALLOWED_PUBLIC_BASE)
+log = logging.getLogger("uvicorn.error")
 
 
-class DumpPayload(BaseModel):
+class CreateDumpReq(BaseModel):
     basket_id: str
-    text_dump: str
-    file_urls: list[str] | None = None
+    dump_request_id: str
+    text_dump: str | None = None
+    file_url: str | None = None
+    meta: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def require_content(cls, model):  # type: ignore[override]
+        if not model.text_dump and not model.file_url:
+            raise ValueError("Either text_dump or file_url must be provided")
+        return model
 
 
 @router.post("/new", status_code=201)
-async def create_dump(p: DumpPayload, req: Request, user: dict = Depends(verify_jwt)):
-    trace_id = req.headers.get("X-Req-Id") or f"dump_{uuid4().hex[:8]}"
-    
-    # Validate basket_id is string (no null)
-    if not p.basket_id:
-        raise HTTPException(400, "basket_id is required")
-        
-    workspace_id = get_or_create_workspace(user["user_id"])
-    
-    # Aggregate all text content
-    agg_text = p.text_dump or ""
-    source_meta: List[Dict[str, Any]] = []
-    
-    # Process file URLs if provided
-    if p.file_urls:
-        if not PYMUPDF_AVAILABLE:
-            logger.warning(f"[{trace_id}] PyMuPDF not available, files will be references only")
-            
-        for url in p.file_urls:
-            # SSRF protection
-            if not is_allowed_url(url):
-                raise HTTPException(400, f"Disallowed file URL: {url}")
-                
-            meta_item = {"url": url, "parsed": False}
-            
-            try:
-                # Fetch file with timeout and size limits
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(
-                        url, 
-                        timeout=FETCH_TIMEOUT_SECONDS,
-                        follow_redirects=True
-                    )
-                    response.raise_for_status()
-                    
-                    # Check content length
-                    size = int(response.headers.get("Content-Length", "0"))
-                    if size > PDF_MAX_BYTES:
-                        raise HTTPException(413, f"File too large: {size} bytes")
-                        
-                    content = response.content
-                    mime = response.headers.get("Content-Type", "")
-                    meta_item["mime"] = mime
-                    meta_item["size"] = len(content)
-                    
-                    # Try to parse if PDF
-                    if ("pdf" in mime.lower() or 
-                        content.startswith(b"%PDF-") or 
-                        url.lower().endswith(".pdf")) and PYMUPDF_AVAILABLE:
-                        try:
-                            pdf_text = extract_pdf_text(content)
-                            if pdf_text.strip():
-                                meta_item["parsed"] = True
-                                meta_item["chars_extracted"] = len(pdf_text)
-                                # Append with separator if we have existing text
-                                if agg_text:
-                                    agg_text += "\n\n"
-                                agg_text += pdf_text
-                                logger.info(f"[{trace_id}] Parsed PDF: {url} ({len(pdf_text)} chars)")
-                            else:
-                                meta_item["parse_error"] = "No text content found"
-                        except Exception as e:
-                            meta_item["parse_error"] = str(e)
-                            logger.warning(f"[{trace_id}] PDF parse failed for {url}: {e}")
-                            
-            except HTTPException:
-                raise  # Re-raise HTTP errors
-            except httpx.TimeoutException:
-                meta_item["parse_error"] = "Fetch timeout"
-                logger.warning(f"[{trace_id}] Timeout fetching {url}")
-            except Exception as e:
-                meta_item["parse_error"] = str(e)
-                logger.warning(f"[{trace_id}] Failed to fetch {url}: {e}")
-                
-            source_meta.append(meta_item)
-    
-    # Check if we have any usable text
-    if not agg_text.strip():
-        # Check if we at least tried to parse PDFs
-        parsed_count = sum(1 for m in source_meta if m.get("parsed", False))
-        if source_meta and parsed_count == 0:
-            # All files failed to parse or were non-PDF
-            if not p.text_dump:
-                raise HTTPException(422, "No usable text to ingest (PDF parsing failed or no text content)")
-        elif not p.text_dump and not p.file_urls:
-            raise HTTPException(422, "No content provided")
-            
-        # Fall back to reference-only if we have some text or URLs
-        ref_parts = []
-        if p.text_dump and p.text_dump.strip():
-            ref_parts.append(p.text_dump.strip())
-        if p.file_urls:
-            ref_parts.extend(f"[file]({url})" for url in p.file_urls)
-        agg_text = "\n\n".join(ref_parts)
-    
-    # Chunk the aggregated text
-    chunks = chunk_text(agg_text, CHUNK_LEN)
-    dump_ids: List[str] = []
-    
-    # Insert all chunks as raw_dumps
-    for idx, chunk in enumerate(chunks):
-        dump_id = str(uuid4())
-        dump_data = {
-            "id": dump_id,
-            "basket_id": str(p.basket_id),
-            "workspace_id": workspace_id,
-            "body_md": chunk.text,
-            "file_refs": p.file_urls or [] if idx == 0 else [],  # Only first gets file_refs
-            "source_meta": source_meta if idx == 0 else None,  # Only first gets metadata
-            "ingest_trace_id": trace_id,
-        }
-        
-        resp = supabase.table("raw_dumps").insert(as_json(dump_data)).execute()
-        
-        if getattr(resp, "error", None):
-            err = getattr(resp, "error", None)
-            detail = err.message if hasattr(err, "message") else str(err)
-            logger.error(f"[{trace_id}] Failed to insert dump: {detail}")
-            raise HTTPException(500, f"Database error: {detail}")
-            
-        dump_ids.append(dump_id)
-    
-    # Log single event for all dumps created
-    event_payload = {
-        "dump_ids": dump_ids,
-        "chunk_count": len(dump_ids),
-        "trace_id": trace_id,
-        "parsed_files": sum(1 for m in source_meta if m.get("parsed", False)),
-        "total_files": len(source_meta),
+async def create_dump(
+    payload: CreateDumpReq, req: Request, user: Annotated[dict, Depends(verify_jwt)]
+):
+    """Create a raw dump with replay-safe idempotency."""
+
+    start = time.time()
+
+    # Fetch basket and verify workspace membership
+    basket = (
+        supabase.table("baskets")
+        .select("id, workspace_id")
+        .eq("id", payload.basket_id)
+        .single()
+        .execute()
+    )
+    if not basket.data:
+        raise HTTPException(status_code=404, detail="Basket not found")
+    workspace_id = basket.data["workspace_id"]
+
+    membership = (
+        supabase.table("workspace_memberships")
+        .select("workspace_id")
+        .eq("workspace_id", workspace_id)
+        .eq("user_id", user["user_id"])
+        .execute()
+    )
+    if not membership.data:
+        log.info(
+            json.dumps(
+                {
+                    "route": "/api/dumps/new",
+                    "user_id": user["user_id"],
+                    "basket_id": payload.basket_id,
+                    "dump_request_id": payload.dump_request_id,
+                    "action": "forbidden",
+                }
+            )
+        )
+        raise HTTPException(status_code=403, detail="Workspace access denied")
+
+    # Idempotency check
+    existing = (
+        supabase.table("raw_dumps")
+        .select("id")
+        .eq("basket_id", payload.basket_id)
+        .eq("dump_request_id", payload.dump_request_id)
+        .execute()
+    )
+    if existing.data:
+        dump_id = existing.data[0]["id"]
+        log.info(
+            json.dumps(
+                {
+                    "route": "/api/dumps/new",
+                    "user_id": user["user_id"],
+                    "basket_id": payload.basket_id,
+                    "dump_request_id": payload.dump_request_id,
+                    "action": "replayed",
+                    "dump_id": dump_id,
+                    "duration_ms": int((time.time() - start) * 1000),
+                }
+            )
+        )
+        return JSONResponse({"dump_id": dump_id}, status_code=200)
+
+    dump_data = {
+        "basket_id": payload.basket_id,
+        "dump_request_id": payload.dump_request_id,
+        "workspace_id": workspace_id,
+        "body_md": payload.text_dump,
+        "file_url": payload.file_url,
+        "source_meta": payload.meta or {},
+        "processing_status": "unprocessed",
     }
-        
-    supabase.table("events").insert(
-        as_json(
+    resp = supabase.table("raw_dumps").insert(dump_data).select("id").execute()
+
+    if getattr(resp, "error", None):
+        err = resp.error
+        if getattr(err, "code", "") == "23505":
+            log.info(
+                json.dumps(
+                    {
+                        "route": "/api/dumps/new",
+                        "user_id": user["user_id"],
+                        "basket_id": payload.basket_id,
+                        "dump_request_id": payload.dump_request_id,
+                        "action": "conflict",
+                        "duration_ms": int((time.time() - start) * 1000),
+                    }
+                )
+            )
+            raise HTTPException(status_code=409, detail="IDEMPOTENCY_CONFLICT")
+        log.exception("dump insert failed: %s", err)
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
+
+    dump_id = resp.data[0]["id"]
+
+    # Set basket.raw_dump_id if not already set
+    supabase.table("baskets").update({"raw_dump_id": dump_id}).eq("id", payload.basket_id).execute()
+
+    log.info(
+        json.dumps(
             {
-                "id": str(uuid4()),
-                "basket_id": str(p.basket_id),
-                "workspace_id": workspace_id,
-                "kind": "dump.created",
-                "payload": event_payload,
+                "route": "/api/dumps/new",
+                "user_id": user["user_id"],
+                "basket_id": payload.basket_id,
+                "dump_request_id": payload.dump_request_id,
+                "action": "created",
+                "dump_id": dump_id,
+                "duration_ms": int((time.time() - start) * 1000),
             }
         )
-    ).execute()
-    
-    logger.info(f"[{trace_id}] Created {len(dump_ids)} dumps for basket {p.basket_id}")
-    
-    # Return appropriate format based on chunk count
-    if len(dump_ids) == 1:
-        return {"raw_dump_id": dump_ids[0]}
-    else:
-        return {"raw_dump_ids": dump_ids}
+    )
+    return JSONResponse({"dump_id": dump_id}, status_code=201)
+

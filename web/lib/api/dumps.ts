@@ -11,23 +11,27 @@ import {
  */
 
 // Create new raw dump
-export async function createDump(request: CreateDumpRequest): Promise<{
-  raw_dump_id: string;
+export async function createDump(
+  request: Omit<CreateDumpRequest, 'dump_request_id'>,
+): Promise<{
+  dump_id: string;
   status: string;
   processing: string;
 }> {
+  const payload = { ...request, dump_request_id: crypto.randomUUID() };
+
   // Validate request payload
-  const validatedRequest = CreateDumpRequestSchema.parse(request);
-  
+  const validatedRequest = CreateDumpRequestSchema.parse(payload);
+
   const response = await apiClient({
     url: '/api/dumps/new',
     method: 'POST',
     body: validatedRequest,
     signal: timeoutSignal(20000), // Longer timeout for processing
   });
-  
+
   return response as {
-    raw_dump_id: string;
+    dump_id: string;
     status: string;
     processing: string;
   };
