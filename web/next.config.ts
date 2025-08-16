@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   },
 
+  experimental: {
+    externalDir: true,
+  },
+
   webpack(config, { isServer, dev }) {
     // Add build-time validation for production builds
     if (!dev && !isServer) {
@@ -36,6 +40,7 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname),
+      '@shared': path.resolve(__dirname, '../shared'),
       // PDF.js server-side compatibility
       canvas: false,
     }
