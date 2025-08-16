@@ -85,10 +85,32 @@ export async function POST(req: NextRequest) {
   }
   
   const accessToken = session.access_token;
+  
+  // Decode token to check claims (without verification)
+  let tokenInfo: any = {};
+  try {
+    const parts = accessToken.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+      tokenInfo = {
+        iss: payload.iss,
+        sub: payload.sub,
+        aud: payload.aud,
+        exp: payload.exp,
+        iat: payload.iat,
+        expiresIn: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'unknown',
+        isExpired: payload.exp ? Date.now() / 1000 > payload.exp : 'unknown'
+      };
+    }
+  } catch (e) {
+    tokenInfo = { error: 'Failed to decode token' };
+  }
+  
   console.log("baskets/new: Token forwarding", { 
     hasToken: !!accessToken, 
     tokenPrefix: accessToken?.substring(0, 20) + "...",
-    apiBase: API_BASE 
+    apiBase: API_BASE,
+    tokenInfo
   });
 
   // 3) Forward to FastAPI with Bearer token (workspace bootstrap is server-side)
@@ -124,8 +146,14 @@ export async function POST(req: NextRequest) {
         debug: {
           location: "baskets/new -> FastAPI",
           apiBase: API_BASE,
+          apiUrl: `${API_BASE}/api/baskets/new`,
           hasToken: !!accessToken,
           tokenPrefix: accessToken?.substring(0, 20) + "...",
+          tokenInfo,
+          headers: {
+            Authorization: `Bearer ${accessToken?.substring(0, 20)}...`,
+            "sb-access-token": accessToken?.substring(0, 20) + "..."
+          },
           originalError: errorData
         }
       }, { status: 401 });
