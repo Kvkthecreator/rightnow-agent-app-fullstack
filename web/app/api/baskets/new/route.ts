@@ -41,19 +41,24 @@ export async function POST(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) {
+    console.error("baskets/new: No session found in server-side cookies");
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Missing session" } },
       { status: 401 }
     );
   }
   const accessToken = session.access_token;
+  console.log("baskets/new: Token forwarding", { 
+    hasToken: !!accessToken, 
+    tokenPrefix: accessToken?.substring(0, 20) + "...",
+    apiBase: API_BASE 
+  });
 
   // 3) Forward to FastAPI with Bearer token (workspace bootstrap is server-side)
+  // Forward canonical payload to FastAPI
   const payload = {
     idempotency_key: parsed.data.idempotency_key,
-    ...(parsed.data.basket.name
-      ? { basket: { name: parsed.data.basket.name } }
-      : {}),
+    basket: parsed.data.basket,
   };
   const res = await fetch(`${API_BASE}/api/baskets/new`, {
     method: "POST",
@@ -66,6 +71,13 @@ export async function POST(req: NextRequest) {
   });
 
   const text = await res.text();
+  
+  // Log response for debugging
+  console.log("baskets/new: FastAPI response", { 
+    status: res.status, 
+    body: text.substring(0, 200) + (text.length > 200 ? "..." : "")
+  });
+  
   return new NextResponse(text, {
     status: res.status,
     headers: {
