@@ -1,12 +1,12 @@
 import { createServiceRoleClient } from '@/lib/supabase/serviceRole';
-import type { IngestRes } from '@shared/contracts/ingest';
+import type { IngestRes, IngestItem } from '@shared/contracts/ingest';
 
 interface IngestArgs {
   workspaceId: string;
   userId: string;
   idempotency_key: string;
   basket?: { name?: string };
-  dumps: Array<{ dump_request_id: string; text_dump?: string; file_urls?: string[] }>;
+  dumps: IngestItem[];
 }
 
 export async function ingestBasketAndDumps(args: IngestArgs): Promise<IngestRes> {

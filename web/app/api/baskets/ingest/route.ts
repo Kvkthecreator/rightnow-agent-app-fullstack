@@ -9,19 +9,29 @@ export async function POST(req: NextRequest) {
     const { userId } = await getAuthenticatedUser(req);
     const workspaceId = await ensureWorkspaceForUser(userId);
     const body = IngestReqSchema.parse(await req.json());
-    const res = await ingestBasketAndDumps({ workspaceId, userId, ...body });
-    console.log(
-      JSON.stringify({
-        route: '/api/baskets/ingest',
-        user_id: userId,
-        workspace_id: workspaceId,
-        basket: res.basket.created ? 'created' : 'replayed',
-        dumps: res.dumps.map((d) => ({
-          dump_request_id: d.dump_request_id,
-          action: d.created ? 'created' : 'replayed',
-        })),
-      }),
-    );
+    const res = await ingestBasketAndDumps({ 
+      workspaceId, 
+      userId, 
+      idempotency_key: body.idempotency_key,
+      basket: body.basket,
+      dumps: body.dumps 
+    });
+    // Log request and response separately per canon - no field synthesis
+    console.log(JSON.stringify({
+      route: '/api/baskets/ingest',
+      user_id: userId,
+      workspace_id: workspaceId,
+      request: {
+        idempotency_key: body.idempotency_key,
+        basket: body.basket,
+        dumps_count: body.dumps.length
+      }
+    }));
+    console.log(JSON.stringify({
+      route: '/api/baskets/ingest',
+      user_id: userId,
+      response: res
+    }));
     return NextResponse.json(res, { status: 200 });
   } catch (err) {
     if (err instanceof z.ZodError) {

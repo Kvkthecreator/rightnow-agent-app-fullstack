@@ -9,10 +9,11 @@ export const IngestItemSchema = z.object({
 }) satisfies z.ZodType<IngestItem>;
 
 export const IngestReqSchema = z.object({
-  workspace_id: z.string().uuid(),
-  name: z.string().optional(),
   idempotency_key: z.string().uuid(),
-  items: z.array(IngestItemSchema),
+  basket: z.object({
+    name: z.string().optional(),
+  }).optional(),
+  dumps: z.array(IngestItemSchema),
 }) satisfies z.ZodType<IngestReq>;
 
 export const IngestResSchema = z.object({
