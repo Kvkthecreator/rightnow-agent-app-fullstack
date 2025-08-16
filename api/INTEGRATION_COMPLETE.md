@@ -193,6 +193,9 @@ const channel = supabase
 DATABASE_URL=postgresql://...  # Provided by Render PostgreSQL
 SUPABASE_SERVICE_ROLE_KEY=your_key_here
 SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_JWKS_ISSUER=https://your-project.supabase.co/auth/v1
+SUPABASE_JWKS_URL=https://your-project.supabase.co/auth/v1/keys
+SUPABASE_JWT_AUD=authenticated
 ```
 
 ### 2. Run Migrations

@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+import logging
 
 from auth.jwt_verifier import verify_jwt
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
+
+logger = logging.getLogger(__name__)
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -51,6 +55,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 },
             )
 
+        logger.info(
+            "JWT verified iss=%s sub=%s", payload.get("iss"), payload.get("sub")
+        )
         request.state.user_id = payload.get("sub")
         return await call_next(request)
 

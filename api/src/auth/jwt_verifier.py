@@ -17,15 +17,23 @@ _JWKS_TTL = 60 * 5  # 5 minutes
 
 
 def _jwks_url() -> str:
+    jwks_url = os.getenv("SUPABASE_JWKS_URL")
+    if jwks_url:
+        return jwks_url
     base_url = os.getenv("SUPABASE_URL")
     if not base_url:
-        raise RuntimeError("SUPABASE_URL not configured")
+        raise RuntimeError("SUPABASE_JWKS_URL or SUPABASE_URL not configured")
     return f"{base_url.rstrip('/')}/auth/v1/keys"
 
 
 def _expected_issuer() -> str:
+    issuer = os.getenv("SUPABASE_JWKS_ISSUER") or os.getenv("SUPABASE_JWT_ISS")
+    if issuer:
+        return issuer
     base_url = os.getenv("SUPABASE_URL")
-    return os.getenv("SUPABASE_JWT_ISS", f"{base_url.rstrip('/')}/auth/v1")
+    if not base_url:
+        raise RuntimeError("SUPABASE_JWKS_ISSUER or SUPABASE_URL not configured")
+    return f"{base_url.rstrip('/')}/auth/v1"
 
 
 def _expected_audience() -> str:

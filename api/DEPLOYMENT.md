@@ -18,7 +18,10 @@ Set these in your Render dashboard:
 ```bash
 DATABASE_URL=postgresql://user:pass@host:port/dbname  # Provided by Render
 SUPABASE_SERVICE_ROLE_KEY=your_key_here              # For Supabase integration
-SUPABASE_URL=https://your-project.supabase.co        # For Supabase integration
+SUPABASE_URL=https://your-project.supabase.co        # Base Supabase URL
+SUPABASE_JWKS_ISSUER=https://your-project.supabase.co/auth/v1
+SUPABASE_JWKS_URL=https://your-project.supabase.co/auth/v1/keys
+SUPABASE_JWT_AUD=authenticated                       # Supabase's default audience
 ```
 
 ### 2. Run Database Migrations
