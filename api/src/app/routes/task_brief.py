@@ -6,11 +6,12 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from src.utils.db import json_safe
 
-from ..agents.utils.supabase_helpers import get_supabase
+from ..utils.jwt import verify_jwt
+from ..utils.supabase_client import supabase_client as supabase
 
 router = APIRouter(prefix="/task-brief", tags=["task-brief"])
 
@@ -34,9 +35,8 @@ class TaskBrief(BaseModel):
 
 
 @router.post("/", response_model=TaskBrief, status_code=201)
-async def create_task_brief(task_brief: TaskBrief):
+async def create_task_brief(task_brief: TaskBrief, user: dict = Depends(verify_jwt)):
     """Create a new TaskBrief entry in Supabase and return it."""
-    supabase = get_supabase()
     payload = task_brief.model_dump(
         mode="json", exclude_unset=True, exclude={"id", "created_at"}
     )
@@ -57,9 +57,8 @@ async def create_task_brief(task_brief: TaskBrief):
 
 
 @router.get("/{brief_id}", response_model=TaskBrief)
-async def get_task_brief(brief_id: str):
+async def get_task_brief(brief_id: str, user: dict = Depends(verify_jwt)):
     """Fetch a TaskBrief by ID."""
-    supabase = get_supabase()
     try:
         resp = (
             supabase.table("task_briefs")
