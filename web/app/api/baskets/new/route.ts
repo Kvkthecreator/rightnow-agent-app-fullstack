@@ -40,22 +40,13 @@ export async function POST(req: NextRequest) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-
-  console.log("session exists:", !!session);
   if (!session) {
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Missing session" } },
       { status: 401 }
     );
   }
-
   const accessToken = session.access_token;
-  if (!accessToken) {
-    return NextResponse.json(
-      { error: { code: "UNAUTHORIZED", message: "Missing Authorization" } },
-      { status: 401 }
-    );
-  }
 
   // 3) Forward to FastAPI with Bearer token (workspace bootstrap is server-side)
   const payload = {
@@ -68,7 +59,7 @@ export async function POST(req: NextRequest) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
       "sb-access-token": accessToken,
     },
     body: JSON.stringify(payload),

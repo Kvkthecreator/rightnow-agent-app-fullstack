@@ -30,6 +30,7 @@ from .deps import close_db
 from .routes.agent_memory import router as agent_memory_router
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
+from .routes.auth_health import router as auth_health_router
 from .routes.basket_from_template import router as template_router
 from .routes.basket_new import router as basket_new_router
 from .routes.basket_snapshot import router as snapshot_router
@@ -87,6 +88,7 @@ routers = (
     template_router,
     context_intelligence_router,
     narrative_intelligence_router,
+    auth_health_router,
 )
 
 for r in routers:

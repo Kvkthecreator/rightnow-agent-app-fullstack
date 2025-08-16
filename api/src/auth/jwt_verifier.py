@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 
 import jwt
 import requests
 from jwt import InvalidTokenError
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -80,18 +80,23 @@ def verify_jwt(token: str) -> dict:
             algorithms=["RS256"],
             issuer=_expected_issuer(),
             audience=_expected_audience(),
+            leeway=60,
         )
     except InvalidTokenError as e:
         try:
             payload = jwt.decode(token, options={"verify_signature": False})
             logger.error(
-                "JWT validation failed: iss=%s aud=%s error=%s",
+                "JWT validation failed: iss=%s aud=%s sub=%s error=%s",
                 payload.get("iss"),
                 payload.get("aud"),
-                e,
+                payload.get("sub"),
+                e.__class__.__name__,
             )
         except Exception:
-            logger.error("JWT validation failed and payload could not be decoded: %s", e)
+            logger.error(
+                "JWT validation failed: error=%s",
+                e.__class__.__name__,
+            )
         raise
 
 
