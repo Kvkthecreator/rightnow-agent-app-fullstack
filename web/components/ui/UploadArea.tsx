@@ -11,7 +11,7 @@ export interface UploadAreaProps {
   /** Optional Supabase storage bucket name (default: "task-media") */
   bucket?: string;
   maxFiles: number;
-  onUpload: (url: string) => void;
+  onUpload: (url: string, file: File) => void;
   maxSizeMB?: number;
   preview?: boolean;
   removable?: boolean;
@@ -129,7 +129,7 @@ export function UploadArea({
               f.id === id ? { ...f, url, progress: 100, status: "done" } : f
             )
           );
-          onUpload(url);
+          onUpload(url, file);
         })
         .catch((err: any) => {
           if (progressIntervals.current[id]) {

@@ -103,6 +103,22 @@ useEffect(() => {
     dlog('telemetry', { event: 'create_added_item', type: 'file' });
   };
 
+  const addUploadedFile = (file: File, url: string) => {
+    const newItem: AddedItem = {
+      id: crypto.randomUUID(),
+      kind: 'file',
+      name: file.name,
+      size: file.size,
+      status: 'uploaded',
+      publicUrl: url,
+      mime: file.type,
+    };
+    const merged = [...items, newItem];
+    setItems(merged);
+    recompute(intent, merged);
+    dlog('telemetry', { event: 'create_added_item', type: 'file_uploaded' });
+  };
+
   const addUrl = (url: string) => {
     const newItem: AddedItem = {
       id: crypto.randomUUID(),
@@ -382,6 +398,7 @@ useEffect(() => {
     error,
     setIntent: setIntentWrapper,
     addFiles,
+    addUploadedFile,
     addUrl,
     addNote,
     removeItem,
