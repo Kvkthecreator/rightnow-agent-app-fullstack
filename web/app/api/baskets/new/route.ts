@@ -58,13 +58,20 @@ export async function POST(req: NextRequest) {
   }
 
   // 3) Forward to FastAPI with Bearer token (workspace bootstrap is server-side)
+  const payload = {
+    idempotency_key: parsed.data.idempotency_key,
+    ...(parsed.data.basket.name
+      ? { basket: { name: parsed.data.basket.name } }
+      : {}),
+  };
   const res = await fetch(`${API_BASE}/api/baskets/new`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${accessToken}`,
+      "sb-access-token": accessToken,
     },
-    body: JSON.stringify(parsed.data),
+    body: JSON.stringify(payload),
   });
 
   const text = await res.text();
