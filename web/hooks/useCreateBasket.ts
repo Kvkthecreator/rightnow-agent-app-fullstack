@@ -61,12 +61,7 @@ export function useCreateBasket() {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const workspaceId =
-        (typeof window !== "undefined" &&
-          localStorage.getItem("workspace_id")) ||
-        "00000000-0000-0000-0000-000000000001";
       const payload = {
-        workspace_id: workspaceId,
         name: state.basketName || "Untitled Basket",
         idempotency_key: crypto.randomUUID(),
       };

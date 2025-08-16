@@ -30,7 +30,7 @@ These are peers in the substrate; agents operate across them.
 - **Baskets:** `/api/baskets/new`, `/api/baskets/ingest`  
 - **Dumps:** `/api/dumps/new`  
 - **Blocks:** `/api/blocks/*`  
-- **Documents:** `/api/document-composition`  
+- **Documents:** `/api/documents`
 - **Events:** WebSocket endpoints for real-time updates  
 
 ## Frontend

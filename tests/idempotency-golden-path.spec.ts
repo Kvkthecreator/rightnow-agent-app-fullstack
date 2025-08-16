@@ -120,7 +120,6 @@ test.describe('Idempotency Golden Path', () => {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          workspace_id: '00000000-0000-0000-0000-000000000001',
           name: 'Test Basket',
           idempotency_key: 'invalid-uuid'
         })
@@ -151,8 +150,7 @@ test.describe('Idempotency Golden Path', () => {
     
     // Create a basket with known idempotency key
     const idempotencyKey = crypto.randomUUID();
-    const workspaceId = '00000000-0000-0000-0000-000000000001';
-    
+
     const firstRequest = await page.evaluate(async (data) => {
       return await fetch('/api/baskets/new', {
         method: 'POST',
@@ -160,7 +158,7 @@ test.describe('Idempotency Golden Path', () => {
         credentials: 'include',
         body: JSON.stringify(data)
       }).then(res => ({ status: res.status, body: res.json() }));
-    }, { workspace_id: workspaceId, name: 'Test Basket', idempotency_key: idempotencyKey });
+    }, { name: 'Test Basket', idempotency_key: idempotencyKey });
     
     expect(firstRequest.status).toBe(201); // Created
     
@@ -172,7 +170,7 @@ test.describe('Idempotency Golden Path', () => {
         credentials: 'include',
         body: JSON.stringify(data)
       }).then(res => ({ status: res.status, body: res.json() }));
-    }, { workspace_id: workspaceId, name: 'Test Basket', idempotency_key: idempotencyKey });
+    }, { name: 'Test Basket', idempotency_key: idempotencyKey });
     
     expect(replayRequest.status).toBe(200); // Replayed
     

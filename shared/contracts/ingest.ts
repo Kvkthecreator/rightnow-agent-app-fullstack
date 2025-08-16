@@ -1,3 +1,6 @@
+// shared/contracts/ingest.ts
+// Canon contracts: pure TypeScript types (no Zod).
+
 import type { CreateBasketReq, CreateBasketRes } from "./baskets";
 import type { CreateDumpRes } from "./dumps";
 
@@ -8,10 +11,13 @@ export type IngestItem = {
   meta?: Record<string, unknown>;
 };
 
-export type IngestReq = CreateBasketReq & { 
-  items: IngestItem[]; 
+export type IngestReq = CreateBasketReq & {
+  // Note: server bootstraps workspace; client sends items only
+  items: IngestItem[];
 };
 
-export type IngestRes = CreateBasketRes & { 
-  dumps: CreateDumpRes[]; 
+export type IngestRes = CreateBasketRes & {
+  dumps: CreateDumpRes[];
 };
+
+export type { CreateDumpRes };

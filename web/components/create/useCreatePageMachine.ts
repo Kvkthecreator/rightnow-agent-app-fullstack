@@ -202,16 +202,12 @@ useEffect(() => {
         return;
       }
 
-      // Get workspace_id (use ensureWorkspaceServer pattern or default)
-      const workspace_id = "00000000-0000-0000-0000-000000000001"; // TODO: Get from user context
-      
       // Generate UUID idempotency keys per spec
       const idempotency_key = crypto.randomUUID();
-      
+
       // 1) Create basket with idempotency (spec v0.1.0 compliant)
-      logStep('before basket create', { workspace_id, idempotency_key });
+      logStep('before basket create', { idempotency_key });
       const basketReq: CreateBasketReq = {
-        workspace_id,
         name: intent.trim() || 'Untitled Basket',
         idempotency_key,
       };

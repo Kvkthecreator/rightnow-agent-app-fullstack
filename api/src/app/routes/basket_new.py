@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from ..baskets.schemas import CreateBasketReq
 from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_client as supabase
+from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
 log = logging.getLogger("uvicorn.error")
@@ -26,26 +27,7 @@ async def create_basket(
 
     start = time.time()
 
-    # Verify workspace membership
-    membership = (
-        supabase.table("workspace_memberships")
-        .select("workspace_id")
-        .eq("workspace_id", payload.workspace_id)
-        .eq("user_id", user["user_id"])
-        .execute()
-    )
-    if not membership.data:
-        log.info(
-            json.dumps(
-                {
-                    "route": "/api/baskets/new",
-                    "user_id": user["user_id"],
-                    "workspace_id": payload.workspace_id,
-                    "action": "forbidden",
-                }
-            )
-        )
-        raise HTTPException(status_code=403, detail="Workspace access denied")
+    workspace_id = get_or_create_workspace(user["user_id"])
 
     # Check for replay using idempotency key
     existing = (
@@ -76,7 +58,7 @@ async def create_basket(
         supabase.table("baskets")
         .insert(
             {
-                "workspace_id": payload.workspace_id,
+                "workspace_id": workspace_id,
                 "user_id": user["user_id"],
                 "name": payload.name or "Untitled Basket",
                 "idempotency_key": payload.idempotency_key,
