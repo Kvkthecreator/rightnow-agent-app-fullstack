@@ -2,23 +2,13 @@ export const runtime = "nodejs";
 
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { z } from "zod";
 import type { CreateDumpReq, CreateDumpRes } from "@shared/contracts/dumps";
+import { CreateDumpReqSchema } from "@/lib/schemas/dumps";
 
 /**
  * Interface Spec v0.1.0 compliant: POST /api/dumps/new
  * Accepts CreateDumpReq with idempotency via dump_request_id
  */
-const CreateDumpSchema = z.object({
-  basket_id: z.string().uuid(),
-  dump_request_id: z.string().uuid(),
-  text_dump: z.string().optional(),
-  file_url: z.string().url().optional(),
-  meta: z.record(z.unknown()).optional(),
-}).refine(
-  (data) => data.text_dump || data.file_url,
-  { message: "Either text_dump or file_url must be provided" }
-);
 
 export async function POST(req: Request) {
   const startTime = Date.now();
@@ -27,7 +17,7 @@ export async function POST(req: Request) {
   try {
     // Parse and validate request body against spec
     const rawBody = await req.json();
-    const validationResult = CreateDumpSchema.safeParse(rawBody);
+    const validationResult = CreateDumpReqSchema.safeParse(rawBody);
     
     if (!validationResult.success) {
       console.error("dumps/new validation error:", validationResult.error);

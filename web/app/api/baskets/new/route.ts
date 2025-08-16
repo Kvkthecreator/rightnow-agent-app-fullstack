@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
-import { z } from "zod";
 import type { CreateBasketReq, CreateBasketRes } from "@shared/contracts/baskets";
-
-// Validate request against spec
-const CreateBasketSchema = z.object({
-  workspace_id: z.string().uuid(),
-  name: z.string().optional(),
-  idempotency_key: z.string().uuid(),
-});
+import { CreateBasketReqSchema } from "@/lib/schemas/baskets";
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -32,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request body against spec
     const body = await request.json();
-    const validationResult = CreateBasketSchema.safeParse(body);
+    const validationResult = CreateBasketReqSchema.safeParse(body);
     
     if (!validationResult.success) {
       console.error("Validation error:", validationResult.error);
