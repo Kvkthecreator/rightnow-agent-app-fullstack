@@ -6,15 +6,16 @@ import { ingestBasketAndDumps } from '@/lib/server/ingest';
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await getAuthenticatedUser(req);
-    const workspaceId = await ensureWorkspaceForUser(userId);
+    const { userId, token } = await getAuthenticatedUser(req);
+    const workspaceId = await ensureWorkspaceForUser(userId, token);
     const body = IngestReqSchema.parse(await req.json());
     const { raw, data } = await ingestBasketAndDumps({
       workspaceId,
       userId,
       idempotency_key: body.idempotency_key,
       basket: body.basket,
-      dumps: body.dumps
+      dumps: body.dumps,
+      token,
     });
     // Log request and response separately per canon - no field synthesis
     console.log(JSON.stringify({

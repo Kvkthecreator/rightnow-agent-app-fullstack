@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/dbTypes';
-import { createServiceRoleClient } from '@/lib/supabase/serviceRole';
+import { createUserClient } from '@/lib/supabase/user';
 
 export async function getAuthenticatedUser(req: NextRequest) {
   const auth = req.headers.get('authorization');
@@ -22,11 +22,11 @@ export async function getAuthenticatedUser(req: NextRequest) {
   if (error || !user) {
     throw new Error('Unauthorized');
   }
-  return { userId: user.id };
+  return { userId: user.id, token };
 }
 
-export async function ensureWorkspaceForUser(userId: string) {
-  const supabase = createServiceRoleClient();
+export async function ensureWorkspaceForUser(userId: string, token: string) {
+  const supabase = createUserClient(token);
   const { data: membership } = await supabase
     .from('workspace_memberships')
     .select('workspace_id')

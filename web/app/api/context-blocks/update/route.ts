@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/supabase/serviceRole";
+import { getAuthenticatedUser } from "@/lib/server/auth";
+import { createUserClient } from "@/lib/supabase/user";
 
 export async function PUT(req: NextRequest) {
   let payload: any;
@@ -14,7 +15,8 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
   }
 
-  const supabase = createServiceRoleClient();
+  const { token } = await getAuthenticatedUser(req);
+  const supabase = createUserClient(token);
   const { error } = await supabase
     .from("blocks")
     .update(updates)

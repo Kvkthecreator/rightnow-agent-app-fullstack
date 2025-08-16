@@ -2,18 +2,16 @@
 // Handles saving substrate to database
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { SubstrateElement } from '@/lib/substrate/SubstrateTypes';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getAuthenticatedUser } from '@/lib/server/auth';
+import { createUserClient } from '@/lib/supabase/user';
 
 export async function POST(request: NextRequest) {
   try {
+    const { token } = await getAuthenticatedUser(request);
+    const supabase = createUserClient(token);
     const substrate: SubstrateElement = await request.json();
-    
+
     // Route to appropriate table based on substrate type
     let tableName: string;
     let data: any;
@@ -125,9 +123,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Persist API Error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
       },
       { status: 500 }
     );
