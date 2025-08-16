@@ -112,7 +112,8 @@ CREATE TABLE public.baskets (
     user_id uuid DEFAULT auth.uid(),
     workspace_id uuid NOT NULL,
     origin_template text,
-    tags text[] DEFAULT '{}'::text[]
+    tags text[] DEFAULT '{}'::text[],
+    idempotency_key uuid
 );
 CREATE TABLE public.block_links (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -233,7 +234,8 @@ CREATE TABLE public.raw_dumps (
     processing_status text DEFAULT 'unprocessed'::text,
     processed_at timestamp with time zone,
     source_meta jsonb DEFAULT '{}'::jsonb,
-    ingest_trace_id text
+    ingest_trace_id text,
+    dump_request_id uuid
 );
 ALTER TABLE ONLY public.raw_dumps REPLICA IDENTITY FULL;
 CREATE TABLE public.revisions (
@@ -284,6 +286,8 @@ ALTER TABLE ONLY public.basket_deltas
     ADD CONSTRAINT basket_deltas_pkey PRIMARY KEY (delta_id);
 ALTER TABLE ONLY public.basket_events
     ADD CONSTRAINT basket_events_pkey PRIMARY KEY (id);
+ALTER TABLE public.baskets
+    ADD CONSTRAINT baskets_idem_is_uuid CHECK (((idempotency_key IS NULL) OR ((idempotency_key)::text ~* '^[0-9a-f-]{36}$'::text))) NOT VALID;
 ALTER TABLE ONLY public.baskets
     ADD CONSTRAINT baskets_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.block_links
@@ -296,6 +300,8 @@ ALTER TABLE ONLY public.context_items
     ADD CONSTRAINT context_items_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_pkey PRIMARY KEY (id);
+ALTER TABLE public.raw_dumps
+    ADD CONSTRAINT dumps_req_is_uuid CHECK (((dump_request_id IS NULL) OR ((dump_request_id)::text ~* '^[0-9a-f-]{36}$'::text))) NOT VALID;
 ALTER TABLE ONLY public.events
     ADD CONSTRAINT events_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.idempotency_keys
@@ -351,6 +357,8 @@ CREATE INDEX idx_raw_dumps_trace ON public.raw_dumps USING btree (ingest_trace_i
 CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
 CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
+CREATE UNIQUE INDEX uq_baskets_user_idem ON public.baskets USING btree (user_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
+CREATE UNIQUE INDEX uq_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
 CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (basket_id, ingest_trace_id) WHERE (ingest_trace_id IS NOT NULL);
 CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
