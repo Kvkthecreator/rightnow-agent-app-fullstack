@@ -1,10 +1,13 @@
+import { getServerUrl } from "@/lib/utils";
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
 export default async function TimelinePage({ params }: PageProps) {
   const { id } = await params;
-  const res = await fetch(`/api/baskets/${id}/timeline`, { cache: "no-store" });
+  const baseUrl = getServerUrl();
+  const res = await fetch(`${baseUrl}/api/baskets/${id}/timeline`, { cache: "no-store" });
   const data = await res.json();
   const items = data.items || [];
   return (

@@ -2,6 +2,7 @@ import TopBar from "@/components/basket/TopBar";
 import BasketNav from "@/components/basket/BasketNav";
 import Guide from "@/components/basket/Guide";
 import React from "react";
+import { getServerUrl } from "@/lib/utils";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,7 +11,8 @@ interface LayoutProps {
 
 export default async function BasketLayout({ children, params }: LayoutProps) {
   const { id } = await params;
-  const res = await fetch(`/api/baskets/${id}/state`, { cache: "no-store" });
+  const baseUrl = getServerUrl();
+  const res = await fetch(`${baseUrl}/api/baskets/${id}/state`, { cache: "no-store" });
   const data = res.ok ? await res.json() : { name: "Basket" };
   return (
     <BasketLayoutClient basketId={id} basketName={data.name}>
