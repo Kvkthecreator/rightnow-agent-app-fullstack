@@ -2,42 +2,14 @@
 export const runtime = "nodejs"; // avoid Edge so supabase-helpers work
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import { CreateBasketReqSchema } from "@/lib/schemas/baskets";
-import crypto, { randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
-
-function hash(v: string) {
-  return crypto.createHash("sha256").update(v).digest("hex").slice(0, 8);
-}
-
-function safeDecode(token?: string) {
-  try {
-    if (!token) return {};
-    const [h, p] = token.split(".");
-    const header = JSON.parse(Buffer.from(h, "base64").toString());
-    const payload = JSON.parse(Buffer.from(p, "base64").toString());
-    return {
-      tokenHeaderAlg: header.alg,
-      tokenClaims: {
-        iss: payload.iss,
-        aud: payload.aud,
-        sub_hash: payload.sub ? hash(payload.sub) : undefined,
-        exp: payload.exp,
-        iat: payload.iat,
-        aal: payload.aal,
-        amr: Array.isArray(payload.amr)
-          ? payload.amr.map((m: any) => m.method)
-          : undefined,
-      },
-    };
-  } catch {
-    return {};
-  }
-}
 
 export async function POST(req: NextRequest) {
   const DBG = req.headers.get("x-yarnnn-debug-auth") === "1";
@@ -66,29 +38,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 2) Get Supabase user and session from server-side cookies
-  // Per canon: use getUser() for secure authentication
+  // 2) Get Supabase session from server-side cookies (refresh-safe)
   const supabase = createRouteHandlerClient({ cookies });
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return NextResponse.json(
-      { error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
-      { status: 401 }
-    );
-  }
-  
-  // Get session for access token
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  
   if (!session?.access_token) {
     return NextResponse.json(
-      { error: { code: "UNAUTHORIZED", message: "No access token" } },
+      { error: { code: "UNAUTHORIZED", message: "Missing session" } },
       { status: 401 }
     );
   }
@@ -98,7 +55,7 @@ export async function POST(req: NextRequest) {
   // 3) Forward to FastAPI with Bearer token (workspace bootstrap is server-side)
   // Forward canonical payload to FastAPI
   const payload = parsed.data;
-  const res = await fetch(`${API_BASE}/api/baskets/new`, {
+  const upstream = await fetch(`${API_BASE}/api/baskets/new`, {
     method: "POST",
     cache: "no-store",
     headers: {
@@ -111,17 +68,13 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify(payload),
   });
 
-  const text = await res.text();
-  if (!res.ok && DBG) {
-    const { tokenHeaderAlg, tokenClaims } = safeDecode(accessToken);
+  const text = await upstream.text();
+  if (!upstream.ok && DBG) {
     return NextResponse.json(
       {
         error: { code: "UPSTREAM", message: "Auth failed" },
         debug: {
           location: "baskets/new -> FastAPI",
-          apiUrl: `${API_BASE}/api/baskets/new`,
-          tokenHeaderAlg,
-          tokenClaims,
           upstream: (() => {
             try {
               return JSON.parse(text);
@@ -131,9 +84,9 @@ export async function POST(req: NextRequest) {
           })(),
         },
       },
-      { status: res.status }
+      { status: upstream.status }
     );
   }
 
-  return new NextResponse(text, { status: res.status });
+  return new NextResponse(text, { status: upstream.status });
 }
