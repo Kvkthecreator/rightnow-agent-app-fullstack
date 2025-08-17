@@ -50,6 +50,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         except Exception:
             alg = "UNKNOWN"
 
+        DBG = request.headers.get("x-yarnnn-debug-auth") == "1"
         try:
             payload = verify_jwt(token)
             request.state.user_id = payload.get("sub")
@@ -68,19 +69,22 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 }
             )
             response: Response = await call_next(request)
-            response.headers["X-Auth-Alg"] = alg
-            response.headers["X-Auth-Iss"] = payload.get("iss", "")
-            response.headers["X-Auth-Aud"] = str(payload.get("aud", ""))
+            if DBG:
+                response.headers["X-Auth-Alg"] = alg
+                response.headers["X-Auth-Iss"] = payload.get("iss", "")
+                response.headers["X-Auth-Aud"] = str(payload.get("aud", ""))
             return response
         except Exception as e:  # noqa: BLE001
+            def _clean(v: str | None) -> str:
+                return (v or "").strip().rstrip("/")
+
+            expected_iss = _clean(os.getenv("SUPABASE_JWKS_ISSUER")) or f"{_clean(os.getenv('SUPABASE_URL'))}/auth/v1"
             logger.warning(
                 {
                     "event": "jwt_verify_failed",
                     "alg": alg,
-                    "expected_iss": os.getenv("SUPABASE_JWKS_ISSUER")
-                    or f"{os.getenv('SUPABASE_URL')}/auth/v1",
-                    "expected_aud": os.getenv("SUPABASE_JWT_AUD")
-                    or "authenticated",
+                    "expected_iss": expected_iss,
+                    "expected_aud": (os.getenv("SUPABASE_JWT_AUD") or "authenticated").strip(),
                     "error": e.__class__.__name__,
                 }
             )
