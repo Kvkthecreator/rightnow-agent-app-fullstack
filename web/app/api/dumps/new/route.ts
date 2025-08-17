@@ -30,17 +30,27 @@ export async function POST(req: Request) {
     const { basket_id, dump_request_id, text_dump, file_url, meta } = validationResult.data;
 
     const supabase = createRouteHandlerClient({ cookies });
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const [
+      {
+        data: { session },
+      },
+      {
+        data: { user },
+      },
+    ] = await Promise.all([
+      supabase.auth.getSession(),
+      supabase.auth.getUser(),
+    ]);
 
-    if (!session?.access_token) {
+    if (!session?.access_token || !user) {
       console.error("dumps/new unauthorized", { reqId });
       return Response.json(
         { error: { code: "UNAUTHORIZED", message: "Authentication required", details: {} } },
         { status: 401 }
       );
     }
+
+    const userId = user.id;
 
     // Verify basket exists and user has access via workspace membership
     const { data: basket } = await supabase
@@ -51,11 +61,11 @@ export async function POST(req: Request) {
         workspace_memberships!inner(user_id)
       `)
       .eq("id", basket_id)
-      .eq("workspace_memberships.user_id", session.user.id)
+      .eq("workspace_memberships.user_id", userId)
       .single();
 
     if (!basket) {
-      console.error("dumps/new basket not found or access denied:", { basket_id, userId: session.user.id });
+      console.error("dumps/new basket not found or access denied:", { basket_id, userId });
       return Response.json(
         { error: { code: "BASKET_NOT_FOUND", message: "Basket not found or access denied", details: {} } },
         { status: 404 }
@@ -74,7 +84,7 @@ export async function POST(req: Request) {
       // Log replay event
       console.log(JSON.stringify({
         route: "/api/dumps/new",
-        user_id: session.user.id,
+        user_id: userId,
         basket_id,
         dump_request_id,
         action: "replayed",
@@ -139,7 +149,7 @@ export async function POST(req: Request) {
     // Log creation event
     console.log(JSON.stringify({
       route: "/api/dumps/new",
-      user_id: session.user.id,
+      user_id: userId,
       basket_id,
       dump_request_id,
       action: "created",
