@@ -22,7 +22,7 @@ export async function createBasketWithInput({
     basket: {},
   };
   if (name) payload.basket.name = name;
-  const extraHeaders =
+  const extraHeaders: Record<string, string> =
     typeof window !== "undefined" &&
     localStorage.getItem("Y_AUTH_DEBUG") === "1"
       ? { "x-yarnnn-debug-auth": "1" }
