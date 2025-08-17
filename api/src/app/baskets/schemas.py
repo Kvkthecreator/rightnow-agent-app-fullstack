@@ -28,7 +28,8 @@ class WorkOptions(BaseModel):
 
 class BasketWorkRequest(BaseModel):
     mode: WorkMode
-    sources: list[Source] = Field(default_factory=list)
+    # Require at least one source to avoid undefined work requests
+    sources: list[Source] = Field(..., min_length=1)
     policy: WorkPolicy = WorkPolicy()
     options: WorkOptions = WorkOptions()
 
