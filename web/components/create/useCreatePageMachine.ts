@@ -225,7 +225,9 @@ useEffect(() => {
       logStep('before basket create', { idempotency_key });
       const basketReq: CreateBasketReq = {
         idempotency_key,
-        basket: { name: intent.trim() || 'Untitled Basket' },
+        intent: intent.trim(),
+        raw_dump: { text: '', file_urls: [] },
+        notes: [],
       };
       
       const basketRes = await fetch('/api/baskets/new', {
@@ -241,7 +243,7 @@ useEffect(() => {
       }
       
       const basketResult: CreateBasketRes = await safeJson(basketRes);
-      const basketId = basketResult.basket_id;
+      const basketId = (basketResult as any).id || (basketResult as any).basket_id;
       logStep('after basket create', { basketId });
       
       if (!basketId) {

@@ -140,9 +140,12 @@ export type ApiError = z.infer<typeof ApiErrorSchema>;
 // Request/Response helpers
 export const CreateBasketRequestSchema = z.object({
   idempotency_key: UUIDSchema,
-  basket: z.object({
-    name: z.string().optional(),
+  intent: z.string(),
+  raw_dump: z.object({
+    text: z.string(),
+    file_urls: z.array(z.string()),
   }),
+  notes: z.array(z.string()).optional(),
 });
 
 export type CreateBasketRequest = z.infer<typeof CreateBasketRequestSchema>;

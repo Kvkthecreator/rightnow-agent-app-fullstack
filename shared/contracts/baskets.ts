@@ -3,11 +3,15 @@
 
 export type CreateBasketReq = {
   idempotency_key: string; // UUID
-  basket: {
-    name?: string;
+  intent: string;
+  raw_dump: {
+    text: string;
+    file_urls: string[];
   };
+  notes?: string[];
 };
 
 export type CreateBasketRes = {
-  basket_id: string; // UUID
+  id: string; // UUID
+  name: string;
 };
