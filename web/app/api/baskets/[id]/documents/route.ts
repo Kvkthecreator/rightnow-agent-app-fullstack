@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const id = params.id;
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
+export async function GET(req: NextRequest, ctx: RouteContext) {
+  const { id } = await ctx.params;
   const { searchParams } = new URL(req.url);
   const limit = searchParams.get("limit");
   if (process.env.MOCK_BASKET_API) {
@@ -23,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     ];
     return NextResponse.json({ items: items.slice(0, limit ? Number(limit) : items.length) });
   }
-  const supabase = createServerSupabaseClient();
+  const supabase = createRouteHandlerClient({ cookies });
   const workspace = await ensureWorkspaceServer(supabase);
   let query = supabase
     .from("documents")

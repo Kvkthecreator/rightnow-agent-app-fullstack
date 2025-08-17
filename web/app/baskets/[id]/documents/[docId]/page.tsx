@@ -1,9 +1,10 @@
 interface PageProps {
-  params: { id: string; docId: string };
+  params: Promise<{ id: string; docId: string }>;
 }
 
 export default async function DocumentDetailPage({ params }: PageProps) {
-  const res = await fetch(`/api/documents/${params.docId}`, { cache: "no-store" });
+  const { docId } = await params;
+  const res = await fetch(`/api/documents/${docId}`, { cache: "no-store" });
   const doc = await res.json();
   return (
     <article className="prose p-4">

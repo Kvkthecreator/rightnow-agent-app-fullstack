@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
+interface RouteContext {
+  params: Promise<{ docId: string }>;
+}
+
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { docId: string } }
+  ctx: RouteContext
 ) {
+  const { docId } = await ctx.params;
   if (process.env.MOCK_BASKET_API) {
     return NextResponse.json({
-      id: params.docId,
+      id: docId,
       title: "Marketing Plan",
       updated_at: new Date().toISOString(),
       content_rendered: "<p>Mock content</p>",

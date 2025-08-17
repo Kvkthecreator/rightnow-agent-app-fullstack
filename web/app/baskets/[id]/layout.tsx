@@ -5,11 +5,11 @@ import React from "react";
 
 interface LayoutProps {
   children: React.ReactNode;
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function BasketLayout({ children, params }: LayoutProps) {
-  const { id } = params;
+  const { id } = await params;
   const res = await fetch(`/api/baskets/${id}/state`, { cache: "no-store" });
   const data = res.ok ? await res.json() : { name: "Basket" };
   return (

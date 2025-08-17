@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default function BasketPage({ params }: Props) {
-  redirect(`/baskets/${params.id}/dashboard`);
+export default async function BasketPage({ params }: Props) {
+  const { id } = await params;
+  redirect(`/baskets/${id}/dashboard`);
 }

@@ -3,11 +3,11 @@ import DocsList from "@/components/basket/DocsList";
 import NextMove from "@/components/basket/NextMove";
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function DashboardPage({ params }: PageProps) {
-  const { id } = params;
+  const { id } = await params;
   const [stateRes, docsRes, proposalsRes] = await Promise.all([
     fetch(`/api/baskets/${id}/state`, { cache: "no-store" }),
     fetch(`/api/baskets/${id}/documents?limit=3`, { cache: "no-store" }),

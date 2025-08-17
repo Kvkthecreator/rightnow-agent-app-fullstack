@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  ctx: RouteContext
 ) {
-  const id = params.id;
+  const { id } = await ctx.params;
   if (process.env.MOCK_BASKET_API) {
     return NextResponse.json({
       basket_id: id,
@@ -16,7 +21,7 @@ export async function GET(
       current_focus: "Prototype + marketing plan",
     });
   }
-  const supabase = createServerSupabaseClient();
+  const supabase = createRouteHandlerClient({ cookies });
   const workspace = await ensureWorkspaceServer(supabase);
   const { data, error } = await supabase
     .from("baskets")

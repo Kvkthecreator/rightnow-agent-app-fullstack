@@ -1,9 +1,10 @@
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function BlocksPage({ params }: PageProps) {
-  const res = await fetch(`/api/baskets/${params.id}/blocks`, { cache: "no-store" });
+  const { id } = await params;
+  const res = await fetch(`/api/baskets/${id}/blocks`, { cache: "no-store" });
   const data = await res.json();
   const items = data.items || [];
   return (
