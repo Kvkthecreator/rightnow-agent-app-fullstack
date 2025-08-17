@@ -25,7 +25,8 @@ export async function POST(
     }
 
     // Support both new mode format and legacy format
-    const hasMode = 'mode' in body;
+    const hasMode =
+      typeof body === 'object' && body !== null && 'mode' in body;
     
     let parsed: any;
     if (hasMode) {
