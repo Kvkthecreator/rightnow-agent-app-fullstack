@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { User as UserIcon } from "lucide-react";
 import { dlog } from "@/lib/dev/log";
-import { clearSessionCache, getCachedSession } from "@/lib/api/http";
+import { clearSessionCache } from "@/lib/api/http";
 
 interface User {
   email: string;
@@ -28,21 +28,20 @@ export default function UserNav({ compact = false }: UserNavProps) {
   const hasInitialized = useRef(false);
   const hasSubscribed = useRef(false);
 
-  // Fetch initial session and redirect if not authenticated
+  // Fetch initial user and redirect if not authenticated
   useEffect(() => {
     if (hasInitialized.current) {
       dlog('auth/user-nav-skip-init', { reason: 'already-initialized' });
       return;
     }
-    
+
     hasInitialized.current = true;
-    
+
     dlog('auth/user-nav-init', { timestamp: Date.now() });
-    
-    getCachedSession().then((session) => {
-      const user = session?.user;
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
       dlog('auth/user-nav-result', { hasUser: !!user, userId: user?.id });
-      
+
       if (user) {
         setUser({ email: user.email || "" });
       } else {
@@ -64,14 +63,16 @@ export default function UserNav({ compact = false }: UserNavProps) {
     
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      dlog('auth/user-nav-change', { event, hasSession: !!session });
-      
+    } = supabase.auth.onAuthStateChange(async (event) => {
+      dlog('auth/user-nav-change', { event });
+
       // Clear session cache on any auth state change
       clearSessionCache();
-      
-      if (session?.user) {
-        setUser({ email: session.user.email || "" });
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        setUser({ email: user.email || "" });
       } else {
         setUser(null);
         router.replace("/about");

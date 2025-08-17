@@ -83,16 +83,28 @@ export async function getCachedSession() {
     });
     
     const { supabase } = await import('@/lib/supabaseClient');
-    const { data: { session } } = await supabase.auth.getSession();
-    
+    const [
+      {
+        data: { session },
+      },
+      {
+        data: { user },
+      },
+    ] = await Promise.all([
+      supabase.auth.getSession(),
+      supabase.auth.getUser(),
+    ]);
+
+    const mergedSession = session ? { ...session, user } : null;
+
     // Update cache
     sessionCache = {
-      session,
+      session: mergedSession,
       timestamp: now,
       expiry: now + SESSION_CACHE_TTL,
     };
-    
-    return session;
+
+    return mergedSession;
   }
 }
 
