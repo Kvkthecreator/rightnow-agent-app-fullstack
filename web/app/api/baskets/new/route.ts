@@ -3,10 +3,10 @@ export const runtime = "nodejs"; // avoid Edge so supabase-helpers work
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies, headers as nextHeaders } from "next/headers";
+import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { CreateBasketReqSchema } from "@/lib/schemas/baskets";
-import crypto from "node:crypto";
+import crypto, { randomUUID } from "node:crypto";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.yarnnn.com";
@@ -41,7 +41,8 @@ function safeDecode(token?: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const DBG = nextHeaders().get("x-yarnnn-debug-auth") === "1";
+  const DBG = req.headers.get("x-yarnnn-debug-auth") === "1";
+  const requestId = req.headers.get("x-request-id") ?? randomUUID();
   // 1) Parse & validate request (canon: { idempotency_key, basket: { name? } })
   let json: unknown;
   try {
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
       "content-type": "application/json",
       Authorization: `Bearer ${accessToken}`,
       "sb-access-token": accessToken,
+      "x-request-id": requestId,
       ...(DBG ? { "x-yarnnn-debug-auth": "1" } : {}),
     },
     body: JSON.stringify(payload),
