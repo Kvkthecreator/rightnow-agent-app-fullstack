@@ -22,10 +22,14 @@ export async function createBasketWithInput({
     basket: {},
   };
   if (name) payload.basket.name = name;
-  console.log("[createBasketWithInput] Payload:", payload);
+  const extraHeaders =
+    typeof window !== "undefined" &&
+    localStorage.getItem("Y_AUTH_DEBUG") === "1"
+      ? { "x-yarnnn-debug-auth": "1" }
+      : {};
   const resp = await fetchWithToken("/api/baskets/new", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(payload),
   });
   if (!resp.ok) {

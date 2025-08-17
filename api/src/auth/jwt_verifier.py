@@ -7,12 +7,18 @@ import os
 import jwt
 from jwt import PyJWKClient
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
-ISSUER = os.getenv("SUPABASE_JWKS_ISSUER", f"{SUPABASE_URL}/auth/v1")
-AUD = os.getenv("SUPABASE_JWT_AUD", "authenticated")
-JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
-JWKS_URL = os.getenv("SUPABASE_JWKS_URL", f"{SUPABASE_URL}/auth/v1/keys")
+
+def _clean_url(v: str | None) -> str:
+    return (v or "").strip().rstrip("/")
+
+BASE = _clean_url(os.getenv("SUPABASE_URL"))
+if not BASE:
+    raise RuntimeError("SUPABASE_URL is not set; cannot verify Supabase JWTs")
+ISSUER = _clean_url(os.getenv("SUPABASE_JWKS_ISSUER")) or f"{BASE}/auth/v1"
+JWKS_URL = _clean_url(os.getenv("SUPABASE_JWKS_URL") or f"{BASE}/auth/v1/keys")
+AUD = (os.getenv("SUPABASE_JWT_AUD") or "authenticated").strip()
 LEEWAY = int(os.getenv("JWT_CLOCK_SKEW", "60"))
+JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 
 _jwk = PyJWKClient(JWKS_URL) if JWKS_URL else None
 _opts = {"verify_exp": True, "require": ["exp", "iat", "iss", "aud", "sub"]}
