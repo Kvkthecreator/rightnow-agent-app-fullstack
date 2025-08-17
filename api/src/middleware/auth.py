@@ -6,7 +6,7 @@ import os
 from collections.abc import Iterable
 
 import jwt
-from api.src.auth.jwt_verifier import verify_jwt
+from ..auth.jwt_verifier import verify_jwt
 from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
