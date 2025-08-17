@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ basketId: string }> }
 ) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Use getUser() for secure authentication
     const {

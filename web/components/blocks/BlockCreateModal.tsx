@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { supabase } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 
 interface Props {
   open: boolean;
@@ -24,6 +24,8 @@ interface Props {
   }) => Promise<void>;
   includeAuto?: boolean;
 }
+
+const supabase = createBrowserClient();
 
 export default function BlockCreateModal({
   open,

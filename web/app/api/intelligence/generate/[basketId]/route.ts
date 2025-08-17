@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-import { createServerSupabaseClient } from "@/lib/supabase/clients";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { randomUUID, createHash } from "node:crypto";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { getWorkspaceFromBasket } from "@/lib/utils/workspace";
@@ -32,7 +33,7 @@ export async function POST(
     const { basketId } = await params;
     const DBG = request.headers.get("x-yarnnn-debug-auth") === "1";
     const requestId = request.headers.get("x-request-id") ?? randomUUID();
-    const supabase = createServerSupabaseClient();
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Authentication check
     const {

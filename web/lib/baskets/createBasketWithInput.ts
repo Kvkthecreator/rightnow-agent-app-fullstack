@@ -1,5 +1,5 @@
 import { uploadFile } from "@/lib/uploadFile";
-import { createClient } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { fetchWithToken } from "@/lib/fetchWithToken";
 import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
 
@@ -15,7 +15,7 @@ export async function createBasketWithInput({
   files = [],
   name,
 }: CreateBasketArgs) {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
   // 1️⃣ Core basket creation via privileged API route
   const payload: { idempotency_key: string; basket: { name?: string } } = {
     idempotency_key: crypto.randomUUID(),

@@ -5,7 +5,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { Button } from "@/components/ui/Button";
 
 interface QueueRow {
@@ -17,6 +17,8 @@ interface QueueRow {
   source_scope?: string;
   blocks?: { label: string };
 }
+
+const supabase = createBrowserClient();
 
 export default function BlockQueuePage() {
   const [rows, setRows] = useState<QueueRow[]>([]);

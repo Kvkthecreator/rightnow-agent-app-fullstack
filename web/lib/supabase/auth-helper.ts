@@ -3,13 +3,12 @@
  * Ensures proper authentication for Realtime connections while preserving workspace membership
  */
 
-import { createSupabaseClient } from './client'
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from './clients'
 import type { Database } from '@/lib/dbTypes'
 
 export class SupabaseAuthHelper {
   private static instance: SupabaseAuthHelper
-  private client = createSupabaseClient()
+  private client = createBrowserClient()
   
   static getInstance() {
     if (!SupabaseAuthHelper.instance) {

@@ -3,13 +3,15 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { dlog } from "@/lib/dev/log";
+
+const supabase = createBrowserClient();
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
   const router = useRouter();
-  
+
   // StrictMode guard - prevent double execution
   const hasExecuted = useRef(false);
 
@@ -19,9 +21,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       dlog('auth/guard-skip', { reason: 'already-executed' });
       return;
     }
-    
+
     hasExecuted.current = true;
-    
+
     const checkAuth = async () => {
       dlog('auth/guard-check', { timestamp: Date.now() });
 

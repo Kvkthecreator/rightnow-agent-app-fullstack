@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { Button } from "@/components/ui/Button";
 import Brand from "@/components/Brand";
+
+const supabase = createBrowserClient();
 
 export default function LoginClient() {
   const router = useRouter();

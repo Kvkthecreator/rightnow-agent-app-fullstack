@@ -1,4 +1,4 @@
-import { createClient } from "./supabaseClient";
+import { createBrowserClient } from "./supabase/clients";
 
 export async function fetchWithToken(
   input: RequestInfo | URL,
@@ -7,7 +7,7 @@ export async function fetchWithToken(
 ) {
   let jwt = token;
   if (!jwt) {
-    const supabase = createClient();
+    const supabase = createBrowserClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

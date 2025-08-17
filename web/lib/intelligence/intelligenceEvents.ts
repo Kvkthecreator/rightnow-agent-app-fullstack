@@ -1,4 +1,3 @@
-import { createServerSupabaseClient } from '@/lib/supabaseServerClient';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
 import type { IntelligenceEvent, IntelligenceChange, ContentHash } from './changeDetection';

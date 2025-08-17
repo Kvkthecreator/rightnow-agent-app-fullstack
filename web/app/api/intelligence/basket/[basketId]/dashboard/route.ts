@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { analyzeBasketIntelligence } from "@/lib/intelligence/sharedAnalysis";
 
@@ -31,7 +32,7 @@ export async function GET(
 ) {
   try {
     const { basketId } = await params;
-    const supabase = createServerSupabaseClient();
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Authentication check
     const {

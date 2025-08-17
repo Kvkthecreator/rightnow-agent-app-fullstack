@@ -1,5 +1,5 @@
 
-import { createClient } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { apiClient } from "@/lib/api/client";
 
 export interface BlockInsert {
@@ -25,7 +25,7 @@ export async function fetchBlocks(
   coreOnly = false,
   scopes: string[] = ["basket", "profile"]
 ) {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
   let query = supabase
     .from("blocks")
     .select("*")
@@ -59,7 +59,7 @@ export async function toggleAuto(id: string, enable: boolean) {
 }
 
 export async function fetchBlock(id: string, workspaceId: string) {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
   const { data, error } = await supabase
     .from("blocks")
     .select("*")

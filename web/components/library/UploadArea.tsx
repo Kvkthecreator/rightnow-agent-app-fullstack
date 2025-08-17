@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { insertBlockFile } from "@/lib/insertBlockFile";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/library/progress";
@@ -22,6 +22,7 @@ export function UploadArea({ onUpload }: { onUpload: () => void }) {
 
     const filePath = `${Date.now()}-${file.name}`;
 
+    const supabase = createBrowserClient();
     const { error } = await supabase.storage
       .from("user-library")
       .upload(filePath, file, {

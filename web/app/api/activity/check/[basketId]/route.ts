@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 
 // Simple activity tracking - in production this would use WebSocket connections, 
 // session data, or more sophisticated user activity detection
@@ -12,7 +13,7 @@ export async function GET(
 ) {
   try {
     const { basketId } = await params;
-    const supabase = createServerSupabaseClient();
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Get authenticated user
     const {
@@ -50,7 +51,7 @@ export async function POST(
 ) {
   try {
     const { basketId } = await params;
-    const supabase = createServerSupabaseClient();
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Get authenticated user
     const {

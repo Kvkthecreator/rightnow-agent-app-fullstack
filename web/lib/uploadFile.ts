@@ -1,6 +1,6 @@
 //web/lib/uploadFile.ts
 
-import { createClient } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 
 /**
  * Uploads a file to Supabase Storage and returns its public URL.
@@ -15,7 +15,7 @@ export async function uploadFile(
   path: string,
   bucket: string = "block-files"
 ): Promise<string> {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
   const storageDomain = "block-files";
 
   // Validate file type and size

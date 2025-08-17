@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { ClarificationResponse } from "@/components/ClarificationResponse";
 
 interface ChatPaneProps {
@@ -24,6 +24,8 @@ interface AgentMessage {
 export function ChatPane({ taskId, collectedInputs, onClarificationSubmit }: ChatPaneProps) {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const supabase = createBrowserClient();
 
   useEffect(() => {
 
