@@ -30,7 +30,7 @@ export type CreateBasketReq = {
   idempotency_key: string; // UUID
   basket: { name?: string };
 };
-export type CreateBasketRes = { basket_id: string };
+export type CreateBasketRes = { basket_id: string; id: string; name: string };
 // shared/contracts/dumps.ts
 export type CreateDumpReq = {
   basket_id: string;
@@ -56,6 +56,8 @@ export type IngestReq = {
 };
 export type IngestRes = {
   basket_id: string;
+  id: string;
+  name: string;
   dumps: CreateDumpRes[];
 };
 ```

@@ -12,6 +12,7 @@ export type CreateBasketReq = {
 };
 
 export type CreateBasketRes = {
-  id: string; // UUID
+  basket_id: string; // UUID
+  id: string; // UUID (duplicate of basket_id for legacy clients)
   name: string;
 };

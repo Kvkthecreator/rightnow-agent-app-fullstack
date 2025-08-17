@@ -12,6 +12,7 @@ export const CreateBasketReqSchema = z.object({
 }) satisfies z.ZodType<CreateBasketReq>;
 
 export const CreateBasketResSchema = z.object({
+  basket_id: z.string().uuid(),
   id: z.string().uuid(),
   name: z.string(),
 }) satisfies z.ZodType<CreateBasketRes>;

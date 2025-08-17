@@ -124,13 +124,6 @@ export async function apiClient(request: ApiRequest): Promise<unknown> {
     authToken = session?.access_token;
   }
   
-  // Get workspace ID if available
-  let workspaceId: string | undefined;
-  if (typeof window !== 'undefined') {
-    // Try to get from local storage or context
-    workspaceId = localStorage.getItem('workspace_id') || undefined;
-  }
-  
   // Build full URL - handle both absolute and relative URLs
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`;
@@ -146,16 +139,12 @@ export async function apiClient(request: ApiRequest): Promise<unknown> {
     finalHeaders['Authorization'] = `Bearer ${authToken}`;
   }
   
-  if (workspaceId) {
-    finalHeaders['X-Workspace-Id'] = workspaceId;
-  }
   
   // Log request in development
   dlog('api/http/request', {
     url,
     method,
     requestId,
-    workspaceId,
     hasAuth: !!authToken,
   });
   

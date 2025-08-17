@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+
+export const runtime = "nodejs";
 import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { getWorkspaceFromBasket } from "@/lib/utils/workspace";
@@ -215,11 +217,12 @@ export async function POST(
       // Call Python agent backend at deployed URL
       let agentResponse;
       try {
-        const agentUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
+        const agentUrl = process.env.NEXT_PUBLIC_API_BASE_URL!;
         console.log('🤖 Calling agent backend:', `${agentUrl}/api/agent`);
         
         const response = await fetch(`${agentUrl}/api/agent`, {
           method: 'POST',
+          cache: 'no-store',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${user.id}` // Use user ID as auth for now

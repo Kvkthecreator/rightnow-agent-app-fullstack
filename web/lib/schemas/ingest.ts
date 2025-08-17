@@ -18,6 +18,8 @@ export const IngestReqSchema = z.object({
 
 export const IngestResSchema = z.object({
   basket_id: z.string().uuid(),
+  id: z.string().uuid(),
+  name: z.string(),
   dumps: z.array(z.object({
     dump_id: z.string().uuid(),
   })),
