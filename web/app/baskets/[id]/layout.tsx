@@ -1,74 +1,51 @@
-import { BasketProvider as BasketIdProvider } from "@/lib/context/BasketContext";
-import { BasketProvider } from "@/contexts/BasketContext";
-import {
-  getBasketData,
-  getBasketDocuments,
-  getUserAndWorkspace,
-} from "@/lib/data/basketData";
-import { redirect, notFound } from "next/navigation";
+import TopBar from "@/components/basket/TopBar";
+import BasketNav from "@/components/basket/BasketNav";
+import Guide from "@/components/basket/Guide";
+import React from "react";
 
-interface BasketLayoutProps {
+interface LayoutProps {
   children: React.ReactNode;
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-export default async function BasketLayout({ children, params }: BasketLayoutProps) {
-  const { id } = await params;
-
-  try {
-    const { user, workspace } = await getUserAndWorkspace();
-
-    if (!user) {
-      redirect(`/login?redirect=/baskets/${id}/work`);
-    }
-
-    if (!workspace?.id) {
-      redirect("/dashboard/home");
-    }
-
-    const [basketData, documents] = await Promise.all([
-      getBasketData(id),
-      getBasketDocuments(id),
-    ]);
-
-    if (!basketData) {
-      notFound();
-    }
-
-    const basketForContext = {
-      id: basketData.id,
-      name: basketData.name,
-      status: basketData.status,
-      created_at: basketData.createdAt,
-      updated_at: basketData.createdAt,
-      description: undefined,
-      workspace_id: basketData.workspace?.id || workspace?.id || 'default',
-    };
-
-    return (
-      <BasketIdProvider initialBasketId={id}>
-        <BasketProvider initialBasket={basketForContext} initialDocuments={documents}>
-          {children}
-        </BasketProvider>
-      </BasketIdProvider>
-    );
-  } catch (error) {
-    console.error("Error loading basket layout:", error);
-    notFound();
-  }
+export default async function BasketLayout({ children, params }: LayoutProps) {
+  const { id } = params;
+  const res = await fetch(`/api/baskets/${id}/state`, { cache: "no-store" });
+  const data = res.ok ? await res.json() : { name: "Basket" };
+  return (
+    <BasketLayoutClient basketId={id} basketName={data.name}>
+      {children}
+    </BasketLayoutClient>
+  );
 }
 
-export async function generateMetadata({
-  params,
+function BasketLayoutClient({
+  basketId,
+  basketName,
+  children,
 }: {
-  params: Promise<{ id: string }>;
+  basketId: string;
+  basketName: string;
+  children: React.ReactNode;
 }) {
-  const { id } = await params;
-  const basketData = await getBasketData(id);
+  "use client";
+  const [showNav, setShowNav] = React.useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("basket-nav") !== "hidden";
+  });
 
-  return {
-    title: `${basketData?.name || "Basket"} - Yarnnn`,
-    description: "Strategic intelligence project",
-  };
+  React.useEffect(() => {
+    localStorage.setItem("basket-nav", showNav ? "show" : "hidden");
+  }, [showNav]);
+
+  return (
+    <div className="flex h-screen flex-col">
+      <TopBar title={basketName} onToggleNav={() => setShowNav((s) => !s)} />
+      <div className="flex flex-1 overflow-hidden">
+        {showNav && <BasketNav basketId={basketId} />}
+        <div className="flex-1 overflow-y-auto p-4">{children}</div>
+        <Guide />
+      </div>
+    </div>
+  );
 }
-
