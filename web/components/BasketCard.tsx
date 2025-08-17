@@ -18,10 +18,11 @@ export default function BasketCard({ basket }: BasketCardProps) {
   const preview =
     basket.raw_dump_body?.slice(0, 150) || "No dump yet. Add something?";
   return (
-    <Link
-      href={`/baskets/${basket.id}/work`}
-      className="rounded-md border p-4 hover:bg-muted block"
-    >
+      <Link
+        href={`/baskets/${basket.id}/work`}
+        prefetch={false}
+        className="rounded-md border p-4 hover:bg-muted block"
+      >
       <div className="flex justify-between">
         <h3 className="text-md font-semibold truncate">
           🧺 {basket.name || "Untitled Basket"}

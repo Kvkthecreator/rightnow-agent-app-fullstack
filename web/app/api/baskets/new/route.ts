@@ -8,8 +8,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { CreateBasketReqSchema } from "@/lib/schemas/baskets";
 import crypto, { randomUUID } from "node:crypto";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.yarnnn.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
 function hash(v: string) {
   return crypto.createHash("sha256").update(v).digest("hex").slice(0, 8);
@@ -104,6 +103,7 @@ export async function POST(req: NextRequest) {
   };
   const res = await fetch(`${API_BASE}/api/baskets/new`, {
     method: "POST",
+    cache: "no-store",
     headers: {
       "content-type": "application/json",
       Authorization: `Bearer ${accessToken}`,

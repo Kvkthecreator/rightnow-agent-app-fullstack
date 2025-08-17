@@ -1,137 +1,169 @@
-// API Bridge: Frontend Next.js → Backend Manager Agent
-// This is the critical missing link between the two systems
+export const runtime = "nodejs";
 
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { z, ZodError } from 'zod';
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/auth-helpers-nextjs";
+import { z, ZodError } from "zod";
+import { createHash, randomUUID } from "node:crypto";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
+
+function hash(v: string) {
+  return createHash("sha256").update(v).digest("hex").slice(0, 8);
+}
+
+function safeDecode(token?: string) {
+  try {
+    if (!token) return {};
+    const [h, p] = token.split(".");
+    const header = JSON.parse(Buffer.from(h, "base64").toString());
+    const payload = JSON.parse(Buffer.from(p, "base64").toString());
+    return {
+      tokenHeaderAlg: header.alg,
+      tokenClaims: {
+        iss: payload.iss,
+        aud: payload.aud,
+        sub_hash: payload.sub ? hash(payload.sub) : undefined,
+        exp: payload.exp,
+        iat: payload.iat,
+        aal: payload.aal,
+        amr: Array.isArray(payload.amr)
+          ? payload.amr.map((m: any) => m.method)
+          : undefined,
+      },
+    };
+  } catch {
+    return {};
+  }
+}
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-export async function POST(
-  request: NextRequest, 
-  context: RouteContext
-) {
+export async function POST(req: NextRequest, ctx: RouteContext) {
   try {
-    const { id: basketId } = await context.params;
-    const reqId = request.headers.get('X-Req-Id') || `ui-${Date.now()}`;
+    const { id: basketId } = await ctx.params;
+    const DBG = req.headers.get("x-yarnnn-debug-auth") === "1";
     let body: unknown;
     try {
-      body = await request.json();
-    } catch (err) {
-      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: { code: "INVALID_JSON", message: "Malformed JSON" } },
+        { status: 400 }
+      );
     }
 
-    // Support both new mode format and legacy format
-    const hasMode =
-      typeof body === 'object' && body !== null && 'mode' in body;
-    
+    const hasMode = typeof body === "object" && body !== null && "mode" in body;
     let parsed: any;
     if (hasMode) {
-      // New BasketWorkRequest format
       const NewSchema = z.object({
-        mode: z.enum(['init_build', 'evolve_turn']),
-        sources: z.array(
-          z.object({
-            type: z.string(),
-            id: z.string(),
-            content: z.string().optional()
+        mode: z.enum(["init_build", "evolve_turn"]),
+        sources: z
+          .array(
+            z.object({
+              type: z.string(),
+              id: z.string(),
+              content: z.string().optional(),
+            })
+          )
+          .min(1, "sources must include at least one item"),
+        policy: z
+          .object({
+            allow_structural_changes: z.boolean().optional(),
+            preserve_blocks: z.array(z.string()).optional(),
+            update_document_ids: z.array(z.string()).optional(),
+            strict_link_provenance: z.boolean().optional(),
           })
-        ).min(1, 'sources must include at least one item'),
-        policy: z.object({
-          allow_structural_changes: z.boolean().optional(),
-          preserve_blocks: z.array(z.string()).optional(),
-          update_document_ids: z.array(z.string()).optional(),
-          strict_link_provenance: z.boolean().optional()
-        }).optional(),
-        options: z.object({
-          fast: z.boolean().optional(),
-          max_tokens: z.number().optional(),
-          trace_req_id: z.string().optional()
-        }).optional()
+          .optional(),
+        options: z
+          .object({
+            fast: z.boolean().optional(),
+            max_tokens: z.number().optional(),
+            trace_req_id: z.string().optional(),
+          })
+          .optional(),
       });
       parsed = NewSchema.parse(body);
     } else {
-      // Legacy BasketChangeRequest format
       const LegacySchema = z.object({
         request_id: z.string(),
         basket_id: z.string().uuid(),
         intent: z.string().optional(),
-        sources: z.array(z.object({ type: z.string(), id: z.string().optional() })).optional(),
+        sources: z
+          .array(z.object({ type: z.string(), id: z.string().optional() }))
+          .optional(),
       });
       parsed = LegacySchema.parse(body);
     }
 
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get: (name) => cookieStore.get(name)?.value } }
+    );
     const {
       data: { session },
     } = await supabase.auth.getSession();
-
     if (!session?.access_token) {
-      console.error('baskets/work unauthorized', { reqId });
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { error: { code: "UNAUTHORIZED", message: "Missing session" } },
+        { status: 401 }
+      );
     }
+    const requestId = req.headers.get("x-request-id") ?? randomUUID();
 
-    const workspaceId =
-      (session.user?.app_metadata as any)?.workspace_id ||
-      (session.user?.user_metadata as any)?.workspace_id ||
-      null;
-
-    const backendUrl = process.env.API_BASE ?? 'https://api.yarnnn.com';
-    const endpoint = `${backendUrl}/api/baskets/${basketId}/work`;
-
-    console.log('🌉 API Bridge: Proxying to backend:', endpoint);
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
+    const res = await fetch(`${API_BASE}/api/baskets/${basketId}/work`, {
+      method: "POST",
+      cache: "no-store",
       headers: {
-        'Content-Type': 'application/json',
+        "content-type": "application/json",
         Authorization: `Bearer ${session.access_token}`,
-        ...(workspaceId ? { 'X-Workspace-Id': String(workspaceId) } : {}),
-        'X-Req-Id': reqId,
+        "sb-access-token": session.access_token,
+        "x-request-id": requestId,
+        ...(DBG ? { "x-yarnnn-debug-auth": "1" } : {}),
       },
       body: JSON.stringify(parsed),
     });
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.error('❌ Backend Manager Agent failed:', response.status, text.slice(0, 500));
+    const text = await res.text();
+    if (!res.ok && DBG) {
+      const { tokenHeaderAlg, tokenClaims } = safeDecode(session.access_token);
       return NextResponse.json(
-        { error: text || `Manager Agent failed (${response.status})` },
-        { status: response.status }
+        {
+          error: { code: "UPSTREAM", message: "Upstream error" },
+          debug: {
+            location: "baskets/work -> FastAPI",
+            apiUrl: `${API_BASE}/api/baskets/${basketId}/work`,
+            tokenHeaderAlg,
+            tokenClaims,
+            upstream: (() => {
+              try {
+                return JSON.parse(text);
+              } catch {
+                return { raw: text.slice(0, 200) };
+              }
+            })(),
+          },
+        },
+        { status: res.status }
       );
     }
 
-    const result = await response.json();
-    console.log('✅ Manager Agent response:', { deltaId: result.delta_id, changes: result.changes?.length });
-
-    return NextResponse.json(result);
+    return new NextResponse(text, { status: res.status });
   } catch (error) {
     if (error instanceof ZodError) {
-      return NextResponse.json({ error: 'Invalid request', details: error.errors }, { status: 400 });
+      return NextResponse.json(
+        { error: { code: "INVALID_INPUT", details: error.errors } },
+        { status: 422 }
+      );
     }
-    console.error('❌ API Bridge error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'API bridge failed', details: errorMessage },
+      { error: { code: "UPSTREAM", message: "API bridge failed" } },
       { status: 500 }
     );
   }
-}
-
-// Also handle GET for testing
-export async function GET(
-  request: NextRequest,
-  context: RouteContext
-) {
-  const { id: basketId } = await context.params;
-  
-  return NextResponse.json({
-    bridge: 'active',
-    basketId,
-    backendUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://rightnow-api.onrender.com',
-    message: 'API bridge is working. Use POST to send basket work requests.'
-  });
 }
