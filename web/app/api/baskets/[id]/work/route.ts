@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/auth-helpers-nextjs";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { z, ZodError } from "zod";
 import { createHash, randomUUID } from "node:crypto";
 
@@ -99,12 +99,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       parsed = LegacySchema.parse(body);
     }
 
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { get: (name) => cookieStore.get(name)?.value } }
-    );
+    const supabase = createRouteHandlerClient({ cookies });
     const {
       data: { session },
     } = await supabase.auth.getSession();

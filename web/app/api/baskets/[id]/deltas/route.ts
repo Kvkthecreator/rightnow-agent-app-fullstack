@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/auth-helpers-nextjs";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { createHash, randomUUID } from "node:crypto";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
@@ -44,12 +44,7 @@ interface RouteContext {
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const { id: basketId } = await ctx.params;
   const DBG = req.headers.get("x-yarnnn-debug-auth") === "1";
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get: (name) => cookieStore.get(name)?.value } }
-  );
+  const supabase = createRouteHandlerClient({ cookies });
   const {
     data: { session },
   } = await supabase.auth.getSession();
