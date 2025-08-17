@@ -4,10 +4,10 @@ export const dynamic = "force-dynamic";
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { cookies } from "next/headers";
 import { CreateBasketReqSchema } from "@/lib/schemas/baskets";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
@@ -38,19 +38,44 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 2) Get Supabase session from server-side cookies (refresh-safe)
   const supabase = createRouteHandlerClient({ cookies });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json(
+      { error: { code: "UNAUTHORIZED", message: "Missing user" } },
+      { status: 401 }
+    );
+  }
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  if (!session?.access_token) {
+  const accessToken = session?.access_token;
+  if (!accessToken) {
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Missing session" } },
       { status: 401 }
     );
   }
 
-  const accessToken = session.access_token;
+  function redact(token: string) {
+    try {
+      const [, p] = token.split(".");
+      const payload = JSON.parse(Buffer.from(p, "base64").toString());
+      return {
+        iss: payload.iss,
+        aud: payload.aud,
+        sub_hash: payload.sub ? createHash("sha256").update(payload.sub).digest("hex").slice(0, 8) : undefined,
+        exp: payload.exp,
+        iat: payload.iat,
+        aal: payload.aal,
+        amr: Array.isArray(payload.amr) ? payload.amr.map((m: any) => m.method) : undefined,
+      };
+    } catch {
+      return {} as Record<string, unknown>;
+    }
+  }
 
   // 3) Forward to FastAPI with Bearer token (workspace bootstrap is server-side)
   // Forward canonical payload to FastAPI
@@ -71,19 +96,7 @@ export async function POST(req: NextRequest) {
   const text = await upstream.text();
   if (!upstream.ok && DBG) {
     return NextResponse.json(
-      {
-        error: { code: "UPSTREAM", message: "Auth failed" },
-        debug: {
-          location: "baskets/new -> FastAPI",
-          upstream: (() => {
-            try {
-              return JSON.parse(text);
-            } catch {
-              return { raw: text.slice(0, 200) };
-            }
-          })(),
-        },
-      },
+      { error: { code: "UPSTREAM", message: "Auth failed" }, debug: redact(accessToken) },
       { status: upstream.status }
     );
   }

@@ -82,28 +82,34 @@ export async function getCachedSession() {
       reason: sessionCache ? 'expired' : 'no-cache' 
     });
     
-    const { supabase } = await import('@/lib/supabaseClient');
-    const [
-      {
-        data: { session },
-      },
-      {
-        data: { user },
-      },
-    ] = await Promise.all([
-      supabase.auth.getSession(),
-      supabase.auth.getUser(),
-    ]);
-
-    const mergedSession = session ? { ...session, user } : null;
-
-    // Update cache
+    const { createBrowserClient } = await import('@/lib/supabase/clients');
+    const supabase = createBrowserClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      sessionCache = null;
+      return null;
+    }
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+    if (error || !session) {
+      sessionCache = null;
+      return null;
+    }
+    let current = session;
+    if (session.expires_at && session.expires_at * 1000 <= now) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed.session) current = refreshed.session;
+    }
+    const mergedSession = { ...current, user };
     sessionCache = {
       session: mergedSession,
       timestamp: now,
       expiry: now + SESSION_CACHE_TTL,
     };
-
     return mergedSession;
   }
 }
@@ -149,6 +155,7 @@ export async function apiClient(request: ApiRequest): Promise<unknown> {
   
   if (authToken) {
     finalHeaders['Authorization'] = `Bearer ${authToken}`;
+    finalHeaders['sb-access-token'] = authToken;
   }
   
   
@@ -161,13 +168,30 @@ export async function apiClient(request: ApiRequest): Promise<unknown> {
   });
   
   try {
-    const response = await fetch(fullUrl, {
+    let response = await fetch(fullUrl, {
       method,
       headers: finalHeaders,
       body: body ? JSON.stringify(body) : undefined,
       signal,
       credentials: 'include', // Include cookies for server-side auth
     });
+
+    if (response.status === 401 && typeof window !== 'undefined') {
+      clearSessionCache();
+      const retrySession = await getCachedSession();
+      const retryToken = retrySession?.access_token;
+      if (retryToken) {
+        finalHeaders['Authorization'] = `Bearer ${retryToken}`;
+        finalHeaders['sb-access-token'] = retryToken;
+        response = await fetch(fullUrl, {
+          method,
+          headers: finalHeaders,
+          body: body ? JSON.stringify(body) : undefined,
+          signal,
+          credentials: 'include',
+        });
+      }
+    }
     
     // Parse response
     let responseData: unknown;

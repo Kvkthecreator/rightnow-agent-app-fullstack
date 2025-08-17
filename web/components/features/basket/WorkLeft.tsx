@@ -79,6 +79,7 @@ export default function WorkLeft({ basketId }: { basketId: string }) {
                 <li key={item.label}>
                   <Link
                     href={fullPath}
+                    prefetch={false}
                     onClick={() => setFocus({ kind: 'dashboard' })}
                     className={`
                       flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-colors

@@ -22,3 +22,5 @@ export default async function WorkLayout({ children, center, params }: LayoutPro
     </FocusProvider>
   );
 }
+
+export const dynamic = "force-dynamic";
