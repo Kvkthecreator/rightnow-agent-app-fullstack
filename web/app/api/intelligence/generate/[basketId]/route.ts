@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
+import { randomUUID, createHash } from "node:crypto";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { getWorkspaceFromBasket } from "@/lib/utils/workspace";
 import { 
@@ -29,7 +31,9 @@ export async function POST(
 ) {
   try {
     const { basketId } = await params;
-    const supabase = createServerSupabaseClient();
+    const DBG = request.headers.get("x-yarnnn-debug-auth") === "1";
+    const requestId = request.headers.get("x-request-id") ?? randomUUID();
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Authentication check
     const {
@@ -38,6 +42,16 @@ export async function POST(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    if (!accessToken) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
@@ -219,27 +233,48 @@ export async function POST(
       try {
         const agentUrl = process.env.NEXT_PUBLIC_API_BASE_URL!;
         console.log('🤖 Calling agent backend:', `${agentUrl}/api/agent`);
-        
+
         const response = await fetch(`${agentUrl}/api/agent`, {
           method: 'POST',
           cache: 'no-store',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${user.id}` // Use user ID as auth for now
+            Authorization: `Bearer ${accessToken}`,
+            'sb-access-token': accessToken,
+            'x-request-id': requestId,
+            ...(DBG ? { 'x-yarnnn-debug-auth': '1' } : {}),
           },
           body: JSON.stringify(intelligencePayload),
-          signal: AbortSignal.timeout(30000) // 30 second timeout
+          signal: AbortSignal.timeout(30000),
         });
 
         if (response.ok) {
           agentResponse = await response.json();
         } else {
           const errorText = await response.text();
-          console.error('❗ Agent backend error:', {
-            status: response.status,
-            statusText: response.statusText,
-            response: errorText
-          });
+          if (DBG) {
+            const debug = (() => {
+              try {
+                const [, p] = accessToken.split('.');
+                const payload = JSON.parse(Buffer.from(p, 'base64').toString());
+                return {
+                  iss: payload.iss,
+                  aud: payload.aud,
+                  sub_hash: createHash('sha256').update(payload.sub || '').digest('hex').slice(0,8),
+                  exp: payload.exp,
+                  iat: payload.iat,
+                  aal: payload.aal,
+                  amr: Array.isArray(payload.amr) ? payload.amr.map((m:any)=>m.method) : undefined,
+                };
+              } catch {
+                return {};
+              }
+            })();
+            return NextResponse.json(
+              { error: 'Agent backend failed', debug },
+              { status: response.status }
+            );
+          }
           throw new Error(`Agent backend failed: ${response.status} - ${errorText}`);
         }
       } catch (error) {

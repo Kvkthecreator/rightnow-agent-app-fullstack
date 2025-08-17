@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabaseServerClient';
+import { cookies } from 'next/headers';
+import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
 import { createUniversalChangeService, type ChangeRequest, type ChangeResult } from '@/lib/services/UniversalChangeService';
 
@@ -21,7 +22,7 @@ import { createUniversalChangeService, type ChangeRequest, type ChangeResult } f
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = createRouteHandlerClient({ cookies });
     
     // ========================================================================
     // AUTHENTICATION & AUTHORIZATION
@@ -224,7 +225,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Authentication
     const {

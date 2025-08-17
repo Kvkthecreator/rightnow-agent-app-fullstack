@@ -1,5 +1,5 @@
 // web/lib/baskets/getAllBaskets.ts
-import { createClient } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { Database } from "@/lib/dbTypes";
 
 export type BasketOverview = Pick<
@@ -8,7 +8,7 @@ export type BasketOverview = Pick<
 >;
 
 export async function getAllBaskets(): Promise<BasketOverview[]> {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
 
   const {
     data,

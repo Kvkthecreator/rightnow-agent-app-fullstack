@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Lightbulb, Sparkles, Tag, Settings } from "lucide-react";
 import { ProgressiveDisclosure } from "../narrative/ProgressiveDisclosure";
-import { supabase } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 
 interface InsightRefinementProps {
   open: boolean;
@@ -27,6 +27,8 @@ interface InsightRefinementProps {
   }) => Promise<void>;
   includeIntelligentSuggestions?: boolean;
 }
+
+const supabase = createBrowserClient();
 
 export default function InsightRefinement({
   open,

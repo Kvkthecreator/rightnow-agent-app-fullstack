@@ -1,8 +1,9 @@
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@/lib/supabase/clients";
 import type { Dump } from "@/types";
 
 export async function getLatestDumpServer(basketId: string): Promise<Dump | null> {
-  const supabase = createServerSupabaseClient();
+  const supabase = createServerComponentClient({ cookies });
   const { data, error } = await supabase
     .from("dumps")
     .select("id,basket_id,body_md,created_at")

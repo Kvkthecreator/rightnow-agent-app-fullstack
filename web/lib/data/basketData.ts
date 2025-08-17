@@ -1,4 +1,5 @@
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { getBasketServer } from "@/lib/server/baskets";
 import { getDocumentsServer } from "@/lib/server/documents";
@@ -6,7 +7,7 @@ import { getDocumentsServer } from "@/lib/server/documents";
 // Clean data fetching utilities for baskets work
 export async function getBasketData(basketId: string) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = createServerComponentClient({ cookies });
     
     const {
       data: { user },
@@ -64,7 +65,7 @@ export async function getBasketData(basketId: string) {
 
 export async function getBasketDocuments(basketId: string) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = createServerComponentClient({ cookies });
     
     const {
       data: { user },
@@ -125,7 +126,7 @@ export async function getDocument(basketId: string, documentId: string) {
 
 export async function getUserAndWorkspace() {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = createServerComponentClient({ cookies });
     
     const {
       data: { user },

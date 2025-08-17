@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { User as UserIcon } from "lucide-react";
@@ -17,6 +17,8 @@ interface UserNavProps {
   /** Hide user email, show only icon (for compact sidebar) */
   compact?: boolean;
 }
+
+const supabase = createBrowserClient();
 
 export default function UserNav({ compact = false }: UserNavProps) {
   const router = useRouter();

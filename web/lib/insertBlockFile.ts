@@ -1,6 +1,6 @@
 // web/lib/insertBlockFile.ts
 
-import { createClient } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 
 interface InsertBlockFileArgs {
   user_id: string;
@@ -21,7 +21,7 @@ export async function insertBlockFile({
   associated_block_id,
   is_primary = false,
 }: InsertBlockFileArgs) {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
 
   const { error } = await supabase.from("block_files").insert({
     user_id,

@@ -1,13 +1,13 @@
 import useSWR from "swr";
 import type { Document } from "@/types";
-import { createClient } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 
 export interface DocumentRow extends Document {
   updated_at: string;
 }
 
 const fetcher = async (basketId: string) => {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
   const { data, error } = await supabase
     .from("documents")
     .select("id, title, created_at, updated_at, basket_id")

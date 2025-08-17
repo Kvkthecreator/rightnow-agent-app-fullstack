@@ -9,7 +9,7 @@ export default function DocumentsCenter({ basketId }:{ basketId:string }) {
       <ul className="space-y-1">
         {fakeDocs.map(d => (
           <li key={d.id}>
-            <Link className="underline" href={`/baskets/${basketId}/work/documents/${d.id}`}>
+            <Link className="underline" href={`/baskets/${basketId}/work/documents/${d.id}`} prefetch={false}>
               {d.title}
             </Link>
           </li>

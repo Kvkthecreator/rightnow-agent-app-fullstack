@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/Input";
-import { supabase } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import type { User } from "@supabase/supabase-js";
+
+const supabase = createBrowserClient();
 
 export default function ProfileTab() {
   const [user, setUser] = useState<User | null>(null);
@@ -18,7 +20,7 @@ export default function ProfileTab() {
       setUser(data.user);
     }
     load();
-  }, [supabase]);
+  }, []);
 
   if (!user) return <div>Loading...</div>;
 

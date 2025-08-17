@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabaseServerClient';
+import { cookies } from 'next/headers';
+import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
 import { createDump } from '@/lib/dumps/createDump';
 import type { SubstrateContentInput, AddContextResult } from '@/lib/substrate/types';
@@ -15,7 +16,7 @@ try {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = createRouteHandlerClient({ cookies });
     
     // Get authenticated user
     const {

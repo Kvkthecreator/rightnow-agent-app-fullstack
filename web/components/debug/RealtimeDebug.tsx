@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { createSupabaseClient } from '@/lib/supabase/client';
+import { createBrowserClient } from '@/lib/supabase/clients';
 
 interface RealtimeStatus {
   user?: string;
@@ -19,7 +19,7 @@ export function RealtimeDebug() {
     if (!isVisible) return;
     
     const checkStatus = async () => {
-      const supabase = createSupabaseClient();
+      const supabase = createBrowserClient();
       
       try {
         // Check auth

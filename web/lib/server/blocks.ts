@@ -1,8 +1,9 @@
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@/lib/supabase/clients";
 import type { Block } from "@/types";
 
 export async function getBlocksServer(basketId: string): Promise<Block[]> {
-  const supabase = createServerSupabaseClient();
+  const supabase = createServerComponentClient({ cookies });
   const { data, error } = await supabase
     .from("blocks")
     .select("id, semantic_type, content, created_at")

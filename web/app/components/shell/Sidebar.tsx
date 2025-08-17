@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Plus, Package2, LogOut, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
@@ -13,11 +13,12 @@ interface SidebarProps {
   className?: string;
 }
 
+const supabase = createBrowserClient();
+
 export default function Sidebar({ className }: SidebarProps) {
   const { isVisible, collapsible, toggleSidebar, closeSidebar } = useSidebarStore();
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export default function Sidebar({ className }: SidebarProps) {
       }
     }
     init();
-  }, [supabase]);
+  }, []);
 
 
   useEffect(() => {

@@ -10,7 +10,7 @@
 
 import { render, renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createBrowserSupabaseClient } from '@/lib/supabaseClient';
+import { createBrowserClient } from '@/lib/supabase/clients';
 import { useBasketEvents } from '@/hooks/useBasketEvents';
 import AuthGuard from '@/components/AuthGuard';
 import UserNav from '@/components/UserNav';
@@ -73,9 +73,9 @@ describe('Auth/Polling Tripwire Tests', () => {
 
   describe('Supabase Client Singleton', () => {
     it('should reuse the same client instance across multiple calls', () => {
-      const client1 = createBrowserSupabaseClient();
-      const client2 = createBrowserSupabaseClient();
-      const client3 = createBrowserSupabaseClient();
+      const client1 = createBrowserClient();
+      const client2 = createBrowserClient();
+      const client3 = createBrowserClient();
 
       expect(client1).toBe(client2);
       expect(client2).toBe(client3);
@@ -85,9 +85,9 @@ describe('Auth/Polling Tripwire Tests', () => {
       const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
       
       // First call creates, subsequent calls reuse
-      createBrowserSupabaseClient();
-      createBrowserSupabaseClient();
-      createBrowserSupabaseClient();
+      createBrowserClient();
+      createBrowserClient();
+      createBrowserClient();
 
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('[DEBUG] supabase/singleton-reuse'),

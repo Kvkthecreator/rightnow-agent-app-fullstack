@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { createSupabaseClient } from '@/lib/supabase/client';
+import { createBrowserClient } from '@/lib/supabase/clients';
 
 interface TestRealtimeProps {
   basketId: string;
@@ -13,7 +13,7 @@ export function TestRealtime({ basketId }: TestRealtimeProps) {
   const [lastChange, setLastChange] = useState<string>('');
 
   useEffect(() => {
-    const supabase = createSupabaseClient();
+    const supabase = createBrowserClient();
     
     console.log('Testing realtime for basket:', basketId);
     

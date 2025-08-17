@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { z, ZodError } from "zod";
 import { createHash, randomUUID } from "node:crypto";
 
@@ -15,12 +15,10 @@ function hash(v: string) {
 
 function safeDecode(token?: string) {
   try {
-    if (!token) return {};
-    const [h, p] = token.split(".");
-    const header = JSON.parse(Buffer.from(h, "base64").toString());
+    if (!token) return { tokenClaims: {} };
+    const [, p] = token.split(".");
     const payload = JSON.parse(Buffer.from(p, "base64").toString());
     return {
-      tokenHeaderAlg: header.alg,
       tokenClaims: {
         iss: payload.iss,
         aud: payload.aud,
@@ -34,7 +32,7 @@ function safeDecode(token?: string) {
       },
     };
   } catch {
-    return {};
+    return { tokenClaims: {} };
   }
 }
 
@@ -101,9 +99,19 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
     const supabase = createRouteHandlerClient({ cookies });
     const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHORIZED", message: "Missing user" } },
+        { status: 401 }
+      );
+    }
+    const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session?.access_token) {
+    const accessToken = session?.access_token;
+    if (!accessToken) {
       return NextResponse.json(
         { error: { code: "UNAUTHORIZED", message: "Missing session" } },
         { status: 401 }
@@ -116,8 +124,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       cache: "no-store",
       headers: {
         "content-type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-        "sb-access-token": session.access_token,
+        Authorization: `Bearer ${accessToken}`,
+        "sb-access-token": accessToken,
         "x-request-id": requestId,
         ...(DBG ? { "x-yarnnn-debug-auth": "1" } : {}),
       },
@@ -126,24 +134,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
     const text = await res.text();
     if (!res.ok && DBG) {
-      const { tokenHeaderAlg, tokenClaims } = safeDecode(session.access_token);
       return NextResponse.json(
-        {
-          error: { code: "UPSTREAM", message: "Upstream error" },
-          debug: {
-            location: "baskets/work -> FastAPI",
-            apiUrl: `${API_BASE}/api/baskets/${basketId}/work`,
-            tokenHeaderAlg,
-            tokenClaims,
-            upstream: (() => {
-              try {
-                return JSON.parse(text);
-              } catch {
-                return { raw: text.slice(0, 200) };
-              }
-            })(),
-          },
-        },
+        { error: { code: "UPSTREAM", message: "Upstream error" }, debug: safeDecode(accessToken).tokenClaims },
         { status: res.status }
       );
     }

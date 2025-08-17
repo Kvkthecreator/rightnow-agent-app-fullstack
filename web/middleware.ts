@@ -4,8 +4,15 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
+  const canonical = process.env.NEXT_PUBLIC_CANONICAL_HOST;
+  const host = req.headers.get('host');
+  if (canonical && host && host !== canonical) {
+    const url = req.nextUrl;
+    url.host = canonical;
+    return NextResponse.redirect(url);
+  }
 
+  const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
   const {
     data: { user },

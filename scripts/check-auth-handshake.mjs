@@ -32,19 +32,29 @@ function walk(dir, cb) {
   }
 }
 
-// Ensure all API proxies using NEXT_PUBLIC_API_BASE_URL run on node
+// Ensure all API proxies using NEXT_PUBLIC_API_BASE_URL run on node and forward tokens
 const routeFiles = [];
 walk('web/app/api', (file) => {
   if (file.endsWith('route.ts')) routeFiles.push(file);
 });
 for (const file of routeFiles) {
   const content = fs.readFileSync(file, 'utf8');
-  if (
-    content.includes('NEXT_PUBLIC_API_BASE_URL') &&
-    !content.includes('export const runtime = "nodejs"')
-  ) {
-    console.error(`${file} missing runtime export`);
-    process.exit(1);
+  if (content.includes('NEXT_PUBLIC_API_BASE_URL')) {
+    if (!content.includes('export const runtime = "nodejs"')) {
+      console.error(`${file} missing runtime export`);
+      process.exit(1);
+    }
+    if (!content.includes('cache: "no-store"') && !content.includes("cache: 'no-store'")) {
+      console.error(`${file} missing cache no-store`);
+      process.exit(1);
+    }
+    if (!content.includes('sb-access-token') || !content.includes('Authorization: `Bearer')) {
+      console.error(`${file} missing auth header forwarding`);
+      process.exit(1);
+    }
+    if (content.includes('next/headers')) {
+      console.warn(`WARN: ${file} uses next/headers()`);
+    }
   }
 }
 

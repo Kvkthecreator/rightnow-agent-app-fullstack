@@ -1,7 +1,7 @@
 // SYSTEMATIC REBUILD - Single service for ALL substrate operations
 // Direct Supabase, no abstractions, simple async/await patterns
 
-import { createSupabaseClient } from '@/lib/supabase/client';
+import { createBrowserClient } from '@/lib/supabase/clients';
 import { authHelper } from '@/lib/supabase/auth-helper';
 import { createDump } from '@/lib/dumps/createDump';
 import { apiClient } from '@/lib/api/client';
@@ -52,7 +52,7 @@ export interface SubstrateData {
 }
 
 export class SubstrateService {
-  private supabase = createSupabaseClient();
+  private supabase = createBrowserClient();
 
   // ==========================================
   // RAW DUMPS - Primary input mechanism

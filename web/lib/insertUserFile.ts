@@ -1,5 +1,5 @@
 // web/lib/insertUserFile.ts
-import { createClient } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 
 /**
  * Inserts a new file record into the block_files table.
@@ -20,7 +20,7 @@ export async function insertUserFile({
   note?: string;
   size_bytes: number;
 }) {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
 
   const { data, error } = await supabase
   .from("block_files")

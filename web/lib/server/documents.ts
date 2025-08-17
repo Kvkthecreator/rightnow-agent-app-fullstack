@@ -1,8 +1,9 @@
-import { createServerSupabaseClient } from "@/lib/supabaseServerClient";
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@/lib/supabase/clients";
 import type { Document } from "@/types";
 
 export async function getDocumentsServer(workspaceId: string): Promise<Document[]> {
-  const supabase = createServerSupabaseClient();
+  const supabase = createServerComponentClient({ cookies });
 
   const { data, error } = await supabase
     .from("documents")

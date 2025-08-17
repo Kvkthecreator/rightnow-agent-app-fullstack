@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { createSupabaseClient } from '@/lib/supabase/client';
+import { createBrowserClient } from '@/lib/supabase/clients';
 
 // Create supabase client once per module
-const supabase = createSupabaseClient();
+const supabase = createBrowserClient();
 
 export function useBasketEventsWebSocket(basketId: string) {
   const [lastEvent, setLastEvent] = useState<{ type: string; payload: any } | null>(null);

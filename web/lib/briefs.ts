@@ -1,9 +1,9 @@
 // web/lib/briefs.ts
 
-import { createClient } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@/lib/supabase/clients";
 
 export async function getBriefTypes() {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
   const { data, error } = await supabase.from("task_brief_types").select("*");
 
   if (error) {
@@ -15,7 +15,7 @@ export async function getBriefTypes() {
 }
 
 export async function getContextBlocks(user_id: string) {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
   const { data, error } = await supabase
     .from("blocks")
     .select("*")
@@ -37,7 +37,7 @@ export async function createBrief(payload: {
   media?: string[];
   context_block_id?: string;
 }) {
-  const supabase = createClient();
+  const supabase = createBrowserClient();
   const { data, error } = await supabase
     .from("task_briefs")
     .insert([{ ...payload }])
