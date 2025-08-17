@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -17,21 +17,29 @@ export async function POST(
   try {
     const { id: basketId } = await context.params;
     const reqId = request.headers.get('X-Req-Id') || `ui-${Date.now()}`;
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch (err) {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
 
     // Support both new mode format and legacy format
-    const hasMode = 'mode' in body;
+    const hasMode =
+      typeof body === 'object' && body !== null && 'mode' in body;
     
     let parsed: any;
     if (hasMode) {
       // New BasketWorkRequest format
       const NewSchema = z.object({
         mode: z.enum(['init_build', 'evolve_turn']),
-        sources: z.array(z.object({ 
-          type: z.string(), 
-          id: z.string(),
-          content: z.string().optional()
-        })),
+        sources: z.array(
+          z.object({
+            type: z.string(),
+            id: z.string(),
+            content: z.string().optional()
+          })
+        ).min(1, 'sources must include at least one item'),
         policy: z.object({
           allow_structural_changes: z.boolean().optional(),
           preserve_blocks: z.array(z.string()).optional(),
@@ -101,6 +109,9 @@ export async function POST(
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json({ error: 'Invalid request', details: error.errors }, { status: 400 });
+    }
     console.error('❌ API Bridge error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(

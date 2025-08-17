@@ -17,6 +17,7 @@ from services.idempotency import (
     mark_processed,
 )
 from services.manager import run_manager_plan
+from pydantic import ValidationError
 
 # Import deps AFTER path setup
 from ..deps import get_db
@@ -36,50 +37,60 @@ async def post_basket_work(
     """Process basket work request with mode support"""
     
     # Parse request body to determine format
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception as err:
+        raise HTTPException(400, "Invalid JSON") from err
+
     workspace_id = get_or_create_workspace(user["user_id"])
     trace_req_id = request.headers.get("X-Req-Id")
-    
+
     if "mode" in body:
         # New BasketWorkRequest format
         from ..baskets.schemas import BasketWorkRequest
-        work_req = BasketWorkRequest.model_validate(body)
-        
+        try:
+            work_req = BasketWorkRequest.model_validate(body)
+        except ValidationError as err:
+            raise HTTPException(422, err.errors())
+
         # Attach trace ID (don't lose it)
         work_req.options.trace_req_id = trace_req_id
-        
+
         # Idempotency for new mode - prioritize trace_req_id for deduplication
-        request_id = (work_req.options.trace_req_id 
-                      or request.headers.get("X-Req-Id") 
+        request_id = (work_req.options.trace_req_id
+                      or request.headers.get("X-Req-Id")
                       or f"work_{uuid4().hex[:8]}")
         if await already_processed(db, request_id):
             cached_delta = await fetch_delta_by_request_id(db, request_id)
             if not cached_delta:
                 raise HTTPException(409, "Duplicate request but missing delta")
             return BasketDelta(**json.loads(cached_delta["payload"]))
-        
+
         # ✅ Call manager with basket_id + new request
         delta = await run_manager_plan(db, basket_id, work_req, workspace_id)
-        
+
         await persist_delta(db, delta, request_id)
         await mark_processed(db, request_id, delta.delta_id)
         return delta
-    
+
     else:
         # Legacy BasketChangeRequest format
-        req = BasketChangeRequest.model_validate(body)
+        try:
+            req = BasketChangeRequest.model_validate(body)
+        except ValidationError as err:
+            raise HTTPException(422, err.errors())
         if req.basket_id != basket_id:
             raise HTTPException(400, "basket_id mismatch")
-            
+
         if await already_processed(db, req.request_id):
             cached_delta = await fetch_delta_by_request_id(db, req.request_id)
             if not cached_delta:
                 raise HTTPException(409, "Duplicate request but missing delta")
             return BasketDelta(**json.loads(cached_delta["payload"]))
-            
+
         # Legacy path with basket_id
         delta = await run_manager_plan(db, basket_id, req, workspace_id)
-        
+
         await persist_delta(db, delta, req.request_id)
         await mark_processed(db, req.request_id, delta.delta_id)
         return delta
