@@ -10,7 +10,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
-from ..baskets.schemas import CreateBasketReq
 from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_client as supabase
 from ..utils.workspace import get_or_create_workspace
@@ -21,7 +20,7 @@ log = logging.getLogger("uvicorn.error")
 
 @router.post("/new", status_code=201)
 async def create_basket(
-    payload: CreateBasketReq, user: Annotated[dict, Depends(verify_jwt)]
+    payload: dict, user: Annotated[dict, Depends(verify_jwt)]
 ):
     """Create a basket with idempotency and workspace membership checks."""
 
@@ -29,12 +28,19 @@ async def create_basket(
 
     workspace_id = get_or_create_workspace(user["user_id"])
 
+    idempotency_key = payload.get("idempotency_key")
+
+    # ---- AUTO NAME (lightweight) ----
+    intent = (payload.get("intent") or "").strip()
+    basket_name = " ".join(intent.split()[:6]) if intent else "Untitled Basket"
+    # ---------------------------------
+
     # Check for replay using idempotency key
     existing = (
         supabase.table("baskets")
         .select("id")
         .eq("user_id", user["user_id"])
-        .eq("idempotency_key", payload.idempotency_key)
+        .eq("idempotency_key", idempotency_key)
         .execute()
     )
     if existing.data:
@@ -44,30 +50,25 @@ async def create_basket(
                 {
                     "route": "/api/baskets/new",
                     "user_id": user["user_id"],
-                    "idempotency_key": payload.idempotency_key,
+                    "idempotency_key": idempotency_key,
                     "action": "replayed",
                     "basket_id": basket_id,
                     "duration_ms": int((time.time() - start) * 1000),
                 }
             )
         )
-        return JSONResponse({"basket_id": basket_id}, status_code=200)
+        return JSONResponse({"id": basket_id}, status_code=200)
 
     # Insert new basket
-    resp = (
-        supabase.table("baskets")
-        .insert(
-            {
-                "workspace_id": workspace_id,
-                "user_id": user["user_id"],
-                "name": payload.basket.name or "Untitled Basket",
-                "idempotency_key": payload.idempotency_key,
-                "status": "INIT",
-            }
-        )
-        .select("id")
-        .execute()
-    )
+    row = {
+        "workspace_id": workspace_id,
+        "user_id": user["user_id"],
+        "name": basket_name,
+        "intent": intent,
+        "idempotency_key": idempotency_key,
+        "status": "INIT",
+    }
+    resp = supabase.table("baskets").insert(row).select("id").execute()
 
     if getattr(resp, "error", None):
         err = resp.error
@@ -77,7 +78,7 @@ async def create_basket(
                     {
                         "route": "/api/baskets/new",
                         "user_id": user["user_id"],
-                        "idempotency_key": payload.idempotency_key,
+                        "idempotency_key": idempotency_key,
                         "action": "conflict",
                         "duration_ms": int((time.time() - start) * 1000),
                     }
@@ -93,12 +94,12 @@ async def create_basket(
             {
                 "route": "/api/baskets/new",
                 "user_id": user["user_id"],
-                "idempotency_key": payload.idempotency_key,
+                "idempotency_key": idempotency_key,
                 "action": "created",
                 "basket_id": basket_id,
                 "duration_ms": int((time.time() - start) * 1000),
             }
         )
     )
-    return JSONResponse({"basket_id": basket_id}, status_code=201)
+    return JSONResponse({"id": basket_id, "name": basket_name}, status_code=201)
 
