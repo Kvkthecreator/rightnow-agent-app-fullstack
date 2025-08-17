@@ -42,7 +42,7 @@ function safeDecode(token?: string) {
 export async function POST(req: NextRequest) {
   const DBG = req.headers.get("x-yarnnn-debug-auth") === "1";
   const requestId = req.headers.get("x-request-id") ?? randomUUID();
-  // 1) Parse & validate request (canon: { idempotency_key, basket: { name? } })
+  // 1) Parse & validate request (canon: { idempotency_key, intent, raw_dump, notes? })
   let json: unknown;
   try {
     json = await req.json();
@@ -97,10 +97,7 @@ export async function POST(req: NextRequest) {
 
   // 3) Forward to FastAPI with Bearer token (workspace bootstrap is server-side)
   // Forward canonical payload to FastAPI
-  const payload = {
-    idempotency_key: parsed.data.idempotency_key,
-    basket: parsed.data.basket,
-  };
+  const payload = parsed.data;
   const res = await fetch(`${API_BASE}/api/baskets/new`, {
     method: "POST",
     cache: "no-store",
