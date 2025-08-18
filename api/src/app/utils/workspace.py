@@ -13,7 +13,7 @@ import logging
 import uuid
 
 from fastapi import HTTPException
-from .supabase_client import supabase_client as supabase
+from .supabase import supabase_admin
 
 log = logging.getLogger("uvicorn.error")
 
@@ -22,6 +22,8 @@ def get_or_create_workspace(user_id: str) -> str:
     Ensure the user operates in exactly one workspace.
     If no workspace exists → create one and add membership.
     """
+    sb = supabase_admin()  # service role → bypass RLS
+    
     # Validate user_id is a UUID
     try:
         uuid.UUID(user_id)
@@ -29,43 +31,24 @@ def get_or_create_workspace(user_id: str) -> str:
         log.error("Invalid user_id for workspace: %s", user_id)
         raise HTTPException(status_code=401, detail="Invalid user_id")
 
-    # Check existing membership
-    try:
-        query = (
-            supabase.table("workspace_memberships")
-            .select("workspace_id")
-            .eq("user_id", user_id)
-            .limit(1)
-            .execute()
-        )
-    except Exception:
-        log.exception("workspace lookup failed")
-        raise
+    # Try lookup first
+    res = sb.table("workspaces").select("id").eq("owner_id", user_id).limit(1).execute()
+    if res.data:
+        wid = res.data[0]["id"]
+        log.info("WS: found existing workspace id=%s for user=%s", wid, user_id)
+        return wid
 
-    if query.data:
-        return query.data[0]["workspace_id"]
+    # Create if missing (use select() to get id back)
+    ins = (
+        sb.table("workspaces")
+        .insert({"owner_id": user_id, "name": f"{user_id[:6]}'s workspace", "is_demo": False})
+        .select("id")
+        .execute()
+    )
+    if not ins.data:
+        log.error("WS: insert returned no row for user=%s", user_id)
+        raise RuntimeError("workspace_insert_failed")
 
-    # Create workspace + membership
-    workspace_id = str(uuid.uuid4())
-    try:
-        with supabase.transaction() as trx:
-            trx.table("workspaces").insert(
-                {
-                    "id": workspace_id,
-                    "owner_id": user_id,
-                    "name": None,
-                    "is_demo": False,
-                }
-            ).execute()
-            trx.table("workspace_memberships").insert(
-                {
-                    "workspace_id": workspace_id,
-                    "user_id": user_id,
-                    "role": "owner",
-                }
-            ).execute()
-    except Exception:
-        log.exception("workspace creation failed")
-        raise
-
-    return workspace_id
+    wid = ins.data[0]["id"]
+    log.info("WS: created workspace id=%s for user=%s", wid, user_id)
+    return wid

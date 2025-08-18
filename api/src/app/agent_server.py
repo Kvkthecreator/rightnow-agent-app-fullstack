@@ -44,17 +44,31 @@ from .routes.context_intelligence import router as context_intelligence_router
 from .routes.context_items import router as context_items_router
 from .routes.debug import router as debug_router
 from .routes.dump_new import router as dump_new_router
+from .routes.health import router as health_router
 from .routes.inputs import router as inputs_router
 from .routes.narrative_intelligence import router as narrative_intelligence_router
 from .routes.narrative_jobs import router as narrative_jobs_router
 from .routes.phase1_routes import router as phase1_router
 
 
+def _assert_env():
+    """Validate critical environment variables at startup."""
+    missing = [k for k in ("SUPABASE_URL","SUPABASE_JWT_SECRET","SUPABASE_SERVICE_ROLE_KEY") if not os.getenv(k)]
+    if missing:
+        log = logging.getLogger("uvicorn.error")
+        log.error("ENV MISSING: %s", ",".join(missing))
+        raise RuntimeError(f"Missing env vars: {missing}")
+    log = logging.getLogger("uvicorn.error")
+    log.info("ENV OK: URL/JWT_SECRET/SERVICE_ROLE present")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     logger = logging.getLogger("uvicorn.error")
     logger.info("Starting RightNow Agent Server")
+    
+    # Validate environment
+    _assert_env()
 
     yield
 
@@ -93,6 +107,7 @@ routers = (
     context_intelligence_router,
     narrative_intelligence_router,
     auth_health_router,
+    health_router,
 )
 
 for r in routers:
