@@ -64,8 +64,11 @@ async def create_basket(
             )
             return JSONResponse({"id": basket_id}, status_code=200)
 
-        # Insert new basket
+        # Insert new basket with generated ID
+        import uuid
+        basket_id = str(uuid.uuid4())
         row = {
+            "id": basket_id,
             "workspace_id": workspace_id,
             "user_id": user["user_id"],
             "name": basket_name,
@@ -73,7 +76,12 @@ async def create_basket(
             "idempotency_key": idempotency_key,
             "status": "INIT",
         }
-        resp = sb.table("baskets").insert(row).select("id").execute()
+        # Insert and return the created basket
+        try:
+            resp = sb.table("baskets").insert(row).execute()
+        except Exception as e:
+            log.error(f"Basket insert failed: {e}")
+            raise
 
         if getattr(resp, "error", None):
             err = resp.error
@@ -93,7 +101,7 @@ async def create_basket(
             log.exception("basket insert failed: %s", err)
             raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
-        basket_id = resp.data[0]["id"]
+        # ID was already generated above
         log.info(
             json.dumps(
                 {
