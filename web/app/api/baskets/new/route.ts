@@ -4,8 +4,7 @@ export const dynamic = "force-dynamic";
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@/lib/supabase/clients";
-import { cookies } from "next/headers";
+import { getServerSupabase } from "@/lib/supabase/server";
 import { CreateBasketReqSchema } from "@/lib/schemas/baskets";
 import { createHash, randomUUID } from "node:crypto";
 
@@ -37,8 +36,7 @@ export async function POST(req: NextRequest) {
       { status: 422 }
     );
   }
-
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = await getServerSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
