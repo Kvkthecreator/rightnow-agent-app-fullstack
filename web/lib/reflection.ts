@@ -1,43 +1,34 @@
-export type Note = {
-  id: string;
-  text: string;
-  created_at?: string;
-};
+export type Note = { id: string; text: string; created_at?: string };
 
-export type PhraseCount = {
-  phrase: string;
-  count: number;
-};
-
-export type Sentiment = 'positive' | 'negative' | 'neutral';
+export type Sentiment = "positive" | "negative" | "neutral";
 
 const STOP_WORDS = new Set([
-  'the',
-  'and',
-  'a',
-  'to',
-  'of',
-  'in',
-  'is',
-  'it',
-  'for',
-  'on',
-  'with',
-  'as',
-  'by',
-  'an',
-  'be',
-  'are',
-  'that',
-  'this',
+  "the",
+  "and",
+  "a",
+  "to",
+  "of",
+  "in",
+  "is",
+  "it",
+  "for",
+  "on",
+  "with",
+  "as",
+  "by",
+  "an",
+  "be",
+  "are",
+  "that",
+  "this",
 ]);
 
-export function topPhrases(notes: Note[], limit = 5): PhraseCount[] {
+export function topPhrases(notes: Note[], limit = 5): { phrase: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const note of notes) {
     const words = note.text
       .toLowerCase()
-      .replace(/[^a-z\s]/g, '')
+      .replace(/[^a-z\s]/g, "")
       .split(/\s+/)
       .filter((w) => w && !STOP_WORDS.has(w));
     for (let i = 0; i < words.length - 1; i++) {
@@ -51,16 +42,18 @@ export function topPhrases(notes: Note[], limit = 5): PhraseCount[] {
     .map(([phrase, count]) => ({ phrase, count }));
 }
 
-export function findTension(notes: Note[]): string | undefined {
+export function findTension(notes: Note[]): { a: string; b: string } | null {
   for (const note of notes) {
-    const match = note.text.match(
-      /(.{0,40}\b(?:but|however|although)\b.{0,40})/i,
-    );
-    if (match) {
-      return match[0].trim();
+    const vsMatch = note.text.match(/(.+?)\s+vs\s+(.+)/i);
+    if (vsMatch) {
+      return { a: vsMatch[1].trim(), b: vsMatch[2].trim() };
+    }
+    const butMatch = note.text.match(/(.+?)\s+(?:but|however|although)\s+(.+)/i);
+    if (butMatch) {
+      return { a: butMatch[1].trim(), b: butMatch[2].trim() };
     }
   }
-  return undefined;
+  return null;
 }
 
 export function makeQuestion(pattern?: string): string | undefined {
@@ -69,8 +62,8 @@ export function makeQuestion(pattern?: string): string | undefined {
 }
 
 export function sentimentTrend(notes: Note[]): Sentiment {
-  const positive = new Set(['good', 'great', 'happy', 'love', 'excited']);
-  const negative = new Set(['bad', 'sad', 'angry', 'hate', 'upset']);
+  const positive = new Set(["good", "great", "happy", "love", "excited"]);
+  const negative = new Set(["bad", "sad", "angry", "hate", "upset"]);
   let score = 0;
   for (const note of notes) {
     const words = note.text.toLowerCase().split(/\s+/);
@@ -79,7 +72,7 @@ export function sentimentTrend(notes: Note[]): Sentiment {
       if (negative.has(w)) score--;
     }
   }
-  if (score > 0) return 'positive';
-  if (score < 0) return 'negative';
-  return 'neutral';
+  if (score > 0) return "positive";
+  if (score < 0) return "negative";
+  return "neutral";
 }

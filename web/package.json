@@ -8,7 +8,7 @@
     "build:check": "next build",
     "start": "next start",
     "lint": "next lint --dir app --dir components --dir lib",
-    "lint:fix": "pnpm lint --fix || npm run lint --fix",
+    "lint:fix": "next lint --dir app --dir components --dir lib --fix",
     "format": "prettier --write \"{app,components,lib}/**/*.{ts,tsx,md}\""
   },
   "dependencies": {
