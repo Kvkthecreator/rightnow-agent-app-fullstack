@@ -1,3 +1,7 @@
+/** @deprecated Unused. Quarantined on 2025-08-18.
+ *  DO NOT IMPORT. Scheduled for deletion after a short probation window.
+ */
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
