@@ -7,5 +7,8 @@ module.exports = {
   rules: {
     "react/jsx-key": "warn",
     "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+    "no-restricted-imports": ["error", {
+      "patterns": ["@/components/_deprecated/*"]
+    }],
   },
 };

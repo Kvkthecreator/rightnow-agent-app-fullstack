@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint --dir app --dir components --dir lib",
     "lint:fix": "next lint --dir app --dir components --dir lib --fix",
-    "format": "prettier --write \"{app,components,lib}/**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"{app,components,lib}/**/*.{ts,tsx,md}\"",
+    "unused:report": "ts-prune --ignore \"web/__tests__\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",

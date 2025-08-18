@@ -1,3 +1,7 @@
+/** @deprecated Unused. Quarantined on 2025-08-18.
+ *  DO NOT IMPORT. Scheduled for deletion after a short probation window.
+ */
+
 "use client";
 
 import { Target, ArrowRight, Clock, Zap } from "lucide-react";
