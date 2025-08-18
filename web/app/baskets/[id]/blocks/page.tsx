@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createServerClient } from "@/lib/supabase/clients";
+import { createServerComponentClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
 interface PageProps {
@@ -8,7 +8,7 @@ interface PageProps {
 
 export default async function BlocksPage({ params }: PageProps) {
   const { id } = await params;
-  const supabase = createServerClient(cookies);
+  const supabase = createServerComponentClient({ cookies });
   
   // Ensure user is authenticated and has workspace
   const workspace = await ensureWorkspaceServer(supabase);

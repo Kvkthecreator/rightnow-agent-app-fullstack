@@ -3,7 +3,7 @@ import BasketNav from "@/components/basket/BasketNav";
 import Guide from "@/components/basket/Guide";
 import React from "react";
 import { cookies } from "next/headers";
-import { createServerClient } from "@/lib/supabase/clients";
+import { createServerComponentClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
 interface LayoutProps {
@@ -13,7 +13,7 @@ interface LayoutProps {
 
 export default async function BasketLayout({ children, params }: LayoutProps) {
   const { id } = await params;
-  const supabase = createServerClient(cookies);
+  const supabase = createServerComponentClient({ cookies });
   
   // Ensure user is authenticated and has workspace
   const workspace = await ensureWorkspaceServer(supabase);
