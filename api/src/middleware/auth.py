@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from collections.abc import Iterable
@@ -12,6 +13,7 @@ from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+logger = logging.getLogger("uvicorn.error")
 
 def _extract_token(req: Request) -> str | None:
     auth = req.headers.get("authorization")
@@ -85,7 +87,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 "aud": claims.get("aud"),
                 "iss": claims.get("iss"),
             }
-            request.app.logger.info(
+            logger.info(
                 {
                     "event": "jwt_ok",
                     "alg": alg,
@@ -107,7 +109,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 f"{_clean(os.getenv('SUPABASE_URL'))}/auth/v1"
             )
             expected_aud = (os.getenv("SUPABASE_JWT_AUD") or "authenticated").strip()
-            request.app.logger.warning(
+            logger.warning(
                 {
                     "event": "jwt_verify_failed",
                     "alg": alg,
