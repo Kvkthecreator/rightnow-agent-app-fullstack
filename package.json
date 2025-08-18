@@ -6,7 +6,8 @@
     "test": "echo \"No tests\"",
     "codegen:supabase": "python scripts/gen_pydantic.py",
     "build:check": "npm --prefix web run build",
-    "postinstall": "npm --prefix web install"
+    "postinstall": "npm --prefix web install",
+    "prepare": "husky install"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
@@ -15,7 +16,9 @@
     "@testing-library/user-event": "^14.4.3",
     "@types/node": "^22.15.30",
     "clsx": "^2.1.1",
+    "husky": "^9.1.7",
     "jsdom": "^24.0.0",
+    "lint-staged": "^16.1.5",
     "tailwind-merge": "^3.3.1",
     "tsx": "^4.7.1",
     "vitest": "^2.1.3"
@@ -24,5 +27,11 @@
     "react-hot-toast": "^2.5.2",
     "zod": "^3.24.4",
     "zustand": "^5.0.6"
+  },
+  "lint-staged": {
+    "web/**/*.{ts,tsx}": [
+      "npx --yes --prefix web eslint --fix",
+      "npx --yes --prefix web prettier --write"
+    ]
   }
 }

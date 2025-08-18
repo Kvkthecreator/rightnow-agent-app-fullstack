@@ -1,35 +1,35 @@
-"use client";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useSessionContext } from "@supabase/auth-helpers-react";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+'use client';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSessionContext } from '@supabase/auth-helpers-react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@/components/ui/select";
-import { Card } from "@/components/ui/Card";
-import BasketCard from "@/components/BasketCard";
-import PageHeader from "@/components/page/PageHeader";
-import { EmptyStateCreateButton } from "@/components/create/UniversalCreateButton";
-import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
+} from '@/components/ui/select';
+import { Card } from '@/components/ui/Card';
+import BasketCard from '@/components/BasketCard';
+import PageHeader from '@/components/page/PageHeader';
+import { EmptyStateCreateButton } from '@/components/create/UniversalCreateButton';
+import { getAllBaskets, BasketOverview } from '@/lib/baskets/getAllBaskets';
 
 export default function BasketsClient() {
   const { session, isLoading } = useSessionContext();
   const router = useRouter();
   const [baskets, setBaskets] = useState<BasketOverview[]>([]);
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("created");
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('created');
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
   useEffect(() => {
     if (isLoading) return;
     if (!session) {
-      router.replace("/login");
+      router.replace('/login');
       return;
     }
     getAllBaskets().then(setBaskets).catch(console.error);
@@ -38,13 +38,13 @@ export default function BasketsClient() {
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     let arr = baskets.filter((b) => b.name?.toLowerCase().includes(term));
-    if (sort === "alpha") {
-      arr = [...arr].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    } else if (sort === "created") {
+    if (sort === 'alpha') {
+      arr = [...arr].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else if (sort === 'created') {
       arr = [...arr].sort(
         (a, b) =>
-          new Date(b.created_at || "").getTime() -
-          new Date(a.created_at || "").getTime()
+          new Date(b.created_at || '').getTime() -
+          new Date(a.created_at || '').getTime(),
       );
     }
     return arr;
@@ -59,11 +59,13 @@ export default function BasketsClient() {
     <div className="max-w-4xl mx-auto space-y-6">
       <PageHeader
         emoji="🧺"
-        title="My Baskets"
-        description="Lightweight containers for your tasks, context, and thoughts"
+        title="Memory Baskets"
+        description="Collections that surface the notes you return to"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => router.push('/create')}>✨ Create Project</Button>
+            <Button onClick={() => router.push('/create')}>
+              ✨ Create Project
+            </Button>
             <Select value={sort} onValueChange={(v) => setSort(v)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Sort by" />
@@ -89,7 +91,7 @@ export default function BasketsClient() {
 
       <Card>
         <p className="text-sm text-muted-foreground">
-          Organize your work into modular containers for easy management.
+          Capture thoughts and watch themes emerge over time.
         </p>
       </Card>
 
@@ -120,7 +122,7 @@ export default function BasketsClient() {
               key={n}
               onClick={() => setPage(n)}
               className={`px-2 text-sm rounded ${
-                n === page ? "font-semibold" : "text-muted-foreground"
+                n === page ? 'font-semibold' : 'text-muted-foreground'
               }`}
             >
               {n}
