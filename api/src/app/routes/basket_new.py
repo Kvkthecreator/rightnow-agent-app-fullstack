@@ -72,9 +72,10 @@ async def create_basket(
             "workspace_id": workspace_id,
             "user_id": user["user_id"],
             "name": basket_name,
-            "intent": intent,
             "idempotency_key": idempotency_key,
             "status": "INIT",
+            # Store intent in tags array for now
+            "tags": [f"intent:{intent}"] if intent else [],
         }
         # Insert and return the created basket
         try:
