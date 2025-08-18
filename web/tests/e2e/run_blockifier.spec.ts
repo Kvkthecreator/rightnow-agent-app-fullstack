@@ -41,7 +41,7 @@ test("run blockifier flow", async ({ page }) => {
         });
     });
 
-    await page.goto("/baskets/test-basket/work");
+    await page.goto("/baskets/test-basket/dashboard");
     await page.getByRole("button", { name: "Run Blockifier" }).click();
 
     await expect(page.getByText("Parsing complete")).toBeVisible();

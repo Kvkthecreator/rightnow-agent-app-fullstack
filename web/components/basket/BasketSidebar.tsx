@@ -32,8 +32,8 @@ export default function BasketSidebar({
   const pathname = usePathname();
   const currentTab = params.get("tab") || "dashboard";
   
-  // Extract document ID from URL path (e.g., /baskets/[id]/work/documents/[docId])
-  const docMatch = pathname.match(/\/baskets\/[^\/]+\/work\/documents\/([^\/]+)/);
+  // Extract document ID from URL path (e.g., /baskets/[id]/documents/[docId])
+  const docMatch = pathname.match(/\/baskets\/[^\/]+\/documents\/([^\/]+)/);
   const currentDocId = currentDocumentId || (docMatch ? docMatch[1] : params.get("docId"));
   
   const [collapsed, setCollapsed] = useState(false);
@@ -110,19 +110,19 @@ export default function BasketSidebar({
             icon="📊"
             label="Dashboard"
             active={currentTab === "dashboard" && !currentDocId}
-            onClick={() => handleNavigation(`/baskets/${basketId}/work`)}
+            onClick={() => handleNavigation(`/baskets/${basketId}/dashboard`)}
           />
           <NavItem
             icon="🧠"
             label="Insights"
             active={currentTab === "insights" && !currentDocId}
-            onClick={() => handleNavigation(`/baskets/${basketId}/work/documents`)}
+            onClick={() => handleNavigation(`/baskets/${basketId}/documents`)}
           />
           <NavItem
             icon="📜"
             label="History"
             active={currentTab === "history" && !currentDocId}
-            onClick={() => handleNavigation(`/baskets/${basketId}/work/timeline`)}
+            onClick={() => handleNavigation(`/baskets/${basketId}/timeline`)}
           />
         </nav>
       </div>

@@ -80,7 +80,7 @@ export default function Sidebar({ className }: SidebarProps) {
 
   const handleNavigateToBasketWork = (basketId: string) => {
     try {
-      router.push(`/baskets/${basketId}/work`);
+      router.push(`/baskets/${basketId}/dashboard`);
     } catch (error) {
       console.error('❌ Sidebar: Failed to navigate to basket work:', error);
     }

@@ -72,7 +72,7 @@ export function useCreateBasket() {
           body: JSON.stringify(payload),
         },
       );
-      router.push(`/baskets/${basket_id}/work`);
+      router.push(`/baskets/${basket_id}/dashboard`);
       setState(emptyState);
     } finally {
       setSubmitting(false);

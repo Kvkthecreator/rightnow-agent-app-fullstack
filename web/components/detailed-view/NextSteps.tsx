@@ -41,7 +41,7 @@ export function NextSteps({
         action: () => {
           // Navigate to documents page
           if (typeof window !== 'undefined') {
-            window.location.href = `/baskets/${basketId}/work/documents/new`;
+            window.location.href = `/baskets/${basketId}/documents/new`;
           }
         }
       });
@@ -58,7 +58,7 @@ export function NextSteps({
         actionLabel: 'Add Content',
         action: () => {
           if (typeof window !== 'undefined') {
-            window.location.href = `/baskets/${basketId}/work/documents`;
+            window.location.href = `/baskets/${basketId}/documents`;
           }
         }
       });
@@ -97,7 +97,7 @@ export function NextSteps({
         actionLabel: 'Review Insights',
         action: () => {
           if (typeof window !== 'undefined') {
-            window.location.href = `/baskets/${basketId}/work`;
+            window.location.href = `/baskets/${basketId}/dashboard`;
           }
         }
       });

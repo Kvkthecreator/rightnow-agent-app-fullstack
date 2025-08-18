@@ -216,7 +216,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     switch (action) {
       case 'add-first-document':
         // Navigate directly to document creation for first-time users
-        router.push(`/baskets/${basketId}/work/documents/new`);
+        router.push(`/baskets/${basketId}/documents/new`);
         break;
         
       case 'build-substrate':
@@ -257,9 +257,9 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   // Handle suggestion selection
   const handleSuggestionSelect = (suggestion: any) => {
     if (suggestion.type === 'document_creation') {
-      router.push(`/baskets/${basketId}/work/documents/new?suggestion=${encodeURIComponent(suggestion.title)}&preview=${encodeURIComponent(suggestion.preview)}`);
+      router.push(`/baskets/${basketId}/documents/new?suggestion=${encodeURIComponent(suggestion.title)}&preview=${encodeURIComponent(suggestion.preview)}`);
     } else if (suggestion.type === 'analysis') {
-      router.push(`/baskets/${basketId}/work/detailed-view`);
+      router.push(`/baskets/${basketId}/detailed-view`);
     }
   };
 
