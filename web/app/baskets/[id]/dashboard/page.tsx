@@ -2,6 +2,7 @@ import StateSnapshot from "@/components/basket/StateSnapshot";
 import DocsList from "@/components/basket/DocsList";
 import NextMove from "@/components/basket/NextMove";
 import { getServerUrl } from "@/lib/utils";
+import { notFound } from "next/navigation";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -16,8 +17,12 @@ export default async function DashboardPage({ params }: PageProps) {
     fetch(`${baseUrl}/api/baskets/${id}/proposals`, { cache: "no-store" }),
   ]);
 
+  if (!stateRes.ok) {
+    notFound();
+  }
+
   const state = await stateRes.json();
-  const docs = await docsRes.json();
+  const docs = docsRes.ok ? await docsRes.json() : { items: [] };
   const proposals = proposalsRes.ok ? await proposalsRes.json() : { items: [] };
 
   return (
