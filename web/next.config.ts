@@ -17,6 +17,23 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   },
 
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: '^yarnnn\\.com$' }],
+        destination: 'https://www.yarnnn.com/:path*',
+        permanent: true,
+      },
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: '^(?:www\\.)?rgtnow\\.com$' }],
+        destination: 'https://www.yarnnn.com/:path*',
+        permanent: true,
+      },
+    ]
+  },
+
   experimental: {
     externalDir: true,
   },
