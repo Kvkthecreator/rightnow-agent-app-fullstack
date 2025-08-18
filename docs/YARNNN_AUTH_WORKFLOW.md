@@ -38,15 +38,18 @@ Requests include Authorization: Bearer <jwt> (preferred) or sb-access-token head
 
 ## 4) Workspace Resolution Contract
 A single authoritative function SHALL exist server-side:
-// Pseudocode contract — server-only
-type WorkspaceBootstrapResult = { workspaceId: string; created: boolean };
-
-async function ensureWorkspaceForUser(userId: string): Promise<WorkspaceBootstrapResult>;
+```python
+# Python implementation in api/src/app/utils/workspace.py
+def get_or_create_workspace(user_id: str) -> str:
+    """Returns workspace_id, creating if necessary using admin client"""
+```
 Rules
-If a membership exists → return its workspace_id.
-If none exists → create workspaces row (owner = user), insert workspace_memberships (role='owner') → return.
-Returns only the single authoritative workspace_id.
-This function is the only place allowed to create default workspaces and memberships.
+- Uses `supabase_admin()` client (service role) to bypass RLS for bootstrap operations
+- If a workspace exists with owner_id=user_id → return its id
+- If none exists → create workspace row (owner = user), name = "{user_id[:6]}'s workspace" → return id
+- Returns only the single authoritative workspace_id
+- This function is the only place allowed to create default workspaces
+- MUST validate user_id is a valid UUID before proceeding
 
 ## 5) RBAC (Role-Based Access Control)
 Roles: owner, member.
@@ -63,15 +66,25 @@ All workspace-scoped tables SHALL implement these predicates.
 Implication: even if an API route is misconfigured, Postgres still denies cross-workspace access.
 
 ## 7) Backend (FastAPI) Workflow (authoritative)
-Verify JWT → derive user_id.
-Resolve Workspace → ensureWorkspaceForUser(user_id) → workspace_id.
-Create User-Scoped DB Client
-All workspace CRUD SHALL use a user-scoped database client/session that relies on RLS; avoid service-role for user endpoints.
-Apply RBAC Guards
-Before performing action, check role when elevated privileges are required.
-Persist with workspace_id
-All inserts MUST set workspace_id.
-All selects/updates MUST filter by workspace_id.
+1. **JWT Verification**
+   - `AuthMiddleware` extracts token from headers (Authorization or sb-access-token)
+   - `verify_jwt()` validates with raw JWT secret from env
+   - Derives user_id from token's sub claim
+   
+2. **Workspace Resolution**
+   - Call `get_or_create_workspace(user_id)` → workspace_id
+   - Uses admin client for bootstrap operations only
+   
+3. **Database Operations**
+   - Workspace bootstrap: Use `supabase_admin()` (service role)
+   - User data operations: Use `supabase_admin()` for now (until user-scoped client is implemented)
+   - All inserts MUST include workspace_id
+   - Generate UUIDs client-side when needed (e.g., basket_id)
+   
+4. **Error Handling**
+   - Return debug info when `x-yarnnn-debug-auth: 1` header present
+   - Wrap exceptions in try/catch with proper logging
+   - Use HTTPException for standard error responses
 
 ## 8) Next.js (App Router) — Web & API Rules
 Server Components / Route Handlers
@@ -89,13 +102,15 @@ Create Basket
 POST /api/baskets/new
 Authorization: Bearer <jwt>
 
-Body: { "idempotency_key": "<uuid>", "basket": { "name": "My Basket" } }
+Body: { "idempotency_key": "<uuid>", "intent": "optional intent", "raw_dump": "optional", "notes": "optional" }
 
 Behavior:
-- Verify JWT → userId
-- workspace = ensureWorkspaceForUser(userId)
-- Insert baskets(name, workspace_id=workspace.id, idempotency_key)
-- Return { basket_id }
+- Verify JWT → userId via AuthMiddleware
+- workspace_id = get_or_create_workspace(userId)
+- Check idempotency_key for replay protection
+- Generate basket_id client-side (uuid4)
+- Insert baskets(id, name, workspace_id, user_id, idempotency_key, status='INIT', tags=[])
+- Return { "id": basket_id, "name": basket_name }
 Create Raw Dump
 POST /api/dumps/new
 Authorization: Bearer <jwt>

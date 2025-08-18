@@ -19,12 +19,31 @@ If `fetchWithToken` throws, the caller should assume the user is signed out. Red
 
 All backend services must validate tokens by:
 - Checking both `sb-access-token` and `Authorization` headers
-- Forwarding tokens to downstream services
-- Returning 401 on invalid/missing tokens
+- Using `AuthMiddleware` with proper exempt paths configuration
+- Verifying JWT with raw secret (no base64 decoding)
+- Returning 401 on invalid/missing tokens with optional debug info via `x-yarnnn-debug-auth: 1`
 
 ## Server-side routes
 
 Next.js API routes must:
 - Use `createRouteHandlerClient` for Supabase access
-- Forward user tokens to backend services
+- Forward user tokens to backend services (both `sb-access-token` and `Authorization` headers)
 - Never use service-role keys in client-facing routes
+- Try headers first, then fall back to cookies for auth token extraction
+
+## Python Backend Auth Stack
+
+1. **Middleware**: `AuthMiddleware` validates all non-exempt routes
+2. **JWT Verifier**: `verify_jwt()` supports both raw and base64-decoded secrets
+3. **Environment Variables Required**:
+   - `SUPABASE_URL`: Base URL without /auth/v1
+   - `SUPABASE_JWT_SECRET`: Raw JWT secret from dashboard
+   - `SUPABASE_JWT_AUD`: Default "authenticated"
+   - `SUPABASE_SERVICE_ROLE_KEY`: For admin operations only
+
+## Service Role Usage
+
+Service role keys are used ONLY for:
+- Workspace bootstrap operations (`get_or_create_workspace`)
+- System-level operations that bypass RLS
+- Never exposed to client code or used in user-facing endpoints
