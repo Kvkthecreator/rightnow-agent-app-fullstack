@@ -1,18 +1,11 @@
 module.exports = {
   root: true,
-  extends: ["next/core-web-vitals"],
+  parser: "@typescript-eslint/parser",
+  plugins: ["@typescript-eslint", "react"],
+  extends: ["next/core-web-vitals", "plugin:@typescript-eslint/recommended"],
+  ignorePatterns: [".next/**", "node_modules/**", "coverage/**"],
   rules: {
-    "no-undef": "off",
-    "no-unused-vars": "off",
-    "@typescript-eslint/no-unused-vars": "off",
-    "no-restricted-globals": "off",
-    "react-hooks/rules-of-hooks": "off",
-    "no-case-declarations": "off",
-  },
-  globals: {
-    describe: "readonly",
-    test: "readonly",
-    expect: "readonly",
-    jest: "readonly",
+    "react/jsx-key": "warn",
+    "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
   },
 };

@@ -1,18 +1,10 @@
-'use client';
+"use client";
 
-import type { Note } from '@/lib/reflection';
+import type { Note } from "@/lib/reflection";
 
-interface MemoryStreamProps {
-  items: Note[];
-}
-
-export default function MemoryStream({ items }: MemoryStreamProps) {
+export function MemoryStream({ items }: { items: Note[] }) {
   if (items.length === 0) {
-    return (
-      <div className="p-4 text-sm text-muted-foreground">
-        Add a note to see what emerges.
-      </div>
-    );
+    return <div className="p-4 text-sm text-muted-foreground">Add a note to see what emerges.</div>;
   }
   return (
     <ul className="space-y-2">

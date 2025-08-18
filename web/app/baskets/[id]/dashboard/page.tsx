@@ -1,18 +1,9 @@
-import {
-  TodayReflectionCard,
-  ReflectionCards,
-  MemoryStream,
-} from '@/components/basket';
-import {
-  topPhrases,
-  findTension,
-  makeQuestion,
-  type Note,
-} from '@/lib/reflection';
-import { notFound } from 'next/navigation';
-import { cookies } from 'next/headers';
-import { createServerComponentClient } from '@/lib/supabase/clients';
-import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
+import { TodayReflectionCard, ReflectionCards, MemoryStream } from "@/components/basket";
+import { topPhrases, findTension, makeQuestion, type Note } from "@/lib/reflection";
+import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@/lib/supabase/clients";
+import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -34,10 +25,10 @@ export default async function DashboardPage({ params }: PageProps) {
   }
 
   const { data: basket } = await supabase
-    .from('baskets')
-    .select('id, name')
-    .eq('id', id)
-    .eq('workspace_id', workspace.id)
+    .from("baskets")
+    .select("id, name")
+    .eq("id", id)
+    .eq("workspace_id", workspace.id)
     .single();
 
   if (!basket) {
@@ -45,15 +36,15 @@ export default async function DashboardPage({ params }: PageProps) {
   }
 
   const { data: dumps } = await supabase
-    .from('raw_dumps')
-    .select('id, text_dump, created_at')
-    .eq('basket_id', id)
-    .order('created_at', { ascending: true });
+    .from("raw_dumps")
+    .select("id, text_dump, created_at")
+    .eq("basket_id", id)
+    .order("created_at", { ascending: true });
 
   const notes: Note[] =
     (dumps as DumpRow[] | null)?.map((d) => ({
       id: d.id,
-      text: d.text_dump || '',
+      text: d.text_dump || "",
       created_at: d.created_at || undefined,
     })) || [];
 
@@ -61,9 +52,7 @@ export default async function DashboardPage({ params }: PageProps) {
   const pattern = phrases[0]?.phrase;
   const tension = findTension(notes);
   const question = makeQuestion(pattern);
-  const fallback = pattern
-    ? `You keep orbiting “${pattern}”.`
-    : 'Add a note to see what emerges.';
+  const fallback = pattern ? `You keep orbiting “${pattern}”.` : "Add a note to see what emerges.";
 
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -74,12 +63,7 @@ export default async function DashboardPage({ params }: PageProps) {
         <MemoryStream items={notes} />
       </div>
       <div className="col-span-4">
-        <ReflectionCards
-          pattern={pattern}
-          tension={tension}
-          question={question}
-          why={phrases.map((p) => p.phrase)}
-        />
+        <ReflectionCards pattern={pattern} tension={tension} question={question} />
       </div>
     </div>
   );

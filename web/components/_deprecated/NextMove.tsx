@@ -1,3 +1,4 @@
+/** @deprecated Unused. Candidate for removal post-launch. */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
 interface ProposalItem {
@@ -26,9 +27,7 @@ export default function NextMove({ items }: NextMoveProps) {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">{p.target.title}</p>
-            <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-              {p.preview_after}
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{p.preview_after}</p>
           </CardContent>
         </Card>
       ))}

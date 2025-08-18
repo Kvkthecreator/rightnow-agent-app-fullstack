@@ -1,14 +1,12 @@
-'use client';
-
-interface TodayReflectionCardProps {
-  line?: string;
-  fallback: string;
-}
+"use client";
 
 export default function TodayReflectionCard({
   line,
   fallback,
-}: TodayReflectionCardProps) {
+}: {
+  line?: string;
+  fallback: string;
+}) {
   const text = line?.trim() || fallback;
   if (!text) return null;
   return (
