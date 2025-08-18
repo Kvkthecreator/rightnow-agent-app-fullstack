@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Iterable
 
 import jwt
@@ -27,11 +28,22 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self.exempt_paths = set(exempt_paths or [])
 
     async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+        print("AUTH MIDDLEWARE DEBUG:", file=sys.stderr)
+        print(f"  Path: {request.url.path}", file=sys.stderr)
+        print(f"  Method: {request.method}", file=sys.stderr)
+        print(f"  Exempt paths: {self.exempt_paths}", file=sys.stderr)
+
         if any(request.url.path.startswith(p) for p in self.exempt_paths):
+            print("  ✅ Path is exempt, skipping auth", file=sys.stderr)
             return await call_next(request)
 
         token = _extract_token(request)
+        print(f"  Token extracted: {'Yes' if token else 'No'}", file=sys.stderr)
+        if token:
+            print(f"  Token preview: {token[:50]}...", file=sys.stderr)
+
         if not token:
+            print("  ❌ No token found, returning 401", file=sys.stderr)
             return JSONResponse(
                 status_code=401,
                 content={
@@ -48,8 +60,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             alg = "UNKNOWN"
 
         DBG = request.headers.get("x-yarnnn-debug-auth") == "1"
+        print(f"  Debug mode: {DBG}", file=sys.stderr)
+        print("  About to call verify_jwt...", file=sys.stderr)
         try:
             claims = verify_jwt(token)
+            print("  ✅ verify_jwt returned successfully", file=sys.stderr)
             request.state.user_id = claims.get("sub")
             request.state.jwt_payload = claims
             request.state.user = {
