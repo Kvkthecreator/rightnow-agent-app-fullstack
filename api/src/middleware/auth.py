@@ -23,18 +23,31 @@ def _extract_token(req: Request) -> str | None:
 class AuthMiddleware(BaseHTTPMiddleware):
     """Validate Supabase JWTs on protected routes."""
 
-    def __init__(self, app, exempt_paths: Iterable[str] | None = None) -> None:
+    def __init__(
+        self,
+        app,
+        exempt_paths: Iterable[str] | None = None,
+        exempt_prefixes: Iterable[str] | None = None,
+    ) -> None:
         super().__init__(app)
-        self.exempt_paths = set(exempt_paths or [])
+        self.exempt_exact = set(exempt_paths or [])
+        # Only include real prefixes here; never include "/"
+        self.exempt_prefixes = set(exempt_prefixes or [])
 
     async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+        path = request.url.path or "/"
         print("AUTH MIDDLEWARE DEBUG:", file=sys.stderr)
-        print(f"  Path: {request.url.path}", file=sys.stderr)
+        print(f"  Path: {path}", file=sys.stderr)
         print(f"  Method: {request.method}", file=sys.stderr)
-        print(f"  Exempt paths: {self.exempt_paths}", file=sys.stderr)
+        print(f"  Exempt exact: {self.exempt_exact}", file=sys.stderr)
+        print(f"  Exempt prefixes: {self.exempt_prefixes}", file=sys.stderr)
 
-        if any(request.url.path.startswith(p) for p in self.exempt_paths):
-            print("  ✅ Path is exempt, skipping auth", file=sys.stderr)
+        if path in self.exempt_exact:
+            print("  ✅ Path is exempt (exact match), skipping auth", file=sys.stderr)
+            return await call_next(request)
+
+        if any(path.startswith(p) for p in self.exempt_prefixes):
+            print("  ✅ Path matches exempt prefix, skipping auth", file=sys.stderr)
             return await call_next(request)
 
         token = _extract_token(request)
@@ -90,7 +103,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             def _clean(v: str | None) -> str:
                 return (v or "").strip().rstrip("/")
 
-            expected_iss = _clean(os.getenv("SUPABASE_JWKS_ISSUER")) or f"{_clean(os.getenv('SUPABASE_URL'))}/auth/v1"
+            expected_iss = _clean(os.getenv("SUPABASE_JWKS_ISSUER")) or (
+                f"{_clean(os.getenv('SUPABASE_URL'))}/auth/v1"
+            )
             expected_aud = (os.getenv("SUPABASE_JWT_AUD") or "authenticated").strip()
             request.app.logger.warning(
                 {
@@ -113,7 +128,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         "X-Auth-Expect-Aud": expected_aud,
                     },
                 )
-            raise HTTPException(status_code=401, detail="Invalid authentication token")
+            raise HTTPException(
+                status_code=401, detail="Invalid authentication token"
+            ) from None
 
 
 __all__ = ["AuthMiddleware"]
