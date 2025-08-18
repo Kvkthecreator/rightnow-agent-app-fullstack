@@ -53,7 +53,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
       const newDoc = await createDocument(title, template || '');
       setShowCreateModal(false);
       // Navigate to the new document
-      router.push(`/baskets/${basketId}/work/documents/${newDoc.id}`);
+      router.push(`/baskets/${basketId}/documents/${newDoc.id}`);
     } catch (error) {
       console.error('Failed to create document:', error);
     }
@@ -79,7 +79,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
         basketId={basketId}
         basketName={basketName}
         onSave={handleDocumentSave}
-        onBack={() => router.push(`/baskets/${basketId}/work?tab=documents`)}
+        onBack={() => router.push(`/baskets/${basketId}/documents`)}
       />
     );
   }
@@ -90,7 +90,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
       <DocumentCreationView
         basketId={basketId}
         basketName={basketName}
-        onCancel={() => router.push(`/baskets/${basketId}/work?tab=documents`)}
+        onCancel={() => router.push(`/baskets/${basketId}/documents`)}
         onCreate={handleCreateDocument}
       />
     );
@@ -160,7 +160,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
                 (doc.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (doc.content_raw || '').toLowerCase().includes(searchQuery.toLowerCase())
               )}
-              onDocumentClick={(doc) => router.push(`/baskets/${basketId}/work/documents/${doc.id}`)}
+              onDocumentClick={(doc) => router.push(`/baskets/${basketId}/documents/${doc.id}`)}
               onDocumentAction={(doc, action) => handleDocumentAction(doc, action)}
             />
           </div>

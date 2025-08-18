@@ -18,8 +18,9 @@ const SHOW_SIDEBAR_ROUTES = [
 // These specific routes should NOT show global sidebar (they have custom layouts)
 const isBasketWorkPage = (pathname: string | null): boolean => {
   if (!pathname) return false;
-  // Match /baskets/[id]/work and all sub-routes
-  return pathname.includes('/baskets/') && pathname.includes('/work');
+  // Match /baskets/[id] and deeper routes (dashboard, documents, etc.)
+  const parts = pathname.split('/').filter(Boolean);
+  return parts[0] === 'baskets' && parts.length > 1;
 };
 
 export default function ClientLayoutShell({ children }: { children: ReactNode }) {

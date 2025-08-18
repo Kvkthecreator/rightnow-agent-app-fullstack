@@ -33,7 +33,7 @@ export default function CreatePage() {
       const data = await res.json().catch(() => ({}));
       const id = data.id || data.basket_id;
       if (id) {
-        router.push(`/baskets/${id}/work`);
+        router.push(`/baskets/${id}/dashboard`);
       }
     } catch (err) {
       console.error(err);

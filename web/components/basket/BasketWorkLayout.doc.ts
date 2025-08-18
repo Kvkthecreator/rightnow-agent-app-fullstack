@@ -1,7 +1,7 @@
 /**
  * Layout for basket work area showing dashboard and other tabs.
  *
- * Used only in: `/baskets/[id]/work`
+ * Used only in: `/baskets/[id]/dashboard`
  *
  * Features:
  * - Organized sections for documents, blocks, context items, dumps

@@ -381,7 +381,7 @@ useEffect(() => {
       const hold =
         typeof window !== 'undefined' &&
         new URLSearchParams(location.search).get('hold') === '1';
-      if (!hold) router.push(`/baskets/${basketId}/work`);
+      if (!hold) router.push(`/baskets/${basketId}/dashboard`);
     } catch (e: any) {
       console.error('❌ Basket creation failed:', e);
       toast.error(e?.message || 'Unknown error');

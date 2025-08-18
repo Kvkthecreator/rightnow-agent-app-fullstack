@@ -6,7 +6,7 @@ import { useFocus } from './FocusContext';
 import { useEffect } from 'react';
 
 const navigation = [
-  { label: 'Dashboard', href: '', key: 'd' },
+  { label: 'Dashboard', href: '/dashboard', key: 'd' },
   { label: 'Blocks', href: '/blocks', key: 'b' },
   { label: 'Context', href: '/context', key: 'c' },
   { label: 'Documents', href: '/documents', key: 'o' },
@@ -19,7 +19,7 @@ export default function WorkLeft({ basketId }: { basketId: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const { setFocus } = useFocus();
-  const base = `/baskets/${basketId}/work`;
+  const base = `/baskets/${basketId}`;
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function WorkLeft({ basketId }: { basketId: string }) {
           <ul className="space-y-1">
             {navigation.map(item => {
               const fullPath = `${base}${item.href}`;
-              const isActive = pathname === fullPath || (item.href === '' && pathname === base);
+              const isActive = pathname === fullPath;
               
               return (
                 <li key={item.label}>

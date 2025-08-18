@@ -33,28 +33,28 @@ const getNavItems = (basketId?: string): NavItem[] => [
     key: 'dashboard',
     label: 'Strategic Intelligence',
     icon: BarChart3,
-    href: basketId ? `/baskets/${basketId}/work` : '/dashboard/home',
+    href: basketId ? `/baskets/${basketId}/dashboard` : '/dashboard/home',
     description: 'AI insights and project understanding'
   },
   {
     key: 'documents',
     label: 'Documents',
     icon: FileText,
-    href: basketId ? `/baskets/${basketId}/work/documents` : '/documents',
+    href: basketId ? `/baskets/${basketId}/documents` : '/documents',
     description: 'Live editing workspace'
   },
   {
     key: 'insights',
     label: 'Insights & Ideas',
     icon: Lightbulb,
-    href: basketId ? `/baskets/${basketId}/work/documents` : '/insights',
+    href: basketId ? `/baskets/${basketId}/documents` : '/insights',
     description: 'Manage discoveries and connections'
   },
   {
     key: 'timeline',
     label: 'Project Timeline',
     icon: Clock,
-    href: basketId ? `/baskets/${basketId}/work/timeline` : '/timeline',
+    href: basketId ? `/baskets/${basketId}/timeline` : '/timeline',
     description: 'History and evolution (Coming Soon)'
   },
   {

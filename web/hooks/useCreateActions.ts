@@ -37,7 +37,7 @@ export function useCreateActions() {
       if (!basketId) return;
       try {
         const doc = await createDocumentWithPrompt(basketId);
-        router.push(`/baskets/${basketId}/work/documents/${doc.id}`);
+        router.push(`/baskets/${basketId}/documents/${doc.id}`);
       } catch (e) {
         console.warn("newBlankDocument failed", e);
         showWarning("Couldn't create document");

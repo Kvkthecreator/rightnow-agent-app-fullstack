@@ -31,6 +31,6 @@ describe("SinglePageWizard", () => {
     await userEvent.type(screen.getByLabelText(/dump 1/i), "Hello dump");
     await userEvent.click(screen.getByRole("button", { name: /create basket/i }));
     expect(global.fetch).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/baskets/b1/work");
+    expect(push).toHaveBeenCalledWith("/baskets/b1/dashboard");
   });
 });

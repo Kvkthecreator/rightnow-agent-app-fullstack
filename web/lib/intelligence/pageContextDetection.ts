@@ -67,10 +67,10 @@ export interface PageContext {
 
 // Page detection patterns
 const PAGE_PATTERNS = {
-  dashboard: /^\/baskets\/[^\/]+\/work\/?$/,
-  document: /^\/baskets\/[^\/]+\/work\/documents/,
-  timeline: /^\/baskets\/[^\/]+\/work\/timeline/,
-  'detailed-view': /^\/baskets\/[^\/]+\/work\/detailed-view/
+  dashboard: /^\/baskets\/[^\/]+\/dashboard\/?$/,
+  document: /^\/baskets\/[^\/]+\/documents/,
+  timeline: /^\/baskets\/[^\/]+\/timeline/,
+  'detailed-view': /^\/baskets\/[^\/]+\/detailed-view/
 } as const;
 
 /**
@@ -106,8 +106,8 @@ export function usePageContext(basketId?: string): PageContext {
       }
     }
     
-    // Fallback detection
-    if (path.includes('/work')) {
+    // Fallback detection for basket routes
+    if (/^\/baskets\/[^\/]+/.test(path)) {
       return { page: 'dashboard', confidence: 0.6 };
     }
     

@@ -19,7 +19,7 @@ export default function BasketCard({ basket }: BasketCardProps) {
     basket.raw_dump_body?.slice(0, 150) || "No dump yet. Add something?";
   return (
       <Link
-        href={`/baskets/${basket.id}/work`}
+        href={`/baskets/${basket.id}/dashboard`}
         prefetch={false}
         className="rounded-md border p-4 hover:bg-muted block"
       >

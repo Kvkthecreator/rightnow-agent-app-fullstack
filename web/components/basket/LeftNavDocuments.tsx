@@ -226,7 +226,7 @@ function DocumentNavItem({
           {expanded ? "⌄" : "›"}
         </button>
         <button
-          onClick={() => onNavigate(`/baskets/${basketId}/work/documents/${document.id}`)}
+          onClick={() => onNavigate(`/baskets/${basketId}/documents/${document.id}`)}
           className={cn(
             "flex-1 flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors text-left",
             docActive
@@ -242,7 +242,7 @@ function DocumentNavItem({
       {expanded && (
         <div className="ml-6 space-y-1">
           <button
-            onClick={() => onNavigate(`/baskets/${basketId}/work/documents/${document.id}`)}
+            onClick={() => onNavigate(`/baskets/${basketId}/documents/${document.id}`)}
             className={cn(
               "w-full flex items-center gap-2 px-2 py-1 text-sm rounded-md transition-colors text-left",
               docInsightsActive
@@ -254,7 +254,7 @@ function DocumentNavItem({
             <span className="flex-1">Insights</span>
           </button>
           <button
-            onClick={() => onNavigate(`/baskets/${basketId}/work/timeline`)}
+            onClick={() => onNavigate(`/baskets/${basketId}/timeline`)}
             className={cn(
               "w-full flex items-center gap-2 px-2 py-1 text-sm rounded-md transition-colors text-left",
               docHistoryActive
