@@ -1,6 +1,5 @@
-import StateSnapshot from "@/components/basket/StateSnapshot";
-import DocsList from "@/components/basket/DocsList";
-import NextMove from "@/components/basket/NextMove";
+// Testing with Card component only
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
@@ -53,9 +52,18 @@ export default async function DashboardPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <StateSnapshot state={state} />
-      <DocsList items={docs.items || []} />
-      <NextMove items={proposals.items || []} />
+      <Card>
+        <CardHeader>
+          <CardTitle>{basket.name}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-600 mt-2">
+            Last updated: {new Date(basket.updated_at).toLocaleString()}
+          </p>
+          <p className="mt-4">Documents: {documents?.length || 0}</p>
+          <p className="mt-2 text-gray-700">Testing Card component only!</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
