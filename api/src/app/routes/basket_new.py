@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from ..utils.jwt import verify_jwt
-from ..utils.supabase_client import supabase_client as supabase
+from ..utils.supabase import supabase_admin
 from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(prefix="/baskets", tags=["baskets"])
@@ -40,8 +40,9 @@ async def create_basket(
         # ---------------------------------
 
         # Check for replay using idempotency key
+        sb = supabase_admin()
         existing = (
-            supabase.table("baskets")
+            sb.table("baskets")
             .select("id")
             .eq("user_id", user["user_id"])
             .eq("idempotency_key", idempotency_key)
@@ -72,7 +73,7 @@ async def create_basket(
             "idempotency_key": idempotency_key,
             "status": "INIT",
         }
-        resp = supabase.table("baskets").insert(row).select("id").execute()
+        resp = sb.table("baskets").insert(row).select("id").execute()
 
         if getattr(resp, "error", None):
             err = resp.error
