@@ -2,7 +2,9 @@ import TopBar from "@/components/basket/TopBar";
 import BasketNav from "@/components/basket/BasketNav";
 import Guide from "@/components/basket/Guide";
 import React from "react";
-import { getServerUrl } from "@/lib/utils";
+import { cookies } from "next/headers";
+import { createServerClient } from "@/lib/supabase/clients";
+import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,11 +13,28 @@ interface LayoutProps {
 
 export default async function BasketLayout({ children, params }: LayoutProps) {
   const { id } = await params;
-  const baseUrl = getServerUrl();
-  const res = await fetch(`${baseUrl}/api/baskets/${id}/state`, { cache: "no-store" });
-  const data = res.ok ? await res.json() : { name: "Basket" };
+  const supabase = createServerClient(cookies);
+  
+  // Ensure user is authenticated and has workspace
+  const workspace = await ensureWorkspaceServer(supabase);
+  
+  // Fetch basket name
+  let basketName = "Basket";
+  if (workspace) {
+    const { data: basket } = await supabase
+      .from("baskets")
+      .select("name")
+      .eq("id", id)
+      .eq("workspace_id", workspace.id)
+      .single();
+    
+    if (basket?.name) {
+      basketName = basket.name;
+    }
+  }
+  
   return (
-    <BasketLayoutClient basketId={id} basketName={data.name}>
+    <BasketLayoutClient basketId={id} basketName={basketName}>
       {children}
     </BasketLayoutClient>
   );
