@@ -1,9 +1,9 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { createServerComponentClient } from "@/lib/supabase/clients";
-import BasketsClient from "./BasketsClient";
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { createServerComponentClient } from '@/lib/supabase/clients';
+import BasketsClient from '@/app/baskets/BasketsClient';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 export default async function BasketsPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -11,7 +11,7 @@ export default async function BasketsPage() {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) {
-    redirect("/login");
+    redirect('/login');
   }
   return <BasketsClient />;
 }
