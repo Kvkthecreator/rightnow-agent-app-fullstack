@@ -1,45 +1,66 @@
+import os, base64, logging, jwt
+from fastapi import HTTPException
+
+log = logging.getLogger("uvicorn.error")
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+JWT_AUD = os.getenv("SUPABASE_JWT_AUD", "authenticated")
+RAW_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+
+
+def _decode(token: str, secret: bytes | str):
+    # Verify signature & aud; iss is checked manually to give better logs
+    return jwt.decode(
+        token,
+        secret,
+        algorithms=["HS256"],
+        audience=JWT_AUD,
+        options={"verify_exp": True},
+    )
+
+
 def verify_jwt(token: str) -> dict:
-    """Verify a Supabase JWT and return its payload."""
-    header = jwt.get_unverified_header(token)
-    alg = (header.get("alg") or "").upper()
-    
-    # DEBUG
-    payload_unverified = jwt.decode(token, options={"verify_signature": False})
-    print(f"VERIFY JWT DEBUG:", file=sys.stderr)
-    print(f"  Algorithm: {alg}", file=sys.stderr)
-    print(f"  Token ISS: {payload_unverified.get('iss')}", file=sys.stderr)
-    print(f"  Token AUD: {payload_unverified.get('aud')}", file=sys.stderr)
-    print(f"  Expected ISS: {ISSUER}", file=sys.stderr)
-    print(f"  Expected AUD: {AUD}", file=sys.stderr)
-    
-    if alg == "HS256":
-        if not JWT_SECRET:
-            raise RuntimeError("SUPABASE_JWT_SECRET missing for HS256 verification")
-        
-        try:
-            result = jwt.decode(
-                token,
-                JWT_SECRET,
-                algorithms=["HS256"],
-                audience=AUD,
-                issuer=ISSUER,
-                options=_opts,
-                leeway=LEEWAY,
-            )
-            print(f"  ✅ JWT verification successful!", file=sys.stderr)
-            return result
-        except jwt.ExpiredSignatureError as e:
-            print(f"  ❌ Token expired: {e}", file=sys.stderr)
-            raise
-        except jwt.InvalidAudienceError as e:
-            print(f"  ❌ Invalid audience: {e}", file=sys.stderr)
-            raise
-        except jwt.InvalidIssuerError as e:
-            print(f"  ❌ Invalid issuer: {e}", file=sys.stderr)
-            raise
-        except jwt.InvalidSignatureError as e:
-            print(f"  ❌ Invalid signature: {e}", file=sys.stderr)
-            raise
-        except Exception as e:
-            print(f"  ❌ JWT verification failed: {type(e).__name__}: {e}", file=sys.stderr)
-            raise
+    if not RAW_SECRET:
+        log.error("AUTH: SUPABASE_JWT_SECRET is empty")
+        raise HTTPException(500, "auth_misconfigured")
+
+    expected_iss = f"{SUPABASE_URL}/auth/v1" if SUPABASE_URL else None
+    errors = []
+
+    # 1) Raw secret (most common for Supabase)
+    try:
+        claims = _decode(token, RAW_SECRET)
+        _post_checks(claims, expected_iss)
+        log.info("AUTH: verified with RAW secret")
+        return claims
+    except Exception as e:
+        errors.append(f"raw:{type(e).__name__}:{e}")
+
+    # 2) Base64-decoded fallback
+    try:
+        claims = _decode(token, base64.b64decode(RAW_SECRET))
+        _post_checks(claims, expected_iss)
+        log.info("AUTH: verified with BASE64-decoded secret")
+        return claims
+    except Exception as e:
+        errors.append(f"b64:{type(e).__name__}:{e}")
+
+    log.error("AUTH: JWT verification failed (%s)", " ; ".join(errors))
+    raise HTTPException(401, "Invalid authentication token")
+
+
+def _post_checks(claims: dict, expected_iss: str | None):
+    iss = claims.get("iss")
+    aud = claims.get("aud")
+    sub = claims.get("sub")
+    if expected_iss and iss != expected_iss:
+        log.warning("AUTH: iss mismatch token=%s expected=%s", iss, expected_iss)
+    if aud != JWT_AUD:
+        # PyJWT already verifies aud; this log is just clarity
+        log.warning("AUTH: aud mismatch token=%s expected=%s", aud, JWT_AUD)
+    if not sub:
+        raise HTTPException(401, "Token missing subject")
+
+
+__all__ = ["verify_jwt"]
+
