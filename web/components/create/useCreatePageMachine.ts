@@ -6,6 +6,7 @@ import { uploadFile } from '@/lib/uploadFile';
 import { sanitizeFilename } from '@/lib/utils/sanitizeFilename';
 import { dlog } from '@/lib/dev/log';
 import { toast } from 'react-hot-toast';
+import { fetchWithToken } from '@/lib/fetchWithToken';
 import type { CreateBasketReq, CreateBasketRes } from '@shared/contracts/baskets';
 import type { CreateDumpReq, CreateDumpRes } from '@shared/contracts/dumps';
 
@@ -230,10 +231,8 @@ useEffect(() => {
         notes: [],
       };
       
-      const basketRes = await fetch('/api/baskets/new', {
+      const basketRes = await fetchWithToken('/api/baskets/new', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(basketReq),
       });
       
@@ -271,9 +270,9 @@ useEffect(() => {
         };
         
         dumpPromises.push(
-          fetch('/api/dumps/new', {
+          fetchWithToken('/api/dumps/new', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Req-Id': reqId },
+            headers: { 'X-Req-Id': reqId },
             credentials: 'include',
             body: JSON.stringify(textDumpReq),
           }).then(async (res) => {

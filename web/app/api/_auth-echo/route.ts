@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies, headers } from "next/headers";
-import { getServerSupabase } from "@/lib/supabase/server";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const names = cookieStore.getAll().map((c) => c.name);
   const hasSb = names.some((n) => n.startsWith("sb-") || n.includes("supabase"));
 
-  const supabase = await getServerSupabase();
+  const supabase = createRouteHandlerClient({ cookies });
   const {
     data: { user },
     error,

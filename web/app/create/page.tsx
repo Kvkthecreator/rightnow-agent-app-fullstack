@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CreateFooter } from "@/components/basket/CreateFooter";
+import { fetchWithToken } from "@/lib/fetchWithToken";
 
 export default function CreatePage() {
   const [raw, setRaw] = useState("");
@@ -25,9 +26,8 @@ export default function CreatePage() {
       notes: note.trim() ? [note.trim()] : [],
     };
     try {
-      const res = await fetch("/api/baskets/new", {
+      const res = await fetchWithToken("/api/baskets/new", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -37,6 +37,10 @@ export default function CreatePage() {
       }
     } catch (err) {
       console.error(err);
+      // Auth canon: redirect to login on auth failure
+      if (err instanceof Error && err.message.includes("No authenticated user")) {
+        router.push("/login");
+      }
     }
   };
 
