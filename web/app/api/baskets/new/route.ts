@@ -37,23 +37,21 @@ export async function POST(req: NextRequest) {
       { status: 422 }
     );
   }
-  const supabase = createRouteHandlerClient({ cookies });
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json(
-      { error: { code: "UNAUTHORIZED", message: "Missing user" } },
-      { status: 401 }
-    );
+  // Try to get token from headers first (from fetchWithToken), then cookies
+  let accessToken = req.headers.get("sb-access-token") || req.headers.get("authorization")?.replace("Bearer ", "");
+  
+  if (!accessToken) {
+    // Fall back to cookie-based auth
+    const supabase = createRouteHandlerClient({ cookies });
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    accessToken = session?.access_token;
   }
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const accessToken = session?.access_token;
+
   if (!accessToken) {
     return NextResponse.json(
-      { error: { code: "UNAUTHORIZED", message: "Missing session" } },
+      { error: { code: "UNAUTHORIZED", message: "Missing authentication token" } },
       { status: 401 }
     );
   }
