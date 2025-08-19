@@ -11,6 +11,8 @@ from services.clock import now_iso
 from services.worker_adapter import WorkerAgentAdapter, WorkerOutputAggregator
 from services.substrate_diff import compute_deltas, apply_deltas
 from services.substrate_ops import SubstrateOps
+from services.interpretation_adapter import extract_graph_from_worker_output
+from services.upserts import upsert_context_items, upsert_relationships, upsert_blocks
 
 # Import the new schema
 try:
@@ -29,6 +31,15 @@ async def run_manager_plan(
     Handles both init_build (first ingest) and evolve_turn (incremental) modes.
     """
     
+    if isinstance(req, dict) and req.get("focus") == "interpretation":
+        out = await WorkerAgentAdapter.call_basket_analyzer(basket_id=basket_id, workspace_id=workspace_id, focus_dump_id=req.get("dump_id"))
+        ci, rel, bl = extract_graph_from_worker_output(out)
+        await upsert_context_items(db, ci)
+        await upsert_relationships(db, rel)
+        if bl:
+            await upsert_blocks(db, bl)
+        return {"status": "ok", "focus": "interpretation"}
+
     # Determine mode and convert request format
     if BasketWorkRequest and isinstance(req, BasketWorkRequest):
         return await _run_work_request(db, basket_id, req, workspace_id)
