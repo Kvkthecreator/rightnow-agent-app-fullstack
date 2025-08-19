@@ -72,14 +72,21 @@ async def lifespan(app: FastAPI):
     # Validate environment
     _assert_env()
 
-    db = await get_db()
-    task = asyncio.create_task(consume_dump_created(db))
+    db = None
+    task = None
+    try:
+        db = await get_db()
+        task = asyncio.create_task(consume_dump_created(db))
+    except Exception as e:  # pragma: no cover - startup diagnostics
+        logger.error("Database initialization failed, running without DB: %s", e)
 
     try:
         yield
     finally:
-        task.cancel()
-        await close_db()
+        if task:
+            task.cancel()
+        if db:
+            await close_db()
 
 app = FastAPI(title="RightNow Agent Server", lifespan=lifespan)
 
