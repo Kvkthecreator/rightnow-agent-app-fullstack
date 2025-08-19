@@ -51,6 +51,7 @@ from .routes.inputs import router as inputs_router
 from .routes.narrative_intelligence import router as narrative_intelligence_router
 from .routes.narrative_jobs import router as narrative_jobs_router
 from .routes.phase1_routes import router as phase1_router
+from .routes.projection import router as projection_router
 
 
 def _assert_env():
@@ -120,6 +121,7 @@ for r in routers:
 
 app.include_router(basket_router)
 app.include_router(narrative_jobs_router)
+app.include_router(projection_router)
 
 # Agent endpoints
 @app.post("/api/agent")

@@ -1,3 +1,9 @@
+
+export type GraphProjection = {
+  entities: { title: string; count: number }[];
+  edges: { from_id: string; to_id: string; weight: number }[];
+};
+
 export type Note = { id: string; text: string; created_at?: string };
 
 export type Sentiment = "positive" | "negative" | "neutral";
@@ -75,4 +81,32 @@ export function sentimentTrend(notes: Note[]): Sentiment {
   if (score > 0) return "positive";
   if (score < 0) return "negative";
   return "neutral";
+}
+
+export function computeReflections(
+  notes: Note[],
+  graph?: GraphProjection,
+): {
+  pattern?: string;
+  tension?: { a: string; b: string } | null;
+  question?: string | null;
+  reasons: string[];
+} {
+  const phrases = topPhrases(notes);
+  const pattern = phrases[0]?.phrase;
+  const tension = findTension(notes);
+  const question = makeQuestion(pattern);
+
+  const reasons = phrases.map((p) => p.phrase);
+  if (graph?.entities?.length) {
+    const topEntities = [...graph.entities]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map((e) => e.title);
+    for (const entity of topEntities) {
+      if (!reasons.includes(entity)) reasons.push(entity);
+    }
+  }
+
+  return { pattern, tension, question, reasons };
 }
