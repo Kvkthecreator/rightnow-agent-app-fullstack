@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sys
@@ -26,7 +27,8 @@ except ImportError:
 from middleware.auth import AuthMiddleware
 
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
-from .deps import close_db
+from services.events_consumer import consume_dump_created
+from .deps import close_db, get_db
 from .routes.agent_memory import router as agent_memory_router
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
@@ -66,15 +68,18 @@ async def lifespan(app: FastAPI):
     # Startup
     logger = logging.getLogger("uvicorn.error")
     logger.info("Starting RightNow Agent Server")
-    
+
     # Validate environment
     _assert_env()
 
-    yield
+    db = await get_db()
+    task = asyncio.create_task(consume_dump_created(db))
 
-    # Shutdown
-    logger.info("Shutting down RightNow Agent Server")
-    await close_db()
+    try:
+        yield
+    finally:
+        task.cancel()
+        await close_db()
 
 app = FastAPI(title="RightNow Agent Server", lifespan=lifespan)
 

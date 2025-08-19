@@ -43,7 +43,7 @@ async def test_manager_worker_integration():
 
         # Run the real manager orchestration
         result = await run_manager_plan(
-            None, test_request, "test-workspace"
+            None, test_request.basket_id, test_request, "test-workspace"
         )  # db=None for this test
 
         print("  ✅ Manager plan completed:")
