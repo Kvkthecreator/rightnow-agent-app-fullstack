@@ -2,6 +2,7 @@
 
 import sys
 import os
+import json
 from uuid import UUID, uuid4
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
@@ -70,9 +71,9 @@ class WorkerAgentAdapter:
             # `dict`.  Supporting both makes the adapter resilient to version
             # differences.
             if hasattr(intelligence_report, "model_dump"):
-                report_dict = intelligence_report.model_dump()
+                report_dict = intelligence_report.model_dump(mode="json")
             else:  # pragma: no cover - legacy pydantic v1
-                report_dict = intelligence_report.dict()
+                report_dict = json.loads(intelligence_report.json())
 
             return WorkerOutput(
                 agent_name="InfraBasketAnalyzerAgent",
