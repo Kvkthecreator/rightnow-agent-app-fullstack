@@ -34,7 +34,7 @@ export default function DashboardClient({ basketId, initialNotes, pattern, tensi
         <MemoryStream items={notes} />
       </div>
       <div className="col-span-4">
-        <ReflectionCards pattern={pattern} tension={tension || undefined} question={question} />
+        <ReflectionCards pattern={pattern} tension={tension} question={question || null} />
       </div>
     </div>
   );
