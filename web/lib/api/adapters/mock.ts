@@ -247,7 +247,7 @@ export class MockApiAdapter {
       // Create new dump
       const basketId = options.body?.basket_id || mockId('basket-default');
       return {
-        dump_id: mockId(`dump-${basketId}-new`),
+        id: mockId(`dump-${basketId}-new`),
         status: 'created',
         processing: 'triggered',
       };

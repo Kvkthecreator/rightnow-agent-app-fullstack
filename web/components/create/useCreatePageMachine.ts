@@ -327,7 +327,7 @@ useEffect(() => {
 
       // Wait for all dumps to complete
       const dumpResults = await Promise.all(dumpPromises);
-      const dumpIds = dumpResults.map(result => result.dump_id);
+      const dumpIds = dumpResults.map(result => result.id);
       
       logStep('dumps created', { dumpIds });
       logEvent({ event: 'dumps_created', reqId, dumpIds, count: dumpIds.length });
