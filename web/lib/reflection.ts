@@ -24,7 +24,6 @@ const STOP_WORDS = new Set([
   "by",
   "an",
   "be",
-  "are",
   "that",
   "this",
 ]);
@@ -89,7 +88,7 @@ export function computeReflections(
 ): {
   pattern?: string;
   tension?: { a: string; b: string } | null;
-  question?: string | null;
+  question?: string;
   reasons: string[];
 } {
   const phrases = topPhrases(notes);

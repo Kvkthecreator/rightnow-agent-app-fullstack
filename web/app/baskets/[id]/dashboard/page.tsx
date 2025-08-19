@@ -74,7 +74,7 @@ export default async function DashboardPage({ params }: PageProps) {
       initialNotes={notes}
       pattern={reflections.pattern}
       tension={reflections.tension}
-      question={reflections.question}
+      question={reflections.question ?? undefined}
       fallback={fallback}
     />
   );
