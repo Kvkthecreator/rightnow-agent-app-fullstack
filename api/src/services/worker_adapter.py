@@ -2,6 +2,7 @@
 
 import sys
 import os
+import json
 from uuid import UUID, uuid4
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
@@ -63,18 +64,36 @@ class WorkerAgentAdapter:
             
             # Convert BasketIntelligenceReport to EntityChanges
             changes = cls._convert_intelligence_to_changes(intelligence_report)
-            
+
+            # Include the full intelligence report in metadata so callers can
+            # access detailed analysis results.  Pydantic v2 uses `model_dump` to
+            # obtain a serialisable dictionary representation, while v1 uses
+            # `dict`.  Supporting both makes the adapter resilient to version
+            # differences.
+            if hasattr(intelligence_report, "model_dump"):
+                report_dict = intelligence_report.model_dump(mode="json")
+            else:  # pragma: no cover - legacy pydantic v1
+                report_dict = json.loads(intelligence_report.json())
+
             return WorkerOutput(
                 agent_name="InfraBasketAnalyzerAgent",
                 agent_type="infra_basket_analyzer",
                 changes=changes,
-                explanation=intelligence_report.accommodation_summary or "Analyzed basket patterns and relationships",
+                explanation=intelligence_report.accommodation_summary
+                or "Analyzed basket patterns and relationships",
                 confidence=0.8,  # Could extract from intelligence_report if available
                 metadata={
-                    "thematic_patterns": len(intelligence_report.thematic_analysis.discovered_patterns),
-                    "coherence_suggestions": len(intelligence_report.coherence_suggestions.suggestions),
-                    "document_relationships": len(intelligence_report.document_relationships.document_pairs)
-                }
+                    "analysis_report": report_dict,
+                    "thematic_patterns": len(
+                        intelligence_report.thematic_analysis.discovered_patterns
+                    ),
+                    "coherence_suggestions": len(
+                        intelligence_report.coherence_suggestions.suggestions
+                    ),
+                    "document_relationships": len(
+                        intelligence_report.document_relationships.document_pairs
+                    ),
+                },
             )
             
         except Exception as e:
