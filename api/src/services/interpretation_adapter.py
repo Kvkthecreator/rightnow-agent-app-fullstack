@@ -6,30 +6,38 @@ def extract_graph_from_worker_output(out) -> Tuple[List[Dict[str, Any]], List[Di
     rel: List[Dict[str, Any]] = []
     bl: List[Dict[str, Any]] = []
     for ch in getattr(out, "changes", []) or []:
-        t = ch.get("type")
+        # Support both dict-based and pydantic-model changes
+        if not isinstance(ch, dict):
+            if hasattr(ch, "model_dump"):
+                ch = ch.model_dump()
+            elif hasattr(ch, "dict"):
+                ch = ch.dict()
+            else:
+                continue
+        t = ch.get("type") or ch.get("entity")
         p = ch.get("payload", {})
         if t == "context_item":
             ctx.append({
-                "basket_id": ch["basket_id"],
+                "basket_id": ch.get("basket_id"),
                 "raw_dump_id": ch.get("raw_dump_id"),
-                "type": p["type"],
-                "title": p["title"],
+                "type": p.get("type"),
+                "title": p.get("title"),
                 "metadata": p.get("metadata", {}),
             })
         elif t == "relationship":
             rel.append({
-                "basket_id": ch["basket_id"],
-                "from_type": p["from_type"],
-                "from_id": p["from_id"],
-                "to_type": p["to_type"],
-                "to_id": p["to_id"],
-                "relationship_type": p["relationship_type"],
+                "basket_id": ch.get("basket_id"),
+                "from_type": p.get("from_type"),
+                "from_id": p.get("from_id"),
+                "to_type": p.get("to_type"),
+                "to_id": p.get("to_id"),
+                "relationship_type": p.get("relationship_type"),
                 "strength": p.get("strength", 0.5),
             })
-        elif t == "block" and p.get("semantic_type") in ("theme", "concept"):
+        elif t in ("block", "context_block") and p.get("semantic_type") in ("theme", "concept"):
             bl.append({
-                "basket_id": ch["basket_id"],
-                "semantic_type": p["semantic_type"],
+                "basket_id": ch.get("basket_id"),
+ 
                 "title": p.get("title"),
                 "content": p.get("content"),
                 "raw_dump_id": ch.get("raw_dump_id"),

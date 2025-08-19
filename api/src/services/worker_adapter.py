@@ -40,10 +40,16 @@ class WorkerAgentAdapter:
         cls,
         basket_id: str,
         workspace_id: str,
-        sources: List[Any],
-        context: Optional[Dict[str, Any]] = None
+        sources: Optional[List[Any]] = None,
+        context: Optional[Dict[str, Any]] = None,
+        focus_dump_id: Optional[str] = None,
     ) -> WorkerOutput:
-        """Call InfraBasketAnalyzerAgent and normalize output."""
+        """Call InfraBasketAnalyzerAgent and normalize output.
+
+        Parameters other than ``basket_id`` and ``workspace_id`` are currently
+        unused but accepted for interface compatibility with the manager and
+        event consumers.
+        """
         
         try:
             from app.agents.runtime.infra_basket_analyzer_agent import InfraBasketAnalyzerAgent
