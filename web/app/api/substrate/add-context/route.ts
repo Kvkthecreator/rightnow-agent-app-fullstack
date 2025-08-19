@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       triggerBackgroundIntelligenceGeneration({
         basketId,
         origin: 'raw_dump_added',
-        rawDumpId: dump.dump_id
+        rawDumpId: dump.id,
       });
       
       console.log(`Background intelligence generation triggered for raw dump in basket ${basketId}`);
@@ -108,13 +108,13 @@ export async function POST(request: NextRequest) {
     // Build response
     const result: AddContextResult = {
       success: true,
-      rawDumpId: dump.dump_id,
+      rawDumpId: dump.id,
       processingResults: {
         contentProcessed: content.length,
         insights: processingResults?.results ? 'Generated' : 'None',
         filesProcessed: fileUrls.length,
-        processingQuality: processingResults?.results?.metadata?.averageQuality || 'N/A'
-      }
+        processingQuality: processingResults?.results?.metadata?.averageQuality || 'N/A',
+      },
     };
 
     return NextResponse.json(result);

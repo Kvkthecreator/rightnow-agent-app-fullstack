@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { CreateDumpReq, CreateDumpRes } from '@shared/contracts/dumps';
+import type { CreateDumpReq } from '@shared/contracts/dumps';
 
 export const CreateDumpReqSchema = z.object({
   basket_id: z.string().uuid(),
@@ -13,5 +13,9 @@ export const CreateDumpReqSchema = z.object({
 ) satisfies z.ZodType<CreateDumpReq>;
 
 export const CreateDumpResSchema = z.object({
-  dump_id: z.string().uuid(),
-}) satisfies z.ZodType<CreateDumpRes>;
+  id: z.string().uuid(),
+  basket_id: z.string().uuid(),
+  text_dump: z.string().nullable(),
+  created_at: z.string(),
+});
+export type CreateDumpRes = z.infer<typeof CreateDumpResSchema>;

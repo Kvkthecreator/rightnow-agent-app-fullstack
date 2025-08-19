@@ -1,9 +1,9 @@
-import { TodayReflectionCard, ReflectionCards, MemoryStream } from "@/components/basket";
 import { topPhrases, findTension, makeQuestion, type Note } from "@/lib/reflection";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import DashboardClient from "./DashboardClient";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -55,16 +55,13 @@ export default async function DashboardPage({ params }: PageProps) {
   const fallback = pattern ? `You keep orbiting “${pattern}”.` : "Add a note to see what emerges.";
 
   return (
-    <div className="grid grid-cols-12 gap-4">
-      <div className="col-span-12">
-        <TodayReflectionCard line={undefined} fallback={fallback} />
-      </div>
-      <div className="col-span-8">
-        <MemoryStream items={notes} />
-      </div>
-      <div className="col-span-4">
-        <ReflectionCards pattern={pattern} tension={tension} question={question} />
-      </div>
-    </div>
+    <DashboardClient
+      basketId={id}
+      initialNotes={notes}
+      pattern={pattern}
+      tension={tension}
+      question={question}
+      fallback={fallback}
+    />
   );
 }
