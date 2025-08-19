@@ -74,8 +74,15 @@ block[]	Structured interpretations	Core content
 narrative	Authored by agent/user	Contextual glue
 context_item[]	Tagged or inferred	Semantic threading
 
-## 5. Canonical Summary
-All substrates are peers — no single type is the “end.”
+## 5. Reflection as Derived State
+Reflections (pattern/tension/question) are not primary tables; they are computed at read-time from:
+- `raw_dumps` (text signals)
+- `context_items` and `substrate_relationships` (graph signals)
+
+Narratives are persisted as `documents(document_type='narrative')`.
+
+## 6. Canonical Summary
+All substrates are peers — no single type is the "end."
 Documents are compositions, not exports.
 Narrative is first-class alongside structured blocks.
 Agents and users act as explicit composers.

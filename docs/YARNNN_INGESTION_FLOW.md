@@ -1,3 +1,28 @@
+# Ingestion Flow (Triggers vs Manager)
+
+**Manager** executes pipelines. **Triggers** tell it when.
+
+## Triggers
+- Event: `dump.created`
+- Command: `basket.process { basket_id, mode }`  (manual rebuild)
+
+## Pipelines
+1) **Interpretation (write)**
+   - Input: `dump.created` | `basket.process`
+   - Writes:
+     - `context_items` (entities/topics/tags; UPSERT)
+     - `substrate_relationships` (edges; UPSERT by (basket_id, from_id, to_id, relationship_type))
+     - (optional) high-confidence `blocks` (semantic_type)
+   - Output: `ingest.interpreted { basket_id, dump_id }`
+
+2) **Narrative (read→write)**
+   - Input: `ingest.interpreted` (or debounce of recent)
+   - Reads: recent dumps + graph projection
+   - Writes: `documents (document_type='narrative')` (short whisper)
+   - Output: `narrative.written { basket_id, document_id }`
+
+---
+
 # Canonical Basket+Dump Ingest (v1)
 This canon is normative and assumed true. All code MUST conform to it.
 

@@ -1,7 +1,26 @@
 # Yarnnn Canon
 
+## Canon Update: Memory-First Reflection (v1.3)
+
+### Pillars
+1) **Capture is sacred**: all user input becomes an immutable `raw_dump`.
+2) **Reflection is derived**: insights are computed as a **read-model** from the current substrate.
+3) **Narrative is deliberate**: agents may write short prose to `documents(document_type='narrative')`.
+
+### Roles (unchanged, clarified)
+- **Substrate (objective)**: `raw_dumps`, `context_items`, `substrate_relationships`, `blocks`.
+- **Reflection (derived)**: pattern/tension/question computed at read-time from substrate.
+- **Narrative (authored)**: agent-written short text that cites substrate signals.
+
+### Glossary
+- **Memory-First**: User thoughts and patterns emerge from captured substrate, not imposed structure.
+- **Read-Model**: Computed state derived from authoritative data, not stored separately.
+- **Sacred Write Path**: Single entry point for user input via `/create` → `raw_dump`.
+
+---
+
 **Executive Summary**  
-This repository defines the **canonical contracts** for Yarnnn as of 2025-08-16.  
+This repository defines the **canonical contracts** for Yarnnn as of 2025-08-19.  
 Each file listed below is frozen and serves as the single source of truth for its scope.  
 Schema, API, and runtime implementations must conform to these references.  
 
@@ -33,12 +52,18 @@ Schema, API, and runtime implementations must conform to these references.
 - **YARNNN_RELATIONAL_MODEL.md**  
   Semantic roles and flows across substrates (raw_dump, block, document, context_item, event).  
 
+- **YARNNN_CREATE_CANON.md**  
+  The one sacred write path for capture.
+
+- **YARNNN_REFLECTION_READMODEL.md**  
+  How authoritative reflections are computed (text + graph) and reconciled with optimistic UI.
+
 ---
 
 ## Version Lock
 
-- Canon version: **v1.0**  
-- Frozen as of: **2025-08-16**  
+- Canon version: **v1.3**  
+- Frozen as of: **2025-08-19**  
 - Update policy: Do not edit in place. Amendments require a new canon version.  
 
 ---
