@@ -8,7 +8,8 @@ import { dlog } from '@/lib/dev/log';
 import { toast } from 'react-hot-toast';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import type { CreateBasketReq, CreateBasketRes } from '@shared/contracts/baskets';
-import type { CreateDumpReq, CreateDumpRes } from '@shared/contracts/dumps';
+import type { CreateDumpReq } from '@shared/contracts/dumps';
+import type { CreateDumpRes } from '@/lib/schemas/dumps';
 
 export type CreateState =
   | 'EMPTY'
