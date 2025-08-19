@@ -139,6 +139,12 @@ python run_migrations.py
    - Version conflicts
    - Build tools missing (gcc, postgresql-dev)
 
+### Database Connection Errors
+- **`asyncpg.exceptions.InternalServerError: Tenant or user not found`**
+  - Indicates an invalid `DATABASE_URL`
+  - Verify the connection string includes the correct Supabase project reference and credentials
+  - The server will now start without a database, but features that depend on it will be disabled
+
 ### Emergency Fallback
 If all else fails, you can temporarily simplify:
 
