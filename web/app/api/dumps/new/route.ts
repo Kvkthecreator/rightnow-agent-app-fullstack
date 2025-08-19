@@ -2,7 +2,6 @@ export const runtime = "nodejs";
 
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import type { CreateDumpReq, CreateDumpRes } from "@shared/contracts/dumps";
 import { CreateDumpReqSchema } from "@/lib/schemas/dumps";
 
 /**
@@ -75,7 +74,7 @@ export async function POST(req: Request) {
     // Check for existing dump with same idempotency key (replay detection)
     const { data: existingDump } = await supabase
       .from("raw_dumps")
-      .select("id")
+      .select("id, body_md, created_at, basket_id")
       .eq("basket_id", basket_id)
       .eq("dump_request_id", dump_request_id)
       .single();
@@ -93,7 +92,12 @@ export async function POST(req: Request) {
       }));
       
       return Response.json(
-        { dump_id: existingDump.id } satisfies CreateDumpRes,
+        {
+          id: existingDump.id,
+          basket_id: existingDump.basket_id,
+          text_dump: existingDump.body_md,
+          created_at: existingDump.created_at,
+        },
         { status: 200 }
       );
     }
@@ -118,7 +122,7 @@ export async function POST(req: Request) {
         source_meta: meta ? JSON.stringify(meta) : '{}',
         processing_status: 'unprocessed'
       })
-      .select("id")
+      .select("id, body_md, created_at")
       .single();
 
     if (createError) {
@@ -146,6 +150,14 @@ export async function POST(req: Request) {
       );
     }
 
+    // Emit event
+    await supabase.from("basket_events").insert({
+      basket_id,
+      event_type: "dump.created",
+      event_data: { dump_id: dump.id, user_id: userId },
+      created_at: new Date().toISOString(),
+    });
+
     // Log creation event
     console.log(JSON.stringify({
       route: "/api/dumps/new",
@@ -158,7 +170,7 @@ export async function POST(req: Request) {
     }));
 
     return Response.json(
-      { dump_id: dump.id } satisfies CreateDumpRes,
+      { id: dump.id, basket_id, text_dump: dump.body_md, created_at: dump.created_at },
       { status: 201 }
     );
 

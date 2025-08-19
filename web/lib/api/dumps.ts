@@ -14,9 +14,10 @@ import {
 export async function createDump(
   request: Omit<CreateDumpRequest, 'dump_request_id'>,
 ): Promise<{
-  dump_id: string;
-  status: string;
-  processing: string;
+  id: string;
+  basket_id: string;
+  text_dump: string | null;
+  created_at: string;
 }> {
   const payload = { ...request, dump_request_id: crypto.randomUUID() };
 
@@ -31,9 +32,10 @@ export async function createDump(
   });
 
   return response as {
-    dump_id: string;
-    status: string;
-    processing: string;
+    id: string;
+    basket_id: string;
+    text_dump: string | null;
+    created_at: string;
   };
 }
 
