@@ -37,7 +37,7 @@ def extract_graph_from_worker_output(out) -> Tuple[List[Dict[str, Any]], List[Di
         elif t in ("block", "context_block") and p.get("semantic_type") in ("theme", "concept"):
             bl.append({
                 "basket_id": ch.get("basket_id"),
-                "semantic_type": p.get("semantic_type"),
+ 
                 "title": p.get("title"),
                 "content": p.get("content"),
                 "raw_dump_id": ch.get("raw_dump_id"),

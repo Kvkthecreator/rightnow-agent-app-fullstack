@@ -13,5 +13,6 @@ async def consume_dump_created(db):
                 req = {"mode": "evolve_turn", "focus": "interpretation", "dump_id": p["dump_id"]}
                 workspace_id = p.get("workspace_id") or ""
                 await run_manager_plan(db, p["basket_id"], req, workspace_id)
+
             except Exception:
                 log.exception("dump.created handler failed")
