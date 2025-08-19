@@ -82,7 +82,7 @@ export function NarrativeNavigation({
   const handleTabChange = (tabKey: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tabKey);
-    router.push(`/baskets/${basketId}?${params.toString()}`);
+    router.push(`/baskets/${basketId}/dashboard?${params.toString()}`);
   };
 
   const getCurrentTab = () => {

@@ -66,8 +66,12 @@ export default function Sidebar({ className }: SidebarProps) {
     router.push("/");
   };
 
-  const handleNewBasket = async () => {
-    window.location.href = 'https://www.yarnnn.com/create';
+  const handleNewBasket = () => {
+    try {
+      router.push("/create");
+    } catch (error) {
+      console.error("❌ Sidebar: Failed to navigate to create:", error);
+    }
   };
 
   const handleNavigateToBaskets = () => {
