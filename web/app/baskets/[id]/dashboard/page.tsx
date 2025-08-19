@@ -1,9 +1,24 @@
-import { topPhrases, findTension, makeQuestion, type Note } from "@/lib/reflection";
+import { computeReflections, type Note } from "@/lib/reflection";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import DashboardClient from "./DashboardClient";
+
+async function fetchProjection(basketId: string) {
+  const base =
+    process.env.NEXT_PUBLIC_API_BASE ?? process.env.API_BASE ?? "";
+  const res = await fetch(
+    `${base}/api/baskets/${basketId}/projection?limit=200`,
+    {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    },
+  );
+  if (!res.ok) return { entities: [], edges: [] };
+  return res.json();
+}
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -40,27 +55,26 @@ export default async function DashboardPage({ params }: PageProps) {
     .select("id, text_dump, created_at")
     .eq("basket_id", id)
     .order("created_at", { ascending: true });
+  const dumpRows = (dumps as DumpRow[] | null) || [];
+  const notes: Note[] = dumpRows.map((d) => ({
+    id: d.id,
+    text: d.text_dump || "",
+    created_at: d.created_at || undefined,
+  }));
 
-  const notes: Note[] =
-    (dumps as DumpRow[] | null)?.map((d) => ({
-      id: d.id,
-      text: d.text_dump || "",
-      created_at: d.created_at || undefined,
-    })) || [];
-
-  const phrases = topPhrases(notes);
-  const pattern = phrases[0]?.phrase;
-  const tension = findTension(notes);
-  const question = makeQuestion(pattern);
-  const fallback = pattern ? `You keep orbiting “${pattern}”.` : "Add a note to see what emerges.";
+  const graph = await fetchProjection(id);
+  const reflections = computeReflections(notes, graph);
+  const fallback = reflections.pattern
+    ? `You keep orbiting “${reflections.pattern}”.`
+    : "Add a note to see what emerges.";
 
   return (
     <DashboardClient
       basketId={id}
       initialNotes={notes}
-      pattern={pattern}
-      tension={tension}
-      question={question}
+      pattern={reflections.pattern}
+      tension={reflections.tension}
+      question={reflections.question ?? undefined}
       fallback={fallback}
     />
   );
