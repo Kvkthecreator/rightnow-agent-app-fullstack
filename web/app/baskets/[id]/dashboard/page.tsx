@@ -1,4 +1,4 @@
-import { computeReflections, type Note } from "@/lib/reflection";
+import { type Note } from "@/lib/reflection";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
@@ -6,17 +6,21 @@ import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import DashboardClient from "./DashboardClient";
 
 async function fetchProjection(basketId: string) {
-  const base =
-    process.env.NEXT_PUBLIC_API_BASE ?? process.env.API_BASE ?? "";
-  const res = await fetch(
-    `${base}/api/baskets/${basketId}/projection?limit=200`,
-    {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store",
+  const base = process.env.NEXT_PUBLIC_API_BASE || "https://www.yarnnn.com";
+  const res = await fetch(`${base}/api/baskets/${basketId}/projection`, {
+    method: "GET",
+    headers: { 
+      "Content-Type": "application/json",
+      "Cookie": cookies().toString() // Forward auth cookies
     },
-  );
-  if (!res.ok) return { entities: [], edges: [] };
+    cache: "no-store",
+  });
+  
+  if (!res.ok) {
+    console.error(`Projection fetch failed: ${res.status} ${res.statusText}`);
+    return null;
+  }
+  
   return res.json();
 }
 
@@ -24,16 +28,11 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type DumpRow = {
-  id: string;
-  text_dump: string | null;
-  created_at?: string | null;
-};
-
 export default async function DashboardPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = createServerComponentClient({ cookies });
 
+  // Verify basket access
   const workspace = await ensureWorkspaceServer(supabase);
   if (!workspace) {
     notFound();
@@ -50,31 +49,35 @@ export default async function DashboardPage({ params }: PageProps) {
     notFound();
   }
 
-  const { data: dumps } = await supabase
-    .from("raw_dumps")
-    .select("id, text_dump, created_at")
-    .eq("basket_id", id)
-    .order("created_at", { ascending: true });
-  const dumpRows = (dumps as DumpRow[] | null) || [];
-  const notes: Note[] = dumpRows.map((d) => ({
-    id: d.id,
-    text: d.text_dump || "",
-    created_at: d.created_at || undefined,
-  }));
+  // Fetch server-computed projection (authority)
+  const projection = await fetchProjection(id);
+  
+  if (!projection) {
+    // Fallback for API errors
+    return (
+      <DashboardClient
+        basketId={id}
+        initialNotes={[]}
+        pattern={undefined}
+        tension={null}
+        question={undefined}
+        fallback="Unable to load reflections. Please try again."
+      />
+    );
+  }
 
-  const graph = await fetchProjection(id);
-  const reflections = computeReflections(notes, graph);
+  const { reflections } = projection;
   const fallback = reflections.pattern
-    ? `You keep orbiting “${reflections.pattern}”.`
+    ? `You keep orbiting "${reflections.pattern}".`
     : "Add a note to see what emerges.";
 
   return (
     <DashboardClient
       basketId={id}
-      initialNotes={notes}
+      initialNotes={reflections.notes || []}
       pattern={reflections.pattern}
       tension={reflections.tension}
-      question={reflections.question ?? undefined}
+      question={reflections.question}
       fallback={fallback}
     />
   );
