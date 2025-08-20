@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
-import { SmartSuggestion } from "@/lib/intelligence/useSmartSuggestionTiming";
+import type { SmartSuggestion } from "@/lib/intelligence/useSmartSuggestionTiming";
 
 interface Props {
   suggestions: SmartSuggestion[];

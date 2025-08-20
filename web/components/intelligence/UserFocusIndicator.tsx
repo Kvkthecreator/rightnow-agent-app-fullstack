@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
-import { BehavioralPattern } from "@/lib/intelligence/useBehavioralTriggers";
+import type { BehavioralPattern } from "@/lib/intelligence/useBehavioralTriggers";
 
 interface Props {
   isTyping: boolean;

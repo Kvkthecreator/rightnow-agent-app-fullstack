@@ -3,7 +3,7 @@
  * No more scattered fetch() calls across components
  */
 
-import { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
+import type { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
 import { fetchWithToken } from '@/lib/fetchWithToken'
 import { getCacheManager } from '@/lib/performance/CacheManager'
 

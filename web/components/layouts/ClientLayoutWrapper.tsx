@@ -1,9 +1,9 @@
 "use client";
 
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs";
 import { SessionContextProvider } from "@supabase/auth-helpers-react";
-import { Database } from "@/lib/dbTypes";
+import type { Database } from "@/lib/dbTypes";
 
 const supabase = createPagesBrowserClient<Database>();
 

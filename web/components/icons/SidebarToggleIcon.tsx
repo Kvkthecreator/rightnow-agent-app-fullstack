@@ -1,5 +1,5 @@
 // SidebarToggleIcon.tsx
-import { SVGProps } from "react";
+import type { SVGProps } from "react";
 
 export default function SidebarToggleIcon(props: SVGProps<SVGSVGElement>) {
   return (

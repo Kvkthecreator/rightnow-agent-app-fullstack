@@ -5,7 +5,7 @@
 
 import { useState } from 'react'
 import { basketApi } from '@/lib/api/client'
-import { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
+import type { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
 
 interface UseBasketOperationsReturn {
   isLoading: boolean

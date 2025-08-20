@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useSubstrate } from '@/lib/substrate/useSubstrate';
 import { CompositeRawDumpInput } from './CompositeRawDumpInput';
 import { FileFragmentHandler } from '@/lib/substrate/FileFragmentHandler';
-import { Fragment } from '@/lib/substrate/FragmentTypes';
+import type { Fragment } from '@/lib/substrate/FragmentTypes';
 
 interface SubstrateCanvasProps {
   basketId: string;

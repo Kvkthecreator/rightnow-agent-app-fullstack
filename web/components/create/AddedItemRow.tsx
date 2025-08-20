@@ -1,6 +1,6 @@
 'use client';
 
-import { AddedItem } from './useCreatePageMachine';
+import type { AddedItem } from './useCreatePageMachine';
 import { Badge } from '@/components/ui/Badge';
 import { Paperclip, Link as LinkIcon, StickyNote, Trash2 } from 'lucide-react';
 

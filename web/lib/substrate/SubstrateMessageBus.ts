@@ -1,7 +1,7 @@
 // TRUE CONTEXT OS - The ONLY Communication Layer
 // Single message bus for all substrate operations
 
-import { SubstrateOperation, SubstrateResponse, SubstrateElement } from './SubstrateTypes';
+import type { SubstrateOperation, SubstrateResponse, SubstrateElement } from './SubstrateTypes';
 import { apiClient } from '@/lib/api/client';
 
 export interface SubstrateMessage {

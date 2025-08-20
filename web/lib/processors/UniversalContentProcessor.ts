@@ -7,15 +7,16 @@
  * main interface for the intelligence system.
  */
 
-import {
+import { DataTypeIdentifier } from './types';
+import type {
   SubstrateOutput,
   CohesiveSubstrateOutput,
-  DataTypeIdentifier,
   PatternData,
   StructuralElement
 } from './types';
 import { DataTypeRegistry } from './DataTypeRegistry';
-import { processingErrorHandler, QualityAssessment } from './ErrorHandler';
+import { processingErrorHandler } from './ErrorHandler';
+import type { QualityAssessment } from './ErrorHandler';
 
 export interface ProcessingOptions {
   // Individual processor options

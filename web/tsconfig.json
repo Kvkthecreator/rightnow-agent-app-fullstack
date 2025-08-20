@@ -11,8 +11,9 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-      "jsx": "preserve",
-      "incremental": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "verbatimModuleSyntax": true,
 
     // ✅ Add types support for node
     // temporarily remove "playwright" until the build pipeline restores those types

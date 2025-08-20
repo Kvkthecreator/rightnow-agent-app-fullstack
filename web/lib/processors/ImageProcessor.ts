@@ -7,9 +7,9 @@
  */
 
 import { createWorker, PSM, OEM } from 'tesseract.js';
-import {
+import { DataTypeIdentifier } from './types';
+import type {
   DataTypeProcessor,
-  DataTypeIdentifier,
   ProcessingCapability,
   ProcessorMetadata,
   SubstrateOutput,

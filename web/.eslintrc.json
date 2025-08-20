@@ -1,7 +1,16 @@
 {
   "extends": ["next/core-web-vitals"],
+  "settings": {
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true,
+        "project": "./tsconfig.json"
+      }
+    }
+  },
   "rules": {
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "import/no-unresolved": "error",
     "no-restricted-globals": [
       "error",
       {

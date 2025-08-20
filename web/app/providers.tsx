@@ -1,5 +1,6 @@
 'use client';
-import { ReactNode, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ModalRoot, { ModalProvider } from '@/components/modals/ModalRoot';
 import PreflightPanel from '@/components/config/PreflightPanel';

@@ -9,9 +9,9 @@
 // Dynamic import for PDF.js to handle SSR
 let getDocument: any;
 let GlobalWorkerOptions: any;
-import {
+import { DataTypeIdentifier } from './types';
+import type {
   DataTypeProcessor,
-  DataTypeIdentifier,
   ProcessingCapability,
   ProcessorMetadata,
   SubstrateOutput,

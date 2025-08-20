@@ -1,9 +1,9 @@
 // File: /app/dashboard/layout.tsx
 
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { Database } from "@/lib/dbTypes";
+import type { Database } from "@/lib/dbTypes";
 import ClientLayoutWrapper from "@/components/layouts/ClientLayoutWrapper";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ContentInput } from '@/lib/intelligence/useUniversalIntelligence';
+import type { ContentInput } from '@/lib/intelligence/useUniversalIntelligence';
 
 interface SubstrateContentInputProps {
   onAddContext: (content: string, type: 'text' | 'file' | 'pdf' | 'image', files?: File[]) => Promise<void>;

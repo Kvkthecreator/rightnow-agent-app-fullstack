@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Send, FileText, Loader2, Brain, CheckCircle, X, Plus, Eye } from 'lucide-react';
 import { substrateService, type SubstrateData, type RawDump, type Block } from '@/lib/substrate/SubstrateService';
 import { useBasketOperations } from '@/hooks/useBasketOperations';
-import { BasketChangeRequest } from '@shared/contracts/basket';
+import type { BasketChangeRequest } from '@shared/contracts/basket';
 
 interface SubstrateManagerProps {
   basketId: string;

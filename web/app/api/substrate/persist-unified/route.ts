@@ -2,7 +2,7 @@
 // API endpoint for persisting multi-fragment raw dumps
 
 import { NextRequest, NextResponse } from 'next/server';
-import { UnifiedRawDump } from '@/lib/substrate/FragmentTypes';
+import type { UnifiedRawDump } from '@/lib/substrate/FragmentTypes';
 
 export async function POST(request: NextRequest) {
   try {

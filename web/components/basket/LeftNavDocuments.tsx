@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, KeyboardEvent } from "react";
+import { useState, useRef } from "react";
+import type { KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, FileText, FilePlus2, Upload } from "lucide-react";
 

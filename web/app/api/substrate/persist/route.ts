@@ -2,7 +2,7 @@
 // Handles saving substrate to database
 
 import { NextRequest, NextResponse } from 'next/server';
-import { SubstrateElement } from '@/lib/substrate/SubstrateTypes';
+import type { SubstrateElement } from '@/lib/substrate/SubstrateTypes';
 import { getAuthenticatedUser } from '@/lib/server/auth';
 import { createUserClient } from '@/lib/supabase/user';
 

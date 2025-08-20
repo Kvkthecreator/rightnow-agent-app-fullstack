@@ -6,9 +6,9 @@
  * for all text-based content processing.
  */
 
-import {
+import { DataTypeIdentifier } from './types';
+import type {
   DataTypeProcessor,
-  DataTypeIdentifier,
   ProcessingCapability,
   ProcessorMetadata,
   SubstrateOutput,

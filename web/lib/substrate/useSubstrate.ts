@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { UnifiedSubstrateComposer } from './UnifiedSubstrateComposer';
-import { SubstrateElement, SubstrateType, SubstrateResponse } from './SubstrateTypes';
-import { Fragment } from './FragmentTypes';
+import type { SubstrateElement, SubstrateType, SubstrateResponse } from './SubstrateTypes';
+import type { Fragment } from './FragmentTypes';
 
 export function useSubstrate(basketId: string, workspaceId: string) {
   const [composer] = useState(() => UnifiedSubstrateComposer.getInstance());

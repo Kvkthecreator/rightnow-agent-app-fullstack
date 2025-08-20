@@ -8,8 +8,10 @@
  * All outputs are technical coordination data for consumption by narrative agents.
  */
 
-import { BasketAnalysisAgent, BasketDataSubstrate, ThematicAnalysisSubstrate, ContentRelationshipSubstrate, BasketStateClassification } from './BasketAnalysisAgent';
-import { ContentProcessingAgent, ContentSubstrate, TextAnalysisSubstrate, ContentExtractionResult, ProcessingRecommendations } from './ContentProcessingAgent';
+import { BasketAnalysisAgent } from './BasketAnalysisAgent';
+import type { BasketDataSubstrate, ThematicAnalysisSubstrate, ContentRelationshipSubstrate, BasketStateClassification } from './BasketAnalysisAgent';
+import { ContentProcessingAgent } from './ContentProcessingAgent';
+import type { ContentSubstrate, TextAnalysisSubstrate, ContentExtractionResult, ProcessingRecommendations } from './ContentProcessingAgent';
 
 // Technical coordination structures
 export interface AnalysisWorkflowRequest {

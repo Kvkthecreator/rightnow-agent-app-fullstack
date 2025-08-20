@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Spinner } from "@/components/ui/Spinner";
 import { useSubstrate } from "@/lib/substrate/useSubstrate";
 import { useDocumentContext } from "@/lib/intelligence/useDocumentContext";
-import { TriggerEvent } from "@/lib/intelligence/useBehavioralTriggers";
+import type { TriggerEvent } from "@/lib/intelligence/useBehavioralTriggers";
 import { useWorkspaceId } from "@/hooks/useWorkspaceId";
 // Local type definition for ContextualInsight
 interface ContextualInsight {

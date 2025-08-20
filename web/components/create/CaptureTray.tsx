@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { UploadArea } from '@/components/ui/UploadArea';
 import { Label } from '@/components/ui/Label';
 import { ProgressStepper } from '@/components/ui/ProgressStepper';
-import { AddedItem, CreateState } from './useCreatePageMachine';
+import type { AddedItem, CreateState } from './useCreatePageMachine';
 import { AddedItemRow } from './AddedItemRow';
 
 interface Props {

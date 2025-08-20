@@ -1,6 +1,6 @@
 // web/lib/baskets/getAllBaskets.ts
 import { createBrowserClient } from "@/lib/supabase/clients";
-import { Database } from "@/lib/dbTypes";
+import type { Database } from "@/lib/dbTypes";
 
 export type BasketOverview = Pick<
   Database["public"]["Tables"]["baskets"]["Row"],

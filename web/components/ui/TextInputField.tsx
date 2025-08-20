@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Controller, Control, FieldValues, Path } from "react-hook-form";
+import { Controller } from "react-hook-form";
+import type { Control, FieldValues, Path } from "react-hook-form";
 import { Input } from "./Input";
 
 export interface TextInputFieldProps<T extends FieldValues> {

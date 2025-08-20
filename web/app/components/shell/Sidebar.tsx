@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { Plus, Package2, LogOut, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
-import { getAllBaskets, BasketOverview } from "@/lib/baskets/getAllBaskets";
+import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
+import type { BasketOverview } from "@/lib/baskets/getAllBaskets";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
 

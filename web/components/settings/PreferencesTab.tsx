@@ -6,8 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   fetchMockPreferences,
   saveMockPreferences,
-  Preferences,
 } from "@/lib/mocks/settings";
+import type { Preferences } from "@/lib/mocks/settings";
 import toast from "react-hot-toast";
 
 export default function PreferencesTab() {

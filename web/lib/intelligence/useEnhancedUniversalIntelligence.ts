@@ -11,8 +11,9 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/useAuth';
 import { fetchWithToken } from '@/lib/fetchWithToken';
-import { processContent, DataTypeIdentifier, ProcessingResult } from '@/lib/processors';
-import { ContentInput, IntelligenceResult, ProcessingResponse, BasketInitializationResult } from './useUniversalIntelligence';
+import { processContent, DataTypeIdentifier } from '@/lib/processors';
+import type { ProcessingResult } from '@/lib/processors';
+import type { ContentInput, IntelligenceResult, ProcessingResponse, BasketInitializationResult } from './useUniversalIntelligence';
 
 export interface EnhancedContentInput extends ContentInput {
   // Add processor-specific metadata

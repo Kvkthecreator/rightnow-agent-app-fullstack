@@ -1,7 +1,8 @@
 // TRUE CONTEXT OS - File Fragment Handler
 // Reusable for raw_dumps AND onboarding
 
-import { Fragment, FragmentType, getFragmentType } from './FragmentTypes';
+import { getFragmentType } from './FragmentTypes';
+import type { Fragment, FragmentType } from './FragmentTypes';
 
 export class FileFragmentHandler {
   private static readonly ALLOWED_MIME_TYPES = new Set([

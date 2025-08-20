@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Sidebar from "@/app/components/shell/Sidebar";
 import TopBar from "@/components/common/TopBar";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 // These routes will show sidebar globally
 const SHOW_SIDEBAR_ROUTES = [

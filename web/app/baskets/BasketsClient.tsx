@@ -15,7 +15,8 @@ import { Card } from '@/components/ui/Card';
 import BasketCard from '@/components/BasketCard';
 import PageHeader from '@/components/page/PageHeader';
 import { EmptyStateCreateButton } from '@/components/create/UniversalCreateButton';
-import { getAllBaskets, BasketOverview } from '@/lib/baskets/getAllBaskets';
+import { getAllBaskets } from '@/lib/baskets/getAllBaskets';
+import type { BasketOverview } from '@/lib/baskets/getAllBaskets';
 
 export default function BasketsClient() {
   const { session, isLoading } = useSessionContext();

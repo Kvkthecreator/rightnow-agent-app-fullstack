@@ -1,7 +1,7 @@
 // TRUE CONTEXT OS - The ONLY Substrate Handler
 // Single source of truth for all substrate operations
 
-import { 
+import type { 
   SubstrateElement, 
   SubstrateType, 
   SubstrateOperation, 
@@ -17,7 +17,7 @@ import {
   AgentResponse,
   CompositionElement
 } from './SubstrateTypes';
-import { Fragment, UnifiedRawDump } from './FragmentTypes';
+import type { Fragment, UnifiedRawDump } from './FragmentTypes';
 import { apiClient } from '@/lib/api/client';
 
 export class UnifiedSubstrateComposer {

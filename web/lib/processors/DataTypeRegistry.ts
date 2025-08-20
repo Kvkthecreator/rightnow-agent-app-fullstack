@@ -5,9 +5,9 @@
  * registration, and management of processors in a modular way.
  */
 
-import {
+import { DataTypeIdentifier } from './types';
+import type {
   DataTypeProcessor,
-  DataTypeIdentifier,
   ProcessingCapability
 } from './types';
 

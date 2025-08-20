@@ -5,7 +5,8 @@
  * mechanisms for the modular data processing system.
  */
 
-import { DataTypeIdentifier, SubstrateOutput } from './types';
+import { DataTypeIdentifier } from './types';
+import type { SubstrateOutput } from './types';
 import type { ProcessingResult } from './UniversalContentProcessor';
 
 export enum ErrorSeverity {

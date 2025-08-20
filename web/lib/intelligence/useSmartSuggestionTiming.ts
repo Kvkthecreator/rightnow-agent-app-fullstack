@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { TriggerEvent, BehavioralPattern } from "./useBehavioralTriggers";
+import type { TriggerEvent, BehavioralPattern } from "./useBehavioralTriggers";
 
 export interface SuggestionTiming {
   immediate: boolean;
