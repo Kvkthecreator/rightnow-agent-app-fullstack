@@ -1,3 +1,9 @@
+/**
+ * Component: BasketSchemas
+ * Schema definitions for basket operations
+ * @contract input  : CreateBasketReq
+ * @contract output : CreateBasketRes
+ */
 import { z } from 'zod';
 import type { CreateBasketReq, CreateBasketRes } from '@shared/contracts/baskets';
 

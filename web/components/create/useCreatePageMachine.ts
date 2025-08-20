@@ -1,3 +1,9 @@
+/**
+ * Component: useCreatePageMachine
+ * Hook for managing basket creation flow
+ * @contract input  : CreateBasketReq, CreateDumpReq
+ * @contract output : CreateBasketRes, CreateDumpRes
+ */
 'use client';
 
 import { useEffect, useState, useRef } from 'react';

@@ -1,7 +1,11 @@
 
-// Client-side formatting helpers only
-// No computation algorithms - those live on the server
-// Types moved to shared contracts
+/**
+ * Component: ReflectionHelpers
+ * Client-side formatting helpers only
+ * No computation algorithms - those live on the server
+ * Types moved to shared contracts
+ * @contract renders: ReflectionDTO
+ */
 
 import type { ReflectionDTO } from '@shared/contracts/memory';
 

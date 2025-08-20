@@ -1,3 +1,9 @@
+/**
+ * Route: POST /api/baskets/ingest
+ * @contract input  : IngestReq
+ * @contract output : IngestRes
+ * RLS: workspace-scoped writes
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';

@@ -1,6 +1,10 @@
-// SYSTEMATIC REBUILD - Clean UI with integrated Thinking Partner
-// Replaces SimplifiedSubstrate with proper architecture
-
+/**
+ * Component: SubstrateManager
+ * SYSTEMATIC REBUILD - Clean UI with integrated Thinking Partner
+ * Replaces SimplifiedSubstrate with proper architecture
+ * @contract input  : BasketChangeRequest
+ * Renders fields: request_id, basket_id, type, rawDumpId
+ */
 "use client";
 
 import React, { useState, useEffect } from 'react';

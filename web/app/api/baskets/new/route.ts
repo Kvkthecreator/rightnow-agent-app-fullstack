@@ -1,3 +1,9 @@
+/**
+ * Route: POST /api/baskets/new
+ * @contract input  : CreateBasketReq
+ * @contract output : CreateBasketRes
+ * RLS: workspace-scoped writes
+ */
 // web/app/api/baskets/new/route.ts
 export const runtime = "nodejs"; // avoid Edge so supabase-helpers work
 export const dynamic = "force-dynamic";

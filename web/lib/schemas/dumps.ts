@@ -1,3 +1,9 @@
+/**
+ * Component: DumpSchemas
+ * Schema definitions for dump operations
+ * @contract input  : CreateDumpReq
+ * @contract output : CreateDumpRes
+ */
 import { z } from 'zod';
 import type { CreateDumpReq } from '@shared/contracts/dumps';
 

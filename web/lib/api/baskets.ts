@@ -1,3 +1,9 @@
+/**
+ * Component: BasketAPI
+ * Basket API functions with Zod validation
+ * @contract input  : CreateBasketRequest
+ * @contract output : CreateBasketRes | Basket | Paginated<Basket>
+ */
 import { apiClient, timeoutSignal } from './http';
 import {
   BasketSchema,
@@ -8,10 +14,6 @@ import {
   type CreateBasketRequest,
 } from './contracts';
 import type { CreateBasketRes } from '@shared/contracts/baskets';
-
-/**
- * Basket API functions with Zod validation
- */
 
 // Get single basket
 export async function getBasket(basketId: string): Promise<Basket> {

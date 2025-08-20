@@ -1,3 +1,10 @@
+/**
+ * Component: IngestSchemas
+ * Schema definitions for ingest operations
+ * @contract input  : IngestReq
+ * @contract output : IngestRes
+ * @contract renders: IngestItem
+ */
 import { z } from 'zod';
 import type { IngestItem, IngestReq, IngestRes } from '@shared/contracts/ingest';
 

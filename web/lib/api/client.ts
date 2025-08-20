@@ -1,6 +1,9 @@
 /**
+ * Component: ApiClient
  * Centralized API client - ONE source of truth for ALL API calls
  * No more scattered fetch() calls across components
+ * @contract input  : BasketChangeRequest
+ * @contract output : BasketDelta
  */
 
 import type { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'

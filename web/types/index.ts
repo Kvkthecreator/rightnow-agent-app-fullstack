@@ -1,3 +1,8 @@
+/**
+ * Component: TypeDefinitions
+ * Type definitions re-exported from shared contracts
+ * @contract renders: Document, Block, Basket, ContextItem, Dump
+ */
 // Re-export from shared contracts for backward compatibility
 export * from "@shared/contracts";
 

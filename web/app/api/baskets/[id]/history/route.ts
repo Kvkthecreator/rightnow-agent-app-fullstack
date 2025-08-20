@@ -1,3 +1,9 @@
+/**
+ * Route: GET /api/baskets/:id/history
+ * @contract input  : none
+ * @contract output : HistoryPage
+ * RLS: workspace-scoped reads on raw_dumps and reflections
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";

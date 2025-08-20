@@ -1,6 +1,9 @@
 /**
+ * Component: useBasketOperations
  * Missing operational hook - handles all basket operations
  * Centralized state management for basket actions
+ * @contract input  : BasketChangeRequest
+ * @contract output : BasketDelta
  */
 
 import { useState } from 'react'

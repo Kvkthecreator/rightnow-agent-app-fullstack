@@ -1,3 +1,8 @@
+/**
+ * Component: useBasketHistory
+ * Hook for fetching basket history
+ * @contract output : HistoryPage
+ */
 import useSWR from "swr";
 import type { HistoryPage } from "@shared/contracts/memory";
 

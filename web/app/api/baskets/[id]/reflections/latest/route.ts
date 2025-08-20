@@ -1,3 +1,9 @@
+/**
+ * Route: GET /api/baskets/:id/reflections/latest
+ * @contract input  : none
+ * @contract output : ReflectionDTO
+ * RLS: workspace-scoped reads on basket_reflections
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";

@@ -1,3 +1,9 @@
+/**
+ * Component: ServerIngest
+ * Server-side ingest operations
+ * @contract input  : IngestItem
+ * @contract output : IngestRes
+ */
 import { createUserClient } from '@/lib/supabase/user';
 import type { IngestRes, IngestItem } from '@shared/contracts/ingest';
 import { IngestResSchema } from '@/lib/schemas/ingest';

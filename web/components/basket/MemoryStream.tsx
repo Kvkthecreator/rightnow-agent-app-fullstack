@@ -1,3 +1,8 @@
+/**
+ * Component: MemoryStream
+ * @contract input : HistoryPage
+ * Renders fields: ts, kind, preview, payload (text/reflection fields)
+ */
 "use client";
 
 import { useBasketHistory } from "@/lib/hooks/useBasketHistory";

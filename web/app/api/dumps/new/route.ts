@@ -1,14 +1,15 @@
+/**
+ * Route: POST /api/dumps/new
+ * @contract input  : CreateDumpReq
+ * @contract output : CreateDumpRes
+ * RLS: workspace-scoped writes on raw_dumps
+ */
 export const runtime = "nodejs";
 
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { CreateDumpReqSchema } from "@/lib/schemas/dumps";
 import { appendDumpToHistory } from "@/app/_server/memory/appendDumpToHistory";
-
-/**
- * Interface Spec v0.1.0 compliant: POST /api/dumps/new
- * Accepts CreateDumpReq with idempotency via dump_request_id
- */
 
 export async function POST(req: Request) {
   const startTime = Date.now();

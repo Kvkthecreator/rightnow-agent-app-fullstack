@@ -1,3 +1,8 @@
+/**
+ * Component: ReflectionCards
+ * @contract input : ReflectionDTO
+ * Renders fields: pattern, tension, question
+ */
 "use client";
 
 export function ReflectionCards({
