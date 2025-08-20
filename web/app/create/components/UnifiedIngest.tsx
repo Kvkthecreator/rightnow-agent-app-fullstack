@@ -1,15 +1,12 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useDropzone } from 'react-dropzone';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 
 type IngestItem =
   | { kind: 'file'; file: File; preview?: string }
-  | { kind: 'text'; text: string }
-  | { kind: 'url'; url: string };
+  | { kind: 'text'; text: string };
 
 export interface UnifiedIngestProps {
   onChange: (items: IngestItem[]) => void;
@@ -17,7 +14,6 @@ export interface UnifiedIngestProps {
 
 export default function UnifiedIngest({ onChange }: UnifiedIngestProps) {
   const [items, setItems] = useState<IngestItem[]>([]);
-  const urlRef = useRef<HTMLInputElement>(null);
 
   const push = (next: IngestItem[]) => {
     setItems(prev => {
@@ -55,12 +51,8 @@ export default function UnifiedIngest({ onChange }: UnifiedIngestProps) {
       } else {
         const text = e.clipboardData?.getData('text')?.trim();
         if (text) {
-          try {
-            const u = new URL(text);
-            push([{ kind: 'url', url: u.toString() }]);
-          } catch {
-            push([{ kind: 'text', text }]);
-          }
+          // All pasted text (including URLs) treated as text content
+          push([{ kind: 'text', text }]);
         }
       }
     };
@@ -68,23 +60,8 @@ export default function UnifiedIngest({ onChange }: UnifiedIngestProps) {
     return () => window.removeEventListener('paste', onPaste);
   }, []);
 
-  const addUrl = () => {
-    const v = urlRef.current?.value?.trim();
-    if (!v) return;
-    try {
-      const u = new URL(v);
-      push([{ kind: 'url', url: u.toString() }]);
-      if (urlRef.current) urlRef.current.value = '';
-    } catch {}
-  };
-
   return (
     <Card className="p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <Input ref={urlRef} placeholder="Paste a link and press Add" />
-        <Button onClick={addUrl}>Add</Button>
-      </div>
-
       <div
         {...getRootProps()}
         className={`rounded-md border-2 border-dashed p-8 text-center ${isDragActive ? 'opacity-100' : 'opacity-80'}`}
@@ -108,7 +85,6 @@ export default function UnifiedIngest({ onChange }: UnifiedIngestProps) {
               ) : (
                 <div className="truncate">
                   {it.kind === 'file' && it.file.name}
-                  {it.kind === 'url' && it.url}
                   {it.kind === 'text' && it.text.slice(0, 140)}
                 </div>
               )}

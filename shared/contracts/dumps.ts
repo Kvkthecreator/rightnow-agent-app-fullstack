@@ -5,7 +5,7 @@ export type RawDump = {
   basket_id: string;
   workspace_id: string;
   body_md: string | null;
-  file_url?: string | null;
+  file_url?: string | null;  // Supabase Storage URL for uploaded files
   dump_request_id?: string;
   source_meta?: Record<string, any>;
   processing_status: "unprocessed" | "processing" | "processed" | "failed";
@@ -25,8 +25,8 @@ export type Dump = {
 export type CreateDumpReq = {
   basket_id: string;
   dump_request_id: string;
-  text_dump?: string;
-  file_url?: string;
+  text_dump?: string;  // User text content (including pasted URLs)
+  file_url?: string;   // Supabase Storage URL for uploaded files
   meta?: Record<string, any>;
 };
 

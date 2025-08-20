@@ -42,9 +42,6 @@ export function MemoryCapture({ onFormation, basketId }: Props) {
             const url = await uploadFile(item.file, `ingest/${sanitizedName}`);
             return { type: 'file', id: url, name: item.file.name, size: item.file.size };
           }
-          if (item.kind === 'url') {
-            return { type: 'text', content: item.url, name: item.url };
-          }
           return { type: 'text', content: item.text };
         })
       );

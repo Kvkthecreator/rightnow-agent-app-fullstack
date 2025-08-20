@@ -29,13 +29,12 @@ export type CreateState =
 
 export interface AddedItem {
   id: string;
-  kind: 'file' | 'url' | 'note';
+  kind: 'file' | 'note';
   name: string;
   size?: number;
   file?: File;
-  url?: string;
   text?: string;
-  status: 'queued' | 'uploading' | 'uploaded' | 'parsed' | 'fetched' | 'ready' | 'error';
+  status: 'queued' | 'uploading' | 'uploaded' | 'ready' | 'error';
   error?: string;
   storagePath?: string;
   mime?: string;
@@ -127,19 +126,6 @@ useEffect(() => {
     dlog('telemetry', { event: 'create_added_item', type: 'file_uploaded' });
   };
 
-  const addUrl = (url: string) => {
-    const newItem: AddedItem = {
-      id: crypto.randomUUID(),
-      kind: 'url',
-      name: url,
-      url,
-      status: 'queued',
-    };
-    const merged = [...items, newItem];
-    setItems(merged);
-    recompute(intent, merged);
-    dlog('telemetry', { event: 'create_added_item', type: 'url' });
-  };
 
   const addNote = (text: string) => {
     // Don't add empty or whitespace-only notes
@@ -261,11 +247,10 @@ useEffect(() => {
       // 2) Fan-out: Create separate dump per file + one for text content
       const dumpPromises: Promise<CreateDumpRes>[] = [];
       
-      // Text dump (intent + notes + URLs)
+      // Text dump (intent + notes)
       const textParts = [
         intent.trim(),
         ...items.filter((n) => n.kind === 'note').map((n) => n.text!.trim()),
-        ...items.filter((u) => u.kind === 'url').map((u) => u.url!),
       ].filter(Boolean);
       
       if (textParts.length > 0) {
@@ -407,7 +392,6 @@ useEffect(() => {
     setIntent: setIntentWrapper,
     addFiles,
     addUploadedFile,
-    addUrl,
     addNote,
     removeItem,
     clearAll,

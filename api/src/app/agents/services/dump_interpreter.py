@@ -13,6 +13,7 @@ from ...memory.blocks import BlockProposalService
 from ...models.context import ContextItemType
 from ...utils.supabase_client import supabase_client as supabase
 from ...utils.db import as_json
+from ...ingestion.parsers.unified_content_extractor import ContentExtractor
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -55,10 +56,10 @@ class DumpInterpreterService:
         """Interpret a raw dump and create block proposals."""
         start_time = datetime.utcnow()
         
-        # Get the raw dump content
+        # Get the raw dump content including Supabase Storage file references
         dump_resp = (
             supabase.table("raw_dumps")
-            .select("id,body_md,basket_id,workspace_id")
+            .select("id,body_md,basket_id,workspace_id,file_url,source_meta")
             .eq("id", str(request.raw_dump_id))
             .eq("workspace_id", workspace_id)
             .maybe_single()
@@ -69,11 +70,49 @@ class DumpInterpreterService:
             raise ValueError(f"Raw dump {request.raw_dump_id} not found")
             
         raw_dump = dump_resp.data
-        content = raw_dump.get("body_md", "")
         basket_id = UUID(raw_dump["basket_id"])
         
+        # Memory-First content assembly: combine text and Supabase Storage file content
+        content_parts = []
+        
+        # Add existing text content (including user-pasted URLs as text)
+        if raw_dump.get("body_md") and raw_dump["body_md"].strip():
+            content_parts.append(raw_dump["body_md"].strip())
+        
+        # Process Supabase Storage file if present
+        file_url = raw_dump.get("file_url")
+        if file_url:
+            try:
+                # Get MIME type from source_meta if available
+                source_meta = raw_dump.get("source_meta")
+                mime_type = None
+                if source_meta and isinstance(source_meta, dict):
+                    mime_type = source_meta.get("mime")
+                elif source_meta and isinstance(source_meta, str):
+                    import json
+                    try:
+                        meta_dict = json.loads(source_meta)
+                        mime_type = meta_dict.get("mime")
+                    except (json.JSONDecodeError, AttributeError):
+                        pass
+                
+                # Extract content from Supabase Storage file (Memory-First)
+                file_content = await ContentExtractor.extract_content_from_supabase_url(
+                    file_url, mime_type
+                )
+                
+                if file_content and file_content.strip():
+                    content_parts.append(f"[File Content]:\n{file_content.strip()}")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to extract content from Supabase Storage file {file_url}: {e}")
+                # Continue processing other content, don't fail the whole interpretation
+        
+        # Combine all content
+        content = "\n\n".join(content_parts)
+        
         if not content or not content.strip():
-            raise ValueError("Raw dump has no content to interpret")
+            raise ValueError("Raw dump has no interpretable content (text or Supabase Storage files)")
         
         # Perform interpretation (using rule-based approach for now)
         # In production, this would use LLM or other AI services
@@ -121,7 +160,8 @@ class DumpInterpreterService:
             basket_id=basket_id,
             agent_id=request.agent_id,
             blocks_created=len(proposed_blocks),
-            processing_time_ms=processing_time_ms
+            processing_time_ms=processing_time_ms,
+            supabase_files_processed=1 if file_url else 0
         )
         
         return RawDumpInterpretationResult(
@@ -168,6 +208,10 @@ class DumpInterpreterService:
             elif any(keyword in line.lower() for keyword in ["audience", "user", "customer"]):
                 semantic_type = "audience"
                 confidence = 0.8
+            elif line.startswith("[File Content"):
+                # Detect content extracted from Supabase Storage files
+                semantic_type = "insight"
+                confidence = 0.85  # Higher confidence for extracted file content
             
             blocks.append(InterpretedBlock(
                 semantic_type=semantic_type,
@@ -218,7 +262,8 @@ class DumpInterpreterService:
         basket_id: UUID,
         agent_id: str,
         blocks_created: int,
-        processing_time_ms: int
+        processing_time_ms: int,
+        supabase_files_processed: int = 0
     ) -> None:
         """Log the interpretation process as an event."""
         event_data = {
@@ -230,6 +275,7 @@ class DumpInterpreterService:
                 "agent_id": agent_id,
                 "blocks_created": blocks_created,
                 "processing_time_ms": processing_time_ms,
+                "supabase_files_processed": supabase_files_processed,
                 "timestamp": datetime.utcnow().isoformat()
             }
         }

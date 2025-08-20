@@ -20,7 +20,6 @@ interface Props {
   onIntent: (v: string) => void;
   addFiles: (files: File[]) => void;
   addUploadedFile: (file: File, url: string) => void;
-  addUrl: (url: string) => void;
   addNote: (text: string) => void;
   removeItem: (id: string) => void;
   clearAll: () => void;
@@ -35,13 +34,11 @@ export function CaptureTray({
   onIntent,
   addFiles,
   addUploadedFile,
-  addUrl,
   addNote,
   removeItem,
   clearAll,
   generate,
 }: Props) {
-  const urlRef = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState('');
 
   useEffect(() => {
@@ -58,30 +55,15 @@ export function CaptureTray({
       } else {
         const text = e.clipboardData?.getData('text')?.trim();
         if (text) {
-          try {
-            const u = new URL(text);
-            addUrl(u.toString());
-          } catch {
-            addNote(text);
-          }
+          // All pasted text (including URLs) treated as notes
+          addNote(text);
         }
       }
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [addFiles, addUrl, addNote]);
+  }, [addFiles, addNote]);
 
-  const handleAddUrl = () => {
-    const v = urlRef.current?.value?.trim();
-    if (!v) return;
-    try {
-      const u = new URL(v);
-      addUrl(u.toString());
-      if (urlRef.current) urlRef.current.value = '';
-    } catch {
-      /* noop */
-    }
-  };
 
   const handleAddNote = () => {
     if (!note.trim()) return;
@@ -91,7 +73,6 @@ export function CaptureTray({
 
   const counts = {
     file: items.filter((i) => i.kind === 'file').length,
-    url: items.filter((i) => i.kind === 'url').length,
     note: items.filter((i) => i.kind === 'note').length,
   };
 
@@ -129,20 +110,6 @@ export function CaptureTray({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="space-y-2">
-          <Label htmlFor="url">Link</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="url"
-              ref={urlRef}
-              placeholder="Paste a link"
-              onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
-            />
-            <Button onClick={handleAddUrl}>Add link</Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardContent className="space-y-2">
@@ -182,7 +149,7 @@ export function CaptureTray({
 
       <div className="flex items-center justify-between text-sm text-gray-600">
         <div>
-          {total} added • {counts.file} file{counts.file === 1 ? '' : 's'}, {counts.url} link{counts.url === 1 ? '' : 's'}, {counts.note} note{counts.note === 1 ? '' : 's'}
+          {total} added • {counts.file} file{counts.file === 1 ? '' : 's'}, {counts.note} note{counts.note === 1 ? '' : 's'}
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={clearAll} disabled={(total === 0 && !intent) || isCreating}>

@@ -2,7 +2,7 @@
 
 import type { AddedItem } from './useCreatePageMachine';
 import { Badge } from '@/components/ui/Badge';
-import { Paperclip, Link as LinkIcon, StickyNote, Trash2 } from 'lucide-react';
+import { Paperclip, StickyNote, Trash2 } from 'lucide-react';
 
 interface Props {
   item: AddedItem;
@@ -10,21 +10,15 @@ interface Props {
 }
 
 export function AddedItemRow({ item, onRemove }: Props) {
-  const icon =
-    item.kind === 'file' ? (
-      <Paperclip className="h-4 w-4" />
-    ) : item.kind === 'url' ? (
-      <LinkIcon className="h-4 w-4" />
-    ) : (
-      <StickyNote className="h-4 w-4" />
-    );
+  const icon = item.kind === 'file' ? (
+    <Paperclip className="h-4 w-4" />
+  ) : (
+    <StickyNote className="h-4 w-4" />
+  );
   const size = item.size ? `${(item.size / 1024 / 1024).toFixed(1)}MB` : '';
-  const label =
-    item.kind === 'file'
-      ? item.name
-      : item.kind === 'url'
-      ? item.url
-      : item.text?.slice(0, 30) + (item.text && item.text.length > 30 ? '…' : '');
+  const label = item.kind === 'file'
+    ? item.name
+    : item.text?.slice(0, 30) + (item.text && item.text.length > 30 ? '…' : '');
 
   const statusClass =
     item.status === 'error'

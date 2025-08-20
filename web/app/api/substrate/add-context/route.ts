@@ -5,14 +5,7 @@ import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
 import { createDump } from '@/lib/dumps/createDump';
 import type { SubstrateContentInput, AddContextResult } from '@/lib/substrate/types';
 
-// Import universal processor if available, with fallback
-let universalProcessor: any = null;
-try {
-  const processors = require('@/lib/processors');
-  universalProcessor = processors.universalProcessor;
-} catch (error) {
-  console.warn('Universal processor not available, using basic processing');
-}
+// Note: Universal processor removed - using basic text processing only
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,22 +48,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Basket not found' }, { status: 404 });
     }
 
-    // Process content through universal processors if available
-    let processingResults = null;
-    try {
-      if (universalProcessor) {
-        const processorInputs = {
-          text: content.filter((item: SubstrateContentInput) => item.type === 'text').map((item: SubstrateContentInput) => item.content).join('\n\n'),
-          files: content.filter((item: SubstrateContentInput) => item.metadata?.fileObject).map((item: SubstrateContentInput) => item.metadata!.fileObject)
-        };
-
-        if (processorInputs.text || processorInputs.files.length > 0) {
-          processingResults = await universalProcessor.processMixedContent(processorInputs);
-        }
-      }
-    } catch (processorError) {
-      console.warn('Processor error, continuing with basic processing:', processorError);
-    }
+    // Basic processing only - no universal processor
 
     // Create consolidated text content for raw_dump
     const consolidatedContent = content.map((item: SubstrateContentInput) => {
