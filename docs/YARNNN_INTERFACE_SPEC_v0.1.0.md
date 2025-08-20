@@ -21,7 +21,18 @@ Error envelope:
 { "error": { "code": "STRING", "message": "HUMAN_READABLE", "details": { } } }
 RLS: All inserts must satisfy workspace membership policies; server derives user_id and workspace_id from auth context (never sent by client).
 
-## 2) Data Contracts (Shared DTOs)
+## 2) Memory Plane APIs
+
+#### Memory Plane
+```
+GET /api/baskets/{id}/history?cursor=...
+→ Returns: { items: [{ kind, ts, ref_id, preview, payload }], next_cursor }
+
+GET /api/baskets/{id}/reflections/latest  
+→ Returns: { pattern, tension, question, computed_at }
+```
+
+## 3) Data Contracts (Shared DTOs)
 **IMPLEMENTED**: All DTOs are in `shared/contracts/` and imported by both FE & BE. No inline redefinition.
 
 ```typescript

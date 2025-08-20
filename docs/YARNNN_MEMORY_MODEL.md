@@ -23,6 +23,11 @@ No substrate assumes the existence of another. All reference a shared `basket_id
 | `context_item`| Semantic connector/tag               | Inferred or created      |
 | `event`       | Audit log of changes                 | Emitted by system/agent  |
 
+### Memory Plane (First-Class)
+- **basket_reflections**: Durable computed insights (pattern, tension, question, computed_at)
+- **basket_history**: Append-only memory stream of all basket activity
+- **Integration**: Reflections computed from substrate → stored durably → streamed via history
+
 ---
 
 ## 3. Substrate Lifecycle (Decoupled)

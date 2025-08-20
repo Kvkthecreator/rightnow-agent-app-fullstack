@@ -47,3 +47,8 @@ Service role keys are used ONLY for:
 - Workspace bootstrap operations (`get_or_create_workspace`)
 - System-level operations that bypass RLS
 - Never exposed to client code or used in user-facing endpoints
+
+## RLS Summary
+- **Memory tables**: workspace-scoped SELECT; service_role-only INSERT/UPDATE/DELETE
+- `basket_reflections`, `basket_history`: read by workspace members, write by service_role only
+- Standard pattern: users read via workspace membership, system writes via service_role

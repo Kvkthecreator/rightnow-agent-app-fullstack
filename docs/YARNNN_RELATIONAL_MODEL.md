@@ -15,6 +15,14 @@ Aligned with Context OS substrate v1.2
 | Narrative Layer   | `narrative`       | Authored prose inside a document |
 | Threading         | `context_item`    | Semantic connectors across substrates |
 | Scope Container   | `basket`          | Contextual boundary for all activity |
+
+### Memory Plane
+| Component | Purpose | Storage |
+|-----------|---------|---------|
+| basket_reflections | Durable computed insights | pattern, tension, question, computed_at |
+| basket_history | Append-only memory stream | kind, ts, ref_id, preview, payload |
+
+**Note**: `basket_events` is deprecated; use `events` table for canonical event bus.
 | Change Tracker    | `event`, `revision` | Logs of evolution across types |
 | Composer          | `agent`, `user`   | Actor that creates/edits content |
 

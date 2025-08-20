@@ -8,6 +8,10 @@ Users return to see:
 1) **State of the basket right now** (continuity & trust)  
 2) **The most important next move** (bounded, reviewable suggestion)
 
+## Authority
+- Memory reflections: server computes → `basket_reflections` → `basket_history` → `events`
+- Frontend mirrors durable state; no client-side synthesis
+
 ## Pages & Panels
 
 ### A. Dashboard (default)

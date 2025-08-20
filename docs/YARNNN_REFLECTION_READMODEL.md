@@ -17,8 +17,13 @@ type Reflections = {
 ```
 
 ## Compute
-- **Server (authoritative)**: build GraphProjection in memory, run `computeReflections(notes, graph)`, cache if needed.
+- **Server (authoritative)**: compute reflections → INSERT `basket_reflections` → INSERT `basket_history(kind='reflection')` → EMIT `events(kind='reflection.computed')`.
 - **Client (optimistic)**: run `computeReflections(notes)` without graph immediately after submit; reconcile to server result on revalidate.
+
+## Storage
+- **Durable**: `basket_reflections` stores computed pattern/tension/question with timestamp
+- **Stream**: `basket_history` append-only log of all memory events (dump|reflection|narrative|system_note)
+- **Events**: canonical `events` table (basket_events deprecated)
 
 ## Guarantees
 - **No schema changes**.
