@@ -17,20 +17,18 @@ export default function DocsList({ items }: DocsListProps) {
     return <p className="text-sm text-muted-foreground">No documents</p>;
   }
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       {items.map((doc) => (
-        <Card key={doc.id}>
-          <CardHeader>
-            <CardTitle>{doc.title}</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Card key={doc.id} className="rounded-xl border shadow-sm">
+          <div className="p-4">
+            <h3 className="font-medium text-sm mb-2">{doc.title}</h3>
             <p className="text-xs text-muted-foreground">
               {new Date(doc.updated_at).toLocaleString()}
             </p>
             <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
               {doc.preview}
             </p>
-          </CardContent>
+          </div>
         </Card>
       ))}
     </div>

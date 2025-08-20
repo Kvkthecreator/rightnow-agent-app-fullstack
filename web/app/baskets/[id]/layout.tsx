@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
-import BasketLayoutClient from "@/components/basket/BasketLayoutClient";
+import BasketTabs from "@/components/baskets/BasketTabs";
 
 interface LayoutProps {
   children: ReactNode;
@@ -32,8 +32,29 @@ export default async function BasketLayout({ children, params }: LayoutProps) {
   }
   
   return (
-    <BasketLayoutClient basketId={id} basketName={basketName}>
-      {children}
-    </BasketLayoutClient>
+    <>
+      {/* Page Header with Basket Title */}
+      <div className="border-b">
+        <div className="px-6 py-4">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🧺</span>
+            <div>
+              <h1 className="text-xl font-semibold">{basketName}</h1>
+              <p className="text-sm text-muted-foreground">
+                Last updated today
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        {/* Inline Tabs */}
+        <BasketTabs basketId={id} />
+      </div>
+
+      {/* Page Content */}
+      <div className="flex-1 p-6">
+        {children}
+      </div>
+    </>
   );
 }
