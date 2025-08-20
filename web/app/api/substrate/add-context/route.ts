@@ -84,14 +84,18 @@ export async function POST(request: NextRequest) {
     }
     
     // Build response
+    // Since this simplified route only consolidates content and creates a dump
+    // (without running the original universal processor), return defaults for
+    // the processing statistics. This avoids referencing the removed
+    // `processingResults` variable which caused the build to fail.
     const result: AddContextResult = {
       success: true,
       rawDumpId: dump.id,
       processingResults: {
         contentProcessed: content.length,
-        insights: processingResults?.results ? 'Generated' : 'None',
+        insights: 'None',
         filesProcessed: fileUrls.length,
-        processingQuality: processingResults?.results?.metadata?.averageQuality || 'N/A',
+        processingQuality: 'N/A',
       },
     };
 
