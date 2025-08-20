@@ -1,67 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import { computeServerReflections } from "@/app/_server/reflection/compute";
+import { persistReflection } from "@/app/_server/memory/persistReflection";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = createServerComponentClient({ cookies });
-
-  // 1) Auth
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { id: basketId } = await params;
 
-  // 2) Fetch substrate (RLS enforces workspace access)
-  const { data: dumps, error: dErr } = await supabase
-    .from("raw_dumps")
-    .select("id, text_dump, created_at, meta")
-    .eq("basket_id", basketId)
-    .order("created_at", { ascending: false })
-    .limit(200);
+  // 1) Load substrate (dumps/context/relationships + analyzer artifacts from blocks)
+  // Keep queries tight; limit rows as needed.
+  const [{ data: dumps }, { data: items }, { data: edges }, { data: analyzerBlocks }] =
+    await Promise.all([
+      supabase.from("raw_dumps").select("id, body_md, created_at").eq("basket_id", basketId).order("created_at", { ascending: false }).limit(200),
+      supabase.from("context_items").select("id, type, title, description, metadata, created_at").eq("basket_id", basketId).limit(500),
+      supabase.from("substrate_relationships").select("from_type, from_id, to_type, to_id, relationship_type, strength").eq("basket_id", basketId).limit(1000),
+      supabase.from("blocks").select("id, semantic_type, metadata, confidence_score, created_at").eq("basket_id", basketId).limit(200),
+    ]);
 
-  const { data: items, error: iErr } = await supabase
-    .from("context_items")
-    .select("id, type, payload, created_at")
-    .eq("basket_id", basketId)
-    .limit(500);
+  // 2) Compute reflections (replace with your real logic)
+  const pattern =
+    analyzerBlocks?.find(b => b.semantic_type === "theme")?.metadata?.summary ??
+    null;
+  const tension =
+    analyzerBlocks?.find(b => b.semantic_type === "tension")?.metadata?.summary ??
+    null;
+  const question =
+    analyzerBlocks?.find(b => b.semantic_type === "question")?.metadata?.text ??
+    null;
 
-  if (dErr || iErr) {
-    return NextResponse.json({ error: "Load failed" }, { status: 500 });
-  }
-
-  // 3) Pull analyzer report (interpretation authority)
-  const { data: reports } = await supabase
-    .from("basket_intelligence_reports")
-    .select("entities, relationships, themes, tensions, suggestions, created_at")
-    .eq("basket_id", basketId)
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  const report = reports?.[0] ?? null;
-
-  // 4) Server reflection synthesis (projection authority)
-  const { pattern, tension, question, notes } = computeServerReflections({
-    dumps: dumps || [],
-    items: items || [],
-    report,
+  // 3) Persist durable reflection + history
+  const reflection = await persistReflection({
+    basket_id: basketId,
+    pattern,
+    tension,
+    question,
   });
+
+  // 4) Assemble notes from recent dumps (UI helper)
+  const notes = (dumps ?? []).slice(0, 10).map(d => ({
+    id: d.id,
+    text: d.body_md,
+    created_at: d.created_at,
+  }));
 
   return NextResponse.json({
     graph: {
-      dumps: dumps || [],
-      items: items || [],
-      entities: report?.entities ?? [],
-      relationships: report?.relationships ?? []
+      dumps: dumps ?? [],
+      items: items ?? [],
+      entities: [], // (optional) derive from context_items/blocks
+      relationships: edges ?? [],
     },
     reflections: { pattern, tension, question, notes },
-    meta: { basketId, computed_at: new Date().toISOString() }
+    meta: { basketId, computed_at: reflection.computed_at },
   });
 }

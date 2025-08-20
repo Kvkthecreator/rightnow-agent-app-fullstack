@@ -1,4 +1,3 @@
-import { type Note } from "@/lib/reflection";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
@@ -57,7 +56,6 @@ export default async function DashboardPage({ params }: PageProps) {
     return (
       <DashboardClient
         basketId={id}
-        initialNotes={[]}
         pattern={undefined}
         tension={null}
         question={undefined}
@@ -74,7 +72,6 @@ export default async function DashboardPage({ params }: PageProps) {
   return (
     <DashboardClient
       basketId={id}
-      initialNotes={reflections.notes || []}
       pattern={reflections.pattern}
       tension={reflections.tension}
       question={reflections.question}
