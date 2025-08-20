@@ -9,5 +9,13 @@
     "sourceType": "module"
   },
   "extends": ["eslint:recommended"],
-  "rules": {}
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [{ "name": "@/lib/processors", "message": "Ingestion lives on the backend." }],
+        "patterns": ["**/lib/processors/*"]
+      }
+    ]
+  }
 }
