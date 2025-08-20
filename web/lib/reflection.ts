@@ -1,7 +1,11 @@
 
-// Client-side types and formatting helpers only
+// Client-side formatting helpers only
 // No computation algorithms - those live on the server
+// Types moved to shared contracts
 
+import type { ReflectionDTO } from '@/shared/contracts/memory';
+
+// Legacy types for compatibility
 export type Note = { 
   id: string; 
   text: string; 
@@ -15,7 +19,7 @@ export type GraphProjection = {
 
 export type Reflections = {
   pattern?: string | null;
-  tension?: { a: string; b: string } | null;
+  tension?: { a: string; b: string } | string | null;
   question?: string | null;
   notes: Note[];
 };
