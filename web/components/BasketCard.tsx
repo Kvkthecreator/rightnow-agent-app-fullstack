@@ -17,7 +17,7 @@ export default function BasketCard({ basket }: BasketCardProps) {
     : '';
   return (
     <Link
-      href={`/baskets/${basket.id}/dashboard`}
+      href={`/baskets/${basket.id}/memory`}
       prefetch={false}
       className="rounded-md border p-4 hover:bg-muted block"
     >

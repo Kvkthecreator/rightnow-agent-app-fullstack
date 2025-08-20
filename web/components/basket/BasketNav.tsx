@@ -11,10 +11,12 @@ interface BasketNavProps {
 export default function BasketNav({ basketId }: BasketNavProps) {
   const pathname = usePathname();
   const links = [
-    { href: `/baskets/${basketId}/dashboard`, label: "Dashboard" },
+    { href: `/baskets/${basketId}/memory`, label: "Memory" },
     { href: `/baskets/${basketId}/documents`, label: "Documents" },
     { href: `/baskets/${basketId}/blocks`, label: "Blocks" },
-    { href: `/baskets/${basketId}/timeline`, label: "Timeline" },
+    { href: `/baskets/${basketId}/graph`, label: "Graph" },
+    { href: `/baskets/${basketId}/reflections`, label: "Reflections" },
+    { href: `/baskets/${basketId}/history`, label: "History" },
   ];
   return (
     <nav className="w-48 border-r p-4 space-y-2 text-sm">

@@ -114,7 +114,7 @@ export default function CreatePage() {
       <AddMemoryComposer
         basketId={selected}
         disabled={!selected}
-        onSuccess={(dump) => router.push(`/baskets/${dump.basket_id}/dashboard`)}
+        onSuccess={(dump) => router.push(`/baskets/${dump.basket_id}/memory`)}
       />
     </div>
   );

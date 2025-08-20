@@ -10,7 +10,7 @@ interface Props {
   fallback: string;
 }
 
-export default function DashboardClient({ basketId, pattern, tension, question, fallback }: Props) {
+export default function MemoryClient({ basketId, pattern, tension, question, fallback }: Props) {
   return (
     <div className="grid grid-cols-12 gap-4">
       <div className="col-span-12">

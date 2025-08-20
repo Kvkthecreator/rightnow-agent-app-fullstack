@@ -16,8 +16,8 @@ interface NavigationTab {
 
 const NARRATIVE_NAVIGATION_TABS: NavigationTab[] = [
   {
-    key: "dashboard",
-    label: "Dashboard", // Legacy
+    key: "memory",
+    label: "Memory", // Primary operating surface (Canon v1.3)
     narrativeLabel: "Strategic Intelligence",
     icon: Home,
     description: "Your project overview and AI partnership dashboard"
@@ -37,26 +37,27 @@ const NARRATIVE_NAVIGATION_TABS: NavigationTab[] = [
     description: "What I know about your project and goals"
   },
   {
-    key: "knowledge",
-    label: "Memory", // Legacy
+    key: "graph",
+    label: "Graph", // Canon v1.3
     narrativeLabel: "Project Knowledge",
     icon: BookOpen,
-    description: "Documents, conversations, and shared knowledge"
+    description: "Explore context items and substrate relationships",
+    comingSoon: true
   },
   {
-    key: "strategy",
-    label: "Analysis", // Legacy
+    key: "reflections",
+    label: "Reflections", // Canon v1.3
     narrativeLabel: "Strategic Planning",
     icon: Target,
-    description: "Long-term planning and strategic direction",
+    description: "Durable snapshots of basket insights over time",
     comingSoon: true
   },
   {
     key: "history",
-    label: "History", // Legacy
+    label: "History", // Canon v1.3
     narrativeLabel: "Evolution",
     icon: Clock,
-    description: "How your project has developed over time",
+    description: "Append-only stream of basket activity with filters",
     comingSoon: true
   }
 ];
@@ -71,7 +72,7 @@ interface NarrativeNavigationProps {
 
 export function NarrativeNavigation({ 
   basketId, 
-  currentTab = "dashboard", 
+  currentTab = "memory", 
   variant = "tabs",
   showDescriptions = false,
   useNarrativeLabels = true 
@@ -80,9 +81,18 @@ export function NarrativeNavigation({
   const searchParams = useSearchParams();
 
   const handleTabChange = (tabKey: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", tabKey);
-    router.push(`/baskets/${basketId}/dashboard?${params.toString()}`);
+    // Navigate to the appropriate page based on the tab key
+    const routeMap: Record<string, string> = {
+      memory: 'memory',
+      insights: 'memory?tab=insights', // Legacy tab support
+      understanding: 'memory?tab=understanding', // Legacy tab support
+      graph: 'graph',
+      reflections: 'reflections',
+      history: 'history'
+    };
+    
+    const route = routeMap[tabKey] || 'memory';
+    router.push(`/baskets/${basketId}/${route}`);
   };
 
   const getCurrentTab = () => {

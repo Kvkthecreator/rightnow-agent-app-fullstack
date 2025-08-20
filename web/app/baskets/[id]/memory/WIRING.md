@@ -1,4 +1,4 @@
-# /baskets/[id]/dashboard – Wiring
+# /baskets/[id]/memory – Wiring
 
 Data Flow
 - fetchProjection() -> GET /api/baskets/:id/projection -> ReflectionDTO
