@@ -35,8 +35,15 @@ These are peers in the substrate; agents operate across them.
 
 ## Frontend
 - Connects to backend via `NEXT_PUBLIC_API_BASE_URL`  
-- Uses shared DTOs from `shared/contracts/*`  
-- Consumes WebSocket event streams for real-time updates  
+- Uses shared contracts from root `/shared/contracts/*` (accessible via `@shared/*` imports)
+- Consumes WebSocket event streams for real-time updates
+
+## Shared Contracts
+- **Location:** `/shared/contracts/` (root level for monorepo access)
+- **Frontend Access:** Import via `@shared/contracts/*` 
+- **Backend Access:** Python adapter in `/api/src/contracts/__init__.py`
+- **TypeScript Types:** Core contracts for baskets, dumps, blocks, documents, memory
+- **Monorepo Pattern:** Shared between `/web` (frontend) and `/api` (backend)  
 
 ## Development Setup
 ```bash

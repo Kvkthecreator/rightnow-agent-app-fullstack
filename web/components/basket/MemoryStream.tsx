@@ -1,7 +1,7 @@
 "use client";
 
 import { useBasketHistory } from "@/lib/hooks/useBasketHistory";
-import type { HistoryItem } from "@/shared/contracts/memory";
+import type { HistoryItem } from "@shared/contracts/memory";
 
 export function MemoryStream({ basketId }: { basketId: string }) {
   const { data: historyPage, error } = useBasketHistory(basketId);

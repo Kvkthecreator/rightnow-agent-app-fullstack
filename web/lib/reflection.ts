@@ -3,7 +3,7 @@
 // No computation algorithms - those live on the server
 // Types moved to shared contracts
 
-import type { ReflectionDTO } from '@/shared/contracts/memory';
+import type { ReflectionDTO } from '@shared/contracts/memory';
 
 // Legacy types for compatibility
 export type Note = { 
