@@ -1,3 +1,9 @@
+/**
+ * Page: /baskets/[id]/dashboard
+ * Data sources:
+ *  - GET /api/baskets/:id/projection -> ReflectionDTO
+ * @contract renders: ReflectionDTO
+ */
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
