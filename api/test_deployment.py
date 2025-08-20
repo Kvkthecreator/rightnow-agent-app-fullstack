@@ -47,7 +47,7 @@ async def test_tables_exist():
     tables_to_check = [
         "idempotency_keys",
         "basket_deltas", 
-        "basket_events"
+        "events"  # Migrated from basket_events
     ]
     
     try:

@@ -8,23 +8,31 @@ class EventRepository:
     def __init__(self, db):
         self.db = db
     
-    async def publish_event(self, event_type: str, payload: dict) -> None:
-        """Publish an event to the basket_events table for Supabase Realtime"""
+    async def publish_event(self, event_type: str, payload: dict, basket_id: str = None, workspace_id: str = None, actor_id: str = None) -> None:
+        """Publish an event to the events table (migrated from basket_events)"""
         query = """
-            INSERT INTO basket_events (event_type, payload, created_at)
-            VALUES ($1, $2, $3)
+            INSERT INTO events (kind, payload, basket_id, workspace_id, origin, actor_id, ts)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
         """
         await self.db.execute(
             query,
-            values=[event_type, json.dumps(payload), datetime.utcnow()]
+            values=[
+                event_type, 
+                json.dumps(payload), 
+                basket_id,
+                workspace_id,
+                "system",  # Python backend events are system-originated
+                actor_id,
+                datetime.utcnow()
+            ]
         )
     
     async def get_recent_events(self, basket_id: str, limit: int = 100) -> list:
-        """Get recent events for a basket"""
+        """Get recent events for a basket (migrated from basket_events to events)"""
         query = """
-            SELECT * FROM basket_events 
-            WHERE payload->>'basket_id' = $1
-            ORDER BY created_at DESC
+            SELECT * FROM events 
+            WHERE basket_id = $1
+            ORDER BY ts DESC
             LIMIT $2
         """
         results = await self.db.fetch_all(query, values=[basket_id, limit])

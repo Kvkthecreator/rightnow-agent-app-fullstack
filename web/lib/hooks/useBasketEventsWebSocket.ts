@@ -11,9 +11,9 @@ export function useBasketEventsWebSocket(basketId: string) {
   useEffect(() => {
     const channel = supabase
       .channel(`basket-${basketId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'basket_events', filter: `payload->>basket_id=eq.${basketId}` }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'events', filter: `basket_id=eq.${basketId}` }, (payload) => {
         const eventData = payload.new as any;
-        setLastEvent({ type: eventData.event_type, payload: eventData.payload });
+        setLastEvent({ type: eventData.kind, payload: eventData.payload });
       })
       .subscribe((v, err) => {
         if (v === 'SUBSCRIBED') setStatus('connected');

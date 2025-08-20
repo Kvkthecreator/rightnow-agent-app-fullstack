@@ -151,11 +151,13 @@ export async function POST(req: Request) {
     }
 
     // Emit event
-    await supabase.from("basket_events").insert({
+    await supabase.from("events").insert({
       basket_id,
-      event_type: "dump.created",
-      event_data: { dump_id: dump.id, user_id: userId },
-      created_at: new Date().toISOString(),
+      workspace_id: basket.workspace_id,
+      kind: "dump.created",
+      payload: { dump_id: dump.id, user_id: userId },
+      origin: "user",
+      actor_id: userId,
     });
 
     // Log creation event

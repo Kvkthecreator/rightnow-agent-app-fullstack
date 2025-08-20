@@ -1,13 +1,16 @@
 import json
 
-async def publish_event(db, event_type: str, payload: dict):
-    # Use Supabase Realtime broadcast instead of pg_notify for frontend compatibility
-    # For now, just write to an events table that Supabase can observe
+async def publish_event(db, event_type: str, payload: dict, basket_id: str = None, workspace_id: str = None, actor_id: str = None):
+    # Migrated from basket_events to canonical events table
     query = """
-        INSERT INTO basket_events (event_type, payload, created_at)
-        VALUES (:event_type, :payload, NOW())
+        INSERT INTO events (kind, payload, basket_id, workspace_id, origin, actor_id, ts)
+        VALUES (:kind, :payload, :basket_id, :workspace_id, :origin, :actor_id, NOW())
     """
     await db.execute(query, {
-        "event_type": event_type,
-        "payload": json.dumps(payload)
+        "kind": event_type,
+        "payload": json.dumps(payload),
+        "basket_id": basket_id,
+        "workspace_id": workspace_id,
+        "origin": "system",
+        "actor_id": actor_id
     })

@@ -33,10 +33,10 @@ export function useBasketPolling(basketId: string) {
       try {
         // Query for recent events for this basket
         const { data, error } = await supabase
-          .from('basket_events')
+          .from('events')
           .select('*')
-          .eq('payload->>basket_id', basketId)
-          .order('created_at', { ascending: false })
+          .eq('basket_id', basketId)
+          .order('ts', { ascending: false })
           .limit(10);
 
         if (error) {
@@ -59,13 +59,13 @@ export function useBasketPolling(basketId: string) {
             lastEventIdRef.current = latestEvent.id;
             
             setLastEvent({
-              type: latestEvent.event_type,
+              type: latestEvent.kind,
               payload: latestEvent.payload
             });
             
             console.log('📊 New event detected via polling:', {
               id: latestEvent.id,
-              type: latestEvent.event_type,
+              type: latestEvent.kind,
               basketId: basketId
             });
           }

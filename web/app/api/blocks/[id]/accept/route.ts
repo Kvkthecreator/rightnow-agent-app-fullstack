@@ -41,7 +41,7 @@ export async function POST(
     // Verify block exists and user has access via basket
     const { data: block, error: blockError } = await supabase
       .from("blocks")
-      .select("id, basket_id, status")
+      .select("id, basket_id, status, workspace_id")
       .eq("id", blockId)
       .single();
 
@@ -93,17 +93,20 @@ export async function POST(
 
     // Log the lifecycle event
     await supabase
-      .from("basket_events")
+      .from("events")
       .insert({
         basket_id: block.basket_id,
-        event_type: "block_accepted",
-        event_data: {
+        block_id: blockId,
+        workspace_id: block.workspace_id,
+        kind: "block.accepted",
+        payload: {
           block_id: blockId,
           user_id: user.id,
           previous_status: block.status,
           new_status: 'accepted'
         },
-        created_at: new Date().toISOString()
+        origin: "user",
+        actor_id: user.id,
       });
 
     console.log(`✅ Block ${blockId} accepted by ${user.id}`);
