@@ -4,10 +4,9 @@
  *  - GET /api/baskets/:id/graph -> GraphSnapshotDTO
  * @contract renders: GraphSnapshotDTO (context_items + substrate_relationships)
  */
-import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { checkBasketAccess } from "@/lib/baskets/access";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -17,22 +16,8 @@ export default async function GraphPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = createServerComponentClient({ cookies });
 
-  // Verify basket access
-  const workspace = await ensureWorkspaceServer(supabase);
-  if (!workspace) {
-    notFound();
-  }
-
-  const { data: basket } = await supabase
-    .from("baskets")
-    .select("id, name")
-    .eq("id", id)
-    .eq("workspace_id", workspace.id)
-    .single();
-
-  if (!basket) {
-    notFound();
-  }
+  // Consolidated authorization and basket access check
+  const { basket } = await checkBasketAccess(supabase, id);
 
   return (
     <div className="space-y-6">

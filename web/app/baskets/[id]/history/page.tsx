@@ -4,10 +4,9 @@
  *  - GET /api/baskets/:id/history?cursor= -> HistoryPage
  * @contract renders: HistoryPage (append-only stream with filters)
  */
-import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { checkBasketAccess } from "@/lib/baskets/access";
 import { getServerUrl } from "@/lib/utils";
 
 interface PageProps {
@@ -18,22 +17,8 @@ export default async function HistoryPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = createServerComponentClient({ cookies });
 
-  // Verify basket access
-  const workspace = await ensureWorkspaceServer(supabase);
-  if (!workspace) {
-    notFound();
-  }
-
-  const { data: basket } = await supabase
-    .from("baskets")
-    .select("id, name")
-    .eq("id", id)
-    .eq("workspace_id", workspace.id)
-    .single();
-
-  if (!basket) {
-    notFound();
-  }
+  // Consolidated authorization and basket access check
+  const { basket } = await checkBasketAccess(supabase, id);
 
   // Fetch timeline data from legacy timeline API
   const baseUrl = getServerUrl();

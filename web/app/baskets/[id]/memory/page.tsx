@@ -4,10 +4,9 @@
  *  - GET /api/baskets/:id/projection -> ProjectionDTO
  * @contract renders: ProjectionDTO (Left: Capture, Center: History, Right: Projection)
  */
-import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { checkBasketAccess } from "@/lib/baskets/access";
 import MemoryClient from "./MemoryClient";
 
 async function fetchProjection(basketId: string) {
@@ -37,22 +36,8 @@ export default async function MemoryPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = createServerComponentClient({ cookies });
 
-  // Verify basket access
-  const workspace = await ensureWorkspaceServer(supabase);
-  if (!workspace) {
-    notFound();
-  }
-
-  const { data: basket } = await supabase
-    .from("baskets")
-    .select("id, name")
-    .eq("id", id)
-    .eq("workspace_id", workspace.id)
-    .single();
-
-  if (!basket) {
-    notFound();
-  }
+  // Consolidated authorization and basket access check
+  const { basket } = await checkBasketAccess(supabase, id);
 
   // Fetch server-computed projection (authority)
   const projection = await fetchProjection(id);

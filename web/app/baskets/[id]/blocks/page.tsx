@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { checkBasketAccess } from "@/lib/baskets/access";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -10,11 +10,8 @@ export default async function BlocksPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = createServerComponentClient({ cookies });
   
-  // Ensure user is authenticated and has workspace
-  const workspace = await ensureWorkspaceServer(supabase);
-  if (!workspace) {
-    return <div>Not authorized</div>;
-  }
+  // Consolidated authorization and basket access check
+  const { basket } = await checkBasketAccess(supabase, id);
 
   // Fetch blocks directly
   const { data: blocks } = await supabase

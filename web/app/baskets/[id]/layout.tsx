@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { checkBasketAccess } from "@/lib/baskets/access";
 import BasketTabs from "@/components/baskets/BasketTabs";
 
 interface LayoutProps {
@@ -13,23 +13,9 @@ export default async function BasketLayout({ children, params }: LayoutProps) {
   const { id } = await params;
   const supabase = createServerComponentClient({ cookies });
   
-  // Ensure user is authenticated and has workspace
-  const workspace = await ensureWorkspaceServer(supabase);
-  
-  // Fetch basket name
-  let basketName = "Basket";
-  if (workspace) {
-    const { data: basket } = await supabase
-      .from("baskets")
-      .select("name")
-      .eq("id", id)
-      .eq("workspace_id", workspace.id)
-      .single();
-    
-    if (basket?.name) {
-      basketName = basket.name;
-    }
-  }
+  // Consolidated authorization and basket access check
+  const { basket, workspace } = await checkBasketAccess(supabase, id);
+  const basketName = basket.name || "Untitled Basket";
   
   return (
     <>
