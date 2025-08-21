@@ -10,6 +10,7 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { CreateDumpReqSchema } from "@/lib/schemas/dumps";
 import { appendDumpToHistory } from "@/app/_server/memory/appendDumpToHistory";
+import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 
 export async function POST(req: Request) {
   const startTime = Date.now();
@@ -31,27 +32,7 @@ export async function POST(req: Request) {
     const { basket_id, dump_request_id, text_dump, file_url, meta } = validationResult.data;
 
     const supabase = createRouteHandlerClient({ cookies });
-    const [
-      {
-        data: { session },
-      },
-      {
-        data: { user },
-      },
-    ] = await Promise.all([
-      supabase.auth.getSession(),
-      supabase.auth.getUser(),
-    ]);
-
-    if (!session?.access_token || !user) {
-      console.error("dumps/new unauthorized", { reqId });
-      return Response.json(
-        { error: { code: "UNAUTHORIZED", message: "Authentication required", details: {} } },
-        { status: 401 }
-      );
-    }
-
-    const userId = user.id;
+    const { userId } = await getAuthenticatedUser(supabase);
 
     // Verify basket exists and user has access via workspace membership
     const { data: basket } = await supabase

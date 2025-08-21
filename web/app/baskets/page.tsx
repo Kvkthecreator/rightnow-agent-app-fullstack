@@ -1,17 +1,12 @@
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { createServerComponentClient } from '@/lib/supabase/clients';
+import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 
 export const dynamic = 'force-dynamic';
 
 export default async function BasketsPage() {
   const supabase = createServerComponentClient({ cookies });
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) {
-    redirect('/login');
-  }
+  await getAuthenticatedUser(supabase);
   
   return (
     <div className="space-y-6">
