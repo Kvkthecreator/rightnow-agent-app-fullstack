@@ -1,14 +1,15 @@
-/**
- * Redirect: /baskets/[id]/history -> /baskets/[id]/timeline
- * Status: 301 Permanent Redirect (history renamed to timeline)
- */
-import { redirect } from "next/navigation";
+import { SubpageHeader } from "@/components/basket/SubpageHeader";
 
-interface Props {
+interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function HistoryRedirect({ params }: Props) {
+export default async function HistoryPage({ params }: PageProps) {
   const { id } = await params;
-  redirect(`/baskets/${id}/timeline`);
+  return (
+    <div className="p-4">
+      <SubpageHeader title="History" basketId={id} />
+      <div className="text-sm text-muted-foreground">No history yet.</div>
+    </div>
+  );
 }

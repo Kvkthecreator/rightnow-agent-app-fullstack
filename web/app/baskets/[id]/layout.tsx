@@ -1,40 +1,37 @@
 import type { ReactNode } from "react";
-import { cookies } from "next/headers";
-import { createServerComponentClient } from "@/lib/supabase/clients";
-import { checkBasketAccess } from "@/lib/baskets/access";
-import SectionSwitcher from "@/components/features/baskets/SectionSwitcher";
+import { redirect } from "next/navigation";
+import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
+import { listBasketsByWorkspace } from "@/lib/baskets/listBasketsByWorkspace";
+import { pickMostRelevantBasket } from "@/lib/baskets/pickMostRelevantBasket";
+import { setLastBasketId } from "@/lib/cookies/workspaceCookies";
+import { logEvent } from "@/lib/telemetry";
 
-interface LayoutProps {
-  children: ReactNode;
+export default async function BasketLayout({
+  params,
+  children,
+}: {
   params: Promise<{ id: string }>;
-}
-
-export default async function BasketLayout({ children, params }: LayoutProps) {
+  children: ReactNode;
+}) {
   const { id } = await params;
-  const supabase = createServerComponentClient({ cookies });
+  const ws = await getServerWorkspace();
+  const { data: baskets, error } = await listBasketsByWorkspace(ws.id);
+  if (error) throw error;
+  if (!baskets?.length) redirect("/memory"); // upstream will create/resolve
 
-  // Consolidated authorization and basket access check
-  const { basket, workspace } = await checkBasketAccess(supabase, id);
-  const basketName = basket.name || "Untitled Basket";
+  // Refresh the workspace-scoped cookie on every visit
+  const canonical = pickMostRelevantBasket({ baskets, lastBasketId: id }) ?? baskets[0];
+  await setLastBasketId(ws.id, canonical.id);
 
-  return (
-    <>
-      {/* Page Header with Basket Title */}
-      <div className="border-b">
-        <div className="px-6 py-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🧺</span>
-            <div>
-              <h1 className="text-xl font-semibold">{basketName}</h1>
-              <p className="text-sm text-muted-foreground">Last updated today</p>
-            </div>
-          </div>
-          <SectionSwitcher basketId={id} />
-        </div>
-      </div>
+  // Enforce canonical ID → send to Memory (keeps scope consistent)
+  if (id !== canonical.id) {
+    await logEvent?.("basket.canonical_redirect", {
+      workspace_id: ws.id,
+      from: id,
+      to: canonical.id,
+    });
+    redirect(`/baskets/${canonical.id}/memory`);
+  }
 
-      {/* Page Content */}
-      <div className="py-6">{children}</div>
-    </>
-  );
+  return <>{children}</>;
 }
