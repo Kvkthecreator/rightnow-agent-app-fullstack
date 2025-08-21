@@ -27,9 +27,14 @@ Constraint: (workspace_id, user_id) is UNIQUE.
 Workspace-scoped tables (examples): baskets, raw_dumps, blocks, documents, context_items, …
 Each SHALL include workspace_id (uuid NOT NULL) and be protected by RLS that references workspace_memberships.
 
+Baskets timestamp semantics
+- `baskets` does **not** have `updated_at`.
+- "Last activity" MUST be derived from `basket_history.max(ts)`; callers MAY fall back to `baskets.created_at` when no history exists.
+
 ## 3) Authentication & Token Handling
 Frontend
-SHALL use supabase.auth.getUser() (client) or supabase.auth.getUser() (server actions/route handlers) to confirm session and fetch the JWT.
+SHALL use `supabase.auth.getUser()` in the client for UI state only.
+Server actions/route handlers SHALL obtain the verified user via a helper (e.g., `getAuthenticatedUser()`), then rely on **RLS** for data visibility.
 Backend
 SHALL verify Supabase JWTs by validating signature, issuer, audience, and exp using Supabase JWKS.
 user_id is taken from the token’s sub claim after verification.
@@ -88,12 +93,22 @@ Implication: even if an API route is misconfigured, Postgres still denies cross-
 
 ## 8) Next.js (App Router) — Web & API Rules
 Server Components / Route Handlers
-SHALL call a server helper: getAuthenticatedUser() → verified userId.
-SHALL call ensureWorkspaceForUser(userId) and cache the result per-request.
-SHALL use server-side user-scoped DB client for data operations.
+SHALL call a server helper: `getAuthenticatedUser()` → verified `userId`.
+SHALL resolve the active workspace via RLS (e.g., membership query) or `ensureWorkspaceForUser(userId)`.
+SHALL use a user-scoped DB client and rely on **RLS** for authorization (no trust in unverified session objects).
+
+Middleware
+SHALL NOT perform authentication or RBAC decisions.
+MAY normalize host names and canonicalize `/baskets/:id/*` paths (see §8.1).
 Client Components
 Access session via supabase.auth.getUser() for UI state only.
 All data mutations go through server actions or API routes that follow sections 7 and 8.
+### 8.1 Routing Normalization (Canonicalization)
+The web layer MAY correct stale basket IDs before render:
+- For paths matching `/baskets/:id(/...)`, call `GET /api/baskets/resolve` (RLS-scoped) to obtain the canonical basket id for the active workspace.
+- If `:id` differs, **302** to `/baskets/<canonicalId>/<same-subpath>`.
+- Middleware MUST NOT gate access by calling `auth.getUser()`; auth happens in server handlers via §8.
+
 No Duplication
 Workspace bootstrap logic lives only in the server helper described in §4.
 
@@ -111,6 +126,23 @@ Behavior:
 - Generate basket_id client-side (uuid4)
 - Insert baskets(id, name, workspace_id, user_id, idempotency_key, status='INIT', tags=[])
 - Return { "id": basket_id, "name": basket_name }
+Resolve Basket (single-basket world)
+GET /api/baskets/resolve
+Authorization: Bearer <jwt>
+Returns: { "id": "<uuid>" }
+Behavior:
+- RLS-scoped query of `baskets` by `workspace_id`, order by `created_at` desc, limit 1.
+- 404 if no basket exists (caller may trigger autocreate flow).
+
+Basket State (last activity)
+GET /api/baskets/{id}/state
+Authorization: Bearer <jwt>
+Returns: { "id": "...", "name": "...", "status": "...", "last_activity_ts": "<iso8601>" }
+Behavior:
+- Validate basket by `id` & `workspace_id` via RLS.
+- Compute `last_activity_ts = max(basket_history.ts)`; fallback to `baskets.created_at`.
+- MUST NOT select or expose `baskets.updated_at`.
+
 Create Raw Dump
 POST /api/dumps/new
 Authorization: Bearer <jwt>
@@ -135,6 +167,10 @@ Security-relevant failures (JWT invalid, RLS violation, role denial) SHALL be lo
 Errors return a machine-readable JSON:
 { "error": { "code": "FORBIDDEN", "message": "Owner role required." } }
 
+Canonicalization
+- Stale `/baskets/:id/*` paths SHOULD be corrected by middleware before render.
+- Server routes encountering `PGRST116` (no rows) MAY redirect to `/memory` as a last resort; this SHOULD be rare if §8.1 is in place.
+
 ## 12) Threat Model (baseline)
 Token forgery: mitigated by JWKS signature verification.
 Cross-tenant data leakage: mitigated by RLS + workspace_id checks.
@@ -148,3 +184,5 @@ Privilege escalation: mitigated by RBAC checks at API + RLS role predicates.
  RBAC enforced at API layer for elevated actions
  All rows carry correct workspace_id
  Logs include user_id + workspace_id
+ Middleware does not perform authentication decisions
+ No code selects or orders by `baskets.updated_at`
