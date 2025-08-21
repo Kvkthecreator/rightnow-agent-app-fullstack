@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Plus,
   Package2,
   LogOut,
   Settings2,
@@ -32,7 +31,7 @@ const BASKET_SECTIONS = [
 ];
 
 export default function Sidebar({ className }: SidebarProps) {
-  const { isVisible, collapsible, toggleSidebar, closeSidebar, openSidebar } =
+  const { isVisible, collapsible, toggleSidebar, closeSidebar, openSidebar, setCollapsible } =
     useSidebarStore();
   const pathname = usePathname();
   const router = useRouter();
@@ -42,22 +41,41 @@ export default function Sidebar({ className }: SidebarProps) {
   const [baskets, setBaskets] = useState<BasketOverview[] | null>(null);
   const [openDropdown, setOpenDropdown] = useState(false);
   const [expandedBasket, setExpandedBasket] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Persist sidebar visibility
+  // Mobile detection and responsive behavior
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setCollapsible(mobile);
+      
+      // On mobile, sidebar should be hidden by default
+      if (mobile && isVisible) {
+        closeSidebar();
+      }
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, [setCollapsible, closeSidebar, isVisible]);
+
+  // Persist sidebar visibility (desktop only)
+  useEffect(() => {
+    if (typeof window === "undefined" || isMobile) return;
     const stored = localStorage.getItem("yarnnn:sidebar:visible");
     if (stored === "false") {
       closeSidebar();
     } else {
       openSidebar();
     }
-  }, [closeSidebar, openSidebar]);
+  }, [closeSidebar, openSidebar, isMobile]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || isMobile) return;
     localStorage.setItem("yarnnn:sidebar:visible", String(isVisible));
-  }, [isVisible]);
+  }, [isVisible, isMobile]);
 
   useEffect(() => {
     async function init() {
@@ -84,6 +102,7 @@ export default function Sidebar({ className }: SidebarProps) {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
+      // Handle dropdown clicks
       if (
         openDropdown &&
         dropdownRef.current &&
@@ -91,31 +110,29 @@ export default function Sidebar({ className }: SidebarProps) {
       ) {
         setOpenDropdown(false);
       }
-      if (!collapsible) return;
-      if (!(e.target as HTMLElement).closest(".sidebar")) {
+      
+      // Handle mobile sidebar overlay clicks
+      if (isMobile && isVisible && !(e.target as HTMLElement).closest(".sidebar")) {
         closeSidebar();
       }
     }
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, [openDropdown, collapsible, closeSidebar]);
+  }, [openDropdown, isMobile, isVisible, closeSidebar]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/");
   };
 
-  const handleNewBasket = () => {
-    try {
-      router.push("/create");
-    } catch (error) {
-      console.error("❌ Sidebar: Failed to navigate to create:", error);
-    }
-  };
 
   const handleNavigateToBaskets = () => {
     try {
       router.push("/baskets");
+      // Close sidebar on mobile after navigation
+      if (isMobile) {
+        closeSidebar();
+      }
     } catch (error) {
       console.error('❌ Sidebar: Failed to navigate to baskets:', error);
     }
@@ -125,6 +142,10 @@ export default function Sidebar({ className }: SidebarProps) {
     setExpandedBasket((prev) => (prev === basketId ? null : basketId));
     try {
       router.push(`/baskets/${basketId}/memory`);
+      // Close sidebar on mobile after navigation
+      if (isMobile) {
+        closeSidebar();
+      }
     } catch (error) {
       console.error('❌ Sidebar: Failed to navigate to basket work:', error);
     }
@@ -133,6 +154,10 @@ export default function Sidebar({ className }: SidebarProps) {
   const handleSectionNavigate = (basketId: string, path: string) => {
     try {
       router.push(`/baskets/${basketId}${path}`);
+      // Close sidebar on mobile after navigation
+      if (isMobile) {
+        closeSidebar();
+      }
     } catch (error) {
       console.error('❌ Sidebar: Failed to navigate to section:', error);
     }
@@ -141,30 +166,42 @@ export default function Sidebar({ className }: SidebarProps) {
   const handleNavigateToSettings = () => {
     try {
       router.push("/dashboard/settings");
+      // Close sidebar on mobile after navigation
+      if (isMobile) {
+        closeSidebar();
+      }
     } catch (error) {
       console.error('❌ Sidebar: Failed to navigate to settings:', error);
     }
   };
 
   const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
-  const basketCount = baskets?.length ?? 0;
-  const canCreateBasket = basketCount < 3;
-  const softCapMessage =
-    "Keep focus — Yarnnn works best with a few baskets.";
-
-  if (!isVisible) return null;
 
   return (
-    <aside
-      className={cn(
-        "sidebar h-screen w-64 bg-background border-r border-border transition-transform duration-300 flex flex-col",
-        collapsible
-          ? "fixed top-0 left-0 z-40 shadow-md md:relative md:translate-x-0"
-          : "relative",
-        isVisible ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-        className
+    <>
+      {/* Mobile overlay */}
+      {isMobile && isVisible && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={closeSidebar}
+          aria-hidden="true"
+        />
       )}
-    >
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "sidebar h-screen w-64 bg-background border-r border-border transition-transform duration-300 flex flex-col",
+          isMobile
+            ? "fixed top-0 left-0 z-40 shadow-lg"
+            : "relative",
+          isVisible ? "translate-x-0" : "-translate-x-full",
+          // On desktop, show/hide based on isVisible
+          // On mobile, always transform but use z-index and overlay
+          !isVisible && !isMobile && "hidden",
+          className
+        )}
+      >
       {/* Top header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3">
         <button
@@ -186,33 +223,6 @@ export default function Sidebar({ className }: SidebarProps) {
         </button>
       </div>
 
-      {/* New Basket */}
-      <div className="px-4 py-3 border-b">
-        {canCreateBasket ? (
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleNewBasket();
-            }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted font-medium text-muted-foreground hover:text-foreground transition"
-          >
-            <Plus size={16} />
-            <span>New Basket</span>
-          </button>
-        ) : (
-          <div className="relative">
-            <button
-              disabled
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md font-medium text-muted-foreground opacity-50 cursor-not-allowed"
-              title={softCapMessage}
-            >
-              <Plus size={16} />
-              <span>New Basket</span>
-            </button>
-          </div>
-        )}
-      </div>
 
       {/* Basket list */}
       <div className="px-4 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -333,5 +343,6 @@ export default function Sidebar({ className }: SidebarProps) {
         )}
       </div>
     </aside>
+    </>
   );
 }
