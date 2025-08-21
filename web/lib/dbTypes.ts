@@ -24,7 +24,6 @@ export interface Database {
           name: string | null;
           status: string;
           created_at: string;
-          updated_at: string;
           user_id: string;
           raw_dump_id: string;
           workspace_id: string;

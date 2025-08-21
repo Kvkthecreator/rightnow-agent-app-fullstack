@@ -14,7 +14,6 @@ export const BasketSchema = z.object({
   origin_template: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
   created_at: TimestampSchema,
-  updated_at: TimestampSchema.optional(),
   // Aggregate counts for dashboard metrics
   blocks: z.number().optional(),
   raw_dumps: z.number().optional(),

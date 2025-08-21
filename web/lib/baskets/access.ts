@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/auth-helpers-nextjs";
 import type { Database } from "@/lib/dbTypes";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
@@ -32,33 +32,23 @@ export interface BasketAccessResult {
  * @throws notFound() - If user unauthorized or basket doesn't exist
  */
 export async function checkBasketAccess(
-  supabase: SupabaseClient<Database>, 
+  supabase: SupabaseClient<Database>,
   basketId: string
 ): Promise<BasketAccessResult> {
-  // Step 1: Ensure user is authenticated and has workspace
-  const workspace = await ensureWorkspaceServer(supabase);
-  if (!workspace) {
-    console.warn(`🔒 Unauthorized basket access attempt: ${basketId}`);
-    notFound();
-  }
+  const workspace = await ensureWorkspaceServer(supabase)
+  if (!workspace) redirect('/memory')
 
-  // Step 2: Verify basket exists and belongs to user's workspace
   const { data: basket, error: basketError } = await supabase
-    .from("baskets")
-    .select("id, name, workspace_id")
-    .eq("id", basketId)
-    .eq("workspace_id", workspace.id)
-    .single();
+    .from('baskets')
+    .select('id, name, workspace_id')
+    .eq('id', basketId)
+    .eq('workspace_id', workspace.id)
+    .maybeSingle()
 
-  if (basketError || !basket) {
-    console.warn(`🔒 Basket access denied - not found or unauthorized: ${basketId} for workspace ${workspace.id}`, basketError);
-    notFound();
-  }
+  if (basketError) throw basketError
+  if (!basket) redirect('/memory')
 
-  return {
-    basket,
-    workspace
-  };
+  return { basket, workspace }
 }
 
 /**
@@ -80,13 +70,13 @@ export async function tryCheckBasketAccess(
     if (!workspace) return null;
 
     const { data: basket } = await supabase
-      .from("baskets")
-      .select("id, name, workspace_id")
-      .eq("id", basketId)
-      .eq("workspace_id", workspace.id)
-      .single();
+      .from('baskets')
+      .select('id, name, workspace_id')
+      .eq('id', basketId)
+      .eq('workspace_id', workspace.id)
+      .maybeSingle()
 
-    if (!basket) return null;
+    if (!basket) return null
 
     return { basket, workspace };
   } catch (error) {

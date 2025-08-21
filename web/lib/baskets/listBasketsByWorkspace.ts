@@ -1,22 +1,13 @@
-import { cookies } from "next/headers";
-import { createServerComponentClient } from "@/lib/supabase/clients";
-import type { Database } from "@/lib/dbTypes";
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
-export type BasketSummary = Pick<
-  Database["public"]["Tables"]["baskets"]["Row"],
-  "id" | "status" | "updated_at" | "created_at"
->;
+export type BasketRow = { id: string; status: string | null; created_at: string | null }
 
 export async function listBasketsByWorkspace(workspaceId: string) {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = createServerSupabaseClient()
   const { data, error } = await supabase
-    .from("baskets")
-    .select("id,status,created_at")
-    .eq("workspace_id", workspaceId)
-    .order("created_at", { ascending: false });
-
-  return {
-    data: data?.map((b) => ({ ...b, updated_at: b.created_at })) ?? [],
-    error,
-  } as { data: BasketSummary[]; error: typeof error };
+    .from('baskets')
+    .select('id,status,created_at')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+  return { data: (data as BasketRow[]) ?? [], error }
 }

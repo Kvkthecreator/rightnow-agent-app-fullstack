@@ -101,7 +101,7 @@ export class BasketAnalysisAgent {
     const { data: basket } = await this.supabase
       .from('baskets')
       .select(`
-        id, name, status, created_at, updated_at,
+        id, name, status, created_at,
         documents(*),
         blocks(*),
         context_items(*)
@@ -123,7 +123,7 @@ export class BasketAnalysisAgent {
         name: basket.name,
         status: basket.status,
         created_at: basket.created_at,
-        last_modified: basket.updated_at,
+        last_modified: basket.created_at,
         total_documents: basket.documents?.length || 0,
         total_blocks: basket.blocks?.length || 0,
         total_context_items: basket.context_items?.length || 0,

@@ -14,7 +14,7 @@ interface Basket {
   description?: string; // Mapped from origin_template
   status?: string;
   created_at: string;
-  updated_at?: string; // Optional - not in current schema
+  last_activity_ts?: string;
   workspace_id: string;
   tags?: string[];
   origin_template?: string;
