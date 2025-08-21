@@ -46,7 +46,10 @@ export default function YarnSpinner({
         priority
         draggable={false}
         className="object-contain select-none"
-        style={{ transformOrigin: "50% 50%" }}
+        style={{ 
+          transformOrigin: "50% 50%",
+          background: "transparent"
+        }}
         animate={prefersReducedMotion ? undefined : { rotate: rotateKeyframes }}
         transition={
           prefersReducedMotion
