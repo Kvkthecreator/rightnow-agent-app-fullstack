@@ -3,6 +3,9 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser'
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET() {
   const supabase = createServerSupabaseClient()
   const { userId } = await getAuthenticatedUser(supabase)

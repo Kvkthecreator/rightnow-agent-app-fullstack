@@ -3,6 +3,9 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser'
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   if (process.env.MOCK_BASKET_API) {
