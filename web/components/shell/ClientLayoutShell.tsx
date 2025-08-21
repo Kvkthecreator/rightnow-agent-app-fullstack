@@ -5,33 +5,30 @@ import Sidebar from "@/app/components/shell/Sidebar";
 import TopBar from "@/components/common/TopBar";
 import type { ReactNode } from "react";
 
-// These routes will show sidebar globally
+// These routes will show global sidebar
 const SHOW_SIDEBAR_ROUTES = [
   "/home",
-  "/baskets",
   "/dashboard",
-  "/blocks",
+  "/blocks", 
   "/context",
   "/create",
 ];
 
-// These specific routes should NOT show global sidebar (they have custom layouts)
-const isBasketWorkPage = (pathname: string | null): boolean => {
+// Check if we should show the global sidebar - only on /baskets (not /baskets/[id]/*)
+const shouldShowGlobalSidebar = (pathname: string | null): boolean => {
   if (!pathname) return false;
-  // Match /baskets/[id] and deeper routes (dashboard, documents, etc.)
-  const parts = pathname.split('/').filter(Boolean);
-  return parts[0] === 'baskets' && parts.length > 1;
+  
+  // Show sidebar exactly on /baskets route (list view)
+  if (pathname === "/baskets") return true;
+  
+  // Show sidebar on other allowed routes
+  return SHOW_SIDEBAR_ROUTES.some(route => pathname.startsWith(route));
 };
 
 export default function ClientLayoutShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   
-  const isWorkPage = isBasketWorkPage(pathname);
-  const shouldShowSidebar = pathname && !isWorkPage
-    ? SHOW_SIDEBAR_ROUTES.some((prefix) =>
-        prefix === "/" ? pathname === "/" : pathname.startsWith(prefix)
-      )
-    : false;
+  const shouldShowSidebar = shouldShowGlobalSidebar(pathname);
 
   // Removed debug logging to prevent build spam
 

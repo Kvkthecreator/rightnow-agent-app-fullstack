@@ -47,6 +47,9 @@ export const metadata: Metadata = {
   },
 };
 
+// Build timestamp for verification
+const BUILD_STAMP = new Date().toISOString();
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 import { checkBasketAccess } from "@/lib/baskets/access";
-import BasketTabs from "@/components/baskets/BasketTabs";
+import SectionSwitcher from "@/components/features/baskets/SectionSwitcher";
 
 interface LayoutProps {
   children: ReactNode;
@@ -33,8 +33,8 @@ export default async function BasketLayout({ children, params }: LayoutProps) {
           </div>
         </div>
         
-        {/* Inline Tabs */}
-        <BasketTabs basketId={id} />
+        {/* Section Switcher (replaces tabs) */}
+        <SectionSwitcher basketId={id} />
       </div>
 
       {/* Page Content */}

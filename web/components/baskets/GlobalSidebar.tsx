@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, Plus, Menu, X } from "lucide-react";
+import { ChevronLeft, Plus, Menu, X, PanelLeftClose, PanelLeft } from "lucide-react";
 import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
 import type { BasketOverview } from "@/lib/baskets/getAllBaskets";
 
@@ -26,9 +26,20 @@ export default function GlobalSidebar({
   const pathname = usePathname();
   const [baskets, setBaskets] = useState<BasketOverview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isVisible, setIsVisible] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("yarnnn:sidebar:visible") !== "false";
+  });
 
   // Extract current basket ID from pathname
   const currentBasketId = pathname.match(/\/baskets\/([^\/]+)/)?.[1];
+
+  // Persist sidebar visibility state
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("yarnnn:sidebar:visible", isVisible.toString());
+    }
+  }, [isVisible]);
 
   useEffect(() => {
     getAllBaskets()
@@ -54,6 +65,25 @@ export default function GlobalSidebar({
 
   if (isMobile && !isOpen) {
     return null;
+  }
+
+  // Collapsed state for desktop
+  if (!isMobile && !isVisible) {
+    return (
+      <div className={cn("w-12 border-r shrink-0 flex flex-col bg-background", className)}>
+        <div className="p-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsVisible(true)}
+            className="w-8 h-8 p-0"
+            title="Show sidebar"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -86,16 +116,29 @@ export default function GlobalSidebar({
               <span className="text-lg">🧺</span>
               <span className="font-medium text-sm">Memory Baskets</span>
             </Link>
-            {isMobile && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={onClose}
-                className="p-1 h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+            <div className="flex items-center gap-1">
+              {!isMobile && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setIsVisible(false)}
+                  className="p-1 h-8 w-8"
+                  title="Hide sidebar"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              )}
+              {isMobile && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={onClose}
+                  className="p-1 h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
