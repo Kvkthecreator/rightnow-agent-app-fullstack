@@ -9,21 +9,13 @@ import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
 import type { BasketOverview } from "@/lib/baskets/getAllBaskets";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useSidebarStore } from "@/lib/stores/sidebarStore";
+import { SECTION_ORDER } from "@/components/features/baskets/sections";
 
 interface SidebarProps {
   className?: string;
 }
 
 const supabase = createBrowserClient();
-
-const BASKET_SECTIONS = [
-  { key: "memory", label: "Memory", path: "/memory" },
-  { key: "documents", label: "Documents", path: "/documents" },
-  { key: "blocks", label: "Blocks", path: "/blocks" },
-  { key: "graph", label: "Graph", path: "/graph" },
-  { key: "reflections", label: "Reflections", path: "/reflections" },
-  { key: "timeline", label: "Timeline", path: "/timeline" },
-];
 
 export default function Sidebar({ className }: SidebarProps) {
   const { isVisible, collapsible, toggleSidebar, closeSidebar, openSidebar, setCollapsible } =
@@ -43,7 +35,7 @@ export default function Sidebar({ className }: SidebarProps) {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       setCollapsible(mobile);
-      
+
       // On mobile, sidebar should be hidden by default
       if (mobile && isVisible) {
         closeSidebar();
@@ -91,14 +83,10 @@ export default function Sidebar({ className }: SidebarProps) {
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       // Handle dropdown clicks
-      if (
-        openDropdown &&
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
+      if (openDropdown && dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpenDropdown(false);
       }
-      
+
       // Handle mobile sidebar overlay clicks
       if (isMobile && isVisible && !(e.target as HTMLElement).closest(".sidebar")) {
         closeSidebar();
@@ -113,16 +101,14 @@ export default function Sidebar({ className }: SidebarProps) {
     router.push("/");
   };
 
-
-  const handleSectionNavigate = (path: string) => {
-    if (!basket) return;
+  const handleSectionNavigate = (href: string) => {
     try {
-      router.push(`/baskets/${basket.id}${path}`);
+      router.push(href);
       if (isMobile) {
         closeSidebar();
       }
     } catch (error) {
-      console.error('❌ Sidebar: Failed to navigate to section:', error);
+      console.error("❌ Sidebar: Failed to navigate to section:", error);
     }
   };
 
@@ -134,7 +120,7 @@ export default function Sidebar({ className }: SidebarProps) {
         closeSidebar();
       }
     } catch (error) {
-      console.error('❌ Sidebar: Failed to navigate to settings:', error);
+      console.error("❌ Sidebar: Failed to navigate to settings:", error);
     }
   };
 
@@ -155,124 +141,121 @@ export default function Sidebar({ className }: SidebarProps) {
       <aside
         className={cn(
           "sidebar h-screen w-64 bg-background border-r border-border transition-transform duration-300 flex flex-col",
-          isMobile
-            ? "fixed top-0 left-0 z-40 shadow-lg"
-            : "relative",
+          isMobile ? "fixed top-0 left-0 z-40 shadow-lg" : "relative",
           isVisible ? "translate-x-0" : "-translate-x-full",
           // On desktop, show/hide based on isVisible
           // On mobile, always transform but use z-index and overlay
           !isVisible && !isMobile && "hidden",
-          className
+          className,
         )}
       >
-      {/* Top header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3">
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            router.push("/");
-          }}
-          className="font-brand text-xl tracking-tight hover:underline"
-        >
-          yarnnn
-        </button>
-        <button
-          onClick={toggleSidebar}
-          aria-label="Toggle sidebar"
-          className="p-1.5 rounded hover:bg-muted transition"
-        >
-          <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
-        </button>
-      </div>
+        {/* Top header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              router.push("/");
+            }}
+            className="font-brand text-xl tracking-tight hover:underline"
+          >
+            yarnnn
+          </button>
+          <button
+            onClick={toggleSidebar}
+            aria-label="Toggle sidebar"
+            className="p-1.5 rounded hover:bg-muted transition"
+          >
+            <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
+          </button>
+        </div>
 
-      {/* Basket */}
-      <div className="px-4 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-        🧺 Basket
-      </div>
-      <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1">
-        {basket ? (
-          <div>
-            <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm">
-              <Package2 size={14} />
-              <span className="truncate">{basket.name || "Untitled Basket"}</span>
+        {/* Basket */}
+        <div className="px-4 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          🧺 Basket
+        </div>
+        <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1">
+          {basket ? (
+            <div>
+              <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm">
+                <Package2 size={14} />
+                <span className="truncate">{basket.name || "Untitled Basket"}</span>
+              </div>
+              <div className="mt-1 ml-6 space-y-1">
+                {SECTION_ORDER.map((section) => {
+                  const href = section.href(basket.id);
+                  const sectionActive = pathname?.startsWith(href);
+                  return (
+                    <button
+                      key={section.key}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSectionNavigate(href);
+                      }}
+                      className={cn(
+                        "w-full text-left px-2 py-1.5 text-sm rounded-md transition",
+                        sectionActive
+                          ? "bg-accent text-accent-foreground"
+                          : "text-muted-foreground hover:bg-muted",
+                      )}
+                      aria-current={sectionActive ? "page" : undefined}
+                    >
+                      {section.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="mt-1 ml-6 space-y-1">
-              {BASKET_SECTIONS.map((section) => {
-                const sectionActive = pathname?.startsWith(
-                  `/baskets/${basket.id}${section.path}`
-                );
-                return (
+          ) : (
+            <p className="text-sm text-muted-foreground px-2 py-1">Loading...</p>
+          )}
+        </div>
+
+        {/* Footer + Dropdown */}
+        <div className="relative border-t px-4 py-3">
+          {userEmail ? (
+            <div className="relative w-full" ref={dropdownRef}>
+              <button
+                onClick={() => setOpenDropdown(!openDropdown)}
+                className="text-sm text-muted-foreground hover:text-foreground w-full text-left truncate"
+              >
+                {userEmail}
+              </button>
+              {openDropdown && (
+                <div className="absolute bottom-12 left-0 w-52 rounded-md border bg-popover shadow-md z-50 py-1 text-sm">
                   <button
-                    key={section.key}
                     onClick={(e) => {
                       e.preventDefault();
-                      e.stopPropagation();
-                      handleSectionNavigate(section.path);
+                      setOpenDropdown(false);
+                      handleNavigateToSettings();
                     }}
-                    className={cn(
-                      "w-full text-left px-2 py-1.5 text-sm rounded-md transition",
-                      sectionActive
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-muted",
-                    )}
-                    aria-current={sectionActive ? "page" : undefined}
+                    className="flex w-full items-center gap-2 px-4 py-2 hover:bg-muted text-muted-foreground hover:text-foreground"
                   >
-                    {section.label}
+                    <Settings2 size={14} />
+                    Settings
                   </button>
-                );
-              })}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleLogout();
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-destructive hover:bg-muted"
+                  >
+                    <LogOut size={14} />
+                    Sign Out
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground px-2 py-1">Loading...</p>
-        )}
-      </div>
-
-      {/* Footer + Dropdown */}
-      <div className="relative border-t px-4 py-3">
-        {userEmail ? (
-          <div className="relative w-full" ref={dropdownRef}>
-            <button
-              onClick={() => setOpenDropdown(!openDropdown)}
-              className="text-sm text-muted-foreground hover:text-foreground w-full text-left truncate"
-            >
-              {userEmail}
-            </button>
-            {openDropdown && (
-              <div className="absolute bottom-12 left-0 w-52 rounded-md border bg-popover shadow-md z-50 py-1 text-sm">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setOpenDropdown(false);
-                    handleNavigateToSettings();
-                  }}
-                  className="flex w-full items-center gap-2 px-4 py-2 hover:bg-muted text-muted-foreground hover:text-foreground"
-                >
-                  <Settings2 size={14} />
-                  Settings
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleLogout();
-                  }}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-destructive hover:bg-muted"
-                >
-                  <LogOut size={14} />
-                  Sign Out
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">Not signed in</p>
-        )}
-        {showHint && (
-          <p className="mt-4 text-xs hidden md:block">⇧ V to quick-dump into this basket</p>
-        )}
-      </div>
-    </aside>
+          ) : (
+            <p className="text-sm text-muted-foreground">Not signed in</p>
+          )}
+          {showHint && (
+            <p className="mt-4 text-xs hidden md:block">⇧ V to quick-dump into this basket</p>
+          )}
+        </div>
+      </aside>
     </>
   );
 }
