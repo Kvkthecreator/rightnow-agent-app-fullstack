@@ -9,6 +9,8 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
 
 function decodeCursor(c?: string) {
   if (!c) return null;
@@ -40,7 +42,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const msg = (error as any)?.message ?? "";
+    const code = (error as any)?.code ?? "";
+    if (code === "42501" || /permission denied/i.test(msg)) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
 
   const items = (data ?? []).slice(0, pageSize).map(row => ({
     ts: row.ts,
