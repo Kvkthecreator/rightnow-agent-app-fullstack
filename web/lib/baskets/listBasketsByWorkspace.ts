@@ -8,7 +8,7 @@ export type BasketSummary = Pick<
 >;
 
 export async function listBasketsByWorkspace(workspaceId: string) {
-  const supabase = createServerComponentClient<Database>({ cookies });
+  const supabase = createServerComponentClient({ cookies });
   const { data, error } = await supabase
     .from("baskets")
     .select("id,status,created_at")
@@ -16,7 +16,7 @@ export async function listBasketsByWorkspace(workspaceId: string) {
     .order("created_at", { ascending: false });
 
   return {
-    data: data?.map((b) => ({ ...b, updated_at: b.created_at })) ?? null,
+    data: data?.map((b) => ({ ...b, updated_at: b.created_at })) ?? [],
     error,
-  } as { data: BasketSummary[] | null; error: typeof error };
+  } as { data: BasketSummary[]; error: typeof error };
 }
