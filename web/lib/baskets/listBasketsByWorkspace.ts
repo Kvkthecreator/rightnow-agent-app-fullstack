@@ -5,16 +5,16 @@ import { logEvent } from '@/lib/telemetry';
 
 export type BasketSummary = Pick<
   Database['public']['Tables']['baskets']['Row'],
-  'id' | 'state' | 'updated_at'
+  'id' | 'state' | 'created_at'
 >;
 
 export async function listBasketsByWorkspace(workspaceId: string): Promise<BasketSummary[]> {
   const supabase = createServerComponentClient<Database>({ cookies });
   const { data, error } = await supabase
     .from('baskets')
-      .select('id, state, updated_at')
+      .select('id, state, created_at')
     .eq('workspace_id', workspaceId)
-    .order('updated_at', { ascending: false });
+    .order('created_at', { ascending: false });
   if (error) {
     console.error('[listBasketsByWorkspace]', error.message);
     return [];
@@ -28,7 +28,7 @@ export async function listBasketsByWorkspace(workspaceId: string): Promise<Baske
     });
     baskets = baskets.filter((b) => b.state !== 'archived');
     baskets.sort(
-      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
   }
   return baskets.slice(0, 1);
