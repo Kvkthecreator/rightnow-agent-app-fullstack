@@ -76,7 +76,6 @@ export async function GET(
     const mappedBasket = {
       ...basket,
       description: basket.origin_template || "", // Map origin_template to description
-      updated_at: basket.created_at, // Use created_at as fallback for updated_at
       metadata: {}, // Provide empty metadata object
       origin_template: undefined // Remove internal field from response
     };

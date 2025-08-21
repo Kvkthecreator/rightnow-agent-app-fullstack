@@ -49,6 +49,15 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
   
   // Get basket data from context
   const { basket, updateBasketName } = useBasket();
+  const [lastActive, setLastActive] = useState<string>(new Date().toISOString());
+  useEffect(() => {
+    fetch(`/api/baskets/${basketId}/state`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.last_activity_ts) setLastActive(d.last_activity_ts);
+      })
+      .catch(() => {});
+  }, [basketId]);
   
   // Context OS state
   const workspaceId = useWorkspaceId(basketId);
@@ -328,7 +337,7 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
                 basketName={basket?.name || 'Untitled Research'}
                 suggestedName={transformedData.suggestedName}
                 status={transformedData.status}
-                lastActive={basket?.updated_at || new Date().toISOString()}
+                lastActive={lastActive}
                 basketId={basketId}
                 onNameChange={handleNameChange}
               />

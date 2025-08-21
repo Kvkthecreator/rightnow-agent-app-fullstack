@@ -16,7 +16,6 @@ export interface WorkspaceFromBasketResult {
     workspace_id: string;
     status: string;
     created_at: string;
-    updated_at: string;
     [key: string]: any;
   };
 }

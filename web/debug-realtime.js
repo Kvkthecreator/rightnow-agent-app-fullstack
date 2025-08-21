@@ -184,14 +184,20 @@ async function debugRealtimeConnection() {
   // Test with different authentication scenarios
   const authTestClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   
-  // Check current session
-  const { data: { session } } = await authTestClient.auth.getSession();
+  // Check current session and user
+  const [
+    { data: { session } },
+    { data: { user } },
+  ] = await Promise.all([
+    authTestClient.auth.getSession(),
+    authTestClient.auth.getUser(),
+  ]);
   console.log('Current session:', session ? 'exists' : 'null');
-  
-  if (session) {
-    console.log('User ID:', session.user.id);
+
+  if (session && user) {
+    console.log('User ID:', user.id);
     console.log('Token expires at:', new Date(session.expires_at * 1000));
-    
+
     // Parse JWT to see role
     try {
       const tokenPayload = JSON.parse(Buffer.from(session.access_token.split('.')[1], 'base64').toString());

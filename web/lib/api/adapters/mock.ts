@@ -44,7 +44,6 @@ export function generateMockBasket(basketId: string): Basket {
     origin_template: 'strategic-analysis',
     tags: ['mock', 'development'],
     created_at: mockTimestamp(Math.floor(Math.random() * 7)),
-    updated_at: mockTimestamp(Math.floor(Math.random() * 3)),
     // Add dashboard metrics
     blocks: Math.floor(Math.random() * 12) + 3, // 3-15 blocks
     raw_dumps: Math.floor(Math.random() * 5) + 1, // 1-6 dumps

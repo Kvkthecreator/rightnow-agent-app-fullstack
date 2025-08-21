@@ -1,42 +1,38 @@
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@/lib/supabase/clients";
-import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser'
+import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 
-interface RouteContext {
-  params: Promise<{ id: string }>;
-}
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-export async function GET(
-  _req: NextRequest,
-  ctx: RouteContext
-) {
-  const { id } = await ctx.params;
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   if (process.env.MOCK_BASKET_API) {
-    return NextResponse.json({
-      basket_id: id,
-      name: "Mock Basket",
-      counts: { documents: 3, blocks: 4, context_items: 1 },
-      last_updated: new Date().toISOString(),
-      current_focus: "Prototype + marketing plan",
-    });
+    return NextResponse.json({ id, name: 'Mock Basket', status: 'INIT', last_activity_ts: new Date().toISOString() })
   }
-  const supabase = createRouteHandlerClient({ cookies });
-  const workspace = await ensureWorkspaceServer(supabase);
-  const { data, error } = await supabase
-    .from("baskets")
-    .select("id,name,updated_at")
-    .eq("id", id)
-    .eq("workspace_id", workspace?.id)
-    .single();
-  if (error || !data) {
-    return NextResponse.json({ error: "not found" }, { status: 404 });
-  }
-  return NextResponse.json({
-    basket_id: data.id,
-    name: data.name,
-    counts: { documents: 0, blocks: 0, context_items: 0 },
-    last_updated: data.updated_at,
-    current_focus: "",
-  });
+
+  const supabase = createServerSupabaseClient()
+  const { userId } = await getAuthenticatedUser(supabase)
+  const ws = await ensureWorkspaceForUser(userId, supabase)
+
+  const { data: basket, error: bErr } = await supabase
+    .from('baskets')
+    .select('id,name,status,created_at')
+    .eq('id', id)
+    .eq('workspace_id', ws.id)
+    .maybeSingle()
+
+  if (bErr) return NextResponse.json({ error: bErr.message }, { status: 400 })
+  if (!basket) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+
+  const { data: hist } = await supabase
+    .from('basket_history')
+    .select('ts')
+    .eq('basket_id', id)
+    .order('ts', { ascending: false })
+    .limit(1)
+
+  const last_activity_ts = hist?.[0]?.ts ?? basket.created_at
+  return NextResponse.json({ id: basket.id, name: basket.name, status: basket.status, last_activity_ts })
 }

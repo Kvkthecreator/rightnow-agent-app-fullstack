@@ -74,7 +74,7 @@ export function RawDataExportSection({ rawData }: RawDataExportProps) {
           contextItems: rawData.contextItemsCount,
           blocks: rawData.blocksCount
         },
-        lastUpdated: rawData.basket?.updated_at,
+        lastActivity: rawData.basket?.last_activity_ts ?? rawData.basket?.created_at,
         createdAt: rawData.basket?.created_at
       },
       filename: `summary-${rawData.basket?.id || 'unknown'}.json`

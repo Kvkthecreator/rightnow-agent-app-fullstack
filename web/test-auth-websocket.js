@@ -18,23 +18,29 @@ async function testAuthenticatedWebSocket() {
   console.log('📡 Creating Supabase client...');
   
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  
-  // Check current session
-  const { data: { session } } = await supabase.auth.getSession();
-  
+
+  // Check current session and user
+  const [
+    { data: { session } },
+    { data: { user } },
+  ] = await Promise.all([
+    supabase.auth.getSession(),
+    supabase.auth.getUser(),
+  ]);
+
   console.log('🔍 Session Check:');
   console.log(`- Has session: ${session ? 'Yes' : 'No'}`);
-  
-  if (session) {
-    console.log(`- User ID: ${session.user.id}`);
+
+  if (session && user) {
+    console.log(`- User ID: ${user.id}`);
     console.log(`- Token expires: ${new Date(session.expires_at * 1000)}`);
-    
+
     // Parse JWT to see role
     try {
       const tokenPayload = JSON.parse(Buffer.from(session.access_token.split('.')[1], 'base64').toString());
       console.log(`- JWT Role: ${tokenPayload.role}`);
       console.log(`- JWT Audience: ${tokenPayload.aud}`);
-      
+
       if (tokenPayload.role === 'authenticated') {
         console.log('✅ Session has authenticated role');
       } else {
@@ -54,12 +60,12 @@ async function testAuthenticatedWebSocket() {
     // Create channel with explicit token if available
     let channelConfig = {};
     
-    if (session?.access_token) {
+    if (session?.access_token && user) {
       console.log('🔧 Using explicit access token for channel');
       channelConfig = {
         config: {
           broadcast: { self: true },
-          presence: { key: session.user.id },
+          presence: { key: user.id },
           params: {
             apikey: session.access_token
           }
