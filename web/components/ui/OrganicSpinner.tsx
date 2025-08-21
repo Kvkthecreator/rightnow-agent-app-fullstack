@@ -52,7 +52,7 @@ export default function YarnSpinner({
           prefersReducedMotion
             ? undefined
             : {
-                duration: 3, // chill
+                duration: 1, // chill
                 ease: "easeInOut",
                 times: [0, 0.25, 0.5, 0.75, 1],
                 repeat: Infinity,
