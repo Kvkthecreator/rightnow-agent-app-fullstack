@@ -88,7 +88,7 @@ describe('Narrative Language Transformation', () => {
         ['Context', 'My Understanding'],
         ['Memory', 'Project Knowledge'],
         ['Analysis', 'Strategic Planning'],
-        ['History', 'Evolution']
+        ['Timeline', 'Evolution']
       ];
 
       transformations.forEach(([legacy, narrative]) => {

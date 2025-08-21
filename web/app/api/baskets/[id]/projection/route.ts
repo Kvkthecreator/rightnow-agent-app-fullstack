@@ -36,7 +36,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     analyzerBlocks?.find(b => b.semantic_type === "question")?.metadata?.text ??
     null;
 
-  // 3) Persist durable reflection + history
+  // 3) Persist durable reflection + timeline
   const reflection = await persistReflection({
     basket_id: basketId,
     pattern,

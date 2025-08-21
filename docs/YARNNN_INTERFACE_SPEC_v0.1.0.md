@@ -25,7 +25,7 @@ RLS: All inserts must satisfy workspace membership policies; server derives user
 
 #### Memory Plane
 ```
-GET /api/baskets/{id}/history?cursor=...
+GET /api/baskets/{id}/timeline?cursor=...
 → Returns: { items: [{ kind, ts, ref_id, preview, payload }], next_cursor }
 
 GET /api/baskets/{id}/reflections/latest  

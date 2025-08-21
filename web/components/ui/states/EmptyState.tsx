@@ -43,8 +43,8 @@ const emptyStateConfig = {
       </svg>
     )
   },
-  history: {
-    title: 'No history yet',
+  timeline: {
+    title: 'No timeline yet',
     description: 'Your journey of thought development will appear here as you work with your memories.',
     icon: (
       <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

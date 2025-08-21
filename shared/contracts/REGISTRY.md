@@ -95,12 +95,12 @@
 
 ---
 
-## HistoryPage
+## TimelinePage
 **APIs**
-- GET /api/baskets/:id/history — `web/app/api/baskets/[id]/history/route.ts`
+- GET /api/baskets/:id/timeline — `web/app/api/baskets/[id]/timeline/route.ts`
 
 **Components**
-- useBasketHistory — `web/lib/hooks/useBasketHistory.ts`
+- useBasketTimeline — `web/lib/hooks/useBasketTimeline.ts`
 - MemoryStream — `web/components/basket/MemoryStream.tsx`
 
 ---
