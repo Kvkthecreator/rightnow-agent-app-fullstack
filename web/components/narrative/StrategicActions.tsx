@@ -27,15 +27,11 @@ export function StrategicActions({ basketId, actions, intelligentSuggestions = t
       case 'capture_insight':
       case 'add_first_content':
       case 'add_content':
-        router.push(`/create?basketId=${basketId}`);
-        break;
       case 'share_knowledge':
       case 'import_files':
-        router.push(`/create?basketId=${basketId}&mode=import`);
-        break;
       case 'start_with_template':
       case 'start_template':
-        router.push(`/create?basketId=${basketId}&mode=template`);
+        router.push(`/baskets/${basketId}/memory#add`);
         break;
       case 'create_new_document':
       case 'create_document':
