@@ -1,6 +1,4 @@
-import { cookies } from "next/headers";
-import { createServerComponentClient } from "@/lib/supabase/clients";
-import { checkBasketAccess } from "@/lib/baskets/access";
+import { SubpageHeader } from "@/components/basket/SubpageHeader";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -8,27 +6,10 @@ interface PageProps {
 
 export default async function BlocksPage({ params }: PageProps) {
   const { id } = await params;
-  const supabase = createServerComponentClient({ cookies });
-  
-  // Consolidated authorization and basket access check
-  const { basket } = await checkBasketAccess(supabase, id);
-
-  // Fetch blocks directly
-  const { data: blocks } = await supabase
-    .from("blocks")
-    .select("*")
-    .eq("basket_id", id)
-    .order("created_at", { ascending: false });
-
-  const items = blocks || [];
-  
   return (
-    <ul className="space-y-2">
-      {items.map((block: any) => (
-        <li key={block.id} className="rounded border p-2">
-          {block.title || block.content || `Block ${block.id}`}
-        </li>
-      ))}
-    </ul>
+    <div className="p-4">
+      <SubpageHeader title="Blocks" basketId={id} />
+      <div className="text-sm text-muted-foreground">No blocks yet.</div>
+    </div>
   );
 }
