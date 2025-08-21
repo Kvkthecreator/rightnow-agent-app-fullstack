@@ -25,7 +25,7 @@ export async function GET(
   const workspace = await ensureWorkspaceServer(supabase);
   const { data, error } = await supabase
     .from("baskets")
-    .select("id,name,updated_at")
+    .select("id,name,created_at")
     .eq("id", id)
     .eq("workspace_id", workspace?.id)
     .single();
@@ -36,7 +36,7 @@ export async function GET(
     basket_id: data.id,
     name: data.name,
     counts: { documents: 0, blocks: 0, context_items: 0 },
-    last_updated: data.updated_at,
+    last_updated: data.created_at,
     current_focus: "",
   });
 }
