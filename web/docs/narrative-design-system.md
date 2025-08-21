@@ -132,7 +132,7 @@ const NARRATIVE_NAVIGATION = {
   'Context': 'My Understanding',
   'Memory': 'Project Knowledge', 
   'Analysis': 'Strategic Planning',
-  'History': 'Evolution'
+  'Timeline': 'Evolution'
 };
 ```
 

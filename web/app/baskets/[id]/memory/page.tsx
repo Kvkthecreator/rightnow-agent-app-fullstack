@@ -2,7 +2,7 @@
  * Page: /baskets/[id]/memory - Primary Operating Surface (Canon v1.3)
  * Data sources:
  *  - GET /api/baskets/:id/projection -> ProjectionDTO
- * @contract renders: ProjectionDTO (Left: Capture, Center: History, Right: Projection)
+ * @contract renders: ProjectionDTO (Left: Capture, Center: Timeline, Right: Projection)
  */
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";

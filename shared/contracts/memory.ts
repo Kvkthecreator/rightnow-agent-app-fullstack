@@ -6,8 +6,8 @@ export type ReflectionDTO = {
   computed_at: string; // ISO
 };
 
-// History
-export type HistoryItem =
+// Timeline
+export type TimelineItem =
   | {
       kind: "dump";
       ts: string;
@@ -23,7 +23,7 @@ export type HistoryItem =
       payload: ReflectionDTO;
     };
 
-export type HistoryPage = {
-  items: HistoryItem[];
-  next_cursor?: string; // opaque
+export type TimelinePage = {
+  items: TimelineItem[];
+  next_before?: string | null;
 };

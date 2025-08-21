@@ -28,7 +28,7 @@ def load_ts_contract(contract_name: str) -> Dict[str, Any]:
             }
         },
         'memory': {
-            'HistoryItem': {
+            'TimelineItem': {
                 'kind': str,
                 'ts': str,
                 'ref_id': str,

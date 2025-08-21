@@ -115,8 +115,8 @@ export const createNavigationShortcuts = (
     description: 'Go to Insights'
   },
   {
-    key: 'g h',
-    handler: () => navigate(`${basePath}/history`),
-    description: 'Go to History'
+    key: 'g t',
+    handler: () => navigate(`${basePath}/timeline`),
+    description: 'Go to Timeline'
   }
 ];

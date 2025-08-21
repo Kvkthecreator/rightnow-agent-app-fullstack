@@ -53,8 +53,8 @@ const NARRATIVE_NAVIGATION_TABS: NavigationTab[] = [
     comingSoon: true
   },
   {
-    key: "history",
-    label: "History", // Canon v1.3
+    key: "timeline",
+    label: "Timeline", // Canon v1.3
     narrativeLabel: "Evolution",
     icon: Clock,
     description: "Append-only stream of basket activity with filters",
@@ -88,7 +88,7 @@ export function NarrativeNavigation({
       understanding: 'memory?tab=understanding', // Legacy tab support
       graph: 'graph',
       reflections: 'reflections',
-      history: 'history'
+      timeline: 'timeline'
     };
     
     const route = routeMap[tabKey] || 'memory';
@@ -205,7 +205,7 @@ export function transformNavigationLanguage(text: string): string {
     'Context': 'My Understanding', 
     'Memory': 'Project Knowledge',
     'Analysis': 'Strategic Planning',
-    'History': 'Evolution',
+    'Timeline': 'Evolution',
     'Create Block': 'Capture Insight',
     'Block List': 'Insights List',
     'Context Items': 'Project Knowledge',

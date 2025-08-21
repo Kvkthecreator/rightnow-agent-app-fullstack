@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 
-export async function appendDumpToHistory(basket_id: string, dump: { id: string; body_md: string | null; created_at: string; }) {
+export async function appendDumpToTimeline(basket_id: string, dump: { id: string; body_md: string | null; created_at: string; }) {
   const supabase = createServerComponentClient({ cookies });
   await supabase.from("basket_history").insert({
     basket_id,

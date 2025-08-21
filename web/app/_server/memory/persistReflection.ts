@@ -27,9 +27,9 @@ export async function persistReflection(args: PersistArgs) {
     .single();
   if (rErr) throw rErr;
 
-  // 2) Append to history
+  // 2) Append to timeline
   const preview = args.pattern ?? args.question ?? "Reflection updated";
-  const { error: hErr } = await supabase.from("basket_history").insert({
+  const { error: tErr } = await supabase.from("basket_history").insert({
     basket_id: args.basket_id,
     ts: computed_at,
     kind: "reflection",
@@ -42,7 +42,7 @@ export async function persistReflection(args: PersistArgs) {
       computed_at,
     },
   });
-  if (hErr) throw hErr;
+  if (tErr) throw tErr;
 
   // 3) Emit canonical event
   await supabase.from("events").insert({
