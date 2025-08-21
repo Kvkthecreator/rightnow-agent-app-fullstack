@@ -1,35 +1,17 @@
-import { cookies } from 'next/headers';
-import { createServerComponentClient } from '@/lib/supabase/clients';
-import type { Database } from '@/lib/dbTypes';
-import { logEvent } from '@/lib/telemetry';
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@/lib/supabase/clients";
+import type { Database } from "@/lib/dbTypes";
 
 export type BasketSummary = Pick<
-  Database['public']['Tables']['baskets']['Row'],
-  'id' | 'state' | 'created_at'
+  Database["public"]["Tables"]["baskets"]["Row"],
+  "id" | "status" | "updated_at" | "created_at"
 >;
 
-export async function listBasketsByWorkspace(workspaceId: string): Promise<BasketSummary[]> {
+export function listBasketsByWorkspace(workspaceId: string) {
   const supabase = createServerComponentClient({ cookies });
-  const { data, error } = await supabase
-    .from('baskets')
-      .select('id, state, created_at')
-    .eq('workspace_id', workspaceId)
-    .order('created_at', { ascending: false });
-  if (error) {
-    console.error('[listBasketsByWorkspace]', error.message);
-    return [];
-  }
-  let baskets = data ?? [];
-  if (baskets.length > 1) {
-    await logEvent('basket.multiple_detected', {
-      workspace_id: workspaceId,
-      count: baskets.length,
-      basket_ids: baskets.slice(0, 5).map((b) => b.id),
-    });
-    baskets = baskets.filter((b) => b.state !== 'archived');
-    baskets.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-  }
-  return baskets.slice(0, 1);
+  return supabase
+    .from("baskets")
+    .select("id,status,updated_at,created_at")
+    .eq("workspace_id", workspaceId)
+    .order("updated_at", { ascending: false });
 }

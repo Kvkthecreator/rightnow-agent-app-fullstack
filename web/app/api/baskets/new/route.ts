@@ -22,9 +22,13 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
 export async function POST(req: NextRequest) {
   const ws = await getServerWorkspace();
-  const existing = await listBasketsByWorkspace(ws.id);
-  if (existing.length >= 1) {
-    await logEvent("basket.new_blocked_single_mode", { workspace_id: ws.id, existing_id: existing[0].id });
+  const { data: existing, error } = await listBasketsByWorkspace(ws.id);
+  if (error) throw error;
+  if (existing && existing.length >= 1) {
+    await logEvent("basket.new_blocked_single_mode", {
+      workspace_id: ws.id,
+      existing_id: existing[0].id,
+    });
     return NextResponse.redirect(new URL(`/baskets/${existing[0].id}/memory`, req.url), 303);
   }
 
@@ -37,7 +41,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { error: { code: "INVALID_JSON", message: "Malformed JSON" } },
-      { status: 400 }
+      { status: 400 },
     );
   }
   const parsed = CreateBasketReqSchema.safeParse(json);
@@ -50,12 +54,13 @@ export async function POST(req: NextRequest) {
           details: parsed.error.flatten(),
         },
       },
-      { status: 422 }
+      { status: 422 },
     );
   }
   // Try to get token from headers first (from fetchWithToken), then cookies
-  let accessToken = req.headers.get("sb-access-token") || req.headers.get("authorization")?.replace("Bearer ", "");
-  
+  let accessToken =
+    req.headers.get("sb-access-token") || req.headers.get("authorization")?.replace("Bearer ", "");
+
   if (!accessToken) {
     // Fall back to cookie-based auth
     const supabase = createRouteHandlerClient({ cookies });
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
   if (!accessToken) {
     return NextResponse.json(
       { error: { code: "UNAUTHORIZED", message: "Missing authentication token" } },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -79,7 +84,9 @@ export async function POST(req: NextRequest) {
       return {
         iss: payload.iss,
         aud: payload.aud,
-        sub_hash: payload.sub ? createHash("sha256").update(payload.sub).digest("hex").slice(0, 8) : undefined,
+        sub_hash: payload.sub
+          ? createHash("sha256").update(payload.sub).digest("hex").slice(0, 8)
+          : undefined,
         exp: payload.exp,
         iat: payload.iat,
         aal: payload.aal,
@@ -99,7 +106,11 @@ export async function POST(req: NextRequest) {
       hasToken: !!accessToken,
       tokenPrefix: accessToken?.substring(0, 20) + "...",
       apiBase: API_BASE,
-      headers: Object.keys(req.headers.entries ? Array.from(req.headers.entries()).reduce((acc, [k,v]) => ({...acc, [k]: v}), {}) : {})
+      headers: Object.keys(
+        req.headers.entries
+          ? Array.from(req.headers.entries()).reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {})
+          : {},
+      ),
     });
   }
 
@@ -120,7 +131,7 @@ export async function POST(req: NextRequest) {
   if (!upstream.ok && DBG) {
     return NextResponse.json(
       { error: { code: "UPSTREAM", message: "Auth failed" }, debug: redact(accessToken) },
-      { status: upstream.status }
+      { status: upstream.status },
     );
   }
 

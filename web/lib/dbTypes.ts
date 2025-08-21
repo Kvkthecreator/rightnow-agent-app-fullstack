@@ -16,19 +16,20 @@ export interface Database {
           canonical_value: string | null;
           origin_ref: string | null;
           created_at: string;
-        }
-      }
+        };
+      };
       baskets: {
         Row: {
           id: string;
           name: string | null;
-          state: string;
+          status: string;
           created_at: string;
+          updated_at: string;
           user_id: string;
           raw_dump_id: string;
           workspace_id: string;
-        }
-      }
+        };
+      };
       events: {
         Row: {
           id: string;
@@ -37,8 +38,8 @@ export interface Database {
           kind: string | null;
           payload: Record<string, any> | null;
           ts: string;
-        }
-      }
+        };
+      };
       documents: {
         Row: {
           id: string;
@@ -48,8 +49,8 @@ export interface Database {
           content_rendered: string | null;
           created_at: string;
           updated_at: string;
-        }
-      }
+        };
+      };
     };
     Views: {
       v_basket_overview: {
@@ -58,8 +59,8 @@ export interface Database {
           name: string | null;
           raw_dump_body: string | null;
           created_at: string | null;
-        }
-      }
+        };
+      };
     };
   };
 }
