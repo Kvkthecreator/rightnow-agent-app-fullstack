@@ -5,11 +5,13 @@ function key(workspaceId: string) {
 }
 
 export async function getLastBasketId(workspaceId: string): Promise<string | null> {
-  return cookies().get(key(workspaceId))?.value ?? null;
+  const store = await cookies();
+  return store.get(key(workspaceId))?.value ?? null;
 }
 
 export async function setLastBasketId(workspaceId: string, basketId: string) {
-  cookies().set(key(workspaceId), basketId, {
+  const store = await cookies();
+  store.set(key(workspaceId), basketId, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',

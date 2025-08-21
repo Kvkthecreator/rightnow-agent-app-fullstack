@@ -9,7 +9,7 @@ export type BasketSummary = Pick<
 >;
 
 export async function listBasketsByWorkspace(workspaceId: string): Promise<BasketSummary[]> {
-  const supabase = createServerComponentClient<Database>({ cookies });
+  const supabase = createServerComponentClient({ cookies });
   const { data, error } = await supabase
     .from('baskets')
       .select('id, state, created_at')
