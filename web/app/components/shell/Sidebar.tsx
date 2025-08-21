@@ -2,7 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Plus, Package2, LogOut, Settings2 } from "lucide-react";
+import {
+  Plus,
+  Package2,
+  LogOut,
+  Settings2,
+  ChevronDown,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
@@ -16,8 +22,18 @@ interface SidebarProps {
 
 const supabase = createBrowserClient();
 
+const BASKET_SECTIONS = [
+  { key: "memory", label: "Memory", path: "/memory" },
+  { key: "documents", label: "Documents", path: "/documents" },
+  { key: "blocks", label: "Blocks", path: "/blocks" },
+  { key: "graph", label: "Graph", path: "/graph" },
+  { key: "reflections", label: "Reflections", path: "/reflections" },
+  { key: "timeline", label: "Timeline", path: "/timeline" },
+];
+
 export default function Sidebar({ className }: SidebarProps) {
-  const { isVisible, collapsible, toggleSidebar, closeSidebar } = useSidebarStore();
+  const { isVisible, collapsible, toggleSidebar, closeSidebar, openSidebar } =
+    useSidebarStore();
   const pathname = usePathname();
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -25,6 +41,23 @@ export default function Sidebar({ className }: SidebarProps) {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [baskets, setBaskets] = useState<BasketOverview[] | null>(null);
   const [openDropdown, setOpenDropdown] = useState(false);
+  const [expandedBasket, setExpandedBasket] = useState<string | null>(null);
+
+  // Persist sidebar visibility
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = localStorage.getItem("yarnnn:sidebar:visible");
+    if (stored === "false") {
+      closeSidebar();
+    } else {
+      openSidebar();
+    }
+  }, [closeSidebar, openSidebar]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("yarnnn:sidebar:visible", String(isVisible));
+  }, [isVisible]);
 
   useEffect(() => {
     async function init() {
@@ -43,6 +76,11 @@ export default function Sidebar({ className }: SidebarProps) {
     init();
   }, []);
 
+  // Expand basket based on current route
+  useEffect(() => {
+    const match = pathname?.match(/\/baskets\/([^/]+)/);
+    if (match) setExpandedBasket(match[1]);
+  }, [pathname]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -83,11 +121,20 @@ export default function Sidebar({ className }: SidebarProps) {
     }
   };
 
-  const handleNavigateToBasketWork = (basketId: string) => {
+  const handleBasketClick = (basketId: string) => {
+    setExpandedBasket((prev) => (prev === basketId ? null : basketId));
     try {
-      router.push(`/baskets/${basketId}/dashboard`);
+      router.push(`/baskets/${basketId}/memory`);
     } catch (error) {
       console.error('❌ Sidebar: Failed to navigate to basket work:', error);
+    }
+  };
+
+  const handleSectionNavigate = (basketId: string, path: string) => {
+    try {
+      router.push(`/baskets/${basketId}${path}`);
+    } catch (error) {
+      console.error('❌ Sidebar: Failed to navigate to section:', error);
     }
   };
 
@@ -100,6 +147,10 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
   const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
+  const basketCount = baskets?.length ?? 0;
+  const canCreateBasket = basketCount < 3;
+  const softCapMessage =
+    "Keep focus — Yarnnn works best with a few baskets.";
 
   if (!isVisible) return null;
 
@@ -137,17 +188,30 @@ export default function Sidebar({ className }: SidebarProps) {
 
       {/* New Basket */}
       <div className="px-4 py-3 border-b">
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleNewBasket();
-          }}
-          className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted font-medium text-muted-foreground hover:text-foreground transition"
-        >
-          <Plus size={16} />
-          <span>New Basket</span>
-        </button>
+        {canCreateBasket ? (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleNewBasket();
+            }}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-muted font-medium text-muted-foreground hover:text-foreground transition"
+          >
+            <Plus size={16} />
+            <span>New Basket</span>
+          </button>
+        ) : (
+          <div className="relative">
+            <button
+              disabled
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md font-medium text-muted-foreground opacity-50 cursor-not-allowed"
+              title={softCapMessage}
+            >
+              <Plus size={16} />
+              <span>New Basket</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Basket list */}
@@ -162,25 +226,66 @@ export default function Sidebar({ className }: SidebarProps) {
             No baskets yet. Click “New Basket”.
           </p>
         ) : (
-          baskets.map((b) => (
-            <button
-              key={b.id}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleNavigateToBasketWork(b.id);
-              }}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition",
-                pathname?.includes(b.id)
-                  ? "bg-accent text-accent-foreground font-semibold"
-                  : "text-muted-foreground"
-              )}
-            >
-              <Package2 size={14} />
-              <span className="truncate">{b.name || "Untitled Basket"}</span>
-            </button>
-          ))
+          baskets.map((b) => {
+            const isActive = pathname?.startsWith(`/baskets/${b.id}`);
+            const isExpanded = expandedBasket === b.id;
+            return (
+              <div key={b.id}>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleBasketClick(b.id);
+                  }}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    isActive
+                      ? "bg-accent text-accent-foreground font-semibold"
+                      : "text-muted-foreground",
+                  )}
+                  aria-expanded={isExpanded}
+                >
+                  <Package2 size={14} />
+                  <span className="truncate">{b.name || "Untitled Basket"}</span>
+                  <ChevronDown
+                    className={cn(
+                      "ml-auto h-4 w-4 transition-transform",
+                      isExpanded ? "rotate-180" : "",
+                    )}
+                  />
+                </button>
+                {isExpanded && (
+                  <div className="mt-1 ml-6 space-y-1">
+                    {BASKET_SECTIONS.map((section) => {
+                      const sectionActive = pathname?.startsWith(
+                        `/baskets/${b.id}${section.path}`
+                      );
+                      return (
+                        <button
+                          key={section.key}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleSectionNavigate(b.id, section.path);
+                          }}
+                          className={cn(
+                            "w-full text-left px-2 py-1.5 text-sm rounded-md transition",
+                            sectionActive
+                              ? "bg-accent text-accent-foreground"
+                              : "text-muted-foreground hover:bg-muted",
+                          )}
+                          aria-current={sectionActive ? "page" : undefined}
+                        >
+                          {section.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
