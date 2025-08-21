@@ -560,6 +560,14 @@ ALTER TABLE public.baskets ENABLE ROW LEVEL SECURITY;
 CREATE POLICY baskets_insert_members ON public.baskets FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY bh_insert_by_workspace ON public.basket_history FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships m ON ((m.workspace_id = b.workspace_id)))
+  WHERE ((b.id = basket_history.basket_id) AND (m.user_id = auth.uid())))));
+CREATE POLICY bh_select_by_workspace ON public.basket_history FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships m ON ((m.workspace_id = b.workspace_id)))
+  WHERE ((b.id = basket_history.basket_id) AND (m.user_id = auth.uid())))));
 CREATE POLICY block_member_delete ON public.blocks FOR DELETE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
