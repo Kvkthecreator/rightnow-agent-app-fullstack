@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { NextResponse } from 'next/server';
 import { getServerWorkspace } from '@/lib/workspaces/getServerWorkspace';
 import { listBasketsByWorkspace } from '@/lib/baskets/listBasketsByWorkspace';
 import { getLastBasketId, setLastBasketId } from '@/lib/cookies/workspaceCookies';
@@ -6,9 +6,8 @@ import { getOrCreateDefaultBasket } from '@/lib/baskets/getOrCreateDefaultBasket
 import { pickMostRelevantBasket } from '@/lib/baskets/pickMostRelevantBasket';
 import { logEvent } from '@/lib/telemetry';
 
-export default async function DashboardHomeRedirect() {
+export async function POST() {
   const ws = await getServerWorkspace();
-  await logEvent('auth.login_redirected', { workspace_id: ws.id });
   const baskets = await listBasketsByWorkspace(ws.id);
 
   if (!baskets.length) {
@@ -19,12 +18,12 @@ export default async function DashboardHomeRedirect() {
     });
     await setLastBasketId(ws.id, created.id);
     await logEvent('basket.autocreate', { workspace_id: ws.id, basket_id: created.id });
-    redirect(`/baskets/${created.id}/memory`);
+    return NextResponse.json({ id: created.id });
   }
 
   const last = await getLastBasketId(ws.id);
   const target = pickMostRelevantBasket({ baskets, lastBasketId: last });
   await setLastBasketId(ws.id, target.id);
   await logEvent('basket.pick_target', { workspace_id: ws.id, basket_id: target.id });
-  redirect(`/baskets/${target.id}/memory`);
+  return NextResponse.json({ id: target.id });
 }

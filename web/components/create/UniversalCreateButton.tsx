@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { resolveTargetBasket } from "@/lib/baskets/resolveTargetBasket";
 
 interface Props {
   variant?: "default" | "outline" | "ghost";
@@ -21,8 +22,13 @@ export default function UniversalCreateButton({
 }: Props) {
   const router = useRouter();
 
-  const handleCreateBasket = () => {
-    router.push("/create");
+  const handleCreateBasket = async () => {
+    try {
+      const id = await resolveTargetBasket();
+      router.push(`/baskets/${id}/memory#add`);
+    } catch (e) {
+      console.error("Failed to resolve basket", e);
+    }
   };
 
   // Context-specific button content and styling

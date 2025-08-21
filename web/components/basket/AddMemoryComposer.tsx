@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fetchWithToken } from "@/lib/fetchWithToken";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
@@ -14,6 +14,22 @@ interface AddMemoryComposerProps {
 export default function AddMemoryComposer({ basketId, disabled, onSuccess }: AddMemoryComposerProps) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const focusComposer = () => textareaRef.current?.focus();
+    if (window.location.hash === "#add") {
+      focusComposer();
+    }
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "m") {
+        e.preventDefault();
+        focusComposer();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,6 +64,7 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
       <Textarea
+        ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Add a memory"

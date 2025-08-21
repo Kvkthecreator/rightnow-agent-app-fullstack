@@ -11,7 +11,6 @@ const SHOW_SIDEBAR_ROUTES = [
   "/dashboard",
   "/blocks",
   "/context",
-  "/create",
 ];
 
 // Deep routes where the sidebar should remain hidden
