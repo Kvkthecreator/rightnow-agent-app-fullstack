@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { fetchWithToken } from "@/lib/fetchWithToken";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
@@ -12,11 +13,16 @@ interface AddMemoryComposerProps {
 }
 
 export default function AddMemoryComposer({ basketId, disabled, onSuccess }: AddMemoryComposerProps) {
+  const router = useRouter();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    if (!basketId) {
+      router.replace("/memory");
+      return;
+    }
     const focusComposer = () => textareaRef.current?.focus();
     if (window.location.hash === "#add") {
       focusComposer();
@@ -29,7 +35,7 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [basketId, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

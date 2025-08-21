@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { listBasketsByWorkspace } from './listBasketsByWorkspace';
 
 interface Params {
   workspaceId: string;
@@ -7,6 +8,11 @@ interface Params {
 }
 
 export async function getOrCreateDefaultBasket({ workspaceId, idempotencyKey, name }: Params) {
+  const existing = await listBasketsByWorkspace(workspaceId);
+  if (existing.length >= 1) {
+    return existing[0];
+  }
+
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || '';
   const res = await fetch(`${base}/api/baskets/new`, {
     method: 'POST',

@@ -14,10 +14,20 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { CreateBasketReqSchema } from "@/lib/schemas/baskets";
 import { createHash, randomUUID } from "node:crypto";
+import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
+import { listBasketsByWorkspace } from "@/lib/baskets/listBasketsByWorkspace";
+import { logEvent } from "@/lib/telemetry";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
 export async function POST(req: NextRequest) {
+  const ws = await getServerWorkspace();
+  const existing = await listBasketsByWorkspace(ws.id);
+  if (existing.length >= 1) {
+    await logEvent("basket.new_blocked_single_mode", { workspace_id: ws.id, existing_id: existing[0].id });
+    return NextResponse.redirect(new URL(`/baskets/${existing[0].id}/memory`, req.url), 303);
+  }
+
   const DBG = req.headers.get("x-yarnnn-debug-auth") === "1";
   const requestId = req.headers.get("x-request-id") ?? randomUUID();
   // 1) Parse & validate request (canon: { idempotency_key, intent, raw_dump, notes? })

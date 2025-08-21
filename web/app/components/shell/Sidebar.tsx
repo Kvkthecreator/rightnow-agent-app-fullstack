@@ -2,12 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Package2,
-  LogOut,
-  Settings2,
-  ChevronDown,
-} from "lucide-react";
+import { Package2, LogOut, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
@@ -38,9 +33,8 @@ export default function Sidebar({ className }: SidebarProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [baskets, setBaskets] = useState<BasketOverview[] | null>(null);
+  const [basket, setBasket] = useState<BasketOverview | null>(null);
   const [openDropdown, setOpenDropdown] = useState(false);
-  const [expandedBasket, setExpandedBasket] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   // Mobile detection and responsive behavior
@@ -85,20 +79,14 @@ export default function Sidebar({ className }: SidebarProps) {
         } = await supabase.auth.getUser();
         setUserEmail(user?.email || null);
         const data = await getAllBaskets();
-        setBaskets(data);
+        setBasket(data[0] || null);
       } catch (err) {
         console.error("❌ Sidebar: Init error:", err);
-        setBaskets([]);
+        setBasket(null);
       }
     }
     init();
   }, []);
-
-  // Expand basket based on current route
-  useEffect(() => {
-    const match = pathname?.match(/\/baskets\/([^/]+)/);
-    if (match) setExpandedBasket(match[1]);
-  }, [pathname]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -126,35 +114,10 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
 
-  const handleNavigateToBaskets = () => {
+  const handleSectionNavigate = (path: string) => {
+    if (!basket) return;
     try {
-      router.push("/baskets");
-      // Close sidebar on mobile after navigation
-      if (isMobile) {
-        closeSidebar();
-      }
-    } catch (error) {
-      console.error('❌ Sidebar: Failed to navigate to baskets:', error);
-    }
-  };
-
-  const handleBasketClick = (basketId: string) => {
-    setExpandedBasket((prev) => (prev === basketId ? null : basketId));
-    try {
-      router.push(`/baskets/${basketId}/memory`);
-      // Close sidebar on mobile after navigation
-      if (isMobile) {
-        closeSidebar();
-      }
-    } catch (error) {
-      console.error('❌ Sidebar: Failed to navigate to basket work:', error);
-    }
-  };
-
-  const handleSectionNavigate = (basketId: string, path: string) => {
-    try {
-      router.push(`/baskets/${basketId}${path}`);
-      // Close sidebar on mobile after navigation
+      router.push(`/baskets/${basket.id}${path}`);
       if (isMobile) {
         closeSidebar();
       }
@@ -208,7 +171,7 @@ export default function Sidebar({ className }: SidebarProps) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            handleNavigateToBaskets();
+            router.push("/");
           }}
           className="font-brand text-xl tracking-tight hover:underline"
         >
@@ -223,79 +186,46 @@ export default function Sidebar({ className }: SidebarProps) {
         </button>
       </div>
 
-
-      {/* Basket list */}
+      {/* Basket */}
       <div className="px-4 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-        🧺 Baskets
+        🧺 Basket
       </div>
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1">
-        {baskets === null ? (
-          <p className="text-sm text-muted-foreground px-2 py-1">Loading baskets...</p>
-        ) : baskets.length === 0 ? (
-          <p className="text-sm text-muted-foreground px-2 py-1">
-            No baskets yet. Click “New Basket”.
-          </p>
-        ) : (
-          baskets.map((b) => {
-            const isActive = pathname?.startsWith(`/baskets/${b.id}`);
-            const isExpanded = expandedBasket === b.id;
-            return (
-              <div key={b.id}>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleBasketClick(b.id);
-                  }}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition",
-                    "hover:bg-accent hover:text-accent-foreground",
-                    isActive
-                      ? "bg-accent text-accent-foreground font-semibold"
-                      : "text-muted-foreground",
-                  )}
-                  aria-expanded={isExpanded}
-                >
-                  <Package2 size={14} />
-                  <span className="truncate">{b.name || "Untitled Basket"}</span>
-                  <ChevronDown
+        {basket ? (
+          <div>
+            <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm">
+              <Package2 size={14} />
+              <span className="truncate">{basket.name || "Untitled Basket"}</span>
+            </div>
+            <div className="mt-1 ml-6 space-y-1">
+              {BASKET_SECTIONS.map((section) => {
+                const sectionActive = pathname?.startsWith(
+                  `/baskets/${basket.id}${section.path}`
+                );
+                return (
+                  <button
+                    key={section.key}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSectionNavigate(section.path);
+                    }}
                     className={cn(
-                      "ml-auto h-4 w-4 transition-transform",
-                      isExpanded ? "rotate-180" : "",
+                      "w-full text-left px-2 py-1.5 text-sm rounded-md transition",
+                      sectionActive
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-muted",
                     )}
-                  />
-                </button>
-                {isExpanded && (
-                  <div className="mt-1 ml-6 space-y-1">
-                    {BASKET_SECTIONS.map((section) => {
-                      const sectionActive = pathname?.startsWith(
-                        `/baskets/${b.id}${section.path}`
-                      );
-                      return (
-                        <button
-                          key={section.key}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleSectionNavigate(b.id, section.path);
-                          }}
-                          className={cn(
-                            "w-full text-left px-2 py-1.5 text-sm rounded-md transition",
-                            sectionActive
-                              ? "bg-accent text-accent-foreground"
-                              : "text-muted-foreground hover:bg-muted",
-                          )}
-                          aria-current={sectionActive ? "page" : undefined}
-                        >
-                          {section.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })
+                    aria-current={sectionActive ? "page" : undefined}
+                  >
+                    {section.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground px-2 py-1">Loading...</p>
         )}
       </div>
 
