@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { randomUUID, createHash } from "node:crypto";
+import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { getWorkspaceFromBasket } from "@/lib/utils/workspace";
 import { 
@@ -34,23 +35,19 @@ export async function POST(
     const DBG = request.headers.get("x-yarnnn-debug-auth") === "1";
     const requestId = request.headers.get("x-request-id") ?? randomUUID();
     const supabase = createRouteHandlerClient({ cookies });
-    
-    // Authentication check
+    await getAuthenticatedUser(supabase);
     const {
       data: { user },
-      error: authError,
     } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
       );
     }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const accessToken = session?.access_token;
+    const accessToken =
+      request.headers.get("sb-access-token") ||
+      request.headers.get("authorization")?.replace("Bearer ", "");
     if (!accessToken) {
       return NextResponse.json(
         { error: "Authentication required" },

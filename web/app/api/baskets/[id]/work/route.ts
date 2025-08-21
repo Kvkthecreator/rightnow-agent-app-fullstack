@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { z, ZodError } from "zod";
 import { createHash, randomUUID } from "node:crypto";
+import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
@@ -98,22 +99,13 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     }
 
     const supabase = createRouteHandlerClient({ cookies });
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: { code: "UNAUTHORIZED", message: "Missing user" } },
-        { status: 401 }
-      );
-    }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const accessToken = session?.access_token;
+    await getAuthenticatedUser(supabase);
+    const accessToken =
+      req.headers.get("sb-access-token") ||
+      req.headers.get("authorization")?.replace("Bearer ", "");
     if (!accessToken) {
       return NextResponse.json(
-        { error: { code: "UNAUTHORIZED", message: "Missing session" } },
+        { error: { code: "UNAUTHORIZED", message: "Missing authentication" } },
         { status: 401 }
       );
     }

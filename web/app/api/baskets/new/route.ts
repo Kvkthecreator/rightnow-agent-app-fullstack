@@ -10,8 +10,6 @@ export const dynamic = "force-dynamic";
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { CreateBasketReqSchema } from "@/lib/schemas/baskets";
 import { createHash, randomUUID } from "node:crypto";
 import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
@@ -57,18 +55,9 @@ export async function POST(req: NextRequest) {
       { status: 422 },
     );
   }
-  // Try to get token from headers first (from fetchWithToken), then cookies
-  let accessToken =
+  // Try to get token from headers (from fetchWithToken)
+  const accessToken =
     req.headers.get("sb-access-token") || req.headers.get("authorization")?.replace("Bearer ", "");
-
-  if (!accessToken) {
-    // Fall back to cookie-based auth
-    const supabase = createRouteHandlerClient({ cookies });
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    accessToken = session?.access_token;
-  }
 
   if (!accessToken) {
     return NextResponse.json(
