@@ -1,5 +1,5 @@
-import { cookies } from 'next/headers';
-import { listBasketsByWorkspace } from './listBasketsByWorkspace';
+import { cookies } from "next/headers";
+import { listBasketsByWorkspace } from "./listBasketsByWorkspace";
 
 interface Params {
   workspaceId: string;
@@ -8,17 +8,18 @@ interface Params {
 }
 
 export async function getOrCreateDefaultBasket({ workspaceId, idempotencyKey, name }: Params) {
-  const existing = await listBasketsByWorkspace(workspaceId);
-  if (existing.length >= 1) {
+  const { data: existing, error } = await listBasketsByWorkspace(workspaceId);
+  if (error) throw error;
+  if (existing && existing.length >= 1) {
     return existing[0];
   }
 
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
   const res = await fetch(`${base}/api/baskets/new`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'Idempotency-Key': idempotencyKey,
+      "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey,
       Cookie: cookies().toString(),
     },
     body: JSON.stringify({ workspace_id: workspaceId, name }),
@@ -30,5 +31,5 @@ export async function getOrCreateDefaultBasket({ workspaceId, idempotencyKey, na
     return { id };
   }
 
-  throw new Error('Failed to create default basket');
+  throw new Error("Failed to create default basket");
 }
