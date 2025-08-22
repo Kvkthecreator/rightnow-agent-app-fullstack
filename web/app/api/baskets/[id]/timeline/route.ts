@@ -2,14 +2,15 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const runtime = 'nodejs';
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 
 type Q = { limit?: string | null; before?: string | null; kind?: string | string[] | null };
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = createServerSupabaseClient();
   const { userId } = await getAuthenticatedUser(supabase);
   const ws = await ensureWorkspaceForUser(userId, supabase);
@@ -18,7 +19,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const { data: basket, error: bErr } = await supabase
     .from('baskets')
     .select('id, workspace_id')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('workspace_id', ws.id)
     .maybeSingle();
 
@@ -47,7 +48,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   let q = supabase
     .from('timeline_events')
     .select('id, ts, kind, ref_id, preview, payload')
-    .eq('basket_id', params.id)
+    .eq('basket_id', id)
     .order('ts', { ascending: false })
     .limit(limit);
 
