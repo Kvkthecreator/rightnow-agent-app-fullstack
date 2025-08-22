@@ -109,6 +109,34 @@ BEGIN
   RETURN v_doc_id;
 END;
 $$;
+CREATE FUNCTION public.fn_ingest_dumps(p_workspace_id uuid, p_basket_id uuid, p_dumps jsonb) RETURNS TABLE(dump_id uuid)
+    LANGUAGE plpgsql
+    AS $$
+DECLARE rec jsonb;
+DECLARE v_dump_id uuid;
+BEGIN
+  FOR rec IN SELECT * FROM jsonb_array_elements(p_dumps)
+  LOOP
+    -- idempotent single upsert per dump_request_id (scoped by basket)
+    INSERT INTO public.raw_dumps (basket_id, workspace_id, body_md, file_refs, source_meta, ingest_trace_id, dump_request_id, processing_status)
+    VALUES (
+      p_basket_id,
+      p_workspace_id,
+      COALESCE(rec->>'text_dump', NULL),
+      CASE WHEN rec ? 'file_urls' THEN (rec->'file_urls')::jsonb ELSE NULL END,
+      COALESCE(rec->'source_meta', '{}'::jsonb),
+      COALESCE(rec->>'ingest_trace_id', NULL),
+      COALESCE(rec->>'dump_request_id', NULL),
+      'unprocessed'
+    )
+    ON CONFLICT (basket_id, dump_request_id)
+      WHERE (rec ? 'dump_request_id')
+    DO UPDATE SET dump_request_id = EXCLUDED.dump_request_id
+    RETURNING id INTO v_dump_id;
+    dump_id := v_dump_id; RETURN NEXT;
+  END LOOP;
+END;
+$$;
 CREATE FUNCTION public.fn_persist_reflection(p_basket_id uuid, p_pattern text, p_tension text, p_question text) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
@@ -518,6 +546,7 @@ CREATE UNIQUE INDEX timeline_dump_unique ON public.timeline_events USING btree (
 CREATE INDEX timeline_events_basket_ts_idx ON public.timeline_events USING btree (basket_id, ts DESC);
 CREATE UNIQUE INDEX uq_baskets_user_idem ON public.baskets USING btree (user_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
 CREATE UNIQUE INDEX uq_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
+CREATE UNIQUE INDEX uq_raw_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
 CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (basket_id, ingest_trace_id) WHERE (ingest_trace_id IS NOT NULL);
 CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
