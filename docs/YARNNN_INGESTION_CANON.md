@@ -1,3 +1,40 @@
+# YARNNN Ingestion Canon (Authoritative)
+
+## Contract
+- **Single dump**: `POST /api/dumps/new`
+  - Body: `{ basket_id, text_dump?, file_urls?, source_meta?, ingest_trace_id?, dump_request_id }`
+  - Writes `raw_dumps`. **DB trigger** emits `timeline_events(kind='dump')`.
+  - **Idempotency**: `(basket_id, dump_request_id)` unique; replay returns the same dump_id.
+
+- **Batch ingest**: `POST /api/baskets/ingest` → RPC `fn_ingest_dumps(p_workspace_id, p_basket_id, p_dumps jsonb)`
+
+## Flow
+Capture → `/api/dumps/new` → `fn_ingest_dumps` → `raw_dumps`  
+→ trigger `fn_timeline_after_raw_dump` → `timeline_events('dump')`  
+→ processors read dumps and write substrate via RPCs:  
+`fn_persist_reflection`, `fn_document_create`, `fn_block_create`, `fn_block_revision_create`,  
+`fn_context_item_create`, `fn_relationship_upsert` → each calls `fn_timeline_emit`.
+
+## Idempotency & Trace
+- Client generates `dump_request_id` and `ingest_trace_id` (UUID).  
+- Unique index: `(basket_id, dump_request_id) WHERE dump_request_id IS NOT NULL`.  
+- Trace is stored in `raw_dumps.ingest_trace_id` / `source_meta`.
+
+## Security
+- All writes scoped by `workspace_id`; RLS enforces workspace membership.  
+- Functions have `GRANT EXECUTE TO authenticated`.
+
+## Error Model
+- 401/403 auth; 422 validation; 409 idempotency conflict; 500 unexpected.
+
+## RPCs
+- `fn_ingest_dumps`, `fn_persist_reflection`, `fn_document_create`, `fn_block_create`,  
+  `fn_block_revision_create`, `fn_context_item_create`, `fn_relationship_upsert`.
+
+## Tests
+- Replaying the same `dump_request_id` returns the same `dump_id` and **exactly one** timeline `dump`.
+
+
 # Memory-First Content Processing Architecture
 
 ## Overview
