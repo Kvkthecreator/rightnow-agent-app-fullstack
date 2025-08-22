@@ -1,6 +1,7 @@
 "use client";
 
-import { TodayReflectionCard, ReflectionCards, MemoryStream, AddMemoryComposer } from "@/components/basket";
+import { TodayReflectionCard, ReflectionCards, MemoryStream } from "@/components/basket";
+import DumpBarHero from "@/components/dump/DumpBarHero";
 
 interface Props {
   basketId: string;
@@ -17,7 +18,7 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
         <TodayReflectionCard line={undefined} fallback={fallback} />
       </div>
       <div className="col-span-8 space-y-4">
-        <AddMemoryComposer basketId={basketId} />
+        <DumpBarHero basketId={basketId} />
         <MemoryStream basketId={basketId} />
       </div>
       <div className="col-span-4">
