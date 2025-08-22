@@ -36,9 +36,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     analyzerBlocks?.find(b => b.semantic_type === "question")?.metadata?.text ??
     null;
 
-  // 3) Persist durable reflection + history
-  const reflection = await persistReflection({
-    basket_id: basketId,
+  // 3) Persist durable reflection + timeline
+  const computed_at = new Date().toISOString();
+  await persistReflection({
+    basketId,
     pattern,
     tension,
     question,
@@ -59,6 +60,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       relationships: edges ?? [],
     },
     reflections: { pattern, tension, question, notes },
-    meta: { basketId, computed_at: reflection.computed_at },
+    meta: { basketId, computed_at },
   });
 }

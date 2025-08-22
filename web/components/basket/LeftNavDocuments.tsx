@@ -213,9 +213,9 @@ function DocumentNavItem({
   onToggleExpand,
   onNavigate,
 }: DocumentNavItemProps) {
-  const docActive = active && !currentTab.includes("insights") && !currentTab.includes("history");
+  const docActive = active && !currentTab.includes("insights") && !currentTab.includes("timeline");
   const docInsightsActive = active && currentTab.includes("insights");
-  const docHistoryActive = active && currentTab.includes("history");
+  const docTimelineActive = active && currentTab.includes("timeline");
 
   return (
     <div className="space-y-1">
@@ -258,13 +258,13 @@ function DocumentNavItem({
             onClick={() => onNavigate(`/baskets/${basketId}/timeline`)}
             className={cn(
               "w-full flex items-center gap-2 px-2 py-1 text-sm rounded-md transition-colors text-left",
-              docHistoryActive
+              docTimelineActive
                 ? "bg-primary text-primary-foreground"
                 : "hover:bg-muted text-muted-foreground hover:text-foreground"
             )}
           >
             <span className="text-sm">📜</span>
-            <span className="flex-1">History</span>
+            <span className="flex-1">Timeline</span>
           </button>
         </div>
       )}

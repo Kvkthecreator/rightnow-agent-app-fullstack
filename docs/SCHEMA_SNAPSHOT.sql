@@ -396,7 +396,7 @@ CREATE TABLE public.timeline_events (
     ref_id uuid,
     preview text,
     payload jsonb,
-    CONSTRAINT basket_history_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text])))
+    CONSTRAINT timeline_events_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text])))
 );
 CREATE SEQUENCE public.timeline_events_id_seq
     START WITH 1

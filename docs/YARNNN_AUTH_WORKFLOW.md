@@ -29,7 +29,7 @@ Each SHALL include workspace_id (uuid NOT NULL) and be protected by RLS that ref
 
 Baskets timestamp semantics
 - `baskets` does **not** have `updated_at`.
-- "Last activity" MUST be derived from `basket_history.max(ts)`; callers MAY fall back to `baskets.created_at` when no history exists.
+- "Last activity" MUST be derived from `timeline_events.max(ts)`; callers MAY fall back to `baskets.created_at` when no history exists.
 
 ## 3) Authentication & Token Handling
 Frontend
@@ -140,7 +140,7 @@ Authorization: Bearer <jwt>
 Returns: { "id": "...", "name": "...", "status": "...", "last_activity_ts": "<iso8601>" }
 Behavior:
 - Validate basket by `id` & `workspace_id` via RLS.
-- Compute `last_activity_ts = max(basket_history.ts)`; fallback to `baskets.created_at`.
+- Compute `last_activity_ts = max(timeline_events.ts)`; fallback to `baskets.created_at`.
 - MUST NOT select or expose `baskets.updated_at`.
 
 Create Raw Dump

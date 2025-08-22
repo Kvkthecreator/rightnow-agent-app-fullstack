@@ -147,8 +147,8 @@ User-friendly hooks that consume narrative APIs:
 
 ### **`useAIAssistant.ts`**
 - **Purpose**: Conversational AI interaction
-- **Features**: Message history, typing indicators, conversation context
-- **Variants**: Basic chat, advanced with history and context
+- **Features**: Message timeline, typing indicators, conversation context
+- **Variants**: Basic chat, advanced with timeline and context
 
 ### **`useIntelligentGuidance.ts`**
 - **Purpose**: Strategic guidance and recommendations

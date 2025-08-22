@@ -55,7 +55,7 @@ const getNavItems = (basketId?: string): NavItem[] => [
     label: 'Project Timeline',
     icon: Clock,
     href: basketId ? `/baskets/${basketId}/timeline` : '/timeline',
-    description: 'History and evolution (Coming Soon)'
+    description: 'Timeline and evolution (Coming Soon)'
   },
   {
     key: 'settings',

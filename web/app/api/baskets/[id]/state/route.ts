@@ -26,13 +26,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (bErr) return NextResponse.json({ error: bErr.message }, { status: 400 })
   if (!basket) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
-  const { data: hist } = await supabase
-    .from('basket_history')
+  const { data: events } = await supabase
+    .from('timeline_events')
     .select('ts')
     .eq('basket_id', id)
     .order('ts', { ascending: false })
     .limit(1)
 
-  const last_activity_ts = hist?.[0]?.ts ?? basket.created_at
+  const last_activity_ts = events?.[0]?.ts ?? basket.created_at
   return NextResponse.json({ id: basket.id, name: basket.name, status: basket.status, last_activity_ts })
 }

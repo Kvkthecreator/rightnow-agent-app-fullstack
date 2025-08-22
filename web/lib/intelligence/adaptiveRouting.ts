@@ -61,7 +61,7 @@ export interface RoutingRule {
 /**
  * Adaptive conversation routing system
  * Intelligently determines the best way to handle user conversations
- * based on context, behavior, and conversation history
+ * based on context, behavior, and conversation timeline
  */
 export class AdaptiveConversationRouter {
   private routingRules: RoutingRule[];
@@ -216,7 +216,7 @@ export class AdaptiveConversationRouter {
             impact: 0.8
           }
         ],
-        description: 'Conversation history suggests this is part of ongoing discussion'
+        description: 'Conversation timeline suggests this is part of ongoing discussion'
       },
 
       // Workflow pattern guidance

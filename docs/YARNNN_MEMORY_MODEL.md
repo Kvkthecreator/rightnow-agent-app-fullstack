@@ -25,7 +25,7 @@ No substrate assumes the existence of another. All reference a shared `basket_id
 
 ### Memory Plane (First-Class)
 - **basket_reflections**: Durable computed insights (pattern, tension, question, computed_at)
-- **basket_history**: Append-only memory stream of all basket activity
+- **timeline_events**: Append-only memory stream of all basket activity
 - **Integration**: Reflections computed from substrate → stored durably → streamed via history
 
 ---

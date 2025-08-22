@@ -20,7 +20,7 @@ Aligned with Context OS substrate v1.2
 | Component | Purpose | Storage |
 |-----------|---------|---------|
 | basket_reflections | Durable computed insights | pattern, tension, question, computed_at |
-| basket_history | Append-only memory stream | kind, ts, ref_id, preview, payload |
+| timeline_events | Append-only memory stream | kind, ts, ref_id, preview, payload |
 
 **Note**: `basket_events` is deprecated; use `events` table for canonical event bus.
 | Change Tracker    | `event`, `revision` | Logs of evolution across types |

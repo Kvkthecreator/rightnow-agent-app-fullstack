@@ -17,12 +17,12 @@ type Reflections = {
 ```
 
 ## Compute
-- **Server (authoritative)**: compute reflections → INSERT `basket_reflections` → INSERT `basket_history(kind='reflection')` → EMIT `events(kind='reflection.computed')`.
+- **Server (authoritative)**: compute reflections → INSERT `basket_reflections` → INSERT `timeline_events(kind='reflection')` → EMIT `events(kind='reflection.computed')`.
 - **Client (optimistic)**: run `computeReflections(notes)` without graph immediately after submit; reconcile to server result on revalidate.
 
 ## Storage
 - **Durable**: `basket_reflections` stores computed pattern/tension/question with timestamp
-- **Stream**: `basket_history` append-only log of all memory events (dump|reflection|narrative|system_note)
+- **Stream**: `timeline_events` append-only log of all memory events (dump|reflection|narrative|system_note)
 - **Events**: canonical `events` table (basket_events deprecated)
 
 ## Guarantees

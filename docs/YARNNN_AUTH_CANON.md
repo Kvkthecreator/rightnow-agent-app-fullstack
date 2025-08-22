@@ -50,5 +50,5 @@ Service role keys are used ONLY for:
 
 ## RLS Summary
 - **Memory tables**: workspace-scoped SELECT; service_role-only INSERT/UPDATE/DELETE
-- `basket_reflections`, `basket_history`: read by workspace members, write by service_role only
+- `basket_reflections`, `timeline_events`: read by workspace members, write by service_role only
 - Standard pattern: users read via workspace membership, system writes via service_role
