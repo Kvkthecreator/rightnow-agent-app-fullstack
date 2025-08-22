@@ -55,6 +55,127 @@ begin
   return query select v_basket_id;
 end;
 $$;
+CREATE FUNCTION public.fn_block_create(p_basket_id uuid, p_workspace_id uuid, p_title text, p_body_md text DEFAULT NULL::text) RETURNS uuid
+    LANGUAGE plpgsql
+    AS $$
+DECLARE v_block_id uuid;
+BEGIN
+  INSERT INTO public.blocks (basket_id, workspace_id, title, body_md)
+  VALUES (p_basket_id, p_workspace_id, p_title, p_body_md)
+  RETURNING id INTO v_block_id;
+  PERFORM public.fn_timeline_emit(
+    p_basket_id,
+    'block',
+    v_block_id,
+    LEFT(COALESCE(p_title, ''), 140),
+    jsonb_build_object('source','block_create','actor_id', auth.uid())
+  );
+  RETURN v_block_id;
+END;
+$$;
+CREATE FUNCTION public.fn_context_item_create(p_basket_id uuid, p_type text, p_content text DEFAULT NULL::text, p_title text DEFAULT NULL::text, p_description text DEFAULT NULL::text) RETURNS uuid
+    LANGUAGE plpgsql
+    AS $$
+DECLARE v_ctx_id uuid;
+BEGIN
+  INSERT INTO public.context_items (basket_id, type, content, title, description)
+  VALUES (p_basket_id, p_type, p_content, p_title, p_description)
+  RETURNING id INTO v_ctx_id;
+  PERFORM public.fn_timeline_emit(
+    p_basket_id,
+    'context_item',
+    v_ctx_id,
+    LEFT(COALESCE(p_title, p_type, ''), 140),
+    jsonb_build_object('source','context_item_create','actor_id', auth.uid())
+  );
+  RETURN v_ctx_id;
+END;
+$$;
+CREATE FUNCTION public.fn_document_create(p_basket_id uuid, p_workspace_id uuid, p_title text, p_content_raw text) RETURNS uuid
+    LANGUAGE plpgsql
+    AS $$
+DECLARE v_doc_id uuid;
+BEGIN
+  INSERT INTO public.documents (basket_id, workspace_id, title, content_raw)
+  VALUES (p_basket_id, p_workspace_id, p_title, p_content_raw)
+  RETURNING id INTO v_doc_id;
+  PERFORM public.fn_timeline_emit(
+    p_basket_id,
+    'document',
+    v_doc_id,
+    LEFT(COALESCE(p_title, ''), 140),
+    jsonb_build_object('source','document_create','actor_id', auth.uid())
+  );
+  RETURN v_doc_id;
+END;
+$$;
+CREATE FUNCTION public.fn_persist_reflection(p_basket_id uuid, p_pattern text, p_tension text, p_question text) RETURNS uuid
+    LANGUAGE plpgsql
+    AS $$
+DECLARE v_id uuid;
+BEGIN
+  INSERT INTO public.basket_reflections (basket_id, pattern, tension, question)
+  VALUES (p_basket_id, p_pattern, p_tension, p_question)
+  RETURNING id INTO v_id;
+  PERFORM public.fn_timeline_emit(
+    p_basket_id,
+    'reflection',
+    v_id,
+    LEFT(COALESCE(p_pattern, p_question, ''), 140),
+    jsonb_build_object('source','reflection_job','actor_id', auth.uid())
+  );
+  RETURN v_id;
+END;
+$$;
+CREATE FUNCTION public.fn_timeline_after_raw_dump() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  PERFORM public.fn_timeline_emit_with_ts(
+    NEW.basket_id,
+    'dump',
+    NEW.id,
+    LEFT(COALESCE(NEW.body_md, ''), 280),
+    NEW.created_at,
+    jsonb_build_object('source','raw_dumps','actor_id', auth.uid())
+  );
+  RETURN NEW;
+END; $$;
+CREATE FUNCTION public.fn_timeline_emit(p_basket_id uuid, p_kind text, p_ref_id uuid, p_preview text, p_payload jsonb DEFAULT '{}'::jsonb) RETURNS bigint
+    LANGUAGE plpgsql
+    AS $$
+DECLARE v_id bigint;
+BEGIN
+  -- Example 1:1 rule (dump). Extend similarly if other kinds should be unique per ref.
+  IF p_kind = 'dump' AND EXISTS (
+    SELECT 1 FROM public.timeline_events WHERE kind='dump' AND ref_id=p_ref_id
+  ) THEN
+    SELECT id INTO v_id FROM public.timeline_events
+     WHERE kind='dump' AND ref_id=p_ref_id
+     ORDER BY id DESC LIMIT 1;
+    RETURN v_id;
+  END IF;
+  INSERT INTO public.timeline_events (basket_id, ts, kind, ref_id, preview, payload)
+  VALUES (p_basket_id, now(), p_kind, p_ref_id, p_preview, p_payload)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+CREATE FUNCTION public.fn_timeline_emit_with_ts(p_basket_id uuid, p_kind text, p_ref_id uuid, p_preview text, p_ts timestamp with time zone, p_payload jsonb DEFAULT '{}'::jsonb) RETURNS bigint
+    LANGUAGE plpgsql
+    AS $$
+DECLARE v_id bigint;
+BEGIN
+  IF p_kind = 'dump' AND EXISTS (
+    SELECT 1 FROM public.timeline_events WHERE kind='dump' AND ref_id=p_ref_id
+  ) THEN
+    RETURN (SELECT id FROM public.timeline_events WHERE kind='dump' AND ref_id=p_ref_id ORDER BY id DESC LIMIT 1);
+  END IF;
+  INSERT INTO public.timeline_events (basket_id, ts, kind, ref_id, preview, payload)
+  VALUES (p_basket_id, p_ts, p_kind, p_ref_id, p_preview, p_payload)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END; $$;
 CREATE FUNCTION public.prevent_lock_vs_constant() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -393,6 +514,7 @@ CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
 CREATE INDEX idx_reflections_basket_ts ON public.basket_reflections USING btree (basket_id, computed_at DESC);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
 CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
+CREATE UNIQUE INDEX timeline_dump_unique ON public.timeline_events USING btree (ref_id) WHERE (kind = 'dump'::text);
 CREATE INDEX timeline_events_basket_ts_idx ON public.timeline_events USING btree (basket_id, ts DESC);
 CREATE UNIQUE INDEX uq_baskets_user_idem ON public.baskets USING btree (user_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
 CREATE UNIQUE INDEX uq_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
@@ -400,6 +522,7 @@ CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (b
 CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
+CREATE TRIGGER trg_timeline_after_raw_dump AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.fn_timeline_after_raw_dump();
 ALTER TABLE ONLY public.basket_reflections
     ADD CONSTRAINT basket_reflections_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.block_links
