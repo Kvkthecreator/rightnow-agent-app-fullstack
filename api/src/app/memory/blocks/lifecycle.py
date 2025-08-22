@@ -87,7 +87,7 @@ class BlockLifecycleService:
         # Get current block state
         current_resp = (
             supabase.table("blocks")
-            .select("id,state,version,workspace_id")
+            .select("id,state,version,workspace_id,basket_id")
             .eq("id", str(block_id))
             .maybe_single()
             .execute()
@@ -102,22 +102,20 @@ class BlockLifecycleService:
         # Validate transition
         cls.validate_transition(current_state, new_state, actor_type)
         
-        # Create revision record
-        revision_id = str(uuid4())
-        revision_data = {
-            "id": revision_id,
-            "block_id": str(block_id),
-            "workspace_id": current_block["workspace_id"],
-            "actor_id": actor_id,
-            "summary": f"State transition: {current_state} → {new_state}",
-            "diff_json": {
-                "state": {"from": current_state, "to": new_state},
-                "reason": reason,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+        # Create revision record via RPC
+        diff_json = {
+            "state": {"from": current_state, "to": new_state},
+            "reason": reason,
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
-        supabase.table("block_revisions").insert(as_json(revision_data)).execute()
+        rev_resp = supabase.rpc('fn_block_revision_create', {
+            "p_basket_id": current_block["basket_id"],
+            "p_block_id": str(block_id),
+            "p_workspace_id": current_block["workspace_id"],
+            "p_summary": f"State transition: {current_state} → {new_state}",
+            "p_diff_json": diff_json,
+        }).execute()
+        revision_id = rev_resp.data
         
         # Update block state and increment version
         update_resp = (
@@ -166,19 +164,6 @@ class BlockProposalService:
     ) -> Dict:
         """Create a new block in PROPOSED state from agent."""
         
-        block_id = uuid4()
-        block_data = {
-            "id": str(block_id),
-            "basket_id": str(basket_id),
-            "semantic_type": semantic_type,
-            "content": content,
-            "version": 1,
-            "state": "PROPOSED",
-            "scope": scope,
-            "origin_ref": str(origin_ref) if origin_ref else None,
-            "created_at": datetime.utcnow().isoformat()
-        }
-        
         # Get workspace_id from basket
         basket_resp = (
             supabase.table("baskets")
@@ -187,13 +172,18 @@ class BlockProposalService:
             .maybe_single()
             .execute()
         )
-        
-        if basket_resp.data:
-            block_data["workspace_id"] = basket_resp.data["workspace_id"]
-        
-        # Insert block
-        insert_resp = supabase.table("blocks").insert(as_json(block_data)).execute()
-        
+
+        workspace_id = basket_resp.data.get("workspace_id") if basket_resp.data else None
+
+        # Insert block via RPC
+        insert_resp = supabase.rpc('fn_block_create', {
+            "p_basket_id": str(basket_id),
+            "p_workspace_id": workspace_id,
+            "p_title": semantic_type,
+            "p_body_md": content,
+        }).execute()
+        block_id = insert_resp.data
+
         # Create proposal event
         event_data = {
             "id": str(uuid4()),
@@ -203,13 +193,21 @@ class BlockProposalService:
             "payload": {
                 "agent_id": agent_id,
                 "semantic_type": semantic_type,
-                "origin_ref": str(origin_ref) if origin_ref else None
-            }
+                "origin_ref": str(origin_ref) if origin_ref else None,
+            },
         }
-        
+
         supabase.table("events").insert(as_json(event_data)).execute()
-        
-        return insert_resp.data[0] if insert_resp.data else block_data
+
+        block_resp = (
+            supabase.table("blocks")
+            .select("*")
+            .eq("id", str(block_id))
+            .maybe_single()
+            .execute()
+        )
+
+        return block_resp.data if block_resp.data else {"id": block_id}
 
     @classmethod
     async def approve_proposal(

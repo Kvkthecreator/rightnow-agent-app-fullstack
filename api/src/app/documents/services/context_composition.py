@@ -528,15 +528,13 @@ class ContextCompositionService:
             }
         )
         
-        # Persist to database
-        document_data = document.model_dump()
-        document_data["id"] = str(document_data["id"])
-        document_data["basket_id"] = str(document_data["basket_id"])
-        
-        # Convert nested objects to JSON
-        document_data = as_json(document_data)
-        
-        supabase.table("documents").insert(document_data).execute()
+        # Persist to database via RPC
+        supabase.rpc('fn_document_create', {
+            "p_basket_id": str(document.basket_id),
+            "p_workspace_id": document.workspace_id,
+            "p_title": document.title,
+            "p_content_raw": document.content_raw,
+        }).execute()
         
         return document
     

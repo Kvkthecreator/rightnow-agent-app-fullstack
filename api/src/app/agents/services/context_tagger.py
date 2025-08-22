@@ -5,11 +5,11 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from typing import List, Optional, Dict, Any, Tuple
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from ...models.context import ContextItemType, ContextItemStatus
+from ...models.context import ContextItemType
 from ...utils.supabase_client import supabase_client as supabase
 from ...utils.db import as_json
 
@@ -67,30 +67,16 @@ class ContextTaggerService:
         if not basket_id:
             raise ValueError(f"Cannot determine basket for {request.target_type}")
         
-        # Create context item
-        context_item_id = uuid4()
-        context_data = {
-            "id": str(context_item_id),
-            "basket_id": basket_id,
-            "type": request.context_type.value,
-            "content": request.content,
-            "status": ContextItemStatus.active.value,
-            "confidence": request.confidence,
-            "created_by": request.agent_id,
-            "created_by_type": "agent",
-            "meta_notes": request.meta_notes,
-            "created_at": datetime.utcnow().isoformat()
-        }
-        
-        # Add target-specific fields
-        if request.target_type == "block":
-            context_data["block_id"] = str(request.target_id)
-        elif request.target_type == "document":
-            context_data["document_id"] = str(request.target_id)
-        
-        # Insert context item
-        insert_resp = supabase.table("context_items").insert(as_json(context_data)).execute()
-        
+        # Insert context item via RPC
+        insert_resp = supabase.rpc('fn_context_item_create', {
+            "p_basket_id": str(basket_id),
+            "p_type": request.context_type.value,
+            "p_content": request.content,
+            "p_title": None,
+            "p_description": request.meta_notes,
+        }).execute()
+        context_item_id = insert_resp.data
+
         # Create tagging event
         await cls._log_tagging_event(
             target_id=request.target_id,
@@ -98,10 +84,18 @@ class ContextTaggerService:
             context_item_id=context_item_id,
             context_type=request.context_type,
             agent_id=request.agent_id,
-            basket_id=basket_id
+            basket_id=basket_id,
         )
-        
-        return insert_resp.data[0] if insert_resp.data else context_data
+
+        item_resp = (
+            supabase.table("context_items")
+            .select("*")
+            .eq("id", str(context_item_id))
+            .maybe_single()
+            .execute()
+        )
+
+        return item_resp.data if item_resp.data else {"id": str(context_item_id)}
     
     @classmethod
     async def analyze_memory_semantics(

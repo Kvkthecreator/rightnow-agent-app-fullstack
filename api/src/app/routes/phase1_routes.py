@@ -47,19 +47,22 @@ async def create_basket_input(input: BasketInputIn):
 # TODO(phase2): Currently unused. Remove or connect if frontend adopts this route.
 @router.post("/context-blocks", response_model=ContextBlockOut)
 async def promote_context_block(block: ContextBlockIn):
-    block_id = str(uuid4())
     try:
-        supabase.table("blocks").insert(
-            json_safe(
-                {
-                    "id": block_id,
-                    "basket_id": block.basket_id,
-                    "label": block.content,
-                    "content": block.content,
-                    "meta_tags": block.optional_tags,
-                }
-            )
-        ).execute()
+        workspace_resp = (
+            supabase.table("baskets")
+            .select("workspace_id")
+            .eq("id", block.basket_id)
+            .maybe_single()
+            .execute()
+        )
+        workspace_id = workspace_resp.data["workspace_id"] if workspace_resp.data else None
+        resp = supabase.rpc('fn_block_create', {
+            "p_basket_id": block.basket_id,
+            "p_workspace_id": workspace_id,
+            "p_title": block.content,
+            "p_body_md": block.content,
+        }).execute()
+        block_id = resp.data
         return {"block_id": block_id}
     except Exception as e:  # noqa: B904
         raise HTTPException(status_code=500, detail=f"Insertion failed: {e}") from e

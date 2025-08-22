@@ -54,7 +54,7 @@ async def update_block(
         # Get current block to check state and permissions
         current_resp = (
             supabase.table("blocks")
-            .select("id,state,version,workspace_id")
+            .select("id,state,version,workspace_id,basket_id")
             .eq("id", block_id)
             .eq("workspace_id", workspace_id)
             .maybe_single()
@@ -96,22 +96,17 @@ async def update_block(
             
             # Create revision record for content changes
             from datetime import datetime
-            from uuid import uuid4
-            from ..utils.db import as_json
-            
-            revision_data = {
-                "id": str(uuid4()),
-                "block_id": block_id,
-                "workspace_id": workspace_id,
-                "actor_id": user["user_id"],
-                "summary": "Content updated by user",
-                "diff_json": {
-                    "content": {"to": request.content},
-                    "timestamp": datetime.utcnow().isoformat()
-                }
+            diff_json = {
+                "content": {"to": request.content},
+                "timestamp": datetime.utcnow().isoformat(),
             }
-            
-            supabase.table("block_revisions").insert(as_json(revision_data)).execute()
+            supabase.rpc('fn_block_revision_create', {
+                "p_basket_id": current_block["basket_id"],
+                "p_block_id": block_id,
+                "p_workspace_id": workspace_id,
+                "p_summary": "Content updated by user",
+                "p_diff_json": diff_json,
+            }).execute()
         
         # Perform the update
         resp = (

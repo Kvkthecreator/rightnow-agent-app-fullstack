@@ -52,20 +52,14 @@ async def create_from_template(payload: TemplatePayload, user: dict = Depends(ve
         raise HTTPException(status_code=500, detail="internal error")
 
     for idx, file_url in enumerate(payload.files):
-        doc_id = str(uuid.uuid4())
         try:
-            supabase.table("documents").insert(
-                json_safe(
-                    {
-                        "id": doc_id,
-                        "basket_id": basket_id,
-                        "workspace_id": workspace_id,
-                        "title": tpl["doc_titles"][idx],
-                        "content_raw": "",
-                        "content_rendered": None,
-                    }
-                )
-            ).execute()
+            doc_resp = supabase.rpc('fn_document_create', {
+                "p_basket_id": basket_id,
+                "p_workspace_id": workspace_id,
+                "p_title": tpl["doc_titles"][idx],
+                "p_content_raw": "",
+            }).execute()
+            doc_id = doc_resp.data
             supabase.table("raw_dumps").insert(
                 json_safe(
                     {
@@ -83,33 +77,25 @@ async def create_from_template(payload: TemplatePayload, user: dict = Depends(ve
     seed = tpl.get("seed_block")
     if seed:
         try:
-            supabase.table("blocks").insert(
-                {
-                    "id": str(uuid.uuid4()),
-                    "basket_id": basket_id,
-                    "text": seed["text"],
-                    "scope": seed["scope"],
-                    "status": seed.get("status", "locked"),
-                }
-            ).execute()
+            supabase.rpc('fn_block_create', {
+                "p_basket_id": basket_id,
+                "p_workspace_id": workspace_id,
+                "p_title": seed.get("text"),
+                "p_body_md": seed.get("text"),
+            }).execute()
         except Exception:
             log.exception("seed block insert failed")
             raise HTTPException(status_code=500, detail="internal error")
 
     if payload.guidelines and payload.guidelines.strip():
         try:
-            supabase.table("context_items").insert(
-                json_safe(
-                    {
-                        "id": str(uuid.uuid4()),
-                        "basket_id": basket_id,
-                        "workspace_id": workspace_id,
-                        "type": "guideline",
-                        "content": payload.guidelines,
-                        "status": "active",
-                    }
-                )
-            ).execute()
+            supabase.rpc('fn_context_item_create', {
+                "p_basket_id": basket_id,
+                "p_type": "guideline",
+                "p_content": payload.guidelines,
+                "p_title": None,
+                "p_description": None,
+            }).execute()
         except Exception:
             log.exception("context item insert failed")
             raise HTTPException(status_code=500, detail="internal error")

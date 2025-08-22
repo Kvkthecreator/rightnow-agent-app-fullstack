@@ -52,30 +52,20 @@ def clone_template(template_slug: str, user_id: str, workspace_id: str, supabase
     ).execute()
 
     for blk in blocks_json:
-        supabase.table("blocks").insert(
-            json_safe(
-                {
-                    **blk,
-                    "id": blk.get("id", str(uuid.uuid4())),
-                    "basket_id": basket_id,
-                    "workspace_id": workspace_id,
-                }
-            )
-        ).execute()
+        supabase.rpc('fn_block_create', {
+            "p_basket_id": basket_id,
+            "p_workspace_id": workspace_id,
+            "p_title": blk.get("title"),
+            "p_body_md": blk.get("content"),
+        }).execute()
 
     for doc in docs:
-        supabase.table("documents").insert(
-            json_safe(
-                {
-                    "id": str(uuid.uuid4()),
-                    "basket_id": basket_id,
-                    "workspace_id": workspace_id,
-                    "title": doc["title"],
-                    "content_raw": doc["content_raw"],
-                    "content_rendered": None,
-                }
-            )
-        ).execute()
+        supabase.rpc('fn_document_create', {
+            "p_basket_id": basket_id,
+            "p_workspace_id": workspace_id,
+            "p_title": doc["title"],
+            "p_content_raw": doc["content_raw"],
+        }).execute()
 
     # TODO: queue docs->blockifier importer in follow-up task
 

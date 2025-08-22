@@ -58,25 +58,18 @@ class SubstrateOps:
         Create a document from processed content.
         Returns (document_id, version).
         """
-        doc_id = str(uuid4())
-        doc_data = {
-            "id": doc_id,
-            "basket_id": basket_id,
-            "workspace_id": workspace_id,
-            "title": title,
-            "content": content,
-            "doc_type": doc_type,
-            "source_refs": source_ids,
-            "version": 1,
-            "status": "draft"
-        }
-        
-        resp = supabase.table("documents").insert(as_json(doc_data)).execute()
-        
+        resp = supabase.rpc('fn_document_create', {
+            "p_basket_id": basket_id,
+            "p_workspace_id": workspace_id,
+            "p_title": title,
+            "p_content_raw": content,
+        }).execute()
+
         if getattr(resp, "error", None):
             logger.error(f"Failed to create document: {resp.error}")
             raise Exception(f"Failed to create document: {resp.error}")
-            
+
+        doc_id = resp.data
         return doc_id, 1
     
     @staticmethod
