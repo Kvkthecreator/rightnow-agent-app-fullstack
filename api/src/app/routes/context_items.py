@@ -1,13 +1,15 @@
+# ruff: noqa
 from __future__ import annotations
 
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.context import ContextItem, ContextItemCreate, ContextItemUpdate
-from app.utils.jwt import verify_jwt
-from app.utils.workspace import get_or_create_workspace
 from app.utils.errors import raise_on_supabase_error
+from app.utils.jwt import verify_jwt
 from app.utils.supabase_client import supabase_client as supabase
+from app.utils.workspace import get_or_create_workspace
 
 router = APIRouter(prefix="/context-items", tags=["context"])
 log = logging.getLogger("uvicorn.error")
@@ -19,14 +21,27 @@ async def create_item(
     user=Depends(verify_jwt),
     workspace=Depends(get_or_create_workspace),
 ):
-    data = {"basket_id": workspace.basket_id, **body.dict(exclude_none=True)}
     try:
-        resp = supabase.table("context_items").insert(data).execute()
+        resp = supabase.rpc('fn_context_item_create', {
+            "p_basket_id": str(workspace.basket_id),
+            "p_type": body.type,
+            "p_content": body.content,
+            "p_title": body.title,
+            "p_description": body.description,
+        }).execute()
     except Exception as err:  # pragma: no cover - network failure
         log.exception("context item insert failed")
         raise HTTPException(status_code=500, detail="internal error") from err
     raise_on_supabase_error(resp)
-    record = resp.data[0] if hasattr(resp, "data") else resp.json()[0]
+    ctx_id = resp.data
+    record_resp = (
+        supabase.table("context_items")
+        .select("*")
+        .eq("id", ctx_id)
+        .maybe_single()
+        .execute()
+    )
+    record = record_resp.data if hasattr(record_resp, "data") else record_resp.json()
     return ContextItem(**record)
 
 

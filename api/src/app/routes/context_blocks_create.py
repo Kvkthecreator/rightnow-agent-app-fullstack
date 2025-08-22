@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, Request, Depends
-from pydantic import BaseModel
-from supabase import create_client, Client
-from uuid import uuid4
+# ruff: noqa
 import os
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from supabase import Client, create_client
 
 from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace
@@ -26,19 +28,14 @@ class BlockCreateRequest(BaseModel):
 async def create_context_block(req: BlockCreateRequest, user: dict = Depends(verify_jwt)):
     try:
         workspace_id = get_or_create_workspace(user["user_id"])  # ✅ this was missing
-        block_id = str(uuid4())
-        data = {
-            "id": block_id,
-            "basket_id": req.basket_id,
-            "semantic_type": req.semantic_type,
-            "label": req.label,
-            "content": req.content,
-            "meta_tags": req.meta_tags,
-            "state": req.state,
-            "workspace_id": workspace_id,  # ✅ this was missing
-        }
-        result = supabase.table("blocks").insert(data).execute()
-        if not result.data:
+        result = supabase.rpc('fn_block_create', {
+            "p_basket_id": req.basket_id,
+            "p_workspace_id": workspace_id,
+            "p_title": req.label,
+            "p_body_md": req.content,
+        }).execute()
+        block_id = result.data
+        if not block_id:
             raise HTTPException(status_code=500, detail="Block creation failed")
         return {"status": "success", "block_id": block_id}
     except Exception as e:

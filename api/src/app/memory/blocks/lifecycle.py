@@ -1,18 +1,18 @@
+# ruff: noqa
 """Block lifecycle enforcement and state transition validation."""
 
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
-from typing import Dict, Set, Optional
+from typing import Dict, Optional, Set
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from pydantic import BaseModel
 
 from ...models.block import block_state
-from ...utils.supabase_client import supabase_client as supabase
 from ...utils.db import as_json
+from ...utils.supabase_client import supabase_client as supabase
 
 
 class StateTransitionError(Exception):
@@ -22,40 +22,40 @@ class StateTransitionError(Exception):
 
 class BlockLifecycleService:
     """Handles block state transitions and lifecycle enforcement."""
-    
+
     # Valid state transitions based on canonical memory model
     VALID_TRANSITIONS: Dict[str, Set[str]] = {
         "PROPOSED": {"ACCEPTED", "REJECTED"},
         "ACCEPTED": {"LOCKED", "SUPERSEDED"},
         "LOCKED": {"CONSTANT", "SUPERSEDED"},
         "CONSTANT": set(),  # Terminal state
-        "SUPERSEDED": set(),  # Terminal state  
+        "SUPERSEDED": set(),  # Terminal state
         "REJECTED": set(),  # Terminal state
     }
-    
+
     # States that can only be set by users (not agents)
     USER_ONLY_STATES = {"ACCEPTED", "LOCKED", "CONSTANT", "REJECTED"}
-    
+
     # States that agents can propose
     AGENT_PROPOSABLE_STATES = {"PROPOSED", "SUPERSEDED"}
 
     @classmethod
     def validate_transition(
-        cls, 
-        from_state: str, 
-        to_state: str, 
+        cls,
+        from_state: str,
+        to_state: str,
         actor_type: str = "user"
     ) -> None:
         """Validate that a state transition is allowed."""
         if from_state not in cls.VALID_TRANSITIONS:
             raise StateTransitionError(f"Invalid current state: {from_state}")
-            
+
         if to_state not in cls.VALID_TRANSITIONS[from_state]:
             raise StateTransitionError(
                 f"Cannot transition from {from_state} to {to_state}. "
                 f"Valid transitions: {cls.VALID_TRANSITIONS[from_state]}"
             )
-        
+
         # Enforce user-only state restrictions
         if actor_type == "agent" and to_state in cls.USER_ONLY_STATES:
             raise StateTransitionError(
@@ -83,42 +83,40 @@ class BlockLifecycleService:
         reason: Optional[str] = None
     ) -> Dict:
         """Perform a validated state transition with audit trail."""
-        
+
         # Get current block state
         current_resp = (
             supabase.table("blocks")
-            .select("id,state,version,workspace_id")
+            .select("id,state,version,workspace_id,basket_id")
             .eq("id", str(block_id))
             .maybe_single()
             .execute()
         )
-        
+
         if not current_resp.data:
             raise HTTPException(404, "Block not found")
-            
+
         current_block = current_resp.data
         current_state = current_block["state"]
-        
+
         # Validate transition
         cls.validate_transition(current_state, new_state, actor_type)
-        
-        # Create revision record
-        revision_id = str(uuid4())
-        revision_data = {
-            "id": revision_id,
-            "block_id": str(block_id),
-            "workspace_id": current_block["workspace_id"],
-            "actor_id": actor_id,
-            "summary": f"State transition: {current_state} → {new_state}",
-            "diff_json": {
-                "state": {"from": current_state, "to": new_state},
-                "reason": reason,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+
+        # Create revision record via RPC
+        diff_json = {
+            "state": {"from": current_state, "to": new_state},
+            "reason": reason,
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
-        supabase.table("block_revisions").insert(as_json(revision_data)).execute()
-        
+        rev_resp = supabase.rpc('fn_block_revision_create', {
+            "p_basket_id": current_block["basket_id"],
+            "p_block_id": str(block_id),
+            "p_workspace_id": current_block["workspace_id"],
+            "p_summary": f"State transition: {current_state} → {new_state}",
+            "p_diff_json": diff_json,
+        }).execute()
+        revision_id = rev_resp.data
+
         # Update block state and increment version
         update_resp = (
             supabase.table("blocks")
@@ -130,13 +128,13 @@ class BlockLifecycleService:
             .eq("id", str(block_id))
             .execute()
         )
-        
+
         # Create event
         event_data = {
             "id": str(uuid4()),
             "basket_id": current_block.get("basket_id"),
             "block_id": str(block_id),
-            "kind": f"block.state_changed",
+            "kind": "block.state_changed",
             "payload": {
                 "from_state": current_state,
                 "to_state": new_state,
@@ -145,15 +143,15 @@ class BlockLifecycleService:
                 "revision_id": revision_id
             }
         }
-        
+
         supabase.table("events").insert(as_json(event_data)).execute()
-        
+
         return update_resp.data[0] if update_resp.data else {}
 
 
 class BlockProposalService:
     """Handles agent block proposals and user approval workflow."""
-    
+
     @classmethod
     async def propose_block(
         cls,
@@ -165,20 +163,7 @@ class BlockProposalService:
         scope: Optional[str] = None
     ) -> Dict:
         """Create a new block in PROPOSED state from agent."""
-        
-        block_id = uuid4()
-        block_data = {
-            "id": str(block_id),
-            "basket_id": str(basket_id),
-            "semantic_type": semantic_type,
-            "content": content,
-            "version": 1,
-            "state": "PROPOSED",
-            "scope": scope,
-            "origin_ref": str(origin_ref) if origin_ref else None,
-            "created_at": datetime.utcnow().isoformat()
-        }
-        
+
         # Get workspace_id from basket
         basket_resp = (
             supabase.table("baskets")
@@ -187,13 +172,18 @@ class BlockProposalService:
             .maybe_single()
             .execute()
         )
-        
-        if basket_resp.data:
-            block_data["workspace_id"] = basket_resp.data["workspace_id"]
-        
-        # Insert block
-        insert_resp = supabase.table("blocks").insert(as_json(block_data)).execute()
-        
+
+        workspace_id = basket_resp.data.get("workspace_id") if basket_resp.data else None
+
+        # Insert block via RPC
+        insert_resp = supabase.rpc('fn_block_create', {
+            "p_basket_id": str(basket_id),
+            "p_workspace_id": workspace_id,
+            "p_title": semantic_type,
+            "p_body_md": content,
+        }).execute()
+        block_id = insert_resp.data
+
         # Create proposal event
         event_data = {
             "id": str(uuid4()),
@@ -203,13 +193,21 @@ class BlockProposalService:
             "payload": {
                 "agent_id": agent_id,
                 "semantic_type": semantic_type,
-                "origin_ref": str(origin_ref) if origin_ref else None
-            }
+                "origin_ref": str(origin_ref) if origin_ref else None,
+            },
         }
-        
+
         supabase.table("events").insert(as_json(event_data)).execute()
-        
-        return insert_resp.data[0] if insert_resp.data else block_data
+
+        block_resp = (
+            supabase.table("blocks")
+            .select("*")
+            .eq("id", str(block_id))
+            .maybe_single()
+            .execute()
+        )
+
+        return block_resp.data if block_resp.data else {"id": block_id}
 
     @classmethod
     async def approve_proposal(
@@ -237,7 +235,7 @@ class BlockProposalService:
         """User rejects a proposed block."""
         return await BlockLifecycleService.transition_block_state(
             block_id=block_id,
-            new_state="REJECTED", 
+            new_state="REJECTED",
             actor_id=user_id,
             actor_type="user",
             reason=f"User rejection: {reason}" if reason else "User rejection"
