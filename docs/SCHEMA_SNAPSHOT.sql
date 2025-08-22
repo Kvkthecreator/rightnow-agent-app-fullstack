@@ -103,23 +103,6 @@ CREATE SEQUENCE public.basket_events_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.basket_events_id_seq OWNED BY public.basket_events.id;
-CREATE TABLE public.basket_history (
-    id bigint NOT NULL,
-    basket_id uuid NOT NULL,
-    ts timestamp with time zone DEFAULT now() NOT NULL,
-    kind text NOT NULL,
-    ref_id uuid,
-    preview text,
-    payload jsonb,
-    CONSTRAINT basket_history_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text])))
-);
-CREATE SEQUENCE public.basket_history_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-ALTER SEQUENCE public.basket_history_id_seq OWNED BY public.basket_history.id;
 CREATE TABLE public.basket_reflections (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid NOT NULL,
@@ -284,6 +267,23 @@ CREATE TABLE public.substrate_relationships (
     created_at timestamp with time zone DEFAULT now()
 );
 ALTER TABLE ONLY public.substrate_relationships REPLICA IDENTITY FULL;
+CREATE TABLE public.timeline_events (
+    id bigint NOT NULL,
+    basket_id uuid NOT NULL,
+    ts timestamp with time zone DEFAULT now() NOT NULL,
+    kind text NOT NULL,
+    ref_id uuid,
+    preview text,
+    payload jsonb,
+    CONSTRAINT basket_history_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text])))
+);
+CREATE SEQUENCE public.timeline_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ALTER SEQUENCE public.timeline_events_id_seq OWNED BY public.timeline_events.id;
 CREATE TABLE public.workspace_memberships (
     id bigint NOT NULL,
     workspace_id uuid,
@@ -310,14 +310,12 @@ CREATE TABLE public.workspaces (
     created_at timestamp with time zone DEFAULT now()
 );
 ALTER TABLE ONLY public.basket_events ALTER COLUMN id SET DEFAULT nextval('public.basket_events_id_seq'::regclass);
-ALTER TABLE ONLY public.basket_history ALTER COLUMN id SET DEFAULT nextval('public.basket_history_id_seq'::regclass);
+ALTER TABLE ONLY public.timeline_events ALTER COLUMN id SET DEFAULT nextval('public.timeline_events_id_seq'::regclass);
 ALTER TABLE ONLY public.workspace_memberships ALTER COLUMN id SET DEFAULT nextval('public.workspace_memberships_id_seq'::regclass);
 ALTER TABLE ONLY public.basket_deltas
     ADD CONSTRAINT basket_deltas_pkey PRIMARY KEY (delta_id);
 ALTER TABLE ONLY public.basket_events
     ADD CONSTRAINT basket_events_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.basket_history
-    ADD CONSTRAINT basket_history_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.basket_reflections
     ADD CONSTRAINT basket_reflections_pkey PRIMARY KEY (id);
 ALTER TABLE public.baskets
@@ -348,6 +346,8 @@ ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.substrate_relationships
     ADD CONSTRAINT substrate_relationships_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.timeline_events
+    ADD CONSTRAINT timeline_events_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_memberships
@@ -380,7 +380,7 @@ CREATE INDEX idx_events_agent_type ON public.events USING btree (agent_type);
 CREATE INDEX idx_events_basket_kind_ts ON public.events USING btree (basket_id, kind, ts);
 CREATE INDEX idx_events_origin_kind ON public.events USING btree (origin, kind);
 CREATE INDEX idx_events_workspace_ts ON public.events USING btree (workspace_id, ts DESC);
-CREATE INDEX idx_history_basket_ts ON public.basket_history USING btree (basket_id, ts DESC, id DESC);
+CREATE INDEX idx_history_basket_ts ON public.timeline_events USING btree (basket_id, ts DESC, id DESC);
 CREATE INDEX idx_idem_delta_id ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_idempotency_delta ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_idempotency_keys_delta_id ON public.idempotency_keys USING btree (delta_id);
@@ -393,14 +393,13 @@ CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
 CREATE INDEX idx_reflections_basket_ts ON public.basket_reflections USING btree (basket_id, computed_at DESC);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
 CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
+CREATE INDEX timeline_events_basket_ts_idx ON public.timeline_events USING btree (basket_id, ts DESC);
 CREATE UNIQUE INDEX uq_baskets_user_idem ON public.baskets USING btree (user_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
 CREATE UNIQUE INDEX uq_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
 CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (basket_id, ingest_trace_id) WHERE (ingest_trace_id IS NOT NULL);
 CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
-ALTER TABLE ONLY public.basket_history
-    ADD CONSTRAINT basket_history_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.basket_reflections
     ADD CONSTRAINT basket_reflections_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.block_links
@@ -457,6 +456,8 @@ ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.substrate_relationships
     ADD CONSTRAINT substrate_relationships_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
+ALTER TABLE ONLY public.timeline_events
+    ADD CONSTRAINT timeline_events_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_memberships
@@ -542,7 +543,6 @@ CREATE POLICY "allow agent insert" ON public.revisions FOR INSERT TO authenticat
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
 ALTER TABLE public.basket_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.basket_history ENABLE ROW LEVEL SECURITY;
 CREATE POLICY basket_member_delete ON public.baskets FOR DELETE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -560,14 +560,14 @@ ALTER TABLE public.baskets ENABLE ROW LEVEL SECURITY;
 CREATE POLICY baskets_insert_members ON public.baskets FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
-CREATE POLICY bh_insert_by_workspace ON public.basket_history FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
+CREATE POLICY bh_insert_by_workspace ON public.timeline_events FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships m ON ((m.workspace_id = b.workspace_id)))
-  WHERE ((b.id = basket_history.basket_id) AND (m.user_id = auth.uid())))));
-CREATE POLICY bh_select_by_workspace ON public.basket_history FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+  WHERE ((b.id = timeline_events.basket_id) AND (m.user_id = auth.uid())))));
+CREATE POLICY bh_select_by_workspace ON public.timeline_events FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships m ON ((m.workspace_id = b.workspace_id)))
-  WHERE ((b.id = basket_history.basket_id) AND (m.user_id = auth.uid())))));
+  WHERE ((b.id = timeline_events.basket_id) AND (m.user_id = auth.uid())))));
 CREATE POLICY block_member_delete ON public.blocks FOR DELETE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -617,7 +617,7 @@ CREATE POLICY ctx_member_update ON public.context_items FOR UPDATE USING ((baske
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE (wm.user_id = auth.uid()))));
 CREATE POLICY "debug insert bypass" ON public.workspaces FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "delete history by service role" ON public.basket_history FOR DELETE USING ((auth.role() = 'service_role'::text));
+CREATE POLICY "delete history by service role" ON public.timeline_events FOR DELETE USING ((auth.role() = 'service_role'::text));
 CREATE POLICY "delete reflections by service role" ON public.basket_reflections FOR DELETE USING ((auth.role() = 'service_role'::text));
 CREATE POLICY dump_member_read ON public.raw_dumps FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -636,10 +636,10 @@ CREATE POLICY member_self_insert ON public.workspace_memberships FOR INSERT TO a
 CREATE POLICY raw_dumps_workspace_insert ON public.raw_dumps FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
-CREATE POLICY "read history by workspace members" ON public.basket_history FOR SELECT USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+CREATE POLICY "read history by workspace members" ON public.timeline_events FOR SELECT USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.v_user_workspaces m ON ((m.workspace_id = b.workspace_id)))
-  WHERE ((b.id = basket_history.basket_id) AND (m.user_id = auth.uid()))))));
+  WHERE ((b.id = timeline_events.basket_id) AND (m.user_id = auth.uid()))))));
 CREATE POLICY "read reflections by workspace members" ON public.basket_reflections FOR SELECT USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.v_user_workspaces m ON ((m.workspace_id = b.workspace_id)))
@@ -665,11 +665,20 @@ CREATE POLICY select_own_revisions ON public.revisions FOR SELECT TO authenticat
 CREATE POLICY "service role ALL access" ON public.raw_dumps TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service role full access" ON public.baskets TO service_role USING (true);
 CREATE POLICY "service role full access" ON public.raw_dumps TO service_role USING (true);
-CREATE POLICY "update history by service role" ON public.basket_history FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
+CREATE POLICY "timeline insert: workspace member" ON public.timeline_events FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships m ON ((m.workspace_id = b.workspace_id)))
+  WHERE ((b.id = timeline_events.basket_id) AND (m.user_id = auth.uid())))));
+CREATE POLICY "timeline read: workspace member" ON public.timeline_events FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships m ON ((m.workspace_id = b.workspace_id)))
+  WHERE ((b.id = timeline_events.basket_id) AND (m.user_id = auth.uid())))));
+ALTER TABLE public.timeline_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "update history by service role" ON public.timeline_events FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
 CREATE POLICY "update reflections by service role" ON public.basket_reflections FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
 ALTER TABLE public.workspace_memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "write history by service role" ON public.basket_history FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
+CREATE POLICY "write history by service role" ON public.timeline_events FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
 CREATE POLICY "write reflections by service role" ON public.basket_reflections FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
 CREATE POLICY ws_owner_delete ON public.workspaces FOR DELETE USING ((owner_id = auth.uid()));
 CREATE POLICY ws_owner_or_member_read ON public.workspaces FOR SELECT USING (((owner_id = auth.uid()) OR (id IN ( SELECT workspace_memberships.workspace_id
