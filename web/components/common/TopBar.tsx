@@ -1,13 +1,13 @@
 "use client";
 
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
-import { useSidebarStore } from "@/lib/stores/sidebarStore";
+import { useNavState } from "@/components/nav/useNavState";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import React from "react";
 
 export default function TopBar() {
-  const { toggleSidebar } = useSidebarStore();
+  const { toggle, open } = useNavState();
   const pathname = usePathname();
 
   const pageTitle = React.useMemo(() => {
@@ -20,14 +20,18 @@ export default function TopBar() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 flex h-12 items-center gap-2 border-b bg-background/70 px-3 backdrop-blur"
+        "sticky top-0 z-[70] flex h-12 items-center gap-2 border-b bg-background/70 px-3 backdrop-blur"
       )}
     >
       <button
+        type="button"
         aria-label="Toggle sidebar"
-        onClick={toggleSidebar}
-        className="p-2 rounded-md hover:bg-muted transition"
+        aria-controls="global-sidebar"
+        aria-expanded={open}
+        onClick={toggle}
+        className="relative z-[60] p-2 rounded-md hover:bg-muted transition"
       >
+        <span className="sr-only">Toggle navigation</span>
         <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
       </button>
 

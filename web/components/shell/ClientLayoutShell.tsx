@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Sidebar from "@/app/components/shell/Sidebar";
 import TopBar from "@/components/common/TopBar";
 import type { ReactNode } from "react";
+import { NavStateProvider } from "@/components/nav/useNavState";
 
 // These routes will show the sidebar in addition to /baskets routes
 const SHOW_SIDEBAR_ROUTES = [
@@ -41,13 +42,17 @@ export default function ClientLayoutShell({ children }: { children: ReactNode })
     return <>{children}</>;
   }
 
+  const basketId = pathname?.match(/^\/baskets\/([^/]+)/)?.[1];
+
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex flex-col flex-1">
-        <TopBar />
-        <main className="flex-1">{children}</main>
+    <NavStateProvider basketId={basketId}>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <div className="flex flex-col flex-1">
+          <TopBar />
+          <main className="flex-1">{children}</main>
+        </div>
       </div>
-    </div>
+    </NavStateProvider>
   );
 }

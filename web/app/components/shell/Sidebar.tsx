@@ -8,7 +8,7 @@ import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
 import type { BasketOverview } from "@/lib/baskets/getAllBaskets";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
-import { useSidebarStore } from "@/lib/stores/sidebarStore";
+import { useNavState } from "@/components/nav/useNavState";
 import { SECTION_ORDER } from "@/components/features/baskets/sections";
 
 interface SidebarProps {
@@ -18,8 +18,7 @@ interface SidebarProps {
 const supabase = createBrowserClient();
 
 export default function Sidebar({ className }: SidebarProps) {
-  const { isVisible, collapsible, toggleSidebar, closeSidebar, openSidebar, setCollapsible } =
-    useSidebarStore();
+  const { open, setOpen, toggle } = useNavState();
   const pathname = usePathname();
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -34,34 +33,33 @@ export default function Sidebar({ className }: SidebarProps) {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      setCollapsible(mobile);
 
       // On mobile, sidebar should be hidden by default
-      if (mobile && isVisible) {
-        closeSidebar();
+      if (mobile && open) {
+        setOpen(false);
       }
     };
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
-  }, [setCollapsible, closeSidebar, isVisible]);
+  }, [open, setOpen]);
 
   // Persist sidebar visibility (desktop only)
   useEffect(() => {
     if (typeof window === "undefined" || isMobile) return;
     const stored = localStorage.getItem("yarnnn:sidebar:visible");
     if (stored === "false") {
-      closeSidebar();
+      setOpen(false);
     } else {
-      openSidebar();
+      setOpen(true);
     }
-  }, [closeSidebar, openSidebar, isMobile]);
+  }, [isMobile, setOpen]);
 
   useEffect(() => {
     if (typeof window === "undefined" || isMobile) return;
-    localStorage.setItem("yarnnn:sidebar:visible", String(isVisible));
-  }, [isVisible, isMobile]);
+    localStorage.setItem("yarnnn:sidebar:visible", String(open));
+  }, [open, isMobile]);
 
   useEffect(() => {
     async function init() {
@@ -82,19 +80,17 @@ export default function Sidebar({ className }: SidebarProps) {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      // Handle dropdown clicks
       if (openDropdown && dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpenDropdown(false);
       }
 
-      // Handle mobile sidebar overlay clicks
-      if (isMobile && isVisible && !(e.target as HTMLElement).closest(".sidebar")) {
-        closeSidebar();
+      if (isMobile && open && !(e.target as HTMLElement).closest(".sidebar")) {
+        setOpen(false);
       }
     }
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, [openDropdown, isMobile, isVisible, closeSidebar]);
+  }, [openDropdown, isMobile, open, setOpen]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -105,7 +101,7 @@ export default function Sidebar({ className }: SidebarProps) {
     try {
       router.push(href);
       if (isMobile) {
-        closeSidebar();
+        setOpen(false);
       }
     } catch (error) {
       console.error("❌ Sidebar: Failed to navigate to section:", error);
@@ -117,7 +113,7 @@ export default function Sidebar({ className }: SidebarProps) {
       router.push("/dashboard/settings");
       // Close sidebar on mobile after navigation
       if (isMobile) {
-        closeSidebar();
+        setOpen(false);
       }
     } catch (error) {
       console.error("❌ Sidebar: Failed to navigate to settings:", error);
@@ -129,23 +125,23 @@ export default function Sidebar({ className }: SidebarProps) {
   return (
     <>
       {/* Mobile overlay */}
-      {isMobile && isVisible && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
-          onClick={closeSidebar}
-          aria-hidden="true"
-        />
-      )}
+      <div
+        aria-hidden="true"
+        className={cn(
+          "fixed inset-0 md:hidden transition-opacity duration-200 z-50",
+          open ? "opacity-100 pointer-events-auto bg-black/50" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setOpen(false)}
+      />
 
       {/* Sidebar */}
       <aside
+        id="global-sidebar"
         className={cn(
           "sidebar h-screen w-64 bg-background border-r border-border transition-transform duration-300 flex flex-col",
-          isMobile ? "fixed top-0 left-0 z-40 shadow-lg" : "relative",
-          isVisible ? "translate-x-0" : "-translate-x-full",
-          // On desktop, show/hide based on isVisible
-          // On mobile, always transform but use z-index and overlay
-          !isVisible && !isMobile && "hidden",
+          isMobile ? "fixed top-0 left-0 z-[55] shadow-lg" : "relative",
+          open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          !open && !isMobile && "hidden",
           className,
         )}
       >
@@ -162,7 +158,7 @@ export default function Sidebar({ className }: SidebarProps) {
             yarnnn
           </button>
           <button
-            onClick={toggleSidebar}
+            onClick={toggle}
             aria-label="Toggle sidebar"
             className="p-1.5 rounded hover:bg-muted transition"
           >
