@@ -12,11 +12,11 @@ export async function createDump({ basketId, text, fileUrls }: CreateDumpInput):
     text_dump: text,
     file_urls: fileUrls,
   };
-  const res = await apiClient({
+  const res = (await apiClient({
     url: '/api/dumps/new',
     method: 'POST',
     body,
     signal: timeoutSignal(20000),
-  });
-  return { dumpId: res.dump_id as string, eventId: res.event_id as string };
+  })) as { dump_id: string; event_id: string };
+  return { dumpId: res.dump_id, eventId: res.event_id };
 }
