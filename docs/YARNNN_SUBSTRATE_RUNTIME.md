@@ -1,0 +1,142 @@
+# YARNNN_SUBSTRATE_RUNTIME.md
+Version: 1.0
+Status: Canon — Runtime Boundaries
+
+## Purpose
+Operational runtime for Yarnnn with **strict pipeline separation** and **memory-first** discipline. Defines what each pipeline may/may-not do, allowed RPCs, event contracts, and verification.
+
+---
+
+## Pipelines Overview
+
+| Pipeline | Purpose | Allowed Writes | Disallowed | Emits |
+|---|---|---|---|---|
+| **P0 Capture** | Immutable ingestion of raw memory | `raw_dumps` | context_items, blocks, relationships, reflections, docs | `dump.created` |
+| **P1 Substrate CRUD** | Create/update substrate atoms: **context_items**, **blocks** (delta-first) | `context_items`, `context_blocks`, `block_revisions` | relationships, reflections, docs | `context.bulk_tagged`, `block.proposed|accepted|revised` |
+| **P2 Graph Fabric** | Materialize typed, directional edges | `substrate_relationships` | substrate writes, reflections, docs | `rel.bulk_upserted` |
+| **P3 Signals/Reflections** | Compute derived signals from projection | *(none by default; optional cache)* | substrate/graph/doc writes | `reflection.computed` (if cached) |
+| **P4 Presentation** | Author narrative and compose documents | `documents` (+joins) | substrate/graph writes | `doc.created|updated` |
+
+> **Narrative is downstream (P4)**: it consumes substrate/graph; it is not part of substrate CRUD. If atomized "rememberable prose" is needed, use `context_item.kind='cue'` in P1.
+
+---
+
+## Allowed RPCs Matrix
+
+| Pipeline | Allowed RPCs |
+|---|---|
+| P0 | `fn_ingest_dumps` |
+| P1 | `fn_context_item_upsert_bulk`, `fn_block_create`, `fn_block_revision_create` |
+| P2 | `fn_relationship_upsert_bulk` |
+| P3 | *(none)* `fn_reflection_cache_upsert` *(optional)* |
+| P4 | `fn_document_create`, `fn_document_attach_block`, `fn_document_attach_context_item` |
+
+---
+
+## Consumes ⟷ Emits (Event Contracts)
+
+| Pipeline | Consumes | Emits |
+|---|---|---|
+| P0 | — | `dump.created` |
+| P1 | `dump.created` | `context.bulk_tagged`, `block.proposed|accepted|revised` |
+| P2 | `dump.created`, `context.bulk_tagged`, `block.*` | `rel.bulk_upserted` |
+| P3 | `rel.bulk_upserted` *(or schedule)* | `reflection.computed` *(if cached)* |
+| P4 | user/agent action | `doc.created`, `doc.updated` |
+
+**Event payloads (small)**  
+- `dump.created`: `{ basket_id, dump_id, preview }`  
+- `context.bulk_tagged`: `{ basket_id, dump_id, counts_by_kind }`  
+- `block.proposed`: `{ basket_id, block_id, signature_hash }`  
+- `rel.bulk_upserted`: `{ basket_id, created, ignored }`  
+- `reflection.computed`: `{ basket_id, meta_derived_from }`  
+- `doc.created`: `{ basket_id, doc_id, document_type }`
+
+---
+
+## Sequence Diagrams
+
+### P0 — Capture
+```mermaid
+sequenceDiagram
+participant FE as Frontend
+participant API as API (P0)
+participant DB as DB (RPC/Triggers)
+FE->>API: POST /api/dumps/new
+API->>DB: fn_ingest_dumps(payload)
+DB-->>API: dump_id
+DB-->>DB: emit timeline: dump.created
+API-->>FE: { dump_id }
+```
+
+### P1 — Substrate CRUD (Delta-first)
+```mermaid
+sequenceDiagram
+participant P1 as P1 Threader/Resolver
+participant DB as DB
+P1->>DB: READ basket snapshot (CTX_INDEX, BLOCK_INDEX)
+P1->>P1: extract candidates from dump
+P1->>P1: resolve vs snapshot (create/attach/revise/ignore)
+P1->>DB: fn_context_item_upsert_bulk(items, delta_id)
+P1->>DB: fn_block_create / fn_block_revision_create (optional)
+DB-->>P1: ids, counts
+DB-->>DB: emit context.bulk_tagged / block.*
+```
+
+### P2 — Graph Fabric
+```mermaid
+sequenceDiagram
+participant EV as Event Bus
+participant P2 as P2 Graph Worker
+participant DB as DB
+EV-->>P2: dump.created / context.bulk_tagged / block.*
+P2->>DB: fn_relationship_upsert_bulk(edges, idem_key)
+DB-->>P2: counts
+DB-->>DB: emit rel.bulk_upserted
+```
+
+### P3 — Signals/Reflections
+```mermaid
+sequenceDiagram
+participant EV as Event Bus
+participant P3 as P3 Signals
+participant DB as DB
+EV-->>P3: rel.bulk_upserted (or schedule)
+P3->>DB: READ projection (graph + recent dumps)
+P3->>P3: compute reflections
+P3->>DB: (optional) cache upsert
+DB-->>DB: emit reflection.computed
+```
+
+### P4 — Presentation
+```mermaid
+sequenceDiagram
+participant UI as UI/User/Agent
+participant P4 as P4 Docs Service
+participant DB as DB
+UI->>P4: request narrative/doc
+P4->>DB: fn_document_create (+joins)
+DB-->>P4: doc_id
+DB-->>DB: emit doc.created
+P4-->>UI: doc_id
+```
+
+---
+
+## Guardrails & Enforcement
+- **Folder boundaries**: `api/pipelines/p0_capture`, `/p1_substrate`, `/p2_graph`, `/p3_signals`, `/p4_presentation`
+- **RPC allow-lists** (per pipeline)
+- **DB roles** (optional): `substrate_writer`, `graph_writer`, `derived_writer`, `presentation_writer`
+- **CI check**: fail if a pipeline calls a forbidden RPC or writes disallowed tables.
+
+---
+
+## Acceptance (self-revealing)
+- File exists and includes headings:
+  - P0 Capture, P1 Substrate CRUD, P2 Graph, P3 Signals, P4 Presentation, Allowed RPCs, Consumes ⟷ Emits.
+- Mermaid blocks render locally in preview.
+- `rg -n "P0 Capture|P1 Substrate CRUD|Allowed RPCs|Consumes ⟷ Emits" docs/YARNNN_SUBSTRATE_RUNTIME.md`
+
+---
+
+## Commit
+docs: add YARNNN_SUBSTRATE_RUNTIME with 5-pipeline boundaries, RPC matrix, and event contracts
