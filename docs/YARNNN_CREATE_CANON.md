@@ -6,7 +6,7 @@
 - **Input:** `{ basket_id, text_dump, client_ts? }`
 - **Write:** `raw_dumps` (immutable)
 - **Emit:** `dump.created` (payload: `{ dump_id, basket_id, user_id, created_at }`)
-- **Memory Flow:** dump.created → triggers reflection computation → INSERT basket_reflections → basket_history
+- **Memory Flow:** dump.created → triggers reflection computation → INSERT basket_reflections → timeline_events
 - **No side effects here:** no reflections/narrative computed in this step.
 
 ## Notes

@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
 // ============================================================================
 
 /**
- * GET /api/changes - Retrieve change history and pending changes
+ * GET /api/changes - Retrieve change timeline and pending changes
  */
 export async function GET(request: NextRequest) {
   try {
@@ -283,9 +283,9 @@ export async function GET(request: NextRequest) {
     const { data: events, error: queryError } = await query;
 
     if (queryError) {
-      console.error('Failed to fetch change history:', queryError);
+      console.error('Failed to fetch change timeline:', queryError);
       return NextResponse.json(
-        { error: 'Failed to fetch change history' },
+        { error: 'Failed to fetch change timeline' },
         { status: 500 }
       );
     }
@@ -312,7 +312,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Change history API error:', error);
+    console.error('Change timeline API error:', error);
     return NextResponse.json(
       { 
         error: 'Internal server error',

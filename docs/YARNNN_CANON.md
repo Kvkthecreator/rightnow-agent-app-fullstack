@@ -9,7 +9,7 @@
 
 ### Roles (unchanged, clarified)
 - **Substrate (objective)**: `raw_dumps`, `context_items`, `substrate_relationships`, `blocks`.
-- **Memory Plane**: `basket_reflections` (durable), `basket_history` (append-only stream).
+- **Memory Plane**: `basket_reflections` (durable), `timeline_events` (append-only stream).
 - **Reflection (derived)**: pattern/tension/question computed at read-time from substrate.
 - **Narrative (authored)**: agent-written short text that cites substrate signals.
 

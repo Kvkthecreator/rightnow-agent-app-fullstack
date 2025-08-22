@@ -1,29 +1,58 @@
-import { NextRequest, NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
 
-interface RouteContext {
-  params: Promise<{ id: string }>;
-}
+import { NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
+import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 
-export async function GET(
-  _req: NextRequest,
-  ctx: RouteContext
-) {
-  const { id } = await ctx.params;
-  if (process.env.MOCK_BASKET_API) {
-    return NextResponse.json({
-      items: [
-        {
-          ts: new Date().toISOString(),
-          type: "delta",
-          summary: "Accepted update to Marketing Plan",
-        },
-        {
-          ts: new Date().toISOString(),
-          type: "event",
-          summary: "Dump added from Figma notes",
-        },
-      ],
-    });
-  }
-  return NextResponse.json({ items: [] });
+type Q = { limit?: string|null; before?: string|null; kind?: string|string[]|null };
+
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = createServerSupabaseClient();
+  const { userId } = await getAuthenticatedUser(supabase);
+  const ws = await ensureWorkspaceForUser(userId, supabase);
+
+  // Validate basket in this workspace (RLS still protects)
+  const { data: basket, error: bErr } = await supabase
+    .from('baskets')
+    .select('id')
+    .eq('id', id)
+    .eq('workspace_id', ws.id)
+    .maybeSingle();
+
+  if (bErr) return NextResponse.json({ error: bErr.message }, { status: 400 });
+  if (!basket) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+
+  // Query params
+  const url = new URL(req.url);
+  const qp: Q = {
+    limit: url.searchParams.get('limit'),
+    before: url.searchParams.get('before'),
+    kind: url.searchParams.getAll('kind')?.length
+      ? url.searchParams.getAll('kind')
+      : url.searchParams.get('kind'),
+  };
+
+  const limitRaw = Number.parseInt(qp.limit ?? '50', 10);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(limitRaw, 200)) : 50;
+
+  let q = supabase
+    .from('timeline_events') // ✅ use new table
+    .select('id, basket_id, ts, kind, ref_id, preview, payload')
+    .eq('basket_id', id)
+    .order('ts', { ascending: false })
+    .limit(limit);
+
+  if (qp.before) q = q.lt('ts', qp.before);
+  const kinds = Array.isArray(qp.kind) ? qp.kind : qp.kind ? [qp.kind] : [];
+  if (kinds.length) q = q.in('kind', kinds);
+
+  const { data, error } = await q;
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const next_before = data && data.length ? data[data.length - 1].ts : null;
+  return NextResponse.json({ items: data ?? [], next_before });
 }

@@ -4,7 +4,7 @@ import React, { Suspense, type ErrorInfo } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 
 interface CenterSkeletonProps {
-  type?: 'dashboard' | 'blocks' | 'documents' | 'context' | 'insights' | 'history';
+  type?: 'dashboard' | 'blocks' | 'documents' | 'context' | 'insights' | 'timeline';
 }
 
 function CenterSkeleton({ type = 'dashboard' }: CenterSkeletonProps) {
@@ -53,7 +53,7 @@ function CenterSkeleton({ type = 'dashboard' }: CenterSkeletonProps) {
         </>
       )}
       
-      {type === 'history' && (
+      {type === 'timeline' && (
         <>
           {/* Timeline skeleton */}
           <div className="space-y-6">

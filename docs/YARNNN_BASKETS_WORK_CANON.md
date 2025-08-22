@@ -9,7 +9,7 @@ Users return to see:
 2) **The most important next move** (bounded, reviewable suggestion)
 
 ## Authority
-- Memory reflections: server computes → `basket_reflections` → `basket_history` → `events`
+- Memory reflections: server computes → `basket_reflections` → `timeline_events` → `events`
 - Frontend mirrors durable state; no client-side synthesis
 
 ## Pages & Panels

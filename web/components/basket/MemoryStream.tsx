@@ -1,34 +1,34 @@
 /**
  * Component: MemoryStream
- * @contract input : HistoryPage
+ * @contract input : TimelinePage
  * Renders fields: ts, kind, preview, payload (text/reflection fields)
  */
 "use client";
 
-import { useBasketHistory } from "@/lib/hooks/useBasketHistory";
-import type { HistoryItem } from "@shared/contracts/memory";
+import { useBasketTimeline } from "@/lib/hooks/useBasketTimeline";
+import type { TimelineItem } from "@/lib/api/timeline";
 
 export function MemoryStream({ basketId }: { basketId: string }) {
-  const { data: historyPage, error } = useBasketHistory(basketId);
+  const { data: timelinePage, error } = useBasketTimeline(basketId);
 
   if (error) {
     return <div className="p-4 text-sm text-red-500">Failed to load memory stream</div>;
   }
 
-  if (!historyPage?.items || historyPage.items.length === 0) {
+  if (!timelinePage?.items || timelinePage.items.length === 0) {
     return <div className="p-4 text-sm text-muted-foreground">Add a note to see what emerges.</div>;
   }
 
   return (
     <ul className="space-y-2">
-      {historyPage.items.map((item) => (
+      {timelinePage.items.map((item) => (
         <MemoryItem key={`${item.kind}-${item.ref_id}`} item={item} />
       ))}
     </ul>
   );
 }
 
-function MemoryItem({ item }: { item: HistoryItem }) {
+function MemoryItem({ item }: { item: TimelineItem }) {
   return (
     <li className="border rounded p-3">
       <div className="flex items-center gap-2 mb-1">

@@ -9,7 +9,6 @@ export const runtime = "nodejs";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { CreateDumpReqSchema } from "@/lib/schemas/dumps";
-import { appendDumpToHistory } from "@/app/_server/memory/appendDumpToHistory";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 
 export async function POST(req: Request) {
@@ -132,9 +131,6 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-
-    // Append to history (Memory-First)
-    await appendDumpToHistory(basket_id, dump);
 
     // Emit event
     await supabase.from("events").insert({
