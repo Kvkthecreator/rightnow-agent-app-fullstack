@@ -24,9 +24,9 @@ export async function uploadFile(file: File, path: string, bucket = 'block-files
   if (error || !data) {
     throw new Error(`File upload failed: ${error?.message ?? 'no data returned'}`);
   }
-  const { data: urlData, error: urlError } = supabase.storage.from(bucket).getPublicUrl(path);
-  if (urlError || !urlData?.publicUrl) {
-    throw new Error(`Failed to retrieve public URL: ${urlError?.message ?? 'unknown error'}`);
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+  if (!urlData?.publicUrl) {
+    throw new Error('Failed to retrieve public URL');
   }
   return urlData.publicUrl;
 }
