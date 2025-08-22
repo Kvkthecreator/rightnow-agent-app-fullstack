@@ -7,40 +7,44 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import { z } from "zod";
 
-const InputSchema = z.object({
+const BaseSchema = z.object({
   basket_id: z.string().uuid(),
-  text_dump: z.string().min(1),
+  text_dump: z.string().min(1).optional(),
   file_urls: z.array(z.string().url()).optional(),
+  source_meta: z.record(z.any()).optional(),
+  ingest_trace_id: z.string().uuid().optional(),
+  dump_request_id: z.string().uuid(), // REQUIRED for idempotency
 });
+
+// require at least one of text_dump or file_urls
+const InputSchema = BaseSchema.refine(
+  (d) => (d.text_dump && d.text_dump.trim().length > 0) || (d.file_urls && d.file_urls.length > 0),
+  { message: "Provide text_dump or file_urls" }
+);
 
 export async function POST(req: Request) {
   try {
     const raw = await req.json().catch(() => null);
     const parsed = InputSchema.safeParse(raw);
     if (!parsed.success) {
-      return Response.json({ error: "Invalid request" }, { status: 400 });
+      return Response.json({ error: "Invalid request", details: parsed.error.flatten() }, { status: 422 });
     }
-
-    const { basket_id, text_dump, file_urls } = parsed.data;
+    const { basket_id, text_dump, file_urls, source_meta, ingest_trace_id, dump_request_id } = parsed.data;
 
     const supabase = createRouteHandlerClient({ cookies });
     const { userId } = await getAuthenticatedUser(supabase);
 
-    // 1) Fetch basket to get workspace_id
+    // 1) Validate basket and get workspace_id
     const { data: basket, error: bErr } = await supabase
       .from("baskets")
       .select("id, workspace_id")
       .eq("id", basket_id)
       .maybeSingle();
 
-    if (bErr) {
-      return Response.json({ error: `Basket lookup failed: ${bErr.message}` }, { status: 400 });
-    }
-    if (!basket) {
-      return Response.json({ error: "Basket not found" }, { status: 404 });
-    }
+    if (bErr) return Response.json({ error: `Basket lookup failed: ${bErr.message}` }, { status: 400 });
+    if (!basket) return Response.json({ error: "Basket not found" }, { status: 404 });
 
-    // 2) Verify user is a member of the basket's workspace
+    // 2) Verify workspace membership
     const { data: membership, error: mErr } = await supabase
       .from("workspace_memberships")
       .select("id")
@@ -48,34 +52,37 @@ export async function POST(req: Request) {
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (mErr) {
-      return Response.json({ error: `Workspace membership lookup failed: ${mErr.message}` }, { status: 400 });
-    }
-    if (!membership) {
-      return Response.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (mErr) return Response.json({ error: `Membership check failed: ${mErr.message}` }, { status: 400 });
+    if (!membership) return Response.json({ error: "Forbidden" }, { status: 403 });
 
-    // 3) Insert raw dump (DB trigger will emit timeline_events('dump'))
-    const { data: dump, error: dumpErr } = await supabase
-      .from("raw_dumps")
-      .insert({
-        basket_id,
-        workspace_id: basket.workspace_id,
-        body_md: text_dump,
-        file_refs: file_urls ?? null, // jsonb column; null when absent
-      })
-      .select("id")
-      .single();
+    // 3) Call the unified RPC (idempotent). Timeline emission is handled by DB trigger.
+    const { data, error: rpcErr } = await supabase.rpc("fn_ingest_dumps", {
+      p_workspace_id: basket.workspace_id,
+      p_basket_id: basket_id,
+      p_dumps: [
+        {
+          dump_request_id,
+          text_dump: text_dump ?? null,
+          file_urls: file_urls ?? null,
+          source_meta: source_meta ?? null,
+          ingest_trace_id: ingest_trace_id ?? null,
+        },
+      ],
+    });
 
-    if (dumpErr || !dump) {
-      return Response.json(
-        { error: `Failed to create dump${dumpErr?.message ? `: ${dumpErr.message}` : ""}` },
-        { status: 500 }
-      );
+    if (rpcErr) {
+      // 409 if unique (basket_id, dump_request_id) violated for mismatched payloads; return a clean error
+      const code = rpcErr.code === "23505" ? 409 : 500;
+      return Response.json({ error: "Ingest failed", details: rpcErr.message }, { status: code });
     }
 
-    // Do NOT insert into timeline_events here; trigger handles it.
-    return Response.json({ dump_id: dump.id }, { status: 201 });
+    const dump_id = Array.isArray(data) && data[0]?.dump_id;
+    if (!dump_id) {
+      return Response.json({ error: "Ingest returned no dump_id" }, { status: 500 });
+    }
+
+    // Do NOT insert into timeline_events; the trigger already emitted 'dump'
+    return Response.json({ dump_id }, { status: 201 });
   } catch (e: any) {
     return Response.json({ error: "Unexpected error", details: String(e?.message ?? e) }, { status: 500 });
   }

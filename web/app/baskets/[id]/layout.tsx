@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
 import { listBasketsByWorkspace } from "@/lib/baskets/listBasketsByWorkspace";
-import DumpBarDock from "@/components/dump/DumpBarDock";
+import DumpDockGate from "@/components/dump/DumpDockGate";
 
 export default async function BasketLayout({
   params,
@@ -22,7 +22,7 @@ export default async function BasketLayout({
   return (
     <>
       {children}
-      <DumpBarDock basketId={id} />
+      <DumpDockGate basketId={id} />
     </>
   );
 }
