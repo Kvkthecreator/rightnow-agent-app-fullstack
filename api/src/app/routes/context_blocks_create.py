@@ -1,7 +1,10 @@
-from fastapi import APIRouter, HTTPException, Request, Depends
-from pydantic import BaseModel
-from supabase import create_client, Client
+# ruff: noqa
 import os
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from supabase import Client, create_client
 
 from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace

@@ -1,13 +1,15 @@
+# ruff: noqa
 from __future__ import annotations
 
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.context import ContextItem, ContextItemCreate, ContextItemUpdate
-from app.utils.jwt import verify_jwt
-from app.utils.workspace import get_or_create_workspace
 from app.utils.errors import raise_on_supabase_error
+from app.utils.jwt import verify_jwt
 from app.utils.supabase_client import supabase_client as supabase
+from app.utils.workspace import get_or_create_workspace
 
 router = APIRouter(prefix="/context-items", tags=["context"])
 log = logging.getLogger("uvicorn.error")

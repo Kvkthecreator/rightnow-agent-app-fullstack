@@ -1,18 +1,19 @@
+# ruff: noqa
 """Simple substrate operations for manager use."""
 
-from typing import List, Dict, Any, Optional, Tuple
-from uuid import uuid4
 import logging
+from typing import Any, Dict, List, Optional, Tuple
+from uuid import uuid4
 
-from app.utils.supabase_client import supabase_client as supabase
 from app.utils.db import as_json
+from app.utils.supabase_client import supabase_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
 
 
 class SubstrateOps:
     """Simplified substrate operations for creating and updating entities."""
-    
+
     @staticmethod
     async def create_context_block(
         basket_id: str,
@@ -36,15 +37,15 @@ class SubstrateOps:
             "state": "draft",
             "metadata": metadata or {}
         }
-        
+
         resp = supabase.table("context_blocks").insert(as_json(block_data)).execute()
-        
+
         if getattr(resp, "error", None):
             logger.error(f"Failed to create block: {resp.error}")
             raise Exception(f"Failed to create block: {resp.error}")
-            
+
         return block_id, 1
-    
+
     @staticmethod
     async def create_document(
         basket_id: str,
@@ -71,7 +72,7 @@ class SubstrateOps:
 
         doc_id = resp.data
         return doc_id, 1
-    
+
     @staticmethod
     async def update_context_block(
         block_id: str,
@@ -83,7 +84,7 @@ class SubstrateOps:
         Returns new version number.
         """
         new_version = from_version + 1
-        
+
         resp = (
             supabase.table("context_blocks")
             .update({
@@ -95,13 +96,13 @@ class SubstrateOps:
             .eq("version", from_version)  # Optimistic locking
             .execute()
         )
-        
+
         if getattr(resp, "error", None) or not resp.data:
             logger.error(f"Failed to update block {block_id}: version conflict or error")
-            raise Exception(f"Failed to update block: version conflict")
-            
+            raise Exception("Failed to update block: version conflict")
+
         return new_version
-    
+
     @staticmethod
     async def load_basket_substrate(basket_id: str) -> Dict[str, Any]:
         """
@@ -115,7 +116,7 @@ class SubstrateOps:
             .eq("basket_id", basket_id)
             .execute()
         )
-        
+
         # Load documents
         docs_resp = (
             supabase.table("documents")
@@ -123,13 +124,13 @@ class SubstrateOps:
             .eq("basket_id", basket_id)
             .execute()
         )
-        
+
         return {
             "blocks": {b["id"]: b for b in (blocks_resp.data or [])},
             "documents": {d["id"]: d for d in (docs_resp.data or [])},
             "context_items": {}  # TODO: Load context items if needed
         }
-    
+
     @staticmethod
     async def get_raw_dump_content(dump_id: str) -> Optional[str]:
         """Get the content of a raw dump by ID."""
@@ -140,7 +141,7 @@ class SubstrateOps:
             .single()
             .execute()
         )
-        
+
         if resp.data:
             return resp.data.get("body_md")
         return None

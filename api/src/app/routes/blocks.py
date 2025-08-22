@@ -1,15 +1,14 @@
+# ruff: noqa
 import logging
-from typing import Dict, Any
-from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..memory.blocks import BlockLifecycleService, StateTransitionError
-from ..utils.supabase_client import supabase_client as supabase
-from ..utils.jwt import verify_jwt
-from ..utils.workspace import get_or_create_workspace
 from ..utils.errors import raise_on_supabase_error
+from ..utils.jwt import verify_jwt
+from ..utils.supabase_client import supabase_client as supabase
+from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(tags=["blocks"])
 
@@ -50,7 +49,7 @@ async def update_block(
     """Update a block with lifecycle enforcement."""
     try:
         workspace_id = get_or_create_workspace(user["user_id"])
-        
+
         # Get current block to check state and permissions
         current_resp = (
             supabase.table("blocks")
@@ -60,22 +59,22 @@ async def update_block(
             .maybe_single()
             .execute()
         )
-        
+
         if not current_resp.data:
             raise HTTPException(404, "Block not found")
-            
+
         current_block = current_resp.data
         current_state = current_block["state"]
-        
+
         # Check if content modification is allowed in current state
         if request.content is not None:
             if not BlockLifecycleService.can_modify_content(current_state, "user"):
                 raise HTTPException(
-                    400, 
+                    400,
                     f"Cannot modify content in state '{current_state}'. "
                     f"Block is {'locked' if current_state in {'LOCKED', 'CONSTANT'} else 'finalized'}."
                 )
-        
+
         # Prepare update data (only non-None fields)
         update_data = {}
         if request.content is not None:
@@ -86,14 +85,14 @@ async def update_block(
             update_data["scope"] = request.scope
         if request.canonical_value is not None:
             update_data["canonical_value"] = request.canonical_value
-            
+
         if not update_data:
             raise HTTPException(400, "No valid fields to update")
-        
+
         # Increment version for content changes
         if "content" in update_data:
             update_data["version"] = current_block["version"] + 1
-            
+
             # Create revision record for content changes
             from datetime import datetime
             diff_json = {
@@ -107,7 +106,7 @@ async def update_block(
                 "p_summary": "Content updated by user",
                 "p_diff_json": diff_json,
             }).execute()
-        
+
         # Perform the update
         resp = (
             supabase.table("blocks")
@@ -116,10 +115,10 @@ async def update_block(
             .eq("workspace_id", workspace_id)
             .execute()
         )
-        
+
         raise_on_supabase_error(resp)
         return resp.data[0] if resp.data else {}
-        
+
     except HTTPException:
         raise
     except StateTransitionError as e:

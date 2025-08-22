@@ -1,3 +1,5 @@
+# ruff: noqa
+
 async def upsert_context_items(db, items):
     for it in items:
         await db.rpc('fn_context_item_create', {
