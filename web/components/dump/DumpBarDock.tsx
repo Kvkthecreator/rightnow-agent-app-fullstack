@@ -5,10 +5,11 @@ import DumpBarPanel from "./DumpBarPanel";
 
 interface Props {
   basketId: string;
+  defaultOpen?: boolean;
 }
 
-export default function DumpBarDock({ basketId }: Props) {
-  const [open, setOpen] = useState(false);
+export default function DumpBarDock({ basketId, defaultOpen = false }: Props) {
+  const [open, setOpen] = useState(defaultOpen);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
