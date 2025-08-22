@@ -1,7 +1,7 @@
 // UploadArea: drag/drop & click-to-upload area with preview, progress, and removal support
 "use client";
 import React, { useRef, useState, useEffect } from "react";
-import { uploadFile } from "@/lib/uploadFile";
+import { uploadFile } from "@/lib/storage/upload";
 import { cn } from "@/lib/utils";
 import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
 

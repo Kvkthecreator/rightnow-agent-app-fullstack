@@ -1,4 +1,4 @@
-import { uploadFile } from "@/lib/uploadFile";
+import { uploadFile } from "@/lib/storage/upload";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { fetchWithToken } from "@/lib/fetchWithToken";
 import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
