@@ -9,7 +9,7 @@ import { createDump } from "@/lib/api/dumps";
 import { uploadFile } from "@/lib/storage/upload";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
-import { MAX_FILE_SIZE_MB } from "@/constants/uploads";
+import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_MB } from "@/constants/uploads";
 import { X, File as FileIcon } from "lucide-react";
 import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
 
@@ -36,8 +36,15 @@ export default function DumpBarPanel({ basketId, onClose }: DumpBarPanelProps) {
     textareaRef.current?.focus();
   }, []);
 
+  const isAllowedMime = (type: string) =>
+    ALLOWED_MIME_TYPES.some((t) => (t.endsWith("/*") ? type.startsWith(t.slice(0, -1)) : t === type));
+
   const onDrop = (accepted: File[]) => {
     accepted.forEach(async (file) => {
+      if (!isAllowedMime(file.type)) {
+        toast.error("Unsupported file type");
+        return;
+      }
       if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
         toast.error(`File too large (max ${MAX_FILE_SIZE_MB}MB)`);
         return;
@@ -56,12 +63,14 @@ export default function DumpBarPanel({ basketId, onClose }: DumpBarPanelProps) {
     });
   };
 
+  const accept = ALLOWED_MIME_TYPES.reduce<Record<string, string[]>>((acc, type) => {
+    acc[type] = [];
+    return acc;
+  }, {});
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "application/pdf": [],
-      "image/*": [],
-    },
+    accept,
   });
 
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -122,13 +131,19 @@ export default function DumpBarPanel({ basketId, onClose }: DumpBarPanelProps) {
   const disabled = submitting || files.some((f) => f.uploading);
 
   const panel = (
-    <div className="fixed inset-0 z-50 flex items-end justify-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40" />
+    <div className="fixed bottom-6 right-6 z-50 w-full max-w-md md:max-w-lg">
       <div
-        className="relative m-6 w-full max-w-md rounded-2xl bg-white p-4 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
+        className="relative max-h-[60vh] overflow-y-auto rounded-2xl bg-white p-4 shadow-xl"
+        aria-busy={disabled}
       >
-        <div className="space-y-3" aria-busy={disabled}>
+        <button
+          className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        <div className="space-y-3">
           <Textarea
             ref={textareaRef}
             value={text}
