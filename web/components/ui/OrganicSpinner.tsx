@@ -39,7 +39,7 @@ export default function YarnSpinner({
       aria-label="Loading"
     >
       <MotionImage
-        src="/assets/logos/circleonly_yarnnn.png"
+        src="/assets/logos/circleonly_yarnnn_1.svg"
         alt="Yarnnn Loading"
         fill
         sizes="100vw"
@@ -47,8 +47,7 @@ export default function YarnSpinner({
         draggable={false}
         className="object-contain select-none"
         style={{ 
-          transformOrigin: "50% 50%",
-          background: "transparent"
+          transformOrigin: "50% 50%"
         }}
         animate={prefersReducedMotion ? undefined : { rotate: rotateKeyframes }}
         transition={
