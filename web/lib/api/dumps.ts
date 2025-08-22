@@ -1,21 +1,23 @@
 import { apiClient, timeoutSignal } from './http';
 
-export async function createDump(input: {
+export interface CreateDumpInput {
   basketId: string;
   text?: string | null;
   fileUrls?: string[] | null;
   meta?: Record<string, unknown> | null;
-}): Promise<{ dumpId: string }> {
+}
+
+export async function createDump({ basketId, text, fileUrls, meta }: CreateDumpInput): Promise<{ dumpId: string }> {
   const ingestTraceId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
-  const dumpRequestId = ingestTraceId; // reuse for idempotency
+  const dumpRequestId = ingestTraceId;
 
   const body = {
-    basket_id: input.basketId,
-    text_dump: input.text ?? null,
-    file_urls: input.fileUrls ?? null,
+    basket_id: basketId,
+    text_dump: text ?? null,
+    file_urls: fileUrls ?? null,
     source_meta: {
       ua: typeof navigator !== 'undefined' ? navigator.userAgent : 'server',
-      ...input.meta,
+      ...meta,
     },
     ingest_trace_id: ingestTraceId,
     dump_request_id: dumpRequestId,
@@ -28,5 +30,8 @@ export async function createDump(input: {
     signal: timeoutSignal(20000),
   })) as { dump_id: string };
 
+  if (!res.dump_id) {
+    throw new Error('Missing dump_id in response');
+  }
   return { dumpId: res.dump_id };
 }

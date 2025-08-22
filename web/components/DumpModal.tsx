@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import SmartDropZone from "@/components/SmartDropZone";
 import ThumbnailStrip from "@/components/ThumbnailStrip";
 import { Button } from "@/components/ui/Button";
-import { createDump } from "@/lib/dumps/createDump";
+import { createDump } from "@/lib/api/dumps";
 import { toast } from "react-hot-toast";
 
 export interface DumpModalProps {
@@ -44,7 +44,7 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
     }
     setLoading(true);
     try {
-      await createDump(basketId, text);
+      await createDump({ basketId, text });
       toast.success("Dump saved ✓");
       setOpen(false);
       setText("");

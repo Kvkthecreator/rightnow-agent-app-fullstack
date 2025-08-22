@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useBasket } from "@/contexts/BasketContext";
 import { useAuth } from "@/lib/useAuth";
 import { createDocumentWithPrompt } from "@/lib/documents/createDocument";
-import { postDump } from "@/lib/baskets/dumpApi";
+import { createDump } from "@/lib/api/dumps";
+import { uploadFile } from "@/lib/storage/upload";
+import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
 import { useToast } from "@/components/ui/Toast";
 
 /**
@@ -57,12 +59,17 @@ export function useCreateActions() {
     handleSelectedFiles: async (files: FileList) => {
       if (!basketId || !user?.id || !files.length) return;
       try {
-        await postDump({
-          basketId,
-          userId: user.id,
-          images: Array.from(files),
-        });
-        showSuccess(`Captured ${files.length} file(s) as raw dumps`);
+        const urls: string[] = [];
+        for (const file of Array.from(files)) {
+          const sanitized = sanitizeFilename(file.name);
+          const filename = `${Date.now()}-${sanitized}`;
+          const url = await uploadFile(file, `dump_${user.id}/${filename}`);
+          urls.push(url);
+        }
+        if (urls.length) {
+          await createDump({ basketId, fileUrls: urls });
+          showSuccess(`Captured ${urls.length} file(s) as raw dumps`);
+        }
       } catch (e) {
         console.warn("uploadFiles failed", e);
         showWarning("Upload failed");

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
-import { createDump } from '@/lib/dumps/createDump';
+import { createDump } from '@/lib/api/dumps';
 import type { SubstrateContentInput, AddContextResult } from '@/lib/substrate/types';
 
 // Note: Universal processor removed - using basic text processing only
@@ -66,7 +66,11 @@ export async function POST(request: NextRequest) {
       .filter(Boolean);
     
     // Create raw_dump using existing function
-    const dump = await createDump(basketId, consolidatedContent, fileUrls[0]);
+    const { dumpId } = await createDump({
+      basketId,
+      text: consolidatedContent,
+      fileUrls: fileUrls.length ? fileUrls : null,
+    });
     
     // Trigger immediate background intelligence generation for raw dumps
     try {
@@ -75,7 +79,7 @@ export async function POST(request: NextRequest) {
       triggerBackgroundIntelligenceGeneration({
         basketId,
         origin: 'raw_dump_added',
-        rawDumpId: dump.id,
+        rawDumpId: dumpId,
       });
       
       console.log(`Background intelligence generation triggered for raw dump in basket ${basketId}`);
@@ -90,7 +94,7 @@ export async function POST(request: NextRequest) {
     // `processingResults` variable which caused the build to fail.
     const result: AddContextResult = {
       success: true,
-      rawDumpId: dump.id,
+      rawDumpId: dumpId,
       processingResults: {
         contentProcessed: content.length,
         insights: 'None',

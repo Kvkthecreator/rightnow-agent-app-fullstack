@@ -1,5 +1,4 @@
-"""Create raw dumps following the v1 interface spec."""
-
+"""Create raw dumps via RPC with idempotency."""
 from __future__ import annotations
 
 import json
@@ -36,11 +35,7 @@ class CreateDumpReq(BaseModel):
 async def create_dump(
     payload: CreateDumpReq, req: Request, user: Annotated[dict, Depends(verify_jwt)]
 ):
-    """Create a raw dump with replay-safe idempotency."""
-
     start = time.time()
-
-    # Fetch basket and verify workspace membership
     basket = (
         supabase.table("baskets")
         .select("id, workspace_id")
@@ -73,66 +68,33 @@ async def create_dump(
         )
         raise HTTPException(status_code=403, detail="Workspace access denied")
 
-    # Idempotency check
-    existing = (
-        supabase.table("raw_dumps")
-        .select("id")
-        .eq("basket_id", payload.basket_id)
-        .eq("dump_request_id", payload.dump_request_id)
-        .execute()
-    )
-    if existing.data:
-        dump_id = existing.data[0]["id"]
-        log.info(
-            json.dumps(
-                {
-                    "route": "/api/dumps/new",
-                    "user_id": user["user_id"],
-                    "basket_id": payload.basket_id,
-                    "dump_request_id": payload.dump_request_id,
-                    "action": "replayed",
-                    "dump_id": dump_id,
-                    "duration_ms": int((time.time() - start) * 1000),
-                }
-            )
-        )
-        return JSONResponse({"dump_id": dump_id}, status_code=200)
-
-    dump_data = {
-        "basket_id": payload.basket_id,
-        "dump_request_id": payload.dump_request_id,
-        "workspace_id": workspace_id,
-        "body_md": payload.text_dump,
-        "file_url": payload.file_url,
-        "source_meta": payload.meta or {},
-        "processing_status": "unprocessed",
-    }
-    resp = supabase.table("raw_dumps").insert(dump_data).select("id").execute()
-
+    dumps = [
+        {
+            "dump_request_id": payload.dump_request_id,
+            "text_dump": payload.text_dump,
+            "file_urls": [payload.file_url] if payload.file_url else None,
+            "source_meta": payload.meta or {},
+            "ingest_trace_id": payload.dump_request_id,
+        }
+    ]
+    resp = supabase.rpc(
+        "fn_ingest_dumps",
+        {
+            "p_workspace_id": workspace_id,
+            "p_basket_id": payload.basket_id,
+            "p_dumps": dumps,
+        },
+    ).execute()
     if getattr(resp, "error", None):
         err = resp.error
         if getattr(err, "code", "") == "23505":
-            log.info(
-                json.dumps(
-                    {
-                        "route": "/api/dumps/new",
-                        "user_id": user["user_id"],
-                        "basket_id": payload.basket_id,
-                        "dump_request_id": payload.dump_request_id,
-                        "action": "conflict",
-                        "duration_ms": int((time.time() - start) * 1000),
-                    }
-                )
-            )
             raise HTTPException(status_code=409, detail="IDEMPOTENCY_CONFLICT")
-        log.exception("dump insert failed: %s", err)
         raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
 
-    dump_id = resp.data[0]["id"]
+    if not resp.data:
+        raise HTTPException(status_code=500, detail="INGEST_FAILED")
 
-    # Set basket.raw_dump_id if not already set
-    supabase.table("baskets").update({"raw_dump_id": dump_id}).eq("id", payload.basket_id).execute()
-
+    dump_id = resp.data[0]["dump_id"]
     log.info(
         json.dumps(
             {
@@ -147,4 +109,3 @@ async def create_dump(
         )
     )
     return JSONResponse({"dump_id": dump_id}, status_code=201)
-

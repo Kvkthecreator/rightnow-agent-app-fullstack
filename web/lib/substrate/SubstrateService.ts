@@ -3,7 +3,7 @@
 
 import { createBrowserClient } from '@/lib/supabase/clients';
 import { authHelper } from '@/lib/supabase/auth-helper';
-import { createDump } from '@/lib/dumps/createDump';
+import { createDump } from '@/lib/api/dumps';
 import { apiClient } from '@/lib/api/client';
 
 export interface RawDump {
@@ -90,13 +90,13 @@ export class SubstrateService {
       
       // Use API route instead of direct Supabase insert
       // This ensures events are fired and proper processing happens
-      const result = await createDump(basketId, content);
+      const { dumpId } = await createDump({ basketId, text: content });
 
       // Fetch the created dump to return full data
       const { data, error } = await this.supabase
         .from('raw_dumps')
         .select('*')
-        .eq('id', result.id)
+        .eq('id', dumpId)
         .single();
       
       if (error) throw new Error(`Failed to fetch created dump: ${error.message}`);
