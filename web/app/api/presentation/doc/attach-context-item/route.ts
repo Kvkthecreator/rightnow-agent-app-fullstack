@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { sql } from "@/lib/db";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 
 export async function POST(req: Request) {
+  const supabase = createRouteHandlerClient({ cookies });
   const body = await req.json().catch(() => ({}));
   const documentId = body?.document_id;
   const contextItemId = body?.context_item_id;
@@ -10,8 +12,16 @@ export async function POST(req: Request) {
   const role = body?.role ?? null;
   const weight = body?.weight ?? null;
 
-  const res = await sql/* sql */`
-    select public.fn_document_attach_context_item(${documentId}::uuid, ${contextItemId}::uuid, ${role}, ${weight}) as link_id
-  `;
-  return NextResponse.json({ link_id: res.rows?.[0]?.link_id || res.rows?.[0]?.fn_document_attach_context_item });
+  const { data, error } = await supabase.rpc('fn_document_attach_context_item', {
+    p_document_id: documentId,
+    p_context_item_id: contextItemId,
+    p_role: role,
+    p_weight: weight
+  });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ link_id: data });
 }

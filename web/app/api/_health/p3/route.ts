@@ -1,9 +1,19 @@
-import { sql } from "@/lib/db";
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
+
 export async function GET() {
-  const off = await sql/* sql */`
-    select pipeline_name, last_event_id, last_event_ts, updated_at
-    from public.pipeline_offsets
-    where pipeline_name = 'p3_reflections_consumer'
-  `;
-  return new Response(JSON.stringify(off.rows?.[0] || {}), { headers: { "content-type": "application/json" } });
+  const supabase = createRouteHandlerClient({ cookies });
+  
+  const { data, error } = await supabase
+    .from('pipeline_offsets')
+    .select('pipeline_name, last_event_id, last_event_ts, updated_at')
+    .eq('pipeline_name', 'p3_reflections_consumer')
+    .single();
+
+  if (error) {
+    return NextResponse.json({}, { status: 200 }); // Return empty object if not found
+  }
+
+  return NextResponse.json(data || {});
 }
