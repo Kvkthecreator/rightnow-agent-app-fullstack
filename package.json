@@ -9,7 +9,8 @@
     "postinstall": "npm --prefix web install",
     "prepare": "husky install",
     "contracts:trace": "node scripts/contracts-trace.js",
-    "contracts:check": "node -e \"process.exit(require('child_process').spawnSync('git', ['diff', '--quiet', '--', 'shared/contracts/REGISTRY.md']).status)\""
+    "contracts:check": "node -e \"process.exit(require('child_process').spawnSync('git', ['diff', '--quiet', '--', 'shared/contracts/REGISTRY.md']).status)\"",
+    "guard:pipelines": "node scripts/check-pipeline-rpc-usage.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",

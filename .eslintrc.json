@@ -14,7 +14,12 @@
       "error",
       {
         "paths": [{ "name": "@/lib/processors", "message": "Ingestion lives on the backend." }],
-        "patterns": ["**/lib/processors/*"]
+        "patterns": [
+          "**/lib/processors/*",
+          { "group": ["@/api/pipelines/p2_graph/**"], "message": "P2 code must not be imported outside P2" },
+          { "group": ["@/api/pipelines/p3_signals/**"], "message": "P3 code must not be imported outside P3" },
+          { "group": ["@/api/pipelines/p4_presentation/**"], "message": "P4 code must not be imported outside P4" }
+        ]
       }
     ]
   }
