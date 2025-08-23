@@ -21,5 +21,13 @@ export async function createNarrativeFromProjection(basketId: string, opts?: { t
   `;
   const docId = res.rows?.[0]?.doc_id || res.rows?.[0]?.fn_document_create;
 
+  // Emit metrics
+  await sql/* sql */`
+    insert into public.pipeline_metrics (pipeline, basket_id, doc_id, counts, dims)
+    values ('p4', ${basketId}::uuid, ${docId}::uuid,
+            ${JSON.stringify({ doc_created: 1 })}::jsonb,
+            ${JSON.stringify({ document_type: 'narrative' })}::jsonb);
+  `;
+
   return { docId, title };
 }

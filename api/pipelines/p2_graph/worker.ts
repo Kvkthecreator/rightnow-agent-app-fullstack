@@ -28,5 +28,14 @@ export async function handleEvent(ev: any) {
   const basketId = ev.basket_id || ev.payload?.basket_id;
   const idem = ev.payload?.idem_key;
   const result = await upsertEdges(basketId, edges, idem);
+  
+  // Emit metrics
+  await sql/* sql */`
+    insert into public.pipeline_metrics (pipeline, basket_id, counts, dims)
+    values ('p2', ${basketId}::uuid,
+            ${JSON.stringify(result || { created:0, ignored:0 })}::jsonb,
+            ${JSON.stringify({ kind })}::jsonb);
+  `;
+  
   return { kind, count: edges.length, result };
 }
