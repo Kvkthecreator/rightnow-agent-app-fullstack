@@ -36,6 +36,8 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - name: Auth handshake guard
         run: node scripts/check-auth-handshake.mjs
+      - name: Pattern guard
+        run: scripts/pattern_guard.sh
       - name: Build web
         working-directory: web
         run: |

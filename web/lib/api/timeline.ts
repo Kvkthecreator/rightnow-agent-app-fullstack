@@ -1,8 +1,6 @@
-export type TimelineItem = {
-  id: number; basket_id: string; ts: string;
-  kind: 'dump'|'reflection'|'narrative'|'system_note';
-  ref_id?: string|null; preview?: string|null; payload?: any|null;
-};
+import type { TimelineItem } from '@shared/contracts/memory';
+
+export type { TimelineItem };
 
 export async function fetchTimeline(
   basketId: string,

@@ -18,7 +18,7 @@ export type TimelineItem =
   | {
       kind: "reflection";
       ts: string;
-      ref_id: string; // basket_reflections.id
+      ref_id: string; // reflection_cache.id
       preview: string | null;
       payload: ReflectionDTO;
     };

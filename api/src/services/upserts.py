@@ -1,14 +1,9 @@
 # ruff: noqa
 
 async def upsert_context_items(db, items):
-    for it in items:
-        await db.rpc('fn_context_item_create', {
-            "p_basket_id": it["basket_id"],
-            "p_type": it["type"],
-            "p_content": it.get("content"),
-            "p_title": it.get("title"),
-            "p_description": it.get("description"),
-        })
+    await db.rpc('fn_context_item_upsert_bulk', {
+        "p_items": items,
+    })
 
 async def upsert_relationships(db, edges):
     for e in edges:

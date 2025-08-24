@@ -90,12 +90,16 @@ async def create_from_template(payload: TemplatePayload, user: dict = Depends(ve
 
     if payload.guidelines and payload.guidelines.strip():
         try:
-            supabase.rpc('fn_context_item_create', {
-                "p_basket_id": basket_id,
-                "p_type": "guideline",
-                "p_content": payload.guidelines,
-                "p_title": None,
-                "p_description": None,
+            supabase.rpc('fn_context_item_upsert_bulk', {
+                "p_items": [
+                    {
+                        "basket_id": basket_id,
+                        "type": "guideline",
+                        "content": payload.guidelines,
+                        "title": None,
+                        "description": None,
+                    }
+                ]
             }).execute()
         except Exception:
             log.exception("context item insert failed")

@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 // Simulated snapshot responses before and after running Blockifier
 const firstSnapshot = {
     raw_dump_body: "# dump",
-    file_refs: [],
+    file_url: null,
     blocks: [],
 };
 const secondSnapshot = {

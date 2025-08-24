@@ -163,7 +163,6 @@ export const RawDumpSchema = z.object({
   workspace_id: UUIDSchema,
   body_md: z.string(),
   file_url: z.string().url().nullable().optional(),
-  file_refs: z.array(z.string()).optional(),
   processing_status: z.enum(['pending', 'processing', 'processed', 'failed']),
   metadata: z.record(z.unknown()).optional(),
   created_at: TimestampSchema,

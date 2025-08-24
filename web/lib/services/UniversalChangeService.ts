@@ -721,10 +721,7 @@ export class UniversalChangeService {
       .insert({
         basket_id: change.basketId,
         body_md: consolidatedContent,
-        file_refs: data.content
-          .filter(item => item.metadata?.fileObject)
-          .map(item => item.metadata!.filename)
-          .filter(Boolean),
+        file_url: null,
         workspace_id: change.workspaceId
       })
       .select()

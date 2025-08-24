@@ -18,13 +18,13 @@ declare
   v_changed boolean := false;
 begin
   select meta_derived_from into v_last
-  from public.basket_reflections
+  from public.reflection_cache
   where basket_id = p_basket_id
   order by computed_at desc
   limit 1;
 
   if v_last is distinct from p_meta_hash then
-    insert into public.basket_reflections (id, basket_id, pattern, tension, question, meta_derived_from)
+    insert into public.reflection_cache (id, basket_id, pattern, tension, question, meta_derived_from)
     values (gen_random_uuid(), p_basket_id, p_pattern, p_tension, p_question, p_meta_hash);
 
     -- Emit machine event to events table

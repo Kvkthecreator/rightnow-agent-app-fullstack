@@ -12,7 +12,7 @@ export interface BasketSnapshot {
     created_at: string;
   };
   raw_dump_body: string;
-  file_refs: string[];
+  file_url: string | null;
   blocks: BlockWithHistory[];
   proposed_blocks: BlockWithHistory[];
 }
@@ -46,7 +46,7 @@ export async function getSnapshot(
   return {
     basket: payload.basket,
     raw_dump_body: payload.raw_dump,
-    file_refs: payload.file_refs ?? [],
+    file_url: payload.file_url ?? null,
     blocks: flatBlocks,
     proposed_blocks: (payload.proposed_blocks ?? []).map((b: any) => ({
       ...b,
