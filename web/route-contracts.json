@@ -3,7 +3,6 @@
   "/api/agent-run",
   "/api/agents/[name]/run",
   "/api/context-blocks/[id]",
-  "/api/context-blocks/create",
   "/api/context-blocks/update",
   "/api/summarize-session",
   "/api/system-check",

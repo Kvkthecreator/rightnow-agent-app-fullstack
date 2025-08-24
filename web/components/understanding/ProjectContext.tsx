@@ -4,7 +4,7 @@ import { BookOpen, Clock, Layers, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressiveDisclosure } from "../narrative/ProgressiveDisclosure";
-import type { ContextItem } from "@/types";
+import type { ContextItem } from "@shared/contracts/context";
 
 interface ProjectContextProps {
   items: ContextItem[];

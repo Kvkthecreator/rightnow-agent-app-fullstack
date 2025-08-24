@@ -8,7 +8,7 @@ import type {
   SubstrateResponse, 
   RawDump, 
   Block, 
-  ContextItem, 
+  ContextElement,
   Narrative, 
   Document,
   Relationship,
@@ -27,7 +27,7 @@ export class UnifiedSubstrateComposer {
   private substrate = {
     rawDumps: new Map<string, RawDump>(),
     blocks: new Map<string, Block>(),
-    contextItems: new Map<string, ContextItem>(),
+    contextItems: new Map<string, ContextElement>(),
     narrative: new Map<string, Narrative>(),
     documents: new Map<string, Document>(),
     relationships: new Map<string, Relationship[]>()
@@ -172,18 +172,19 @@ export class UnifiedSubstrateComposer {
 
   async createContextItem(
     title: string, 
-    semanticType: ContextItem['semanticType'], 
+    semanticType: ContextElement['semanticType'],
     references: SubstrateRef[],
     basketId: string,
     workspaceId: string,
     description?: string
   ): Promise<SubstrateResponse> {
     try {
-      const contextItem: ContextItem = {
+    const contextItem: ContextElement = {
         id: this.generateId(),
         type: 'context_item',
         title,
         description,
+        summary: description || '',
         semanticType,
         references,
         basketId,

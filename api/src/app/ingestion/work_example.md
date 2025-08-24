@@ -10,7 +10,7 @@ curl -X POST http://localhost:8000/api/dumps/new \
   -d '{
     "basket_id": "123e4567-e89b-12d3-a456-426614174000",
     "text_dump": "Long document content here...",
-    "file_urls": ["https://example.com/doc.pdf"]
+    "file_url": "https://example.com/doc.pdf"
   }'
 
 # Response (single dump):

@@ -22,12 +22,16 @@ async def create_item(
     workspace=Depends(get_or_create_workspace),
 ):
     try:
-        resp = supabase.rpc('fn_context_item_create', {
-            "p_basket_id": str(workspace.basket_id),
-            "p_type": body.type,
-            "p_content": body.content,
-            "p_title": body.title,
-            "p_description": body.description,
+        resp = supabase.rpc('fn_context_item_upsert_bulk', {
+            "p_items": [
+                {
+                    "basket_id": str(workspace.basket_id),
+                    "type": body.type,
+                    "content": body.content,
+                    "title": body.title,
+                    "description": body.description,
+                }
+            ]
         }).execute()
     except Exception as err:  # pragma: no cover - network failure
         log.exception("context item insert failed")

@@ -15,7 +15,7 @@ export interface BasketDataSubstrate {
   basket_id: string;
   documents: DocumentSubstrate[];
   blocks: BlockSubstrate[];
-  context_items: ContextItemSubstrate[];
+  context_items: ContextSubstrate[];
   metadata: BasketMetadata;
 }
 
@@ -37,7 +37,7 @@ export interface BlockSubstrate {
   created_at: string;
 }
 
-export interface ContextItemSubstrate {
+export interface ContextSubstrate {
   id: string;
   content: string;
   item_type: string;
@@ -235,7 +235,7 @@ export class BasketAnalysisAgent {
     };
   }
 
-  private transformContextItem(item: any): ContextItemSubstrate {
+  private transformContextItem(item: any): ContextSubstrate {
     return {
       id: item.id,
       content: item.content || '',

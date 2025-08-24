@@ -5,6 +5,7 @@ import { createBrowserClient } from '@/lib/supabase/clients';
 import { authHelper } from '@/lib/supabase/auth-helper';
 import { createDump } from '@/lib/api/dumps';
 import { apiClient } from '@/lib/api/client';
+import type { ContextItem } from '@shared/contracts/context';
 
 export interface RawDump {
   id: string;
@@ -24,15 +25,6 @@ export interface Block {
   status: 'proposed' | 'accepted' | 'rejected';
   created_at: string;
   updated_at: string;
-}
-
-export interface ContextItem {
-  id: string;
-  basket_id: string;
-  title: string;
-  description: string;
-  type: 'theme' | 'question' | 'insight' | 'connection';
-  created_at: string;
 }
 
 export interface Document {

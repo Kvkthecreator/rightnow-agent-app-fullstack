@@ -7,5 +7,5 @@ class AuditIn(BaseSchema):
     pass
 
 
-class AuditOut(AuditReport, BaseSchema):
+class AuditOut(AuditReport):
     pass

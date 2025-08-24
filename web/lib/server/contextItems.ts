@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import type { ContextItem } from "@/types";
+import type { ContextItem } from "@shared/contracts/context";
 
 export async function getContextItemsServer(docId?: string): Promise<ContextItem[]> {
   const supabase = createServerComponentClient({ cookies });

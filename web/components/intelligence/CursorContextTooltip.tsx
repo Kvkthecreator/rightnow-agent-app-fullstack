@@ -4,18 +4,12 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-
-interface ContextItem {
-  type: string;
-  content?: string;
-  summary?: string;
-  relevance_score: number;
-}
+import type { ContextItem } from "@shared/contracts/context";
 
 interface Props {
   position: { x: number; y: number };
   themes: string[];
-  contextItems: ContextItem[];
+  contextItems: (ContextItem & { content?: string })[];
   suggestedConnections: string[];
   onAction?: (action: string) => void;
   isVisible?: boolean;

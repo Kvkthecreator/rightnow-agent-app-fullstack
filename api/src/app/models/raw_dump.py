@@ -14,7 +14,6 @@ class RawDump(BaseModel):
     basket_id: UUID
     document_id: Optional[UUID] = None
     body_md: Optional[str] = None
-    file_refs: Optional[list[str]] = None
     created_at: datetime
     workspace_id: UUID
     file_url: Optional[str] = None

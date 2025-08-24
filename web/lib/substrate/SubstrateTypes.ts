@@ -28,13 +28,12 @@ export interface Block extends SubstrateElement {
   metadata?: Record<string, any>;
 }
 
-export interface ContextItem extends SubstrateElement {
+import type { ContextItem as ContractContextItem } from '@shared/contracts/context';
+
+export interface ContextElement extends SubstrateElement, ContractContextItem {
   type: 'context_item';
-  title: string;
-  description?: string;
   semanticType: 'theme' | 'question' | 'insight' | 'connection' | 'tag';
   references: SubstrateRef[];
-  metadata?: Record<string, any>;
 }
 
 export interface Narrative extends SubstrateElement {

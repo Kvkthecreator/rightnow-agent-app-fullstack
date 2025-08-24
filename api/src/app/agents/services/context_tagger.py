@@ -69,12 +69,16 @@ class ContextTaggerService:
             raise ValueError(f"Cannot determine basket for {request.target_type}")
 
         # Insert context item via RPC
-        insert_resp = supabase.rpc('fn_context_item_create', {
-            "p_basket_id": str(basket_id),
-            "p_type": request.context_type.value,
-            "p_content": request.content,
-            "p_title": None,
-            "p_description": request.meta_notes,
+        insert_resp = supabase.rpc('fn_context_item_upsert_bulk', {
+            "p_items": [
+                {
+                    "basket_id": str(basket_id),
+                    "type": request.context_type.value,
+                    "content": request.content,
+                    "title": None,
+                    "description": request.meta_notes,
+                }
+            ]
         }).execute()
         context_item_id = insert_resp.data
 

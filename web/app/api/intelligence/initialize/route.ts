@@ -39,7 +39,7 @@ interface InitializeRequest {
   };
   raw_dump?: {
     body_md: string;
-    file_refs?: string[];
+    file_url?: string;
   };
 }
 
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
           basket_id: basket.id,
           workspace_id: workspace.id,
           body_md: raw_dump.body_md,
-          file_refs: raw_dump.file_refs || null
+          file_url: raw_dump.file_url || null
         });
       if (dumpError) {
         console.error('Raw dump creation error:', dumpError);

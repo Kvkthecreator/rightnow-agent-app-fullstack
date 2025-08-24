@@ -79,15 +79,16 @@ class TestPDFIngestion:
         """Test successful PDF ingestion."""
         payload = {
             "basket_id": str(uuid4()),
+            "dump_request_id": str(uuid4()),
             "text_dump": "User provided text",
-            "file_urls": ["https://test.supabase.co/storage/v1/object/public/docs/test.pdf"]
+            "file_url": "https://test.supabase.co/storage/v1/object/public/docs/test.pdf"
         }
         
         response = client.post("/dumps/new", json=payload, headers=auth_headers)
         
         assert response.status_code == 201
         result = response.json()
-        assert "raw_dump_id" in result or "raw_dump_ids" in result
+        assert "dump_id" in result
         
         # Verify PDF was fetched
         mock_httpx.assert_called_once()
@@ -106,8 +107,9 @@ class TestPDFIngestion:
         """Test SSRF protection blocks disallowed URLs."""
         payload = {
             "basket_id": str(uuid4()),
+            "dump_request_id": str(uuid4()),
             "text_dump": "",
-            "file_urls": ["https://evil.com/malicious.pdf"]
+            "file_url": "https://evil.com/malicious.pdf"
         }
         
         response = client.post("/dumps/new", json=payload, headers=auth_headers)
@@ -127,8 +129,9 @@ class TestPDFIngestion:
         
         payload = {
             "basket_id": str(uuid4()),
+            "dump_request_id": str(uuid4()),
             "text_dump": "",
-            "file_urls": ["https://test.supabase.co/storage/v1/object/public/big.pdf"]
+            "file_url": "https://test.supabase.co/storage/v1/object/public/big.pdf"
         }
         
         response = client.post("/dumps/new", json=payload, headers=auth_headers)
@@ -140,8 +143,8 @@ class TestPDFIngestion:
         """Test error when no usable text provided."""
         payload = {
             "basket_id": str(uuid4()),
-            "text_dump": "",
-            "file_urls": []
+            "dump_request_id": str(uuid4()),
+            "text_dump": ""
         }
         
         response = client.post("/dumps/new", json=payload, headers=auth_headers)
@@ -158,6 +161,7 @@ class TestPDFIngestion:
         
         payload = {
             "basket_id": str(uuid4()),
+            "dump_request_id": str(uuid4()),
             "text_dump": "Test content"
         }
         

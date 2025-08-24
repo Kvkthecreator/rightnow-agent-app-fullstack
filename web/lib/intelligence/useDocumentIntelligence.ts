@@ -3,17 +3,7 @@
 import useSWR from "swr";
 import { useAuth } from "@/lib/useAuth";
 import { fetchWithToken } from "@/lib/fetchWithToken";
-
-interface ContextItem {
-  type: string;
-  content?: string;
-  summary?: string;
-  relevance_score: number;
-  position?: {
-    start: number;
-    end: number;
-  };
-}
+import type { ContextItem } from "@shared/contracts/context";
 
 interface BlockSuggestion {
   suggestion_id: string;

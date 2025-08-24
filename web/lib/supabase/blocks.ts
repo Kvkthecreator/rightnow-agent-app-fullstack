@@ -41,13 +41,6 @@ export async function fetchBlocks(
 }
 
 
-export async function createBlock(block: BlockInsert) {
-  return apiClient.request("/api/context-blocks/create", {
-    method: "POST",
-    body: JSON.stringify(block)
-  });
-}
-
 export async function toggleAuto(id: string, enable: boolean) {
   return apiClient.request("/api/context-blocks/update", {
     method: "PUT",

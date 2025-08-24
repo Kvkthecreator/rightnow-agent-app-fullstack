@@ -135,7 +135,7 @@ export function generateMockRawDump(basketId: string): RawDump {
     basket_id: basketId,
     workspace_id: MOCK_WORKSPACE_ID,
     body_md: `# Mock Raw Dump\n\nThis is mock content that was ingested into the system.\n\n## Key Points\n\n- Important observation 1\n- Critical insight 2\n- Strategic direction 3`,
-    file_refs: [],
+    file_url: null,
     processing_status: 'processed',
     metadata: {
       mock: true,

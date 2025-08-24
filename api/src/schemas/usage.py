@@ -14,5 +14,5 @@ class UsageIn(BaseSchema):
     pass
 
 
-class UsageOut(UsageReport, BaseSchema):
+class UsageOut(UsageReport):
     pass
