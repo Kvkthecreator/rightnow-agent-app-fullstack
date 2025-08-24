@@ -1,3 +1,6 @@
+# Canon v1.3.1 — docs clarification (no code change)
+Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+
 # YARNNN_SUBSTRATE_RUNTIME.md
 Version: 1.0
 Status: Canon — Runtime Boundaries
@@ -5,16 +8,18 @@ Status: Canon — Runtime Boundaries
 ## Purpose
 Operational runtime for Yarnnn with **strict pipeline separation** and **memory-first** discipline. Defines what each pipeline may/may-not do, allowed RPCs, event contracts, and verification.
 
+Blocks (**context_blocks**) are the structured units handled in P1.
+
 ---
 
 ## Pipelines Overview
 
 | Pipeline | Purpose | Allowed Writes | Disallowed | Emits |
 |---|---|---|---|---|
-| **P0 Capture** | Immutable ingestion of raw memory | `raw_dumps` | context_items, blocks, relationships, reflections, docs | `dump.created` |
-| **P1 Substrate CRUD** | Create/update substrate atoms: **context_items**, **blocks** (delta-first) | `context_items`, `context_blocks`, `block_revisions` | relationships, reflections, docs | `context.bulk_tagged`, `block.proposed|accepted|revised` |
+| **P0 Capture** | Immutable ingestion of raw memory | `raw_dumps` | context_items, context_blocks, relationships, reflections, docs | `dump.created` |
+| **P1 Substrate CRUD** | Create/update substrate atoms: **context_items**, **context_blocks** (delta-first) | `context_items`, `context_blocks`, `block_revisions` | relationships, reflections, docs | `context.bulk_tagged`, `block.proposed|accepted|revised` |
 | **P2 Graph Fabric** | Materialize typed, directional edges | `substrate_relationships` | substrate writes, reflections, docs | `rel.bulk_upserted` |
-| **P3 Signals/Reflections** | Compute derived signals from projection | *(none by default; optional cache)* | substrate/graph/doc writes | `reflection.computed` (if cached) |
+| **P3 Signals/Reflections** | Compute derived signals from projection | `reflection_cache` (optional) | substrate/graph/doc writes | `reflection.computed` (if cached) |
 | **P4 Presentation** | Author narrative and compose documents | `documents` (+joins) | substrate/graph writes | `doc.created|updated` |
 
 > **Narrative is downstream (P4)**: it consumes substrate/graph; it is not part of substrate CRUD. If atomized "rememberable prose" is needed, use `context_item.kind='cue'` in P1.
@@ -33,6 +38,15 @@ Operational runtime for Yarnnn with **strict pipeline separation** and **memory-
 
 ---
 
+## Memory Plane ↔ REST
+
+| Storage (DB)       | API                                                      |
+|--------------------|----------------------------------------------------------|
+| timeline_events (append-only) | `GET /api/baskets/{id}/timeline` |
+| reflection_cache (optional)   | `GET /api/baskets/{id}/reflections/latest` (may compute on read) |
+
+---
+
 ## Consumes ⟷ Emits (Event Contracts)
 
 | Pipeline | Consumes | Emits |
@@ -44,12 +58,15 @@ Operational runtime for Yarnnn with **strict pipeline separation** and **memory-
 | P4 | user/agent action | `doc.created`, `doc.updated` |
 
 **Event payloads (small)**  
-- `dump.created`: `{ basket_id, dump_id, preview }`  
-- `context.bulk_tagged`: `{ basket_id, dump_id, counts_by_kind }`  
-- `block.proposed`: `{ basket_id, block_id, signature_hash }`  
-- `rel.bulk_upserted`: `{ basket_id, created, ignored }`  
-- `reflection.computed`: `{ basket_id, meta_derived_from }`  
+- `dump.created`: `{ basket_id, dump_id, preview }`
+- `context.bulk_tagged`: `{ basket_id, dump_id, counts_by_kind }`
+- `block.proposed`: `{ basket_id, block_id, signature_hash }`
+- `block.accepted`: `{ basket_id, block_id }`
+- `block.revised`: `{ basket_id, block_id, revision_id }`
+- `rel.bulk_upserted`: `{ basket_id, created, ignored }`
+- `reflection.computed`: `{ basket_id, meta_derived_from }`
 - `doc.created`: `{ basket_id, doc_id, document_type }`
+- `doc.updated`: `{ basket_id, doc_id, document_type }`
 
 ---
 
@@ -103,7 +120,7 @@ participant DB as DB
 EV-->>P3: rel.bulk_upserted (or schedule)
 P3->>DB: READ projection (graph + recent dumps)
 P3->>P3: compute reflections
-P3->>DB: (optional) cache upsert
+P3->>DB: (optional) fn_reflection_cache_upsert
 DB-->>DB: emit reflection.computed
 ```
 

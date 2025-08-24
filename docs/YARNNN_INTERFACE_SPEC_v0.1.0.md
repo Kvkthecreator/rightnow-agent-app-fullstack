@@ -1,3 +1,6 @@
+Canon v1.3.1 — docs clarification (no code change)
+Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+
 ## Yarnnn Interface Spec — Basket Create & Dump Ingest (v0.1.0)
 Last updated: 2025-08-15 (Asia/Seoul)
 
@@ -6,9 +9,12 @@ Scope: End-to-end contracts and endpoints for Basket creation and Raw Dump inges
 Spec version: v0.1.0 (semver)
 Consumers: Web frontend (Next.js), FastAPI server, E2E tests.
 
+The sacred write path is **POST /api/dumps/new** (one dump per call).
+**Optional onboarding alias:** **POST /api/baskets/ingest** orchestrates basket + multiple dumps in one transaction; it performs **no additional side-effects** beyond the split endpoints and is idempotent on both the basket and each dump.
+
 **IMPLEMENTED**: This specification has been fully implemented as of 2025-08-15. All features, database migrations, API endpoints, and frontend flows are complete and tested.
 
-Single source of truth: DTOs in `shared/contracts/*` (imported by FE & BE). This doc mirrors those contracts and defines transport semantics. Legacy notes in `api/docs/create.md` have been removed so this file remains canonical.
+Single source of truth: DTOs in `shared/contracts/*` (imported by FE & BE). This doc mirrors those contracts and defines transport semantics. Legacy notes in earlier API docs have been removed so this file remains canonical.
 
 ## 1) Global Conventions
 Auth: Bearer JWT (Supabase) on all endpoints.

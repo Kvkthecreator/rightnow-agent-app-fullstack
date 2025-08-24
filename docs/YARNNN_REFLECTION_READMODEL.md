@@ -1,3 +1,6 @@
+# Canon v1.3.1 — docs clarification (no code change)
+Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+
 # Reflection Read-Model (Authoritative + Optimistic)
 
 **Goal:** Deterministic reflections computed from substrate; same code can run on server (truth) and client (optimism).
@@ -5,6 +8,8 @@
 ## Inputs
 - **Text window**: last N `raw_dumps` in basket
 - **Graph window**: `context_items` + `substrate_relationships` touching those dumps
+
+Blocks (**context_blocks**) may be referenced when reflections require structured context.
 
 ## Output
 ```ts
@@ -17,13 +22,15 @@ type Reflections = {
 ```
 
 ## Compute
-- **Server (authoritative)**: compute reflections → INSERT `basket_reflections` → INSERT `timeline_events(kind='reflection')` → EMIT `events(kind='reflection.computed')`.
+- **Server (authoritative)**: compute → (optional) UPSERT `reflection_cache` → INSERT `timeline_events(kind='reflection')` → EMIT `events(kind='reflection.computed')`.
 - **Client (optimistic)**: run `computeReflections(notes)` without graph immediately after submit; reconcile to server result on revalidate.
 
 ## Storage
-- **Durable**: `basket_reflections` stores computed pattern/tension/question with timestamp
+- **Optional cache**: `reflection_cache` stores the computed shape with timestamp; non-authoritative
 - **Stream**: `timeline_events` append-only log of all memory events (dump|reflection|narrative|system_note)
 - **Events**: canonical `events` table (basket_events deprecated)
+
+Reflections are derived from substrate. If persisted, they live in reflection_cache as a non-authoritative cache; readers may recompute on demand.
 
 ## Guarantees
 - **No schema changes**.
@@ -32,7 +39,7 @@ type Reflections = {
 
 ## "No-Drift" Checklist
 - ✓ One write path: `/api/dumps/new` → `raw_dumps` → `dump.created`.
-- ✓ Interpretation writes only to existing tables: `context_items`, `substrate_relationships`, optional `blocks`.
+- ✓ Interpretation writes only to existing tables: `context_items`, `substrate_relationships`, optional `context_blocks`.
 - ✓ Narrative writes to existing `documents(document_type='narrative')`.
 - ✓ Reflections are computed; not stored (except optional caching).
 - ✓ Agents are idempotent; UPSERT by stable keys.

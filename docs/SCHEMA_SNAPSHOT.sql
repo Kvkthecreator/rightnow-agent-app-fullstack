@@ -1,0 +1,3 @@
+-- Canon v1.3.1 — Reference snapshot (docs-only)
+-- This file is an exported reference. All schema changes MUST land via migrations.
+-- Regenerate snapshot after merges; do not edit DDL in place.
