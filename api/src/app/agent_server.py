@@ -41,7 +41,6 @@ from .routes.block_lifecycle import router as block_lifecycle_router
 from .routes.blocks import router as blocks_router
 from .routes.change_queue import router as change_queue_router
 from .routes.commits import router as commits_router
-from .routes.context_blocks_create import router as context_blocks_create_router
 from .routes.context_intelligence import router as context_intelligence_router
 from .routes.context_items import router as context_items_router
 from .routes.debug import router as debug_router
@@ -112,7 +111,6 @@ routers = (
     agent_run_router,
     agents_router,
     phase1_router,
-    context_blocks_create_router,
     context_items_router,
     block_lifecycle_router,
     agent_memory_router,
