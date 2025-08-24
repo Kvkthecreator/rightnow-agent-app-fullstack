@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
-import { ExportRequest, ExportPlan, ExportResult, ExportFormat, ShareLink } from "./interface";
+import type { ExportRequest, ExportPlan, ExportResult, ExportFormat, ShareLink } from "./interface";
 import * as crypto from 'crypto';
 
 export async function fetchDoc(basketId: string, docId?: string): Promise<any> {

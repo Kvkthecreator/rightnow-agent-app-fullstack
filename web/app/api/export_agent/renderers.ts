@@ -1,4 +1,4 @@
-import { ExportResult, ExportFormat } from "./interface";
+import type { ExportResult, ExportFormat } from "./interface";
 import { execute } from "./agent";
 
 export interface RenderManifest {
@@ -45,7 +45,7 @@ export async function renderWithProvenance(
     provenance: {
       sourceDoc: result.provenance?.docId || docId || '',
       reflectionId: result.provenance?.reflectionId,
-      includesProvenance
+      includesProvenance: includeProvenance
     },
     security: {
       shareToken,

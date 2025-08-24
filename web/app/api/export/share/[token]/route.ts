@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { validateShareToken, generateSecureFilename } from "@/app/api/export_agent/security";
 import { renderWithProvenance, wrapWithHtmlTemplate, addMarkdownMetadata } from "@/app/api/export_agent/renderers";
 
-export async function GET(req: Request, { params }: { params: { token: string } }) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ token: string }> }
+) {
   try {
-    const token = params.token;
+    const { token } = await params;
     
     if (!token) {
       return NextResponse.json({ error: "Share token required" }, { status: 400 });
