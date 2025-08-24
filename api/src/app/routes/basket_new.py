@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from ..utils.jwt import verify_jwt
 from ..utils.supabase import supabase_admin
@@ -18,10 +19,15 @@ router = APIRouter(prefix="/baskets", tags=["baskets"])
 log = logging.getLogger("uvicorn.error")
 
 
+class CreateBasketReq(BaseModel):
+    idempotency_key: str
+    basket: Optional[dict] = None
+
+
 @router.post("/new", status_code=201)
 async def create_basket(
     request: Request,
-    payload: dict, 
+    payload: CreateBasketReq,
     user: Annotated[dict, Depends(verify_jwt)]
 ):
     """Create a basket with idempotency and workspace membership checks."""
@@ -32,24 +38,21 @@ async def create_basket(
 
         workspace_id = get_or_create_workspace(user["user_id"])
 
-        idempotency_key = payload.get("idempotency_key")
-
-        # ---- AUTO NAME (lightweight) ----
-        intent = (payload.get("intent") or "").strip()
-        basket_name = " ".join(intent.split()[:6]) if intent else "Untitled Basket"
-        # ---------------------------------
+        idempotency_key = payload.idempotency_key
+        basket_name = (payload.basket or {}).get("name") or "Untitled Basket"
 
         # Check for replay using idempotency key
         sb = supabase_admin()
         existing = (
             sb.table("baskets")
-            .select("id")
+            .select("id,name")
             .eq("user_id", user["user_id"])
             .eq("idempotency_key", idempotency_key)
             .execute()
         )
         if existing.data:
             basket_id = existing.data[0]["id"]
+            name = existing.data[0].get("name")
             log.info(
                 json.dumps(
                     {
@@ -62,7 +65,7 @@ async def create_basket(
                     }
                 )
             )
-            return JSONResponse({"id": basket_id}, status_code=200)
+            return JSONResponse({"basket_id": basket_id, "id": basket_id, "name": name}, status_code=200)
 
         # Insert new basket with generated ID
         import uuid
@@ -74,8 +77,6 @@ async def create_basket(
             "name": basket_name,
             "idempotency_key": idempotency_key,
             "status": "INIT",
-            # Store intent in tags array for now
-            "tags": [f"intent:{intent}"] if intent else [],
         }
         # Insert and return the created basket
         try:
@@ -115,7 +116,7 @@ async def create_basket(
                 }
             )
         )
-        return JSONResponse({"id": basket_id, "name": basket_name}, status_code=201)
+        return JSONResponse({"basket_id": basket_id, "id": basket_id, "name": basket_name}, status_code=201)
         
     except Exception as e:
         log.exception("basket_new failed")

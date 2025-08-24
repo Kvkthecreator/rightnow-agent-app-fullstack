@@ -19,12 +19,9 @@ export type Basket = {
 // API Request/Response types
 export type CreateBasketReq = {
   idempotency_key: string;
-  intent: string;
-  raw_dump: {
-    text: string;
-    file_urls: string[];
+  basket?: {
+    name?: string;
   };
-  notes?: string[];
 };
 
 export type CreateBasketRes = {

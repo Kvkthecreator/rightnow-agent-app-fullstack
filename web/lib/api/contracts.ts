@@ -139,13 +139,12 @@ export type ApiError = z.infer<typeof ApiErrorSchema>;
 // Request/Response helpers
 export const CreateBasketRequestSchema = z.object({
   idempotency_key: UUIDSchema,
-  intent: z.string(),
-  raw_dump: z.object({
-    text: z.string(),
-    file_urls: z.array(z.string()),
-  }),
-  notes: z.array(z.string()).optional(),
-});
+  basket: z
+    .object({
+      name: z.string().optional(),
+    })
+    .optional(),
+}).strict();
 
 export type CreateBasketRequest = z.infer<typeof CreateBasketRequestSchema>;
 
@@ -157,22 +156,13 @@ export const UpdateBlockRequestSchema = z.object({
 
 export type UpdateBlockRequest = z.infer<typeof UpdateBlockRequestSchema>;
 
-export const CreateDocumentRequestSchema = z.object({
-  basket_id: UUIDSchema,
-  title: z.string(),
-  content_raw: z.string(),
-  document_type: z.string(),
-  metadata: z.record(z.unknown()).optional(),
-});
-
-export type CreateDocumentRequest = z.infer<typeof CreateDocumentRequestSchema>;
-
 // Raw dump schema
 export const RawDumpSchema = z.object({
   id: UUIDSchema,
   basket_id: UUIDSchema,
   workspace_id: UUIDSchema,
   body_md: z.string(),
+  file_url: z.string().url().nullable().optional(),
   file_refs: z.array(z.string()).optional(),
   processing_status: z.enum(['pending', 'processing', 'processed', 'failed']),
   metadata: z.record(z.unknown()).optional(),
@@ -182,12 +172,17 @@ export const RawDumpSchema = z.object({
 
 export type RawDump = z.infer<typeof RawDumpSchema>;
 
-export const CreateDumpRequestSchema = z.object({
-  dump_request_id: UUIDSchema,
-  basket_id: UUIDSchema,
-  text_dump: z.string(),
-  file_url: z.string().optional(),
-});
+export const CreateDumpRequestSchema = z
+  .object({
+    dump_request_id: UUIDSchema,
+    basket_id: UUIDSchema,
+    text_dump: z.string().optional(),
+    file_url: z.string().url().optional(),
+    meta: z.record(z.unknown()).optional(),
+  })
+  .refine((d) => d.text_dump || d.file_url, {
+    message: 'Provide text_dump or file_url',
+  });
 
 export type CreateDumpRequest = z.infer<typeof CreateDumpRequestSchema>;
 

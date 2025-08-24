@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 interface AddMemoryComposerProps {
   basketId: string;
   disabled?: boolean;
-  onSuccess?: (dump: { id: string; basket_id: string; text_dump: string | null; created_at: string }) => void;
+  onSuccess?: (res: { dump_id: string }) => void;
 }
 
 export default function AddMemoryComposer({ basketId, disabled, onSuccess }: AddMemoryComposerProps) {
@@ -50,7 +50,10 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
           basket_id: basketId,
           text_dump: trimmed,
           dump_request_id: crypto.randomUUID(),
-          client_ts: Date.now(),
+          meta: {
+            client_ts: new Date().toISOString(),
+            ingest_trace_id: crypto.randomUUID(),
+          },
         }),
       });
       if (res.ok) {

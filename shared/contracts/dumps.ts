@@ -27,12 +27,13 @@ export type CreateDumpReq = {
   dump_request_id: string;
   text_dump?: string;  // User text content (including pasted URLs)
   file_url?: string;   // Supabase Storage URL for uploaded files
-  meta?: Record<string, any>;
+  meta?: {
+    client_ts?: string;
+    ingest_trace_id?: string;
+    [k: string]: any;
+  };
 };
 
 export type CreateDumpRes = {
-  id: string;
-  basket_id: string;
-  text_dump: string | null;
-  created_at: string;
+  dump_id: string;
 };

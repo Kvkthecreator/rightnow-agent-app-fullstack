@@ -59,7 +59,7 @@ class DumpInterpreterService:
         # Get the raw dump content including Supabase Storage file references
         dump_resp = (
             supabase.table("raw_dumps")
-            .select("id,body_md,basket_id,workspace_id,file_url,source_meta")
+            .select("id,body_md,basket_id,workspace_id,file_url,file_refs,source_meta")
             .eq("id", str(request.raw_dump_id))
             .eq("workspace_id", workspace_id)
             .maybe_single()
@@ -81,6 +81,13 @@ class DumpInterpreterService:
         
         # Process Supabase Storage file if present
         file_url = raw_dump.get("file_url")
+        if not file_url:
+            refs = raw_dump.get("file_refs")
+            if refs and isinstance(refs, list) and refs[0]:
+                file_url = refs[0]
+                logger.warning(
+                    "raw_dumps.file_refs is deprecated; use file_url instead",
+                )
         if file_url:
             try:
                 # Get MIME type from source_meta if available

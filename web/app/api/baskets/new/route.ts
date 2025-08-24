@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   const DBG = req.headers.get("x-yarnnn-debug-auth") === "1";
   const requestId = req.headers.get("x-request-id") ?? randomUUID();
-  // 1) Parse & validate request (canon: { idempotency_key, intent, raw_dump, notes? })
+  // 1) Parse & validate request (canon: { idempotency_key, basket? })
   let json: unknown;
   try {
     json = await req.json();

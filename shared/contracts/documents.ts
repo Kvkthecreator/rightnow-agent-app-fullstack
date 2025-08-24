@@ -13,10 +13,4 @@ export type Document = {
 };
 
 // API Request/Response types
-export type CreateDocumentRequest = {
-  basket_id: string;
-  title: string;
-  content_raw: string;
-  document_type: string;
-  metadata?: Record<string, any>;
-};
+// Deprecated: legacy document creation request (use universal change system instead)

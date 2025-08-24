@@ -2,10 +2,8 @@ import { apiClient, timeoutSignal } from './http';
 import {
   DocumentSchema,
   PaginatedSchema,
-  CreateDocumentRequestSchema,
   type Document,
   type Paginated,
-  type CreateDocumentRequest,
 } from './contracts';
 
 /**
@@ -53,21 +51,6 @@ export async function listDocuments(basketId: string, options?: {
   });
   
   return PaginatedSchema(DocumentSchema).parse(response);
-}
-
-// Create new document
-export async function createDocument(request: CreateDocumentRequest): Promise<Document> {
-  // Validate request payload
-  const validatedRequest = CreateDocumentRequestSchema.parse(request);
-  
-  const response = await apiClient({
-    url: '/api/documents',
-    method: 'POST',
-    body: validatedRequest,
-    signal: timeoutSignal(15000),
-  });
-  
-  return DocumentSchema.parse(response);
 }
 
 // Update document
