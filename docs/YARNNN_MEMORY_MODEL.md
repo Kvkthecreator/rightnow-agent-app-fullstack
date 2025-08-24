@@ -1,6 +1,10 @@
+# Canon v1.3.1 — docs clarification (no code change)
+Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+
 # Yarnnn Memory Model — Canonical Substrate Contract (v2.1)
 
-Aligned with Context OS substrate v1.2  
+Aligned with Context OS substrate v1.2
+Blocks (**context_blocks**) are structured units of meaning.
 Last updated: 2025-07-25
 
 ---
@@ -18,15 +22,17 @@ No substrate assumes the existence of another. All reference a shared `basket_id
 | ------------- | ------------------------------------ | ------------------------ |
 | `basket`      | Workspace-level container            | Manually via UI/API      |
 | `raw_dump`    | Immutable unstructured input         | User submits dump        |
-| `block`       | Structured unit of meaning           | Proposed by agent/user   |
+| `context_block`       | Structured unit of meaning           | Proposed by agent/user   |
 | `document`    | Composition of blocks + narrative    | Composed by agent/user   |
 | `context_item`| Semantic connector/tag               | Inferred or created      |
 | `event`       | Audit log of changes                 | Emitted by system/agent  |
 
 ### Memory Plane (First-Class)
-- **basket_reflections**: Durable computed insights (pattern, tension, question, computed_at)
+- **reflection_cache** (optional, non-authoritative): Computed insights (pattern, tension, question, computed_at)
 - **timeline_events**: Append-only memory stream of all basket activity
-- **Integration**: Reflections computed from substrate → stored durably → streamed via history
+- **Integration**: Reflections computed from substrate → optionally cached → streamed via history
+
+Reflections are derived from substrate. If persisted, they live in reflection_cache as a non-authoritative cache; readers may recompute on demand.
 
 ---
 
@@ -58,10 +64,10 @@ event	Immutable	No	Log only
 5. Canonical Role Definitions
 🧺 basket
 Memory scope for all substrates.
-Organizes raw_dumps, blocks, documents, context_items.
+Organizes raw_dumps, context_blocks, documents, context_items.
 💭 raw_dump
 Unstructured input, immutable.
-May be referenced by blocks or documents.
+May be referenced by context_blocks or documents.
 ⬛ block
 Reusable unit of structured meaning.
 Proposed by agents or users.
@@ -80,7 +86,7 @@ Immutable audit entry.
 Records creations, updates, proposals, rejections, and compositions.
 6. Canonical Summary
 All substrates are peers — no hierarchy.
-Blocks are the reusable, structured memory atoms.
+Blocks (**context_blocks**) are the reusable, structured memory atoms.
 Documents are compositions, not containers of truth.
 Narrative text is persisted inside documents.
 Events ensure full auditability and immutability.

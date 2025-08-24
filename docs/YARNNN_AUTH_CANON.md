@@ -1,3 +1,6 @@
+# Canon v1.3.1 — docs clarification (no code change)
+Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+
 # Yarnnn Frontend Auth
 
 This document tracks how the web client attaches the user's session token to every API request.
@@ -50,5 +53,7 @@ Service role keys are used ONLY for:
 
 ## RLS Summary
 - **Memory tables**: workspace-scoped SELECT; service_role-only INSERT/UPDATE/DELETE
-- `basket_reflections`, `timeline_events`: read by workspace members, write by service_role only
+- `reflection_cache (optional, non-authoritative)`, `timeline_events`: read by workspace members, write by service_role only
 - Standard pattern: users read via workspace membership, system writes via service_role
+
+Reflections are derived from substrate. If persisted, they live in reflection_cache as a non-authoritative cache; readers may recompute on demand.

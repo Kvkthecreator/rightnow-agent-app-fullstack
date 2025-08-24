@@ -1,3 +1,6 @@
+# Canon v1.3.1 — docs clarification (no code change)
+Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+
 # Yarnnn Canon
 
 ## Canon Update: Memory-First Reflection (v1.3)
@@ -7,16 +10,23 @@
 2) **Reflection is derived**: insights are computed as a **read-model** from the current substrate.
 3) **Narrative is deliberate**: agents may write short prose to `documents(document_type='narrative')`.
 
+Blocks (**context_blocks**) are structured units of meaning.
+
 ### Roles (unchanged, clarified)
-- **Substrate (objective)**: `raw_dumps`, `context_items`, `substrate_relationships`, `blocks`.
-- **Memory Plane**: `basket_reflections` (durable), `timeline_events` (append-only stream).
+- **Substrate (objective)**: `raw_dumps`, `context_items`, `substrate_relationships`, `context_blocks`.
+- **Memory Plane**: `reflection_cache` (optional, non-authoritative), `timeline_events` (append-only stream).
 - **Reflection (derived)**: pattern/tension/question computed at read-time from substrate.
 - **Narrative (authored)**: agent-written short text that cites substrate signals.
+
+Reflections are derived from substrate. If persisted, they live in reflection_cache as a non-authoritative cache; readers may recompute on demand.
 
 ### Glossary
 - **Memory-First**: User thoughts and patterns emerge from captured substrate, not imposed structure.
 - **Read-Model**: Computed state derived from authoritative data, not stored separately.
-- **Sacred Write Path**: Single entry point for user input via `/create` → `raw_dump`.
+- **Sacred Write Path**: The sacred write path is **POST /api/dumps/new** (one dump per call).
+- **Optional onboarding alias:** **POST /api/baskets/ingest** orchestrates basket + multiple dumps in one transaction; it performs **no additional side-effects** beyond the split endpoints and is idempotent on both the basket and each dump.
+
+Basket lifecycle: **INIT → ACTIVE → ARCHIVED**; empty INIT baskets older than **48h** are **eligible for cleanup** (policy-guarded; disabled by default).
 
 ---
 

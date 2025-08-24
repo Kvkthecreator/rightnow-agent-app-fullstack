@@ -1,24 +1,36 @@
+# Canon v1.3.1 — docs clarification (no code change)
+Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+
 # YARNNN Ingestion Canon (Authoritative)
+
+Default path: POST /api/baskets/new then fan-out POST /api/dumps/new.
+Optional path: POST /api/baskets/ingest reduces round-trips during onboarding (idempotent on basket & each dump).
+
+Blocks (**context_blocks**) are structured units created during interpretation.
 
 ## Contract
 - **Single dump**: `POST /api/dumps/new`
-  - Body: `{ basket_id, text_dump?, file_urls?, source_meta?, ingest_trace_id?, dump_request_id }`
+  - Body: `{ basket_id, dump_request_id, text_dump?, file_url?, meta? }`
   - Writes `raw_dumps`. **DB trigger** emits `timeline_events(kind='dump')`.
   - **Idempotency**: `(basket_id, dump_request_id)` unique; replay returns the same dump_id.
 
 - **Batch ingest**: `POST /api/baskets/ingest` → RPC `fn_ingest_dumps(p_workspace_id, p_basket_id, p_dumps jsonb)`
 
+**Optional onboarding alias:** **POST /api/baskets/ingest** orchestrates basket + multiple dumps in one transaction; it performs **no additional side-effects** beyond the split endpoints and is idempotent on both the basket and each dump.
+
 ## Flow
-Capture → `/api/dumps/new` → `fn_ingest_dumps` → `raw_dumps`  
-→ trigger `fn_timeline_after_raw_dump` → `timeline_events('dump')`  
-→ processors read dumps and write substrate via RPCs:  
-`fn_persist_reflection`, `fn_document_create`, `fn_block_create`, `fn_block_revision_create`,  
-`fn_context_item_create`, `fn_relationship_upsert` → each calls `fn_timeline_emit`.
+Capture → `/api/dumps/new` → `fn_ingest_dumps` → `raw_dumps`
+→ trigger `fn_timeline_after_raw_dump` → `timeline_events('dump')`
+→ processors read dumps and write substrate via RPCs:
+`fn_reflection_cache_upsert` (optional), `fn_document_create`, `fn_block_create`, `fn_block_revision_create`,
+`fn_context_item_upsert_bulk`, `fn_relationship_upsert_bulk` → each calls `fn_timeline_emit`.
 
 ## Idempotency & Trace
-- Client generates `dump_request_id` and `ingest_trace_id` (UUID).  
-- Unique index: `(basket_id, dump_request_id) WHERE dump_request_id IS NOT NULL`.  
-- Trace is stored in `raw_dumps.ingest_trace_id` / `source_meta`.
+- Client generates `dump_request_id` (UUID).
+- Unique index: `(basket_id, dump_request_id) WHERE dump_request_id IS NOT NULL`.
+- Trace/context fields may be nested under `meta`; server may record additional trace internally.
+
+Clients may include additional trace/context fields inside `meta` (e.g., `meta.client_trace_id`); the server may also record a server-generated trace internally. These are not part of the public DTO surface.
 
 ## Security
 - All writes scoped by `workspace_id`; RLS enforces workspace membership.  
@@ -28,8 +40,8 @@ Capture → `/api/dumps/new` → `fn_ingest_dumps` → `raw_dumps`
 - 401/403 auth; 422 validation; 409 idempotency conflict; 500 unexpected.
 
 ## RPCs
-- `fn_ingest_dumps`, `fn_persist_reflection`, `fn_document_create`, `fn_block_create`,  
-  `fn_block_revision_create`, `fn_context_item_create`, `fn_relationship_upsert`.
+- `fn_ingest_dumps`, `fn_reflection_cache_upsert` (optional), `fn_document_create`, `fn_block_create`,
+  `fn_block_revision_create`, `fn_context_item_upsert_bulk`, `fn_relationship_upsert_bulk`.
 
 ## Tests
 - Replaying the same `dump_request_id` returns the same `dump_id` and **exactly one** timeline `dump`.

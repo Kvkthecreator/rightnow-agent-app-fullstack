@@ -1,3 +1,6 @@
+# Canon v1.3.1 — docs clarification (no code change)
+Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+
 📜 docs/YARNNN_AUTH_WORKFLOW.md — Canonical Authentication & Workspace Flow (v1)
 This document is the source of truth. All code MUST conform to it.
 Terms: “MUST/SHALL/SHOULD” follow RFC-2119 semantics.
@@ -24,7 +27,7 @@ Columns: id (uuid PK), owner_id (uuid), name (text), is_demo (bool default false
 workspace_memberships
 Columns: workspace_id (uuid), user_id (uuid), role (enum: owner|member), timestamps.
 Constraint: (workspace_id, user_id) is UNIQUE.
-Workspace-scoped tables (examples): baskets, raw_dumps, blocks, documents, context_items, …
+Workspace-scoped tables (examples): baskets, raw_dumps, blocks (**context_blocks**), documents, context_items, …
 Each SHALL include workspace_id (uuid NOT NULL) and be protected by RLS that references workspace_memberships.
 
 Baskets timestamp semantics
@@ -147,13 +150,13 @@ Create Raw Dump
 POST /api/dumps/new
 Authorization: Bearer <jwt>
 
-Body: { "text_dump": "...", "file_urls": ["..."] }
+Body: { "dump_request_id": "<uuid>", "text_dump": "...", "file_url": "..." }
 
 Behavior:
-- Verify JWT → userId
-- workspaceId = ensureWorkspaceForUser(userId)
-- Insert raw_dumps(workspace_id, text_dump, file_urls)
-- Return { id, workspace_id }
+ - Verify JWT → userId
+ - workspaceId = ensureWorkspaceForUser(userId)
+ - Insert raw_dumps(workspace_id, dump_request_id, text_dump, file_url)
+ - Return { id, workspace_id }
 
 ## 10) Logging & Observability
 Each request SHALL log: request_id, user_id, workspace_id, route, action, and decision outcomes (RBAC allow/deny).
