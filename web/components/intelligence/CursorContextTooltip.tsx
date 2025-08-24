@@ -9,7 +9,7 @@ import type { ContextItem } from "@shared/contracts/context";
 interface Props {
   position: { x: number; y: number };
   themes: string[];
-  contextItems: ContextItem[];
+  contextItems: (ContextItem & { content?: string })[];
   suggestedConnections: string[];
   onAction?: (action: string) => void;
   isVisible?: boolean;

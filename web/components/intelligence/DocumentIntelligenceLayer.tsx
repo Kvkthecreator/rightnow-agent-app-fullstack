@@ -8,6 +8,7 @@ import BlockSuggestionPopover from "./BlockSuggestionPopover";
 import MemoryConnectionHighlight from "./MemoryConnectionHighlight";
 import CursorContextTooltip from "./CursorContextTooltip";
 import FloatingIntelligenceActions from "./FloatingIntelligenceActions";
+import type { ContextItem } from "@shared/contracts/context";
 
 interface Props {
   documentId: string;
@@ -43,6 +44,13 @@ export default function DocumentIntelligenceLayer({
     cursorPosition?.position
   );
 
+  type RichContextItem = ContextItem & {
+    relevance_score?: number;
+    content?: string;
+    position?: { start: number; x?: number; y?: number };
+  };
+  const typedContextItems = contextItems as RichContextItem[];
+
   const {
     contextSuggestions,
     relatedContent,
@@ -55,10 +63,10 @@ export default function DocumentIntelligenceLayer({
   );
 
   const visibleContextItems = useMemo(() => {
-    return contextItems.filter(item => 
-      !dismissedOverlays.has(`context-${item.type}-${item.relevance_score}`)
+    return typedContextItems.filter(item =>
+      !dismissedOverlays.has(`context-${item.type}-${item.relevance_score ?? 0}`)
     );
-  }, [contextItems, dismissedOverlays]);
+  }, [typedContextItems, dismissedOverlays]);
 
   const visibleBlockSuggestions = useMemo(() => {
     return blockSuggestions.filter(suggestion => 
@@ -169,16 +177,18 @@ export default function DocumentIntelligenceLayer({
         {enhanceChildrenWithConnections(children)}
         
         {visibleContextItems.map((item, index) => {
-          const position = item.position 
+          const position = item.position
             ? getTextPosition(documentRef.current!, item.position.start)
             : { x: 20 + index * 100, y: 20 };
-          
+
           return (
             <ContextItemOverlay
-              key={`context-${item.type}-${item.relevance_score}-${index}`}
+              key={`context-${item.type}-${item.relevance_score ?? 0}-${index}`}
               contextItem={item}
               position={position}
-              onDismiss={() => handleDismissOverlay(`context-${item.type}-${item.relevance_score}`)}
+              onDismiss={() =>
+                handleDismissOverlay(`context-${item.type}-${item.relevance_score ?? 0}`)
+              }
             />
           );
         })}

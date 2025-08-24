@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import type { ContextItem } from "@shared/contracts/context";
 
 interface Props {
-  contextItem: ContextItem;
+  contextItem: ContextItem & { relevance_score?: number; content?: string };
   position: { x: number; y: number };
   onDismiss?: () => void;
   onClick?: () => void;
@@ -38,11 +38,12 @@ export default function ContextItemOverlay({
   onClick
 }: Props) {
   const [isHovered, setIsHovered] = useState(false);
+
+  const typeKey = contextItem.type ?? "default";
+  const styleClass = contextTypeStyles[typeKey] || contextTypeStyles.default;
+  const icon = contextTypeIcons[typeKey] || contextTypeIcons.default;
   
-  const styleClass = contextTypeStyles[contextItem.type] || contextTypeStyles.default;
-  const icon = contextTypeIcons[contextItem.type] || contextTypeIcons.default;
-  
-  const relevanceOpacity = Math.max(0.4, contextItem.relevance_score);
+  const relevanceOpacity = Math.max(0.4, contextItem.relevance_score ?? 0);
 
   return (
     <div
@@ -76,7 +77,7 @@ export default function ContextItemOverlay({
                 {contextItem.type} Context
               </h4>
               <div className="text-xs text-muted-foreground">
-                {Math.round(contextItem.relevance_score * 100)}% relevant
+                {Math.round((contextItem.relevance_score ?? 0) * 100)}% relevant
               </div>
             </div>
             

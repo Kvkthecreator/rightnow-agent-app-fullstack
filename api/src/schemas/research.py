@@ -7,5 +7,5 @@ class ResearchIn(BaseSchema):
     pass
 
 
-class ResearchOut(RefreshReport, BaseSchema):
+class ResearchOut(RefreshReport):
     pass
