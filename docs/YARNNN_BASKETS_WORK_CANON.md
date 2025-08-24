@@ -1,7 +1,10 @@
+# Canon v1.3.1 — docs clarification (no code change)
+Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+
 # Yarnnn — Basket Work Canon (Display-Only, Phase 1)
 
-**Purpose**  
-Define the read-only surfaces and payloads for `/baskets/:id/dashboard` and subpages. Mutation (Dump, Proposals, Review) is explicitly out of scope for Phase 1.
+**Purpose**
+Define the read-only surfaces and payloads for `/baskets/:id/dashboard` and subpages, covering documents, blocks (**context_blocks**), and context_items. Mutation (Dump, Proposals, Review) is explicitly out of scope for Phase 1.
 
 ## Core Principle
 Users return to see:
@@ -9,8 +12,10 @@ Users return to see:
 2) **The most important next move** (bounded, reviewable suggestion)
 
 ## Authority
-- Memory reflections: server computes → `basket_reflections` → `timeline_events` → `events`
+- Memory reflections: server computes → `reflection_cache (optional, non-authoritative)` → `timeline_events` → `events`
 - Frontend mirrors durable state; no client-side synthesis
+
+Reflections are derived from substrate. If persisted, they live in reflection_cache as a non-authoritative cache; readers may recompute on demand.
 
 ## Pages & Panels
 

@@ -1,3 +1,6 @@
+# Canon v1.3.1 — docs clarification (no code change)
+Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+
 # Complete Transformation Scope
 
 ## Executive Summary
@@ -23,7 +26,7 @@
 - app/api/intelligence/basket/[basketId]/dashboard/route.ts ❌ TECHNICAL
 - app/api/intelligence/basket/[basketId]/comprehensive/route.ts ❌ TECHNICAL  
 - app/api/intelligence/process-content/route.ts ❌ TECHNICAL
-- app/api/intelligence/create-workspace/route.ts ❌ TECHNICAL
+- app/api/intelligence/workspace/new/route.ts ❌ TECHNICAL
 
 // Transform to:
 + app/api/intelligence/narrative/[basketId]/insights/route.ts ✅ NARRATIVE
@@ -67,7 +70,7 @@ interface ProjectUnderstanding {
 
 ### **Critical Vocabulary Transformations**
 
-#### **Block → Knowledge Transformation**
+#### **Block (**context_block**) → Knowledge Transformation**
 ```typescript
 // 🔥 HIGH PRIORITY - User-facing CRUD operations
 ❌ "Create Block" → ✅ "Capture Insight"
