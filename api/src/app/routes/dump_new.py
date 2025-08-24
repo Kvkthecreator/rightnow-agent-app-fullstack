@@ -72,9 +72,9 @@ async def create_dump(
         {
             "dump_request_id": payload.dump_request_id,
             "text_dump": payload.text_dump,
-            "file_urls": [payload.file_url] if payload.file_url else None,
+            "file_url": payload.file_url,
             "source_meta": payload.meta or {},
-            "ingest_trace_id": payload.dump_request_id,
+            "ingest_trace_id": (payload.meta or {}).get("ingest_trace_id"),
         }
     ]
     resp = supabase.rpc(

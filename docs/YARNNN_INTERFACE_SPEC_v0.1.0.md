@@ -54,7 +54,7 @@ export type CreateDumpReq = {
   dump_request_id: string; // UUID
   text_dump?: string;
   file_url?: string;
-  meta?: Record<string, unknown>;
+  meta?: { client_ts?: string; ingest_trace_id?: string; [k: string]: unknown };
 };
 export type CreateDumpRes = { dump_id: string };
 // shared/contracts/ingest.ts (optional combined flow)

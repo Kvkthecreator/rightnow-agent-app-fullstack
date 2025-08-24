@@ -64,13 +64,12 @@ export async function POST(request: NextRequest) {
       .filter((item: SubstrateContentInput) => item.metadata?.fileObject)
       .map((item: SubstrateContentInput) => item.metadata!.filename)
       .filter(Boolean);
-    
-    // Create raw_dump using existing function
-    const { dumpId } = await createDump({
-      basketId,
-      text: consolidatedContent,
-      fileUrls: fileUrls.length ? fileUrls : null,
-    });
+
+    // Create raw_dump(s) using existing function
+    const { dumpId } = await createDump({ basketId, text: consolidatedContent });
+    for (const url of fileUrls) {
+      await createDump({ basketId, fileUrl: url });
+    }
     
     // Trigger immediate background intelligence generation for raw dumps
     try {

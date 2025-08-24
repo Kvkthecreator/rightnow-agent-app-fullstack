@@ -100,7 +100,12 @@ export default function DumpBarPanel({ basketId, onClose }: DumpBarPanelProps) {
     if (!text.trim() && urls.length === 0) return;
     setSubmitting(true);
     try {
-      await createDump({ basketId, text: text.trim() || null, fileUrls: urls.length ? urls : null });
+      if (text.trim()) {
+        await createDump({ basketId, text: text.trim() });
+      }
+      for (const url of urls) {
+        await createDump({ basketId, fileUrl: url });
+      }
       toast.success(
         <span>
           Captured

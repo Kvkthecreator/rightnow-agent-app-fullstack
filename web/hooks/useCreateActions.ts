@@ -59,17 +59,13 @@ export function useCreateActions() {
     handleSelectedFiles: async (files: FileList) => {
       if (!basketId || !user?.id || !files.length) return;
       try {
-        const urls: string[] = [];
         for (const file of Array.from(files)) {
           const sanitized = sanitizeFilename(file.name);
           const filename = `${Date.now()}-${sanitized}`;
           const url = await uploadFile(file, `dump_${user.id}/${filename}`);
-          urls.push(url);
+          await createDump({ basketId, fileUrl: url });
         }
-        if (urls.length) {
-          await createDump({ basketId, fileUrls: urls });
-          showSuccess(`Captured ${urls.length} file(s) as raw dumps`);
-        }
+        showSuccess(`Captured ${files.length} file(s) as raw dumps`);
       } catch (e) {
         console.warn("uploadFiles failed", e);
         showWarning("Upload failed");
