@@ -20,14 +20,12 @@ export const CreateDumpReqSchema = z.object({
     .catchall(z.unknown())
     .optional(),
 })
+  .strict()
   .refine(
     (data) => data.text_dump || data.file_url,
     { message: "Either text_dump or file_url (Supabase Storage) must be provided" }
-  )
-  .strict() satisfies z.ZodType<CreateDumpReq>;
+  ) satisfies z.ZodType<CreateDumpReq>;
 
 export const CreateDumpResSchema = z.object({
   dump_id: z.string().uuid(),
 }) satisfies z.ZodType<CreateDumpRes>;
-
-export type CreateDumpRes = z.infer<typeof CreateDumpResSchema>;
