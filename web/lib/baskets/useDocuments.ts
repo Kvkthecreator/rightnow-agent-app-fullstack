@@ -2,7 +2,7 @@ import useSWR from "swr";
 import type { DocumentDTO } from "@shared/contracts/documents";
 import { createBrowserClient } from "@/lib/supabase/clients";
 
-export interface DocumentRow extends Document {
+export interface DocumentRow extends DocumentDTO {
   updated_at: string;
 }
 

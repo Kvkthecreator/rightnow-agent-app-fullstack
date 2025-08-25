@@ -128,7 +128,7 @@ export default function DocumentEditor({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Start writing your ${document.document_type || 'document'}...\n\nYou can use Markdown formatting:\n- **bold text**\n- *italic text*\n- # Headers\n- - Lists\n- [Links](url)`}
+            placeholder={`Start writing your ${document.metadata?.document_type || 'document'}...\n\nYou can use Markdown formatting:\n- **bold text**\n- *italic text*\n- # Headers\n- - Lists\n- [Links](url)`}
             className="w-full h-[600px] min-h-[600px] resize-none border-none outline-none text-base leading-relaxed font-mono bg-transparent focus:ring-0"
             style={{
               fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'

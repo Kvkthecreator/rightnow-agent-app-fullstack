@@ -1,10 +1,10 @@
 import { apiClient, timeoutSignal } from './http';
 import {
-  DocumentSchema,
   PaginatedSchema,
-  type Document,
+  type Document as LegacyDocument,
   type Paginated,
 } from './contracts';
+import { DocumentSchema, type DocumentDTO } from '@shared/contracts/documents';
 
 /**
  * Document API functions with Zod validation
@@ -56,7 +56,7 @@ export async function listDocuments(basketId: string, options?: {
 // Update document
 export async function updateDocument(
   documentId: string,
-  updates: Partial<Pick<Document, 'title' | 'content_raw' | 'document_type' | 'metadata'>>
+  updates: Partial<Pick<LegacyDocument, 'title' | 'content_raw' | 'document_type' | 'metadata'>>
 ): Promise<DocumentDTO> {
   const response = await apiClient({
     url: `/api/documents/${documentId}`,
