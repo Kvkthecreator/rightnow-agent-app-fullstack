@@ -15,14 +15,14 @@ export async function storeIntelligenceEvent(
     timestamp: new Date().toISOString()
   };
 
-  // Store in events table with existing schema
+  // Store in timeline_events table with canonical schema
   const { data, error } = await supabase
-    .from('events')
+    .from('timeline_events')
     .insert({
       basket_id: event.basketId,
       workspace_id: event.workspaceId, // CRITICAL: Store workspace_id as direct column for RLS
-      kind: event.kind,
-      payload: {
+      event_kind: event.kind,
+      event_data: {
         intelligence: event.intelligence,
         contentHash: event.contentHash,
         changes: event.changes,
@@ -33,7 +33,7 @@ export async function storeIntelligenceEvent(
         origin: event.origin,
         eventId: fullEvent.id
       },
-      ts: fullEvent.timestamp
+      timestamp: fullEvent.timestamp
     })
     .select()
     .single();
@@ -58,11 +58,11 @@ export async function getIntelligenceEvents(
   }
 ): Promise<IntelligenceEvent[]> {
   let query = supabase
-    .from('events')
+    .from('timeline_events')
     .select('*')
     .eq('basket_id', basketId)
-    .in('kind', ['intelligence_generation', 'intelligence_approval', 'intelligence_rejection'])
-    .order('ts', { ascending: false });
+    .in('event_kind', ['intelligence_generation', 'intelligence_approval', 'intelligence_rejection'])
+    .order('timestamp', { ascending: false });
 
   if (options?.limit) {
     query = query.limit(options.limit);

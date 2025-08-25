@@ -11,7 +11,7 @@ import {
  */
 
 // Get single document
-export async function getDocument(documentId: string): Promise<Document> {
+export async function getDocument(documentId: string): Promise<DocumentDTO> {
   const response = await apiClient({
     url: `/api/documents/${documentId}`,
     method: 'GET',
@@ -27,7 +27,7 @@ export async function listDocuments(basketId: string, options?: {
   after_id?: string;
   limit?: number;
   document_type?: string;
-}): Promise<Paginated<Document>> {
+}): Promise<Paginated<DocumentDTO>> {
   const params = new URLSearchParams();
   params.set('basket_id', basketId);
   
@@ -57,7 +57,7 @@ export async function listDocuments(basketId: string, options?: {
 export async function updateDocument(
   documentId: string,
   updates: Partial<Pick<Document, 'title' | 'content_raw' | 'document_type' | 'metadata'>>
-): Promise<Document> {
+): Promise<DocumentDTO> {
   const response = await apiClient({
     url: `/api/documents/${documentId}`,
     method: 'PATCH',

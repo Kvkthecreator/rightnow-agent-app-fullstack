@@ -1,6 +1,6 @@
 import { diffWords } from "diff";
 import { Card } from "@/components/ui/Card";
-import type { BlockWithHistory } from "@/types";
+import type { BlockWithHistory } from "@shared/contracts";
 
 interface Props {
   block: BlockWithHistory;

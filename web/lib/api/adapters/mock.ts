@@ -70,7 +70,7 @@ export function generateMockBlocks(basketId: string, count = 3): Block[] {
   }));
 }
 
-export function generateMockDocuments(basketId: string, count = 2): Document[] {
+export function generateMockDocuments(basketId: string, count = 2): DocumentDTO[] {
   return Array.from({ length: count }, (_, i) => ({
     id: mockId(`doc-${basketId}-${i}`),
     basket_id: basketId,

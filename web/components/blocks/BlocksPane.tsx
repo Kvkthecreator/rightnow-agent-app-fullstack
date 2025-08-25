@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/Card";
 import InlineDiffCard from "@/components/InlineDiffCard";
-import type { BlockWithHistory } from "@/types";
+import type { BlockWithHistory } from "@shared/contracts";
 
 export interface BlocksPaneProps {
   blocks: BlockWithHistory[];

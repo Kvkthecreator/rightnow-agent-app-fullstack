@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
-import type { Document } from '@/types';
+import type { DocumentDTO } from '@shared/contracts/documents';
 
 // Think of this as a "shared data store" that all components can access
 // Like having a central database that updates everywhere at once
@@ -22,10 +22,10 @@ interface Basket {
 
 interface BasketContextType {
   basket: Basket | null;
-  documents: Document[];
+  documents: DocumentDTO[];
   updateBasketName: (newName: string) => Promise<void>;
   setBasket: (basket: Basket) => void;
-  setDocuments: (docs: Document[]) => void;
+  setDocuments: (docs: DocumentDTO[]) => void;
   isLoading: boolean;
   error: string | null;
 }
@@ -41,10 +41,10 @@ export function BasketProvider({
 }: {
   children: ReactNode;
   initialBasket: Basket | null;
-  initialDocuments?: Document[];
+  initialDocuments?: DocumentDTO[];
 }) {
   const [basket, setBasket] = useState<Basket | null>(initialBasket);
-  const [documents, setDocuments] = useState<Document[]>(initialDocuments);
+  const [documents, setDocuments] = useState<DocumentDTO[]>(initialDocuments);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

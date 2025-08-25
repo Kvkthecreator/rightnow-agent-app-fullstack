@@ -1,4 +1,4 @@
-import type { Block } from "@/types";
+import type { BlockDTO } from "@shared/contracts/documents";
 
 export const DEV_MOCK_BLOCKS = [
   {

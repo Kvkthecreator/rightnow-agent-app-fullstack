@@ -96,7 +96,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
     );
   }
 
-  // Default: Document management view
+  // Default: DocumentDTO management view
   return (
     <div className="documents-view h-full flex flex-col bg-gray-50">
       {/* Documents Header */}

@@ -48,7 +48,7 @@ export function useBasketDocuments(basketId: string) {
     }
   };
 
-  const updateDocument = async (documentId: string, updates: Partial<Document>) => {
+  const updateDocument = async (documentId: string, updates: Partial<DocumentDTO>) => {
     try {
       console.log('🔄 Updating document via Universal Change System:', { documentId, updates });
       

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useFeatureFlag } from "@/lib/hooks/useFeatureFlag";
 import ContextPanel from "@/components/context/ContextPanel";
-import type { Block } from "@/types";
+import type { BlockDTO } from "@shared/contracts/documents";
 import type { ContextItem } from "@shared/contracts/context";
 import { apiClient } from "@/lib/api/client";
 import {
@@ -11,7 +11,7 @@ import {
   updateContextItem,
 } from "@/lib/contextItems";
 
-interface BlockRow extends Block {
+interface BlockRow extends BlockDTO {
   state: string;
   scope?: string | null;
 }

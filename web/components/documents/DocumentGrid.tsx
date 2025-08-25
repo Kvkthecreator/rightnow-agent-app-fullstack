@@ -13,10 +13,10 @@ import {
   Download
 } from "lucide-react";
 
-import type { Document } from "@/types";
+import type { DocumentDTO } from "@shared/contracts/documents";
 
 interface DocumentGridProps {
-  documents: Document[];
+  documents: DocumentDTO[];
   onDocumentClick: (document: Document) => void;
   onDocumentAction: (document: Document, action: string) => void;
 }

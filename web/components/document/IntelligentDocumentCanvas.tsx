@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
-import type { Block } from "@/types";
+import type { BlockDTO } from "@shared/contracts/documents";
 import DocumentIntelligenceLayer from "@/components/intelligence/DocumentIntelligenceLayer";
 
 interface Props {

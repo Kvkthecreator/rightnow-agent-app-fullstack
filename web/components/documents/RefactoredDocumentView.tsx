@@ -102,7 +102,7 @@ export function RefactoredDocumentView({
         formData.append('documentId', documentId);
         formData.append('files', capturedContent.file);
         
-        console.log('✅ Step 1: Document file upload via Universal Changes pipeline');
+        console.log('✅ Step 1: DocumentDTO file upload via Universal Changes pipeline');
         
         // Use Universal Changes pipeline for file uploads
         await changeManager.submitChange('context_add', {
@@ -119,7 +119,7 @@ export function RefactoredDocumentView({
           triggerIntelligenceRefresh: true
         });
         
-        console.log('✅ Step 2: Document file upload submitted through pipeline');
+        console.log('✅ Step 2: DocumentDTO file upload submitted through pipeline');
         setToast({ message: 'File processed through Universal Changes pipeline', type: 'success' });
         setTimeout(() => setToast(null), 4000);
         

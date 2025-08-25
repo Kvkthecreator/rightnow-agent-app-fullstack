@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import type { Block } from "@/types";
+import type { BlockDTO } from "@shared/contracts/documents";
 
 export async function getBlocksServer(basketId: string): Promise<Block[]> {
   const supabase = createServerComponentClient({ cookies });

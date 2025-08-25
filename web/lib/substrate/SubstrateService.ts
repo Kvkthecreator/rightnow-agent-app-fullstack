@@ -40,7 +40,7 @@ export interface SubstrateData {
   rawDumps: RawDump[];
   blocks: Block[];
   contextItems: ContextItem[];
-  documents: Document[];
+  documents: DocumentDTO[];
 }
 
 export class SubstrateService {
@@ -255,7 +255,7 @@ export class SubstrateService {
     }
   }
 
-  async createDocument(basketId: string, title: string, content: string): Promise<Document> {
+  async createDocument(basketId: string, title: string, content: string): Promise<DocumentDTO> {
     const { data, error } = await this.supabase
       .from('documents')
       .insert({
@@ -270,7 +270,7 @@ export class SubstrateService {
     return data;
   }
 
-  async updateDocument(id: string, title: string, content: string): Promise<Document> {
+  async updateDocument(id: string, title: string, content: string): Promise<DocumentDTO> {
     const { data, error } = await this.supabase
       .from('documents')
       .update({ 

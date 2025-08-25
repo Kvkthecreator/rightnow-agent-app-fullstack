@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import type { BlockWithHistory } from "@/types";
+import type { BlockWithHistory } from "@shared/contracts";
 import React from "react";
 
 test("renders diff card when previous revision exists", () => {

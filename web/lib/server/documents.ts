@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import type { Document } from "@/types";
+import type { DocumentDTO } from "@shared/contracts/documents";
 
 export async function getDocumentsServer(workspaceId: string): Promise<Document[]> {
   const supabase = createServerComponentClient({ cookies });

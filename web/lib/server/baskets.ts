@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import type { Basket } from "@/types";
+import type { Basket } from "@shared/contracts/baskets";
 
 export async function getBasketServer(
   id: string,

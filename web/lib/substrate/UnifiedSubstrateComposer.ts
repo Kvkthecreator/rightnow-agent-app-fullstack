@@ -239,7 +239,7 @@ export class UnifiedSubstrateComposer {
         displayMode: elem.excerpt ? 'excerpt' : 'full'
       }));
 
-      const document: Document = {
+      const document: DocumentDTO = {
         id: this.generateId(),
         type: 'document',
         title,

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { useUniversalChanges } from "@/lib/hooks/useUniversalChanges";
-import type { Document } from "@/types";
+import type { DocumentDTO } from "@shared/contracts/documents";
 
 interface DocumentEditorProps {
   basketId: string;

@@ -9,11 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { useCreateActions } from "@/hooks/useCreateActions";
 
-import type { Document } from "@/types";
+import type { DocumentDTO } from "@shared/contracts/documents";
 
 interface Props {
   basketId: string;
-  documents: Document[];
+  documents: DocumentDTO[];
   currentDocId?: string;
   currentTab: string;
 }
@@ -195,7 +195,7 @@ function MenuItem({
 }
 
 interface DocumentNavItemProps {
-  document: Document;
+  document: DocumentDTO;
   basketId: string;
   expanded: boolean;
   active: boolean;
