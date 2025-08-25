@@ -8,24 +8,15 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 import { checkBasketAccess } from "@/lib/baskets/access";
 import MemoryClient from "./MemoryClient";
+import { fetchProjection } from "@/lib/api/projection";
 
-async function fetchProjection(basketId: string) {
-  const base = process.env.NEXT_PUBLIC_API_BASE || "https://www.yarnnn.com";
-  const res = await fetch(`${base}/api/baskets/${basketId}/projection`, {
-    method: "GET",
-    headers: { 
-      "Content-Type": "application/json",
-      "Cookie": cookies().toString() // Forward auth cookies
-    },
-    cache: "no-store",
-  });
-  
-  if (!res.ok) {
-    console.error(`Projection fetch failed: ${res.status} ${res.statusText}`);
+async function fetchProjectionSafe(basketId: string) {
+  try {
+    return await fetchProjection(basketId);
+  } catch (err) {
+    console.error("Projection fetch failed", err);
     return null;
   }
-  
-  return res.json();
 }
 
 interface PageProps {
@@ -40,7 +31,7 @@ export default async function MemoryPage({ params }: PageProps) {
   const { basket } = await checkBasketAccess(supabase, id);
 
   // Fetch server-computed projection (authority)
-  const projection = await fetchProjection(id);
+  const projection = await fetchProjectionSafe(id);
   
   if (!projection) {
     // Fallback for API errors
@@ -48,7 +39,7 @@ export default async function MemoryPage({ params }: PageProps) {
       <MemoryClient
         basketId={id}
         pattern={undefined}
-        tension={null}
+        tension={undefined}
         question={undefined}
         fallback="Unable to load reflections. Please try again."
       />
@@ -63,9 +54,9 @@ export default async function MemoryPage({ params }: PageProps) {
   return (
     <MemoryClient
       basketId={id}
-      pattern={reflections.pattern}
-      tension={reflections.tension}
-      question={reflections.question}
+      pattern={reflections.pattern ?? undefined}
+      tension={reflections.tension ?? undefined}
+      question={reflections.question ?? undefined}
       fallback={fallback}
     />
   );

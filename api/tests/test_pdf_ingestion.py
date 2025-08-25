@@ -8,7 +8,8 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 # Mock environment variables before imports
-os.environ["ALLOWED_PUBLIC_BASE"] = "https://test.supabase.co/storage/v1/object/public/"
+BASE = "https://test.supabase.co"
+os.environ["ALLOWED_PUBLIC_BASE"] = f"{BASE}/storage/v1/object/public/"
 os.environ["PDF_MAX_BYTES"] = "1000000"
 os.environ["CHUNK_LEN"] = "1000"
 
@@ -81,7 +82,7 @@ class TestPDFIngestion:
             "basket_id": str(uuid4()),
             "dump_request_id": str(uuid4()),
             "text_dump": "User provided text",
-            "file_url": "https://test.supabase.co/storage/v1/object/public/docs/test.pdf"
+            "file_url": f"{BASE}/storage/v1/object/public/docs/test.pdf"
         }
         
         response = client.post("/dumps/new", json=payload, headers=auth_headers)
@@ -131,7 +132,7 @@ class TestPDFIngestion:
             "basket_id": str(uuid4()),
             "dump_request_id": str(uuid4()),
             "text_dump": "",
-            "file_url": "https://test.supabase.co/storage/v1/object/public/big.pdf"
+            "file_url": f"{BASE}/storage/v1/object/public/big.pdf"
         }
         
         response = client.post("/dumps/new", json=payload, headers=auth_headers)

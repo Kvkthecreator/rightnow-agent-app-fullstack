@@ -5,9 +5,7 @@
  */
 import useSWR from "swr";
 import { fetchTimeline } from "@/lib/api/timeline";
-import type { TimelineItem } from "@/lib/api/timeline";
-
-type TimelinePage = { items: TimelineItem[]; next_before: string | null };
+import type { TimelinePage } from "@shared/contracts/memory";
 
 export function useBasketTimeline(basketId: string) {
   return useSWR<TimelinePage>(

@@ -25,5 +25,5 @@ export type TimelineItem =
 
 export type TimelinePage = {
   items: TimelineItem[];
-  next_cursor?: string; // opaque
+  last_cursor: { ts: string; id: string } | null;
 };

@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS raw_dumps (
     basket_id UUID NOT NULL REFERENCES baskets(id) ON DELETE CASCADE,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     body_md TEXT,
-    file_refs TEXT[],
+    context_blocks TEXT[],
     source TEXT,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),

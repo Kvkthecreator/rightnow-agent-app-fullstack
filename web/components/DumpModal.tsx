@@ -44,7 +44,11 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
     }
     setLoading(true);
     try {
-      await createDump({ basketId, text });
+      await createDump({
+        basket_id: basketId,
+        dump_request_id: crypto.randomUUID(),
+        text_dump: text,
+      });
       toast.success("Dump saved ✓");
       setOpen(false);
       setText("");

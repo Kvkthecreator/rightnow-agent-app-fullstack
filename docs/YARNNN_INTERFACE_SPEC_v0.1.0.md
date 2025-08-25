@@ -42,21 +42,8 @@ GET /api/baskets/{id}/reflections/latest
 **IMPLEMENTED**: All DTOs are in `shared/contracts/` and imported by both FE & BE. No inline redefinition.
 
 ```typescript
-// shared/contracts/baskets.ts
-export type CreateBasketReq = {
-  idempotency_key: string; // UUID
-  basket: { name?: string };
-};
-export type CreateBasketRes = { basket_id: string; id: string; name: string };
-// shared/contracts/dumps.ts
-export type CreateDumpReq = {
-  basket_id: string;
-  dump_request_id: string; // UUID
-  text_dump?: string;
-  file_url?: string;
-  meta?: { client_ts?: string; ingest_trace_id?: string; [k: string]: unknown };
-};
-export type CreateDumpRes = { dump_id: string };
+// shared/contracts/baskets.ts exports CreateBasketReq/CreateBasketRes
+// shared/contracts/dumps.ts exports CreateDumpReq/CreateDumpRes
 // shared/contracts/ingest.ts (optional combined flow)
 import type { CreateBasketRes } from "./baskets";
 import type { CreateDumpRes } from "./dumps";
