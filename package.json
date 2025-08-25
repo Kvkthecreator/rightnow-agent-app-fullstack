@@ -2,6 +2,8 @@
   "scripts": {
     "e2e:test": "playwright test",
     "e2e:debug": "playwright test --debug",
+    "e2e:seed": "node scripts/seed-test-basket.js",
+    "e2e:full": "npm run e2e:seed && npm run e2e:test",
     "lint": "echo \"Skipping lint\"",
     "test": "echo \"No tests\"",
     "codegen:supabase": "python scripts/gen_pydantic.py",
@@ -28,6 +30,7 @@
     "vitest": "^2.1.3"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
     "glob": "^11.0.3",
     "react-hot-toast": "^2.5.2",
     "zod": "^3.24.4",
