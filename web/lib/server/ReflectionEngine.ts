@@ -1,0 +1,322 @@
+import 'server-only';
+
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import * as crypto from 'crypto';
+import type { ReflectionDTO } from '../../../shared/contracts/reflections';
+
+export interface ReflectionComputationOptions {
+  computation_trace_id?: string;
+  substrate_window_hours?: number;
+  force_refresh?: boolean;
+}
+
+export interface SubstrateWindow {
+  start_timestamp: string;
+  end_timestamp: string;
+  dump_count: number;
+  total_tokens: number;
+  substrate_content: string;
+}
+
+export class ReflectionEngine {
+  private supabase;
+
+  constructor() {
+    this.supabase = createRouteHandlerClient({ cookies });
+  }
+
+  async computeReflection(
+    basket_id: string,
+    workspace_id: string,
+    options: ReflectionComputationOptions = {}
+  ): Promise<ReflectionDTO | null> {
+    const computation_trace_id = options.computation_trace_id || crypto.randomUUID();
+    const window_hours = options.substrate_window_hours || 24;
+    const force_refresh = options.force_refresh || false;
+
+    // Get substrate window
+    const window = await this.getSubstrateWindow(basket_id, window_hours);
+    const substrate_hash = this.computeSubstrateHash(window.substrate_content);
+
+    // Check cache first if not forcing refresh
+    if (!force_refresh) {
+      const cached = await this.getCachedReflection(basket_id, substrate_hash);
+      if (cached) {
+        // Update last accessed timestamp
+        await this.supabase
+          .from('reflection_cache')
+          .update({ last_accessed_at: new Date().toISOString() })
+          .eq('id', cached.id);
+        return cached;
+      }
+    }
+
+    // Rate limit check (60s between computes)
+    const rateLimitOk = await this.checkRateLimit(basket_id);
+    if (!rateLimitOk && !force_refresh) {
+      // Return existing cache if rate limited
+      return await this.getMostRecentReflection(basket_id);
+    }
+
+    // Try to acquire advisory lock
+    const lockAcquired = await this.tryAcquireLock(basket_id);
+    if (!lockAcquired) {
+      // Another process is computing, return existing cache
+      return await this.getMostRecentReflection(basket_id);
+    }
+
+    try {
+      // Compute reflection
+      const reflection_text = await this.generateReflection(window.substrate_content);
+      
+      // Store in cache using service role
+      const { data: reflection, error } = await this.supabase
+        .from('reflection_cache')
+        .upsert({
+          basket_id,
+          workspace_id,
+          substrate_hash,
+          reflection_text,
+          substrate_window_start: window.start_timestamp,
+          substrate_window_end: window.end_timestamp,
+          computation_timestamp: new Date().toISOString(),
+          meta: {
+            computation_trace_id,
+            substrate_dump_count: window.dump_count,
+            substrate_tokens: window.total_tokens,
+          },
+        }, {
+          onConflict: 'basket_id,substrate_hash',
+        })
+        .select('*')
+        .single();
+
+      if (error) {
+        throw new Error(`Failed to store reflection: ${error.message}`);
+      }
+
+      // Emit timeline event
+      await this.emitReflectionEvent(basket_id, reflection.id, computation_trace_id);
+
+      return {
+        id: reflection.id,
+        basket_id: reflection.basket_id,
+        reflection_text: reflection.reflection_text,
+        substrate_window_start: reflection.substrate_window_start,
+        substrate_window_end: reflection.substrate_window_end,
+        computation_timestamp: reflection.computation_timestamp,
+        meta: reflection.meta,
+      };
+    } finally {
+      await this.releaseLock(basket_id);
+    }
+  }
+
+  async getReflections(
+    basket_id: string,
+    workspace_id: string,
+    cursor?: string,
+    limit: number = 10,
+    refresh?: boolean
+  ): Promise<{ reflections: ReflectionDTO[]; has_more: boolean; next_cursor?: string }> {
+    // If refresh requested, compute new reflection first
+    if (refresh) {
+      await this.computeReflection(basket_id, workspace_id, { force_refresh: true });
+    }
+
+    let query = this.supabase
+      .from('reflection_cache')
+      .select('*')
+      .eq('basket_id', basket_id)
+      .order('computation_timestamp', { ascending: false })
+      .limit(limit + 1);
+
+    if (cursor) {
+      query = query.lt('computation_timestamp', cursor);
+    }
+
+    const { data: reflections, error } = await query;
+
+    if (error) {
+      throw new Error(`Failed to fetch reflections: ${error.message}`);
+    }
+
+    const has_more = reflections.length > limit;
+    const results = has_more ? reflections.slice(0, limit) : reflections;
+    const next_cursor = has_more ? results[results.length - 1].computation_timestamp : undefined;
+
+    // Update last accessed for returned reflections
+    if (results.length > 0) {
+      await this.supabase
+        .from('reflection_cache')
+        .update({ last_accessed_at: new Date().toISOString() })
+        .in('id', results.map(r => r.id));
+    }
+
+    return {
+      reflections: results.map(r => ({
+        id: r.id,
+        basket_id: r.basket_id,
+        reflection_text: r.reflection_text,
+        substrate_window_start: r.substrate_window_start,
+        substrate_window_end: r.substrate_window_end,
+        computation_timestamp: r.computation_timestamp,
+        meta: r.meta,
+      })),
+      has_more,
+      next_cursor,
+    };
+  }
+
+  private async getSubstrateWindow(
+    basket_id: string, 
+    window_hours: number
+  ): Promise<SubstrateWindow> {
+    const end_timestamp = new Date().toISOString();
+    const start_timestamp = new Date(Date.now() - window_hours * 60 * 60 * 1000).toISOString();
+
+    const { data: dumps, error } = await this.supabase
+      .from('raw_dumps')
+      .select('text_dump, file_url, created_at')
+      .eq('basket_id', basket_id)
+      .gte('created_at', start_timestamp)
+      .lte('created_at', end_timestamp)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to fetch substrate window: ${error.message}`);
+    }
+
+    const substrate_content = dumps
+      .map(dump => dump.text_dump || `[File: ${dump.file_url}]`)
+      .join('\n\n---\n\n');
+
+    const total_tokens = this.estimateTokens(substrate_content);
+
+    return {
+      start_timestamp,
+      end_timestamp,
+      dump_count: dumps.length,
+      total_tokens,
+      substrate_content,
+    };
+  }
+
+  private async generateReflection(substrate_content: string): Promise<string> {
+    // Placeholder for reflection generation logic
+    // In production, this would call an LLM service to analyze the substrate
+    const reflection_text = `Reflection based on ${substrate_content.length} characters of substrate content. This is a computed summary of recent activity and insights.`;
+    
+    return reflection_text;
+  }
+
+  private async emitReflectionEvent(
+    basket_id: string,
+    reflection_id: string,
+    computation_trace_id: string
+  ): Promise<void> {
+    const { error } = await this.supabase
+      .from('timeline_events')
+      .insert({
+        basket_id,
+        event_type: 'reflection_computed',
+        event_data: {
+          reflection_id,
+          computation_trace_id,
+        },
+        created_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      console.error('Failed to emit reflection timeline event:', error);
+    }
+  }
+
+  private estimateTokens(text: string): number {
+    // Simple token estimation (roughly 4 characters per token)
+    return Math.ceil(text.length / 4);
+  }
+
+  private computeSubstrateHash(substrate_content: string): string {
+    return crypto.createHash('sha256').update(substrate_content).digest('hex');
+  }
+
+  private async getCachedReflection(
+    basket_id: string,
+    substrate_hash: string
+  ): Promise<ReflectionDTO | null> {
+    const { data, error } = await this.supabase
+      .from('reflection_cache')
+      .select('*')
+      .eq('basket_id', basket_id)
+      .eq('substrate_hash', substrate_hash)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      basket_id: data.basket_id,
+      reflection_text: data.reflection_text,
+      substrate_window_start: data.substrate_window_start,
+      substrate_window_end: data.substrate_window_end,
+      computation_timestamp: data.computation_timestamp,
+      meta: data.meta,
+    };
+  }
+
+  private async getMostRecentReflection(basket_id: string): Promise<ReflectionDTO | null> {
+    const { data, error } = await this.supabase
+      .from('reflection_cache')
+      .select('*')
+      .eq('basket_id', basket_id)
+      .order('computation_timestamp', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      basket_id: data.basket_id,
+      reflection_text: data.reflection_text,
+      substrate_window_start: data.substrate_window_start,
+      substrate_window_end: data.substrate_window_end,
+      computation_timestamp: data.computation_timestamp,
+      meta: data.meta,
+    };
+  }
+
+  private async checkRateLimit(basket_id: string): Promise<boolean> {
+    const { data } = await this.supabase
+      .from('reflection_cache')
+      .select('computation_timestamp')
+      .eq('basket_id', basket_id)
+      .order('computation_timestamp', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!data) return true; // No previous compute
+
+    const lastCompute = new Date(data.computation_timestamp).getTime();
+    const now = Date.now();
+    const sixtySecondsAgo = now - 60000;
+
+    return lastCompute < sixtySecondsAgo;
+  }
+
+  private async tryAcquireLock(basket_id: string): Promise<boolean> {
+    const { data, error } = await this.supabase
+      .rpc('pg_try_advisory_xact_lock', {
+        key: parseInt(basket_id.replace(/-/g, '').slice(0, 15), 16),
+      });
+
+    return !error && data === true;
+  }
+
+  private async releaseLock(basket_id: string): Promise<void> {
+    // Advisory transaction locks are automatically released at transaction end
+    // This is a no-op but kept for clarity
+  }
+}
