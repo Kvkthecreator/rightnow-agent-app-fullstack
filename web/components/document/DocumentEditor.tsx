@@ -8,8 +8,8 @@ import type { DocumentDTO } from "@shared/contracts/documents";
 
 interface DocumentEditorProps {
   basketId: string;
-  document: Document;
-  onDocumentUpdate: (document: Document) => void;
+  document: DocumentDTO;
+  onDocumentUpdate: (document: DocumentDTO) => void;
 }
 
 export default function DocumentEditor({
@@ -17,7 +17,7 @@ export default function DocumentEditor({
   document,
   onDocumentUpdate
 }: DocumentEditorProps) {
-  const [content, setContent] = useState(document.content_raw || "");
+  const [content, setContent] = useState("");
   const [title, setTitle] = useState(document.title);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -28,13 +28,13 @@ export default function DocumentEditor({
   // Auto-save functionality (every 3 seconds after changes)
   useEffect(() => {
     const saveTimer = setTimeout(() => {
-      if (content !== document.content_raw || title !== document.title) {
+      if (title !== document.title) {
         handleSave();
       }
     }, 3000);
 
     return () => clearTimeout(saveTimer);
-  }, [content, title, document.content_raw, document.title]);
+  }, [content, title, document.title]);
 
   const handleSave = async () => {
     if (isSaving) return;
