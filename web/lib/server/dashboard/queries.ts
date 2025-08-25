@@ -1,109 +1,185 @@
 import 'server-only';
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import * as crypto from 'crypto';
 
-export interface BasketHeader {
+export interface BasketHealthMetrics {
+  dump_count: number;
+  reflection_count: number;
+  latest_dump_at: string | null;
+  latest_reflection_at: string | null;
+  total_chars: number;
+  activity_score: number;
+}
+
+export interface RecentDumpSummary {
   id: string;
-  name: string | null;
-  last_activity_ts: string | null;
-  workspace_id: string;
+  created_at: string;
+  text_dump: string | null;
+  file_url: string | null;
+  char_count: number;
+  is_processed: boolean;
 }
 
-export interface BasketHealth {
-  dumps_count: number;
-  blocks_count: number;
-  context_items_count: number;
-}
-
-export interface ReflectionData {
+export interface RecentReflectionSummary {
   id: string;
   reflection_text: string;
   computation_timestamp: string;
+  substrate_window_start: string;
+  substrate_window_end: string;
+  meta: any;
 }
 
-export async function getBasketHeader(basketId: string): Promise<BasketHeader | null> {
-  const supabase = createServerSupabaseClient();
-
-  // Get basket info
-  const { data: basket, error: basketError } = await supabase
-    .from('baskets')
-    .select('id, name, workspace_id')
-    .eq('id', basketId)
-    .single();
-
-  if (basketError || !basket) {
-    return null;
-  }
-
-  // Get last activity from timeline_events
-  const { data: lastActivity, error: activityError } = await supabase
-    .from('timeline_events')
-    .select('ts')
-    .eq('basket_id', basketId)
-    .order('ts', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (activityError) {
-    console.error('Error fetching last activity:', activityError);
-  }
-
-  return {
-    id: basket.id,
-    name: basket.name,
-    last_activity_ts: lastActivity?.ts || null,
-    workspace_id: basket.workspace_id,
-  };
+export interface RecentTimelineEvent {
+  id: string;
+  event_type: string;
+  created_at: string;
+  preview: string;
+  event_data: any;
 }
 
-export async function getBasketHealth(basketId: string): Promise<BasketHealth> {
-  const supabase = createServerSupabaseClient();
+export class DashboardQueries {
+  private supabase;
 
-  // Get counts in parallel
-  const [
-    { count: dumps_count },
-    { count: blocks_count },
-    { count: context_items_count },
-  ] = await Promise.all([
-    supabase
+  constructor() {
+    this.supabase = createRouteHandlerClient({ cookies });
+  }
+
+  async getBasketHealth(basket_id: string): Promise<BasketHealthMetrics> {
+    // Get dump metrics
+    const { data: dumpStats } = await this.supabase
       .from('raw_dumps')
-      .select('*', { count: 'exact', head: true })
-      .eq('basket_id', basketId)
-      .then(({ count }) => ({ count: count || 0 })),
-    supabase
-      .from('blocks')
-      .select('*', { count: 'exact', head: true })
-      .eq('basket_id', basketId)
-      .then(({ count }) => ({ count: count || 0 })),
-    supabase
-      .from('context_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('basket_id', basketId)
-      .then(({ count }) => ({ count: count || 0 })),
-  ]);
+      .select('created_at, text_dump, file_url')
+      .eq('basket_id', basket_id)
+      .order('created_at', { ascending: false });
 
-  return {
-    dumps_count,
-    blocks_count,
-    context_items_count,
-  };
-}
+    // Get reflection metrics
+    const { data: reflectionStats } = await this.supabase
+      .from('reflection_cache')
+      .select('computation_timestamp')
+      .eq('basket_id', basket_id)
+      .order('computation_timestamp', { ascending: false });
 
-export async function getLatestReflection(basketId: string): Promise<ReflectionData | null> {
-  const supabase = createServerSupabaseClient();
+    // Calculate health metrics
+    const dump_count = dumpStats?.length || 0;
+    const reflection_count = reflectionStats?.length || 0;
+    const latest_dump_at = dumpStats?.[0]?.created_at || null;
+    const latest_reflection_at = reflectionStats?.[0]?.computation_timestamp || null;
 
-  const { data: reflection, error } = await supabase
-    .from('reflection_cache')
-    .select('id, reflection_text, computation_timestamp')
-    .eq('basket_id', basketId)
-    .order('computation_timestamp', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    // Calculate total character count
+    const total_chars = dumpStats?.reduce((sum, dump) => {
+      const dumpChars = dump.text_dump?.length || 0;
+      const urlChars = dump.file_url?.length || 0;
+      return sum + dumpChars + urlChars;
+    }, 0) || 0;
 
-  if (error) {
-    console.error('Error fetching latest reflection:', error);
-    return null;
+    // Simple activity score based on recency and volume
+    const now = Date.now();
+    const daysSinceLastDump = latest_dump_at 
+      ? Math.ceil((now - new Date(latest_dump_at).getTime()) / (1000 * 60 * 60 * 24))
+      : 30;
+    const daysSinceLastReflection = latest_reflection_at
+      ? Math.ceil((now - new Date(latest_reflection_at).getTime()) / (1000 * 60 * 60 * 24))
+      : 30;
+
+    const recency_score = Math.max(0, 100 - (daysSinceLastDump * 3 + daysSinceLastReflection * 2));
+    const volume_score = Math.min(100, (dump_count * 10) + (reflection_count * 15) + (total_chars / 1000));
+    const activity_score = Math.round((recency_score + volume_score) / 2);
+
+    return {
+      dump_count,
+      reflection_count,
+      latest_dump_at,
+      latest_reflection_at,
+      total_chars,
+      activity_score: Math.max(0, Math.min(100, activity_score))
+    };
   }
 
-  return reflection;
+  async getRecentDumps(basket_id: string, limit: number = 3): Promise<RecentDumpSummary[]> {
+    const { data, error } = await this.supabase
+      .from('raw_dumps')
+      .select('id, created_at, text_dump, file_url')
+      .eq('basket_id', basket_id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw new Error(`Failed to fetch recent dumps: ${error.message}`);
+    }
+
+    return (data || []).map(dump => ({
+      id: dump.id,
+      created_at: dump.created_at,
+      text_dump: dump.text_dump,
+      file_url: dump.file_url,
+      char_count: (dump.text_dump?.length || 0) + (dump.file_url?.length || 0),
+      is_processed: true // For Canon v1.3.1, all ingested dumps are processed
+    }));
+  }
+
+  async getMostRecentReflection(basket_id: string): Promise<RecentReflectionSummary | null> {
+    const { data, error } = await this.supabase
+      .from('reflection_cache')
+      .select('*')
+      .eq('basket_id', basket_id)
+      .order('computation_timestamp', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to fetch recent reflection: ${error.message}`);
+    }
+
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      reflection_text: data.reflection_text,
+      computation_timestamp: data.computation_timestamp,
+      substrate_window_start: data.substrate_window_start,
+      substrate_window_end: data.substrate_window_end,
+      meta: data.meta
+    };
+  }
+
+  async getRecentTimelineEvents(basket_id: string, limit: number = 5): Promise<RecentTimelineEvent[]> {
+    // Query events table directly (Canon v1.3.1 unified timeline)
+    const { data, error } = await this.supabase
+      .from('events')
+      .select('id, kind, ts, payload, actor_id, origin')
+      .eq('basket_id', basket_id)
+      .order('ts', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw new Error(`Failed to fetch recent timeline events: ${error.message}`);
+    }
+
+    return (data || []).map(event => ({
+      id: event.id,
+      event_type: event.kind,
+      created_at: event.ts,
+      preview: this.generateEventPreview(event.kind, event.payload),
+      event_data: event.payload || {}
+    }));
+  }
+
+  private generateEventPreview(kind: string, payload: any): string {
+    switch (kind) {
+      case 'dump.created':
+        const charCount = payload?.char_count || 0;
+        return `Added ${charCount} characters of content`;
+      
+      case 'reflection.computed':
+        return 'New reflection computed from recent substrate';
+      
+      case 'delta.applied':
+        return payload?.description || 'Applied substrate delta';
+      
+      default:
+        return `${kind.replace('.', ' ')} event occurred`;
+    }
+  }
 }

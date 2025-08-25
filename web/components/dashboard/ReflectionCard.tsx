@@ -1,121 +1,97 @@
-"use client";
-
-import { useState } from 'react';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import { Button } from '@/components/ui/Button';
-
-dayjs.extend(relativeTime);
+import { Brain, Calendar, Clock } from 'lucide-react';
+import type { RecentReflectionSummary } from '@/lib/server/dashboard/queries';
 
 interface ReflectionCardProps {
+  reflection: RecentReflectionSummary | null;
   basketId: string;
-  reflection?: {
-    id: string;
-    reflection_text: string;
-    computation_timestamp: string;
-  } | null;
 }
 
-export default function ReflectionCard({ basketId, reflection }: ReflectionCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      // Trigger reflection refresh via GET with refresh=1
-      const response = await fetch(`/api/baskets/${basketId}/reflections?refresh=1`);
-      if (response.ok) {
-        // Reload page to show updated reflection
-        window.location.reload();
-      }
-    } catch (error) {
-      console.error('Failed to refresh reflection:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const truncateText = (text: string, maxLines: number = 4) => {
-    const words = text.split(' ');
-    const wordsPerLine = 12; // Approximate
-    const maxWords = maxLines * wordsPerLine;
-    
-    if (words.length <= maxWords) {
-      return text;
-    }
-    
-    return words.slice(0, maxWords).join(' ') + '...';
-  };
-
+export function ReflectionCard({ reflection, basketId }: ReflectionCardProps) {
   if (!reflection) {
     return (
-      <div className="bg-white rounded-lg border p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Reflection</h3>
-          <Button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            variant="outline"
-            size="sm"
-          >
-            {isRefreshing ? 'Generating...' : 'Generate Insights'}
-          </Button>
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="flex items-center space-x-3 mb-4">
+          <Brain className="h-5 w-5 text-gray-400" />
+          <h2 className="text-lg font-semibold text-gray-900">Latest Reflection</h2>
         </div>
+        
         <div className="text-center py-8">
-          <div className="text-gray-400 mb-2">🤔</div>
-          <p className="text-gray-600 text-sm">
-            No reflection yet. Add some memories first, then generate insights.
-          </p>
+          <div className="text-4xl mb-3">🤔</div>
+          <p className="text-gray-600 mb-4">No reflections yet</p>
+          <a
+            href={`/api/baskets/${basketId}/reflections?refresh=1`}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Generate First Reflection
+          </a>
         </div>
       </div>
     );
   }
 
-  const displayText = isExpanded 
-    ? reflection.reflection_text 
-    : truncateText(reflection.reflection_text);
-  const needsExpansion = reflection.reflection_text.length > truncateText(reflection.reflection_text).length;
+  const formatTimestamp = (timestamp: string): string => {
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getSubstrateWindowDuration = (): string => {
+    const start = new Date(reflection.substrate_window_start);
+    const end = new Date(reflection.substrate_window_end);
+    const diffHours = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+    
+    if (diffHours < 24) return `${diffHours}h window`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d window`;
+  };
+
+  // Truncate reflection text for preview
+  const previewText = reflection.reflection_text.length > 200 
+    ? `${reflection.reflection_text.substring(0, 200)}...`
+    : reflection.reflection_text;
 
   return (
-    <div className="bg-white rounded-lg border p-6">
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold text-gray-900">Reflection</h3>
-          <span className="text-xs text-gray-500">
-            {dayjs(reflection.computation_timestamp).fromNow()}
-          </span>
+        <div className="flex items-center space-x-3">
+          <Brain className="h-5 w-5 text-blue-600" />
+          <h2 className="text-lg font-semibold text-gray-900">Latest Reflection</h2>
         </div>
-        <Button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          variant="outline"
-          size="sm"
+        
+        <a 
+          href={`/baskets/${basketId}/reflections`}
+          className="text-sm text-blue-600 hover:text-blue-800"
         >
-          {isRefreshing ? 'Refreshing...' : 'Refresh Insights'}
-        </Button>
+          View all →
+        </a>
       </div>
       
-      <div className="prose prose-sm max-w-none">
-        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-          {displayText}
-        </p>
-        {needsExpansion && !isExpanded && (
-          <button
-            onClick={() => setIsExpanded(true)}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium mt-2"
-          >
-            Expand
-          </button>
-        )}
-        {isExpanded && (
-          <button
-            onClick={() => setIsExpanded(false)}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium mt-2"
-          >
-            Collapse
-          </button>
-        )}
+      <div className="space-y-4">
+        <div className="prose prose-sm max-w-none">
+          <p className="text-gray-700 leading-relaxed">{previewText}</p>
+        </div>
+        
+        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+          <div className="flex items-center space-x-4 text-sm text-gray-600">
+            <div className="flex items-center space-x-1">
+              <Calendar className="h-4 w-4" />
+              <span>{formatTimestamp(reflection.computation_timestamp)}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Clock className="h-4 w-4" />
+              <span>{getSubstrateWindowDuration()}</span>
+            </div>
+          </div>
+          
+          {reflection.meta?.substrate_dump_count && (
+            <div className="text-sm text-gray-500">
+              Based on {reflection.meta.substrate_dump_count} dumps
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
