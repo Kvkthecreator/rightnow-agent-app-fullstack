@@ -5,12 +5,14 @@ export {
   SubstrateTypeSchema,
   SubstrateReferenceSchema,
   AttachSubstrateRequestSchema,
+  AttachSubstrateResponseSchema,
   GetDocumentReferencesRequestSchema,
   GetDocumentReferencesResponseSchema,
   DocumentCompositionSchema,
   type SubstrateType,
   type SubstrateReferenceDTO,
   type AttachSubstrateRequest,
+  type AttachSubstrateResponse,
   type GetDocumentReferencesRequest,
   type GetDocumentReferencesResponse,
   type DocumentComposition,
@@ -34,6 +36,8 @@ export const BlockSchema = z.object({
   body_md: z.string().nullable(),
   state: z.string(),
   version: z.number().int(),
+  created_at: z.string(),
+  updated_at: z.string(),
   metadata: z.record(z.any()).default({}),
 });
 export type BlockDTO = z.infer<typeof BlockSchema>;
