@@ -1,18 +1,41 @@
-import { getServerUrl } from "@/lib/utils";
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
+import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
+import { notFound } from 'next/navigation';
+import { DocumentCompositionView } from '@/components/documents/DocumentCompositionView';
 
 interface PageProps {
   params: Promise<{ id: string; docId: string }>;
 }
 
 export default async function DocumentDetailPage({ params }: PageProps) {
-  const { docId } = await params;
-  const baseUrl = getServerUrl();
-  const res = await fetch(`${baseUrl}/api/documents/${docId}`, { cache: "no-store" });
-  const doc = await res.json();
+  const { id: basketId, docId } = await params;
+  
+  // Authentication and workspace validation
+  const supabase = createServerSupabaseClient();
+  const { userId } = await getAuthenticatedUser(supabase);
+  const workspace = await ensureWorkspaceForUser(userId, supabase);
+
+  // Validate document exists and user has access
+  const { data: document, error: documentError } = await supabase
+    .from('documents')
+    .select('id, basket_id, title, created_at, updated_at, metadata, workspace_id')
+    .eq('id', docId)
+    .maybeSingle();
+
+  if (documentError || !document) {
+    notFound();
+  }
+
+  // Check workspace access and basket match
+  if (document.workspace_id !== workspace.id || document.basket_id !== basketId) {
+    notFound();
+  }
+
   return (
-    <article className="prose p-4">
-      <h2>{doc.title}</h2>
-      <div dangerouslySetInnerHTML={{ __html: doc.content_rendered }} />
-    </article>
+    <DocumentCompositionView 
+      document={document} 
+      basketId={basketId}
+    />
   );
 }

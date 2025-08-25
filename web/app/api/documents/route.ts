@@ -1,94 +1,81 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@/lib/supabase/clients";
-import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
-import { getWorkspaceFromBasket } from "@/lib/utils/workspace";
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
+import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
+import { withSchema } from '@/lib/api/withSchema';
+import { 
+  CreateDocumentRequestSchema, 
+  CreateDocumentResponseSchema,
+  type CreateDocumentRequest,
+} from '@shared/contracts/documents';
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createServerSupabaseClient();
+    const { userId } = await getAuthenticatedUser(supabase);
+    const workspace = await ensureWorkspaceForUser(userId, supabase);
+
+    // Parse and validate request body
+    const body = await request.json();
+    const parseResult = CreateDocumentRequestSchema.safeParse(body);
     
-    // Use getUser() for secure authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
+        { error: 'Invalid request body', details: parseResult.error.flatten() },
+        { status: 422 }
       );
     }
 
-    // Ensure workspace access
-    const workspace = await ensureWorkspaceServer(supabase);
-    if (!workspace) {
-      return NextResponse.json(
-        { error: "Workspace access required" },
-        { status: 403 }
-      );
+    const { basket_id, title, metadata } = parseResult.data;
+
+    // Validate basket belongs to workspace
+    const { data: basket, error: basketError } = await supabase
+      .from('baskets')
+      .select('id, workspace_id')
+      .eq('id', basket_id)
+      .eq('workspace_id', workspace.id)
+      .maybeSingle();
+
+    if (basketError || !basket) {
+      return NextResponse.json({ error: 'basket not found' }, { status: 404 });
     }
 
-    // Get basketId from query params
-    const { searchParams } = new URL(request.url);
-    const basketId = searchParams.get('basketId');
+    // Use existing fn_document_create RPC for consistency
+    const { data: documentId, error: createError } = await supabase
+      .rpc('fn_document_create', {
+        p_basket_id: basket_id,
+        p_title: title,
+        p_metadata: metadata || {},
+      });
 
-    if (!basketId) {
+    if (createError) {
       return NextResponse.json(
-        { error: "basketId is required" },
+        { error: `Failed to create document: ${createError.message}` },
         { status: 400 }
       );
     }
 
-    // Validate basket access and get workspace_id
-    const basketResult = await getWorkspaceFromBasket(supabase, basketId);
-    if ('error' in basketResult) {
-      return NextResponse.json(
-        { error: basketResult.error },
-        { status: 404 }
-      );
-    }
-    
-    const { workspaceId } = basketResult;
-    
-    // Verify user has access to this workspace
-    if (workspaceId !== workspace.id) {
-      return NextResponse.json(
-        { error: "Unauthorized access to workspace" },
-        { status: 403 }
-      );
-    }
+    // Emit timeline event
+    await supabase.rpc('fn_timeline_emit', {
+      p_basket_id: basket_id,
+      p_kind: 'document.created',
+      p_ref_id: documentId,
+      p_preview: `Created document "${title}"`,
+      p_payload: { document_id: documentId, title, metadata },
+    });
 
-    // Get documents for this basket (now with validated access)
-    const { data: documents, error: fetchError } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("basket_id", basketId)
-      .order("created_at", { ascending: false });
-
-    if (fetchError) {
-      console.error("Documents fetch error:", fetchError);
-      return NextResponse.json(
-        { error: "Failed to fetch documents" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(documents || []);
+    return withSchema(CreateDocumentResponseSchema, {
+      document_id: documentId,
+    }, { status: 201 });
 
   } catch (error) {
-    console.error("Documents GET API error:", error);
+    console.error('Document creation error:', error);
     return NextResponse.json(
       { 
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error"
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );
   }
 }
-
-// POST method DELETED - All document creation now goes through Universal Change System
-// Previous POST functionality has been migrated to /api/changes endpoint
-// Use useUniversalChanges.createDocument() instead of direct POST calls
