@@ -91,7 +91,7 @@ export default function DocumentEditor({
                 />
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant="outline" className="text-xs">
-                    {document.document_type || 'general'}
+                    {'document'}
                   </Badge>
                   {lastSaved && (
                     <span className="text-xs text-muted-foreground">
