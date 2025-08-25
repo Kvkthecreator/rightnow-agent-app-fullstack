@@ -17,8 +17,8 @@ import type { DocumentDTO } from "@shared/contracts/documents";
 
 interface DocumentGridProps {
   documents: DocumentDTO[];
-  onDocumentClick: (document: Document) => void;
-  onDocumentAction: (document: Document, action: string) => void;
+  onDocumentClick: (document: DocumentDTO) => void;
+  onDocumentAction: (document: DocumentDTO, action: string) => void;
 }
 
 export function DocumentGrid({ documents, onDocumentClick, onDocumentAction }: DocumentGridProps) {
@@ -50,7 +50,7 @@ export function DocumentGrid({ documents, onDocumentClick, onDocumentAction }: D
     setActiveMenu(activeMenu === documentId ? null : documentId);
   };
 
-  const handleAction = (document: Document, action: string, event: React.MouseEvent) => {
+  const handleAction = (document: DocumentDTO, action: string, event: React.MouseEvent) => {
     event.stopPropagation();
     onDocumentAction(document, action);
     setActiveMenu(null);
@@ -128,14 +128,14 @@ export function DocumentGrid({ documents, onDocumentClick, onDocumentAction }: D
 
             {/* Document Preview */}
             <p className="text-sm text-gray-600 mb-4 leading-relaxed line-clamp-3">
-              {getPreview(document.content_raw) || "No content yet..."}
+              {getPreview((document.metadata as any)?.content_raw) || "No content yet..."}
             </p>
 
             {/* Document Metadata */}
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>{formatDate(document.updated_at)}</span>
               <Badge variant="outline" className="text-xs">
-                {(document.content_raw ? document.content_raw.split(/\s+/).filter(word => word.length > 0).length : 0).toLocaleString()} words
+                {(((document.metadata as any)?.content_raw || "").split(/\s+/).filter((word: string) => word.length > 0).length).toLocaleString()} words
               </Badge>
             </div>
           </CardContent>

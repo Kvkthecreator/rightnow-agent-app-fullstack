@@ -3,15 +3,15 @@
  * Provides realistic mock data for development and CI without requiring live services
  */
 
-import { 
-  type Basket, 
-  type Block, 
-  type Document, 
-  type Delta, 
+import {
+  type Basket,
+  type Block,
+  type Delta,
   type Suggestion,
   type RawDump,
-  type Paginated 
+  type Paginated
 } from '../contracts';
+import type { DocumentDTO } from '@shared/contracts/documents';
 
 // Generate consistent IDs based on input
 function mockId(seed: string): string {
