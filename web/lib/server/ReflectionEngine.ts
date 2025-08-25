@@ -216,16 +216,27 @@ export class ReflectionEngine {
     reflection_id: string,
     computation_trace_id: string
   ): Promise<void> {
+    // Get workspace_id for the basket
+    const { data: basket } = await this.supabase
+      .from('baskets')
+      .select('workspace_id')
+      .eq('id', basket_id)
+      .single();
+
+    if (!basket) return;
+
     const { error } = await this.supabase
-      .from('timeline_events')
+      .from('events')
       .insert({
         basket_id,
-        event_type: 'reflection_computed',
-        event_data: {
+        workspace_id: basket.workspace_id,
+        kind: 'reflection.computed',
+        payload: {
           reflection_id,
           computation_trace_id,
         },
-        created_at: new Date().toISOString(),
+        origin: 'system',
+        ts: new Date().toISOString(),
       });
 
     if (error) {

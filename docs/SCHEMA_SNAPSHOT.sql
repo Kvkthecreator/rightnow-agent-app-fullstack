@@ -395,19 +395,22 @@ END; $$;
 CREATE FUNCTION public.fn_timeline_emit(p_basket_id uuid, p_kind text, p_ref_id uuid, p_preview text, p_payload jsonb DEFAULT '{}'::jsonb) RETURNS bigint
     LANGUAGE plpgsql
     AS $$
-DECLARE v_id bigint;
+DECLARE
+  v_id bigint;
+  v_ws uuid;
 BEGIN
-  -- Example 1:1 rule (dump). Extend similarly if other kinds should be unique per ref.
+  SELECT workspace_id INTO v_ws FROM public.baskets WHERE id = p_basket_id;
   IF p_kind = 'dump' AND EXISTS (
     SELECT 1 FROM public.timeline_events WHERE kind='dump' AND ref_id=p_ref_id
   ) THEN
-    SELECT id INTO v_id FROM public.timeline_events
-     WHERE kind='dump' AND ref_id=p_ref_id
-     ORDER BY id DESC LIMIT 1;
+    SELECT id INTO v_id
+    FROM public.timeline_events
+    WHERE kind='dump' AND ref_id=p_ref_id
+    ORDER BY id DESC LIMIT 1;
     RETURN v_id;
   END IF;
-  INSERT INTO public.timeline_events (basket_id, ts, kind, ref_id, preview, payload)
-  VALUES (p_basket_id, now(), p_kind, p_ref_id, p_preview, p_payload)
+  INSERT INTO public.timeline_events (basket_id, workspace_id, ts, kind, ref_id, preview, payload)
+  VALUES (p_basket_id, v_ws, now(), p_kind, p_ref_id, p_preview, p_payload)
   RETURNING id INTO v_id;
   RETURN v_id;
 END;
@@ -415,18 +418,26 @@ $$;
 CREATE FUNCTION public.fn_timeline_emit_with_ts(p_basket_id uuid, p_kind text, p_ref_id uuid, p_preview text, p_ts timestamp with time zone, p_payload jsonb DEFAULT '{}'::jsonb) RETURNS bigint
     LANGUAGE plpgsql
     AS $$
-DECLARE v_id bigint;
+DECLARE
+  v_id bigint;
+  v_ws uuid;
 BEGIN
+  SELECT workspace_id INTO v_ws FROM public.baskets WHERE id = p_basket_id;
   IF p_kind = 'dump' AND EXISTS (
     SELECT 1 FROM public.timeline_events WHERE kind='dump' AND ref_id=p_ref_id
   ) THEN
-    RETURN (SELECT id FROM public.timeline_events WHERE kind='dump' AND ref_id=p_ref_id ORDER BY id DESC LIMIT 1);
+    RETURN (
+      SELECT id FROM public.timeline_events
+      WHERE kind='dump' AND ref_id=p_ref_id
+      ORDER BY id DESC LIMIT 1
+    );
   END IF;
-  INSERT INTO public.timeline_events (basket_id, ts, kind, ref_id, preview, payload)
-  VALUES (p_basket_id, p_ts, p_kind, p_ref_id, p_preview, p_payload)
+  INSERT INTO public.timeline_events (basket_id, workspace_id, ts, kind, ref_id, preview, payload)
+  VALUES (p_basket_id, v_ws, p_ts, p_kind, p_ref_id, p_preview, p_payload)
   RETURNING id INTO v_id;
   RETURN v_id;
-END; $$;
+END;
+$$;
 CREATE FUNCTION public.normalize_label(p_label text) RETURNS text
     LANGUAGE sql IMMUTABLE
     AS $$
@@ -491,7 +502,8 @@ CREATE TABLE public.reflection_cache (
     question text,
     computed_at timestamp with time zone DEFAULT now() NOT NULL,
     meta_derived_from text,
-    meta_refreshable boolean DEFAULT true
+    meta_refreshable boolean DEFAULT true,
+    workspace_id uuid NOT NULL
 );
 CREATE VIEW public.basket_reflections AS
  SELECT reflection_cache.id,
@@ -700,6 +712,7 @@ CREATE TABLE public.timeline_events (
     ref_id uuid,
     preview text,
     payload jsonb,
+    workspace_id uuid NOT NULL,
     CONSTRAINT basket_history_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text])))
 );
 CREATE SEQUENCE public.timeline_events_id_seq
@@ -891,6 +904,7 @@ CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
 CREATE INDEX idx_reflections_basket_ts ON public.reflection_cache USING btree (basket_id, computed_at DESC);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
 CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
+CREATE INDEX idx_timeline_workspace_ts ON public.timeline_events USING btree (workspace_id, ts DESC, id DESC);
 CREATE INDEX ix_basket_reflections_basket_ts ON public.reflection_cache USING btree (basket_id, computed_at DESC);
 CREATE INDEX ix_block_links_doc_block ON public.block_links USING btree (document_id, block_id);
 CREATE INDEX ix_events_kind_ts ON public.events USING btree (kind, ts);
@@ -903,6 +917,7 @@ CREATE UNIQUE INDEX uq_ctx_items_norm_label_by_type ON public.context_items USIN
 CREATE UNIQUE INDEX uq_doc_ctx_item ON public.document_context_items USING btree (document_id, context_item_id);
 CREATE UNIQUE INDEX uq_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
 CREATE UNIQUE INDEX uq_raw_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
+CREATE UNIQUE INDEX uq_reflection_cache_basket_hash ON public.reflection_cache USING btree (basket_id, meta_derived_from) WHERE (meta_derived_from IS NOT NULL);
 CREATE UNIQUE INDEX uq_relationship_identity ON public.substrate_relationships USING btree (basket_id, from_type, from_id, to_type, to_id, relationship_type);
 CREATE UNIQUE INDEX uq_substrate_rel_directed ON public.substrate_relationships USING btree (basket_id, from_type, from_id, relationship_type, to_type, to_id);
 CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (basket_id, ingest_trace_id) WHERE (ingest_trace_id IS NOT NULL);
@@ -966,12 +981,16 @@ ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.reflection_cache
+    ADD CONSTRAINT reflection_cache_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.substrate_relationships
     ADD CONSTRAINT substrate_relationships_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.timeline_events
+    ADD CONSTRAINT timeline_events_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_memberships
