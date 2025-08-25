@@ -137,16 +137,6 @@ export const ApiErrorSchema = z.object({
 export type ApiError = z.infer<typeof ApiErrorSchema>;
 
 // Request/Response helpers
-export const CreateBasketRequestSchema = z.object({
-  idempotency_key: UUIDSchema,
-  basket: z
-    .object({
-      name: z.string().optional(),
-    })
-    .optional(),
-}).strict();
-
-export type CreateBasketRequest = z.infer<typeof CreateBasketRequestSchema>;
 
 export const UpdateBlockRequestSchema = z.object({
   status: z.enum(['accepted', 'rejected']).optional(),
@@ -171,19 +161,6 @@ export const RawDumpSchema = z.object({
 
 export type RawDump = z.infer<typeof RawDumpSchema>;
 
-export const CreateDumpRequestSchema = z
-  .object({
-    dump_request_id: UUIDSchema,
-    basket_id: UUIDSchema,
-    text_dump: z.string().optional(),
-    file_url: z.string().url().optional(),
-    meta: z.record(z.unknown()).optional(),
-  })
-  .refine((d) => d.text_dump || d.file_url, {
-    message: 'Provide text_dump or file_url',
-  });
-
-export type CreateDumpRequest = z.infer<typeof CreateDumpRequestSchema>;
 
 // Workspace schema
 export const WorkspaceSchema = z.object({

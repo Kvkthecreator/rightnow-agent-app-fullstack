@@ -61,6 +61,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const next_before = data && data.length ? data[data.length - 1].ts : null;
-  return NextResponse.json({ items: data ?? [], next_before }, { status: 200 });
+  const last_cursor =
+    data && data.length
+      ? { ts: data[data.length - 1].ts, id: data[data.length - 1].ref_id }
+      : null;
+  return NextResponse.json({ items: data ?? [], last_cursor }, { status: 200 });
 }

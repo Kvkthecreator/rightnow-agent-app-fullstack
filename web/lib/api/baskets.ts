@@ -5,15 +5,8 @@
  * @contract output : CreateBasketRes | Basket | Paginated<Basket>
  */
 import { apiClient, timeoutSignal } from './http';
-import {
-  BasketSchema,
-  PaginatedSchema,
-  CreateBasketRequestSchema,
-  type Basket,
-  type Paginated,
-  type CreateBasketRequest,
-} from './contracts';
-import type { CreateBasketRes } from '@shared/contracts/baskets';
+import { BasketSchema, PaginatedSchema, type Basket, type Paginated } from './contracts';
+import type { CreateBasketReq, CreateBasketRes } from '@shared/contracts/baskets';
 
 // Get single basket
 export async function getBasket(basketId: string): Promise<Basket> {
@@ -56,16 +49,11 @@ export async function listBaskets(options?: {
 }
 
 // Create new basket
-export async function createBasket(
-  request: CreateBasketRequest,
-): Promise<CreateBasketRes> {
-  // Validate request payload
-  const validatedRequest = CreateBasketRequestSchema.parse(request);
-
+export async function createBasket(request: CreateBasketReq): Promise<CreateBasketRes> {
   const response = await apiClient({
     url: '/api/baskets/new',
     method: 'POST',
-    body: validatedRequest,
+    body: request,
     signal: timeoutSignal(15000),
   });
 

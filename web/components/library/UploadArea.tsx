@@ -41,7 +41,8 @@ export function UploadArea({ onUpload }: { onUpload: () => void }) {
       if (!user) {
         console.warn("No authenticated user - cannot insert metadata", userError);
       } else {
-        const url = `https://YOUR_PROJECT.supabase.co/storage/v1/object/public/user-library/${filePath}`;
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const url = `${supabaseUrl}/storage/v1/object/public/user-library/${filePath}`;
         await insertBlockFile({
           user_id: user.id,
           file_url: url,
