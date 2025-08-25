@@ -6,7 +6,9 @@ import { withSchema } from '@/lib/api/withSchema';
 import { 
   UpdateDocumentRequestSchema,
   DocumentSchema,
-  type DocumentDTO 
+  DocumentCompositionSchema,
+  type DocumentDTO,
+  type DocumentComposition
 } from '@shared/contracts/documents';
 
 interface RouteContext {
