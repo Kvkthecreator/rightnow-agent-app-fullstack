@@ -76,12 +76,12 @@ describe('ReflectionEngine', () => {
           }),
         });
 
-      const result = await engine.computeReflection(basket_id);
+      const result = await engine.computeReflection(basket_id, 'workspace-123');
 
-      expect(result.basket_id).toBe(basket_id);
-      expect(result.reflection_text).toBe('Test reflection');
+      expect(result?.basket_id).toBe(basket_id);
+      expect(result?.reflection_text).toBe('Test reflection');
       expect(mockSupabase.from).toHaveBeenCalledWith('raw_dumps');
-      expect(mockSupabase.from).toHaveBeenCalledWith('basket_reflections');
+      expect(mockSupabase.from).toHaveBeenCalledWith('reflection_cache');
       expect(mockSupabase.from).toHaveBeenCalledWith('timeline_events');
     });
 
@@ -114,7 +114,7 @@ describe('ReflectionEngine', () => {
           }),
         });
 
-      await expect(engine.computeReflection(basket_id)).rejects.toThrow('Failed to store reflection: Database error');
+      await expect(engine.computeReflection(basket_id, 'workspace-123')).rejects.toThrow('Failed to store reflection: Database error');
     });
   });
 
@@ -155,12 +155,12 @@ describe('ReflectionEngine', () => {
         }),
       });
 
-      const result = await engine.getReflections(basket_id, undefined, 10);
+      const result = await engine.getReflections(basket_id, 'workspace-123', undefined, 10, false);
 
       expect(result.reflections).toHaveLength(2);
       expect(result.has_more).toBe(false);
       expect(result.next_cursor).toBeUndefined();
-      expect(mockSupabase.from).toHaveBeenCalledWith('basket_reflections');
+      expect(mockSupabase.from).toHaveBeenCalledWith('reflection_cache');
     });
 
     it('should handle cursor-based pagination', async () => {
@@ -182,7 +182,7 @@ describe('ReflectionEngine', () => {
         }),
       });
 
-      await engine.getReflections(basket_id, cursor, 10);
+      await engine.getReflections(basket_id, 'workspace-123', cursor, 10, false);
 
       expect(mockSupabase.from().select().eq().order().limit().lt).toHaveBeenCalledWith('computation_timestamp', cursor);
     });

@@ -30,26 +30,24 @@ test('reflection engine computation and retrieval', async ({ page }) => {
   expect(reflectionsResponse.data).toHaveProperty('reflections');
   expect(reflectionsResponse.data).toHaveProperty('has_more');
   
-  // Test reflection computation
+  // Test reflection computation via GET with refresh
   const computeResponse = await page.evaluate(async (basketId) => {
-    const response = await fetch(`/api/baskets/${basketId}/reflections`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        computation_trace_id: crypto.randomUUID()
-      })
-    });
+    const response = await fetch(`/api/baskets/${basketId}/reflections?refresh=1`);
     return {
       status: response.status,
       data: await response.json()
     };
   }, basketId);
   
-  expect(computeResponse.status).toBe(201);
-  expect(computeResponse.data).toHaveProperty('id');
-  expect(computeResponse.data).toHaveProperty('reflection_text');
-  expect(computeResponse.data).toHaveProperty('substrate_window_start');
-  expect(computeResponse.data).toHaveProperty('substrate_window_end');
+  expect(computeResponse.status).toBe(200);
+  expect(computeResponse.data).toHaveProperty('reflections');
+  expect(computeResponse.data.reflections.length).toBeGreaterThan(0);
+  
+  const reflection = computeResponse.data.reflections[0];
+  expect(reflection).toHaveProperty('id');
+  expect(reflection).toHaveProperty('reflection_text');
+  expect(reflection).toHaveProperty('substrate_window_start');
+  expect(reflection).toHaveProperty('substrate_window_end');
   
   // Verify the reflection appears in subsequent GET requests
   const updatedReflectionsResponse = await page.evaluate(async (basketId) => {
