@@ -101,10 +101,18 @@ export default function DumpBarPanel({ basketId, onClose }: DumpBarPanelProps) {
     setSubmitting(true);
     try {
       if (text.trim()) {
-        await createDump({ basketId, text: text.trim() });
+        await createDump({
+          basket_id: basketId,
+          dump_request_id: crypto.randomUUID(),
+          text_dump: text.trim(),
+        });
       }
       for (const url of urls) {
-        await createDump({ basketId, fileUrl: url });
+        await createDump({
+          basket_id: basketId,
+          dump_request_id: crypto.randomUUID(),
+          file_url: url,
+        });
       }
       toast.success(
         <span>

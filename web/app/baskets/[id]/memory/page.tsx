@@ -39,7 +39,7 @@ export default async function MemoryPage({ params }: PageProps) {
       <MemoryClient
         basketId={id}
         pattern={undefined}
-        tension={null}
+        tension={undefined}
         question={undefined}
         fallback="Unable to load reflections. Please try again."
       />
@@ -54,9 +54,9 @@ export default async function MemoryPage({ params }: PageProps) {
   return (
     <MemoryClient
       basketId={id}
-      pattern={reflections.pattern}
-      tension={reflections.tension}
-      question={reflections.question}
+      pattern={reflections.pattern ?? undefined}
+      tension={reflections.tension ?? undefined}
+      question={reflections.question ?? undefined}
       fallback={fallback}
     />
   );

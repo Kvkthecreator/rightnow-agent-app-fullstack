@@ -63,7 +63,11 @@ export function useCreateActions() {
           const sanitized = sanitizeFilename(file.name);
           const filename = `${Date.now()}-${sanitized}`;
           const url = await uploadFile(file, `dump_${user.id}/${filename}`);
-          await createDump({ basketId, fileUrl: url });
+          await createDump({
+            basket_id: basketId,
+            dump_request_id: crypto.randomUUID(),
+            file_url: url,
+          });
         }
         showSuccess(`Captured ${files.length} file(s) as raw dumps`);
       } catch (e) {

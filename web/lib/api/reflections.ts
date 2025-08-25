@@ -6,7 +6,7 @@ const ReflectionSchema: z.ZodType<ReflectionDTO> = z.object({
   pattern: z.string().nullable(),
   tension: z.string().nullable(),
   question: z.string().nullable(),
-  computed_at: z.string().nullable(),
+  computed_at: z.string(),
 });
 
 export async function fetchReflectionsLatest(

@@ -8,7 +8,7 @@ const ProjectionSchema = z.object({
     pattern: z.string().nullable(),
     tension: z.string().nullable(),
     question: z.string().nullable(),
-    computed_at: z.string().nullable(),
+    computed_at: z.string(),
   }) satisfies z.ZodType<ReflectionDTO>,
 });
 

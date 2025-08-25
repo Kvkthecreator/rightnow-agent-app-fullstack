@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
       .filter(Boolean);
 
     // Create raw_dump(s) using existing function
-    const { dumpId } = await createDump({ basketId, text: consolidatedContent });
+    const { dump_id } = await createDump({ basket_id: basketId, dump_request_id: crypto.randomUUID(), text_dump: consolidatedContent });
     for (const url of fileUrls) {
-      await createDump({ basketId, fileUrl: url });
+      await createDump({ basket_id: basketId, dump_request_id: crypto.randomUUID(), file_url: url });
     }
     
     // Trigger immediate background intelligence generation for raw dumps
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       triggerBackgroundIntelligenceGeneration({
         basketId,
         origin: 'raw_dump_added',
-        rawDumpId: dumpId,
+        rawDumpId: dump_id,
       });
       
       console.log(`Background intelligence generation triggered for raw dump in basket ${basketId}`);
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     // `processingResults` variable which caused the build to fail.
     const result: AddContextResult = {
       success: true,
-      rawDumpId: dumpId,
+      rawDumpId: dump_id,
       processingResults: {
         contentProcessed: content.length,
         insights: 'None',

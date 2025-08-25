@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
+const basketId = process.env.TEST_BASKET_ID;
+test.skip(!basketId, 'requires TEST_BASKET_ID to run');
 
 test('timeline paginates with last_cursor', async ({ page }) => {
-  const basketId = process.env.TEST_BASKET_ID || 'test-basket';
   await page.goto(`/baskets/${basketId}/timeline`);
 
   const items = page.locator('[data-test=timeline-item]');

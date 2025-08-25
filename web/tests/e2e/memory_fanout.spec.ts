@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
+const basketId = process.env.TEST_BASKET_ID;
+test.skip(!basketId, 'requires TEST_BASKET_ID to run');
 
 test('memory fan-out idempotency', async ({ page }) => {
-  await page.goto('/');
-  const basketId = process.env.TEST_BASKET_ID || 'test-basket';
   await page.goto(`/baskets/${basketId}/memory`);
 
   const textarea = page.getByRole('textbox');

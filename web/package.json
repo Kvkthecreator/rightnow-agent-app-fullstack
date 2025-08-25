@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "build:check": "next build",
-    "start": "next start",
+    "start": "next start -p 3000",
     "lint": "next lint --dir app --dir components --dir lib",
     "lint:fix": "next lint --dir app --dir components --dir lib --fix",
     "format": "prettier --write \"{app,components,lib}/**/*.{ts,tsx,md}\"",

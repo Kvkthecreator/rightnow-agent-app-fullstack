@@ -82,13 +82,17 @@ export class SubstrateService {
       
       // Use API route instead of direct Supabase insert
       // This ensures events are fired and proper processing happens
-      const { dumpId } = await createDump({ basketId, text: content });
+      const { dump_id } = await createDump({
+        basket_id: basketId,
+        dump_request_id: crypto.randomUUID(),
+        text_dump: content,
+      });
 
       // Fetch the created dump to return full data
       const { data, error } = await this.supabase
         .from('raw_dumps')
         .select('*')
-        .eq('id', dumpId)
+        .eq('id', dump_id)
         .single();
       
       if (error) throw new Error(`Failed to fetch created dump: ${error.message}`);
