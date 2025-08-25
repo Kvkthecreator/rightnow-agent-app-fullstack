@@ -145,10 +145,10 @@ export class DashboardQueries {
   }
 
   async getRecentTimelineEvents(basket_id: string, limit: number = 5): Promise<RecentTimelineEvent[]> {
-    // Query events table directly (Canon v1.3.1 unified timeline)
+    // Query timeline_events table directly (Canon v1.3.1 unified timeline)
     const { data, error } = await this.supabase
-      .from('events')
-      .select('id, kind, ts, payload, actor_id, origin')
+      .from('timeline_events')
+      .select('id, kind, ts, payload, ref_id, preview')
       .eq('basket_id', basket_id)
       .order('ts', { ascending: false })
       .limit(limit);
@@ -158,16 +158,17 @@ export class DashboardQueries {
     }
 
     return (data || []).map(event => ({
-      id: event.id,
+      id: event.id.toString(),
       event_type: event.kind,
       created_at: event.ts,
-      preview: this.generateEventPreview(event.kind, event.payload),
+      preview: event.preview || this.generateEventPreview(event.kind, event.payload),
       event_data: event.payload || {}
     }));
   }
 
   private generateEventPreview(kind: string, payload: any): string {
     switch (kind) {
+      case 'dump':
       case 'dump.created':
         const charCount = payload?.char_count || 0;
         return `Added ${charCount} characters of content`;
@@ -177,6 +178,18 @@ export class DashboardQueries {
       
       case 'delta.applied':
         return payload?.description || 'Applied substrate delta';
+      
+      case 'document.created':
+        return payload?.title ? `Created document "${payload.title}"` : 'Created new document';
+        
+      case 'document.updated':
+        return payload?.title ? `Updated document "${payload.title}"` : 'Updated document';
+        
+      case 'block.linked':
+        return 'Linked block to document';
+        
+      case 'block.unlinked':
+        return 'Unlinked block from document';
       
       default:
         return `${kind.replace('.', ' ')} event occurred`;

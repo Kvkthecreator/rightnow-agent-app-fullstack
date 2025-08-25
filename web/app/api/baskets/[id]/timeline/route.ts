@@ -67,10 +67,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
-  // Query events table with proper filtering
+  // Query timeline_events table with proper filtering (Canon v1.3.1 compliance)
   let q = supabase
-    .from('events')
-    .select('id, basket_id, kind, payload, ts, actor_id, agent_type, origin')
+    .from('timeline_events')
+    .select('id, basket_id, kind, payload, ts, ref_id, preview')
     .eq('basket_id', id)
     .order('ts', { ascending: false })
     .order('id', { ascending: false }) // Secondary sort for stable pagination
@@ -98,12 +98,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   // Transform to TimelineEventDTO format
   const timelineEvents: TimelineEventDTO[] = results.map(event => ({
-    id: event.id,
+    id: event.id.toString(), // Convert bigint to string for UUID compatibility
     basket_id: event.basket_id,
     event_type: event.kind as any, // Will be validated by schema
     event_data: event.payload || {},
     created_at: event.ts,
-    created_by: event.actor_id || undefined,
+    created_by: undefined, // timeline_events doesn't have actor_id, use from payload if needed
     meta: event.payload?.trace_id || event.payload?.client_ts ? {
       client_ts: event.payload?.client_ts,
       trace_id: event.payload?.trace_id,
