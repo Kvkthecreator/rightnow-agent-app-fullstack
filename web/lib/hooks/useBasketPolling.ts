@@ -31,12 +31,12 @@ export function useBasketPolling(basketId: string) {
 
     const pollEvents = async () => {
       try {
-        // Query for recent events for this basket
+        // Query for recent timeline events for this basket
         const { data, error } = await supabase
-          .from('events')
+          .from('timeline_events')
           .select('*')
           .eq('basket_id', basketId)
-          .order('ts', { ascending: false })
+          .order('timestamp', { ascending: false })
           .limit(10);
 
         if (error) {
@@ -59,13 +59,13 @@ export function useBasketPolling(basketId: string) {
             lastEventIdRef.current = latestEvent.id;
             
             setLastEvent({
-              type: latestEvent.kind,
-              payload: latestEvent.payload
+              type: latestEvent.event_kind,
+              payload: latestEvent.event_data
             });
             
             console.log('📊 New event detected via polling:', {
               id: latestEvent.id,
-              type: latestEvent.kind,
+              type: latestEvent.event_kind,
               basketId: basketId
             });
           }

@@ -45,7 +45,6 @@ export interface Database {
           basket_id: string | null;
           title: string;
           content_raw: string;
-          content_rendered: string | null;
           created_at: string;
           updated_at: string;
         };
