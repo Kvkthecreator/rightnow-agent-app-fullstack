@@ -1,5 +1,22 @@
 import { z } from "zod";
 
+// Re-export substrate reference types for documents
+export { 
+  SubstrateTypeSchema,
+  SubstrateReferenceSchema,
+  AttachSubstrateRequestSchema,
+  GetDocumentReferencesRequestSchema,
+  GetDocumentReferencesResponseSchema,
+  DocumentCompositionSchema,
+  type SubstrateType,
+  type SubstrateReferenceDTO,
+  type AttachSubstrateRequest,
+  type GetDocumentReferencesRequest,
+  type GetDocumentReferencesResponse,
+  type DocumentComposition,
+  type SubstrateSummary,
+} from './substrate_references';
+
 export const DocumentSchema = z.object({
   id: z.string().uuid(),
   basket_id: z.string().uuid(),
@@ -21,6 +38,7 @@ export const BlockSchema = z.object({
 });
 export type BlockDTO = z.infer<typeof BlockSchema>;
 
+// DEPRECATED: Use SubstrateReferenceDTO instead for substrate canon compliance
 export const BlockLinkSchema = z.object({
   id: z.string().uuid(),
   document_id: z.string().uuid(),
