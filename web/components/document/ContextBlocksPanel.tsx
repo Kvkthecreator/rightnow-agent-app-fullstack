@@ -39,11 +39,11 @@ export default function ContextBlocksPanel({
   }
 
   async function handleEditBlock(block: BlockRow) {
-    const content = window.prompt("Edit block text", block.content);
-    if (content === null) return;
+    const body_md = window.prompt("Edit block text", block.body_md || "");
+    if (body_md === null) return;
     const scope = window.prompt("Scope", block.scope || "") || null;
     setBlocks((b) =>
-      b.map((blk) => (blk.id === block.id ? { ...blk, content, scope } : blk)),
+      b.map((blk) => (blk.id === block.id ? { ...blk, body_md, scope } : blk)),
     );
   }
 
@@ -118,7 +118,7 @@ export default function ContextBlocksPanel({
               key={b.id}
               className="border rounded p-2 mb-2 text-sm flex justify-between"
             >
-              <span>{b.content.slice(0, 80)}</span>
+              <span>{(b.body_md || b.title || 'No content').slice(0, 80)}</span>
               {/* TODO: Legacy patch. Remove `as any` after type refactor. */}
               {(b as any).state !== "LOCKED" && (
                 <span className="space-x-2">
