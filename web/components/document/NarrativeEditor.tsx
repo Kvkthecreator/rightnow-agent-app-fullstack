@@ -7,11 +7,11 @@ import type { BlockDTO } from "@shared/contracts/documents";
 
 interface Props {
   rawText: string;
-  blocks: Block[];
+  blocks: BlockDTO[];
   onSelectBlock?: (id: string) => void;
 }
 
-function BlockBadge({ block, onClick }: { block: Block; onClick?: () => void }) {
+function BlockBadge({ block, onClick }: { block: BlockDTO; onClick?: () => void }) {
   const styleMap: Record<string, string> = {
     PROPOSED: "border border-border text-muted-foreground",
     ACCEPTED: "bg-primary text-primary-foreground",
@@ -74,7 +74,7 @@ function BlockBadge({ block, onClick }: { block: Block; onClick?: () => void }) 
 
 export default function NarrativeEditor({ rawText, blocks, onSelectBlock }: Props) {
   const content = useMemo(() => {
-    const ranges: { start: number; end: number; block: Block }[] = [];
+    const ranges: { start: number; end: number; block: BlockDTO }[] = [];
     blocks.forEach((blk) => {
       // TODO: Legacy patch. Remove `as any` after type refactor.
       if (!(blk as any).canonical_value) return;

@@ -3,12 +3,13 @@ import { createServerComponentClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { getBasketServer } from "@/lib/server/baskets";
 import { getDocumentsServer } from "@/lib/server/documents";
+import type { DocumentDTO } from "@shared/contracts/documents";
 
 // Clean data fetching utilities for baskets work
 export async function getBasketData(basketId: string) {
   try {
     const supabase = createServerComponentClient({ cookies });
-    
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -35,7 +36,7 @@ export async function getBasketData(basketId: string) {
     }
 
     const basket = await getBasketServer(basketId, workspaceId);
-    
+
     if (!basket) {
       // In development, provide mock data
       if (process.env.NODE_ENV === 'development') {
@@ -66,7 +67,7 @@ export async function getBasketData(basketId: string) {
 export async function getBasketDocuments(basketId: string) {
   try {
     const supabase = createServerComponentClient({ cookies });
-    
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -92,16 +93,16 @@ export async function getBasketDocuments(basketId: string) {
       return [];
     }
 
-    const docs = await getDocumentsServer(workspaceId);
-    
+    const docs: DocumentDTO[] = await getDocumentsServer(workspaceId);
+
     // Filter documents by basketId to ensure consistency with dashboard metrics
-    const basketDocs = docs?.filter(doc => doc.basket_id === basketId) || [];
-    
+    const basketDocs = docs.filter(doc => doc.basket_id === basketId);
+
     console.log(`📊 Filtered documents for basket ${basketId}:`, {
-      totalWorkspaceDocs: docs?.length || 0,
+      totalWorkspaceDocs: docs.length,
       basketSpecificDocs: basketDocs.length
     });
-    
+
     return basketDocs;
   } catch (error) {
     console.error('Error fetching documents:', error);
@@ -127,7 +128,7 @@ export async function getDocument(basketId: string, documentId: string) {
 export async function getUserAndWorkspace() {
   try {
     const supabase = createServerComponentClient({ cookies });
-    
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -137,7 +138,7 @@ export async function getUserAndWorkspace() {
     }
 
     const workspace = await ensureWorkspaceServer(supabase);
-    
+
     return { user, workspace };
   } catch (error) {
     console.error('Error fetching user and workspace:', error);
@@ -156,40 +157,43 @@ export function getMockBasketData(basketId: string) {
   };
 }
 
-export function getMockDocuments() {
+export function getMockDocuments(): DocumentDTO[] {
   return [
     {
       id: 'doc-1',
       title: 'Project Strategy Overview',
       basket_id: 'mock-basket-id',
-      content_raw: '# Project Strategy\n\nThis document outlines our strategic approach...',
-      document_type: 'strategic-analysis',
-      workspace_id: 'mock-workspace-id',
-      created_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-      updated_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-      metadata: { wordCount: 1247 }
+      created_at: new Date(Date.now() - 172800000).toISOString(),
+      updated_at: new Date(Date.now() - 86400000).toISOString(),
+      metadata: {
+        wordCount: 1247,
+        document_type: 'strategic-analysis',
+        content_raw: '# Project Strategy\n\nThis document outlines our strategic approach...'
+      }
     },
     {
-      id: 'doc-2', 
+      id: 'doc-2',
       title: 'Market Research Findings',
       basket_id: 'mock-basket-id',
-      content_raw: '# Market Research\n\nKey findings from our market analysis...',
-      document_type: 'research-notes',
-      workspace_id: 'mock-workspace-id',
-      created_at: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
-      updated_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-      metadata: { wordCount: 892 }
+      created_at: new Date(Date.now() - 259200000).toISOString(),
+      updated_at: new Date(Date.now() - 172800000).toISOString(),
+      metadata: {
+        wordCount: 892,
+        document_type: 'research-notes',
+        content_raw: '# Market Research\n\nKey findings from our market analysis...'
+      }
     },
     {
       id: 'doc-3',
       title: 'Implementation Plan',
       basket_id: 'mock-basket-id',
-      content_raw: '# Implementation\n\nDetailed plan for executing our strategy...',
-      document_type: 'project-plan',
-      workspace_id: 'mock-workspace-id',
-      created_at: new Date(Date.now() - 345600000).toISOString(), // 4 days ago
-      updated_at: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
-      metadata: { wordCount: 1563 }
+      created_at: new Date(Date.now() - 345600000).toISOString(),
+      updated_at: new Date(Date.now() - 259200000).toISOString(),
+      metadata: {
+        wordCount: 1563,
+        document_type: 'project-plan',
+        content_raw: '# Implementation\n\nDetailed plan for executing our strategy...'
+      }
     }
   ];
 }

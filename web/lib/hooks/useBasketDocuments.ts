@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { fetchWithToken } from "@/lib/fetchWithToken";
 import { useUniversalChanges } from "@/lib/hooks/useUniversalChanges";
+import type { DocumentDTO } from "@shared/contracts/documents";
 
 interface Document {
   id: string;
