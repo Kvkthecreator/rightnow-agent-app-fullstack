@@ -21,8 +21,8 @@ export async function storeIntelligenceEvent(
     .insert({
       basket_id: event.basketId,
       workspace_id: event.workspaceId, // CRITICAL: Store workspace_id as direct column for RLS
-      event_kind: event.kind,
-      event_data: {
+      kind: event.kind,
+      payload: {
         intelligence: event.intelligence,
         contentHash: event.contentHash,
         changes: event.changes,
@@ -33,7 +33,7 @@ export async function storeIntelligenceEvent(
         origin: event.origin,
         eventId: fullEvent.id
       },
-      timestamp: fullEvent.timestamp
+      ts: fullEvent.timestamp
     })
     .select()
     .single();
@@ -61,8 +61,8 @@ export async function getIntelligenceEvents(
     .from('timeline_events')
     .select('*')
     .eq('basket_id', basketId)
-    .in('event_kind', ['intelligence_generation', 'intelligence_approval', 'intelligence_rejection'])
-    .order('timestamp', { ascending: false });
+    .in('kind', ['intelligence_generation', 'intelligence_approval', 'intelligence_rejection'])
+    .order('ts', { ascending: false });
 
   if (options?.limit) {
     query = query.limit(options.limit);

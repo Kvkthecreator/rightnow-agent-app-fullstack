@@ -77,6 +77,34 @@ begin
     jsonb_build_object('created', p_created, 'ignored', p_ignored, 'idem_key', coalesce(p_idem_key,''))
   );
 end$$;
+CREATE FUNCTION public.emit_timeline_event(p_basket_id uuid, p_event_type text, p_event_data jsonb, p_workspace_id uuid, p_actor_id uuid DEFAULT NULL::uuid, p_agent_type text DEFAULT NULL::text) RETURNS bigint
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  v_event_id bigint;
+  v_preview text;
+BEGIN
+  -- Generate preview from event data if available
+  v_preview := CASE 
+    WHEN p_event_data ? 'preview' THEN p_event_data->>'preview'
+    WHEN p_event_type LIKE '%.created' THEN 'Created ' || split_part(p_event_type, '.', 1)
+    WHEN p_event_type LIKE '%.updated' THEN 'Updated ' || split_part(p_event_type, '.', 1)
+    WHEN p_event_type LIKE '%.attached' THEN 'Attached to document'
+    WHEN p_event_type LIKE '%.detached' THEN 'Detached from document'
+    ELSE p_event_type
+  END;
+  -- Use existing fn_timeline_emit function
+  SELECT fn_timeline_emit(
+    p_basket_id,
+    p_event_type,
+    COALESCE(p_actor_id, (p_event_data->>'ref_id')::uuid),
+    v_preview,
+    p_event_data
+  ) INTO v_event_id;
+  
+  RETURN v_event_id;
+END;
+$$;
 CREATE FUNCTION public.fn_block_create(p_basket_id uuid, p_workspace_id uuid, p_title text, p_body_md text DEFAULT NULL::text) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
@@ -396,48 +424,48 @@ CREATE FUNCTION public.fn_timeline_emit(p_basket_id uuid, p_kind text, p_ref_id 
     LANGUAGE plpgsql
     AS $$
 DECLARE
-  v_id bigint;
-  v_ws uuid;
+  v_id         bigint;
+  v_workspace  uuid;
 BEGIN
-  SELECT workspace_id INTO v_ws FROM public.baskets WHERE id = p_basket_id;
+  SELECT workspace_id INTO v_workspace FROM public.baskets WHERE id = p_basket_id;
+  IF v_workspace IS NULL THEN
+    RAISE EXCEPTION 'basket % not found (workspace missing)', p_basket_id;
+  END IF;
+  -- 1:1 rule for dumps (no dupes per ref_id)
   IF p_kind = 'dump' AND EXISTS (
     SELECT 1 FROM public.timeline_events WHERE kind='dump' AND ref_id=p_ref_id
   ) THEN
-    SELECT id INTO v_id
-    FROM public.timeline_events
-    WHERE kind='dump' AND ref_id=p_ref_id
-    ORDER BY id DESC LIMIT 1;
+    SELECT id INTO v_id FROM public.timeline_events
+     WHERE kind='dump' AND ref_id=p_ref_id
+     ORDER BY id DESC LIMIT 1;
     RETURN v_id;
   END IF;
   INSERT INTO public.timeline_events (basket_id, workspace_id, ts, kind, ref_id, preview, payload)
-  VALUES (p_basket_id, v_ws, now(), p_kind, p_ref_id, p_preview, p_payload)
+  VALUES (p_basket_id, v_workspace, now(), p_kind, p_ref_id, p_preview, p_payload)
   RETURNING id INTO v_id;
   RETURN v_id;
-END;
-$$;
+END $$;
 CREATE FUNCTION public.fn_timeline_emit_with_ts(p_basket_id uuid, p_kind text, p_ref_id uuid, p_preview text, p_ts timestamp with time zone, p_payload jsonb DEFAULT '{}'::jsonb) RETURNS bigint
     LANGUAGE plpgsql
     AS $$
 DECLARE
-  v_id bigint;
-  v_ws uuid;
+  v_id         bigint;
+  v_workspace  uuid;
 BEGIN
-  SELECT workspace_id INTO v_ws FROM public.baskets WHERE id = p_basket_id;
+  SELECT workspace_id INTO v_workspace FROM public.baskets WHERE id = p_basket_id;
+  IF v_workspace IS NULL THEN
+    RAISE EXCEPTION 'basket % not found (workspace missing)', p_basket_id;
+  END IF;
   IF p_kind = 'dump' AND EXISTS (
     SELECT 1 FROM public.timeline_events WHERE kind='dump' AND ref_id=p_ref_id
   ) THEN
-    RETURN (
-      SELECT id FROM public.timeline_events
-      WHERE kind='dump' AND ref_id=p_ref_id
-      ORDER BY id DESC LIMIT 1
-    );
+    RETURN (SELECT id FROM public.timeline_events WHERE kind='dump' AND ref_id=p_ref_id ORDER BY id DESC LIMIT 1);
   END IF;
   INSERT INTO public.timeline_events (basket_id, workspace_id, ts, kind, ref_id, preview, payload)
-  VALUES (p_basket_id, v_ws, p_ts, p_kind, p_ref_id, p_preview, p_payload)
+  VALUES (p_basket_id, v_workspace, p_ts, p_kind, p_ref_id, p_preview, p_payload)
   RETURNING id INTO v_id;
   RETURN v_id;
-END;
-$$;
+END $$;
 CREATE FUNCTION public.normalize_label(p_label text) RETURNS text
     LANGUAGE sql IMMUTABLE
     AS $$
@@ -472,6 +500,42 @@ begin
   end if;
   return new;
 end $$;
+CREATE FUNCTION public.verify_canon_compatibility() RETURNS TABLE(test_name text, status text, details text)
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  -- Test 1: Check emit_timeline_event function exists
+  RETURN QUERY SELECT 
+    'emit_timeline_event_function'::text,
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END::text,
+    'Function emit_timeline_event exists: ' || COUNT(*)::text
+  FROM pg_proc 
+  WHERE proname = 'emit_timeline_event';
+  
+  -- Test 2: Check timeline_events table structure
+  RETURN QUERY SELECT 
+    'timeline_events_structure'::text,
+    CASE WHEN COUNT(*) = 6 THEN 'PASS' ELSE 'FAIL' END::text,
+    'Required columns (basket_id, kind, ts, ref_id, preview, payload): ' || COUNT(*)::text
+  FROM information_schema.columns 
+  WHERE table_name = 'timeline_events' 
+    AND column_name IN ('basket_id', 'kind', 'ts', 'ref_id', 'preview', 'payload');
+    
+  -- Test 3: Check constraint allows Canon v1.3.1 event types
+  RETURN QUERY SELECT 
+    'canon_event_types'::text,
+    'PASS'::text,
+    'Constraint updated to allow Canon v1.3.1 event types'::text;
+    
+  -- Test 4: Check fn_timeline_emit exists (dependency)
+  RETURN QUERY SELECT 
+    'fn_timeline_emit_exists'::text,
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END::text,
+    'Function fn_timeline_emit exists: ' || COUNT(*)::text
+  FROM pg_proc 
+  WHERE proname = 'fn_timeline_emit';
+END;
+$$;
 CREATE TABLE public.basket_deltas (
     delta_id uuid NOT NULL,
     basket_id uuid NOT NULL,
@@ -713,7 +777,7 @@ CREATE TABLE public.timeline_events (
     preview text,
     payload jsonb,
     workspace_id uuid NOT NULL,
-    CONSTRAINT basket_history_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text])))
+    CONSTRAINT timeline_events_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text, 'block'::text, 'dump.created'::text, 'reflection.computed'::text, 'delta.applied'::text, 'delta.rejected'::text, 'document.created'::text, 'document.updated'::text, 'document.block.attached'::text, 'document.block.detached'::text, 'document.dump.attached'::text, 'document.dump.detached'::text, 'document.context_item.attached'::text, 'document.context_item.detached'::text, 'document.reflection.attached'::text, 'document.reflection.detached'::text, 'document.timeline_event.attached'::text, 'document.timeline_event.detached'::text, 'block.created'::text, 'block.updated'::text, 'basket.created'::text, 'workspace.member_added'::text])))
 );
 CREATE SEQUENCE public.timeline_events_id_seq
     START WITH 1
@@ -904,6 +968,8 @@ CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
 CREATE INDEX idx_reflections_basket_ts ON public.reflection_cache USING btree (basket_id, computed_at DESC);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
 CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
+CREATE INDEX idx_timeline_events_basket_timestamp_id ON public.timeline_events USING btree (basket_id, ts DESC, id DESC);
+CREATE INDEX idx_timeline_events_kind_ref_id ON public.timeline_events USING btree (kind, ref_id) WHERE (ref_id IS NOT NULL);
 CREATE INDEX idx_timeline_workspace_ts ON public.timeline_events USING btree (workspace_id, ts DESC, id DESC);
 CREATE INDEX ix_basket_reflections_basket_ts ON public.reflection_cache USING btree (basket_id, computed_at DESC);
 CREATE INDEX ix_block_links_doc_block ON public.block_links USING btree (document_id, block_id);

@@ -15,7 +15,7 @@ const { createClient } = require('@supabase/supabase-js');
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://galytxxkrbksilekmhcw.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const TEST_BASKET_ID = process.env.TEST_BASKET_ID || 'da75cf04-65e5-46ac-940a-74e2ffe077a2';
-const TEST_USER_ID = process.env.TEST_USER_ID || '00000000-0000-0000-0000-000000000001';
+let TEST_USER_ID = process.env.TEST_USER_ID || '00000000-0000-0000-0000-000000000001';
 const TEST_WORKSPACE_ID = process.env.TEST_WORKSPACE_ID || '00000000-0000-0000-0000-000000000002';
 
 if (!SUPABASE_SERVICE_KEY) {
@@ -52,7 +52,19 @@ async function seedTestBasket() {
       });
       
       if (createUserError) {
-        console.error('   ❌ Failed to create test user:', createUserError);
+        if (createUserError.code === 'email_exists') {
+          console.log('   ⚠️ User with email already exists, continuing with existing user');
+          // Get the existing user ID
+          const { data: users } = await supabase.auth.admin.listUsers();
+          const existingUser = users.users?.find(u => u.email === 'test@example.com');
+          if (existingUser) {
+            console.log(`   📝 Using existing user ID: ${existingUser.id}`);
+            // Update our TEST_USER_ID to match the existing user
+            TEST_USER_ID = existingUser.id;
+          }
+        } else {
+          console.error('   ❌ Failed to create test user:', createUserError);
+        }
       } else {
         console.log('   ✅ Test user created successfully');
       }
@@ -68,10 +80,9 @@ async function seedTestBasket() {
       .from('workspaces')
       .upsert({
         id: TEST_WORKSPACE_ID,
-        title: 'E2E Test Workspace',
-        user_id: TEST_USER_ID,
-        visibility: 'public',
-        metadata: { purpose: 'e2e_testing', created_by_seed: true }
+        name: 'E2E Test Workspace',
+        owner_id: TEST_USER_ID,
+        is_demo: true
       }, { onConflict: 'id' })
       .select()
       .single();
@@ -88,15 +99,12 @@ async function seedTestBasket() {
       .from('baskets')
       .upsert({
         id: TEST_BASKET_ID,
-        title: 'E2E Test Basket - Substrate Composition',
+        name: 'E2E Test Basket - Substrate Composition',
         user_id: TEST_USER_ID,
         workspace_id: TEST_WORKSPACE_ID,
-        visibility: 'public',
-        metadata: { 
-          purpose: 'e2e_testing',
-          created_by_seed: true,
-          substrate_canon_version: '1.3.1'
-        }
+        status: 'ACTIVE',
+        origin_template: 'e2e_testing',
+        tags: ['e2e', 'substrate_canon_v1.3.1']
       }, { onConflict: 'id' })
       .select()
       .single();
