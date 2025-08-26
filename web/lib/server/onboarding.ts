@@ -8,7 +8,7 @@ export async function isFirstEverUser(userId: string): Promise<boolean> {
   const { count: markerCount } = await supabase
     .from('context_items')
     .select('id', { count: 'exact', head: true })
-    .eq('context_type', 'system')
+    .eq('context_type', 'yarnnn_system')
     .eq('content_text', 'identity_genesis')
     .eq('created_by', userId);
 
@@ -42,7 +42,7 @@ export async function hasIdentityGenesis(basketId: string): Promise<boolean> {
     .from('context_items')
     .select('id', { count: 'exact', head: true })
     .eq('basket_id', basketId)
-    .eq('context_type', 'system')
+    .eq('context_type', 'yarnnn_system')
     .eq('content_text', 'identity_genesis');
   return (count ?? 0) > 0;
 }

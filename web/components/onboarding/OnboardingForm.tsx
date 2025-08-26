@@ -9,11 +9,9 @@ import { Button } from "@/components/ui/Button";
 
 interface Props {
   basketId: string;
-  onSuccess?: () => void;
-  redirectTo?: string;
 }
 
-export default function OnboardingForm({ basketId, onSuccess, redirectTo }: Props) {
+export default function OnboardingForm({ basketId }: Props) {
   const router = useRouter();
   const { user } = useAuth();
   const [step, setStep] = useState(0);
@@ -21,7 +19,6 @@ export default function OnboardingForm({ basketId, onSuccess, redirectTo }: Prop
   const [tension, setTension] = useState("");
   const [aspiration, setAspiration] = useState("");
   const [memory, setMemory] = useState("");
-  const [result, setResult] = useState<any>(null);
 
   const storageKey = user ? `onboarding-${user.id}` : null;
 
@@ -62,10 +59,9 @@ export default function OnboardingForm({ basketId, onSuccess, redirectTo }: Prop
     });
     if (res.ok) {
       const data = await res.json();
-      setResult(data);
       if (storageKey) localStorage.removeItem(storageKey);
-      onSuccess?.();
-      if (redirectTo) router.replace(redirectTo);
+      const profile = data.profile_document_id ? `&profile=${data.profile_document_id}` : '';
+      router.push(`/baskets/${basketId}/memory?onboarded=1${profile}`);
     }
   }
 
@@ -130,21 +126,6 @@ export default function OnboardingForm({ basketId, onSuccess, redirectTo }: Prop
       </div>
     ),
   ];
-
-  if (result) {
-    return (
-      <div className="space-y-6 max-w-md">
-        <h2 className="text-xl font-semibold">Thanks for sharing, {name}.</h2>
-        <p className="text-muted-foreground">We’ll remember what’s on your mind and where you’d like to go.</p>
-        <div className="space-x-4">
-          <a className="underline" href={`/baskets/${basketId}/timeline`}>Open Timeline</a>
-          {result.profile_document_id && (
-            <a className="underline" href={`/documents/${result.profile_document_id}`}>Open Profile (Identity Genesis)</a>
-          )}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col items-center space-y-8">

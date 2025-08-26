@@ -3,15 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "build:check": "next build",
     "start": "next start -p 3000",
-    "lint": "next lint --dir app --dir components --dir lib",
-    "lint:fix": "next lint --dir app --dir components --dir lib --fix",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
     "format": "prettier --write \"{app,components,lib}/**/*.{ts,tsx,md}\"",
     "unused:report": "ts-prune --ignore \"web/__tests__\"",
-    "test:e2e": "playwright test"
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "start-server-and-test start http://localhost:3000 'playwright test --config=playwright.config.ts'",
+    "test:e2e:ui": "playwright test --ui --config=playwright.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
@@ -34,11 +37,11 @@
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.509.0",
     "moment-timezone": "^0.6.0",
-    "next": "15.3.2",
+    "next": "14.x",
     "pdfjs-dist": "^3.11.174",
     "phosphor-react": "^1.4.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "18.x",
+    "react-dom": "18.x",
     "react-dropzone": "^14.2.3",
     "react-error-boundary": "^6.0.0",
     "react-hook-form": "^7.56.3",
@@ -66,8 +69,10 @@
     "prettier": "^3.6.2",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "start-server-and-test": "^2.0.3",
     "tw-animate-css": "^1.2.9",
-    "typescript": "^5",
+    "typescript": "^5.4.0",
+    "vitest": "^2.1.3",
     "@playwright/test": "^1.46.0"
   }
 }

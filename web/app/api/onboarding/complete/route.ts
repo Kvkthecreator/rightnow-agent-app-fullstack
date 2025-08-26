@@ -23,24 +23,19 @@ export async function POST(req: Request) {
     const { userId } = await getAuthenticatedUser(supabase);
     const ws = await ensureWorkspaceForUser(userId, supabase);
 
-    const idempotencyKey = `user:${userId}:basket:${basket_id}:identity_genesis:v1`;
+    const IDEMPOTENCY = `genesis:v1:basket:${basket_id}`;
 
-    // Idempotency check
+    // Guard against double genesis
     const { data: existing } = await supabase
       .from('context_items')
-      .select('id, metadata')
+      .select('id')
       .eq('basket_id', basket_id)
-      .eq('context_type', 'system')
+      .eq('context_type', 'yarnnn_system')
       .eq('content_text', 'identity_genesis')
-      .eq('metadata->>idempotency_key', idempotencyKey)
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json({
-        dump_ids: existing.metadata?.dump_ids ?? {},
-        context_item_id: existing.id,
-        profile_document_id: existing.metadata?.profile_document_id ?? undefined,
-      });
+      return NextResponse.json({ status: 'ok', already_exists: true }, { status: 200 });
     }
 
     const dumps: { question: string; text: string }[] = [
@@ -56,9 +51,9 @@ export async function POST(req: Request) {
       source_meta: {
         source_type: 'onboarding',
         metadata: {
-          onboarding: { version: 'v1', question: d.question, is_genesis: true },
+          onboarding: { question: d.question, is_genesis: true, version: 'v1' },
+          idempotency_key: IDEMPOTENCY,
           importance: 'core_profile',
-          idempotency_key: idempotencyKey,
         },
       },
     }));
@@ -83,14 +78,14 @@ export async function POST(req: Request) {
       version: 'v1',
       dump_ids,
       display_name: name,
-      idempotency_key: idempotencyKey,
+      idempotency_key: IDEMPOTENCY,
     };
 
     const { data: marker, error: markerErr } = await supabase
       .from('context_items')
       .insert({
         basket_id,
-        context_type: 'system',
+        context_type: 'yarnnn_system',
         content_text: 'identity_genesis',
         is_validated: true,
         metadata: markerMetadata,
@@ -107,7 +102,7 @@ export async function POST(req: Request) {
       profile_document_id = await createGenesisProfileDocument({
         supabase,
         basketId: basket_id,
-        dumpIds: dump_ids,
+        dumpIds: dump_ids as any,
         contextItemId: marker.id,
       });
       markerMetadata.profile_document_id = profile_document_id;

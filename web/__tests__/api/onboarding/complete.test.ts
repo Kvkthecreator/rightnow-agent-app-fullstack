@@ -3,11 +3,12 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import { createGenesisProfileDocument } from '@/lib/server/onboarding';
+import { vi, describe, it, expect, beforeEach, Mock } from 'vitest';
 
-jest.mock('@/lib/supabase/server');
-jest.mock('@/lib/auth/getAuthenticatedUser');
-jest.mock('@/lib/workspaces/ensureWorkspaceForUser');
-jest.mock('@/lib/server/onboarding');
+vi.mock('@/lib/supabase/server');
+vi.mock('@/lib/auth/getAuthenticatedUser');
+vi.mock('@/lib/workspaces/ensureWorkspaceForUser');
+vi.mock('@/lib/server/onboarding');
 
 describe('/api/onboarding/complete', () => {
   const mockSupabase: any = {
@@ -22,10 +23,10 @@ describe('/api/onboarding/complete', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (createServerSupabaseClient as jest.Mock).mockReturnValue(mockSupabase);
-    (getAuthenticatedUser as jest.Mock).mockResolvedValue({ userId: 'user-123' });
-    (ensureWorkspaceForUser as jest.Mock).mockResolvedValue({ id: 'workspace-123' });
+    vi.clearAllMocks();
+    (createServerSupabaseClient as unknown as Mock).mockReturnValue(mockSupabase);
+    (getAuthenticatedUser as unknown as Mock).mockResolvedValue({ userId: 'user-123' });
+    (ensureWorkspaceForUser as unknown as Mock).mockResolvedValue({ id: 'workspace-123' });
   });
 
   it('returns 422 for invalid payload', async () => {
