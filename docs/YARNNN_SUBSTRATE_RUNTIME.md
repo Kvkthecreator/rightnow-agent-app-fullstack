@@ -34,7 +34,7 @@ Blocks (**context_blocks**) are the structured units handled in P1.
 | P1 | `fn_context_item_upsert_bulk`, `fn_block_create`, `fn_block_revision_create` |
 | P2 | `fn_relationship_upsert_bulk` |
 | P3 | *(none)* `fn_reflection_cache_upsert` *(optional)* |
-| P4 | `fn_document_create`, `fn_document_attach_block`, `fn_document_attach_context_item` |
+| P4 | `fn_document_create`, `fn_document_attach_substrate`, `fn_document_attach_context_item` |
 
 ---
 

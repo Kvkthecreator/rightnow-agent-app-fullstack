@@ -42,16 +42,6 @@ export const BlockSchema = z.object({
 });
 export type BlockDTO = z.infer<typeof BlockSchema>;
 
-// DEPRECATED: Use SubstrateReferenceDTO instead for substrate canon compliance
-export const BlockLinkSchema = z.object({
-  id: z.string().uuid(),
-  document_id: z.string().uuid(),
-  block_id: z.string().uuid(),
-  occurrences: z.number().int().default(0),
-  snippets: z.any().default([]),
-});
-export type BlockLinkDTO = z.infer<typeof BlockLinkSchema>;
-
 // API Request Schemas
 export const CreateDocumentRequestSchema = z.object({
   basket_id: z.string().uuid(),
@@ -70,13 +60,6 @@ export const UpdateDocumentRequestSchema = z.object({
   metadata: z.record(z.any()).optional(),
 });
 export type UpdateDocumentRequest = z.infer<typeof UpdateDocumentRequestSchema>;
-
-export const AttachBlockRequestSchema = z.object({
-  block_id: z.string().uuid(),
-  occurrences: z.number().int().optional(),
-  snippets: z.any().default([]),
-});
-export type AttachBlockRequest = z.infer<typeof AttachBlockRequestSchema>;
 
 // API Response Schemas
 export const GetDocumentsResponseSchema = z.object({

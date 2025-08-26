@@ -17,22 +17,16 @@ Per YARNNN_CANON.md and YARNNN_MEMORY_MODEL.md:
 
 ## Current Implementation Gaps
 
-### ❌ Frontend (Major Divergence)
-- **Contracts**: Block-only composition (`BlockLinkDTO`)
-- **API Routes**: `/documents/[id]/blocks` (block-only)
-- **UI**: Only shows block references
-- **Missing**: Generic substrate reference system
+### ✅ Frontend (Aligned)
+- **Contracts**: Generic substrate references (`SubstrateReferenceDTO`)
+- **API Routes**: `/documents/[id]/references` for all substrate types
+- **UI**: Shows multi-substrate references
 
-### ✅ Backend (Partially Aligned)
-- **Database**: Has `fn_document_attach_context_item` 
-- **Python schemas**: Rich `document_composition_schema.py` supports multi-substrate
-- **Tables**: `block_links` + potential for `document_context_items`
-- **Missing**: Generic substrate_references table
+### ✅ Backend (Aligned)
+- **Database**: Generic `substrate_references` table with attachment functions
+- **Python schemas**: `document_composition_schema.py` supports multi-substrate
 
 ### ⚠️ Database (Needs Extension)
-- **Has**: `block_links` table (documents ↔ blocks)
-- **Has**: Functions for context_items attachment
-- **Missing**: Generic substrate reference table
 - **Missing**: Functions for dumps, reflections, timeline_events
 
 ## Re-alignment Tasks
@@ -40,7 +34,7 @@ Per YARNNN_CANON.md and YARNNN_MEMORY_MODEL.md:
 ### Phase 1: Contract Re-alignment ✅
 - [x] Create `substrate_references.ts` with generic reference system
 - [x] Update `documents.ts` to export substrate types
-- [x] Mark `BlockLinkDTO` as deprecated
+- [x] Remove `BlockLinkDTO` in favor of generic references
 
 ### Phase 2: Database Schema ✅
 - [x] Create `substrate_references` table with generic substrate support
