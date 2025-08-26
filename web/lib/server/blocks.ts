@@ -2,11 +2,11 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 import type { BlockDTO } from "@shared/contracts/documents";
 
-export async function getBlocksServer(basketId: string): Promise<Block[]> {
+export async function getBlocksServer(basketId: string): Promise<BlockDTO[]> {
   const supabase = createServerComponentClient({ cookies });
   const { data, error } = await supabase
     .from("blocks")
-    .select("id, semantic_type, content, created_at")
+    .select("id, basket_id, title, body_md, state, version, created_at, updated_at, metadata")
     .eq("basket_id", basketId)
     .order("created_at");
 
@@ -15,10 +15,5 @@ export async function getBlocksServer(basketId: string): Promise<Block[]> {
     return [];
   }
 
-  return (data ?? []).map((b: any) => ({
-    id: b.id,
-    type: b.semantic_type,
-    content: b.content || "",
-    created_at: b.created_at,
-  })) as Block[];
+  return data ?? [];
 }

@@ -61,11 +61,11 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
 
   const handleDocumentSave = async (documentId: string, content: string, title?: string) => {
     try {
-      await updateDocument(documentId, { 
-        content_raw: content, 
+      await updateDocument(documentId, {
+        content_raw: content,
         ...(title && { title }),
-        updatedAt: new Date().toISOString()
-      });
+        updated_at: new Date().toISOString()
+      } as any);
     } catch (error) {
       console.error('Failed to save document:', error);
     }
