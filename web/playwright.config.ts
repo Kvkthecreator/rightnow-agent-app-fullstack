@@ -7,9 +7,9 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
   },
   webServer: {
-    command: 'npm run start',
-    url: 'http://localhost:3000',
-    reuseExistingServer: true,
+    command: process.env.CI ? 'npm run start' : 'npm run dev',
+    port: 3000,
     timeout: 120_000,
+    reuseExistingServer: !process.env.CI,
   },
 });

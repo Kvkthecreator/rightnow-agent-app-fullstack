@@ -2,23 +2,27 @@ import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { GraphView } from '@/components/graph/GraphView';
+import dynamic from 'next/dynamic';
 import { notFound } from 'next/navigation';
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params;
+export function generateMetadata({ params }: PageProps): Metadata {
+  const { id } = params;
   return {
     title: `Graph - Basket ${id}`,
     description: 'Interactive graph visualization of memory relationships',
   };
 }
 
+const GraphView = dynamic(() => import('@/components/graph/GraphView').then(m => m.GraphView), {
+  loading: () => <div className="h-64 animate-pulse" />,
+});
+
 export default async function GraphPage({ params }: PageProps) {
-  const { id: basketId } = await params;
+  const { id: basketId } = params;
   
   try {
     const supabase = createServerSupabaseClient();

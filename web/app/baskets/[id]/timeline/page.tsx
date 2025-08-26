@@ -1,17 +1,22 @@
 import { SubpageHeader } from '@/components/basket/SubpageHeader';
 import { RequestBoundary } from '@/components/RequestBoundary';
-import UnifiedTimeline from '@/components/timeline/UnifiedTimeline';
+import dynamic from 'next/dynamic';
 
-export default async function TimelinePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+const UnifiedTimeline = dynamic(() => import('@/components/timeline/UnifiedTimeline'), {
+  loading: () => <div className="h-48 animate-pulse" />,
+});
+
+export default function TimelinePage({ params }: { params: { id: string } }) {
+  const { id } = params;
+
   return (
     <RequestBoundary>
-      <div className="flex flex-col h-full">
-        <div className="p-4 border-b">
+      <div className="flex h-full flex-col">
+        <div className="border-b p-4">
           <SubpageHeader title="Timeline" basketId={id} />
         </div>
         <div className="flex-1 overflow-y-auto">
-          <UnifiedTimeline basketId={id} className="max-w-2xl mx-auto" />
+          <UnifiedTimeline basketId={id} className="mx-auto max-w-2xl" />
         </div>
       </div>
     </RequestBoundary>
