@@ -7,7 +7,11 @@ interface RouteContext {
   params: Promise<{ id: string; blockId: string }>;
 }
 
+// DEPRECATED: Use /documents/[id]/references API for Canon v1.3.1 compliance
+// This endpoint violates substrate canon by treating blocks as special
 export async function DELETE(request: NextRequest, ctx: RouteContext) {
+  console.warn('DEPRECATED: /documents/[id]/blocks/[blockId] API violates substrate canon. Use /documents/[id]/references instead');
+  
   try {
     const { id: documentId, blockId } = await ctx.params;
     const supabase = createServerSupabaseClient();
@@ -68,7 +72,11 @@ export async function DELETE(request: NextRequest, ctx: RouteContext) {
       },
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    const response = NextResponse.json({ success: true }, { status: 200 });
+    response.headers.set('X-API-Deprecated', 'true');
+    response.headers.set('X-API-Replacement', `/api/documents/${documentId}/references?substrate_type=block&substrate_id=${blockId}`);
+    response.headers.set('X-API-Deprecation-Reason', 'Violates substrate canon - blocks not treated as peer to other substrates');
+    return response;
 
   } catch (error) {
     console.error('Block detach error:', error);

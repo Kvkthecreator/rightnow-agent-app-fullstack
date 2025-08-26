@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 
+// DEPRECATED: Use /documents/[id]/references API for Canon v1.3.1 compliance
+// This endpoint violates substrate canon by treating context_items as special
 export async function POST(req: Request) {
+  console.warn('DEPRECATED: /presentation/doc/attach-context-item API violates substrate canon. Use /documents/[id]/references instead');
   const supabase = createRouteHandlerClient({ cookies });
   const body = await req.json().catch(() => ({}));
   const documentId = body?.document_id;
@@ -23,5 +26,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ link_id: data });
+  const response = NextResponse.json({ link_id: data });
+  response.headers.set('X-API-Deprecated', 'true');
+  response.headers.set('X-API-Replacement', `/api/documents/${documentId}/references`);
+  response.headers.set('X-API-Deprecation-Reason', 'Violates substrate canon - context_items not treated as peer to other substrates');
+  return response;
 }
