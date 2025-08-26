@@ -2,10 +2,12 @@ import { POST } from '@/app/api/onboarding/complete/route';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
+import { createGenesisProfileDocument } from '@/lib/server/onboarding';
 
 jest.mock('@/lib/supabase/server');
 jest.mock('@/lib/auth/getAuthenticatedUser');
 jest.mock('@/lib/workspaces/ensureWorkspaceForUser');
+jest.mock('@/lib/server/onboarding');
 
 describe('/api/onboarding/complete', () => {
   const mockSupabase: any = {
@@ -16,6 +18,7 @@ describe('/api/onboarding/complete', () => {
     single: jest.fn().mockReturnThis(),
     maybeSingle: jest.fn(),
     rpc: jest.fn(),
+    update: jest.fn().mockReturnThis(),
   };
 
   beforeEach(() => {
@@ -38,6 +41,7 @@ describe('/api/onboarding/complete', () => {
     mockSupabase.insert.mockReturnValue({
       select: () => ({ single: () => Promise.resolve({ data: { id: 'ctx-1' }, error: null }) }),
     });
+    (createGenesisProfileDocument as jest.Mock).mockResolvedValue('doc-1');
 
     const payload = {
       basket_id: '00000000-0000-0000-0000-000000000000',
@@ -54,5 +58,6 @@ describe('/api/onboarding/complete', () => {
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.context_item_id).toBe('ctx-1');
+    expect(json.profile_document_id).toBe('doc-1');
   });
 });

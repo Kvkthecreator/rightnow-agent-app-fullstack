@@ -11,6 +11,7 @@ import MemoryClient from "./MemoryClient";
 import { fetchProjection } from "@/lib/api/projection";
 import OnboardingGate from "@/components/memory/OnboardingGate";
 import { isBlankBasket, hasIdentityGenesis } from "@/lib/server/onboarding";
+import { ONBOARDING_ENABLED, ONBOARDING_MODE } from "@/lib/env";
 
 async function fetchProjectionSafe(basketId: string) {
   try {
@@ -33,7 +34,8 @@ export default async function MemoryPage({ params }: PageProps) {
   const { basket } = await checkBasketAccess(supabase, id);
 
   const showOnboarding =
-    process.env.ONBOARDING_ENABLED === "true" &&
+    ONBOARDING_ENABLED &&
+    ONBOARDING_MODE !== "welcome" &&
     (await isBlankBasket(id)) &&
     !(await hasIdentityGenesis(id));
 

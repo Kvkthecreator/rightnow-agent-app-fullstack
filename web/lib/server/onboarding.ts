@@ -46,3 +46,48 @@ export async function hasIdentityGenesis(basketId: string): Promise<boolean> {
     .eq('content_text', 'identity_genesis');
   return (count ?? 0) > 0;
 }
+
+export async function createGenesisProfileDocument(opts: {
+  basketId: string;
+  title?: string;
+  dumpIds: { name: string; tension: string; aspiration: string; memory_paste?: string };
+  contextItemId: string;
+  supabase: ReturnType<typeof createServerSupabaseClient>;
+}): Promise<string> {
+  const { supabase, basketId, dumpIds, contextItemId } = opts;
+  const title = opts.title ?? 'Profile (Identity Genesis)';
+
+  const { data: doc, error: docErr } = await supabase
+    .from('documents')
+    .insert({ basket_id: basketId, title, metadata: { kind: 'identity_genesis' } })
+    .select('id')
+    .single();
+  if (docErr) throw docErr;
+
+  const docId = doc.id as string;
+
+  const attach = async (
+    substrate_type: 'context_item' | 'dump',
+    substrate_id: string,
+    role?: string,
+    weight?: number,
+  ) => {
+    await supabase.rpc('fn_document_attach_substrate', {
+      p_document_id: docId,
+      p_substrate_type: substrate_type,
+      p_substrate_id: substrate_id,
+      p_role: role ?? null,
+      p_weight: weight ?? null,
+      p_snippets: '[]',
+      p_metadata: { origin: 'onboarding', is_genesis: true },
+    });
+  };
+
+  await attach('context_item', contextItemId, 'marker', 1.0);
+  await attach('dump', dumpIds.name, 'identity', 1.0);
+  await attach('dump', dumpIds.tension, 'tension', 0.9);
+  await attach('dump', dumpIds.aspiration, 'aspiration', 0.9);
+  if (dumpIds.memory_paste) await attach('dump', dumpIds.memory_paste, 'memory', 0.7);
+
+  return docId;
+}

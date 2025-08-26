@@ -8,7 +8,12 @@ export default function OnboardingGate({ basketId }: { basketId: string }) {
   const [open, setOpen] = useState(false);
 
   if (open) {
-    return <OnboardingForm basketId={basketId} onSuccess={() => setOpen(false)} />;
+    return (
+      <OnboardingForm
+        basketId={basketId}
+        redirectTo={`/baskets/${basketId}/memory?onboarded=1`}
+      />
+    );
   }
 
   return (
