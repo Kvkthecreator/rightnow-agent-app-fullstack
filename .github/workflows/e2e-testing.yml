@@ -33,12 +33,13 @@ env:
   TEST_BASKET_ID: 'da75cf04-65e5-46ac-940a-74e2ffe077a2'
   TEST_USER_ID: '00000000-0000-0000-0000-000000000001'
   TEST_WORKSPACE_ID: '00000000-0000-0000-0000-000000000002'
-  
+
   # Supabase configuration (using production instance for E2E)
   NEXT_PUBLIC_SUPABASE_URL: 'https://galytxxkrbksilekmhcw.supabase.co'
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-  
+
   # Application URLs
+  NEXT_PUBLIC_API_BASE_URL: ''
   BACKEND_URL: 'https://api.yarnnn.com'
   FRONTEND_URL: 'http://localhost:3000'
 

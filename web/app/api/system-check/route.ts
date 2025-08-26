@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiFetch, apiUrl } from "@/lib/api";
+import { apiUrl } from "@/lib/env";
 
 const CHECK_PATHS = [
   "/api/baskets/demo-basket-id/commits",
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const url = apiUrl(path);
 
     try {
-      const res = await apiFetch(path, { cache: "no-store" });
+      const res = await fetch(url, { cache: "no-store" });
       let validJson = false;
       const ct = res.headers.get("content-type") || "";
       if (ct.includes("application/json")) {

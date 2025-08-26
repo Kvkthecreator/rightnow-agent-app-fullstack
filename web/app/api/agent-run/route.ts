@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiFetch } from "@/lib/api";
+import { apiUrl } from "@/lib/env";
 
 export async function POST(request: NextRequest) {
   // ① copy incoming body
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   if (cookie) headers["cookie"] = cookie; // pass Supabase session cookie
 
   // ③ proxy to backend
-  const res = await apiFetch("/agent-run", {
+  const res = await fetch(apiUrl("/api/agent-run"), {
     method: "POST",
     headers,
     body,

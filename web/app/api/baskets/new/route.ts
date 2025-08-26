@@ -15,8 +15,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
 import { listBasketsByWorkspace } from "@/lib/baskets/listBasketsByWorkspace";
 import { logEvent } from "@/lib/telemetry";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
+import { apiUrl, PUBLIC_API_BASE_URL } from "@/lib/env";
 
 export async function POST(req: NextRequest) {
   const ws = await getServerWorkspace();
@@ -94,7 +93,7 @@ export async function POST(req: NextRequest) {
     console.log("Token forwarding debug:", {
       hasToken: !!accessToken,
       tokenPrefix: accessToken?.substring(0, 20) + "...",
-      apiBase: API_BASE,
+      apiBase: PUBLIC_API_BASE_URL,
       headers: Object.keys(
         req.headers.entries
           ? Array.from(req.headers.entries()).reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {})
@@ -103,7 +102,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const upstream = await fetch(`${API_BASE}/api/baskets/new`, {
+  const upstream = await fetch(apiUrl('/api/baskets/new'), {
     method: "POST",
     cache: "no-store",
     headers: {

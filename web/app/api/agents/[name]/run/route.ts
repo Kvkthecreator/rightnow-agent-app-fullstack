@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { apiFetch } from '@/lib/api';
+import { apiUrl } from '@/lib/env';
 
 export async function POST(req: NextRequest, ctx: any) {
   const { name } = ctx.params;
@@ -9,7 +9,7 @@ export async function POST(req: NextRequest, ctx: any) {
   if (auth) headers['Authorization'] = auth;
   const cookie = req.headers.get('cookie');
   if (cookie) headers['cookie'] = cookie;
-  const res = await apiFetch(`/agents/${name}/run`, {
+  const res = await fetch(apiUrl(`/api/agents/${name}/run`), {
     method: 'POST',
     headers,
     body,

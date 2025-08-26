@@ -6,8 +6,7 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { createHash, randomUUID } from "node:crypto";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
+import { apiUrl } from "@/lib/env";
 
 function hash(v: string) {
   return createHash("sha256").update(v).digest("hex").slice(0, 8);
@@ -55,7 +54,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     );
   }
   const requestId = req.headers.get("x-request-id") ?? randomUUID();
-  const res = await fetch(`${API_BASE}/api/baskets/${basketId}/deltas`, {
+  const res = await fetch(apiUrl(`/api/baskets/${basketId}/deltas`), {
     method: "GET",
     cache: "no-store",
     headers: {

@@ -1,6 +1,7 @@
+import { apiUrl } from "@/lib/env";
+
 export async function resolveTargetBasket(init?: RequestInit): Promise<string> {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-  const res = await fetch(`${base}/api/baskets/resolve`, {
+  const res = await fetch(apiUrl('/api/baskets/resolve'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
     ...init,
