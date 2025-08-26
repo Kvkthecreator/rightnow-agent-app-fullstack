@@ -66,9 +66,6 @@ export {
   DocumentCompositionSchema,
   // ... all substrate-related contracts
 } from './substrate_references';
-
-// DEPRECATED: Legacy block-only composition
-export const BlockLinkSchema = z.object({...}); // Marked deprecated
 ```
 
 #### `shared/contracts/substrate_references.ts`
@@ -233,13 +230,6 @@ GET    /api/documents/[id]/composition - Full composition with substrate summari
 GET    /api/documents/[id]/references  - List substrate references (with filtering)
 POST   /api/documents/[id]/references  - Attach substrate to document
 DELETE /api/documents/[id]/references  - Detach substrate from document
-```
-
-#### Legacy Block Endpoints (Maintained for compatibility)
-```
-GET    /api/documents/[id]/blocks      - Block-specific references
-POST   /api/documents/[id]/blocks      - Attach block
-DELETE /api/documents/[id]/blocks/[blockId] - Detach block
 ```
 
 ### Request/Response Patterns
@@ -735,7 +725,6 @@ Follow the "Adding New Substrate Types" pattern above, ensuring:
 ### Migration Strategies
 
 #### Legacy System Compatibility
-- Maintain `BlockLinkDTO` exports marked as deprecated
 - Provide migration utilities for existing block-only compositions
 - Gradual rollout via feature flags
 - Comprehensive regression testing

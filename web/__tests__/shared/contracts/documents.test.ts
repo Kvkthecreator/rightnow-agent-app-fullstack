@@ -1,13 +1,10 @@
 import {
   DocumentSchema,
-  BlockLinkSchema,
   CreateDocumentRequestSchema,
   CreateDocumentResponseSchema,
   UpdateDocumentRequestSchema,
-  AttachBlockRequestSchema,
   GetDocumentsResponseSchema,
   type DocumentDTO,
-  type BlockLinkDTO,
 } from '@shared/contracts/documents';
 
 describe('Document Contracts', () => {
@@ -77,51 +74,6 @@ describe('Document Contracts', () => {
     });
   });
 
-  describe('BlockLinkSchema', () => {
-    it('should validate a valid block link', () => {
-      const validBlockLink: BlockLinkDTO = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        document_id: '123e4567-e89b-12d3-a456-426614174001',
-        block_id: '123e4567-e89b-12d3-a456-426614174002',
-        occurrences: 3,
-        snippets: ['snippet 1', 'snippet 2'],
-      };
-
-      const result = BlockLinkSchema.safeParse(validBlockLink);
-      expect(result.success).toBe(true);
-    });
-
-    it('should use default values for optional fields', () => {
-      const minimalBlockLink = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        document_id: '123e4567-e89b-12d3-a456-426614174001',
-        block_id: '123e4567-e89b-12d3-a456-426614174002',
-      };
-
-      const result = BlockLinkSchema.safeParse(minimalBlockLink);
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.occurrences).toBe(1);
-        expect(result.data.snippets).toEqual([]);
-      }
-    });
-
-    it('should reject negative occurrences', () => {
-      const invalidBlockLink = {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        document_id: '123e4567-e89b-12d3-a456-426614174001',
-        block_id: '123e4567-e89b-12d3-a456-426614174002',
-        occurrences: -1,
-        snippets: [],
-      };
-
-      const result = BlockLinkSchema.safeParse(invalidBlockLink);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.issues[0].path).toEqual(['occurrences']);
-      }
-    });
-  });
 
   describe('CreateDocumentRequestSchema', () => {
     it('should validate a valid create request', () => {
@@ -188,31 +140,6 @@ describe('Document Contracts', () => {
     });
   });
 
-  describe('AttachBlockRequestSchema', () => {
-    it('should validate a valid attach block request', () => {
-      const validRequest = {
-        block_id: '123e4567-e89b-12d3-a456-426614174000',
-        occurrences: 2,
-        snippets: ['relevant text'],
-      };
-
-      const result = AttachBlockRequestSchema.safeParse(validRequest);
-      expect(result.success).toBe(true);
-    });
-
-    it('should use default values for optional fields', () => {
-      const minimalRequest = {
-        block_id: '123e4567-e89b-12d3-a456-426614174000',
-      };
-
-      const result = AttachBlockRequestSchema.safeParse(minimalRequest);
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.occurrences).toBe(1);
-        expect(result.data.snippets).toEqual([]);
-      }
-    });
-  });
 
   describe('GetDocumentsResponseSchema', () => {
     it('should validate a valid documents list response', () => {

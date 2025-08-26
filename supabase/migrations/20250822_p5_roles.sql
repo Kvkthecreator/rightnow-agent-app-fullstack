@@ -22,5 +22,4 @@ grant execute on function public.fn_reflection_cache_upsert(uuid,text,text,text,
 
 grant execute on function public.fn_document_create(uuid,text,text,text,jsonb) to presentation_writer;
 grant execute on function public.fn_document_update(uuid,text,text,jsonb) to presentation_writer;
-grant execute on function public.fn_document_attach_block(uuid,uuid,int,jsonb) to presentation_writer;
 grant execute on function public.fn_document_attach_context_item(uuid,uuid,text,numeric) to presentation_writer;
