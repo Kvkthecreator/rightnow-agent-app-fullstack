@@ -14,6 +14,7 @@ export * from './workspaces';
 
 // API operations
 export * from './ingest';
+export * from './onboarding';
 
 // Common pagination and utility types
 export type Paginated<T> = {
