@@ -5,10 +5,12 @@ import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 import { withSchema } from '@/lib/api/withSchema';
 import { 
   DocumentCompositionSchema,
-  type DocumentComposition,
+  type DocumentComposition
+} from '@shared/contracts/documents';
+import {
   type SubstrateReferenceDTO,
   type SubstrateSummary
-} from '@shared/contracts/documents';
+} from '@shared/contracts/substrate_references';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -39,141 +41,156 @@ export async function GET(
       return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
     }
 
-    // Get all substrate references for this document
-    const { data: references, error: refError } = await supabase
+    // Get all substrate references using Canon v1.3.1 generic system
+    const { data: substrateRefs, error: refsError } = await supabase
       .from('substrate_references')
       .select('*')
       .eq('document_id', id)
       .order('created_at', { ascending: false });
 
-    if (refError) {
-      console.error('Error fetching substrate references:', refError);
-      return NextResponse.json({ error: 'Failed to fetch references' }, { status: 500 });
+    if (refsError) {
+      console.error('Error fetching substrate references:', refsError);
+      return NextResponse.json({ error: 'Failed to fetch document composition' }, { status: 500 });
     }
 
-    // Build composition with substrate summaries
+    // Fetch substrate details for each reference type
     const compositionRefs: Array<{
       reference: SubstrateReferenceDTO;
       substrate: SubstrateSummary;
     }> = [];
 
-    for (const ref of references || []) {
-      let substrateSummary: SubstrateSummary;
-
+    for (const ref of substrateRefs || []) {
       try {
+        let substrateData: any = null;
+        let substrateSummary: SubstrateSummary;
+
+        // Query the appropriate table based on substrate type
         switch (ref.substrate_type) {
           case 'block':
-            const { data: block } = await supabase
-              .from('context_blocks')
-              .select('title, body_md, state, version, created_at')
+            const { data: blockData } = await supabase
+              .from('blocks')
+              .select('id, title, body_md, state, version, created_at')
               .eq('id', ref.substrate_id)
-              .single();
-            
-            substrateSummary = {
-              substrate_type: 'block',
-              substrate_id: ref.substrate_id,
-              title: block?.title || null,
-              preview: block?.body_md?.substring(0, 200) + '...' || '',
-              created_at: block?.created_at || ref.created_at,
-              state: block?.state,
-              version: block?.version
-            };
+              .maybeSingle();
+            substrateData = blockData;
+            if (substrateData) {
+              substrateSummary = {
+                substrate_type: 'block',
+                substrate_id: substrateData.id,
+                title: substrateData.title || null,
+                preview: substrateData.body_md?.substring(0, 200) + '...' || '',
+                created_at: substrateData.created_at,
+                state: substrateData.state,
+                version: substrateData.version
+              };
+            }
             break;
 
           case 'dump':
-            const { data: dump } = await supabase
+            const { data: dumpData } = await supabase
               .from('raw_dumps')
-              .select('id, char_count, source_type, created_at, preview')
+              .select('id, content, char_count, source_type, created_at')
               .eq('id', ref.substrate_id)
-              .single();
-            
-            substrateSummary = {
-              substrate_type: 'dump',
-              substrate_id: ref.substrate_id,
-              title: null,
-              preview: dump?.preview || 'Raw dump',
-              created_at: dump?.created_at || ref.created_at,
-              char_count: dump?.char_count,
-              source_type: dump?.source_type
-            };
+              .maybeSingle();
+            substrateData = dumpData;
+            if (substrateData) {
+              substrateSummary = {
+                substrate_type: 'dump',
+                substrate_id: substrateData.id,
+                title: null,
+                preview: substrateData.content?.substring(0, 200) + '...' || '',
+                created_at: substrateData.created_at,
+                char_count: substrateData.char_count,
+                source_type: substrateData.source_type
+              };
+            }
             break;
 
           case 'context_item':
-            const { data: contextItem } = await supabase
+            const { data: contextData } = await supabase
               .from('context_items')
-              .select('content_text, context_type, is_validated, created_at')
+              .select('id, content, type, title, description, created_at')
               .eq('id', ref.substrate_id)
-              .single();
-            
-            substrateSummary = {
-              substrate_type: 'context_item',
-              substrate_id: ref.substrate_id,
-              title: null,
-              preview: contextItem?.content_text?.substring(0, 200) + '...' || '',
-              created_at: contextItem?.created_at || ref.created_at,
-              context_type: contextItem?.context_type,
-              is_validated: contextItem?.is_validated
-            };
+              .maybeSingle();
+            substrateData = contextData;
+            if (substrateData) {
+              substrateSummary = {
+                substrate_type: 'context_item',
+                substrate_id: substrateData.id,
+                title: substrateData.title || null,
+                preview: substrateData.content?.substring(0, 200) + '...' || substrateData.description || '',
+                created_at: substrateData.created_at,
+                context_type: substrateData.type,
+                is_validated: true
+              };
+            }
             break;
 
           case 'reflection':
-            const { data: reflection } = await supabase
-              .from('reflections_cache')
-              .select('reflection_type, computation_timestamp, created_at')
+            const { data: reflectionData } = await supabase
+              .from('reflection_cache')
+              .select('id, content, reflection_type, computation_timestamp, created_at')
               .eq('id', ref.substrate_id)
-              .single();
-            
-            substrateSummary = {
-              substrate_type: 'reflection',
-              substrate_id: ref.substrate_id,
-              title: null,
-              preview: `${reflection?.reflection_type || 'Reflection'} computed`,
-              created_at: reflection?.created_at || ref.created_at,
-              reflection_type: reflection?.reflection_type,
-              computation_timestamp: reflection?.computation_timestamp
-            };
+              .maybeSingle();
+            substrateData = reflectionData;
+            if (substrateData) {
+              substrateSummary = {
+                substrate_type: 'reflection',
+                substrate_id: substrateData.id,
+                title: null,
+                preview: substrateData.content?.substring(0, 200) + '...' || '',
+                created_at: substrateData.created_at,
+                reflection_type: substrateData.reflection_type,
+                computation_timestamp: substrateData.computation_timestamp
+              };
+            }
             break;
 
           case 'timeline_event':
-            const { data: event } = await supabase
+            const { data: eventData } = await supabase
               .from('timeline_events')
-              .select('kind, payload, ts, ref_id')
+              .select('id, kind, payload, ts, actor_id, created_at')
               .eq('id', ref.substrate_id)
-              .single();
-            
-            substrateSummary = {
-              substrate_type: 'timeline_event',
-              substrate_id: ref.substrate_id,
-              title: null,
-              preview: event?.kind || 'Timeline event',
-              created_at: event?.ts || ref.created_at,
-              event_kind: event?.kind,
-              actor_id: event?.ref_id
-            };
+              .maybeSingle();
+            substrateData = eventData;
+            if (substrateData) {
+              substrateSummary = {
+                substrate_type: 'timeline_event',
+                substrate_id: substrateData.id,
+                title: null,
+                preview: `${substrateData.kind}: ${JSON.stringify(substrateData.payload).substring(0, 150)}...`,
+                created_at: substrateData.created_at,
+                event_kind: substrateData.kind,
+                actor_id: substrateData.actor_id
+              };
+            }
             break;
 
           default:
-            continue; // Skip unknown substrate types
+            console.warn(`Unknown substrate type: ${ref.substrate_type}`);
+            continue;
         }
 
-        compositionRefs.push({
-          reference: {
-            id: ref.id,
-            document_id: ref.document_id,
-            substrate_type: ref.substrate_type,
-            substrate_id: ref.substrate_id,
-            role: ref.role,
-            weight: ref.weight,
-            snippets: ref.snippets || [],
-            metadata: ref.metadata || {},
-            created_at: ref.created_at,
-            created_by: ref.created_by
-          },
-          substrate: substrateSummary
-        });
+        // Add to composition if substrate was found
+        if (substrateData && substrateSummary!) {
+          compositionRefs.push({
+            reference: {
+              id: ref.id,
+              document_id: ref.document_id,
+              substrate_type: ref.substrate_type,
+              substrate_id: ref.substrate_id,
+              role: ref.role || undefined,
+              weight: ref.weight || undefined,
+              snippets: Array.isArray(ref.snippets) ? ref.snippets : [],
+              metadata: ref.metadata || {},
+              created_at: ref.created_at,
+              created_by: ref.created_by || undefined
+            },
+            substrate: substrateSummary
+          });
+        }
       } catch (error) {
-        console.warn(`Failed to fetch substrate ${ref.substrate_type}:${ref.substrate_id}`, error);
-        // Continue with other references even if one fails
+        console.warn(`Failed to process substrate reference ${ref.id}:`, error);
       }
     }
 

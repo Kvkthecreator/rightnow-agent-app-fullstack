@@ -19,6 +19,13 @@ CREATE TYPE public.scope_level AS ENUM (
     'ORG',
     'GLOBAL'
 );
+CREATE TYPE public.substrate_type AS ENUM (
+    'block',
+    'dump',
+    'context_item',
+    'reflection',
+    'timeline_event'
+);
 CREATE FUNCTION public.check_block_depth() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -210,6 +217,80 @@ begin
   return v_id;
 end;
 $$;
+CREATE FUNCTION public.fn_document_attach_substrate(p_document_id uuid, p_substrate_type public.substrate_type, p_substrate_id uuid, p_role text DEFAULT NULL::text, p_weight numeric DEFAULT NULL::numeric, p_snippets jsonb DEFAULT '[]'::jsonb, p_metadata jsonb DEFAULT '{}'::jsonb) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_id uuid;
+  v_basket uuid;
+  v_event_kind text;
+BEGIN
+  -- Validate substrate exists based on type (using actual table names)
+  CASE p_substrate_type
+    WHEN 'block' THEN
+      IF NOT EXISTS (SELECT 1 FROM blocks WHERE id = p_substrate_id) THEN
+        RAISE EXCEPTION 'Block % not found', p_substrate_id;
+      END IF;
+    WHEN 'dump' THEN
+      IF NOT EXISTS (SELECT 1 FROM raw_dumps WHERE id = p_substrate_id) THEN
+        RAISE EXCEPTION 'Dump % not found', p_substrate_id;
+      END IF;
+    WHEN 'context_item' THEN
+      IF NOT EXISTS (SELECT 1 FROM context_items WHERE id = p_substrate_id) THEN
+        RAISE EXCEPTION 'Context item % not found', p_substrate_id;
+      END IF;
+    WHEN 'reflection' THEN
+      IF NOT EXISTS (SELECT 1 FROM reflection_cache WHERE id = p_substrate_id) THEN
+        RAISE EXCEPTION 'Reflection % not found', p_substrate_id;
+      END IF;
+    WHEN 'timeline_event' THEN
+      IF NOT EXISTS (SELECT 1 FROM timeline_events WHERE id = p_substrate_id) THEN
+        RAISE EXCEPTION 'Timeline event % not found', p_substrate_id;
+      END IF;
+  END CASE;
+  -- Check if reference already exists
+  SELECT id INTO v_id FROM substrate_references
+  WHERE document_id = p_document_id 
+    AND substrate_type = p_substrate_type 
+    AND substrate_id = p_substrate_id;
+  IF v_id IS NULL THEN
+    -- Insert new reference
+    INSERT INTO substrate_references (
+      document_id, substrate_type, substrate_id, role, weight, snippets, metadata, created_by
+    )
+    VALUES (
+      p_document_id, p_substrate_type, p_substrate_id, p_role, p_weight, p_snippets, p_metadata, auth.uid()
+    )
+    RETURNING id INTO v_id;
+  ELSE
+    -- Update existing reference
+    UPDATE substrate_references
+    SET 
+      role = COALESCE(p_role, role),
+      weight = COALESCE(p_weight, weight),
+      snippets = p_snippets,
+      metadata = p_metadata || metadata  -- Merge metadata
+    WHERE id = v_id;
+  END IF;
+  -- Emit timeline event
+  SELECT basket_id INTO v_basket FROM documents WHERE id = p_document_id;
+  v_event_kind := 'document.' || p_substrate_type || '.attached';
+  
+  PERFORM emit_timeline_event(
+    p_basket_id => v_basket,
+    p_kind => v_event_kind,
+    p_ref_id => p_document_id,
+    p_payload => jsonb_build_object(
+      'document_id', p_document_id,
+      'substrate_type', p_substrate_type,
+      'substrate_id', p_substrate_id,
+      'reference_id', v_id
+    )
+  );
+  RETURN v_id;
+END;
+$$;
 CREATE FUNCTION public.fn_document_create(p_basket_id uuid, p_workspace_id uuid, p_title text, p_content_raw text) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
@@ -241,6 +322,39 @@ begin
   perform public.emit_narrative_event(p_basket_id, v_doc_id, 'doc.created', left(coalesce(p_title,''), 120));
   return v_doc_id;
 end;
+$$;
+CREATE FUNCTION public.fn_document_detach_substrate(p_document_id uuid, p_substrate_type public.substrate_type, p_substrate_id uuid) RETURNS boolean
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+DECLARE
+  v_basket uuid;
+  v_event_kind text;
+BEGIN
+  -- Delete the reference
+  DELETE FROM substrate_references
+  WHERE document_id = p_document_id 
+    AND substrate_type = p_substrate_type 
+    AND substrate_id = p_substrate_id;
+  IF NOT FOUND THEN
+    RETURN false;
+  END IF;
+  -- Emit timeline event
+  SELECT basket_id INTO v_basket FROM documents WHERE id = p_document_id;
+  v_event_kind := 'document.' || p_substrate_type || '.detached';
+  
+  PERFORM emit_timeline_event(
+    p_basket_id => v_basket,
+    p_kind => v_event_kind,
+    p_ref_id => p_document_id,
+    p_payload => jsonb_build_object(
+      'document_id', p_document_id,
+      'substrate_type', p_substrate_type,
+      'substrate_id', p_substrate_id
+    )
+  );
+  RETURN true;
+END;
 $$;
 CREATE FUNCTION public.fn_document_update(p_doc_id uuid, p_title text, p_content_raw text, p_metadata jsonb DEFAULT NULL::jsonb) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
@@ -655,6 +769,29 @@ CREATE TABLE public.context_items (
     CONSTRAINT context_items_status_check CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
 );
 ALTER TABLE ONLY public.context_items REPLICA IDENTITY FULL;
+CREATE TABLE public.substrate_references (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    document_id uuid NOT NULL,
+    substrate_type public.substrate_type NOT NULL,
+    substrate_id uuid NOT NULL,
+    role text,
+    weight numeric(3,2),
+    snippets jsonb DEFAULT '[]'::jsonb,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    CONSTRAINT substrate_references_weight_check CHECK (((weight >= (0)::numeric) AND (weight <= (1)::numeric)))
+);
+CREATE VIEW public.document_composition_stats AS
+ SELECT substrate_references.document_id,
+    count(*) FILTER (WHERE (substrate_references.substrate_type = 'block'::public.substrate_type)) AS blocks_count,
+    count(*) FILTER (WHERE (substrate_references.substrate_type = 'dump'::public.substrate_type)) AS dumps_count,
+    count(*) FILTER (WHERE (substrate_references.substrate_type = 'context_item'::public.substrate_type)) AS context_items_count,
+    count(*) FILTER (WHERE (substrate_references.substrate_type = 'reflection'::public.substrate_type)) AS reflections_count,
+    count(*) FILTER (WHERE (substrate_references.substrate_type = 'timeline_event'::public.substrate_type)) AS timeline_events_count,
+    count(*) AS total_references
+   FROM public.substrate_references
+  GROUP BY substrate_references.document_id;
 CREATE TABLE public.document_context_items (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     document_id uuid NOT NULL,
@@ -918,6 +1055,10 @@ ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.substrate_references
+    ADD CONSTRAINT substrate_references_document_id_substrate_type_substrate_i_key UNIQUE (document_id, substrate_type, substrate_id);
+ALTER TABLE ONLY public.substrate_references
+    ADD CONSTRAINT substrate_references_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.substrate_relationships
     ADD CONSTRAINT substrate_relationships_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.timeline_events
@@ -968,6 +1109,11 @@ CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
 CREATE INDEX idx_reflections_basket_ts ON public.reflection_cache USING btree (basket_id, computed_at DESC);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
 CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
+CREATE INDEX idx_substrate_references_created ON public.substrate_references USING btree (created_at);
+CREATE INDEX idx_substrate_references_document ON public.substrate_references USING btree (document_id);
+CREATE INDEX idx_substrate_references_role ON public.substrate_references USING btree (role) WHERE (role IS NOT NULL);
+CREATE INDEX idx_substrate_references_substrate ON public.substrate_references USING btree (substrate_id);
+CREATE INDEX idx_substrate_references_type ON public.substrate_references USING btree (substrate_type);
 CREATE INDEX idx_timeline_events_basket_timestamp_id ON public.timeline_events USING btree (basket_id, ts DESC, id DESC);
 CREATE INDEX idx_timeline_events_kind_ref_id ON public.timeline_events USING btree (kind, ref_id) WHERE (ref_id IS NOT NULL);
 CREATE INDEX idx_timeline_workspace_ts ON public.timeline_events USING btree (workspace_id, ts DESC, id DESC);
@@ -1051,6 +1197,10 @@ ALTER TABLE ONLY public.reflection_cache
     ADD CONSTRAINT reflection_cache_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.substrate_references
+    ADD CONSTRAINT substrate_references_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.substrate_references
+    ADD CONSTRAINT substrate_references_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.substrate_relationships
     ADD CONSTRAINT substrate_relationships_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.timeline_events
@@ -1272,6 +1422,27 @@ CREATE POLICY select_own_revisions ON public.revisions FOR SELECT TO authenticat
 CREATE POLICY "service role ALL access" ON public.raw_dumps TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service role full access" ON public.baskets TO service_role USING (true);
 CREATE POLICY "service role full access" ON public.raw_dumps TO service_role USING (true);
+ALTER TABLE public.substrate_references ENABLE ROW LEVEL SECURITY;
+CREATE POLICY substrate_references_delete_policy ON public.substrate_references FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM ((public.documents d
+     JOIN public.baskets b ON ((d.basket_id = b.id)))
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((d.id = substrate_references.document_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY substrate_references_insert_policy ON public.substrate_references FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM ((public.documents d
+     JOIN public.baskets b ON ((d.basket_id = b.id)))
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((d.id = substrate_references.document_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY substrate_references_select_policy ON public.substrate_references FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM ((public.documents d
+     JOIN public.baskets b ON ((d.basket_id = b.id)))
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((d.id = substrate_references.document_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY substrate_references_update_policy ON public.substrate_references FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM ((public.documents d
+     JOIN public.baskets b ON ((d.basket_id = b.id)))
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((d.id = substrate_references.document_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY te_select_workspace_member ON public.timeline_events FOR SELECT USING ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))

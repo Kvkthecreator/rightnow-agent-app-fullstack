@@ -1,14 +1,12 @@
--- Migration: Create generic substrate_references table for Canon v1.3.1 compliance
--- This replaces the block-only composition model with generic substrate composition
-
-BEGIN;
+-- Deploy substrate_references migration for Canon v1.3.1 compliance
+-- This migration creates the generic substrate composition system
 
 -- Create enum for substrate types
 CREATE TYPE substrate_type AS ENUM (
-  'block',           -- context_blocks
+  'block',           -- blocks table
   'dump',            -- raw_dumps
   'context_item',    -- context_items
-  'reflection',      -- reflections (from cache)
+  'reflection',      -- reflection_cache
   'timeline_event'   -- timeline_events
 );
 
@@ -46,8 +44,9 @@ CREATE POLICY "substrate_references_select_policy" ON substrate_references
     EXISTS (
       SELECT 1 FROM documents d
       JOIN baskets b ON d.basket_id = b.id
+      JOIN workspace_memberships wm ON wm.workspace_id = b.workspace_id
       WHERE d.id = substrate_references.document_id
-      AND (b.visibility = 'public' OR b.user_id = auth.uid())
+      AND wm.user_id = auth.uid()
     )
   );
 
@@ -57,8 +56,9 @@ CREATE POLICY "substrate_references_insert_policy" ON substrate_references
     EXISTS (
       SELECT 1 FROM documents d
       JOIN baskets b ON d.basket_id = b.id
+      JOIN workspace_memberships wm ON wm.workspace_id = b.workspace_id
       WHERE d.id = substrate_references.document_id
-      AND b.user_id = auth.uid()
+      AND wm.user_id = auth.uid()
     )
   );
 
@@ -68,8 +68,9 @@ CREATE POLICY "substrate_references_update_policy" ON substrate_references
     EXISTS (
       SELECT 1 FROM documents d
       JOIN baskets b ON d.basket_id = b.id
+      JOIN workspace_memberships wm ON wm.workspace_id = b.workspace_id
       WHERE d.id = substrate_references.document_id
-      AND b.user_id = auth.uid()
+      AND wm.user_id = auth.uid()
     )
   );
 
@@ -79,8 +80,9 @@ CREATE POLICY "substrate_references_delete_policy" ON substrate_references
     EXISTS (
       SELECT 1 FROM documents d
       JOIN baskets b ON d.basket_id = b.id
+      JOIN workspace_memberships wm ON wm.workspace_id = b.workspace_id
       WHERE d.id = substrate_references.document_id
-      AND b.user_id = auth.uid()
+      AND wm.user_id = auth.uid()
     )
   );
 
@@ -97,7 +99,7 @@ INSERT INTO substrate_references (
   created_at
 )
 SELECT 
-  id,
+  gen_random_uuid(),  -- Generate new IDs
   document_id,
   'block'::substrate_type,
   block_id,
@@ -105,8 +107,9 @@ SELECT
   NULL,       -- No weight in old schema
   COALESCE(snippets, '[]'::jsonb),
   '{"migrated_from": "block_links"}'::jsonb,
-  created_at
-FROM block_links;
+  now()  -- Use current timestamp for migration
+FROM block_links
+ON CONFLICT (document_id, substrate_type, substrate_id) DO NOTHING;
 
 -- Generic attachment function for any substrate type
 CREATE OR REPLACE FUNCTION fn_document_attach_substrate(
@@ -262,5 +265,3 @@ GRANT SELECT ON document_composition_stats TO authenticated;
 
 -- Add comment for documentation
 COMMENT ON TABLE substrate_references IS 'Generic substrate reference system for Canon v1.3.1 - documents compose all substrate types as peers';
-
-COMMIT;
