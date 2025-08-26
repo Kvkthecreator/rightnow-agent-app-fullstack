@@ -182,11 +182,12 @@ BEGIN
   SELECT basket_id INTO v_basket FROM documents WHERE id = p_document_id;
   v_event_kind := 'document.' || p_substrate_type || '.attached';
   
-  PERFORM emit_timeline_event(
-    p_basket_id => v_basket,
-    p_kind => v_event_kind,
-    p_ref_id => p_document_id,
-    p_payload => jsonb_build_object(
+  PERFORM fn_timeline_emit(
+    v_basket,
+    v_event_kind,
+    p_document_id,
+    'Substrate ' || p_substrate_type || ' attached to document',
+    jsonb_build_object(
       'document_id', p_document_id,
       'substrate_type', p_substrate_type,
       'substrate_id', p_substrate_id,
@@ -227,11 +228,12 @@ BEGIN
   SELECT basket_id INTO v_basket FROM documents WHERE id = p_document_id;
   v_event_kind := 'document.' || p_substrate_type || '.detached';
   
-  PERFORM emit_timeline_event(
-    p_basket_id => v_basket,
-    p_kind => v_event_kind,
-    p_ref_id => p_document_id,
-    p_payload => jsonb_build_object(
+  PERFORM fn_timeline_emit(
+    v_basket,
+    v_event_kind,
+    p_document_id,
+    'Substrate ' || p_substrate_type || ' detached from document',
+    jsonb_build_object(
       'document_id', p_document_id,
       'substrate_type', p_substrate_type,
       'substrate_id', p_substrate_id
