@@ -13,7 +13,7 @@ import {
   type GetDocumentReferencesRequest,
   type GetDocumentReferencesResponse,
   type SubstrateReferenceDTO
-} from '@shared/contracts/documents';
+} from '@shared/contracts/substrate_references';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
