@@ -28,7 +28,7 @@ export default async function BlocksPage({ params }: PageProps) {
     // Verify basket exists and user has access
     const { data: basket, error: basketError } = await supabase
       .from('baskets')
-      .select('id, title, user_id, visibility, workspace_id')
+      .select('id, name, user_id, visibility, workspace_id')
       .eq('id', basketId)
       .maybeSingle();
 
@@ -61,7 +61,7 @@ export default async function BlocksPage({ params }: PageProps) {
     return (
       <BlocksListView 
         basketId={basketId}
-        basketTitle={basket.title}
+        basketTitle={basket.name}
         initialBlocks={blocks || []}
         canEdit={basket.user_id === userId}
       />
