@@ -7,12 +7,19 @@ import { randomUUID } from 'crypto';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { OnboardingSubmitSchema, OnboardingResultSchema } from '@shared/contracts/onboarding';
+import {
+  OnboardingSubmitSchema,
+  OnboardingResultSchema,
+  MEMORY_PASTE_MAX,
+} from '@shared/contracts/onboarding';
 import { createGenesisProfileDocument } from '@/lib/server/onboarding';
 
 export async function POST(req: Request) {
   try {
     const raw = await req.json().catch(() => null);
+    if (typeof raw?.memory_paste === 'string' && raw.memory_paste.length > MEMORY_PASTE_MAX) {
+      raw.memory_paste = raw.memory_paste.slice(0, MEMORY_PASTE_MAX);
+    }
     const parsed = OnboardingSubmitSchema.safeParse(raw);
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid request', details: parsed.error.flatten() }, { status: 422 });
