@@ -1,6 +1,6 @@
 import type { BlockDTO } from "@shared/contracts/documents";
 
-export const DEV_MOCK_BLOCKS = [
+export const DEV_MOCK_BLOCKS: BlockDTO[] = [
   {
     id: "mock1",
     semantic_type: "tone",
@@ -21,4 +21,4 @@ export const DEV_MOCK_BLOCKS = [
     actor: "tester",
     created_at: new Date().toISOString(),
   },
-] as any as Block[];
+];
