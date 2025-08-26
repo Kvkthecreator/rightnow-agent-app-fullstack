@@ -10,6 +10,7 @@
   },
   "extends": ["eslint:recommended"],
   "rules": {
+    "no-redeclare": "error",
     "no-restricted-imports": [
       "error",
       {

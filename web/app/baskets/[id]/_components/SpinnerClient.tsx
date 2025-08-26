@@ -18,7 +18,7 @@ export default function SpinnerClient({
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       {/* OrganicSpinner sets role="status" and aria-busy */}
-      {/* @ts-expect-error — size is a runtime prop on lazy component */}
+      {/* @ts-ignore size is a runtime prop on lazy component */}
       <YarnSpinner size={size} />
     </div>
   );

@@ -5,12 +5,8 @@ import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 import dynamic from 'next/dynamic';
 import { notFound } from 'next/navigation';
 
-interface PageProps {
-  params: { id: string };
-}
-
-export function generateMetadata({ params }: PageProps): Metadata {
-  const { id } = params;
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
   return {
     title: `Graph - Basket ${id}`,
     description: 'Interactive graph visualization of memory relationships',
@@ -21,8 +17,8 @@ const GraphView = dynamic(() => import('@/components/graph/GraphView').then(m =>
   loading: () => <div className="h-64 animate-pulse" />,
 });
 
-export default async function GraphPage({ params }: PageProps) {
-  const { id: basketId } = params;
+export default async function GraphPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: basketId } = await params;
   
   try {
     const supabase = createServerSupabaseClient();
