@@ -27,23 +27,34 @@ export default function Sidebar({ className }: SidebarProps) {
   const [basket, setBasket] = useState<BasketOverview | null>(null);
   const [openDropdown, setOpenDropdown] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Mobile detection and responsive behavior
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
+      const wasMobile = isMobile;
       setIsMobile(mobile);
 
-      // On mobile, sidebar should be hidden by default
-      if (mobile && open) {
+      // On initial load, close sidebar if on mobile
+      if (!hasInitialized && mobile) {
         setOpen(false);
+        setHasInitialized(true);
+      }
+      // When switching from desktop to mobile, close sidebar
+      else if (mobile && !wasMobile && open) {
+        setOpen(false);
+      }
+      // Mark as initialized after first run
+      else if (!hasInitialized) {
+        setHasInitialized(true);
       }
     };
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
-  }, [open, setOpen]);
+  }, [isMobile, hasInitialized, open, setOpen]);
 
   // Persist sidebar visibility (desktop only)
   useEffect(() => {
