@@ -2,14 +2,10 @@ import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { GraphView } from '@/components/graph/GraphView';
+import dynamic from 'next/dynamic';
 import { notFound } from 'next/navigation';
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   return {
     title: `Graph - Basket ${id}`,
@@ -17,7 +13,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function GraphPage({ params }: PageProps) {
+const GraphView = dynamic(() => import('@/components/graph/GraphView').then(m => m.GraphView), {
+  loading: () => <div className="h-64 animate-pulse" />,
+});
+
+export default async function GraphPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: basketId } = await params;
   
   try {

@@ -9,6 +9,7 @@ import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
 import type { BasketOverview } from "@/lib/baskets/getAllBaskets";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useNavState } from "@/components/nav/useNavState";
+import SidebarItem from "@/components/nav/SidebarItem";
 import { SECTION_ORDER } from "@/components/features/baskets/sections";
 
 interface SidebarProps {
@@ -108,6 +109,8 @@ export default function Sidebar({ className }: SidebarProps) {
     router.push("/");
   };
 
+  const navPerfEnabled = process.env.NEXT_PUBLIC_NAV_PERF_PHASE1 === "1";
+
   const handleSectionNavigate = (href: string) => {
     try {
       router.push(href);
@@ -192,6 +195,27 @@ export default function Sidebar({ className }: SidebarProps) {
                 {SECTION_ORDER.map((section) => {
                   const href = section.href(basket.id);
                   const sectionActive = pathname?.startsWith(href);
+                  if (navPerfEnabled) {
+                    return (
+                      <SidebarItem
+                        key={section.key}
+                        href={href}
+                        onClick={() => {
+                          if (isMobile) {
+                            setOpen(false);
+                          }
+                        }}
+                        className={cn(
+                          "w-full text-left px-2 py-1.5 text-sm rounded-md transition",
+                          sectionActive
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground hover:bg-muted",
+                        )}
+                      >
+                        {section.label}
+                      </SidebarItem>
+                    );
+                  }
                   return (
                     <button
                       key={section.key}

@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import { fetchWithToken } from "@/lib/fetchWithToken";
 import type { TimelineEventDTO } from "../../../shared/contracts/timeline";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
 
-dayjs.extend(relativeTime);
+let dayjsRef: any;
 
 interface UnifiedTimelineProps {
   basketId: string;
@@ -86,6 +84,15 @@ export default function UnifiedTimeline({
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
   const [loadingMore, setLoadingMore] = useState(false);
+
+  if (!dayjsRef) {
+    // Lazy load dayjs and relativeTime plugin when component mounts
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const d = require("dayjs");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    d.extend(require("dayjs/plugin/relativeTime"));
+    dayjsRef = d;
+  }
 
   useEffect(() => {
     loadEvents();
@@ -207,7 +214,7 @@ export default function UnifiedTimeline({
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{config.label}</span>
                   <span className="text-xs text-muted-foreground">
-                    {dayjs(event.created_at).fromNow()}
+                    {dayjsRef(event.created_at).fromNow()}
                   </span>
                 </div>
                 {description && (

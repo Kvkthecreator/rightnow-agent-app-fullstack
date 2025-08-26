@@ -61,10 +61,10 @@ test('reflection engine computation and retrieval', async ({ page }) => {
   expect(updatedReflectionsResponse.status).toBe(200);
   expect(updatedReflectionsResponse.data.reflections.length).toBeGreaterThan(0);
   
-  const reflection = updatedReflectionsResponse.data.reflections[0];
-  expect(reflection).toHaveProperty('id');
-  expect(reflection).toHaveProperty('basket_id', basketId);
-  expect(reflection).toHaveProperty('reflection_text');
-  expect(typeof reflection.reflection_text).toBe('string');
-  expect(reflection.reflection_text.length).toBeGreaterThan(0);
+  const firstReflection = updatedReflectionsResponse.data.reflections[0];
+  expect(firstReflection).toHaveProperty('id');
+  expect(firstReflection).toHaveProperty('basket_id', basketId);
+  expect(firstReflection).toHaveProperty('reflection_text');
+  expect(typeof firstReflection.reflection_text).toBe('string');
+  expect(firstReflection.reflection_text.length).toBeGreaterThan(0);
 });
