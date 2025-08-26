@@ -81,12 +81,12 @@ and checking that the backend logs show a GET request without a 500 error.
 
 ## 🔌 API Calls
 
-Use `apiFetch(path, options)` from `lib/api.ts` to ensure your requests hit the backend correctly:
+Use `apiUrl(path)` from `lib/env.ts` when constructing backend requests:
 
 ```ts
-import { apiFetch } from '@/lib/api';
+import { apiUrl } from '@/lib/env';
 
-await apiFetch('/workspaces', { method: 'POST' });
+await fetch(apiUrl('/api/workspaces'), { method: 'POST' });
 ```
 This automatically appends `/api` to the path.
 # Force Vercel rebuild

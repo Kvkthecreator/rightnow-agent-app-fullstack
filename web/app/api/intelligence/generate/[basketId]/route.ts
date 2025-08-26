@@ -7,6 +7,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { getWorkspaceFromBasket } from "@/lib/utils/workspace";
+import { apiUrl } from "@/lib/env";
 import { 
   generateContentHash, 
   detectIntelligenceChanges, 
@@ -228,10 +229,10 @@ export async function POST(
       // Call Python agent backend at deployed URL
       let agentResponse;
       try {
-        const agentUrl = process.env.NEXT_PUBLIC_API_BASE_URL!;
-        console.log('🤖 Calling agent backend:', `${agentUrl}/api/agent`);
+        const agentUrl = apiUrl('/api/agent');
+        console.log('🤖 Calling agent backend:', agentUrl);
 
-        const response = await fetch(`${agentUrl}/api/agent`, {
+        const response = await fetch(agentUrl, {
           method: 'POST',
           cache: 'no-store',
           headers: {

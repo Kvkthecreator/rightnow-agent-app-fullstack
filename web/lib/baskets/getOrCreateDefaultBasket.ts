@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { listBasketsByWorkspace } from "./listBasketsByWorkspace";
+import { apiUrl } from "@/lib/env";
 
 interface Params {
   workspaceId: string;
@@ -14,8 +15,7 @@ export async function getOrCreateDefaultBasket({ workspaceId, idempotencyKey, na
     return existing[0];
   }
 
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  const res = await fetch(`${base}/api/baskets/new`, {
+  const res = await fetch(apiUrl("/api/baskets/new"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

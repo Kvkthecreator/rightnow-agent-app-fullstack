@@ -39,6 +39,8 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_BASE_URL: ""
     defaults:
       run:
         working-directory: web
