@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Pacifico } from "next/font/google";
+import { Inter, Roboto_Mono, Pacifico } from "next/font/google";
 import "./globals.css";
 import "../styles/diff.css";
 
@@ -27,11 +27,11 @@ if (typeof window !== 'undefined') {
   }
 }
 
-const geistSans = Geist({
+const geistSans = Inter({
   subsets: ["latin"],
   variable: "--font-geist-sans",
 });
-const geistMono = Geist_Mono({
+const geistMono = Roboto_Mono({
   subsets: ["latin"],
   variable: "--font-geist-mono",
 });
