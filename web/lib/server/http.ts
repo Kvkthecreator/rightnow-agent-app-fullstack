@@ -1,12 +1,37 @@
 import { headers, cookies } from 'next/headers';
-import { env } from '@/lib/env'; // keep env single-source
+import * as ENV from '@/lib/env'; // support default, named, or individual exports
 
-const base = (env.API_BASE_URL ?? env.NEXT_PUBLIC_API_BASE_URL);
-if (!base) throw new Error('API base URL not configured (set API_BASE_URL or NEXT_PUBLIC_API_BASE_URL)');
+// Robustly read from /lib/env first (SSOT), then fall back to process.env.
+// Supports any of these shapes in /lib/env:
+//   export const env = { API_BASE_URL, NEXT_PUBLIC_API_BASE_URL }
+//   export default { API_BASE_URL, NEXT_PUBLIC_API_BASE_URL }
+//   export const API_BASE_URL = '...'; export const NEXT_PUBLIC_API_BASE_URL = '...';
+function readApiBaseFromEnv(): string | undefined {
+  const anyEnv: any = ENV as any;
+  const bag =
+    anyEnv.env           // named "env"
+    ?? anyEnv.default    // default export
+    ?? anyEnv;           // direct named constants
+
+  const apiBase =
+    bag.API_BASE_URL
+    ?? bag.NEXT_PUBLIC_API_BASE_URL
+    ?? process.env.API_BASE_URL
+    ?? process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  return typeof apiBase === 'string' ? apiBase : undefined;
+}
+
+const base = readApiBaseFromEnv();
+if (!base) {
+  throw new Error(
+    'API base URL not configured. Set API_BASE_URL or NEXT_PUBLIC_API_BASE_URL (prefer via /lib/env).'
+  );
+}
 const API_BASE = base.replace(/\/+$/, '');
 
 function requireAccessToken(): string {
-  // Canon: headers first, then cookies
+  // Canon: try headers first, then cookies
   const h = headers();
   const sb = h.get('sb-access-token');
   if (sb) return sb;
