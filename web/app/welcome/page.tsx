@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { onboardingGate } from '@/lib/server/onboarding';
-import OnboardingForm from '@/components/onboarding/OnboardingForm';
+import OnboardingDashboard from '@/components/onboarding/OnboardingDashboard';
 
 export default async function WelcomePage() {
   const supabase = createServerSupabaseClient();
@@ -55,7 +55,7 @@ export default async function WelcomePage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <OnboardingForm basketId={basketId} />
+      <OnboardingDashboard basketId={basketId} />
     </div>
   );
 }
