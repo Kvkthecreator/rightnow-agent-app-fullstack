@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 .diff-added {
   background-color: rgba(74, 222, 128, 0.35);
 }

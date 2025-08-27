@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { ONBOARDING_ENABLED, ONBOARDING_MODE } from '@/lib/env';
 
 /** Check if user has any content or identity genesis marker */
 export async function isFirstEverUser(userId: string): Promise<boolean> {
@@ -90,4 +91,13 @@ export async function createGenesisProfileDocument(opts: {
   if (dumpIds.memory_paste) await attach('dump', dumpIds.memory_paste, 'memory', 0.7);
 
   return docId;
+}
+
+export async function onboardingGate(userId: string): Promise<{ shouldOnboard: boolean }> {
+  if (!ONBOARDING_ENABLED) return { shouldOnboard: false };
+  if (ONBOARDING_MODE === 'welcome') return { shouldOnboard: true };
+  if (ONBOARDING_MODE === 'auto' && (await isFirstEverUser(userId))) {
+    return { shouldOnboard: true };
+  }
+  return { shouldOnboard: false };
 }
