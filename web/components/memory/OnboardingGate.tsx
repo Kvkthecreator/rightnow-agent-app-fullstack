@@ -1,7 +1,14 @@
 "use client";
 
-import OnboardingDashboard from "@/components/onboarding/OnboardingDashboard";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function OnboardingGate({ basketId }: { basketId: string }) {
-  return <OnboardingDashboard basketId={basketId} />;
+export default function OnboardingGate({ basketId: _basketId }: { basketId: string }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/welcome");
+  }, [router]);
+
+  return null;
 }

@@ -139,3 +139,10 @@
 .debug-brand {
     font-family: var(--font-pacifico), cursive !important;
 }
+
+/* Compact onboarding card variant */
+@layer components {
+  .onboarding-card--compact {
+    @apply p-4 md:p-5;
+  }
+}
