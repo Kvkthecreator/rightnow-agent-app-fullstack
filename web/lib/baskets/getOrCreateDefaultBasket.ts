@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
 import { listBasketsByWorkspace } from "./listBasketsByWorkspace";
-import { apiUrl } from "@/lib/env";
+import { apiFetch } from "@/lib/server/http";
 
 interface Params {
   workspaceId: string;
@@ -15,21 +14,27 @@ export async function getOrCreateDefaultBasket({ workspaceId, idempotencyKey, na
     return existing[0];
   }
 
-  const res = await fetch(apiUrl("/api/baskets/new"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Idempotency-Key": idempotencyKey,
-      Cookie: cookies().toString(),
-    },
-    body: JSON.stringify({ workspace_id: workspaceId, name }),
-  });
+  try {
+    const res = await apiFetch("/api/baskets/new", {
+      method: "POST",
+      headers: {
+        "Idempotency-Key": idempotencyKey,
+      },
+      body: JSON.stringify({ workspace_id: workspaceId, name }),
+    });
 
-  if (res.ok || res.status === 409) {
-    const data = await res.json();
-    const id = data.id || data.basket_id;
-    return { id };
+    if (res.ok || res.status === 409) {
+      const data = await res.json();
+      const id = data.id || data.basket_id;
+      return { id };
+    }
+
+    const errorText = await res.text();
+    throw new Error(`Basket creation failed: ${res.status} ${errorText}`);
+  } catch (err: any) {
+    if (err?.status === 401 || err?.message === 'NO_TOKEN') {
+      throw new Error('Authentication required for basket creation');
+    }
+    throw new Error(`Failed to create default basket: ${err.message}`);
   }
-
-  throw new Error("Failed to create default basket");
 }
