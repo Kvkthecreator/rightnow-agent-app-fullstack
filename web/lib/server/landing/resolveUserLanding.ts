@@ -15,7 +15,7 @@ export async function resolveUserLanding(): Promise<string> {
 
   const gate = await onboardingGate(userId);
   log('ONBOARDING_GATE', { userId, shouldOnboard: gate.shouldOnboard });
-  if (gate.shouldOnboard) return '/onboarding';
+  if (gate.shouldOnboard) return '/welcome';
 
   const cookie = cookies().toString();
   let res = await fetch(apiUrl('/api/baskets/resolve'), {
