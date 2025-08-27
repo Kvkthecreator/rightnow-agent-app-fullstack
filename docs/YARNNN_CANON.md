@@ -39,6 +39,9 @@ Schema, API, and runtime implementations must conform to these references.
 
 ## Canonical Files
 
+- **YARNNN_PHILOSOPHY.md**  
+  Unified service philosophy synthesizing all canon documents into cohesive vision.
+
 - **SCHEMA_SNAPSHOT.sql**  
   Frozen Postgres/Supabase schema — structural source of truth.  
 
