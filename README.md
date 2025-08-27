@@ -44,10 +44,29 @@ The /agent endpoint handles agent requests and remains stable across deployments
 When deploying on Render, ensure the `SUPABASE_SERVICE_ROLE_KEY` environment
 variable is set. Without it, Supabase requests will fail.
 
+## Testing
+
+yarnnn uses an **Agent-Operable Test Pipeline** for comprehensive testing:
+
+```bash
+# Run all tests (recommended)
+npm run agent:test -- --subset=all
+
+# Run specific test subsets
+npm run agent:test -- --subset=canon        # Canon compliance tests
+npm run agent:test -- --subset=features     # Feature E2E tests  
+npm run agent:test -- --subset=unit         # Unit tests
+npm run agent:test -- --subset=contracts    # Contract validation
+```
+
+The pipeline generates structured reports in `artifacts/` and is designed for agent automation. See `docs/TEST_ARCHITECTURE_AUDIT.md` for complete documentation.
+
 ## Repository Layout
 
 api/   FastAPI backend
 web/   Next.js frontend
+tests/ Agent-operable test suites (canon/features/contracts)
+scripts/ Agent test orchestration and seeding
 codex/ Codex automation tasks
 Quick Summary
 
