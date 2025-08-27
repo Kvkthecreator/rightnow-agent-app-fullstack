@@ -7,13 +7,15 @@ export interface InputProps
 export const Input = React.forwardRef<
   HTMLInputElement,
   InputProps
->(({ className, ...props }, ref) => {
+>(({ className, type, ...props }, ref) => {
   return (
     <input
+      type={type}
       className={cn(
-        // Theme-based input styling
-        "w-full p-3 rounded-lg border border-input bg-input text-base text-foreground shadow-sm placeholder:text-muted-foreground",
-        "focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50",
+        "input-base",
+        "h-10 shadow-soft",
+        "hover:border-border/80",
+        "focus-visible:border-ring",
         className
       )}
       ref={ref}

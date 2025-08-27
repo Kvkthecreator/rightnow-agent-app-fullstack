@@ -112,10 +112,21 @@
 
 @layer base {
     * {
-        @apply border-border outline-ring/50;
+        @apply border-border;
     }
+    
+    /* Remove default outlines - components will handle focus states */
+    *:focus {
+        @apply outline-none;
+    }
+    
     body {
-        @apply bg-background text-foreground font-sans;
+        @apply bg-background text-foreground font-sans antialiased;
+    }
+    
+    /* Consistent selection colors */
+    ::selection {
+        @apply bg-primary/20 text-primary;
     }
 }
 @font-face {
@@ -140,8 +151,101 @@
     font-family: var(--font-pacifico), cursive !important;
 }
 
-/* Compact onboarding card variant */
+/* Design System Utilities */
+@layer utilities {
+  /* Consistent focus states */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+  
+  .focus-ring-primary {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+  
+  /* Consistent transitions */
+  .transition-base {
+    @apply transition-colors duration-150 ease-in-out;
+  }
+  
+  .transition-smooth {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  .transition-spring {
+    @apply transition-all duration-300 ease-out;
+  }
+  
+  /* Consistent shadows */
+  .shadow-soft {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  }
+  
+  .shadow-medium {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  
+  .shadow-large {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Dark mode shadows */
+  .dark .shadow-soft {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  }
+  
+  .dark .shadow-medium {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  }
+  
+  .dark .shadow-large {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Consistent hover states */
+  .hover-lift {
+    @apply hover:shadow-medium hover:-translate-y-0.5 transition-spring;
+  }
+  
+  .hover-glow {
+    @apply hover:shadow-large transition-spring;
+  }
+  
+  /* Consistent disabled states */
+  .disabled-state {
+    @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:pointer-events-none;
+  }
+}
+
+/* Component-specific patterns */
 @layer components {
+  /* Interactive element base */
+  .interactive-base {
+    @apply transition-base focus-ring disabled-state;
+  }
+  
+  /* Card patterns */
+  .card-base {
+    @apply bg-card text-card-foreground rounded-lg border border-border;
+  }
+  
+  .card-interactive {
+    @apply card-base hover-lift cursor-pointer;
+  }
+  
+  /* Input patterns */
+  .input-base {
+    @apply w-full rounded-lg border border-input bg-background px-3 py-2 text-sm 
+           placeholder:text-muted-foreground
+           focus-ring disabled-state transition-base;
+  }
+  
+  /* Button patterns */
+  .button-base {
+    @apply inline-flex items-center justify-center rounded-lg font-medium
+           transition-base focus-ring disabled-state;
+  }
+  
+  /* Compact onboarding card variant */
   .onboarding-card--compact {
     @apply p-4 md:p-5;
   }
