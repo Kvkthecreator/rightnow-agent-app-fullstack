@@ -1,16 +1,16 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ["class"],
-  content: {
-    files: [
-      "./app/**/*.{ts,tsx}",
-      "./components/**/*.{ts,tsx}",
-      "./lib/**/*.{ts,tsx}",
-      "../shared/**/*.{ts,tsx}",
-    ],
-    safelist: ["font-brand"],
-  },
+  // Tailwind v4 requires selector in tuple form
+  darkMode: ["class", "dark"],
+  // v4 supports array syntax for content globs
+  content: [
+    "./app/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./lib/**/*.{ts,tsx}",
+    "../shared/**/*.{ts,tsx}",
+  ],
+  safelist: ["font-brand"],
   theme: {
     container: {
       center: true,
