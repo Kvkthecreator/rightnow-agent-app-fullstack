@@ -1,0 +1,28 @@
+{
+  "subset": "unit",
+  "checks": {
+    "preflight": {
+      "node": "v22.15.0",
+      "baseURL": "http://localhost:3000",
+      "hasSupabaseUrl": false,
+      "hasSupabaseKey": true,
+      "workingDir": "/Users/macbook/rightnow-agent-app-fullstack"
+    }
+  },
+  "setup": {
+    "build": 0,
+    "seed": 0,
+    "auth": 0
+  },
+  "results": [
+    {
+      "name": "unit",
+      "code": 1
+    }
+  ],
+  "summary": {
+    "overall": false,
+    "passed": 0,
+    "total": 1
+  }
+}

@@ -280,3 +280,59 @@ npm run test:all
 - **Developer experience**: Clear test organization and purpose
 
 The proposed structure eliminates ~40% of redundant tests while adding critical coverage for canon compliance, resulting in a more focused, faster, and more valuable test suite.
+
+## 🤖 AGENT-OPERABLE TEST PIPELINE - FINAL EVOLUTION
+
+### **Evolution: From Streamlined to Agent-Operable** (December 2024)
+
+The test architecture has evolved beyond streamlining to become fully **agent-operable**:
+
+### **Agent-Operable Infrastructure:**
+- ✅ **Single Entrypoint**: `npm run agent:test -- --subset=<canon|features|unit|contracts|all>`
+- ✅ **Smart Pipeline**: Preflight → Build → Seed → Auth → Test → Report
+- ✅ **Machine-Readable Output**: JSON + Markdown artifacts in `/artifacts/`
+- ✅ **CI Integration**: Single job workflow with PR comment automation
+- ✅ **Permission Boundaries**: CODEOWNERS separates agent vs human responsibilities
+
+### **Agent Test Commands:**
+```bash
+# Agent-operated test execution
+npm run agent:test -- --subset=all          # Full test suite
+npm run agent:test -- --subset=canon        # Canon compliance only
+npm run agent:test -- --subset=features     # Feature E2E tests only
+npm run agent:test -- --subset=unit         # Unit tests only
+npm run agent:test -- --subset=contracts    # Contract validation only
+
+# Legacy commands still work for direct access
+npm run test:canon
+npm run test:features
+npm run test:unit
+npm run test:contracts
+```
+
+### **Pipeline Intelligence:**
+- **Smart Skipping**: Skips build/seed for unit/contract tests
+- **Environment Detection**: Handles missing Supabase credentials gracefully  
+- **Failure Recovery**: Continues with limited tests when setup fails
+- **Structured Reporting**: Clear preflight, setup, results, and summary sections
+
+### **Artifacts Generated:**
+```
+artifacts/
+├── test-report.json     # Machine-readable results for agents
+└── test-report.md       # Human-readable report for PRs
+```
+
+### **Agent Responsibility Model:**
+- **Agents Own**: `/tests/`, `/scripts/`, test infrastructure, test data, reporting
+- **Humans Own**: `/web/app/`, `/web/components/`, product code, architecture decisions
+- **Shared**: `/package.json`, config files, CI workflows (both must approve)
+
+### **Success Metrics Achieved:**
+- **Agent Independence**: Tests run without human intervention ✅
+- **Clear Feedback**: Structured JSON/MD reports with actionable failures ✅  
+- **CI Automation**: PR comments with test results ✅
+- **Scope Boundaries**: CODEOWNERS prevent agent overreach ✅
+- **Pipeline Reliability**: Smart failure handling and environment detection ✅
+
+This agent-operable evolution ensures that **agents can fully own test execution, triage, and reporting** while humans focus on UX scaffolding and product development. The test pipeline serves as a reliable foundation for continuous development and deployment.
