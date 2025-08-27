@@ -12,8 +12,11 @@
     "lint:fix": "next lint --fix",
     "format": "prettier --write \"{app,components,lib}/**/*.{ts,tsx,md}\"",
     "unused:report": "ts-prune --ignore \"web/__tests__\"",
-    "test:unit": "vitest run",
-    "test:unit:watch": "vitest",
+    "test:unit": "vitest run __tests__/unit/",
+    "test:unit:watch": "vitest __tests__/unit/",
+    "test:integration": "vitest run __tests__/integration/",
+    "test:contracts": "vitest run ../tests/contracts/",
+    "test:all": "vitest run __tests__/",
     "test:e2e": "start-server-and-test start http://localhost:3000 'playwright test --config=playwright.config.ts'",
     "test:e2e:ui": "playwright test --ui --config=playwright.config.ts"
   },

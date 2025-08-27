@@ -1,0 +1,234 @@
+name: YARNNN Test Suite (Streamlined)
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'web/**'
+      - 'shared/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/test-streamlined.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'web/**'
+      - 'shared/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/test-streamlined.yml'
+
+env:
+  # Test environment configuration
+  TEST_BASKET_ID: 'da75cf04-65e5-46ac-940a-74e2ffe077a2'
+  TEST_USER_ID: '00000000-0000-0000-0000-000000000001'
+  TEST_WORKSPACE_ID: '00000000-0000-0000-0000-000000000002'
+
+  # Supabase configuration
+  NEXT_PUBLIC_SUPABASE_URL: 'https://galytxxkrbksilekmhcw.supabase.co'
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  # Application URLs
+  NEXT_PUBLIC_API_BASE_URL: ''
+  BACKEND_URL: 'https://api.yarnnn.com'
+
+jobs:
+  canon-compliance:
+    name: Canon Compliance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install --prefix web
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Seed test data
+        run: npm run e2e:seed
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Build application
+        run: npm run build:check
+
+      - name: Start application
+        run: |
+          cd web && npm start &
+          timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
+
+      - name: Run Canon Tests
+        run: npx playwright test tests/canon/ --reporter=list
+        env:
+          TEST_BASKET_ID: ${{ env.TEST_BASKET_ID }}
+
+      - name: Upload canon test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canon-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 3
+
+  feature-tests:
+    name: Feature E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install --prefix web
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Seed test data
+        run: npm run e2e:seed
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Build application
+        run: npm run build:check
+
+      - name: Start application
+        run: |
+          cd web && npm start &
+          timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
+
+      - name: Run Feature Tests
+        run: npx playwright test tests/features/ --reporter=list
+        env:
+          TEST_BASKET_ID: ${{ env.TEST_BASKET_ID }}
+
+      - name: Upload feature test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: feature-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  unit-integration:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Contract Tests
+        run: npm run test:contracts
+
+      - name: Run Unit Tests
+        run: npm run test:unit
+
+      - name: Run Integration Tests
+        run: npm run test:integration
+
+      - name: Upload test coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage
+          path: web/coverage/
+          retention-days: 7
+
+  e2e-document-substrate:
+    name: Document Substrate E2E (Legacy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    if: contains(github.event.head_commit.message, '[test-legacy]') || github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install --prefix web
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Seed test data
+        run: npm run e2e:seed
+
+      - name: Build application
+        run: npm run build:check
+
+      - name: Start application
+        run: |
+          cd web && npm start &
+          timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
+
+      - name: Run Legacy Document Tests
+        run: npx playwright test tests/e2e/document_substrate_composition.spec.ts --reporter=list
+        env:
+          TEST_BASKET_ID: ${{ env.TEST_BASKET_ID }}
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [canon-compliance, feature-tests, unit-integration]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Canon Compliance | ${{ needs.canon-compliance.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Feature Tests | ${{ needs.feature-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit/Integration | ${{ needs.unit-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.canon-compliance.result }}" = "success" ] && \
+             [ "${{ needs.feature-tests.result }}" = "success" ] && \
+             [ "${{ needs.unit-integration.result }}" = "success" ]; then
+            echo "✅ All core tests passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some tests failed. Check individual job results." >> $GITHUB_STEP_SUMMARY
+          fi
