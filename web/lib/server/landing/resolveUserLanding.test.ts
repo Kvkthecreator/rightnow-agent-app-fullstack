@@ -26,11 +26,11 @@ describe('resolveUserLanding', () => {
     expect(url).toBe('/login');
   });
 
-  it('redirects to onboarding when gate triggers', async () => {
+  it('redirects to welcome when gate triggers', async () => {
     mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
     (onboardingGate as unknown as vi.Mock).mockResolvedValue({ shouldOnboard: true });
     const url = await resolveUserLanding();
-    expect(url).toBe('/onboarding');
+    expect(url).toBe('/welcome');
   });
 
   it('returns basket path when GET resolves', async () => {
