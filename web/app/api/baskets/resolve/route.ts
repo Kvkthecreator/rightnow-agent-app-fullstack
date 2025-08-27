@@ -35,11 +35,6 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const internalKey = req.headers.get('x-internal-key')
-  if (internalKey !== process.env.INTERNAL_API_KEY) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   const supabase = createServerSupabaseClient()
   const { userId } = await getAuthenticatedUser(supabase)
   log('RESOLVE_API_POST_START', { userId })

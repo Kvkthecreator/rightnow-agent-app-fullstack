@@ -2,8 +2,6 @@ import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { onboardingGate } from '@/lib/server/onboarding';
-import { cookies } from 'next/headers';
-import { apiUrl } from '@/lib/env';
 import OnboardingForm from '@/components/onboarding/OnboardingForm';
 
 export default async function WelcomePage() {
@@ -13,50 +11,42 @@ export default async function WelcomePage() {
   // Check if user still needs onboarding
   const gate = await onboardingGate(userId);
   if (!gate.shouldOnboard) {
-    // User completed onboarding, redirect using basket resolution
-    const cookie = cookies().toString();
-    const res = await fetch(apiUrl('/api/baskets/resolve'), {
-      method: 'GET',
-      headers: { Cookie: cookie },
-    });
-    if (res.status === 200) {
-      const { id } = await res.json();
-      redirect(`/baskets/${id}/memory`);
-    }
-    // Fallback to memory redirect
-    redirect('/memory');
+    // User completed onboarding, use resolveUserLanding logic
+    const landing = await import('@/lib/server/landing/resolveUserLanding');
+    const destination = await landing.resolveUserLanding();
+    redirect(destination);
   }
 
-  // User needs onboarding - get their basket ID using the same resolution
-  const cookie = cookies().toString();
+  // User needs onboarding - get their basket ID directly from the database
   let basketId: string;
   
   try {
-    // Try to get existing basket
-    let res = await fetch(apiUrl('/api/baskets/resolve'), {
-      method: 'GET',
-      headers: { Cookie: cookie },
-    });
+    // Import required functions
+    const { ensureWorkspaceForUser } = await import('@/lib/workspaces/ensureWorkspaceForUser');
+    const { getOrCreateDefaultBasket } = await import('@/lib/baskets/getOrCreateDefaultBasket');
     
-    if (res.status === 200) {
-      const data = await res.json();
-      basketId = data.id;
+    // Get workspace
+    const workspace = await ensureWorkspaceForUser(userId, supabase);
+    
+    // Try to get existing basket
+    const { data: baskets } = await supabase
+      .from('baskets')
+      .select('id')
+      .eq('workspace_id', workspace.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    if (baskets && baskets.length > 0) {
+      basketId = baskets[0].id;
     } else {
       // Create new basket
-      res = await fetch(apiUrl('/api/baskets/resolve'), {
-        method: 'POST',
-        headers: {
-          Cookie: cookie,
-          'x-internal-key': process.env.INTERNAL_API_KEY || '',
-        },
+      const { randomUUID } = await import('crypto');
+      const basket = await getOrCreateDefaultBasket({
+        workspaceId: workspace.id,
+        idempotencyKey: randomUUID(),
+        name: 'Default Basket',
       });
-      
-      if (!res.ok) {
-        throw new Error('Failed to resolve basket');
-      }
-      
-      const data = await res.json();
-      basketId = data.id;
+      basketId = basket.id;
     }
   } catch (error) {
     console.error('Error resolving basket for onboarding:', error);

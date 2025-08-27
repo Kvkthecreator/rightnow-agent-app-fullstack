@@ -35,7 +35,6 @@ export async function resolveUserLanding(): Promise<string> {
     method: 'POST',
     headers: {
       Cookie: cookie,
-      'x-internal-key': process.env.INTERNAL_API_KEY || '',
     },
   });
   log('RESOLVE_BASKET_POST', { userId, status: res.status });
