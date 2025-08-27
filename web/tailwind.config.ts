@@ -9,8 +9,8 @@ const config: Config = {
     "./components/**/*.{ts,tsx}",
     "./lib/**/*.{ts,tsx}",
     "../shared/**/*.{ts,tsx}",
+    "./styles/**/*.{ts,tsx}",
   ],
-  safelist: ["font-brand"],
   theme: {
     container: {
       center: true,
