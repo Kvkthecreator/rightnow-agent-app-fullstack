@@ -4,8 +4,10 @@
 import { expect, vi } from 'vitest'
 import * as React from 'react'
 
-// Make React globally available for JSX
-globalThis.React = React
+// Make React globally available for JSX (test environment only)
+if (typeof globalThis !== 'undefined' && process.env.NODE_ENV === 'test') {
+  globalThis.React = React
+}
 
 // Make vi.mock available as jest.mock for compatibility
 globalThis.jest = {
@@ -42,7 +44,6 @@ declare global {
     }
   }
   
-  var React: typeof import('react')
   var jest: {
     mock: typeof vi.mock
     fn: typeof vi.fn

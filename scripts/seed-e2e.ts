@@ -340,4 +340,4 @@ if (require.main === module) {
   main();
 }
 
-export { seedTestData, cleanupTestData, ensureTestData };
+export { seedTestData, cleanupTestData };
