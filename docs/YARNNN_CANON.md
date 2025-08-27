@@ -1,46 +1,117 @@
-# Canon v1.3.1 — docs clarification (no code change)
-Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+# YARNNN Canon v1.3.1 — The Authoritative Reference
 
-# Yarnnn Canon
+**The Single Source of Truth for Yarnnn Service Philosophy and Implementation**
 
-## Canon Update: Memory-First Reflection (v1.3)
+## 🌊 Core Philosophy: Memory-First, Substrate-Equal
 
-### Pillars
-1) **Capture is sacred**: all user input becomes an immutable `raw_dump`.
-2) **Reflection is derived**: insights are computed as a **read-model** from the current substrate.
-3) **Narrative is deliberate**: agents may write short prose to `documents(document_type='narrative')`.
+Yarnnn is a **memory-first cognitive system** that captures human thought as immutable substrate, allows it to evolve through agent interpretation, and presents it back through deliberate narrative composition.
 
-Blocks (**context_blocks**) are structured units of meaning.
+### The Three Sacred Principles
 
-### Roles (unchanged, clarified)
-- **Substrate (objective)**: `raw_dumps`, `context_items`, `substrate_relationships`, `context_blocks`.
-- **Memory Plane**: `reflection_cache` (optional, non-authoritative), `timeline_events` (append-only stream).
-- **Reflection (derived)**: pattern/tension/question computed at read-time from substrate.
-- **Narrative (authored)**: agent-written short text that cites substrate signals.
+1. **Capture is Sacred** - All user input becomes an immutable `raw_dump`
+2. **All Substrates are Peers** - No substrate type is privileged over another  
+3. **Narrative is Deliberate** - Documents compose substrate references plus authored prose
 
-Reflections are derived from substrate. If persisted, they live in reflection_cache as a non-authoritative cache; readers may recompute on demand.
+## 🎯 Conceptual Model
 
-### Glossary
-- **Memory-First**: User thoughts and patterns emerge from captured substrate, not imposed structure.
-- **Read-Model**: Computed state derived from authoritative data, not stored separately.
-- **Sacred Write Path**: The sacred write path is **POST /api/dumps/new** (one dump per call).
-- **Optional onboarding alias:** **POST /api/baskets/ingest** orchestrates basket + multiple dumps in one transaction; it performs **no additional side-effects** beyond the split endpoints and is idempotent on both the basket and each dump.
+```
+User Thought → Raw Capture → Substrate Evolution → Reflection Derivation → Narrative Composition
+     ↓             ↓                ↓                      ↓                    ↓
+  Memory       Immutable        Structured            Read-Model           Deliberate
+  Stream        Dumps           Substrates            Patterns             Documents
+```
 
-Basket lifecycle: **INIT → ACTIVE → ARCHIVED**; empty INIT baskets older than **48h** are **eligible for cleanup** (policy-guarded; disabled by default).
+## 📚 The Five Substrate Types (All Peers)
 
----
+1. **raw_dumps** - Immutable user input (text, files, captures)
+2. **context_blocks** - Structured units of meaning with state lifecycle
+3. **context_items** - Semantic connectors and tags
+4. **reflections** - Derived patterns (computed, optionally cached)
+5. **timeline_events** - Append-only activity stream
 
-**Executive Summary**  
-This repository defines the **canonical contracts** for Yarnnn as of 2025-08-19.  
-Each file listed below is frozen and serves as the single source of truth for its scope.  
-Schema, API, and runtime implementations must conform to these references.  
+**Critical**: These are PEERS. No hierarchy. Documents can compose ANY substrate type.
+
+## 🔄 The Five Pipelines (Strict Separation)
+
+| Pipeline | Purpose | Sacred Rule |
+|----------|---------|-------------|
+| **P0: Capture** | Ingest raw memory | Only writes dumps, never interprets |
+| **P1: Substrate** | Create structured units | Never writes relationships or reflections |
+| **P2: Graph** | Connect substrates | Never modifies substrate content |
+| **P3: Reflection** | Derive insights | Read-only computation, optional cache |
+| **P4: Presentation** | Author narrative | Consumes substrate, never creates it |
+
+## 🏛️ Architectural Pillars
+
+### 1. Memory-First Architecture
+- User thoughts emerge from captured substrate, not imposed structure
+- Reflections are **derived read-models**, not stored truths
+- Timeline events provide append-only memory stream
+
+### 2. Workspace-Scoped Security
+- Single workspace per user (strong guarantee)
+- All access via RLS policies on workspace_memberships
+- No client-side data synthesis allowed
+
+### 3. Event-Driven Consistency
+- Every mutation emits timeline events
+- Events flow: `timeline_events` → `events` → client subscriptions
+- Single source of truth: the substrate tables
+
+### 4. Sacred Write Paths
+- **Primary**: `POST /api/dumps/new` - One dump per call
+- **Onboarding**: `POST /api/baskets/ingest` - Orchestrates basket + dumps
+- **No side effects** - These endpoints only write what they declare
+
+## 🎬 Operational Flow
+
+### Basket Lifecycle
+```
+INIT → ACTIVE → ARCHIVED
+```
+- Empty INIT baskets > 48h are eligible for cleanup
+- Baskets are workspace-level containers for cognitive work
+
+### Block State Machine
+```
+PROPOSED → ACCEPTED → LOCKED → CONSTANT
+         ↘         ↗
+          REJECTED → SUPERSEDED
+```
+
+### Document Composition
+- Documents = substrate references + narrative
+- Any substrate type can be referenced (no hierarchy)
+- Narrative provides coherent story atop substrate signals
+
+## 💡 Key Insights from Canon
+
+1. **Substrate Equality** - The system must never privilege one substrate type over another
+2. **Derived Reflections** - Patterns/tensions/questions are computed at read-time
+3. **Pipeline Discipline** - Each pipeline has strict write boundaries
+4. **Memory Permanence** - Dumps are immutable; evolution happens through new substrate
+5. **Workspace Isolation** - Complete data isolation between workspaces
+
+## 🚀 Implementation Guidelines
+
+1. **Frontend Must**:
+   - Mirror durable server state only
+   - Never synthesize data client-side
+   - Respect substrate equality in UI
+
+2. **Backend Must**:
+   - Enforce pipeline write boundaries
+   - Emit timeline events for every mutation
+   - Maintain workspace isolation via RLS
+
+3. **Agents Must**:
+   - Respect pipeline restrictions
+   - Write only allowed substrate types
+   - Emit proper event contracts
 
 ---
 
 ## Canonical Files
-
-- **YARNNN_PHILOSOPHY.md**  
-  Unified service philosophy synthesizing all canon documents into cohesive vision.
 
 - **SCHEMA_SNAPSHOT.sql**  
   Frozen Postgres/Supabase schema — structural source of truth.  
