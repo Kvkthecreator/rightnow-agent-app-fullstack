@@ -131,7 +131,7 @@ export default function OnboardingDashboard({ basketId }: Props) {
                   ? "ring-2 ring-green-500"
                   : required
                   ? "ring-1 ring-orange-200"
-                  : "ring-1 ring-gray-200"
+                  : "ring-1 ring-border"
               )}
             >
               <CardContent className="p-0 text-center space-y-1">
@@ -253,7 +253,7 @@ export default function OnboardingDashboard({ basketId }: Props) {
         <Card
           className={cn(
             "onboarding-card--compact bg-muted/30",
-            completion.memory ? "ring-1 ring-green-200" : "ring-1 ring-gray-200"
+            completion.memory ? "ring-1 ring-green-200" : "ring-1 ring-border"
           )}
         >
           <CardHeader className="pb-2">

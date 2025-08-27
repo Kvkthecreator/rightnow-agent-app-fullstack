@@ -1,16 +1,16 @@
-import { type Config } from "tailwindcss";
-import colors from "tailwindcss/colors";
+import type { Config } from "tailwindcss";
 
-const config = {
-  darkMode: "class",
-    content: {
+const config: Config = {
+  darkMode: ["class"],
+  content: {
     files: [
-        "./app/**/*.{ts,tsx}",
-        "./components/**/*.{ts,tsx}",
-        "./lib/**/*.{ts,tsx}",
+      "./app/**/*.{ts,tsx}",
+      "./components/**/*.{ts,tsx}",
+      "./lib/**/*.{ts,tsx}",
+      "../shared/**/*.{ts,tsx}",
     ],
     safelist: ["font-brand"],
-    },
+  },
   theme: {
     container: {
       center: true,
@@ -18,24 +18,34 @@ const config = {
     },
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
-        card: "var(--card)",
-        "card-foreground": "var(--card-foreground)",
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-foreground)",
+        },
+        accent: {
+          DEFAULT: "var(--accent)",
+          foreground: "var(--accent-foreground)",
+        },
+        destructive: "var(--destructive)",
         popover: "var(--popover)",
         "popover-foreground": "var(--popover-foreground)",
-        primary: "var(--primary)",
-        "primary-foreground": "var(--primary-foreground)",
-        secondary: "var(--secondary)",
-        "secondary-foreground": "var(--secondary-foreground)",
-        muted: "var(--muted)",
-        "muted-foreground": "var(--muted-foreground)",
-        accent: "var(--accent)",
-        "accent-foreground": "var(--accent-foreground)",
-        destructive: "var(--destructive)",
-        border: "var(--border)",
-        input: "var(--input)",
-        ring: "var(--ring)",
         sidebar: "var(--sidebar)",
         "sidebar-foreground": "var(--sidebar-foreground)",
         "sidebar-primary": "var(--sidebar-primary)",
@@ -60,11 +70,22 @@ const config = {
         md: "0.5rem",
         lg: "0.75rem",
         xl: "1rem",
-        "2xl": "1.5rem",
+        "2xl": "1.25rem",
+      },
+      boxShadow: {
+        subtle: "0 1px 2px rgba(0,0,0,0.04), 0 4px 14px rgba(0,0,0,0.03)",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    function ({ addBase }) {
+      addBase({
+        "*, ::before, ::after": { borderColor: "hsl(var(--border))" },
+      });
+    },
+  ],
 };
 
 export default config;
+
