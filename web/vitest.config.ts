@@ -7,5 +7,6 @@ export default defineConfig({
     include: ['__tests__/**/*.test.ts', '__tests__/**/*.test.tsx'],
     passWithNoTests: false,
   },
+  // @ts-ignore - classNameStrategy not typed yet
   css: { modules: { classNameStrategy: 'non-scoped' } },
 });
