@@ -77,9 +77,9 @@ export default function OnboardingDashboard({ basketId }: Props) {
     
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/onboarding/complete", {
+      const { fetchWithToken } = await import("@/lib/fetchWithToken");
+      const res = await fetchWithToken("/api/onboarding/complete", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           basket_id: basketId,
           name,
