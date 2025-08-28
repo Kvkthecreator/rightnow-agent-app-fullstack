@@ -6,14 +6,26 @@ import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 import { createGenesisProfileDocument } from '@/lib/server/onboarding';
 import { randomUUID } from 'crypto';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(req: Request) {
   try {
+    console.log('Onboarding complete: Starting request processing');
     const raw = await req.json();
+    console.log('Onboarding complete: Raw payload received');
+    
     const payload = OnboardingSubmitSchema.parse(raw);
+    console.log('Onboarding complete: Payload validated');
     
     const supabase = createServerSupabaseClient();
+    console.log('Onboarding complete: Supabase client created');
+    
     const { userId } = await getAuthenticatedUser(supabase);
+    console.log('Onboarding complete: User authenticated:', userId);
+    
     const { id: workspaceId } = await ensureWorkspaceForUser(userId, supabase);
+    console.log('Onboarding complete: Workspace resolved:', workspaceId);
 
     // Ensure basket exists
     const { data: basket, error: basketError } = await supabase
@@ -88,13 +100,22 @@ export async function POST(req: Request) {
     }
 
     // Create all dumps in bulk using the RPC
+    console.log('Onboarding complete: Calling fn_ingest_dumps with:', {
+      p_workspace_id: workspaceId,
+      p_basket_id: payload.basket_id,
+      dumps_count: dumps.length
+    });
+    
     const { data: dumpResults, error: dumpError } = await supabase.rpc('fn_ingest_dumps', {
       p_workspace_id: workspaceId,
       p_basket_id: payload.basket_id,
       p_dumps: dumps
     });
 
+    console.log('Onboarding complete: RPC response:', { dumpResults, dumpError });
+
     if (dumpError || !dumpResults) {
+      console.error('Onboarding complete: Dump creation failed:', dumpError);
       return NextResponse.json({ error: 'dump_creation_failed', detail: dumpError?.message }, { status: 500 });
     }
 
@@ -167,10 +188,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
-    console.error('Onboarding completion error:', err);
+    console.error('Onboarding completion error:', {
+      error: err,
+      message: err?.message,
+      stack: err?.stack,
+      name: err?.name
+    });
     return NextResponse.json({ 
       error: 'internal_error', 
-      detail: String(err?.message ?? err) 
+      detail: String(err?.message ?? err),
+      debug: process.env.NODE_ENV === 'development' ? {
+        stack: err?.stack,
+        name: err?.name
+      } : undefined
     }, { status: 500 });
   }
 }
