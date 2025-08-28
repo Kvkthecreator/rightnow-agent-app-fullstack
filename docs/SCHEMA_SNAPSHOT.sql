@@ -1451,9 +1451,6 @@ CREATE POLICY "Workspace members can read events" ON public.events FOR SELECT US
 CREATE POLICY "Workspace members can update events" ON public.events FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = events.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
-CREATE POLICY "Workspace members can view events" ON public.events FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
-   FROM public.workspace_memberships
-  WHERE ((workspace_memberships.workspace_id = events.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
 ALTER TABLE public.agent_processing_queue ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow agent insert" ON public.revisions FOR INSERT TO authenticated WITH CHECK (((basket_id IS NOT NULL) AND (basket_id IN ( SELECT baskets.id
    FROM public.baskets
@@ -1498,6 +1495,20 @@ CREATE POLICY block_member_update ON public.blocks FOR UPDATE USING ((workspace_
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
 ALTER TABLE public.block_revisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY blocks_delete_workspace_member ON public.blocks FOR DELETE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY blocks_insert_workspace_member ON public.blocks FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY blocks_select_workspace_member ON public.blocks FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY blocks_service_role_all ON public.blocks TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY blocks_update_workspace_member ON public.blocks FOR UPDATE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY br_insert_workspace_member ON public.reflection_cache FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
@@ -1506,7 +1517,12 @@ CREATE POLICY br_select_workspace_member ON public.reflection_cache FOR SELECT U
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((b.id = reflection_cache.basket_id) AND (wm.user_id = auth.uid())))));
+ALTER TABLE public.context_items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY context_items_delete ON public.context_items FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY context_items_delete_workspace_member ON public.context_items FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
@@ -1514,14 +1530,27 @@ CREATE POLICY context_items_insert ON public.context_items FOR INSERT TO authent
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY context_items_insert_workspace_member ON public.context_items FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY context_items_select ON public.context_items FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY context_items_select_workspace_member ON public.context_items FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY context_items_service_role_all ON public.context_items TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY context_items_update ON public.context_items FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid()))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY context_items_update_workspace_member ON public.context_items FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
@@ -1544,6 +1573,20 @@ CREATE POLICY ctx_member_update ON public.context_items FOR UPDATE USING ((baske
 CREATE POLICY "debug insert bypass" ON public.workspaces FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "delete history by service role" ON public.timeline_events FOR DELETE USING ((auth.role() = 'service_role'::text));
 CREATE POLICY "delete reflections by service role" ON public.reflection_cache FOR DELETE USING ((auth.role() = 'service_role'::text));
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
+CREATE POLICY documents_delete_workspace_member ON public.documents FOR DELETE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY documents_insert_workspace_member ON public.documents FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY documents_select_workspace_member ON public.documents FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY documents_service_role_all ON public.documents TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY documents_update_workspace_member ON public.documents FOR UPDATE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY dump_member_read ON public.raw_dumps FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -1556,8 +1599,43 @@ CREATE POLICY event_member_insert ON public.events FOR INSERT WITH CHECK ((EXIST
 CREATE POLICY event_member_update ON public.events FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = events.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+CREATE POLICY events_insert_workspace_member ON public.events FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY events_select_workspace_member ON public.events FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY events_service_role_all ON public.events TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY member_self_crud ON public.workspace_memberships USING ((user_id = auth.uid()));
 CREATE POLICY member_self_insert ON public.workspace_memberships FOR INSERT TO authenticated WITH CHECK ((auth.uid() = user_id));
+ALTER TABLE public.narrative ENABLE ROW LEVEL SECURITY;
+CREATE POLICY narrative_delete_workspace_member ON public.narrative FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = narrative.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY narrative_insert_workspace_member ON public.narrative FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = narrative.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY narrative_select_workspace_member ON public.narrative FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = narrative.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY narrative_service_role_all ON public.narrative TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY narrative_update_workspace_member ON public.narrative FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE ((b.id = narrative.basket_id) AND (wm.user_id = auth.uid())))));
+ALTER TABLE public.raw_dumps ENABLE ROW LEVEL SECURITY;
+CREATE POLICY raw_dumps_delete_workspace_member ON public.raw_dumps FOR DELETE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY raw_dumps_insert_workspace_member ON public.raw_dumps FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY raw_dumps_select_workspace_member ON public.raw_dumps FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY raw_dumps_workspace_insert ON public.raw_dumps FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -1579,9 +1657,6 @@ CREATE POLICY revision_member_update ON public.block_revisions FOR UPDATE USING 
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
 ALTER TABLE public.revisions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY select_own_events ON public.events FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
-   FROM public.baskets b
-  WHERE ((b.id = events.basket_id) AND (b.user_id = auth.uid())))));
 CREATE POLICY select_own_raw_dumps ON public.raw_dumps FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
    FROM public.baskets b
   WHERE ((b.id = raw_dumps.basket_id) AND (b.user_id = auth.uid())))));
