@@ -52,18 +52,30 @@ export default defineConfig({
       dependencies: ['setup'],
     },
 
-    // Legacy canon tests (DEPRECATED - will be removed)
+    // Feature tests (requires auth)
     {
-      name: 'legacy-canon',
-      testDir: './tests/canon',
+      name: 'features',
+      testDir: './tests/features',
       use: { 
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:3000',
-        extraHTTPHeaders: {
-          'x-playwright-test': 'true'
-        }
+        storageState: 'tests/setup/.auth/user.json'
       },
+      dependencies: ['setup'],
     },
+
+    // E2E tests (requires auth)
+    {
+      name: 'e2e',
+      testDir: './tests/e2e',
+      use: { 
+        ...devices['Desktop Chrome'],
+        baseURL: 'http://localhost:3000',
+        storageState: 'tests/setup/.auth/user.json'
+      },
+      dependencies: ['setup'],
+    },
+
 
     // Cleanup
     { 
