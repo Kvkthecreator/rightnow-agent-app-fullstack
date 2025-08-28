@@ -27,6 +27,7 @@ import type {
   SubstrateSummary,
   SubstrateType 
 } from '@shared/contracts/documents';
+import { SubstrateAttachmentModal } from './SubstrateAttachmentModal';
 
 interface DocumentCompositionViewProps {
   document: {
@@ -52,6 +53,7 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState(document.title);
   const [filterType, setFilterType] = useState<SubstrateType | 'all'>('all');
+  const [showAttachModal, setShowAttachModal] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -124,6 +126,39 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
     if (!composition) return [];
     if (filterType === 'all') return composition.references;
     return composition.references.filter(ref => ref.reference.substrate_type === filterType);
+  };
+
+  const handleAttachReference = async (data: {
+    substrate_type: SubstrateType;
+    substrate_id: string;
+    role?: string;
+    weight?: number;
+  }) => {
+    try {
+      const response = await fetch(`/api/documents/${document.id}/references`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to attach reference');
+      }
+
+      // Refresh composition
+      const compositionResponse = await fetch(`/api/documents/${document.id}/composition`);
+      if (compositionResponse.ok) {
+        const compositionData = await compositionResponse.json();
+        setComposition(compositionData);
+      }
+    } catch (error) {
+      console.error('Error attaching reference:', error);
+      alert(error instanceof Error ? error.message : 'Failed to attach reference');
+      throw error;
+    }
   };
 
   const handleDetachReference = async (referenceId: string, substrateType: SubstrateType, substrateId: string) => {
@@ -418,7 +453,10 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
                     <option value="timeline_event">Timeline Events</option>
                   </select>
                 </div>
-                <Button size="sm">
+                <Button 
+                  size="sm"
+                  onClick={() => setShowAttachModal(true)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Reference
                 </Button>
@@ -485,6 +523,13 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
             </div>
           </CardContent>
         </Card>
+
+        {/* Substrate Attachment Modal */}
+        <SubstrateAttachmentModal
+          isOpen={showAttachModal}
+          onClose={() => setShowAttachModal(false)}
+          onSubmit={handleAttachReference}
+        />
 
       </div>
     </div>
