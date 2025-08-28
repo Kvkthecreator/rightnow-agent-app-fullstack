@@ -1,4 +1,4 @@
-# YARNNN Canon v1.3.1 — The Authoritative Reference
+# YARNNN Canon v1.4.0 — The Authoritative Reference
 
 **The Single Source of Truth for Yarnnn Service Philosophy and Implementation**
 
@@ -64,10 +64,13 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 - **Onboarding**: `POST /api/baskets/ingest` - Orchestrates basket + dumps
 - **No side effects** - These endpoints only write what they declare
 
-### 5. Async Intelligence Model
-- Raw dumps trigger async agent processing via queue
-- User experience is immediate, intelligence arrives progressively
-- Agent processing is mandatory for substrate creation
+### 5. Pure Supabase Async Intelligence Model
+- Raw dumps automatically trigger agent queue processing via database triggers
+- Pure Supabase architecture: no DATABASE_URL dependency, single connection type
+- Service role authentication for backend operations, anon role for user operations
+- User experience is immediate, intelligence processing happens asynchronously
+- Agent processing is mandatory for substrate creation per Sacred Principle #4
+- Queue-based processing ensures YARNNN canon compliance at scale
 - Frontend shows processing state but never synthesizes substrate
 
 ## 🎬 Operational Flow
@@ -156,8 +159,14 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 
 ## Version Lock
 
-- Canon version: **v1.3**  
-- Frozen as of: **2025-08-19**  
-- Update policy: Do not edit in place. Amendments require a new canon version.  
+- Canon version: **v1.4**  
+- Frozen as of: **2025-08-28**  
+- Update policy: Do not edit in place. Amendments require a new canon version.
+
+### v1.4.0 Changes
+- Added Pure Supabase Async Intelligence Model as 5th Architectural Pillar
+- Updated to reflect queue-based agent processing architecture 
+- Clarified service role vs anon role authentication patterns
+- Reinforced Agent Intelligence Mandatory principle (#4)  
 
 ---

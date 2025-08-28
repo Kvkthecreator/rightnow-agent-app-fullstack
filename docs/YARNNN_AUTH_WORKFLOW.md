@@ -1,7 +1,6 @@
-# Canon v1.3.1 — docs clarification (no code change)
-Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+# Canon v1.4.0 — Pure Supabase Architecture Update
 
-📜 docs/YARNNN_AUTH_WORKFLOW.md — Canonical Authentication & Workspace Flow (v1)
+📜 docs/YARNNN_AUTH_WORKFLOW.md — Canonical Authentication & Workspace Flow (v2)
 This document is the source of truth. All code MUST conform to it.
 Terms: “MUST/SHALL/SHOULD” follow RFC-2119 semantics.
 ## 0) Scope & Guarantees
@@ -17,9 +16,11 @@ Every request is evaluated against the user’s single authoritative workspace_i
 Supabase Auth
 Clients obtain the session/JWT through Supabase.
 Backends SHALL verify the token signature and claims before using it.
-RLS First
+RLS First + Pure Supabase Architecture
 Sensitive access control is enforced by Postgres RLS tied to workspace_memberships.
-Service-role keys are reserved for internal, non-user-scoped operations (e.g., webhooks, maintenance), never for end-user CRUD.
+Service-role keys are used for backend agent processing operations requiring elevated permissions.
+Anon keys are used for user-scoped operations with RLS enforcement.
+No DATABASE_URL dependency - single Supabase connection type for cleaner architecture.
 
 ## 2) Data Model (authoritative excerpt)
 workspaces

@@ -1,8 +1,8 @@
 # YARNNN Async Intelligence Framework
 
-**Version**: 1.0  
+**Version**: 2.0  
 **Status**: Canon Extension  
-**Purpose**: Define the async processing model that bridges user experience with agent intelligence
+**Purpose**: Define the pure Supabase async processing model that bridges user experience with agent intelligence
 
 ## 🎯 First Principle
 
@@ -111,11 +111,12 @@ $$ LANGUAGE plpgsql;
 ### Agent Processing Loop
 
 ```python
-# Agent backend service (FastAPI)
+# Agent backend service (FastAPI) - Pure Supabase Architecture
 class AgentProcessor:
     def __init__(self, worker_id: str):
         self.worker_id = worker_id
-        self.supabase = create_service_role_client()
+        # Uses SUPABASE_SERVICE_ROLE_KEY for backend operations
+        self.supabase = create_service_role_client()  # No DATABASE_URL needed
     
     async def run_forever(self):
         """Main processing loop"""
@@ -339,24 +340,33 @@ export function DumpStatus({ dump }: { dump: RawDump }) {
 }
 ```
 
-## 🚀 Deployment Architecture
+## 🚀 Pure Supabase Deployment Architecture
 
-### Multi-Worker Scaling
+### Single Connection Type - Multi-Worker Scaling
 
 ```
                     ┌─────────────┐
                     │  Supabase   │
-                    │   Queue     │
+                    │   Database  │
+                    │   + Queue   │
+                    │   + RPCs    │
                     └──────┬──────┘
-                           │
+                           │ Pure Supabase Client
         ┌──────────────────┼──────────────────┐
         │                  │                  │
    ┌────▼─────┐      ┌────▼─────┐      ┌────▼─────┐
    │ Worker 1 │      │ Worker 2 │      │ Worker N │
    │  Render  │      │  Render  │      │  Render  │
+   │(Service) │      │(Service) │      │(Service) │
    └──────────┘      └──────────┘      └──────────┘
 ```
 
+**Architecture Benefits:**
+- **No DATABASE_URL required** - eliminates connection string complexity
+- **Service role authentication** for backend operations
+- **Anon role authentication** for user operations  
+- **Single connection type** - more reliable and maintainable
+- **Leverages Supabase scaling** - connection pooling built-in
 - Each worker has unique ID
 - `FOR UPDATE SKIP LOCKED` prevents conflicts
 - Horizontal scaling by adding workers
