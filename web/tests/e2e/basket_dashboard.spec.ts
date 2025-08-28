@@ -3,14 +3,16 @@ import { test, expect } from '@playwright/test';
 const basketId = process.env.TEST_BASKET_ID;
 test.skip(!basketId, 'requires TEST_BASKET_ID to run');
 
-test.describe('Canon v1.3.1 Basket Dashboard', () => {
-  test('dashboard loads with feature flag in development', async ({ page }) => {
+test.describe('Canon v1.4.0 Basket Dashboard - Pure Supabase Architecture', () => {
+  test('dashboard loads with async intelligence processing status', async ({ page }) => {
     // Navigate to dashboard
     await page.goto(`/baskets/${basketId}/dashboard`);
     
-    // Should see Canon v1.3.1 dashboard with feature flag notice
-    await expect(page.locator('text=Canon v1.3.1 Dashboard')).toBeVisible();
-    await expect(page.locator('text=Feature flag active')).toBeVisible();
+    // Should see Canon v1.4.0 dashboard
+    await expect(page.locator('h1')).toBeVisible(); // Basket name
+    
+    // Should show processing queue status
+    await expect(page.locator('text=Processing Queue, text=Agent Intelligence, text=Queue Status')).toBeVisible();
     
     // Should see main dashboard components
     await expect(page.locator('h1')).toBeVisible(); // Basket name
@@ -19,16 +21,34 @@ test.describe('Canon v1.3.1 Basket Dashboard', () => {
     await expect(page.locator('text=Quick Actions')).toBeVisible();
   });
 
-  test('displays basket health metrics', async ({ page }) => {
+  test('displays async intelligence health metrics', async ({ page }) => {
     await page.goto(`/baskets/${basketId}/dashboard`);
     
-    // Should show health indicators
+    // Should show v1.4.0 health indicators
     await expect(page.locator('text=dumps')).toBeVisible();
-    await expect(page.locator('text=reflections')).toBeVisible();
+    await expect(page.locator('text=blocks')).toBeVisible(); // Context blocks per canon
+    await expect(page.locator('text=context items')).toBeVisible(); // Semantic connectors
     await expect(page.locator('text=Last active')).toBeVisible();
+    
+    // Should show agent processing status
+    await expect(page.locator('[data-testid="agent-status"], text=Processing, text=Ready, text=Queue Empty')).toBeVisible();
     
     // Should show activity status badge
     await expect(page.locator('[data-testid="activity-status"], text=Active, text=Moderate, text=Low Activity, text=Inactive')).toBeVisible();
+  });
+
+  test('shows agent queue processing status', async ({ page }) => {
+    await page.goto(`/baskets/${basketId}/dashboard`);
+    
+    // Should display queue health information
+    const queueSection = page.locator('text=Agent Intelligence').locator('..');
+    await expect(queueSection).toBeVisible();
+    
+    // Should show processing states or empty state
+    await expect(page.locator('text=Pending, text=Processing, text=Completed, text=No processing activity')).toBeVisible();
+    
+    // Should have agent queue health endpoint working
+    await expect(page.locator('[data-testid="queue-health-status"]')).toBeVisible();
   });
 
   test('reflection card shows proper content or empty state', async ({ page }) => {
