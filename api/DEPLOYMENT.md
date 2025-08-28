@@ -16,12 +16,12 @@ The backend was failing on Render with `ModuleNotFoundError: No module named 'da
 Set these in your Render dashboard:
 
 ```bash
-DATABASE_URL=postgresql://user:pass@host:port/dbname  # Provided by Render
-SUPABASE_SERVICE_ROLE_KEY=your_key_here              # For Supabase integration
-SUPABASE_URL=https://your-project.supabase.co        # Base Supabase URL
-SUPABASE_JWKS_ISSUER=https://your-project.supabase.co/auth/v1
-SUPABASE_JWKS_URL=https://your-project.supabase.co/auth/v1/keys
-SUPABASE_JWT_AUD=authenticated                       # Supabase's default audience
+# Pure Supabase Architecture - No DATABASE_URL needed
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+SUPABASE_JWT_SECRET=your_jwt_secret_here
+SUPABASE_JWT_AUD=authenticated
 ```
 
 ### 2. Run Database Migrations
