@@ -53,13 +53,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }));
 
   return NextResponse.json({
-    graph: {
-      dumps: dumps ?? [],
-      items: items ?? [],
-      entities: [], // (optional) derive from context_items/blocks
-      relationships: edges ?? [],
-    },
     reflections: { pattern, tension, question, computed_at },
-    meta: { basketId, notes },
   });
 }
