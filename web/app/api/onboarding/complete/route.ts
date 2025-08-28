@@ -69,8 +69,8 @@ export async function POST(req: Request) {
       .from('context_items')
       .select('id')
       .eq('basket_id', payload.basket_id)
-      .eq('context_type', 'yarnnn_system')
-      .eq('content_text', 'identity_genesis')
+      .eq('type', 'yarnnn_system')
+      .eq('content', 'identity_genesis')
       .maybeSingle();
 
     if (existingGenesis) {

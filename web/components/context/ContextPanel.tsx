@@ -12,7 +12,8 @@ export default function ContextPanel({ items }: { items: ContextItem[] }) {
     <div className="p-4 space-y-2 text-sm">
       {items.map((i) => (
         <div key={i.id} className="border rounded p-2">
-          {i.summary}
+          <div className="font-medium">{i.title || i.type}</div>
+          {i.content && <div className="text-muted-foreground">{i.content}</div>}
         </div>
       ))}
     </div>

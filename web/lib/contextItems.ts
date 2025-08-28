@@ -4,8 +4,11 @@ export interface ContextPayload {
   basket_id?: string;
   document_id?: string | null;
   type: string;
-  summary: string;
-  status?: string;
+  content?: string;
+  title?: string;
+  description?: string;
+  metadata?: Record<string, any>;
+  status?: 'active' | 'archived';
 }
 
 export function createContextItem(body: ContextPayload) {

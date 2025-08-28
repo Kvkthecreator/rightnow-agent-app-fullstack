@@ -21,13 +21,13 @@ export type Dump = {
   created_at: string;
 };
 
-// API Request/Response types
+// API Request/Response types  
 export type CreateDumpReq = {
   basket_id: string;
   dump_request_id: string;
-  text_dump?: string;  // User text content (including pasted URLs)
+  text_dump?: string;  // User text content (including pasted URLs) 
   file_url?: string;   // Supabase Storage URL for uploaded files
-  meta?: {
+  source_meta?: {      // Renamed from 'meta' to match RPC
     client_ts?: string;
     ingest_trace_id?: string;
     [k: string]: any;

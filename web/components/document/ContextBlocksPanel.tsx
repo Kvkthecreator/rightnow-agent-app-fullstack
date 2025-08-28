@@ -48,16 +48,16 @@ export default function ContextBlocksPanel({
   }
 
   async function handleToggleItem(it: ContextItem, verified: boolean) {
-    const status = verified ? "verified" : "active";
-    await updateContextItem(it.id, { status });
-    setItems((arr) => arr.map((i) => (i.id === it.id ? { ...i, status } : i)));
+    const metadata = { ...it.metadata, verified };
+    await updateContextItem(it.id, { metadata });
+    setItems((arr) => arr.map((i) => (i.id === it.id ? { ...i, metadata } : i)));
   }
 
   async function handleEditItem(it: ContextItem) {
-    const content = window.prompt("Edit content", it.summary);
+    const content = window.prompt("Edit content", it.content);
     if (content === null) return;
-    await updateContextItem(it.id, { summary: content });
-    setItems((arr) => arr.map((i) => (i.id === it.id ? { ...i, summary: content } : i)));
+    await updateContextItem(it.id, { content });
+    setItems((arr) => arr.map((i) => (i.id === it.id ? { ...i, content } : i)));
   }
 
   async function handleAdd() {
@@ -69,7 +69,7 @@ export default function ContextBlocksPanel({
       basket_id: basketId,
       document_id: documentId ?? null,
       type,
-      summary: content,
+      content,
       status: "active",
     });
     setItems((arr) => [...arr, res as any]);
@@ -90,7 +90,7 @@ export default function ContextBlocksPanel({
                 key={it.id}
                 className="border rounded p-2 mb-2 flex justify-between text-sm"
               >
-                <span>{it.summary}</span>
+                <span>{it.content || it.title || it.type}</span>
                 <span className="space-x-2">
                   <label className="text-xs">
                     ✔ Verified
