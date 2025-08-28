@@ -79,8 +79,9 @@ async def lifespan(app: FastAPI):
         await start_agent_queue_processor()
         logger.info("Agent queue processor started - ready for async intelligence")
     except Exception as e:  # pragma: no cover - startup diagnostics
-        logger.error("Startup failed: %s", e)
-        raise
+        logger.error("Database initialization failed, running without DB: %s", e)
+        # Don't raise - allow the server to start without database connection
+        # This enables basic health checks and debugging even if DB is misconfigured
 
     try:
         yield
