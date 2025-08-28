@@ -64,14 +64,17 @@ export class TimelineEventEmitter {
       // Validate event kind matches pipeline
       this.validateEventKind(event);
       
-      // Call the Supabase function to emit event
+      // Call the Supabase function to emit event (workspace-scoped)
       const { error } = await this.supabase.rpc('emit_timeline_event', {
         p_basket_id: event.basket_id,
-        p_kind: event.kind,
-        p_payload: {
+        p_event_type: event.kind,
+        p_event_data: {
           ...event.payload,
           metadata: event.metadata
-        }
+        },
+        p_workspace_id: event.workspace_id,
+        p_actor_id: event.metadata?.user_id || null,
+        p_agent_type: event.metadata?.pipeline || null
       });
       
       if (error) {
