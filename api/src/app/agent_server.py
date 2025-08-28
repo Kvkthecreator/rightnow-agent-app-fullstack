@@ -28,7 +28,6 @@ from middleware.auth import AuthMiddleware
 
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
 from services.agent_queue_processor import start_agent_queue_processor, stop_agent_queue_processor, get_queue_health
-from .deps import close_db, get_db
 from .routes.agent_memory import router as agent_memory_router
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
@@ -72,24 +71,15 @@ async def lifespan(app: FastAPI):
     # Validate environment
     _assert_env()
 
-    db = None
-    try:
-        db = await get_db()
-        # Start only the queue-based processing (single path)
-        await start_agent_queue_processor()
-        logger.info("Agent queue processor started - ready for async intelligence")
-    except Exception as e:  # pragma: no cover - startup diagnostics
-        logger.error("Database initialization failed, running without DB: %s", e)
-        # Don't raise - allow the server to start without database connection
-        # This enables basic health checks and debugging even if DB is misconfigured
+    # Start agent queue processor (pure Supabase architecture)
+    await start_agent_queue_processor()
+    logger.info("Agent queue processor started - ready for async intelligence")
 
     try:
         yield
     finally:
         # Clean shutdown
         await stop_agent_queue_processor()
-        if db:
-            await close_db()
         logger.info("Agent queue processor stopped")
 
 app = FastAPI(title="RightNow Agent Server", lifespan=lifespan)
@@ -149,19 +139,19 @@ async def health():
 async def health_db():
     """Database health check for deployment verification"""
     try:
-        from .deps import get_db
-        db = await get_db()
-        result = await db.fetch_one("SELECT NOW() as current_time, 'connected' as status")
+        from app.utils.supabase_client import supabase_client
+        # Test Supabase connection with a simple query
+        result = supabase_client.rpc('fn_queue_health').execute()
         return {
             "status": "healthy",
-            "database_connected": True,
-            "current_time": result["current_time"].isoformat() if result else None
+            "supabase_connected": True,
+            "queue_health": result.data if result.data else "healthy"
         }
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.error(f"Supabase health check failed: {e}")
         return {
-            "status": "unhealthy",
-            "database_connected": False,
+            "status": "unhealthy", 
+            "supabase_connected": False,
             "error": str(e)
         }
 

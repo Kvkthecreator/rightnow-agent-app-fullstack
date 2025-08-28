@@ -269,13 +269,9 @@ async def start_agent_queue_processor():
     """Start the global agent queue processor."""
     global _processor
     if _processor is None:
-        try:
-            _processor = AgentQueueProcessor()
-            asyncio.create_task(_processor.start())
-            logger.info("Agent queue processor started")
-        except Exception as e:
-            logger.error(f"Failed to start agent queue processor: {e}")
-            # Don't raise - allow the server to continue without queue processing
+        _processor = AgentQueueProcessor()
+        asyncio.create_task(_processor.start())
+        logger.info("Agent queue processor started")
 
 async def stop_agent_queue_processor():
     """Stop the global agent queue processor."""
