@@ -69,4 +69,3 @@ END $$;
 
 -- Grant execute permissions
 GRANT EXECUTE ON FUNCTION public.fn_ingest_dumps(uuid, uuid, jsonb) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.fn_ingest_dumps(uuid, uuid, jsonb) TO substrate_writer;
