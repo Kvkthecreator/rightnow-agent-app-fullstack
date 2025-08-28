@@ -27,7 +27,7 @@ export default function ProjectContext({ items, onAddKnowledge, isExpanded = fal
     return contextItems.map(item => ({
       id: item.id,
       title: item.title || 'Untitled Knowledge',
-      summary: item.content || '',
+      summary: item.content ?? '',
       type: determineKnowledgeType(item),
       lastUpdated: (item as any).updated_at ? new Date((item as any).updated_at) : undefined,
       connections: (item as any).connections_count || 0
