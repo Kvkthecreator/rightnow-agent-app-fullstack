@@ -27,7 +27,7 @@ except ImportError:
 from middleware.auth import AuthMiddleware
 
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
-from services.agent_queue_processor import start_agent_queue_processor, stop_agent_queue_processor, get_queue_health
+from services.canonical_queue_processor import start_canonical_queue_processor, stop_canonical_queue_processor, get_canonical_queue_health
 from .routes.agent_memory import router as agent_memory_router
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
@@ -71,16 +71,16 @@ async def lifespan(app: FastAPI):
     # Validate environment
     _assert_env()
 
-    # Start agent queue processor (pure Supabase architecture)
-    await start_agent_queue_processor()
-    logger.info("Agent queue processor started - ready for async intelligence")
+    # Start canonical agent queue processor (Canon v1.4.0 compliant)
+    await start_canonical_queue_processor()
+    logger.info("Canonical agent queue processor started - Canon v1.4.0 ready")
 
     try:
         yield
     finally:
         # Clean shutdown
-        await stop_agent_queue_processor()
-        logger.info("Agent queue processor stopped")
+        await stop_canonical_queue_processor()
+        logger.info("Canonical agent queue processor stopped")
 
 app = FastAPI(title="RightNow Agent Server", lifespan=lifespan)
 
@@ -157,8 +157,8 @@ async def health_db():
 
 @app.get("/health/queue", include_in_schema=False)
 async def health_queue():
-    """Agent queue health check"""
-    return await get_queue_health()
+    """Canonical agent queue health check"""
+    return await get_canonical_queue_health()
 
 # CORS
 app.add_middleware(

@@ -1,4 +1,16 @@
-"""Base infrastructure agent class for common functionality."""
+"""
+DEPRECATED: Base agent classes for legacy agents.
+
+All new agents should use the canonical pipeline agents in agents/pipeline/.
+This file is kept for backward compatibility only.
+
+Canonical Pipeline Agents (agents/pipeline/):
+- P0CaptureAgent: Only writes raw_dumps, never interprets  
+- P1SubstrateAgent: Creates blocks/context_items, never relationships
+- P2GraphAgent: Creates relationships, never modifies substrate
+- P3ReflectionAgent: Read-only computation, optionally cached
+- P4PresentationAgent: Consumes substrate for narrative, never creates it
+"""
 
 from __future__ import annotations
 
