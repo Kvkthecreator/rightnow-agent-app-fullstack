@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { PipelineBoundaryGuard } from "@/lib/canon/PipelineBoundaryGuard";
+import { createTimelineEmitter } from "@/lib/canon/TimelineEventEmitter";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -67,6 +69,13 @@ export async function POST(
       );
     }
 
+    // Pipeline boundary enforcement: P1 Substrate state changes
+    PipelineBoundaryGuard.enforceP1Substrate({
+      type: 'block.reject',
+      payload: { blockId, old_status: block.status, new_status: 'rejected' },
+      context: { basket_id: block.basket_id, workspace_id: workspace.id }
+    });
+
     // Update block status through lifecycle service
     const { data: updatedBlock, error: updateError } = await supabase
       .from("blocks")
@@ -91,23 +100,15 @@ export async function POST(
       );
     }
 
-    // Log the lifecycle event
-    await supabase
-      .from("events")
-      .insert({
-        basket_id: block.basket_id,
-        block_id: blockId,
-        workspace_id: block.workspace_id,
-        kind: "block.rejected",
-        payload: {
-          block_id: blockId,
-          user_id: user.id,
-          previous_status: block.status,
-          new_status: 'rejected'
-        },
-        origin: "user",
-        actor_id: user.id,
-      });
+    // Emit canonical timeline event (P1 Substrate pipeline)
+    const timelineEmitter = createTimelineEmitter(supabase);
+    await timelineEmitter.emitBlockStateChanged({
+      basket_id: block.basket_id,
+      workspace_id: workspace.id,
+      block_id: blockId,
+      old_state: block.status,
+      new_state: 'rejected'
+    });
 
     console.log(`❌ Block ${blockId} rejected by ${user.id}`);
 

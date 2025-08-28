@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { cookies } from 'next/headers';
+import { PipelineBoundaryGuard } from '@/lib/canon/PipelineBoundaryGuard';
+import { createTimelineEmitter } from '@/lib/canon/TimelineEventEmitter';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,19 +20,39 @@ export async function POST(request: NextRequest) {
 
     console.log('🎯 Manager Agent: Processing raw dump', { rawDumpId, basketId });
 
+    // Pipeline boundary enforcement: P1 Substrate processing
+    PipelineBoundaryGuard.enforceP1Substrate({
+      type: 'substrate.process',
+      payload: { rawDumpId, basketId },
+      context: { operation: 'agent_orchestration' }
+    });
+
     // Initialize Supabase client
     const supabase = createRouteHandlerClient({ cookies });
     
-    // Get raw dump content
+    // Get raw dump content and basket workspace
     const { data: rawDump, error: fetchError } = await supabase
       .from('raw_dumps')
       .select('body_md, created_at')
       .eq('id', rawDumpId)
       .single();
       
+    const { data: basket, error: basketError } = await supabase
+      .from('baskets')
+      .select('workspace_id')
+      .eq('id', basketId)
+      .single();
+      
     if (fetchError || !rawDump) {
       return NextResponse.json(
         { success: false, error: `Raw dump not found: ${fetchError?.message}` },
+        { status: 404 }
+      );
+    }
+    
+    if (basketError || !basket) {
+      return NextResponse.json(
+        { success: false, error: `Basket not found: ${basketError?.message}` },
         { status: 404 }
       );
     }
@@ -64,6 +86,20 @@ export async function POST(request: NextRequest) {
       narrative: storedResults.narrative.length,
       relationships: storedResults.relationships.length
     });
+
+    // Emit timeline events for substrate creation (P1 Substrate pipeline)
+    const timelineEmitter = createTimelineEmitter(supabase);
+    
+    // Emit block creation events
+    for (const block of storedResults.blocks) {
+      await timelineEmitter.emitBlockCreated({
+        basket_id: basketId,
+        workspace_id: basket.workspace_id,
+        block_id: block.id,
+        semantic_type: 'structured_insight',
+        source_dump_id: rawDumpId
+      });
+    }
 
     return NextResponse.json({
       success: true,

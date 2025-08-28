@@ -7,6 +7,7 @@ import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import { z } from "zod";
 import { createTimelineEmitter } from "@/lib/canon/TimelineEventEmitter";
+import { PipelineBoundaryGuard } from "@/lib/canon/PipelineBoundaryGuard";
 
 function normalize(body: any) {
   const b = body ?? {};
@@ -53,6 +54,11 @@ export async function POST(req: Request) {
     // Pipeline boundary enforcement: P0 Capture
     // This route should only create dumps, no interpretation or processing
     // Agent processing happens asynchronously via queue trigger
+    PipelineBoundaryGuard.enforceP0Capture({
+      type: 'dump.create',
+      payload: { text_dump, file_url },
+      context: { basket_id, workspace_id: basket?.workspace_id }
+    });
 
     const supabase = createRouteHandlerClient({ cookies });
     const { userId } = await getAuthenticatedUser(supabase);
