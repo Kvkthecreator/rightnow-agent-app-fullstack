@@ -17,24 +17,24 @@ export async function GET(
     const { userId, isTest } = await getTestAwareAuth(supabase);
     const workspace = isTest ? { id: '00000000-0000-0000-0000-000000000002' } : await ensureWorkspaceForUser(userId, supabase);
 
-    // Get blocks for basket with workspace isolation
-    const { data: blocks, error } = await supabase
-      .from('blocks')
+    // Get context items for basket with workspace isolation
+    const { data: contextItems, error } = await supabase
+      .from('context_items')
       .select('*')
       .eq('basket_id', basketId)
       .eq('workspace_id', workspace.id)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching blocks:', error);
-      return NextResponse.json({ error: 'Failed to fetch blocks' }, { status: 500 });
+      console.error('Error fetching context items:', error);
+      return NextResponse.json({ error: 'Failed to fetch context items' }, { status: 500 });
     }
 
-    // Return blocks as array (expected by tests)
-    return NextResponse.json(blocks || [], { status: 200 });
+    // Return context items as array (expected by tests)
+    return NextResponse.json(contextItems || [], { status: 200 });
 
   } catch (error) {
-    console.error('Blocks fetch error:', error);
+    console.error('Context items fetch error:', error);
     return NextResponse.json(
       { 
         error: 'Internal server error',

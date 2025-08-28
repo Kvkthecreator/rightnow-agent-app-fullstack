@@ -14,10 +14,10 @@ export default defineConfig({
       testMatch: /.*\.setup\.ts/
     },
     
-    // Canon compliance tests (uses test auth bypass)
+    // Canon v1.4.0 compliance tests (uses test auth bypass)
     {
-      name: 'canon',
-      testDir: './tests/canon',
+      name: 'canon-v1.4',
+      testDir: './tests/canon-v1.4',
       use: { 
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:3000',
@@ -27,10 +27,23 @@ export default defineConfig({
       },
     },
     
-    // Feature tests (requires auth)
+    // API contract tests (uses test auth bypass)
     {
-      name: 'features',
-      testDir: './tests/features',
+      name: 'api-contracts',
+      testDir: './tests/api-contracts',
+      use: { 
+        ...devices['Desktop Chrome'],
+        baseURL: 'http://localhost:3000',
+        extraHTTPHeaders: {
+          'x-playwright-test': 'true'
+        }
+      },
+    },
+
+    // Integration tests (requires auth)
+    {
+      name: 'integration',
+      testDir: './tests/integration',
       use: { 
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:3000',
@@ -39,16 +52,17 @@ export default defineConfig({
       dependencies: ['setup'],
     },
 
-    // E2E tests (requires auth)
+    // Legacy canon tests (DEPRECATED - will be removed)
     {
-      name: 'e2e',
-      testDir: './tests/e2e',
+      name: 'legacy-canon',
+      testDir: './tests/canon',
       use: { 
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:3000',
-        storageState: 'tests/setup/.auth/user.json'
+        extraHTTPHeaders: {
+          'x-playwright-test': 'true'
+        }
       },
-      dependencies: ['setup'],
     },
 
     // Cleanup
