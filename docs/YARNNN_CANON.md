@@ -6,19 +6,20 @@
 
 Yarnnn is a **memory-first cognitive system** that captures human thought as immutable substrate, allows it to evolve through agent interpretation, and presents it back through deliberate narrative composition.
 
-### The Three Sacred Principles
+### The Four Sacred Principles
 
 1. **Capture is Sacred** - All user input becomes an immutable `raw_dump`
 2. **All Substrates are Peers** - No substrate type is privileged over another  
 3. **Narrative is Deliberate** - Documents compose substrate references plus authored prose
+4. **Agent Intelligence is Mandatory** - Substrate cannot exist without agent interpretation
 
 ## 🎯 Conceptual Model
 
 ```
-User Thought → Raw Capture → Substrate Evolution → Reflection Derivation → Narrative Composition
-     ↓             ↓                ↓                      ↓                    ↓
-  Memory       Immutable        Structured            Read-Model           Deliberate
-  Stream        Dumps           Substrates            Patterns             Documents
+User Thought → Raw Capture → Agent Processing → Substrate Evolution → Reflection Derivation → Narrative Composition
+     ↓             ↓              ↓                    ↓                      ↓                    ↓
+  Memory       Immutable      Intelligence        Structured            Read-Model           Deliberate
+  Stream        Dumps          Required           Substrates            Patterns             Documents
 ```
 
 ## 📚 The Five Substrate Types (All Peers)
@@ -63,6 +64,12 @@ User Thought → Raw Capture → Substrate Evolution → Reflection Derivation �
 - **Onboarding**: `POST /api/baskets/ingest` - Orchestrates basket + dumps
 - **No side effects** - These endpoints only write what they declare
 
+### 5. Async Intelligence Model
+- Raw dumps trigger async agent processing via queue
+- User experience is immediate, intelligence arrives progressively
+- Agent processing is mandatory for substrate creation
+- Frontend shows processing state but never synthesizes substrate
+
 ## 🎬 Operational Flow
 
 ### Basket Lifecycle
@@ -91,6 +98,8 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 3. **Pipeline Discipline** - Each pipeline has strict write boundaries
 4. **Memory Permanence** - Dumps are immutable; evolution happens through new substrate
 5. **Workspace Isolation** - Complete data isolation between workspaces
+6. **Agent Necessity** - Substrate (blocks, context_items, relationships) cannot exist without agent processing
+7. **Async Intelligence** - User feedback is instant, intelligence processing happens asynchronously
 
 ## 🚀 Implementation Guidelines
 

@@ -4,17 +4,21 @@
 This monorepo implements the **Context OS** with a Python FastAPI backend (`api.yarnnn.com`), a Next.js frontend (`yarnnn.com`), and a Supabase database.  
 All services run in production; development mirrors the same topology.
 
-## Deployment
+## Deployment (Async Intelligence Model)
 
-┌──────────────┐ HTTPS ┌────────────────────┐ SQL ┌──────────────┐
-│ yarnnn.com │◄────────────►│ api.yarnnn.com │◄──────────►│ Supabase │
-│ (Next.js) │ │ (FastAPI, Render) │ │ Database │
-│ Vercel │ │ │ │ │
-└──────────────┘ └────────────────────┘ └──────────────┘
+┌──────────────┐ Direct  ┌──────────────┐ Queue  ┌────────────────────┐ SQL ┌──────────────┐
+│ yarnnn.com   │◄────────►│  Supabase    │◄──────►│ api.yarnnn.com     │◄───►│  Supabase    │
+│ (Next.js)    │  Read    │  Database    │ Poll   │ (FastAPI, Render)  │     │  Database    │
+│ Vercel       │          │              │        │                    │     │              │
+└──────────────┘          └──────────────┘        └────────────────────┘     └──────────────┘
+       │                                                     │
+       └─────────────────────────────────────────────────────┘
+                          Immediate writes (dumps only)
 
-- **Frontend:** Next.js (Vercel)  
-- **Backend:** FastAPI (Render)  
-- **Database:** Supabase (Postgres + RLS)  
+- **Frontend:** Next.js (Vercel) - Immediate user responses, raw dump creation
+- **Agent Backend:** FastAPI (Render) - Async intelligence processing via queue
+- **Database:** Supabase (Postgres + RLS) - Single source of truth + queue
+- **Flow:** User → Immediate → Queue → Async Intelligence → Progressive UI  
 
 ## Substrates
 - **Baskets** – container scope  
@@ -25,13 +29,22 @@ All services run in production; development mirrors the same topology.
 
 These are peers in the substrate; agents operate across them.
 
-## Backend APIs
-- **Agents:** `/api/agents/*`  
-- **Baskets:** `/api/baskets/new`, `/api/baskets/ingest`  
-- **Dumps:** `/api/dumps/new`  
-- **Blocks:** `/api/blocks/*`  
-- **Documents:** `/api/documents`
-- **Events:** WebSocket endpoints for real-time updates  
+## API Endpoints
+
+### Frontend APIs (Vercel - Immediate Response)
+- **Dumps:** `POST /api/dumps/new` - Raw capture only
+- **Baskets:** `POST /api/baskets/ingest` - Onboarding orchestration
+- **Read:** `GET /api/baskets/*/projection` - Display processed substrate
+
+### Agent APIs (Render - Async Processing)
+- **Queue:** Agent polls for processing work
+- **Substrate:** Creates blocks, context_items, relationships via RPCs
+- **Events:** Emits timeline events on completion
+
+### Architecture Flow
+```
+User → Vercel API → Raw Dumps → Queue → Render Agents → Substrate → Vercel UI
+```  
 
 ## Frontend
 - Connects to backend via `NEXT_PUBLIC_API_BASE_URL`  
