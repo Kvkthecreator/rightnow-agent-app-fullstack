@@ -13,6 +13,13 @@ CREATE TYPE public.block_state AS ENUM (
     'SUPERSEDED',
     'REJECTED'
 );
+CREATE TYPE public.processing_state AS ENUM (
+    'pending',
+    'claimed',
+    'processing',
+    'completed',
+    'failed'
+);
 CREATE TYPE public.scope_level AS ENUM (
     'LOCAL',
     'WORKSPACE',
@@ -406,7 +413,7 @@ BEGIN
       COALESCE((v_dump->'source_meta')::jsonb, '{}'::jsonb),
       (v_dump->>'ingest_trace_id')
     )
-    ON CONFLICT (workspace_id, dump_request_id) 
+    ON CONFLICT (basket_id, dump_request_id) 
     DO UPDATE SET 
       body_md = COALESCE(EXCLUDED.body_md, public.raw_dumps.body_md),
       file_url = COALESCE(EXCLUDED.file_url, public.raw_dumps.file_url)
@@ -434,10 +441,18 @@ END $$;
 CREATE FUNCTION public.fn_persist_reflection(p_basket_id uuid, p_pattern text, p_tension text, p_question text) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
-DECLARE v_id uuid;
+DECLARE 
+  v_id uuid;
+  v_workspace_id uuid;
 BEGIN
-  INSERT INTO public.basket_reflections (basket_id, pattern, tension, question)
-  VALUES (p_basket_id, p_pattern, p_tension, p_question)
+  -- Get workspace_id from basket
+  SELECT workspace_id INTO v_workspace_id FROM public.baskets WHERE id = p_basket_id;
+  IF v_workspace_id IS NULL THEN
+    RAISE EXCEPTION 'Basket % not found', p_basket_id;
+  END IF;
+  -- Insert into actual table, not the view
+  INSERT INTO public.reflection_cache (basket_id, pattern, tension, question, workspace_id)
+  VALUES (p_basket_id, p_pattern, p_tension, p_question, v_workspace_id)
   RETURNING id INTO v_id;
   PERFORM public.fn_timeline_emit(
     p_basket_id,
@@ -447,8 +462,7 @@ BEGIN
     jsonb_build_object('source','reflection_job','actor_id', auth.uid())
   );
   RETURN v_id;
-END;
-$$;
+END $$;
 CREATE FUNCTION public.fn_reflection_cache_upsert(p_basket_id uuid, p_pattern text, p_tension text, p_question text, p_meta_hash text) RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
@@ -679,6 +693,19 @@ BEGIN
   WHERE proname = 'fn_timeline_emit';
 END;
 $$;
+CREATE TABLE public.agent_processing_queue (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    dump_id uuid NOT NULL,
+    basket_id uuid NOT NULL,
+    workspace_id uuid NOT NULL,
+    processing_state public.processing_state DEFAULT 'pending'::public.processing_state,
+    claimed_at timestamp without time zone,
+    claimed_by text,
+    completed_at timestamp without time zone,
+    attempts integer DEFAULT 0,
+    error_message text,
+    created_at timestamp without time zone DEFAULT now()
+);
 CREATE TABLE public.basket_deltas (
     delta_id uuid NOT NULL,
     basket_id uuid NOT NULL,
@@ -1046,6 +1073,10 @@ ALTER TABLE ONLY public.basket_events ALTER COLUMN id SET DEFAULT nextval('publi
 ALTER TABLE ONLY public.pipeline_metrics ALTER COLUMN id SET DEFAULT nextval('public.pipeline_metrics_id_seq'::regclass);
 ALTER TABLE ONLY public.timeline_events ALTER COLUMN id SET DEFAULT nextval('public.timeline_events_id_seq'::regclass);
 ALTER TABLE ONLY public.workspace_memberships ALTER COLUMN id SET DEFAULT nextval('public.workspace_memberships_id_seq'::regclass);
+ALTER TABLE ONLY public.agent_processing_queue
+    ADD CONSTRAINT agent_processing_queue_dump_id_key UNIQUE (dump_id);
+ALTER TABLE ONLY public.agent_processing_queue
+    ADD CONSTRAINT agent_processing_queue_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.basket_deltas
     ADD CONSTRAINT basket_deltas_pkey PRIMARY KEY (delta_id);
 ALTER TABLE ONLY public.basket_events
@@ -1092,6 +1123,8 @@ ALTER TABLE ONLY public.substrate_relationships
     ADD CONSTRAINT substrate_relationships_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.raw_dumps
+    ADD CONSTRAINT uq_raw_dumps_basket_dump_req UNIQUE (basket_id, dump_request_id);
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_memberships
@@ -1130,6 +1163,9 @@ CREATE INDEX idx_idem_delta_id ON public.idempotency_keys USING btree (delta_id)
 CREATE INDEX idx_idempotency_delta ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_idempotency_keys_delta_id ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
+CREATE INDEX idx_queue_claimed ON public.agent_processing_queue USING btree (claimed_by, processing_state) WHERE (claimed_by IS NOT NULL);
+CREATE INDEX idx_queue_state_created ON public.agent_processing_queue USING btree (processing_state, created_at);
+CREATE INDEX idx_queue_workspace ON public.agent_processing_queue USING btree (workspace_id, processing_state);
 CREATE INDEX idx_raw_dumps_basket ON public.raw_dumps USING btree (basket_id);
 CREATE INDEX idx_raw_dumps_file_url ON public.raw_dumps USING btree (file_url);
 CREATE INDEX idx_raw_dumps_source_meta_gin ON public.raw_dumps USING gin (source_meta);
@@ -1166,6 +1202,12 @@ CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
 CREATE TRIGGER trg_timeline_after_raw_dump AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.fn_timeline_after_raw_dump();
+ALTER TABLE ONLY public.agent_processing_queue
+    ADD CONSTRAINT agent_processing_queue_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
+ALTER TABLE ONLY public.agent_processing_queue
+    ADD CONSTRAINT agent_processing_queue_dump_id_fkey FOREIGN KEY (dump_id) REFERENCES public.raw_dumps(id);
+ALTER TABLE ONLY public.agent_processing_queue
+    ADD CONSTRAINT agent_processing_queue_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.reflection_cache
     ADD CONSTRAINT basket_reflections_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.block_links
@@ -1259,6 +1301,7 @@ CREATE POLICY "Allow workspace members to read baskets" ON public.baskets FOR SE
   WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Anon can view events temporarily" ON public.basket_events FOR SELECT TO anon USING (true);
 CREATE POLICY "Authenticated users can view events" ON public.basket_events FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Service role can manage queue" ON public.agent_processing_queue TO service_role USING (true);
 CREATE POLICY "Service role full access" ON public.baskets TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Users can insert events for their workspaces" ON public.events FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -1296,6 +1339,9 @@ CREATE POLICY "Users can view narrative in their workspace" ON public.narrative 
   WHERE ((baskets.id = narrative.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view queue in their workspace" ON public.agent_processing_queue FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can view raw_dumps in their workspace" ON public.raw_dumps FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.baskets
   WHERE ((baskets.id = raw_dumps.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
@@ -1315,6 +1361,7 @@ CREATE POLICY "Workspace members can update events" ON public.events FOR UPDATE 
 CREATE POLICY "Workspace members can view events" ON public.events FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = events.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+ALTER TABLE public.agent_processing_queue ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow agent insert" ON public.revisions FOR INSERT TO authenticated WITH CHECK (((basket_id IS NOT NULL) AND (basket_id IN ( SELECT baskets.id
    FROM public.baskets
   WHERE (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
