@@ -51,16 +51,16 @@ export async function POST(req: Request) {
     }
     const { basket_id, text_dump, file_url, meta, dump_request_id } = parsed.data;
     
+    const supabase = createRouteHandlerClient({ cookies });
+    
     // Pipeline boundary enforcement: P0 Capture
     // This route should only create dumps, no interpretation or processing
     // Agent processing happens asynchronously via queue trigger
     PipelineBoundaryGuard.enforceP0Capture({
       type: 'dump.create',
       payload: { text_dump, file_url },
-      context: { basket_id, workspace_id: basket?.workspace_id }
+      context: { basket_id }
     });
-
-    const supabase = createRouteHandlerClient({ cookies });
     const { userId } = await getAuthenticatedUser(supabase);
 
     // Resolve basket + workspace

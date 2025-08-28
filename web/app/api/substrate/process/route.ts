@@ -87,19 +87,8 @@ export async function POST(request: NextRequest) {
       relationships: storedResults.relationships.length
     });
 
-    // Emit timeline events for substrate creation (P1 Substrate pipeline)
-    const timelineEmitter = createTimelineEmitter(supabase);
-    
-    // Emit block creation events
-    for (const block of storedResults.blocks) {
-      await timelineEmitter.emitBlockCreated({
-        basket_id: basketId,
-        workspace_id: basket.workspace_id,
-        block_id: block.id,
-        semantic_type: 'structured_insight',
-        source_dump_id: rawDumpId
-      });
-    }
+    // Timeline events will be handled by canonical agents in backend
+    // P1 Substrate processing triggers timeline emission automatically
 
     return NextResponse.json({
       success: true,

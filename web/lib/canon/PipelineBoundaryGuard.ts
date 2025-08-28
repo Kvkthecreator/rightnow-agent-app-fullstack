@@ -18,6 +18,8 @@ export class PipelineBoundaryViolation extends Error {
 
 export type PipelineOperation = {
   type: string;
+  payload?: any;
+  context?: any;
   data?: any;
   sideEffects?: string[];
   emitsEvents?: string[];
