@@ -59,7 +59,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       entities: [], // (optional) derive from context_items/blocks
       relationships: edges ?? [],
     },
-    reflections: { pattern, tension, question, notes },
-    meta: { basketId, computed_at },
+    reflections: { pattern, tension, question, computed_at },
+    meta: { basketId, notes },
   });
 }
