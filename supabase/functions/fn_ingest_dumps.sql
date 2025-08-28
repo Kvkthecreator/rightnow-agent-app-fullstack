@@ -37,7 +37,7 @@ BEGIN
       COALESCE((v_dump->'source_meta')::jsonb, '{}'::jsonb),
       (v_dump->>'ingest_trace_id')
     )
-    ON CONFLICT (basket_id, dump_request_id) 
+    ON CONFLICT (workspace_id, dump_request_id) 
     DO UPDATE SET 
       body_md = COALESCE(EXCLUDED.body_md, public.raw_dumps.body_md),
       file_url = COALESCE(EXCLUDED.file_url, public.raw_dumps.file_url)
