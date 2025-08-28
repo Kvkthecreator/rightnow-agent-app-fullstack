@@ -120,6 +120,21 @@
         @apply outline-none;
     }
     
+    /* Force remove outlines from all interactive elements */
+    button:focus,
+    a:focus,
+    input:focus,
+    textarea:focus,
+    select:focus,
+    [tabindex]:focus,
+    button,
+    .sidebar button,
+    .topbar button,
+    header button {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    
     body {
         @apply bg-background text-foreground font-sans antialiased;
     }
@@ -144,12 +159,21 @@
   --font-pacifico: 'Pacifico', cursive;
 }
 
+/* Font-brand class - outside layers for higher specificity */
+.font-brand {
+  font-family: var(--font-pacifico), cursive !important;
+}
+
+/* Debug class to test font loading */
+.debug-brand {
+  font-family: 'Pacifico', cursive !important;
+  color: red !important;
+  font-size: 2rem !important;
+}
+
 /* Design System Utilities */
 @layer utilities {
-  /* Brand font utility */
-  .font-brand {
-    font-family: var(--font-pacifico), cursive !important;
-  }
+  /* Brand font utility - moved outside layers for better specificity */
   
   /* Consistent focus states */
   .focus-ring {
