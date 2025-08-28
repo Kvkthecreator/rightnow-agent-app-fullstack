@@ -374,34 +374,63 @@ begin
   return p_doc_id;
 end;
 $$;
-CREATE FUNCTION public.fn_ingest_dumps(p_workspace_id uuid, p_basket_id uuid, p_dumps jsonb) RETURNS TABLE(dump_id uuid)
-    LANGUAGE plpgsql
+CREATE FUNCTION public.fn_ingest_dumps(p_workspace_id uuid, p_basket_id uuid, p_dumps jsonb) RETURNS jsonb[]
+    LANGUAGE plpgsql SECURITY DEFINER
     AS $$
-DECLARE rec jsonb;
-DECLARE v_dump_id uuid;
+DECLARE
+  v_dump jsonb;
+  v_dump_id uuid;
+  v_dump_created boolean;
+  v_results jsonb[] := '{}';
+  v_result jsonb;
 BEGIN
-  FOR rec IN SELECT * FROM jsonb_array_elements(p_dumps)
+  -- Process each dump in the array
+  FOR v_dump IN SELECT * FROM jsonb_array_elements(p_dumps)
   LOOP
-    -- idempotent single upsert per dump_request_id (scoped by basket)
-    INSERT INTO public.raw_dumps (basket_id, workspace_id, body_md, file_refs, source_meta, ingest_trace_id, dump_request_id, processing_status)
-    VALUES (
-      p_basket_id,
-      p_workspace_id,
-      COALESCE(rec->>'text_dump', NULL),
-      CASE WHEN rec ? 'file_urls' THEN (rec->'file_urls')::jsonb ELSE NULL END,
-      COALESCE(rec->'source_meta', '{}'::jsonb),
-      COALESCE(rec->>'ingest_trace_id', NULL),
-      COALESCE(rec->>'dump_request_id', NULL),
-      'unprocessed'
+    -- Insert dump with idempotency on dump_request_id
+    INSERT INTO public.raw_dumps (
+      workspace_id, 
+      basket_id,
+      dump_request_id, 
+      body_md, 
+      file_url,
+      source_meta,
+      ingest_trace_id
     )
-    ON CONFLICT (basket_id, dump_request_id)
-      WHERE (rec ? 'dump_request_id')
-    DO UPDATE SET dump_request_id = EXCLUDED.dump_request_id
-    RETURNING id INTO v_dump_id;
-    dump_id := v_dump_id; RETURN NEXT;
+    VALUES (
+      p_workspace_id,
+      p_basket_id,
+      (v_dump->>'dump_request_id')::uuid,
+      (v_dump->>'text_dump'),
+      (v_dump->>'file_url'),
+      COALESCE((v_dump->'source_meta')::jsonb, '{}'::jsonb),
+      (v_dump->>'ingest_trace_id')
+    )
+    ON CONFLICT (workspace_id, dump_request_id) 
+    DO UPDATE SET 
+      body_md = COALESCE(EXCLUDED.body_md, public.raw_dumps.body_md),
+      file_url = COALESCE(EXCLUDED.file_url, public.raw_dumps.file_url)
+    RETURNING id, (xmax = 0) INTO v_dump_id, v_dump_created;
+    -- Emit timeline event for new dumps
+    IF v_dump_created THEN
+      PERFORM public.fn_timeline_emit(
+        p_basket_id,
+        'dump',
+        v_dump_id,
+        LEFT(COALESCE((v_dump->>'text_dump'), 'File: ' || (v_dump->>'file_url'), 'Memory added'), 140),
+        jsonb_build_object(
+          'source', 'ingest',
+          'actor_id', auth.uid(),
+          'dump_request_id', (v_dump->>'dump_request_id')
+        )
+      );
+    END IF;
+    -- Build result
+    v_result := jsonb_build_object('dump_id', v_dump_id);
+    v_results := v_results || v_result;
   END LOOP;
-END;
-$$;
+  RETURN v_results;
+END $$;
 CREATE FUNCTION public.fn_persist_reflection(p_basket_id uuid, p_pattern text, p_tension text, p_question text) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
