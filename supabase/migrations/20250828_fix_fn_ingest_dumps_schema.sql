@@ -1,5 +1,6 @@
--- Function to ingest dumps with idempotency
--- Handles the canonical file_url field (not legacy file_refs)
+-- Fix fn_ingest_dumps function to match raw_dumps table schema
+-- The function was using 'text_dump' column name but table has 'body_md'
+
 CREATE OR REPLACE FUNCTION public.fn_ingest_dumps(
   p_workspace_id uuid,
   p_basket_id uuid,

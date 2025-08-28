@@ -26,7 +26,7 @@ BEGIN
       workspace_id, 
       basket_id,
       dump_request_id, 
-      text_dump, 
+      body_md, 
       file_url,
       source_meta,
       ingest_trace_id
@@ -42,7 +42,7 @@ BEGIN
     )
     ON CONFLICT (workspace_id, dump_request_id) 
     DO UPDATE SET 
-      text_dump = COALESCE(EXCLUDED.text_dump, public.raw_dumps.text_dump),
+      body_md = COALESCE(EXCLUDED.body_md, public.raw_dumps.body_md),
       file_url = COALESCE(EXCLUDED.file_url, public.raw_dumps.file_url)
     RETURNING id, (xmax = 0) INTO v_dump_id, v_dump_created;
 
