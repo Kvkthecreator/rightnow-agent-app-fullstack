@@ -95,10 +95,36 @@ Implication: even if an API route is misconfigured, Postgres still denies cross-
    - Use HTTPException for standard error responses
 
 ## 8) Next.js (App Router) — Web & API Rules
-Server Components / Route Handlers
+Server Components
+SHALL use `createServerComponentClient({ cookies })` for database operations.
 SHALL call a server helper: `getAuthenticatedUser()` → verified `userId`.
 SHALL resolve the active workspace via RLS (e.g., membership query) or `ensureWorkspaceForUser(userId)`.
-SHALL use a user-scoped DB client and rely on **RLS** for authorization (no trust in unverified session objects).
+
+API Route Handlers
+SHALL use `createRouteHandlerClient({ cookies })` for database operations.
+SHALL verify authentication directly via `supabase.auth.getUser()` and return 401 on failure.
+SHALL resolve the active workspace via `ensureWorkspaceForUser(userId)`.
+SHALL rely on **RLS** for authorization (no trust in unverified session objects).
+
+Example API route pattern:
+```typescript
+import { createRouteHandlerClient } from '@/lib/supabase/clients'
+import { cookies } from 'next/headers'
+
+export async function POST(req: Request) {
+  const supabase = createRouteHandlerClient({ cookies })
+  
+  // Auth check
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data?.user) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  
+  // Workspace resolution  
+  const { id: workspaceId } = await ensureWorkspaceForUser(data.user.id, supabase)
+  // ... rest of implementation
+}
+```
 
 Middleware
 SHALL NOT perform authentication or RBAC decisions.

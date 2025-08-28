@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { OnboardingSubmitSchema, OnboardingResultSchema } from '@shared/contracts/onboarding';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
+import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import { createGenesisProfileDocument } from '@/lib/server/onboarding';
 import { randomUUID } from 'crypto';
@@ -11,12 +11,27 @@ export const revalidate = 0;
 
 export async function POST(req: Request) {
   try {
+    console.log('🔄 Onboarding API: Starting request processing');
     const raw = await req.json();
-    const payload = OnboardingSubmitSchema.parse(raw);
+    console.log('📝 Onboarding API: Raw payload received:', JSON.stringify(raw, null, 2));
     
-    const supabase = createServerSupabaseClient();
-    const { userId } = await getAuthenticatedUser(supabase);
+    const payload = OnboardingSubmitSchema.parse(raw);
+    console.log('✅ Onboarding API: Payload validated');
+    
+    const supabase = createRouteHandlerClient({ cookies });
+    console.log('🔧 Onboarding API: Route handler client created');
+    
+    // Handle auth in API route (don't use redirect)
+    const { data, error: authError } = await supabase.auth.getUser();
+    if (authError || !data?.user) {
+      console.error('🚫 Onboarding API: Authentication failed:', authError);
+      return NextResponse.json({ error: 'unauthorized', detail: 'Authentication required' }, { status: 401 });
+    }
+    const userId = data.user.id;
+    console.log('🔐 Onboarding API: User authenticated:', userId);
+    
     const { id: workspaceId } = await ensureWorkspaceForUser(userId, supabase);
+    console.log('🏢 Onboarding API: Workspace resolved:', workspaceId);
 
     // Ensure basket exists
     const { data: basket, error: basketError } = await supabase
@@ -91,13 +106,28 @@ export async function POST(req: Request) {
     }
 
     // Create all dumps in bulk using the RPC
+    console.log('📦 Onboarding API: Calling fn_ingest_dumps RPC with:', {
+      p_workspace_id: workspaceId,
+      p_basket_id: payload.basket_id,
+      dumps_count: dumps.length,
+      dumps: dumps
+    });
+    
     const { data: dumpResults, error: dumpError } = await supabase.rpc('fn_ingest_dumps', {
       p_workspace_id: workspaceId,
       p_basket_id: payload.basket_id,
       p_dumps: dumps
     });
 
+    console.log('📊 Onboarding API: RPC response:', { 
+      dumpResults, 
+      dumpError,
+      hasResults: !!dumpResults,
+      resultCount: dumpResults?.length 
+    });
+
     if (dumpError || !dumpResults) {
+      console.error('❌ Onboarding API: Dump creation failed:', dumpError);
       return NextResponse.json({ error: 'dump_creation_failed', detail: dumpError?.message }, { status: 500 });
     }
 
@@ -170,10 +200,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
-    console.error('Onboarding completion error:', err);
+    console.error('💥 Onboarding API: Fatal error occurred:', {
+      error: err,
+      message: err?.message,
+      stack: err?.stack,
+      name: err?.name
+    });
     return NextResponse.json({ 
       error: 'internal_error', 
-      detail: String(err?.message ?? err) 
+      detail: String(err?.message ?? err),
+      debug_info: process.env.NODE_ENV === 'development' ? {
+        stack: err?.stack,
+        name: err?.name
+      } : undefined
     }, { status: 500 });
   }
 }
