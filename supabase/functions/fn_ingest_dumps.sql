@@ -31,7 +31,7 @@ BEGIN
     VALUES (
       p_workspace_id,
       p_basket_id,
-      (v_dump->>'dump_request_id'),
+      (v_dump->>'dump_request_id')::uuid,
       (v_dump->>'text_dump'),
       (v_dump->>'file_url'),
       COALESCE((v_dump->'source_meta')::jsonb, '{}'::jsonb),
