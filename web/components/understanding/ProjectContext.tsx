@@ -27,7 +27,7 @@ export default function ProjectContext({ items, onAddKnowledge, isExpanded = fal
     return contextItems.map(item => ({
       id: item.id,
       title: item.title || 'Untitled Knowledge',
-      summary: item.content,
+      summary: item.content || '',
       type: determineKnowledgeType(item),
       lastUpdated: (item as any).updated_at ? new Date((item as any).updated_at) : undefined,
       connections: (item as any).connections_count || 0
@@ -35,10 +35,10 @@ export default function ProjectContext({ items, onAddKnowledge, isExpanded = fal
   };
 
   const determineKnowledgeType = (item: ContextItem): KnowledgeItem['type'] => {
-    const summary = item.summary?.toLowerCase() || '';
-    if (summary.includes('document') || summary.includes('file')) return 'document';
-    if (summary.includes('conversation') || summary.includes('chat')) return 'conversation';
-    if (summary.includes('insight') || summary.includes('idea')) return 'insight';
+    const content = item.content?.toLowerCase() || '';
+    if (content.includes('document') || content.includes('file')) return 'document';
+    if (content.includes('conversation') || content.includes('chat')) return 'conversation';
+    if (content.includes('insight') || content.includes('idea')) return 'insight';
     return 'reference';
   };
 
