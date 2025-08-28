@@ -104,6 +104,14 @@ export default function Sidebar({ className }: SidebarProps) {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [openDropdown, isMobile, open, setOpen]);
 
+  useEffect(() => {
+    if (!isMobile) return;
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobile, open]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/");
@@ -138,36 +146,42 @@ export default function Sidebar({ className }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile overlay */}
-      <div
-        aria-hidden="true"
-        className={cn(
-          "fixed inset-0 md:hidden transition-opacity duration-200 z-50",
-          open ? "opacity-100 pointer-events-auto bg-black/50" : "opacity-0 pointer-events-none"
-        )}
-        onClick={() => setOpen(false)}
-      />
+      {/* Scrim for mobile when sidebar is open */}
+      {isMobile && (
+        <div
+          aria-hidden
+          onClick={() => setOpen(false)}
+          className={cn(
+            "fixed inset-0 z-[49] bg-black/40 transition-opacity md:hidden",
+            open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+          )}
+        />
+      )}
 
-      {/* Sidebar */}
       <aside
         id="global-sidebar"
         className={cn(
-          "sidebar h-screen w-64 bg-background border-r border-border transition-transform duration-300 flex flex-col",
-          isMobile ? "fixed top-0 left-0 z-[55] shadow-lg" : "relative",
+          "sidebar h-screen w-64 border-r border-border transition-transform duration-300 flex flex-col z-[50]",
+          isMobile ? "fixed top-0 left-0 bg-[hsl(var(--sidebar))] shadow-lg" : "relative bg-card",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           !open && !isMobile && "hidden",
           className,
         )}
       >
-        {/* Top header */}
-        <div className="sticky top-0 z-10 flex h-12 items-center justify-between border-b bg-background px-4">
+        {/* Header */}
+        <div
+          className={cn(
+            "sticky top-0 z-10 flex h-12 items-center justify-between border-b px-4",
+            "bg-[hsl(var(--sidebar))]",
+          )}
+        >
           <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               router.push("/");
             }}
-            className="font-brand text-xl tracking-tight hover:underline"
+            className="text-xl tracking-tight hover:underline font-brand"
           >
             yarnnn
           </button>

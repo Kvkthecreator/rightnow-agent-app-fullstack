@@ -18,12 +18,12 @@ import { RequestBoundary } from "@/components/RequestBoundary";
 import { validateEnvironment, logEnvironmentInfo } from "@/lib/config/validate";
 
 // Run validation on initialization
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   try {
     validateEnvironment();
     logEnvironmentInfo();
   } catch (error) {
-    console.error('Environment validation failed:', error);
+    console.error("Environment validation failed:", error);
   }
 }
 
@@ -50,10 +50,16 @@ const BUILD_STAMP = new Date().toISOString();
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable}`}
-    >
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <head>
+        <link
+          rel="preload"
+          href="/fonts/Pacifico-Regular.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className="antialiased min-h-screen">
         <GlobalErrorBoundary>
           <Providers>
