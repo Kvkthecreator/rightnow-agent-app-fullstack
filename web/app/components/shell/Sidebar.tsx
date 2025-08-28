@@ -160,7 +160,7 @@ export default function Sidebar({ className }: SidebarProps) {
         )}
       >
         {/* Top header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3">
+        <div className="sticky top-0 z-10 flex h-12 items-center justify-between border-b bg-background px-4">
           <button
             onClick={(e) => {
               e.preventDefault();

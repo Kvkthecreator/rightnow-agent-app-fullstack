@@ -142,7 +142,7 @@
 }
 
 .font-brand {
-  font-family: var(--font-pacifico), cursive;
+  font-family: var(--font-pacifico), cursive !important;
 }
 
 
@@ -243,6 +243,11 @@
   .button-base {
     @apply inline-flex items-center justify-center rounded-lg font-medium
            transition-base focus-ring disabled-state;
+  }
+  
+  /* Ensure button default variant has proper background */
+  .button-default {
+    @apply bg-primary text-primary-foreground;
   }
   
   /* Compact onboarding card variant */
