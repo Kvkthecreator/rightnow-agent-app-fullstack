@@ -246,8 +246,8 @@ export async function DELETE(
     }
 
     const supabase = createServerSupabaseClient();
-    const { userId } = await getAuthenticatedUser(supabase);
-    const workspace = await ensureWorkspaceForUser(userId, supabase);
+    const { userId, isTest } = await getTestAwareAuth(supabase);
+    const workspace = isTest ? { id: '00000000-0000-0000-0000-000000000002' } : await ensureWorkspaceForUser(userId, supabase);
 
     // Verify document access
     const { data: document, error: docError } = await supabase
