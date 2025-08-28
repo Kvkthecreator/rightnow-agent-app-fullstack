@@ -11,10 +11,29 @@ export default async function WelcomePage() {
   // Check if user still needs onboarding
   const gate = await onboardingGate(userId);
   if (!gate.shouldOnboard) {
-    // User completed onboarding, use resolveUserLanding logic
-    const landing = await import('@/lib/server/landing/resolveUserLanding');
-    const destination = await landing.resolveUserLanding();
-    redirect(destination);
+    // User completed onboarding, resolve their target basket directly
+    try {
+      const { ensureWorkspaceForUser } = await import('@/lib/workspaces/ensureWorkspaceForUser');
+      const workspace = await ensureWorkspaceForUser(userId, supabase);
+      
+      // Find their latest basket
+      const { data: baskets } = await supabase
+        .from('baskets')
+        .select('id')
+        .eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (baskets && baskets.length > 0) {
+        redirect(`/baskets/${baskets[0].id}/memory`);
+      } else {
+        // No baskets exist - they need to go through onboarding to create one
+        // Fall through to onboarding logic below
+      }
+    } catch (error) {
+      console.error('Error resolving user landing:', error);
+      redirect('/welcome/bootstrap-error');
+    }
   }
 
   // User needs onboarding - get their basket ID directly from the database
@@ -23,7 +42,7 @@ export default async function WelcomePage() {
   try {
     // Import required functions
     const { ensureWorkspaceForUser } = await import('@/lib/workspaces/ensureWorkspaceForUser');
-    const { getOrCreateDefaultBasket } = await import('@/lib/baskets/getOrCreateDefaultBasket');
+    const { randomUUID } = await import('crypto');
     
     // Get workspace
     const workspace = await ensureWorkspaceForUser(userId, supabase);
@@ -39,14 +58,24 @@ export default async function WelcomePage() {
     if (baskets && baskets.length > 0) {
       basketId = baskets[0].id;
     } else {
-      // Create new basket
-      const { randomUUID } = await import('crypto');
-      const basket = await getOrCreateDefaultBasket({
-        workspaceId: workspace.id,
-        idempotencyKey: randomUUID(),
-        name: 'Default Basket',
-      });
-      basketId = basket.id;
+      // Create new basket directly using Supabase client (not HTTP call)
+      const newBasketId = randomUUID();
+      const { data: newBasket, error: createError } = await supabase
+        .from('baskets')
+        .insert({
+          id: newBasketId,
+          workspace_id: workspace.id,
+          name: 'Onboarding Session',
+          status: 'INIT',
+          tags: []
+        })
+        .select('id')
+        .single();
+      
+      if (createError || !newBasket) {
+        throw new Error(`Failed to create basket: ${createError?.message}`);
+      }
+      basketId = newBasket.id;
     }
   } catch (error) {
     console.error('Error resolving basket for onboarding:', error);

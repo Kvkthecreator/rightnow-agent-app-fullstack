@@ -1,27 +1,176 @@
 import { NextResponse } from 'next/server';
-import { OnboardingSubmitSchema } from '@shared/contracts/onboarding';
-import { apiPost } from '@/lib/server/http';
+import { OnboardingSubmitSchema, OnboardingResultSchema } from '@shared/contracts/onboarding';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
+import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
+import { createGenesisProfileDocument } from '@/lib/server/onboarding';
+import { randomUUID } from 'crypto';
 
 export async function POST(req: Request) {
   try {
     const raw = await req.json();
     const payload = OnboardingSubmitSchema.parse(raw);
+    
+    const supabase = createServerSupabaseClient();
+    const { userId } = await getAuthenticatedUser(supabase);
+    const { id: workspaceId } = await ensureWorkspaceForUser(userId, supabase);
 
-    const r = await apiPost('/api/baskets/resolve', {
-      create_if_missing: true,
-      basket_id: payload.basket_id,
-    });
+    // Ensure basket exists
+    const { data: basket, error: basketError } = await supabase
+      .from('baskets')
+      .select('id')
+      .eq('id', payload.basket_id)
+      .eq('workspace_id', workspaceId)
+      .maybeSingle();
 
-    if (!r.ok) {
-      const txt = await r.text();
-      return NextResponse.json({ error: 'baskets.resolve_failed', detail: txt }, { status: r.status });
+    if (basketError) {
+      return NextResponse.json({ error: 'basket_lookup_failed', detail: basketError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true });
+    if (!basket) {
+      // Create the basket if it doesn't exist
+      const { data: newBasket, error: createError } = await supabase
+        .from('baskets')
+        .insert({
+          id: payload.basket_id,
+          workspace_id: workspaceId,
+          name: 'Onboarding Session',
+          status: 'INIT',
+          tags: []
+        })
+        .select('id')
+        .single();
+
+      if (createError || !newBasket) {
+        return NextResponse.json({ error: 'basket_creation_failed', detail: createError?.message }, { status: 500 });
+      }
+    }
+
+    // Check if identity genesis already exists to prevent duplicates
+    const { data: existingGenesis } = await supabase
+      .from('context_items')
+      .select('id')
+      .eq('basket_id', payload.basket_id)
+      .eq('context_type', 'yarnnn_system')
+      .eq('content_text', 'identity_genesis')
+      .maybeSingle();
+
+    if (existingGenesis) {
+      return NextResponse.json({ error: 'identity_genesis_exists', detail: 'User has already completed onboarding' }, { status: 409 });
+    }
+
+    // Prepare dumps for bulk creation
+    const dumps = [
+      {
+        dump_request_id: randomUUID(),
+        text_dump: `Name: ${payload.name}`,
+        source_meta: { genesis_role: 'name', origin: 'onboarding', context: 'identity' }
+      },
+      {
+        dump_request_id: randomUUID(),
+        text_dump: `Current tension: ${payload.tension}`,
+        source_meta: { genesis_role: 'tension', origin: 'onboarding', context: 'identity' }
+      },
+      {
+        dump_request_id: randomUUID(),
+        text_dump: `Aspiration: ${payload.aspiration}`,
+        source_meta: { genesis_role: 'aspiration', origin: 'onboarding', context: 'identity' }
+      }
+    ];
+
+    // Add memory paste if provided
+    if (payload.memory_paste) {
+      dumps.push({
+        dump_request_id: randomUUID(),
+        text_dump: payload.memory_paste,
+        source_meta: { genesis_role: 'memory_paste', origin: 'onboarding', context: 'memory' }
+      });
+    }
+
+    // Create all dumps in bulk using the RPC
+    const { data: dumpResults, error: dumpError } = await supabase.rpc('fn_ingest_dumps', {
+      p_workspace_id: workspaceId,
+      p_basket_id: payload.basket_id,
+      p_dumps: dumps
+    });
+
+    if (dumpError || !dumpResults) {
+      return NextResponse.json({ error: 'dump_creation_failed', detail: dumpError?.message }, { status: 500 });
+    }
+
+    // Extract dump IDs from results
+    const dumpIds = {
+      name: dumpResults[0]?.dump_id,
+      tension: dumpResults[1]?.dump_id,
+      aspiration: dumpResults[2]?.dump_id,
+      memory_paste: payload.memory_paste ? dumpResults[3]?.dump_id : undefined
+    };
+
+    // Create identity_genesis context item
+    const { data: contextItem, error: contextError } = await supabase
+      .from('context_items')
+      .insert({
+        basket_id: payload.basket_id,
+        context_type: 'yarnnn_system',
+        content_text: 'identity_genesis',
+        title: 'Identity Genesis Marker',
+        metadata: {
+          genesis_created_at: new Date().toISOString(),
+          dump_ids: dumpIds,
+          onboarding_version: 'v1.3.1'
+        }
+      })
+      .select('id')
+      .single();
+
+    if (contextError || !contextItem) {
+      return NextResponse.json({ error: 'context_item_creation_failed', detail: contextError?.message }, { status: 500 });
+    }
+
+    // Create profile document if requested
+    let profileDocumentId: string | undefined;
+    if (payload.create_profile_document) {
+      try {
+        profileDocumentId = await createGenesisProfileDocument({
+          basketId: payload.basket_id,
+          title: `${payload.name}'s Profile`,
+          dumpIds,
+          contextItemId: contextItem.id,
+          supabase
+        });
+      } catch (profileError: any) {
+        // Profile document creation is optional - log but don't fail
+        console.warn('Failed to create profile document:', profileError.message);
+      }
+    }
+
+    // Validate and return response
+    const result = OnboardingResultSchema.parse({
+      dump_ids: dumpIds,
+      context_item_id: contextItem.id,
+      profile_document_id: profileDocumentId
+    });
+
+    return NextResponse.json(result, { status: 201 });
+
   } catch (err: any) {
+    // Handle Zod validation errors
+    if (err?.name === 'ZodError') {
+      return NextResponse.json({ 
+        error: 'validation_error', 
+        detail: err.issues.map((i: any) => `${i.path.join('.')}: ${i.message}`).join(', ') 
+      }, { status: 422 });
+    }
+
+    // Handle auth errors
     if (err?.status === 401 || err?.message === 'NO_TOKEN') {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
-    return NextResponse.json({ error: 'internal_error', detail: String(err?.message ?? err) }, { status: 500 });
+
+    console.error('Onboarding completion error:', err);
+    return NextResponse.json({ 
+      error: 'internal_error', 
+      detail: String(err?.message ?? err) 
+    }, { status: 500 });
   }
 }
