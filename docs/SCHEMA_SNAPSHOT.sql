@@ -648,6 +648,26 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE FUNCTION public.queue_agent_processing() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  -- Insert into processing queue with workspace context
+  INSERT INTO agent_processing_queue (
+    dump_id, 
+    basket_id, 
+    workspace_id
+  )
+  SELECT 
+    NEW.id,
+    NEW.basket_id,
+    b.workspace_id
+  FROM baskets b
+  WHERE b.id = NEW.basket_id;
+  
+  RETURN NEW;
+END;
+$$;
 CREATE FUNCTION public.set_basket_user_id() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -1198,6 +1218,7 @@ CREATE UNIQUE INDEX uq_reflection_cache_basket_hash ON public.reflection_cache U
 CREATE UNIQUE INDEX uq_relationship_identity ON public.substrate_relationships USING btree (basket_id, from_type, from_id, to_type, to_id, relationship_type);
 CREATE UNIQUE INDEX uq_substrate_rel_directed ON public.substrate_relationships USING btree (basket_id, from_type, from_id, relationship_type, to_type, to_id);
 CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (basket_id, ingest_trace_id) WHERE (ingest_trace_id IS NOT NULL);
+CREATE TRIGGER after_dump_insert AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.queue_agent_processing();
 CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
