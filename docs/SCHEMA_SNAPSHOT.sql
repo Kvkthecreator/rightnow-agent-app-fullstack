@@ -154,6 +154,44 @@ BEGIN
   );
   RETURN v_rev_id;
 END; $$;
+CREATE TABLE public.agent_processing_queue (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    dump_id uuid NOT NULL,
+    basket_id uuid NOT NULL,
+    workspace_id uuid NOT NULL,
+    processing_state public.processing_state DEFAULT 'pending'::public.processing_state,
+    claimed_at timestamp without time zone,
+    claimed_by text,
+    completed_at timestamp without time zone,
+    attempts integer DEFAULT 0,
+    error_message text,
+    created_at timestamp without time zone DEFAULT now()
+);
+CREATE FUNCTION public.fn_claim_next_dumps(p_worker_id text, p_limit integer DEFAULT 10, p_stale_after_minutes integer DEFAULT 5) RETURNS SETOF public.agent_processing_queue
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  -- Atomically claim pending or stale dumps
+  RETURN QUERY
+  UPDATE agent_processing_queue
+  SET 
+    processing_state = 'claimed',
+    claimed_at = now(),
+    claimed_by = p_worker_id
+  WHERE id IN (
+    SELECT id 
+    FROM agent_processing_queue
+    WHERE processing_state = 'pending'
+       -- Include stale claimed jobs that haven't been updated
+       OR (processing_state = 'claimed' 
+           AND claimed_at < now() - interval '1 minute' * p_stale_after_minutes)
+    ORDER BY created_at
+    LIMIT p_limit
+    FOR UPDATE SKIP LOCKED  -- Prevents race conditions between agents
+  )
+  RETURNING *;
+END;
+$$;
 CREATE FUNCTION public.fn_context_item_create(p_basket_id uuid, p_type text, p_content text DEFAULT NULL::text, p_title text DEFAULT NULL::text, p_description text DEFAULT NULL::text) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
@@ -463,6 +501,21 @@ BEGIN
   );
   RETURN v_id;
 END $$;
+CREATE FUNCTION public.fn_queue_health() RETURNS TABLE(processing_state public.processing_state, count bigint, avg_age_seconds numeric, max_age_seconds numeric)
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    q.processing_state,
+    COUNT(*) as count,
+    AVG(EXTRACT(epoch FROM (now() - q.created_at)))::numeric as avg_age_seconds,
+    MAX(EXTRACT(epoch FROM (now() - q.created_at)))::numeric as max_age_seconds
+  FROM agent_processing_queue q
+  GROUP BY q.processing_state
+  ORDER BY q.processing_state;
+END;
+$$;
 CREATE FUNCTION public.fn_reflection_cache_upsert(p_basket_id uuid, p_pattern text, p_tension text, p_question text, p_meta_hash text) RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
@@ -563,6 +616,25 @@ begin
   return jsonb_build_object('created', v_created, 'ignored', v_ignored, 'idem_reused', false);
 end;
 $$;
+CREATE FUNCTION public.fn_reset_failed_jobs(p_max_attempts integer DEFAULT 3) RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  reset_count int;
+BEGIN
+  UPDATE agent_processing_queue
+  SET 
+    processing_state = 'pending',
+    claimed_at = NULL,
+    claimed_by = NULL,
+    error_message = NULL
+  WHERE processing_state = 'failed' 
+    AND attempts < p_max_attempts;
+    
+  GET DIAGNOSTICS reset_count = ROW_COUNT;
+  RETURN reset_count;
+END;
+$$;
 CREATE FUNCTION public.fn_timeline_after_raw_dump() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -623,6 +695,19 @@ BEGIN
   RETURNING id INTO v_id;
   RETURN v_id;
 END $$;
+CREATE FUNCTION public.fn_update_queue_state(p_id uuid, p_state public.processing_state, p_error text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  UPDATE agent_processing_queue 
+  SET 
+    processing_state = p_state,
+    completed_at = CASE WHEN p_state = 'completed' THEN now() ELSE completed_at END,
+    error_message = p_error,
+    attempts = CASE WHEN p_state = 'failed' THEN attempts + 1 ELSE attempts END
+  WHERE id = p_id;
+END;
+$$;
 CREATE FUNCTION public.normalize_label(p_label text) RETURNS text
     LANGUAGE sql IMMUTABLE
     AS $$
@@ -713,19 +798,6 @@ BEGIN
   WHERE proname = 'fn_timeline_emit';
 END;
 $$;
-CREATE TABLE public.agent_processing_queue (
-    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
-    dump_id uuid NOT NULL,
-    basket_id uuid NOT NULL,
-    workspace_id uuid NOT NULL,
-    processing_state public.processing_state DEFAULT 'pending'::public.processing_state,
-    claimed_at timestamp without time zone,
-    claimed_by text,
-    completed_at timestamp without time zone,
-    attempts integer DEFAULT 0,
-    error_message text,
-    created_at timestamp without time zone DEFAULT now()
-);
 CREATE TABLE public.basket_deltas (
     delta_id uuid NOT NULL,
     basket_id uuid NOT NULL,
