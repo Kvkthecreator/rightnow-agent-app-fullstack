@@ -31,6 +31,7 @@ from ...models.document import (
 )
 from ...utils.db import as_json
 from ...utils.supabase_client import supabase_client as supabase
+from src.lib.canon import SubstrateEqualityEngine, SubstrateType, SubstrateReference
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -59,26 +60,26 @@ class ContextCompositionService:
             request, composition_analysis, workspace_id
         )
 
-        # Step 3: Discover relevant blocks using context intelligence
-        discovered_blocks = await cls._discover_composition_blocks(
+        # Step 3: Discover relevant substrates using Canon-compliant equality engine
+        discovered_substrates = await cls._discover_composition_substrates_canonical(
             request, composition_context, workspace_id
         )
 
         # Step 4: Generate document structure and content
-        document_content, narrative_intelligence = await cls._generate_contextual_content(
-            request, composition_context, discovered_blocks
+        document_content, narrative_intelligence = await cls._generate_contextual_content_canonical(
+            request, composition_context, discovered_substrates
         )
 
         # Step 5: Calculate coherence and create document
-        coherence_score = cls._calculate_context_coherence(
-            composition_context, discovered_blocks, document_content
+        coherence_score = cls._calculate_context_coherence_canonical(
+            composition_context, discovered_substrates, document_content
         )
 
         # Step 6: Create and persist document
-        document = await cls._create_contextual_document(
+        document = await cls._create_contextual_document_canonical(
             request=request,
             composition_context=composition_context,
-            discovered_blocks=discovered_blocks,
+            discovered_substrates=discovered_substrates,
             document_content=document_content,
             narrative_intelligence=narrative_intelligence,
             coherence_score=coherence_score,
@@ -89,13 +90,16 @@ class ContextCompositionService:
         # Step 7: Log composition event
         await cls._log_composition_event(document, request, workspace_id)
 
+        # Convert canonical substrates to legacy DiscoveredBlock format for compatibility
+        discovered_blocks_legacy = cls._convert_substrates_to_legacy_blocks(discovered_substrates)
+        
         return ContextDrivenDocument(
             id=document.id,
             title=document.title,
             content_raw=document.content_raw,
             content_rendered=document.content_rendered,
             composition_context=CompositionContext(**composition_context),
-            discovered_blocks=discovered_blocks,
+            discovered_blocks=discovered_blocks_legacy,
             narrative_intelligence=narrative_intelligence,
             context_coherence_score=coherence_score,
             document_sections=[
@@ -578,6 +582,335 @@ class ContextCompositionService:
             include_supporting_contexts=request.enhance_with_discovery
         )
 
+    # CANONICAL SUBSTRATE EQUALITY METHODS (YARNNN Canon v1.4.0 Compliant)
+    
+    @classmethod
+    async def _discover_composition_substrates_canonical(
+        cls,
+        request: ContextDrivenCompositionRequest,
+        composition_context: Dict[str, Any],
+        workspace_id: str
+    ) -> List[SubstrateReference]:
+        """Canon-compliant substrate discovery treating all types equally"""
+        
+        logger.info("Using Canon-compliant substrate discovery with equality enforcement")
+        
+        # Use SubstrateEqualityEngine for discovery
+        discovered_substrates = SubstrateEqualityEngine.discoverUniformly(
+            basket_id=request.basket_id,
+            workspace_id=workspace_id,
+            composition_context=composition_context,
+            max_results=request.max_blocks,
+            substrate_types=None  # All canonical types
+        )
+        
+        # Validate substrate equality compliance
+        validation_result = SubstrateEqualityEngine.validateSubstrateEquality(discovered_substrates)
+        if not validation_result["is_compliant"]:
+            logger.warning(f"Substrate equality violations detected: {validation_result['violations']}")
+            for recommendation in validation_result["recommendations"]:
+                logger.info(f"Canon compliance recommendation: {recommendation}")
+        
+        return SubstrateEqualityEngine.treatAsPeers(discovered_substrates)
+
+    @classmethod
+    async def _generate_contextual_content_canonical(
+        cls,
+        request: ContextDrivenCompositionRequest,
+        composition_context: Dict[str, Any],
+        discovered_substrates: List[SubstrateReference]
+    ) -> Tuple[str, NarrativeIntelligence]:
+        """Generate content using canonical substrate equality"""
+        
+        # Import here to avoid circular imports
+        from .narrative_intelligence import NarrativeIntelligenceService
+
+        # Generate title if not provided
+        title = request.title or cls._generate_contextual_title_canonical(
+            composition_context, discovered_substrates
+        )
+
+        # Organize substrates by sections using equality engine
+        section_organization = SubstrateEqualityEngine.organizeEquallyBySections(
+            discovered_substrates, composition_context
+        )
+
+        # Generate narrative intelligence (fallback to legacy method with substrate conversion)
+        # TODO: Implement canonical narrative intelligence service
+        try:
+            narrative_intelligence = await NarrativeIntelligenceService.generate_contextual_narrative(
+                composition_context=composition_context,
+                discovered_blocks=cls._convert_substrates_to_legacy_blocks(discovered_substrates),
+                section_organization=section_organization,
+                custom_instructions=request.custom_instructions
+            )
+        except (AttributeError, ImportError):
+            # Fallback if service doesn't exist
+            narrative_intelligence = cls._create_default_narrative_intelligence()
+
+        # Generate content (fallback to legacy method with substrate conversion)
+        # TODO: Implement canonical content composition
+        try:
+            content = await NarrativeIntelligenceService.compose_document_content(
+                title=title,
+                composition_context=composition_context,
+                discovered_blocks=cls._convert_substrates_to_legacy_blocks(discovered_substrates),
+                section_organization=section_organization,
+                narrative_intelligence=narrative_intelligence
+            )
+        except (AttributeError, ImportError):
+            # Fallback content generation
+            content = cls._generate_fallback_content(title, discovered_substrates, section_organization)
+
+        return content, narrative_intelligence
+
+    @classmethod
+    def _generate_contextual_title_canonical(
+        cls,
+        composition_context: Dict[str, Any],
+        discovered_substrates: List[SubstrateReference]
+    ) -> str:
+        """Generate document title based on all substrate types equally"""
+        
+        intent = composition_context.get("detected_intent", "general_composition")
+        audience = composition_context.get("target_audience", "general")
+
+        # Extract key themes from all substrate types (not just contexts)
+        themes = []
+        for substrate in discovered_substrates[:5]:  # Top 5 substrates of any type
+            content = substrate.content.lower()
+            words = content.split()
+            key_words = [w for w in words if len(w) > 4 and w.isalpha()][:2]
+            themes.extend(key_words)
+
+        # Generate title based on intent and themes
+        if intent == "strategic_analysis":
+            base_title = "Strategic Analysis"
+        elif intent == "technical_guide":
+            base_title = "Technical Guide"
+        elif intent == "executive_summary":
+            base_title = "Executive Summary"
+        elif intent == "action_plan":
+            base_title = "Action Plan"
+        else:
+            base_title = "Analysis"
+
+        # Add theme context if available
+        if themes:
+            unique_themes = list(dict.fromkeys(themes))  # Remove duplicates preserving order
+            theme_suffix = f": {' '.join(unique_themes[:2]).title()}"
+            return f"{base_title}{theme_suffix}"
+
+        return base_title
+
+    @classmethod
+    def _calculate_context_coherence_canonical(
+        cls,
+        composition_context: Dict[str, Any],
+        discovered_substrates: List[SubstrateReference],
+        document_content: str
+    ) -> float:
+        """Calculate coherence treating all substrate types equally"""
+
+        factors = []
+
+        # Intent confidence factor
+        factors.append(composition_context.get("intent_confidence", 0.0))
+
+        # Context coverage factor (same as before)
+        primary_count = len(composition_context.get("primary_contexts", []))
+        secondary_count = len(composition_context.get("secondary_contexts", []))
+        context_factor = min((primary_count + secondary_count * 0.5) / 3, 1.0)
+        factors.append(context_factor)
+
+        # Substrate relevance factor (treating all types equally)
+        if discovered_substrates:
+            avg_relevance = sum(substrate.relevance_score for substrate in discovered_substrates) / len(discovered_substrates)
+            factors.append(avg_relevance)
+
+        # Hierarchy strength factor
+        factors.append(composition_context.get("hierarchy_strength", 0.0))
+
+        # Substrate type diversity factor (Canon compliance bonus)
+        diversity_stats = SubstrateEqualityEngine.calculateEqualStats(discovered_substrates)
+        factors.append(diversity_stats["type_diversity_score"])
+
+        # Content coherence (enhanced metric)
+        content_factor = min(len(document_content) / 1000, 1.0)
+        factors.append(content_factor)
+
+        return sum(factors) / len(factors) if factors else 0.0
+
+    @classmethod
+    async def _create_contextual_document_canonical(
+        cls,
+        request: ContextDrivenCompositionRequest,
+        composition_context: Dict[str, Any],
+        discovered_substrates: List[SubstrateReference],
+        document_content: str,
+        narrative_intelligence: NarrativeIntelligence,
+        coherence_score: float,
+        workspace_id: str,
+        created_by: Optional[str] = None
+    ) -> Document:
+        """Create document with canonical substrate references (all types)"""
+
+        document_id = uuid4()
+        title = request.title or cls._generate_contextual_title_canonical(composition_context, discovered_substrates)
+
+        # Build composition intelligence
+        composition_intel = CompositionIntelligence(
+            primary_contexts=[UUID(ctx["id"]) for ctx in composition_context.get("primary_contexts", [])],
+            secondary_contexts=[UUID(ctx["id"]) for ctx in composition_context.get("secondary_contexts", [])],
+            supporting_contexts=[UUID(ctx["id"]) for ctx in composition_context.get("supporting_contexts", [])],
+            detected_intent=composition_context.get("detected_intent"),
+            intent_confidence=composition_context.get("intent_confidence", 0.0),
+            target_audience=composition_context.get("target_audience"),
+            composition_style=composition_context.get("composition_style"),
+            composition_scope=composition_context.get("composition_scope"),
+            hierarchy_strength=composition_context.get("hierarchy_strength", 0.0),
+            context_coherence=composition_context.get("context_coherence", 0.0),
+            composition_method=CompositionMethod.CONTEXT_DRIVEN
+        )
+
+        # Build narrative metadata
+        narrative_meta = NarrativeMetadata(
+            generation_approach=narrative_intelligence.generation_approach,
+            narrative_style=narrative_intelligence.narrative_style,
+            structure_type=narrative_intelligence.structure_type,
+            audience_adaptation=narrative_intelligence.audience_adaptation,
+            style_elements=narrative_intelligence.style_elements,
+            content_organization=narrative_intelligence.content_organization,
+            generation_confidence=narrative_intelligence.generation_confidence,
+            enhancement_suggestions=narrative_intelligence.enhancement_suggestions
+        )
+
+        # Build document coherence
+        doc_coherence = DocumentCoherence(
+            overall_coherence_score=coherence_score,
+            context_coverage=len(discovered_substrates) / max(request.max_blocks, 1),
+            intent_alignment=composition_context.get("intent_confidence", 0.0),
+            audience_appropriateness=0.8 if composition_context.get("target_audience") else 0.5,
+            style_consistency=narrative_intelligence.generation_confidence,
+            content_coherence=coherence_score
+        )
+
+        # Build substrate references (Canon-compliant: all types supported)
+        substrate_refs = [
+            BlockReference(  # Legacy BlockReference used for all substrate types
+                block_id=substrate.substrate_id,
+                relevance_score=substrate.relevance_score,
+                context_alignment=substrate.context_alignment,
+                composition_value=substrate.composition_value,
+                discovery_reasoning=substrate.discovery_reasoning,
+                contributing_contexts=substrate.contributing_contexts,
+                section_placement=getattr(substrate, 'section_placement', None)
+            )
+            for substrate in discovered_substrates
+        ]
+
+        # Create document
+        document = Document(
+            id=document_id,
+            title=title,
+            content_raw=document_content,
+            content_rendered=document_content,  # Would be processed in real implementation
+            document_type=DocumentType(composition_context.get("detected_intent", "general_composition"))
+            if composition_context.get("detected_intent") in [dt.value for dt in DocumentType]
+            else DocumentType.GENERAL_COMPOSITION,
+            workspace_id=workspace_id,
+            basket_id=request.basket_id,
+            created_by=created_by,
+            composition_intelligence=composition_intel,
+            narrative_metadata=narrative_meta,
+            document_coherence=doc_coherence,
+            block_references=substrate_refs,  # Now contains all substrate types
+            last_composed_at=datetime.utcnow(),
+            composition_metadata={
+                "composition_request": request.model_dump(),
+                "composition_context": composition_context,
+                "narrative_intelligence": narrative_intelligence.model_dump(),
+                "substrate_equality_stats": SubstrateEqualityEngine.calculateEqualStats(discovered_substrates),
+                "canon_compliance": "v1.4.0"
+            }
+        )
+
+        # Persist to database via RPC
+        supabase.rpc('fn_document_create', {
+            "p_basket_id": str(document.basket_id),
+            "p_workspace_id": document.workspace_id,
+            "p_title": document.title,
+            "p_content_raw": document.content_raw,
+        }).execute()
+
+        return document
+
+    @classmethod
+    def _convert_substrates_to_legacy_blocks(
+        cls,
+        substrates: List[SubstrateReference]
+    ) -> List[DiscoveredBlock]:
+        """Convert canonical substrates to legacy DiscoveredBlock format for backward compatibility"""
+        
+        legacy_blocks = []
+        for substrate in substrates:
+            legacy_blocks.append(DiscoveredBlock(
+                block_id=substrate.substrate_id,
+                content=substrate.content,
+                semantic_type=substrate.substrate_type.value,  # Use substrate type as semantic type
+                state="ACCEPTED",  # Default state for canonical substrates
+                relevance_score=substrate.relevance_score,
+                context_alignment=substrate.context_alignment,
+                composition_value=substrate.composition_value,
+                discovery_reasoning=f"[Canon v1.4.0] {substrate.discovery_reasoning}",
+                contributing_contexts=substrate.contributing_contexts
+            ))
+        
+        return legacy_blocks
+
+    @classmethod
+    def _create_default_narrative_intelligence(cls) -> NarrativeIntelligence:
+        """Create default narrative intelligence for fallback"""
+        return NarrativeIntelligence(
+            generation_approach="canonical_substrate_equality",
+            narrative_style="analytical",
+            structure_type="contextual_sections",
+            audience_adaptation="general",
+            style_elements=["clear_structure", "substrate_integration", "canon_compliance"],
+            content_organization="theme_based",
+            generation_confidence=0.8,
+            enhancement_suggestions=["Validate substrate equality", "Review canon compliance"]
+        )
+
+    @classmethod
+    def _generate_fallback_content(
+        cls,
+        title: str,
+        substrates: List[SubstrateReference],
+        section_organization: Dict[str, List[SubstrateReference]]
+    ) -> str:
+        """Generate fallback content from substrates"""
+        
+        content_parts = [f"# {title}\n"]
+        
+        # Generate content for each section
+        for section_name, section_substrates in section_organization.items():
+            if section_substrates:
+                content_parts.append(f"\n## {section_name.replace('_', ' ').title()}\n")
+                
+                for substrate in section_substrates:
+                    content_parts.append(f"### {substrate.substrate_type.value.replace('_', ' ').title()}: {substrate.title or 'Untitled'}\n")
+                    content_parts.append(f"{substrate.content[:500]}...\n\n")
+        
+        # Add substrate equality stats
+        stats = SubstrateEqualityEngine.calculateEqualStats(substrates)
+        content_parts.append(f"\n---\n*Document composed using YARNNN Canon v1.4.0 with substrate equality enforcement*\n")
+        content_parts.append(f"*Substrate diversity score: {stats['type_diversity_score']:.2f}*\n")
+        
+        return "".join(content_parts)
+
+    # LEGACY METHODS (for backward compatibility)
+    
     @classmethod
     async def _get_contexts_by_ids(cls, context_ids: List[UUID], workspace_id: str) -> List[Dict[str, Any]]:
         """Get context items by their IDs."""
