@@ -56,11 +56,12 @@ const config = {
         brand: ["var(--font-pacifico)", "cursive"],
       },
       borderRadius: {
-        sm: "0.375rem",
-        md: "0.5rem",
-        lg: "0.75rem",
-        xl: "1rem",
-        "2xl": "1.5rem",
+        sm: "0.5rem",     // 8px - Apple-like small elements
+        md: "0.75rem",    // 12px - Apple-like standard 
+        lg: "1rem",       // 16px - Apple-like buttons/cards
+        xl: "1.25rem",    // 20px - Apple-like large elements
+        "2xl": "1.5rem",  // 24px - Apple-like modals
+        "3xl": "2rem",    // 32px - Apple-like hero elements
       },
     },
   },

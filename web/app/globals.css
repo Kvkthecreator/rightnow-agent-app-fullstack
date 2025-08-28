@@ -129,30 +129,16 @@
         @apply bg-primary/20 text-primary;
     }
 }
-@font-face {
-  font-family: 'Pacifico';
-  src: url('/fonts/Pacifico-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
 
-:root {
-  --font-pacifico: 'Pacifico', cursive;
-}
-
-.font-brand {
-  font-family: var(--font-pacifico), cursive !important;
-}
-
-
-/* Temporary debug class to verify Pacifico font */
-.debug-brand {
-    font-family: var(--font-pacifico), cursive !important;
-}
+/* Font variables are set by Next.js fonts in layout.tsx - no need to redefine */
 
 /* Design System Utilities */
 @layer utilities {
+  /* Brand font utility */
+  .font-brand {
+    font-family: var(--font-pacifico), cursive !important;
+  }
+  
   /* Consistent focus states */
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
