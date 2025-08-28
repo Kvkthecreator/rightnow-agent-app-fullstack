@@ -64,6 +64,16 @@ class AgentQueueProcessor:
     async def _claim_dumps(self, limit: int = 5) -> List[Dict[str, Any]]:
         """Atomically claim dumps from the queue."""
         try:
+            # Debug: Test basic connectivity first
+            logger.info(f"Testing Supabase connection for worker {self.worker_id}")
+            
+            # Test with a simpler function first
+            try:
+                test_response = supabase.rpc('fn_queue_health').execute()
+                logger.info(f"Queue health test successful: {test_response.data}")
+            except Exception as test_e:
+                logger.error(f"Queue health test failed: {test_e}")
+            
             response = supabase.rpc(
                 'fn_claim_next_dumps',
                 {
@@ -74,11 +84,15 @@ class AgentQueueProcessor:
             ).execute()
             
             if response.data:
+                logger.info(f"Successfully claimed {len(response.data)} dumps")
                 return response.data
-            return []
+            else:
+                logger.info("No dumps available to claim")
+                return []
             
         except Exception as e:
             logger.error(f"Failed to claim dumps: {e}")
+            logger.error(f"Supabase client config: URL exists={bool(supabase)}")
             return []
     
     async def _process_dump(self, queue_entry: Dict[str, Any]):
