@@ -1,5 +1,5 @@
 # ❌ Agent Test Report
-**Subset:** `unit` | **Status:** 0/1 passed
+**Subset:** `all` | **Status:** 0/4 passed
 
 ## 📋 Preflight
 - Node: `v22.15.0`
@@ -14,6 +14,9 @@
 
 ## 🧪 Results
 - **unit**: ❌ FAIL (1)
+- **contracts**: ❌ FAIL (1)
+- **canon**: ❌ FAIL (1)
+- **features**: ❌ FAIL (1)
 
 ## 📊 Summary
 🔍 Some tests need attention

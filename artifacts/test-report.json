@@ -1,5 +1,5 @@
 {
-  "subset": "unit",
+  "subset": "all",
   "checks": {
     "preflight": {
       "node": "v22.15.0",
@@ -18,11 +18,23 @@
     {
       "name": "unit",
       "code": 1
+    },
+    {
+      "name": "contracts",
+      "code": 1
+    },
+    {
+      "name": "canon",
+      "code": 1
+    },
+    {
+      "name": "features",
+      "code": 1
     }
   ],
   "summary": {
     "overall": false,
     "passed": 0,
-    "total": 1
+    "total": 4
   }
 }

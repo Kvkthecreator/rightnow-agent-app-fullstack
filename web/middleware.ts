@@ -1,6 +1,16 @@
 import { NextResponse, NextRequest } from 'next/server'
+import { pipelineBoundaryMiddleware } from './middleware/pipelineBoundary'
 
 export async function middleware(req: NextRequest) {
+  // Apply pipeline boundary checks to API routes
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    const boundaryResponse = await pipelineBoundaryMiddleware(req, NextResponse.next());
+    if (boundaryResponse.status === 422) {
+      // Canon violation - return immediately
+      return boundaryResponse;
+    }
+  }
+
   const canonical = process.env.NEXT_PUBLIC_CANONICAL_HOST
   const host = req.headers.get('host')
   if (canonical && host && host !== canonical) {

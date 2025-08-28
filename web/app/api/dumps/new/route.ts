@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import { z } from "zod";
+import { createTimelineEmitter } from "@/lib/canon/TimelineEventEmitter";
 
 function normalize(body: any) {
   const b = body ?? {};
@@ -48,6 +49,10 @@ export async function POST(req: Request) {
       return Response.json({ error: "Invalid request", details: parsed.error.flatten() }, { status: 422 });
     }
     const { basket_id, text_dump, file_url, meta, dump_request_id } = parsed.data;
+    
+    // Pipeline boundary enforcement: P0 Capture
+    // This route should only create dumps, no interpretation or processing
+    // Agent processing happens asynchronously via queue trigger
 
     const supabase = createRouteHandlerClient({ cookies });
     const { userId } = await getAuthenticatedUser(supabase);
@@ -93,6 +98,15 @@ export async function POST(req: Request) {
 
     const dump_id = Array.isArray(data) && data[0]?.dump_id;
     if (!dump_id) return Response.json({ error: "Ingest returned no dump_id" }, { status: 500 });
+
+    // Emit timeline events for dump creation (P0 Capture pipeline)
+    const timelineEmitter = createTimelineEmitter(supabase);
+    await timelineEmitter.emitDumpCreated({
+      basket_id,
+      workspace_id: basket.workspace_id,
+      dump_id,
+      source_type: file_url ? 'file' : 'text'
+    });
 
     return Response.json({ dump_id }, { status: 201 });
   } catch (e: any) {

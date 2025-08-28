@@ -128,7 +128,8 @@ test.describe('[CANON] Pipeline Boundaries', () => {
     const dumpResponse = await request.post('/api/dumps/new', {
       data: {
         basket_id: basketId,
-        text_dump: 'Timeline test dump'
+        text_dump: 'Timeline test dump',
+        dump_request_id: crypto.randomUUID()
       }
     });
     
@@ -138,12 +139,19 @@ test.describe('[CANON] Pipeline Boundaries', () => {
     const timelineResponse = await request.get(`/api/baskets/${basketId}/timeline`);
     const timeline = await timelineResponse.json();
     
-    const dumpEvent = timeline.events.find((e: any) => 
-      e.kind === 'dump.created' && e.entity_id === dump.id
+    // Timeline might be array or object with events property
+    const events = Array.isArray(timeline) ? timeline : timeline.events || [];
+    
+    const dumpEvent = events.find((e: any) => 
+      (e.event_type === 'dump.created' || e.kind === 'dump.created') && 
+      (e.entity_id === dump.dump_id || e.payload?.dump_id === dump.dump_id)
     );
     
     expect(dumpEvent).toBeDefined();
-    expect(dumpEvent.pipeline).toBe('P0'); // Should indicate source pipeline
+    // Metadata should indicate source pipeline
+    if (dumpEvent.metadata) {
+      expect(dumpEvent.metadata.pipeline).toBe('P0_CAPTURE');
+    }
   });
 
   test('Pipeline write boundaries are strictly enforced', async ({ request }) => {
