@@ -144,8 +144,8 @@ export async function POST(req: Request) {
       .from('context_items')
       .insert({
         basket_id: payload.basket_id,
-        context_type: 'yarnnn_system',
-        content_text: 'identity_genesis',
+        type: 'yarnnn_system',
+        content: 'identity_genesis',
         title: 'Identity Genesis Marker',
         metadata: {
           genesis_created_at: new Date().toISOString(),
