@@ -27,7 +27,7 @@ except ImportError:
 from middleware.auth import AuthMiddleware
 
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
-from services.events_consumer import consume_dump_created
+from services.agent_queue_processor import start_agent_queue_processor, stop_agent_queue_processor, get_queue_health
 from .deps import close_db, get_db
 from .routes.agent_memory import router as agent_memory_router
 from .routes.agent_run import router as agent_run_router
@@ -67,26 +67,29 @@ def _assert_env():
 async def lifespan(app: FastAPI):
     # Startup
     logger = logging.getLogger("uvicorn.error")
-    logger.info("Starting RightNow Agent Server")
+    logger.info("Starting RightNow Agent Server with Queue Processor")
 
     # Validate environment
     _assert_env()
 
     db = None
-    task = None
     try:
         db = await get_db()
-        task = asyncio.create_task(consume_dump_created(db))
+        # Start only the queue-based processing (single path)
+        await start_agent_queue_processor()
+        logger.info("Agent queue processor started - ready for async intelligence")
     except Exception as e:  # pragma: no cover - startup diagnostics
-        logger.error("Database initialization failed, running without DB: %s", e)
+        logger.error("Startup failed: %s", e)
+        raise
 
     try:
         yield
     finally:
-        if task:
-            task.cancel()
+        # Clean shutdown
+        await stop_agent_queue_processor()
         if db:
             await close_db()
+        logger.info("Agent queue processor stopped")
 
 app = FastAPI(title="RightNow Agent Server", lifespan=lifespan)
 
@@ -160,6 +163,11 @@ async def health_db():
             "database_connected": False,
             "error": str(e)
         }
+
+@app.get("/health/queue", include_in_schema=False)
+async def health_queue():
+    """Agent queue health check"""
+    return await get_queue_health()
 
 # CORS
 app.add_middleware(
