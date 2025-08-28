@@ -14,7 +14,7 @@ from app.agents.services.dump_interpreter import (
     DumpInterpreterService, 
     RawDumpInterpretationRequest
 )
-from app.utils.supabase_client import supabase_client as supabase
+from app.utils.supabase_client import supabase_admin_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -22,6 +22,8 @@ class AgentQueueProcessor:
     """Processes agent work queue using existing dump interpretation services."""
     
     def __init__(self, worker_id: Optional[str] = None, poll_interval: int = 10):
+        if not supabase:
+            raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY required for agent queue processing")
         self.worker_id = worker_id or f"agent-worker-{uuid4().hex[:8]}"
         self.poll_interval = poll_interval
         self.running = False

@@ -7,6 +7,7 @@ from supabase import create_client, Client
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_ANON_KEY:
     raise RuntimeError("Supabase env vars missing")
@@ -19,7 +20,11 @@ def get_supabase(token: str) -> Client:
     return client
 
 
+# Client for user operations (with anon key)
 supabase_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+# Client for backend operations (with service role key)
+supabase_admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) if SUPABASE_SERVICE_ROLE_KEY else None
 
-__all__ = ["get_supabase", "supabase_client"]
+
+__all__ = ["get_supabase", "supabase_client", "supabase_admin_client"]
