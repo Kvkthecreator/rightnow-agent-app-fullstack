@@ -171,6 +171,13 @@ export async function POST(
 
     if (attachError) {
       console.error('Attachment error:', attachError);
+      // Check if it's a unique constraint violation (substrate already attached)
+      if (attachError.code === '23505' || attachError.message.includes('unique constraint')) {
+        return NextResponse.json(
+          { error: `Substrate already attached to document` },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         { error: `Failed to attach substrate: ${attachError.message}` },
         { status: 400 }

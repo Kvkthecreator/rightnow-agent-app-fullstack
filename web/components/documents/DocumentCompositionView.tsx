@@ -358,7 +358,7 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4" data-testid="composition-stats">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">
                     {composition.composition_stats.blocks_count}
@@ -418,7 +418,7 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
                     <option value="timeline_event">Timeline Events</option>
                   </select>
                 </div>
-                <Button size="sm" disabled>
+                <Button size="sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Reference
                 </Button>
