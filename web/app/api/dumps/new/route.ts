@@ -3,7 +3,7 @@ export const revalidate = 0;
 export const runtime = 'nodejs';
 
 import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import { z } from "zod";
 

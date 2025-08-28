@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { cookies } from 'next/headers';
 import * as crypto from 'crypto';
 
