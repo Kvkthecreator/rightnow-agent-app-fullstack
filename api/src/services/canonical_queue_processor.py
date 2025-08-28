@@ -18,17 +18,17 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from uuid import uuid4, UUID
 
-from ..app.agents.pipeline import (
+from app.agents.pipeline import (
     P0CaptureAgent,
     P1SubstrateAgent,
     P2GraphAgent,
     P3ReflectionAgent
 )
-from ..app.agents.pipeline.capture_agent import DumpIngestionRequest
-from ..app.agents.pipeline.substrate_agent import SubstrateCreationRequest
-from ..app.agents.pipeline.graph_agent import RelationshipMappingRequest
-from ..app.agents.pipeline.reflection_agent import ReflectionComputationRequest
-from ..app.utils.supabase_client import supabase_admin_client as supabase
+from app.agents.pipeline.capture_agent import DumpIngestionRequest
+from app.agents.pipeline.substrate_agent import SubstrateCreationRequest
+from app.agents.pipeline.graph_agent import RelationshipMappingRequest
+from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
+from app.utils.supabase_client import supabase_admin_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
 

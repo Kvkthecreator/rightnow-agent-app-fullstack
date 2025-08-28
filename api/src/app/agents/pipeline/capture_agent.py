@@ -14,8 +14,8 @@ from typing import Dict, Any, Optional, List
 from uuid import UUID
 from pydantic import BaseModel
 
-from ...utils.supabase_client import supabase_admin_client as supabase
-from ...ingestion.parsers.unified_content_extractor import ContentExtractor
+from app.utils.supabase_client import supabase_admin_client as supabase
+from app.ingestion.parsers.unified_content_extractor import ContentExtractor
 
 logger = logging.getLogger("uvicorn.error")
 

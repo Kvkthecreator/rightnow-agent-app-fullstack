@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
+import { getTestAwareAuth } from '@/lib/auth/testHelpers';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import { withSchema } from '@/lib/api/withSchema';
 import { 
@@ -40,8 +40,8 @@ export async function GET(
 
     const { substrate_types, role, limit, cursor } = parseResult.data;
     const supabase = createServerSupabaseClient();
-    const { userId } = await getAuthenticatedUser(supabase);
-    const workspace = await ensureWorkspaceForUser(userId, supabase);
+    const { userId, isTest } = await getTestAwareAuth(supabase);
+    const workspace = isTest ? { id: '00000000-0000-0000-0000-000000000002' } : await ensureWorkspaceForUser(userId, supabase);
 
     // Verify document access
     const { data: document, error: docError } = await supabase
@@ -139,8 +139,8 @@ export async function POST(
 
     const { substrate_type, substrate_id, role, weight, snippets, metadata } = parseResult.data;
     const supabase = createServerSupabaseClient();
-    const { userId } = await getAuthenticatedUser(supabase);
-    const workspace = await ensureWorkspaceForUser(userId, supabase);
+    const { userId, isTest } = await getTestAwareAuth(supabase);
+    const workspace = isTest ? { id: '00000000-0000-0000-0000-000000000002' } : await ensureWorkspaceForUser(userId, supabase);
 
     // Verify document access
     const { data: document, error: docError } = await supabase

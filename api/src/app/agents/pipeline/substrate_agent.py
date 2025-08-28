@@ -14,8 +14,8 @@ from typing import Dict, Any, List, Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 
-from ...utils.supabase_client import supabase_admin_client as supabase
-from ...memory.blocks import BlockProposalService
+from app.utils.supabase_client import supabase_admin_client as supabase
+from app.memory.blocks import BlockProposalService
 
 logger = logging.getLogger("uvicorn.error")
 

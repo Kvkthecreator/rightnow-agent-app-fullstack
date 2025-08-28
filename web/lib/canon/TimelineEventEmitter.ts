@@ -64,10 +64,14 @@ export class TimelineEventEmitter {
       // Validate event kind matches pipeline
       this.validateEventKind(event);
       
+      // Extract entity_id from payload based on event kind
+      const entityId = this.extractEntityId(event);
+      
       // Call the Supabase function to emit event (workspace-scoped)
       const { error } = await this.supabase.rpc('emit_timeline_event', {
         p_basket_id: event.basket_id,
         p_event_type: event.kind,
+        p_entity_id: entityId,
         p_event_data: {
           ...event.payload,
           metadata: event.metadata
@@ -81,7 +85,8 @@ export class TimelineEventEmitter {
         console.error('[Timeline Event Error]', {
           kind: event.kind,
           error: error.message,
-          basket_id: event.basket_id
+          basket_id: event.basket_id,
+          details: error
         });
         // Don't throw - timeline events should not break operations
         // In production, send to monitoring
@@ -89,6 +94,54 @@ export class TimelineEventEmitter {
     } catch (err) {
       console.error('[Timeline Event Exception]', err);
       // Don't throw - timeline events should not break operations
+    }
+  }
+
+  /**
+   * Extract entity_id from event payload based on event kind
+   */
+  private extractEntityId(event: CanonicalTimelineEvent): string | null {
+    const payload = event.payload;
+    
+    // Map event kinds to their respective entity ID fields
+    switch (event.kind) {
+      case 'dump.created':
+      case 'dump.queued':
+        return payload.dump_id || null;
+        
+      case 'block.created':
+      case 'block.updated':
+      case 'block.state_changed':
+        return payload.block_id || null;
+        
+      case 'context_item.created':
+      case 'context_item.updated':
+        return payload.context_item_id || null;
+        
+      case 'relationship.created':
+      case 'relationship.deleted':
+        return payload.relationship_id || null;
+        
+      case 'reflection.computed':
+      case 'reflection.cached':
+        return payload.reflection_id || null;
+        
+      case 'document.created':
+      case 'document.updated':
+      case 'document.composed':
+        return payload.document_id || null;
+        
+      case 'narrative.authored':
+        return payload.narrative_id || null;
+        
+      case 'queue.entry_created':
+      case 'queue.processing_started':
+      case 'queue.processing_completed':
+      case 'queue.processing_failed':
+        return payload.queue_entry_id || null;
+        
+      default:
+        return null;
     }
   }
 

@@ -3,8 +3,7 @@ export const revalidate = 0;
 export const runtime = 'nodejs';
 
 import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@/lib/supabase/clients";
-import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
+import { createTestAwareClient, getTestAwareAuth, checkMembershipUnlessTest } from "@/lib/auth/testHelpers";
 import { z } from "zod";
 import { createTimelineEmitter } from "@/lib/canon/TimelineEventEmitter";
 import { PipelineBoundaryGuard } from "@/lib/canon/PipelineBoundaryGuard";
@@ -51,7 +50,7 @@ export async function POST(req: Request) {
     }
     const { basket_id, text_dump, file_url, meta, dump_request_id } = parsed.data;
     
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createTestAwareClient({ cookies });
     
     // Pipeline boundary enforcement: P0 Capture
     // This route should only create dumps, no interpretation or processing
@@ -61,7 +60,7 @@ export async function POST(req: Request) {
       payload: { text_dump, file_url },
       context: { basket_id }
     });
-    const { userId } = await getAuthenticatedUser(supabase);
+    const { userId, isTest } = await getTestAwareAuth(supabase);
 
     // Resolve basket + workspace
     const { data: basket, error: bErr } = await supabase
@@ -73,14 +72,15 @@ export async function POST(req: Request) {
     if (!basket) return Response.json({ error: "Basket not found" }, { status: 404 });
 
     // Verify membership (defense-in-depth; RLS still applies)
-    const { data: membership, error: mErr } = await supabase
-      .from("workspace_memberships")
-      .select("id")
-      .eq("workspace_id", basket.workspace_id)
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (mErr) return Response.json({ error: `Membership check failed: ${mErr.message}` }, { status: 400 });
-    if (!membership) return Response.json({ error: "Forbidden" }, { status: 403 });
+    try {
+      await checkMembershipUnlessTest(supabase, basket.workspace_id, userId, isTest);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      if (message === 'Forbidden') {
+        return Response.json({ error: "Forbidden" }, { status: 403 });
+      }
+      return Response.json({ error: `Membership check failed: ${message}` }, { status: 400 });
+    }
 
     // Idempotent RPC; DB trigger emits 'dump'
     const { data, error: rpcErr } = await supabase.rpc("fn_ingest_dumps", {

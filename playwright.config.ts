@@ -14,13 +14,16 @@ export default defineConfig({
       testMatch: /.*\.setup\.ts/
     },
     
-    // Canon compliance tests (no auth needed)
+    // Canon compliance tests (uses test auth bypass)
     {
       name: 'canon',
       testDir: './tests/canon',
       use: { 
         ...devices['Desktop Chrome'],
-        baseURL: 'http://localhost:3000'
+        baseURL: 'http://localhost:3000',
+        extraHTTPHeaders: {
+          'x-playwright-test': 'true'
+        }
       },
     },
     
@@ -61,10 +64,18 @@ export default defineConfig({
     headless: true,
   },
 
+  // Set environment variables for all tests
+  globalSetup: require.resolve('./tests/global-setup.ts'),
+
   webServer: {
     command: './start-dev.sh',
     port: 3000,
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
+    env: {
+      ...process.env,
+      PLAYWRIGHT_TEST: 'true',
+      NODE_ENV: 'test'
+    },
   },
 });

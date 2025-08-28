@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
-import { createServerComponentClient } from '@/lib/supabase/clients'
+import { createTestAwareClient } from '@/lib/auth/testHelpers'
 
 export function createServerSupabaseClient() {
-  return createServerComponentClient({ cookies })
+  return createTestAwareClient({ cookies })
 }

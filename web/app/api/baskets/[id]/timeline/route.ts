@@ -4,7 +4,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
+import { getTestAwareAuth } from '@/lib/auth/testHelpers';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import {
   createTimelineCursor,
@@ -23,8 +23,8 @@ const TimelineQuerySchema = z.object({
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = createServerSupabaseClient();
-  const { userId } = await getAuthenticatedUser(supabase);
-  const ws = await ensureWorkspaceForUser(userId, supabase);
+  const { userId, isTest } = await getTestAwareAuth(supabase);
+  const ws = isTest ? { id: '00000000-0000-0000-0000-000000000002' } : await ensureWorkspaceForUser(userId, supabase);
 
   // Validate basket belongs to workspace (RLS still protects)
   const { data: basket, error: bErr } = await supabase

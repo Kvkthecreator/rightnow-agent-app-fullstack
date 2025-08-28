@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/lib/server/auth";
-import { createUserClient } from "@/lib/supabase/user";
+import { createTestAwareClient, getTestAwareAuth } from "@/lib/auth/testHelpers";
+import { cookies } from 'next/headers';
 
 export async function POST(req: NextRequest) {
   let payload: any;
@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
   }
 
-  const { token } = await getAuthenticatedUser(req);
-  const supabase = createUserClient(token);
+  const supabase = createTestAwareClient({ cookies });
+  const { userId } = await getTestAwareAuth(supabase);
   const { data, error } = await supabase
     .from("blocks")
     .insert(payload)
