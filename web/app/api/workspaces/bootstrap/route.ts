@@ -1,11 +1,10 @@
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import type { Database } from "@/lib/dbTypes";
 
 export async function POST() {
   const cookieStore = cookies();
-  const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore });
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
   const {
     data: { user },
