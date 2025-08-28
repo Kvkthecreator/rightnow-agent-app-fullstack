@@ -130,7 +130,19 @@
     }
 }
 
-/* Font variables are set by Next.js fonts in layout.tsx - no need to redefine */
+/* Pacifico font for brand elements */
+@font-face {
+  font-family: 'Pacifico';
+  src: url('/fonts/Pacifico-Regular.woff2') format('woff2'),
+       url('/fonts/Pacifico-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-pacifico: 'Pacifico', cursive;
+}
 
 /* Design System Utilities */
 @layer utilities {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Roboto_Mono, Pacifico } from "next/font/google";
+import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import "../styles/diff.css";
 
@@ -35,11 +35,7 @@ const geistMono = Roboto_Mono({
   subsets: ["latin"],
   variable: "--font-geist-mono",
 });
-const pacifico = Pacifico({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-pacifico",
-});
+// Pacifico font is now loaded via @font-face in globals.css
 
 export const metadata: Metadata = {
   title: "yarnnn",
@@ -56,7 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable}`}
+      className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <body className="antialiased min-h-screen">
         <GlobalErrorBoundary>

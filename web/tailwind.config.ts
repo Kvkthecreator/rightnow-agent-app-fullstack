@@ -53,7 +53,7 @@ const config = {
       fontFamily: {
         sans: ["var(--font-geist-sans)", "sans-serif"],
         mono: ["var(--font-geist-mono)", "monospace"],
-        brand: ["var(--font-pacifico)", "cursive"],
+        brand: ["'Pacifico'", "cursive"],
       },
       borderRadius: {
         sm: "0.5rem",     // 8px - Apple-like small elements
