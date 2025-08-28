@@ -84,7 +84,7 @@ export default function CursorContextTooltip({
                 {contextItems.slice(0, 2).map((item, index) => (
                   <div key={index} className="text-xs text-muted-foreground">
                     <span className="font-medium capitalize">{item.type}:</span>{' '}
-                    {item.summary || item.content?.substring(0, 50)}
+                    {item.content?.substring(0, 50)}
                     {(item.content?.length || 0) > 50 && '...'}
                   </div>
                 ))}

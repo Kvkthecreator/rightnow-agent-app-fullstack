@@ -69,7 +69,7 @@ export default function ContextItemOverlay({
         {contextItem.type}
       </Badge>
       
-      {isHovered && (contextItem.summary || contextItem.content) && (
+      {isHovered && contextItem.content && (
         <Card className="absolute top-full left-0 mt-1 p-3 w-64 shadow-lg border bg-white z-20">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -81,13 +81,7 @@ export default function ContextItemOverlay({
               </div>
             </div>
             
-            {contextItem.summary && (
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {contextItem.summary}
-              </p>
-            )}
-            
-            {contextItem.content && !contextItem.summary && (
+            {contextItem.content && (
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {contextItem.content.substring(0, 150)}
                 {contextItem.content.length > 150 && '...'}
