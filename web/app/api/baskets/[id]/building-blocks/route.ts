@@ -48,9 +48,8 @@ export async function GET(
       // Foundational substrate - Context items
       supabase
         .from('context_items')
-        .select('id, type, title, description, content_text, created_at, metadata, is_validated')
+        .select('id, type, title, description, content, created_at, metadata, confidence_score')
         .eq('basket_id', basketId)
-        .eq('workspace_id', workspace.id)
         .order('created_at', { ascending: false })
         .limit(100),
       
@@ -103,12 +102,12 @@ export async function GET(
         id: item.id,
         type: 'context_item',
         title: item.title || `${item.type} context`,
-        content: item.content_text || item.description || '',
+        content: item.content || item.description || '',
         agent_stage: 'P1', // Context items are foundational substrate
         created_at: item.created_at,
         metadata: item.metadata,
         processing_agent: 'Foundation Agent',
-        agent_confidence: item.is_validated ? 1.0 : 0.7,
+        agent_confidence: item.confidence_score || 0.7,
       });
     });
 
