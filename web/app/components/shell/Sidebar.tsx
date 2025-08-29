@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Package2, LogOut, Settings2, FileText } from "lucide-react";
+import { Package2, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
@@ -132,6 +132,16 @@ export default function Sidebar({ className }: SidebarProps) {
   const basketId = pathname?.match(/^\/baskets\/([^/]+)/)?.[1] || basket?.id;
   const { documents: docList, isLoading: docsLoading } = useBasketDocuments(basketId || "");
 
+  // Map section keys to icons
+  const sectionIcons: Record<string, React.ElementType> = {
+    memory: BookOpen,
+    timeline: Clock,
+    reflections: Brain,
+    graph: Network,
+    "building-blocks": Layers,
+    documents: FileText
+  };
+
   return (
     <>
       {/* Scrim for mobile when sidebar is open */}
@@ -204,7 +214,10 @@ export default function Sidebar({ className }: SidebarProps) {
                         }
                       }}
                     >
-                      {section.label}
+                      <span className="flex items-center gap-2">
+                        {Icon && <Icon size={14} />}
+                        {section.label}
+                      </span>
                     </SidebarItem>
                   );
                 })}
