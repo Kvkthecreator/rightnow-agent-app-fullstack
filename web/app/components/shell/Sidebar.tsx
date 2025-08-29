@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Package2, LogOut, Settings2 } from "lucide-react";
+import { Package2, LogOut, Settings2, Clock, Brain, Network, Layers, FileText, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
@@ -116,6 +116,16 @@ export default function Sidebar({ className }: SidebarProps) {
 
   const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
 
+  // Map section keys to icons
+  const sectionIcons: Record<string, React.ElementType> = {
+    memory: BookOpen,
+    timeline: Clock,
+    reflections: Brain,
+    graph: Network,
+    blocks: Layers,
+    documents: FileText
+  };
+
   return (
     <>
       {/* Scrim for mobile when sidebar is open */}
@@ -134,7 +144,7 @@ export default function Sidebar({ className }: SidebarProps) {
         id="global-sidebar"
         className={cn(
           "sidebar h-screen w-64 border-r border-border transition-transform duration-300 flex flex-col z-[50]",
-          isMobile ? "fixed top-0 left-0 bg-[hsl(var(--sidebar))] shadow-lg" : "relative bg-card",
+          isMobile ? "fixed top-0 left-0 bg-background shadow-xl" : "relative bg-card",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           !open && !isMobile && "hidden",
           className,
@@ -144,7 +154,7 @@ export default function Sidebar({ className }: SidebarProps) {
         <div
           className={cn(
             "sticky top-0 z-10 flex h-12 items-center justify-between border-b px-4",
-            "bg-[hsl(var(--sidebar))]",
+            "bg-background",
           )}
         >
           <button
@@ -177,9 +187,10 @@ export default function Sidebar({ className }: SidebarProps) {
                 <Package2 size={14} />
                 <span className="truncate">{basket.name || "Untitled Basket"}</span>
               </div>
-              <div className="mt-1 ml-6 space-y-1">
+              <div className="mt-2 ml-4 flex flex-col gap-0.5">
                 {SECTION_ORDER.map((section) => {
                   const href = section.href(basket.id);
+                  const Icon = sectionIcons[section.key];
                   return (
                     <SidebarItem
                       key={section.key}
@@ -190,7 +201,10 @@ export default function Sidebar({ className }: SidebarProps) {
                         }
                       }}
                     >
-                      {section.label}
+                      <span className="flex items-center gap-2">
+                        {Icon && <Icon size={14} />}
+                        {section.label}
+                      </span>
                     </SidebarItem>
                   );
                 })}

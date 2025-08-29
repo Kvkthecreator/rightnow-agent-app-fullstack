@@ -178,7 +178,7 @@ export class ReflectionEngine {
 
     const { data: dumps, error } = await this.supabase
       .from('raw_dumps')
-      .select('text_dump, file_url, created_at')
+      .select('body_md, metadata, created_at')
       .eq('basket_id', basket_id)
       .gte('created_at', start_timestamp)
       .lte('created_at', end_timestamp)
@@ -189,7 +189,7 @@ export class ReflectionEngine {
     }
 
     const substrate_content = dumps
-      .map(dump => dump.text_dump || `[File: ${dump.file_url}]`)
+      .map(dump => dump.body_md || `[Dump from ${dump.created_at}]`)
       .join('\n\n---\n\n');
 
     const total_tokens = this.estimateTokens(substrate_content);
@@ -318,12 +318,23 @@ export class ReflectionEngine {
   }
 
   private async tryAcquireLock(basket_id: string): Promise<boolean> {
-    const { data, error } = await this.supabase
-      .rpc('pg_try_advisory_xact_lock', {
-        key: parseInt(basket_id.replace(/-/g, '').slice(0, 15), 16),
-      });
+    // Simplified lock mechanism - check if another computation is in progress
+    const { data } = await this.supabase
+      .from('reflection_cache')
+      .select('computation_timestamp')
+      .eq('basket_id', basket_id)
+      .order('computation_timestamp', { ascending: false })
+      .limit(1)
+      .single();
 
-    return !error && data === true;
+    if (!data) return true; // No previous computation
+
+    const lastCompute = new Date(data.computation_timestamp).getTime();
+    const now = Date.now();
+    const twoMinutesAgo = now - 120000; // 2 minutes
+
+    // Allow if last computation was more than 2 minutes ago
+    return lastCompute < twoMinutesAgo;
   }
 
   private async releaseLock(basket_id: string): Promise<void> {

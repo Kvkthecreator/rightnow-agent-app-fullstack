@@ -68,19 +68,30 @@ export default function TopBar() {
       </button>
 
       <nav aria-label="Breadcrumb" className="flex-1 overflow-hidden">
-        <ol className="flex items-center gap-1 text-xs text-muted-foreground overflow-x-auto">
-          {crumbs.map((c, i) => (
-            <li key={i} className="shrink-0">
-              {i > 0 && <span className="mx-1">›</span>}
-              {c.href ? (
-                <Link href={c.href} className="hover:text-foreground">
-                  {c.label}
-                </Link>
-              ) : (
-                <span className="text-foreground/80">{c.label}</span>
-              )}
-            </li>
-          ))}
+        <ol className="flex items-center gap-1 text-xs overflow-x-auto">
+          {crumbs.map((c, i) => {
+            const isLast = i === crumbs.length - 1;
+            return (
+              <li key={i} className="shrink-0 flex items-center">
+                {i > 0 && <span className="mx-1.5 text-muted-foreground/50">›</span>}
+                {c.href && !isLast ? (
+                  <Link 
+                    href={c.href} 
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {c.label}
+                  </Link>
+                ) : (
+                  <span className={cn(
+                    "font-medium",
+                    isLast ? "text-foreground text-sm" : "text-muted-foreground"
+                  )}>
+                    {c.label}
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ol>
       </nav>
 

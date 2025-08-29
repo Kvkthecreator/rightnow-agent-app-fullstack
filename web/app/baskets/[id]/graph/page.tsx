@@ -46,30 +46,27 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
       notFound();
     }
 
-    // Fetch graph data (nodes and relationships)
-    const [documentsResult, blocksResult, dumpsResult, contextItemsResult] = await Promise.all([
+    // Fetch graph data (nodes and relationships) - Canon compliant
+    const [documentsResult, blocksResult, dumpsResult] = await Promise.all([
       supabase
         .from('documents')
         .select('id, title, created_at, updated_at, metadata')
         .eq('basket_id', basketId)
+        .eq('workspace_id', workspace.id)
         .limit(100),
       
       supabase
-        .from('context_blocks')
-        .select('id, title, body_md, state, version, created_at, metadata')
+        .from('blocks')
+        .select('id, semantic_type, content, confidence_score, created_at, metadata, agent_type')
         .eq('basket_id', basketId)
+        .eq('workspace_id', workspace.id)
         .limit(100),
       
       supabase
         .from('raw_dumps')
-        .select('id, char_count, source_type, created_at, preview')
+        .select('id, char_count, source_type, created_at, preview, metadata')
         .eq('basket_id', basketId)
-        .limit(50),
-      
-      supabase
-        .from('context_items')
-        .select('id, content_text, context_type, is_validated, created_at')
-        .eq('basket_id', basketId)
+        .eq('workspace_id', workspace.id)
         .limit(50)
     ]);
 
@@ -91,7 +88,6 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
       documents: documentsResult.data || [],
       blocks: blocksResult.data || [],
       dumps: dumpsResult.data || [],
-      contextItems: contextItemsResult.data || [],
       references: references || []
     };
 

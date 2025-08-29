@@ -21,11 +21,13 @@ export function SidebarItem({ href, children, className = "", onClick }: Sidebar
     () =>
       cn(
         // base styles
-        "w-full text-left px-2 py-1.5 text-sm rounded-md transition",
-        // visual state
+        "block w-full text-left px-3 py-2 text-sm rounded-md transition-all duration-200",
+        // visual state with enhanced active indicator
         active
-          ? "bg-accent text-accent-foreground"
-          : "text-muted-foreground hover:bg-muted",
+          ? "bg-primary/10 text-primary font-medium border-l-4 border-primary pl-2"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground border-l-4 border-transparent",
+        // hover state
+        !active && "hover:pl-2.5",
         className
       ),
     [active, className]

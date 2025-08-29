@@ -26,7 +26,7 @@ import { SubpageHeader } from '@/components/basket/SubpageHeader';
 
 interface GraphNode {
   id: string;
-  type: 'document' | 'block' | 'dump' | 'context_item' | 'reflection' | 'timeline_event';
+  type: 'document' | 'block' | 'dump';
   title: string;
   label: string;
   color: string;
@@ -51,7 +51,6 @@ interface GraphData {
   documents: any[];
   blocks: any[];
   dumps: any[];
-  contextItems: any[];
   references: any[];
 }
 
@@ -69,10 +68,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const [visibleTypes, setVisibleTypes] = useState({
     document: true,
     block: true,
-    dump: true,
-    context_item: true,
-    reflection: true,
-    timeline_event: true
+    dump: true
   });
   const [graphLayout, setGraphLayout] = useState<'force' | 'hierarchy' | 'circular'>('force');
   const [zoom, setZoom] = useState(1);
@@ -109,17 +105,17 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
       });
     }
 
-    // Create block nodes
+    // Create block nodes (Canon compliant - using semantic_type)
     if (visibleTypes.block) {
       graphData.blocks.forEach(block => {
         nodeMap.set(block.id, {
           id: block.id,
           type: 'block',
-          title: block.title || 'Untitled Block',
-          label: (block.title || 'Untitled Block').length > 15 ? 
-                 (block.title || 'Untitled Block').substring(0, 15) + '...' : 
-                 (block.title || 'Untitled Block'),
-          color: getBlockColor(block.state),
+          title: `${block.semantic_type} block`,
+          label: block.semantic_type.length > 15 ? 
+                 block.semantic_type.substring(0, 15) + '...' : 
+                 block.semantic_type,
+          color: getBlockColor(block.confidence_score),
           size: 15,
           metadata: block
         });
@@ -141,20 +137,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
       });
     }
 
-    // Create context item nodes
-    if (visibleTypes.context_item) {
-      graphData.contextItems.forEach(item => {
-        nodeMap.set(item.id, {
-          id: item.id,
-          type: 'context_item',
-          title: `${item.context_type} context`,
-          label: item.context_type,
-          color: '#8b5cf6', // purple
-          size: 10,
-          metadata: item
-        });
-      });
-    }
+    // Context items removed - not part of Canon v1.4.0 architecture
 
     // Create edges from substrate references
     graphData.references.forEach(ref => {
@@ -182,14 +165,11 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
     setEdges(edgeList);
   };
 
-  const getBlockColor = (state: string) => {
-    switch (state) {
-      case 'active': return '#10b981'; // green
-      case 'draft': return '#f59e0b';  // yellow
-      case 'archived': return '#6b7280'; // gray
-      case 'superseded': return '#ef4444'; // red
-      default: return '#3b82f6'; // blue
-    }
+  const getBlockColor = (confidence_score: number) => {
+    if (confidence_score >= 0.8) return '#10b981'; // high confidence - green
+    if (confidence_score >= 0.6) return '#3b82f6'; // medium confidence - blue
+    if (confidence_score >= 0.4) return '#f59e0b'; // low confidence - yellow
+    return '#ef4444'; // very low confidence - red
   };
 
   const getReferenceColor = (role?: string) => {
@@ -214,8 +194,8 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
         }));
       
       case 'hierarchy':
-        // Simple hierarchy based on node types
-        const typeOrder = ['document', 'block', 'dump', 'context_item'];
+        // Simple hierarchy based on node types (Canon compliant)
+        const typeOrder = ['document', 'block', 'dump'];
         return nodes.map(node => {
           const typeIndex = typeOrder.indexOf(node.type);
           const typeNodes = nodes.filter(n => n.type === node.type);
@@ -332,13 +312,10 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
         router.push(`/baskets/${basketId}/documents/${node.id}`);
         break;
       case 'block':
-        router.push(`/baskets/${basketId}/blocks/${node.id}`);
+        router.push(`/baskets/${basketId}/blocks`);
         break;
       case 'dump':
-        router.push(`/baskets/${basketId}/dumps/${node.id}`);
-        break;
-      case 'context_item':
-        router.push(`/baskets/${basketId}/context/${node.id}`);
+        router.push(`/baskets/${basketId}/timeline`);
         break;
     }
   };
@@ -356,11 +333,8 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const getNodeTypeIcon = (type: string) => {
     switch (type) {
       case 'document': return <FileText className="h-4 w-4" />;
-      case 'block': return <FileText className="h-4 w-4" />;
-      case 'dump': return <Database className="h-4 w-4" />;
-      case 'context_item': return <FolderOpen className="h-4 w-4" />;
-      case 'reflection': return <Lightbulb className="h-4 w-4" />;
-      case 'timeline_event': return <Clock className="h-4 w-4" />;
+      case 'block': return <Database className="h-4 w-4" />;
+      case 'dump': return <FolderOpen className="h-4 w-4" />;
       default: return <Network className="h-4 w-4" />;
     }
   };
@@ -538,10 +512,6 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                   <div className="flex justify-between">
                     <span>Dumps:</span>
                     <span>{graphData.dumps.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Context Items:</span>
-                    <span>{graphData.contextItems.length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>References:</span>
