@@ -18,12 +18,19 @@ Blocks (**context_blocks**) are structured units created during interpretation.
 
 **Optional onboarding alias:** **POST /api/baskets/ingest** orchestrates basket + multiple dumps in one transaction; it performs **no additional side-effects** beyond the split endpoints and is idempotent on both the basket and each dump.
 
-## Flow
+## Flow (Governance-First Evolution)
+
+**Sacred Capture Path** (Preserved):
 Capture → `/api/dumps/new` → `fn_ingest_dumps` → `raw_dumps`
 → trigger `fn_timeline_after_raw_dump` → `timeline_events('dump')`
-→ processors read dumps and write substrate via RPCs:
-`fn_reflection_cache_upsert` (optional), `fn_document_create`, `fn_block_create`, `fn_block_revision_create`,
-`fn_context_item_upsert_bulk`, `fn_relationship_upsert_bulk` → each calls `fn_timeline_emit`.
+
+**Governance Integration** (New):
+→ agents read dumps → create proposals via `fn_proposal_create`
+→ governance review → `fn_proposal_approve` → commits substrate operations
+→ each approval calls substrate RPCs: `fn_block_create`, `fn_context_item_upsert_bulk`, etc.
+
+**Manual Substrate Path** (New):
+User intent → agent validation → `fn_proposal_create` → governance → substrate commitment
 
 ## Idempotency & Trace
 - Client generates `dump_request_id` (UUID).

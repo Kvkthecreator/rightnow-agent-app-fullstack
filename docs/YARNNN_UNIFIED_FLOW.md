@@ -4,12 +4,12 @@
 **Status**: Authoritative  
 **Purpose**: Single source of truth for the complete YARNNN flow including async agent processing
 
-## 🎯 Core Architecture
+## 🎯 Core Architecture (Governance-First Evolution)
 
 ```
-User Input → Immediate Capture → Agent Processing → Substrate Creation → UI Display
-    ↓              ↓                    ↓                   ↓              ↓
-  Frontend    Raw Dumps DB        Async Queue         Smart Data      Real-time
+User Input → Immediate Capture → Agent Processing → Proposal Creation → Governance → Substrate → UI Display
+    ↓              ↓                    ↓                   ↓            ↓         ↓         ↓
+  Frontend    Raw Dumps DB        Async Queue         Proposals    Review     Smart Data  Real-time
 ```
 
 ## 📐 The Two-Path Model
@@ -21,12 +21,12 @@ User → Frontend → Vercel API → fn_ingest_dumps → raw_dumps → Success R
 **Time**: <500ms  
 **Purpose**: User confirmation, continuity, trust
 
-### Path 2: Intelligence Creation (Asynchronous)
+### Path 2: Intelligence Creation (Governance-Gated)
 ```
-raw_dumps → Queue → Agent Backend → Substrate RPCs → Timeline Events → UI Updates
+raw_dumps → Queue → Agent Backend → Proposals → Governance Review → Substrate Commitment → Timeline Events → UI Updates
 ```
-**Time**: 2-30 seconds  
-**Purpose**: Extract meaning, build relationships, derive insights
+**Time**: Agent processing (2-30s) + governance review (variable)  
+**Purpose**: Extract meaning, validate quality, govern substrate evolution
 
 ## 🔄 Detailed Flow
 
@@ -78,31 +78,44 @@ EXECUTE FUNCTION queue_agent_processing();
    - Identify context items (entities, concepts)
    - Map relationships between elements
 
-3. **Write via RPCs**:
+3. **Create Proposals**:
    ```python
-   # Only agents call these substrate-writing RPCs
-   await supabase.rpc('fn_block_create', {...})
-   await supabase.rpc('fn_context_item_upsert_bulk', {...})
-   await supabase.rpc('fn_relationship_upsert_bulk', {...})
+   # Agents create governed proposals instead of direct substrate writes
+   validation_report = await validate_operations(ops)
+   proposal_id = await supabase.rpc('fn_proposal_create', {
+     'ops': ops, 
+     'validation_report': validation_report,
+     'origin': 'agent'
+   })
    ```
 
 4. **Update Queue**:
    - Mark as 'completed'
    - Record processing metadata
 
-### Step 4: Timeline Events
+### Step 4: Governance Review
 
-**Automatic Event Emission**:
-- Each RPC automatically calls `fn_timeline_emit`
+**Proposal Queue**:
+- Agents submit proposals to governance queue
+- Human reviewers see impact analysis and validation reports
+- Decisions: APPROVE → commits to substrate | REJECT → proposal archived
+
+### Step 5: Timeline Events
+
+**Governance Event Emission**:
+- Proposal approval triggers substrate commitment
+- Each committed operation calls `fn_timeline_emit`
 - Events flow: `timeline_events` → `events` → subscriptions
 
 **Event Types**:
 - `dump.created` - Raw capture complete
-- `block.created` - Insight extracted
-- `context.bulk_tagged` - Entities identified
-- `rel.bulk_upserted` - Connections mapped
+- `proposal.submitted` - Agent proposes substrate changes
+- `proposal.approved` - Human approves proposal
+- `block.created` - Insight committed to substrate
+- `context.bulk_tagged` - Entities committed to substrate
+- `rel.bulk_upserted` - Connections committed to substrate
 
-### Step 5: UI Updates
+### Step 6: UI Updates
 
 **Frontend Subscription**:
 ```typescript
@@ -113,8 +126,9 @@ useBasketEvents(basketId) → Updates UI progressively
 **User Experience**:
 1. Immediate: "Upload complete ✓"
 2. Processing: "Analyzing content..."
-3. Progressive: Blocks/entities appear as processed
-4. Complete: Full graph and relationships visible
+3. Governance: "Proposals ready for review" (with notification)
+4. Progressive: Approved blocks/entities appear in substrate
+5. Complete: Full graph and relationships visible
 
 ## 🏗️ System Components
 

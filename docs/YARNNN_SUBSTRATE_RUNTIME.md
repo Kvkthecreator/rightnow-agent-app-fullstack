@@ -17,7 +17,7 @@ Blocks (**context_blocks**) are the structured units handled in P1.
 | Pipeline | Purpose | Allowed Writes | Disallowed | Emits |
 |---|---|---|---|---|
 | **P0 Capture** | Immutable ingestion of raw memory | `raw_dumps` | context_items, context_blocks, relationships, reflections, docs | `dump.created` |
-| **P1 Substrate CRUD** | Create/update substrate atoms: **context_items**, **context_blocks** (delta-first) | `context_items`, `context_blocks`, `block_revisions` | relationships, reflections, docs | `context.bulk_tagged`, `block.proposed|accepted|revised` |
+| **P1 Substrate CRUD** | Create/update substrate atoms via governance: **context_items**, **context_blocks** (proposal-first) | `context_items`, `context_blocks`, `block_revisions`, `proposals` | relationships, reflections, docs | `context.bulk_tagged`, `block.proposed|accepted|revised`, `proposal.submitted` |
 | **P2 Graph Fabric** | Materialize typed, directional edges | `substrate_relationships` | substrate writes, reflections, docs | `rel.bulk_upserted` |
 | **P3 Signals/Reflections** | Compute derived signals from projection | `reflection_cache` (optional) | substrate/graph/doc writes | `reflection.computed` (if cached) |
 | **P4 Presentation** | Author narrative and compose documents | `documents` (+joins) | substrate/graph writes | `doc.created|updated` |
@@ -31,7 +31,7 @@ Blocks (**context_blocks**) are the structured units handled in P1.
 | Pipeline | Allowed RPCs |
 |---|---|
 | P0 | `fn_ingest_dumps` |
-| P1 | `fn_context_item_upsert_bulk`, `fn_block_create`, `fn_block_revision_create` |
+| P1 | `fn_context_item_upsert_bulk`, `fn_block_create`, `fn_block_revision_create`, `fn_proposal_create`, `fn_proposal_approve`, `fn_proposal_reject` |
 | P2 | `fn_relationship_upsert_bulk` |
 | P3 | *(none)* `fn_reflection_cache_upsert` *(optional)* |
 | P4 | `fn_document_create`, `fn_document_attach_block`, `fn_document_attach_context_item` |
@@ -63,6 +63,9 @@ Blocks (**context_blocks**) are the structured units handled in P1.
 - `block.proposed`: `{ basket_id, block_id, signature_hash }`
 - `block.accepted`: `{ basket_id, block_id }`
 - `block.revised`: `{ basket_id, block_id, revision_id }`
+- `proposal.submitted`: `{ basket_id, proposal_id, proposal_kind, origin }`
+- `proposal.approved`: `{ basket_id, proposal_id, ops_count }`
+- `proposal.rejected`: `{ basket_id, proposal_id, reason }`
 - `rel.bulk_upserted`: `{ basket_id, created, ignored }`
 - `reflection.computed`: `{ basket_id, meta_derived_from }`
 - `doc.created`: `{ basket_id, doc_id, document_type }`
@@ -85,18 +88,22 @@ DB-->>DB: emit timeline: dump.created
 API-->>FE: { dump_id }
 ```
 
-### P1 — Substrate CRUD (Delta-first)
+### P1 — Substrate CRUD (Proposal-first)
 ```mermaid
 sequenceDiagram
 participant P1 as P1 Threader/Resolver
+participant P1V as P1 Validator
 participant DB as DB
+participant Gov as Governance
 P1->>DB: READ basket snapshot (CTX_INDEX, BLOCK_INDEX)
 P1->>P1: extract candidates from dump
-P1->>P1: resolve vs snapshot (create/attach/revise/ignore)
-P1->>DB: fn_context_item_upsert_bulk(items, delta_id)
-P1->>DB: fn_block_create / fn_block_revision_create (optional)
-DB-->>P1: ids, counts
-DB-->>DB: emit context.bulk_tagged / block.*
+P1->>P1V: validate operations (dupes, impact, confidence)
+P1->>DB: fn_proposal_create(ops, validation_report)
+DB-->>P1: proposal_id
+DB-->>DB: emit proposal.submitted
+Gov->>DB: fn_proposal_approve(proposal_id)
+DB->>DB: commit operations to substrate
+DB-->>DB: emit proposal.approved, context.bulk_tagged, block.*
 ```
 
 ### P2 — Graph Fabric

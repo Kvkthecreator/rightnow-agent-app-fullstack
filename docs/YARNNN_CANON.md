@@ -157,6 +157,20 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 
 ---
 
+## Governance Evolution (v2.0 Preview)
+
+**See**: `YARNNN_GOVERNANCE_CANON.md` for substrate governance model evolution
+
+**Key Evolution**: Governance as first-class workflow
+- All substrate mutations flow through governed proposals
+- Agent validation mandatory for all proposals (agent + human origin)
+- Context_items gain governance states: `PROVISIONAL → PROPOSED → ACTIVE`
+- Unified governance preserves sacred capture path while enabling manual substrate curation
+
+**Breaking Changes**: Requires context_items schema evolution and proposal table addition
+
+---
+
 ## Version Lock
 
 - Canon version: **v1.4**  

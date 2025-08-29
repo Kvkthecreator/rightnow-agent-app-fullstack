@@ -12,7 +12,7 @@ Make the P0–P4 separation enforceable and auditable: code, database, CI, and s
 
 ## 1) Invariants (deny-by-default)
 - **P0** only ingests `raw_dumps`.  
- - **P1** only mutates `context_items`, `blocks (**context_blocks**)`, `block_revisions`.
+ - **P1** only mutates `context_items`, `blocks (**context_blocks**)`, `block_revisions`, `proposals` (governance).
 - **P2** only mutates `substrate_relationships`.  
  - **P3** is read-only; may write **cache** to `reflection_cache (optional, non-authoritative)`.
 - **P4** only mutates `documents` and *joins* (`block_links`, `document_context_items`).

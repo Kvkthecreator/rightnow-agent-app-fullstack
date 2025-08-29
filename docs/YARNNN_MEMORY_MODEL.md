@@ -24,7 +24,7 @@ No substrate assumes the existence of another. All reference a shared `basket_id
 | `raw_dump`    | Immutable unstructured input         | User submits dump        |
 | `context_block`       | Structured unit of meaning           | Proposed by agent/user   |
 | `document`    | Composition of blocks + narrative    | Composed by agent/user   |
-| `context_item`| Semantic connector/tag               | Inferred or created      |
+| `context_item`| Semantic connector/tag               | Proposed via governance  |
 | `event`       | Audit log of changes                 | Emitted by system/agent  |
 
 ### Memory Plane (First-Class)
@@ -58,7 +58,7 @@ Type	Mutability	Evolves	Source of Truth
 raw_dump	Immutable	No	Yes (verbatim)
 block	Revisable	Yes	Derived
 document	Versioned	Yes	Composed
-context_item	Evolves	Yes	Yes
+context_item	Governed	Yes	Derived (via proposals)
 basket	Static ID	No	No
 event	Immutable	No	Log only
 5. Canonical Role Definitions
@@ -81,6 +81,7 @@ Not a source of memory, but an expression of it.
 Semantic connector (tags/themes).
 May link to blocks, documents, baskets.
 User-declared or agent-inferred.
+Lifecycle: PROVISIONAL → PROPOSED → ACTIVE → [DEPRECATED | MERGED].
 📜 event
 Immutable audit entry.
 Records creations, updates, proposals, rejections, and compositions.

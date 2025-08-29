@@ -1,9 +1,9 @@
 # YARNNN_SUBSTRATE_DELTA_ENGINE.md
-Version: 1.0
-Status: Canon — P1 Substrate Resolver (Delta-first)
+Version: 2.0
+Status: Canon — P1 Substrate Resolver (Proposal-first)
 
 ## Purpose
-Define how P1 converts a new `raw_dump` into **substrate deltas** by comparing **what is** (basket snapshot) with **what is added** (extracted candidates).
+Define how P1 converts a new `raw_dump` into **governance proposals** by comparing **what is** (basket snapshot) with **what is proposed** (extracted candidates). All substrate mutations flow through governance.
 
 ---
 
@@ -24,10 +24,22 @@ Define how P1 converts a new `raw_dump` into **substrate deltas** by comparing *
 
 | Candidate | Exact Match | Fuzzy ≥ τ | Else |
 |---|---|---|---|
-| context_item | ATTACH (no new row) | ATTACH nearest (or CREATE with equivalence hint if tie) | CREATE |
-| block | REVISION (if content changed) | REVISION (if same signature class) | CREATE |
+| context_item | PROPOSE: Attach to existing | PROPOSE: Attach nearest (or create with merge hint) | PROPOSE: Create new |
+| block | PROPOSE: Revision (if content changed) | PROPOSE: Revision (if same signature class) | PROPOSE: Create new |
 
-All decisions are **idempotent** under the same `delta_id`.
+All decisions create **governance proposals** that require approval before substrate commitment.
+
+## Governance Integration
+
+### Proposal Generation
+- Agent extracts candidates → generates operations → packages as proposal
+- Proposal includes: operations list, validation report, confidence scores
+- No direct substrate writes - everything flows through governance
+
+### Validation Pipeline  
+- Duplicate detection across existing substrate
+- Impact analysis (affected documents, relationships)  
+- Confidence scoring for human review prioritization
 
 ---
 

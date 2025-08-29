@@ -27,12 +27,12 @@ Reflections are derived from substrate. If persisted, they live in reflection_ca
      **GET** `/api/baskets/:id/state`
   2. **Canonical Docs (top 3)** — id, title, updated_at, preview  
      **GET** `/api/baskets/:id/documents?limit=3`
-  3. **Next Move (read-only)** — suggested proposal previews  
-     **GET** `/api/baskets/:id/proposals`
+  3. **Governance Queue** — active proposals awaiting review  
+     **GET** `/api/baskets/:id/proposals` (real governance queue)
 
 - **Right (Guide)**  
-  Tabs: **Ask** (compute-only, no writes) | **Suggest** (proposal queue preview)  
-  *Phase 1 shows placeholders; no compute or writes.*
+  Tabs: **Ask** (compute-only, no writes) | **Review** (governance queue management)  
+  *Review tab enables proposal approval/rejection workflow.*
 
 - **Left (Basket Nav)**  
   Links: **Dashboard**, **Documents**, **Blocks**, **Timeline**.
@@ -47,10 +47,10 @@ Detail: `/baskets/[id]/documents/[docId]`
 **GET** `/api/documents/:docId`  
 *Read-only. No inline edits in Phase 1.*
 
-### C. Blocks
+### C. Blocks (Governance-Enabled)
 **Route:** `/baskets/[id]/blocks`  
 **GET** `/api/baskets/:id/blocks`  
-*Power-user lens. Read-only.*
+*Power-user governance interface. Includes proposal review for blocks and context_items.*
 
 ### D. Timeline (Evolution)
 **Route:** `/baskets/[id]/timeline`  
@@ -79,7 +79,17 @@ Union view of `basket_deltas` (applied/rejected), `revisions`, notable `events`.
 3) GET /api/baskets/:id/proposals
 {
   "items": [
-    {"delta_id":"uuid","kind":"doc_update","target":{"type":"document","id":"uuid","title":"Marketing Plan"},"summary":"Add outreach section","preview_before":"...","preview_after":"..."}
+    {
+      "id":"uuid",
+      "proposal_kind":"Extraction",
+      "origin":"agent",
+      "status":"PROPOSED",
+      "ops_summary":"Create block 'Q4 Strategy', context_item 'Revenue Target'",
+      "confidence":0.85,
+      "impact_summary":"affects 2 docs, 4 relationships",
+      "created_at":"...",
+      "validator_report": {"dupes":[],"warnings":[],"suggested_merges":[]}
+    }
   ]
 }
 4) GET /api/baskets/:id/blocks
