@@ -28,8 +28,6 @@ export default function Sidebar({ className }: SidebarProps) {
   const [basket, setBasket] = useState<BasketOverview | null>(null);
   const [openDropdown, setOpenDropdown] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [hasInitialized, setHasInitialized] = useState(false);
-
   // Mobile detection and responsive behavior
   useEffect(() => {
     const checkMobile = () => {
@@ -37,41 +35,16 @@ export default function Sidebar({ className }: SidebarProps) {
       const wasMobile = isMobile;
       setIsMobile(mobile);
 
-      // On initial load, close sidebar if on mobile
-      if (!hasInitialized && mobile) {
+      // When switching from desktop to mobile, close sidebar to avoid covering content
+      if (mobile && !wasMobile && open) {
         setOpen(false);
-        setHasInitialized(true);
-      }
-      // When switching from desktop to mobile, close sidebar
-      else if (mobile && !wasMobile && open) {
-        setOpen(false);
-      }
-      // Mark as initialized after first run
-      else if (!hasInitialized) {
-        setHasInitialized(true);
       }
     };
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
-  }, [isMobile, hasInitialized, open, setOpen]);
-
-  // Persist sidebar visibility (desktop only)
-  useEffect(() => {
-    if (typeof window === "undefined" || isMobile) return;
-    const stored = localStorage.getItem("yarnnn:sidebar:visible");
-    if (stored === "false") {
-      setOpen(false);
-    } else {
-      setOpen(true);
-    }
-  }, [isMobile, setOpen]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || isMobile) return;
-    localStorage.setItem("yarnnn:sidebar:visible", String(open));
-  }, [open, isMobile]);
+  }, [isMobile, open, setOpen]);
 
   useEffect(() => {
     async function init() {
