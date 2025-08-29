@@ -39,7 +39,7 @@ export async function GET(
       // P0 Capture Agent - Raw memory dumps
       supabase
         .from('raw_dumps')
-        .select('id, body_md, source_type, created_at, metadata, char_count')
+        .select('id, body_md, processing_status, created_at, source_meta, file_url')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .order('created_at', { ascending: false })
@@ -83,14 +83,15 @@ export async function GET(
 
     // Raw dumps (P0 Capture)
     rawDumpsResult.data?.forEach(dump => {
+      const sourceType = dump.file_url ? 'file' : 'text';
       unifiedSubstrates.push({
         id: dump.id,
         type: 'raw_dump',
-        title: `${dump.source_type} capture`,
+        title: `${sourceType} capture`,
         content: dump.body_md || '',
         agent_stage: 'P0',
         created_at: dump.created_at,
-        metadata: dump.metadata,
+        metadata: dump.source_meta,
         processing_agent: 'P0 Capture Agent',
         agent_confidence: 1.0, // Capture is always certain
       });

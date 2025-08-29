@@ -64,7 +64,7 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
       
       supabase
         .from('raw_dumps')
-        .select('*')
+        .select('id, basket_id, body_md, created_at, processing_status, file_url, source_meta')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .limit(50)
