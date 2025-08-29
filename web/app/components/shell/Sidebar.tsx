@@ -122,7 +122,7 @@ export default function Sidebar({ className }: SidebarProps) {
     timeline: Clock,
     reflections: Brain,
     graph: Network,
-    blocks: Layers,
+    "building-blocks": Layers,
     documents: FileText
   };
 

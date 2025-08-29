@@ -19,6 +19,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Redirect old blocks URL to building-blocks (Canon compliance)
+  if (req.nextUrl.pathname.includes('/blocks')) {
+    const redirectUrl = req.nextUrl.pathname.replace('/blocks', '/building-blocks');
+    return NextResponse.redirect(new URL(redirectUrl, req.url));
+  }
+
   const m = req.nextUrl.pathname.match(/^\/baskets\/([^/]+)(\/.*)?$/)
   if (m) {
     const reqId = m[1]

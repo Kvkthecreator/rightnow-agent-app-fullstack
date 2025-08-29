@@ -46,49 +46,54 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
       notFound();
     }
 
-    // Fetch graph data (nodes and relationships) - Canon compliant
+    // Fetch graph data - simplified for debugging
     const [documentsResult, blocksResult, dumpsResult] = await Promise.all([
       supabase
         .from('documents')
-        .select('id, title, created_at, updated_at, metadata')
+        .select('*')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .limit(100),
       
       supabase
         .from('blocks')
-        .select('id, semantic_type, content, confidence_score, created_at, metadata, agent_type')
+        .select('*')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .limit(100),
       
       supabase
         .from('raw_dumps')
-        .select('id, char_count, source_type, created_at, preview, metadata')
+        .select('*')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .limit(50)
     ]);
 
-    // Fetch substrate references to build relationships
-    const { data: references } = await supabase
-      .from('substrate_references')
-      .select(`
-        id,
-        document_id,
-        substrate_type,
-        substrate_id,
-        role,
-        weight,
-        created_at
-      `)
-      .in('document_id', documentsResult.data?.map(d => d.id) || []);
+    // Check for database errors that might cause notFound()
+    if (documentsResult.error) {
+      console.error('Documents query error:', documentsResult.error);
+      throw new Error(`Documents query failed: ${documentsResult.error.message}`);
+    }
+    if (blocksResult.error) {
+      console.error('Blocks query error:', blocksResult.error);
+      throw new Error(`Blocks query failed: ${blocksResult.error.message}`);
+    }
+    if (dumpsResult.error) {
+      console.error('Dumps query error:', dumpsResult.error);
+      throw new Error(`Dumps query failed: ${dumpsResult.error.message}`);
+    }
+
+    // Note: Substrate references temporarily disabled to debug
+    // const { data: references } = await supabase
+    //   .from('substrate_references')  
+    //   .select(`...`)
 
     const graphData = {
       documents: documentsResult.data || [],
       blocks: blocksResult.data || [],
       dumps: dumpsResult.data || [],
-      references: references || []
+      references: []
     };
 
     return (

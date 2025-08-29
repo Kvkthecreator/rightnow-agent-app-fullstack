@@ -36,7 +36,7 @@ export class ReflectionEngine {
     const force_refresh = options.force_refresh || false;
 
     // Get substrate window
-    const window = await this.getSubstrateWindow(basket_id, window_hours);
+    const window = await this.getSubstrateWindow(basket_id, window_hours, workspace_id);
     const substrate_hash = this.computeSubstrateHash(window.substrate_content);
 
     // Check cache first if not forcing refresh
@@ -129,6 +129,7 @@ export class ReflectionEngine {
       .from('reflection_cache')
       .select('*')
       .eq('basket_id', basket_id)
+      .eq('workspace_id', workspace_id)
       .order('computation_timestamp', { ascending: false })
       .limit(limit + 1);
 
@@ -171,18 +172,26 @@ export class ReflectionEngine {
 
   private async getSubstrateWindow(
     basket_id: string, 
-    window_hours: number
+    window_hours: number,
+    workspace_id?: string
   ): Promise<SubstrateWindow> {
     const end_timestamp = new Date().toISOString();
     const start_timestamp = new Date(Date.now() - window_hours * 60 * 60 * 1000).toISOString();
 
-    const { data: dumps, error } = await this.supabase
+    let query = this.supabase
       .from('raw_dumps')
       .select('body_md, metadata, created_at')
       .eq('basket_id', basket_id)
       .gte('created_at', start_timestamp)
       .lte('created_at', end_timestamp)
       .order('created_at', { ascending: true });
+
+    // Add workspace isolation if provided
+    if (workspace_id) {
+      query = query.eq('workspace_id', workspace_id);
+    }
+
+    const { data: dumps, error } = await query;
 
     if (error) {
       throw new Error(`Failed to fetch substrate window: ${error.message}`);
@@ -262,7 +271,7 @@ export class ReflectionEngine {
       .select('*')
       .eq('basket_id', basket_id)
       .eq('substrate_hash', substrate_hash)
-      .single();
+      .maybeSingle();
 
     if (error || !data) return null;
 
@@ -284,7 +293,7 @@ export class ReflectionEngine {
       .eq('basket_id', basket_id)
       .order('computation_timestamp', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (error || !data) return null;
 
@@ -306,7 +315,7 @@ export class ReflectionEngine {
       .eq('basket_id', basket_id)
       .order('computation_timestamp', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!data) return true; // No previous compute
 
@@ -325,7 +334,7 @@ export class ReflectionEngine {
       .eq('basket_id', basket_id)
       .order('computation_timestamp', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!data) return true; // No previous computation
 
