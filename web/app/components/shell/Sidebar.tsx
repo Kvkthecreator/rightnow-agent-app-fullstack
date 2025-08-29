@@ -196,11 +196,11 @@ export default function Sidebar({ className }: SidebarProps) {
         <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-3">
           {basket ? (
             <div>
-              <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm">
-                <Package2 size={14} />
-                <span className="truncate">{basket.name || "Untitled Basket"}</span>
+              {/* Basket section with merged icon and name */}
+              <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                🧺 {basket.name || "Untitled Basket"}
               </div>
-              <div className="mt-2 ml-4 flex flex-col gap-0.5">
+              <div className="ml-4 flex flex-col gap-0.5">
                 {SECTION_ORDER.filter((s) => s.key !== "documents").map((section) => {
                   const href = section.href(basket.id);
                   const Icon = sectionIcons[section.key];
@@ -222,13 +222,12 @@ export default function Sidebar({ className }: SidebarProps) {
                   );
                 })}
               </div>
-              {/* Documents group */}
+              {/* Documents section */}
               <div className="mt-4">
-                <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm">
-                  <FileText size={14} />
-                  <span className="truncate">Documents</span>
+                <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  📄 Documents  
                 </div>
-                <div className="mt-1 ml-6 space-y-1">
+                <div className="ml-4 space-y-1">
                   {docsLoading && (
                     <p className="text-sm text-muted-foreground px-2 py-1">Loading...</p>
                   )}
