@@ -56,7 +56,7 @@ export async function GET(
       // P1 Substrate Agent - Processed blocks
       supabase
         .from('blocks')
-        .select('id, semantic_type, content, confidence_score, agent_type, created_at, metadata')
+        .select('id, semantic_type, content, confidence_score, title, body_md, created_at, meta_agent_notes')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .order('created_at', { ascending: false })
@@ -116,15 +116,14 @@ export async function GET(
       unifiedSubstrates.push({
         id: block.id,
         type: 'block',
-        title: `${block.semantic_type} block`,
-        content: block.content || '',
+        title: block.title || `${block.semantic_type} block`,
+        content: block.body_md || block.content || '',
         agent_stage: 'P1',
-        agent_type: block.agent_type,
         confidence_score: block.confidence_score,
         semantic_type: block.semantic_type,
         created_at: block.created_at,
-        metadata: block.metadata,
-        processing_agent: block.agent_type || 'P1 Substrate Agent',
+        metadata: { agent_notes: block.meta_agent_notes },
+        processing_agent: 'P1 Substrate Agent',
         agent_confidence: block.confidence_score,
       });
     });
