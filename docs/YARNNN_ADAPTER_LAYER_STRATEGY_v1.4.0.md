@@ -44,11 +44,13 @@ The Supabase backend serves as a **Context Graph Service** - a durable, agent-pr
 ├─────────────────────────────────────────────────────────────────┤
 │                    Context Graph Service                        │
 │                    ==================                          │
-│  P0: Capture    │ P1: Substrate  │ P2: Graph     │ P3: Reflection│
-│  Agent          │ Agent          │ Agent         │ Agent         │
-│  • raw_dumps    │ • blocks       │ • context     │ • reflections │
-│                 │ • context_items│   _relationships│              │
-│                 │                │               │               │
+│ P0 Agent        │ P1 Agent       │ P2 Agent      │ P3 Agent      │
+│ ========        │ ========       │ ========      │ ========      │  
+│ • raw_dumps     │ • blocks       │ • context     │ • reflections │
+│   (immutable)   │ • context_items│   _relations  │   (computed)  │
+│                 │   (structured) │   (connect)   │               │
+│                 │                │               │ P4 Agent      │
+│                 │                │               │ • documents   │
 │             SUPABASE DATABASE + RPC LAYER                      │
 │           (Single source of truth for all adapters)            │
 └─────────────────────────────────────────────────────────────────┘
@@ -69,6 +71,8 @@ The Supabase backend serves as a **Context Graph Service** - a durable, agent-pr
 - Data durability
 
 **Immutability Guarantee**: This layer NEVER changes based on presentation needs. It serves canonical truth.
+
+**Critical Canon Compliance**: All substrates (raw_dumps, blocks, context_items, relationships, reflections) are **peers** with equal status. The diagram shows pipeline **agents** not substrate hierarchy. Each agent creates its designated substrate type, but all substrate types have equal compositional rights per Sacred Principle #2.
 
 ### Layer 2: Adapter Layer (Translating & Orchestrating)
 
@@ -101,32 +105,40 @@ The Supabase backend serves as a **Context Graph Service** - a durable, agent-pr
 **Adapter Responsibilities**:
 
 ```typescript
-// B2C Consumer Adapter
+// B2C Consumer Adapter - Canon v1.4.0 Compliant
 class ConsumerMemoryAdapter {
   constructor(private contextGraph: ContextGraphService) {}
   
-  // Simplified memory interface for consumers
+  // Simplified memory interface for consumers - PURE TRANSFORMATION ONLY
   async getPersonalInsights(userId: string): Promise<ConsumerInsight[]> {
     const reflections = await this.contextGraph.getReflections(userId);
     
-    // Transform P3 agent insights into consumer-friendly format
+    // Canon Compliant: Transform agent-computed data for consumer presentation
     return reflections.map(r => ({
-      title: r.reflection_text.split('.')[0], // Simple title extraction
+      title: r.reflection_title || r.reflection_text, // Use agent-processed title
       description: r.reflection_text,
-      tags: this.extractSimpleTags(r.metadata),
-      readingTime: this.estimateReadingTime(r.reflection_text),
+      tags: r.reflection_tags || [], // Use agent-processed tags
+      readingTime: r.estimated_reading_time, // Use agent-computed estimate
       personalRelevance: r.confidence_score,
     }));
   }
   
-  // Consumer-optimized workflows
+  // Consumer-optimized workflows - Sacred Write Path Only
   async captureThought(thought: string): Promise<void> {
-    // Use canonical write path but optimize UX for consumers
-    await this.contextGraph.captureMemory({
-      content: thought,
-      type: 'personal_note',
-      privacy: 'private'
+    // Canon Compliant: Use Sacred Write Path only
+    const response = await fetch('/api/dumps/new', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        content: thought,
+        source_context: 'consumer_interface'
+      })
     });
+    
+    if (!response.ok) {
+      throw new Error('Failed to capture thought via sacred write path');
+    }
+    // Agent processing happens asynchronously via queue
   }
 }
 ```
@@ -138,11 +150,11 @@ class ConsumerMemoryAdapter {
 **Adapter Responsibilities**:
 
 ```typescript
-// B2B Enterprise Adapter
+// B2B Enterprise Adapter - Canon v1.4.0 Compliant  
 class EnterpriseMemoryAdapter {
   constructor(private contextGraph: ContextGraphService) {}
   
-  // Enterprise-focused memory interface
+  // Enterprise-focused memory interface - PURE TRANSFORMATION ONLY
   async getTeamKnowledgeGraph(workspaceId: string): Promise<EnterpriseGraph> {
     const [blocks, relationships, timeline] = await Promise.all([
       this.contextGraph.getBlocks(workspaceId),
@@ -150,7 +162,7 @@ class EnterpriseMemoryAdapter {
       this.contextGraph.getTimeline(workspaceId)
     ]);
     
-    // Transform canonical data for enterprise needs
+    // Canon Compliant: Transform canonical agent-processed data for enterprise presentation
     return {
       knowledgeAssets: blocks.map(b => ({
         id: b.id,
@@ -158,8 +170,8 @@ class EnterpriseMemoryAdapter {
         semanticType: b.semantic_type,
         confidence: b.confidence_score,
         creator: b.created_by,
-        auditTrail: this.buildAuditTrail(b, timeline),
-        complianceMetadata: this.extractComplianceData(b.metadata)
+        auditTrail: b.timeline_trace_id, // Use agent-generated trace
+        complianceMetadata: b.compliance_metadata // Use agent-computed compliance data
       })),
       relationships: relationships.map(r => ({
         source: r.from_id,
@@ -169,30 +181,32 @@ class EnterpriseMemoryAdapter {
         discoveredBy: r.processing_agent,
         discoveredAt: r.created_at
       })),
-      teamAnalytics: this.computeTeamAnalytics(blocks, relationships, timeline)
+      teamAnalytics: timeline.analytics_summary // Use agent-computed analytics
     };
   }
   
-  // Enterprise workflows with compliance
+  // Enterprise workflows with compliance - Sacred Write Path Only
   async captureTeamKnowledge(content: TeamContent): Promise<AuditedResult> {
-    const result = await this.contextGraph.captureMemory({
-      content: content.text,
-      type: 'team_knowledge',
-      workspace_id: content.workspaceId,
-      metadata: {
-        compliance_level: content.complianceLevel,
-        retention_policy: content.retentionPolicy,
-        access_controls: content.accessControls
-      }
+    // Canon Compliant: Use Sacred Write Path only
+    const response = await fetch('/api/dumps/new', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: content.text,
+        workspace_id: content.workspaceId,
+        source_context: 'enterprise_interface',
+        compliance_metadata: content.complianceLevel
+      })
     });
     
-    // Return with enterprise audit metadata
+    const result = await response.json();
+    
+    // Canon Compliant: Return canonical data with timeline reference
     return {
       captureId: result.id,
-      auditId: this.generateAuditId(),
-      complianceStatus: 'pending_review',
-      retentionDate: this.calculateRetentionDate(content.retentionPolicy),
-      accessLog: []
+      timelineUrl: `/api/baskets/${result.basket_id}/timeline`, // Audit via timeline
+      complianceStatus: 'processing', // Agent will determine compliance
+      // All audit metadata comes from timeline events, not synthetic generation
     };
   }
 }
@@ -317,28 +331,28 @@ async function getTimelineEvents(basketId: string) {
   return events; // Direct API usage
 }
 
-// Target: Adapter-mediated presentation  
+// Target: Adapter-mediated presentation - Canon v1.4.0 Compliant
 class ConsumerTimelineAdapter {
   async getPersonalTimeline(basketId: string): Promise<ConsumerEvent[]> {
     const canonicalEvents = await this.contextGraph.getTimeline(basketId);
     
-    // Transform for consumer presentation
+    // Canon Compliant: Transform agent-computed data only, never create content
     return canonicalEvents.map(e => ({
-      title: e.description || this.generateSimpleTitle(e.event_type),
-      time: this.formatRelativeTime(e.created_at),
-      icon: this.getConsumerIcon(e.event_type),
-      category: this.mapToConsumerCategory(e.event_type),
+      title: e.display_title || e.description, // Use agent-processed display properties
+      time: e.relative_time || e.created_at, // Use agent-formatted time
+      icon: e.canonical_icon || '📋', // Use agent-determined iconography  
+      category: e.canonical_category || 'activity', // Use agent-classified category
       agentAttribution: e.processing_agent ? `by ${e.processing_agent}` : null
     }));
   }
 }
 ```
 
-**Step 2: Build Adapter Infrastructure**
-- Create adapter base classes
-- Implement common transformation utilities
-- Build adapter registration system
-- Create adapter testing patterns
+**Step 2: Build Adapter Infrastructure - Canon v1.4.0 Compliant**
+- Create adapter base classes (pure transformation only)
+- Implement common transformation utilities (never intelligence generation)
+- Build adapter registration system (workspace-scoped)
+- Create adapter testing patterns (Canon compliance verification)
 
 **Step 3: Implement B2C Consumer Adapter**
 - Personal memory interface
