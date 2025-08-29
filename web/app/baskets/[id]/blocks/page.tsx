@@ -1,9 +1,16 @@
 import type { Metadata } from 'next';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
-import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { BlocksListView } from '@/components/blocks/BlocksListView';
-import { notFound } from 'next/navigation';
+import { SubpageHeader } from '@/components/basket/SubpageHeader';
+import { RequestBoundary } from '@/components/RequestBoundary';
+import dynamic from 'next/dynamic';
+
+const CanonicalBlocksClient = dynamic(() => import('./CanonicalBlocksClient'), {
+  loading: () => (
+    <div className="space-y-4">
+      <div className="animate-pulse bg-gray-100 h-32 rounded-lg"></div>
+      <div className="animate-pulse bg-gray-100 h-24 rounded-lg"></div>
+    </div>
+  ),
+});
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -12,62 +19,61 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: `Blocks - Basket ${id}`,
-    description: 'View and manage context blocks in this basket',
+    title: `Substrate Blocks - Basket ${id}`,
+    description: 'P1 Substrate Agent created blocks - structured content from your memory',
   };
 }
 
 export default async function BlocksPage({ params }: PageProps) {
   const { id: basketId } = await params;
   
-  try {
-    const supabase = createServerSupabaseClient();
-    const { userId } = await getAuthenticatedUser(supabase);
-    const workspace = await ensureWorkspaceForUser(userId, supabase);
+  return (
+    <RequestBoundary>
+      <div className="flex h-full flex-col">
+        <div className="border-b p-4">
+          <SubpageHeader 
+            title="Substrate Blocks" 
+            basketId={basketId}
+            description="P1 Agent structured content - watch your thoughts become organized building blocks"
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="mx-auto max-w-6xl">
+            {/* P1 Substrate Agent Overview Banner */}
+            <div className="bg-white border-b px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <span className="w-3 h-3 bg-orange-500 rounded-full"></span>
+                    P1 Substrate Agent
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Transforming raw memory into structured, semantic blocks with confidence scoring and context tagging
+                  </p>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                    <span>Agent-Created</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                    <span>Semantic Types</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                    <span>Context Tagged</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-    // Verify basket exists and user has access
-    const { data: basket, error: basketError } = await supabase
-      .from('baskets')
-      .select('id, name, user_id, visibility, workspace_id')
-      .eq('id', basketId)
-      .maybeSingle();
-
-    if (basketError || !basket) {
-      console.error('Basket lookup error:', basketError);
-      notFound();
-    }
-
-    // Check access permissions
-    const hasAccess = basket.workspace_id === workspace.id || 
-      (basket.visibility === 'public' && basket.user_id === userId) ||
-      basket.user_id === userId;
-
-    if (!hasAccess) {
-      notFound();
-    }
-
-    // Fetch blocks for this basket
-    const { data: blocks, error: blocksError } = await supabase
-      .from('context_blocks')
-      .select('id, basket_id, title, body_md, state, version, created_at, updated_at, metadata')
-      .eq('basket_id', basketId)
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (blocksError) {
-      console.error('Blocks fetch error:', blocksError);
-    }
-
-    return (
-      <BlocksListView 
-        basketId={basketId}
-        basketTitle={basket.name}
-        initialBlocks={blocks || []}
-        canEdit={basket.user_id === userId}
-      />
-    );
-  } catch (error) {
-    console.error('Blocks page error:', error);
-    notFound();
-  }
+            <div className="p-6">
+              <CanonicalBlocksClient basketId={basketId} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </RequestBoundary>
+  );
 }

@@ -1,15 +1,41 @@
 import { z } from "zod";
 
-// Base event types following Canon v1.3.1
+// Base event types following Canon v1.4.0 - Canonical Agent System
 export const TimelineEventTypeSchema = z.enum([
+  // P0 Capture Events
   "dump.created",
+  "dump.queued",
+  
+  // P1 Substrate Events
+  "block.created",
+  "block.updated", 
+  "block.state_changed",
+  "context_item.created",
+  "context_item.updated",
+  
+  // P2 Graph Events
+  "relationship.created",
+  "relationship.deleted",
+  
+  // P3 Reflection Events
   "reflection.computed",
-  "delta.applied",
-  "delta.rejected",
+  "reflection.cached",
+  
+  // P4 Presentation Events
   "document.created",
   "document.updated",
-  "block.created",
-  "block.updated",
+  "document.composed",
+  "narrative.authored",
+  
+  // Queue Processing Events
+  "queue.entry_created",
+  "queue.processing_started",
+  "queue.processing_completed",
+  "queue.processing_failed",
+  
+  // Legacy Events (backward compatibility)
+  "delta.applied",
+  "delta.rejected", 
   "basket.created",
   "workspace.member_added",
 ]);
@@ -59,6 +85,11 @@ export const TimelineEventDTOSchema = z.object({
     client_ts: z.string().optional(),
     trace_id: z.string().uuid().optional(),
   }).optional(),
+  
+  // Canon v1.4.0: Agent Intelligence Mandatory
+  processing_agent: z.string().optional(), // Which agent processed this event (P0/P1/P2/P3)
+  agent_confidence: z.number().min(0).max(1).optional(), // Agent confidence in processing
+  description: z.string().optional(), // Agent-computed description (eliminates client-side intelligence)
 }).strict();
 
 export type TimelineEventDTO = z.infer<typeof TimelineEventDTOSchema>;

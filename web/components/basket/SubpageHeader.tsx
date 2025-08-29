@@ -1,10 +1,23 @@
 "use client";
 import Link from "next/link";
 
-export function SubpageHeader({ title, basketId }: { title: string; basketId: string }) {
+export function SubpageHeader({ 
+  title, 
+  basketId, 
+  description 
+}: { 
+  title: string; 
+  basketId: string; 
+  description?: string;
+}) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <h1 className="text-xl font-semibold">{title}</h1>
+      <div>
+        <h1 className="text-xl font-semibold">{title}</h1>
+        {description && (
+          <p className="text-sm text-gray-600 mt-1">{description}</p>
+        )}
+      </div>
       <Link href={`/baskets/${basketId}/memory`} className="text-sm underline">
         Back to Memory
       </Link>

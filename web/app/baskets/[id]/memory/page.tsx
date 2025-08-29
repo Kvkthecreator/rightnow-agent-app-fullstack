@@ -83,6 +83,35 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
           )}
         </div>
       )}
+      
+      {/* Canonical Agent Processing Indicator */}
+      <div className="rounded-md border bg-blue-50 p-3 text-sm text-blue-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              <span className="font-medium">Canonical Agent Processing</span>
+            </span>
+            <span className="text-blue-600">•</span>
+            <span>Your memory is being continuously analyzed by P0→P1→P2→P3 agents</span>
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
+              <span>Substrate</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></span>
+              <span>Connections</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+              <span>Insights</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
       <MemoryClient
         basketId={id}
         pattern={reflections.pattern ?? undefined}
