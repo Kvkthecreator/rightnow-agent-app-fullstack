@@ -132,16 +132,6 @@ export default function Sidebar({ className }: SidebarProps) {
   const basketId = pathname?.match(/^\/baskets\/([^/]+)/)?.[1] || basket?.id;
   const { documents: docList, isLoading: docsLoading } = useBasketDocuments(basketId || "");
 
-  // Map section keys to icons
-  const sectionIcons: Record<string, React.ElementType> = {
-    memory: BookOpen,
-    timeline: Clock,
-    reflections: Brain,
-    graph: Network,
-    "building-blocks": Layers,
-    documents: FileText
-  };
-
   return (
     <>
       {/* Scrim for mobile when sidebar is open */}
@@ -214,10 +204,7 @@ export default function Sidebar({ className }: SidebarProps) {
                         }
                       }}
                     >
-                      <span className="flex items-center gap-2">
-                        {Icon && <Icon size={14} />}
-                        {section.label}
-                      </span>
+                      {section.label}
                     </SidebarItem>
                   );
                 })}
