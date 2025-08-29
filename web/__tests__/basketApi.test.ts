@@ -22,7 +22,7 @@ vi.mock("@/lib/workspaces/ensureWorkspaceServer", () => ({
 import { GET as getState } from "@/app/api/baskets/[id]/state/route";
 import { GET as getDocs } from "@/app/api/baskets/[id]/documents/route";
 import { GET as getProposals } from "@/app/api/baskets/[id]/proposals/route";
-import { GET as getBlocks } from "@/app/api/baskets/[id]/blocks/route";
+import { GET as getBuildingBlocks } from "@/app/api/baskets/[id]/building-blocks/route";
 import { GET as getTimeline } from "@/app/api/baskets/[id]/timeline/route";
 import { GET as getDocument } from "@/app/api/documents/[docId]/route";
 
@@ -53,7 +53,7 @@ describe("basket api", () => {
   });
 
   it("returns blocks", async () => {
-    const res = await getBlocks(new Request("http://test"), { params: { id: "b1" } });
+    const res = await getBuildingBlocks(new Request("http://test"), { params: { id: "b1" } });
     expect(res.status).toBe(200);
   });
 

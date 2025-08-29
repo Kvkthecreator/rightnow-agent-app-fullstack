@@ -62,10 +62,11 @@ test.describe('Contract Validation: Frontend ↔ Backend ↔ Database', () => {
   test('blocks (context_blocks) contract alignment', async ({ page }) => {
     // Test blocks/context_blocks contract consistency
     
-    const response = await page.request.get(`/api/baskets/${basketId}/blocks`);
+    const response = await page.request.get(`/api/baskets/${basketId}/building-blocks`);
     expect(response.ok()).toBeTruthy();
     
-    const blocks = await response.json();
+    const buildingBlocksData = await response.json();
+    const blocks = buildingBlocksData.substrates.filter((s: any) => s.type === 'block');
     
     if (blocks.length > 0) {
       const block = blocks[0];

@@ -2,13 +2,15 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Package2, LogOut, Settings2, Clock, Brain, Network, Layers, FileText, BookOpen } from "lucide-react";
+import { Package2, LogOut, Settings2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
 import type { BasketOverview } from "@/lib/baskets/getAllBaskets";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useNavState } from "@/components/nav/useNavState";
+import { useBasketDocuments } from "@/lib/hooks/useBasketDocuments";
+import { getBasket } from "@/lib/api/baskets";
 import SidebarItem from "@/components/nav/SidebarItem";
 import { SECTION_ORDER } from "@/components/features/baskets/sections";
 
@@ -53,15 +55,27 @@ export default function Sidebar({ className }: SidebarProps) {
           data: { user },
         } = await supabase.auth.getUser();
         setUserEmail(user?.email || null);
-        const data = await getAllBaskets();
-        setBasket(data[0] || null);
+        // Determine basket from path if possible; fallback to first
+        const idFromPath = pathname?.match(/^\/baskets\/([^/]+)/)?.[1];
+        if (idFromPath) {
+          try {
+            const b = await getBasket(idFromPath);
+            setBasket({ id: b.id, name: b.name } as BasketOverview);
+          } catch {
+            const data = await getAllBaskets();
+            setBasket(data[0] || null);
+          }
+        } else {
+          const data = await getAllBaskets();
+          setBasket(data[0] || null);
+        }
       } catch (err) {
         console.error("❌ Sidebar: Init error:", err);
         setBasket(null);
       }
     }
     init();
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -115,6 +129,8 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
   const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
+  const basketId = pathname?.match(/^\/baskets\/([^/]+)/)?.[1] || basket?.id;
+  const { documents: docList, isLoading: docsLoading } = useBasketDocuments(basketId || "");
 
   // Map section keys to icons
   const sectionIcons: Record<string, React.ElementType> = {
@@ -176,11 +192,8 @@ export default function Sidebar({ className }: SidebarProps) {
           </button>
         </div>
 
-        {/* Basket */}
-        <div className="px-4 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          🧺 Basket
-        </div>
-        <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1">
+        {/* Navigation */}
+        <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-3">
           {basket ? (
             <div>
               <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm">
@@ -188,7 +201,7 @@ export default function Sidebar({ className }: SidebarProps) {
                 <span className="truncate">{basket.name || "Untitled Basket"}</span>
               </div>
               <div className="mt-2 ml-4 flex flex-col gap-0.5">
-                {SECTION_ORDER.map((section) => {
+                {SECTION_ORDER.filter((s) => s.key !== "documents").map((section) => {
                   const href = section.href(basket.id);
                   const Icon = sectionIcons[section.key];
                   return (
@@ -208,6 +221,35 @@ export default function Sidebar({ className }: SidebarProps) {
                     </SidebarItem>
                   );
                 })}
+              </div>
+              {/* Documents group */}
+              <div className="mt-4">
+                <div className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm">
+                  <FileText size={14} />
+                  <span className="truncate">Documents</span>
+                </div>
+                <div className="mt-1 ml-6 space-y-1">
+                  {docsLoading && (
+                    <p className="text-sm text-muted-foreground px-2 py-1">Loading...</p>
+                  )}
+                  {!docsLoading && docList?.length === 0 && (
+                    <p className="text-sm text-muted-foreground px-2 py-1">No documents</p>
+                  )}
+                  {!docsLoading && docList?.map((doc: any) => {
+                    const href = `/baskets/${basket.id}/documents/${doc.id}`;
+                    return (
+                      <SidebarItem
+                        key={doc.id}
+                        href={href}
+                        onClick={() => {
+                          if (isMobile) setOpen(false);
+                        }}
+                      >
+                        {doc.title || "Untitled"}
+                      </SidebarItem>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ) : (

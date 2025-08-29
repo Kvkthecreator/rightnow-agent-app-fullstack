@@ -82,11 +82,12 @@ test.describe('[CANON v1.4.0] Agent Pipeline Processing', () => {
     await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Verify P1 Substrate Agent created structured substrate
-    const blocksResponse = await request.get(`/api/baskets/${basketId}/blocks`);
+    const blocksResponse = await request.get(`/api/baskets/${basketId}/building-blocks`);
     const contextResponse = await request.get(`/api/baskets/${basketId}/context-items`);
     
     if (blocksResponse.ok() && contextResponse.ok()) {
-      const blocks = await blocksResponse.json();
+      const buildingBlocksData = await blocksResponse.json();
+      const blocks = buildingBlocksData.substrates.filter((s: any) => s.type === 'block');
       const contextItems = await contextResponse.json();
       
       // Agent Intelligence Mandatory: substrate should exist from agent processing

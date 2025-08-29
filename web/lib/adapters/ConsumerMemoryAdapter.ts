@@ -213,10 +213,11 @@ export class ConsumerMemoryAdapter extends BaseLensAdapter<ConsumerMemory, Canon
   }
 
   async getBlocks(basketId: string): Promise<CanonicalBlock[]> {
-    const response = await fetchWithToken(`/api/baskets/${basketId}/blocks`);
+    const response = await fetchWithToken(`/api/baskets/${basketId}/building-blocks`);
     if (!response.ok) throw new Error('Failed to fetch blocks');
     
-    const data = await response.json();
+    const buildingBlocksData = await response.json();
+    const data = buildingBlocksData.substrates.filter((s: any) => s.type === 'block');
     return data.blocks || [];
   }
 

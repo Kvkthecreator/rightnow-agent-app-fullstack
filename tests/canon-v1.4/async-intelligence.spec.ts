@@ -103,9 +103,10 @@ test.describe('[CANON v1.4.0] Async Intelligence Model', () => {
     await new Promise(resolve => setTimeout(resolve, 3000));
     
     // Check if agent processing created substrate (async intelligence)
-    const blocksResponse = await request.get(`/api/baskets/${basketId}/blocks`);
+    const blocksResponse = await request.get(`/api/baskets/${basketId}/building-blocks`);
     if (blocksResponse.ok()) {
-      const blocks = await blocksResponse.json();
+      const buildingBlocksData = await blocksResponse.json();
+      const blocks = buildingBlocksData.substrates.filter((s: any) => s.type === 'block');
       const recentBlocks = blocks.filter((b: any) => 
         new Date(b.created_at) > new Date(Date.now() - 10000)
       );
