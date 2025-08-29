@@ -50,14 +50,14 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
     const [documentsResult, blocksResult, dumpsResult] = await Promise.all([
       supabase
         .from('documents')
-        .select('*')
+        .select('id, title, content_raw, created_at, updated_at, document_type')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .limit(100),
       
       supabase
         .from('blocks')
-        .select('*')
+        .select('id, semantic_type, content, title, body_md, confidence_score, created_at, meta_agent_notes')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .limit(100),
