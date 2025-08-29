@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTransition } from "react";
+import { useTransition, useMemo } from "react";
+import { cn } from "@/lib/utils";
 
 interface SidebarItemProps {
   href: string;
@@ -16,6 +17,20 @@ export function SidebarItem({ href, children, className = "", onClick }: Sidebar
   const active = pathname === href || pathname?.startsWith(href + "/");
   const [pending, startTransition] = useTransition();
 
+    const classes = useMemo(
+    () =>
+      cn(
+        // base styles
+        "w-full text-left px-2 py-1.5 text-sm rounded-md transition",
+        // visual state
+        active
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:bg-muted",
+        className
+      ),
+    [active, className]
+  );
+
   return (
     <Link
       href={href}
@@ -24,7 +39,7 @@ export function SidebarItem({ href, children, className = "", onClick }: Sidebar
         startTransition(() => {});
         onClick?.();
       }}
-      className={`${className} ${active ? "is-active" : ""}`}
+      className={classes}
       aria-busy={pending || undefined}
       aria-current={active ? "page" : undefined}
     >

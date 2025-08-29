@@ -90,7 +90,6 @@ export default function Sidebar({ className }: SidebarProps) {
     router.push("/");
   };
 
-  const navPerfEnabled = process.env.NEXT_PUBLIC_NAV_PERF_PHASE1 === "1";
 
   const handleSectionNavigate = (href: string) => {
     try {
@@ -181,46 +180,18 @@ export default function Sidebar({ className }: SidebarProps) {
               <div className="mt-1 ml-6 space-y-1">
                 {SECTION_ORDER.map((section) => {
                   const href = section.href(basket.id);
-                  const sectionActive = pathname?.startsWith(href);
-                  if (navPerfEnabled) {
-                    return (
-                      <SidebarItem
-                        key={section.key}
-                        href={href}
-                        onClick={() => {
-                          if (isMobile) {
-                            setOpen(false);
-                          }
-                        }}
-                        className={cn(
-                          "w-full text-left px-2 py-1.5 text-sm rounded-md transition",
-                          sectionActive
-                            ? "bg-accent text-accent-foreground"
-                            : "text-muted-foreground hover:bg-muted",
-                        )}
-                      >
-                        {section.label}
-                      </SidebarItem>
-                    );
-                  }
                   return (
-                    <button
+                    <SidebarItem
                       key={section.key}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleSectionNavigate(href);
+                      href={href}
+                      onClick={() => {
+                        if (isMobile) {
+                          setOpen(false);
+                        }
                       }}
-                      className={cn(
-                        "w-full text-left px-2 py-1.5 text-sm rounded-md transition",
-                        sectionActive
-                          ? "bg-accent text-accent-foreground"
-                          : "text-muted-foreground hover:bg-muted",
-                      )}
-                      aria-current={sectionActive ? "page" : undefined}
                     >
                       {section.label}
-                    </button>
+                    </SidebarItem>
                   );
                 })}
               </div>
