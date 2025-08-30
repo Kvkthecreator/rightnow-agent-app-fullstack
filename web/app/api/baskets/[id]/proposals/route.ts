@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { auth } from "@/lib/auth/server";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@/lib/supabase/clients";
+import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -16,12 +17,11 @@ export async function GET(
     const status = searchParams.get('status');
     const kind = searchParams.get('kind');
     
-    const user = await auth();
-    if (!user) {
+    const supabase = createRouteHandlerClient({ cookies });
+    const { user, workspace } = await ensureWorkspaceServer(supabase);
+    if (!user || !workspace) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const supabase = createClient();
     
     let query = supabase
       .from('proposals')
@@ -78,8 +78,9 @@ export async function POST(
       basis_snapshot_id 
     } = await req.json();
     
-    const user = await auth();
-    if (!user) {
+    const supabase = createRouteHandlerClient({ cookies });
+    const { user, workspace } = await ensureWorkspaceServer(supabase);
+    if (!user || !workspace) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -93,8 +94,6 @@ export async function POST(
       warnings: [],
       impact_summary: "Manual proposal - validation pending"
     };
-
-    const supabase = createClient();
     
     // Get workspace_id for the basket
     const { data: basket, error: basketError } = await supabase
@@ -169,6 +168,6 @@ function generateOpsSummary(ops: any[]): string {
   }, {} as Record<string, number>);
   
   return Object.entries(opCounts)
-    .map(([type, count]) => `${count} ${type}${count > 1 ? 's' : ''}`)
+    .map(([type, count]) => `${count as number} ${type}${(count as number) > 1 ? 's' : ''}`)
     .join(', ');
 }
