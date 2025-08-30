@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { shouldUseGovernance, isValidatorRequired } from "@/lib/governance/featureFlags";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -84,16 +85,60 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // TODO: Implement agent validation pipeline
-    // For now, create basic validator report
-    const validator_report = {
-      confidence: 0.7,
-      dupes: [],
-      ontology_hits: [],
-      suggested_merges: [],
-      warnings: [],
-      impact_summary: "Manual proposal - validation pending"
-    };
+    // Feature flag check
+    if (!shouldUseGovernance()) {
+      return NextResponse.json({ 
+        error: "Governance not enabled",
+        governance_status: "disabled" 
+      }, { status: 503 });
+    }
+
+    // MANDATORY: Agent validation required per Governance Sacred Principle #3
+    let validator_report;
+    
+    if (isValidatorRequired()) {
+      try {
+        // Call P1 Validator Agent for mandatory validation
+        const validationResponse = await fetch(`${process.env.AGENT_API_URL}/api/validator/validate-proposal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            proposal_kind,
+            operations: ops,
+            basket_id: basketId,
+            workspace_id: workspace.id
+          })
+        });
+
+        if (!validationResponse.ok) {
+          throw new Error(`Validator API error: ${validationResponse.status}`);
+        }
+
+        validator_report = await validationResponse.json();
+        
+        // Enforce minimum validation requirements
+        if (!validator_report.confidence || !validator_report.impact_summary) {
+          throw new Error('Invalid validator response - missing required fields');
+        }
+
+      } catch (validatorError) {
+        // Validation failure blocks proposal creation
+        return NextResponse.json({ 
+          error: "Agent validation required but failed",
+          details: validatorError instanceof Error ? validatorError.message : String(validatorError)
+        }, { status: 503 });
+      }
+    } else {
+      // Fallback validation when validator not required (development/testing)
+      validator_report = {
+        confidence: 0.7,
+        dupes: [],
+        ontology_hits: [],
+        suggested_merges: [],
+        warnings: ["Validation bypassed - validator not required by feature flags"],
+        impact_summary: "Manual proposal - validation bypassed"
+      };
+    }
     
     // Get workspace_id for the basket
     const { data: basket, error: basketError } = await supabase
