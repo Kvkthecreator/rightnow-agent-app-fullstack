@@ -28,6 +28,7 @@ from app.agents.pipeline.capture_agent import DumpIngestionRequest
 from app.agents.pipeline.substrate_agent import SubstrateCreationRequest
 from app.agents.pipeline.graph_agent import RelationshipMappingRequest
 from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
+from app.agents.pipeline.governance_processor import GovernanceDumpProcessor
 from app.utils.supabase_client import supabase_admin_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
@@ -51,7 +52,7 @@ class CanonicalQueueProcessor:
         
         # Initialize canonical pipeline agents
         self.p0_capture = P0CaptureAgent()
-        self.p1_substrate = P1SubstrateAgent()
+        self.p1_governance = GovernanceDumpProcessor()  # Governance evolution
         self.p2_graph = P2GraphAgent()
         self.p3_reflection = P3ReflectionAgent()
         
@@ -138,57 +139,29 @@ class CanonicalQueueProcessor:
             await self._validate_p0_capture(dump_id, workspace_id)
             logger.info(f"P0 Capture validated for dump {dump_id}")
             
-            # P1 SUBSTRATE: Create structured substrate from dump
-            substrate_request = SubstrateCreationRequest(
+            # P1 GOVERNANCE: Create governance proposals from dump (Canon v2.0)
+            # Sacred Rule: All substrate mutations flow through governed proposals
+            governance_result = await self.p1_governance.process_dump(
                 dump_id=dump_id,
-                workspace_id=workspace_id,
                 basket_id=basket_id,
-                max_blocks=15,
-                agent_id=self.worker_id
+                workspace_id=workspace_id
             )
             
-            substrate_result = await self.p1_substrate.create_substrate(substrate_request)
             logger.info(
-                f"P1 Substrate completed: {len(substrate_result.blocks_created)} blocks, "
-                f"{len(substrate_result.context_items_created)} context items"
+                f"P1 Governance completed: {governance_result['proposals_created']} proposals created, "
+                f"confidence: {governance_result.get('confidence', 'unknown')}"
             )
             
-            # P2 GRAPH: Map relationships between created substrate
-            if len(substrate_result.blocks_created) >= 2:
-                substrate_ids = [UUID(block["id"]) for block in substrate_result.blocks_created]
-                
-                # Add context item IDs if any
-                substrate_ids.extend([UUID(item["id"]) for item in substrate_result.context_items_created])
-                
-                relationship_request = RelationshipMappingRequest(
-                    workspace_id=workspace_id,
-                    basket_id=basket_id,
-                    substrate_ids=substrate_ids,
-                    agent_id=self.worker_id
-                )
-                
-                relationship_result = await self.p2_graph.map_relationships(relationship_request)
-                logger.info(
-                    f"P2 Graph completed: {len(relationship_result.relationships_created)} relationships, "
-                    f"avg strength: {relationship_result.connection_strength_avg:.2f}"
-                )
-            else:
-                logger.info("P2 Graph skipped: insufficient substrate elements for relationships")
+            # Skip P2/P3 if no proposals were created
+            if governance_result['proposals_created'] == 0:
+                logger.info("Skipping P2/P3 - no substrate proposals generated")
+                await self._update_queue_state(queue_id, 'completed')
+                return
             
-            # P3 REFLECTION: Compute patterns and insights from all workspace substrate
-            reflection_request = ReflectionComputationRequest(
-                workspace_id=workspace_id,
-                basket_id=basket_id,
-                reflection_types=["patterns", "insights", "gaps"],
-                agent_id=self.worker_id
-            )
-            
-            reflection_result = await self.p3_reflection.compute_reflections(reflection_request)
-            logger.info(
-                f"P3 Reflection completed: {len(reflection_result.patterns_found)} patterns, "
-                f"{len(reflection_result.insights_derived)} insights, "
-                f"{len(reflection_result.gaps_identified)} gaps"
-            )
+            # P2/P3 deferred until proposals are approved
+            # In governance workflow, substrate doesn't exist until approval
+            # P2 Graph and P3 Reflection will run on approved substrate via cascade events
+            logger.info("P2/P3 deferred - proposals must be approved before relationship mapping and reflection")
             
             # Mark as completed
             await self._update_queue_state(queue_id, 'completed')
@@ -246,11 +219,11 @@ class CanonicalQueueProcessor:
             "canon_version": "v1.4.0",
             "pipeline_agents": {
                 "P0_CAPTURE": self.p0_capture.get_agent_info(),
-                "P1_SUBSTRATE": self.p1_substrate.get_agent_info(),
+                "P1_GOVERNANCE": self.p1_governance.get_agent_info(),
                 "P2_GRAPH": self.p2_graph.get_agent_info(),
                 "P3_REFLECTION": self.p3_reflection.get_agent_info()
             },
-            "processing_sequence": ["P0_CAPTURE", "P1_SUBSTRATE", "P2_GRAPH", "P3_REFLECTION"],
+            "processing_sequence": ["P0_CAPTURE", "P1_GOVERNANCE", "P2_DEFERRED", "P3_DEFERRED"],
             "sacred_principles": [
                 "Capture is Sacred",
                 "All Substrates are Peers",

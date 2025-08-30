@@ -50,6 +50,7 @@ from .routes.narrative_intelligence import router as narrative_intelligence_rout
 from .routes.narrative_jobs import router as narrative_jobs_router
 from .routes.phase1_routes import router as phase1_router
 from .routes.projection import router as projection_router
+from .api.validator.validate_proposal import router as validator_router
 
 
 def _assert_env():
@@ -113,6 +114,7 @@ routers = (
     narrative_intelligence_router,
     auth_health_router,
     health_router,
+    validator_router,
 )
 
 for r in routers:
