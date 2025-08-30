@@ -13,12 +13,38 @@ CREATE TYPE public.block_state AS ENUM (
     'SUPERSEDED',
     'REJECTED'
 );
+CREATE TYPE public.context_item_state AS ENUM (
+    'PROVISIONAL',
+    'PROPOSED',
+    'UNDER_REVIEW',
+    'ACTIVE',
+    'DEPRECATED',
+    'MERGED',
+    'REJECTED'
+);
 CREATE TYPE public.processing_state AS ENUM (
     'pending',
     'claimed',
     'processing',
     'completed',
     'failed'
+);
+CREATE TYPE public.proposal_kind AS ENUM (
+    'Extraction',
+    'Edit',
+    'Merge',
+    'Attachment',
+    'ScopePromotion',
+    'Deprecation'
+);
+CREATE TYPE public.proposal_state AS ENUM (
+    'DRAFT',
+    'PROPOSED',
+    'UNDER_REVIEW',
+    'APPROVED',
+    'REJECTED',
+    'SUPERSEDED',
+    'MERGED'
 );
 CREATE TYPE public.scope_level AS ENUM (
     'LOCAL',
@@ -893,6 +919,9 @@ CREATE TABLE public.blocks (
     metadata jsonb DEFAULT '{}'::jsonb,
     processing_agent text,
     status text DEFAULT 'proposed'::text,
+    proposal_id uuid,
+    approved_at timestamp with time zone,
+    approved_by uuid,
     CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state)))
 )
 WITH (autovacuum_enabled='true');
@@ -914,6 +943,10 @@ CREATE TABLE public.context_items (
     normalized_label text,
     origin_ref jsonb,
     equivalence_class uuid,
+    state public.context_item_state DEFAULT 'ACTIVE'::public.context_item_state,
+    proposal_id uuid,
+    approved_at timestamp with time zone,
+    approved_by uuid,
     CONSTRAINT context_items_status_check CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
 );
 ALTER TABLE ONLY public.context_items REPLICA IDENTITY FULL;
@@ -1016,6 +1049,25 @@ CREATE TABLE public.pipeline_offsets (
     last_event_ts timestamp with time zone,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+CREATE TABLE public.proposals (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid NOT NULL,
+    workspace_id uuid NOT NULL,
+    proposal_kind public.proposal_kind NOT NULL,
+    basis_snapshot_id uuid,
+    origin text NOT NULL,
+    provenance jsonb DEFAULT '[]'::jsonb,
+    ops jsonb NOT NULL,
+    validator_report jsonb DEFAULT '{}'::jsonb,
+    status public.proposal_state DEFAULT 'PROPOSED'::public.proposal_state NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    reviewed_by uuid,
+    reviewed_at timestamp with time zone,
+    review_notes text,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    CONSTRAINT proposals_origin_check CHECK ((origin = ANY (ARRAY['agent'::text, 'human'::text])))
+);
 CREATE TABLE public.raw_dumps (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid NOT NULL,
@@ -1062,7 +1114,7 @@ CREATE TABLE public.timeline_events (
     preview text,
     payload jsonb,
     workspace_id uuid NOT NULL,
-    CONSTRAINT timeline_events_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text, 'block'::text, 'dump.created'::text, 'reflection.computed'::text, 'delta.applied'::text, 'delta.rejected'::text, 'document.created'::text, 'document.updated'::text, 'document.block.attached'::text, 'document.block.detached'::text, 'document.dump.attached'::text, 'document.dump.detached'::text, 'document.context_item.attached'::text, 'document.context_item.detached'::text, 'document.reflection.attached'::text, 'document.reflection.detached'::text, 'document.timeline_event.attached'::text, 'document.timeline_event.detached'::text, 'block.created'::text, 'block.updated'::text, 'basket.created'::text, 'workspace.member_added'::text])))
+    CONSTRAINT timeline_events_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text, 'block'::text, 'dump.created'::text, 'reflection.computed'::text, 'delta.applied'::text, 'delta.rejected'::text, 'document.created'::text, 'document.updated'::text, 'document.block.attached'::text, 'document.block.detached'::text, 'document.dump.attached'::text, 'document.dump.detached'::text, 'document.context_item.attached'::text, 'document.context_item.detached'::text, 'document.reflection.attached'::text, 'document.reflection.detached'::text, 'document.timeline_event.attached'::text, 'document.timeline_event.detached'::text, 'block.created'::text, 'block.updated'::text, 'basket.created'::text, 'workspace.member_added'::text, 'proposal.submitted'::text, 'proposal.approved'::text, 'proposal.rejected'::text, 'substrate.committed'::text, 'cascade.completed'::text])))
 );
 CREATE SEQUENCE public.timeline_events_id_seq
     START WITH 1
@@ -1203,6 +1255,8 @@ ALTER TABLE ONLY public.pipeline_metrics
     ADD CONSTRAINT pipeline_metrics_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.pipeline_offsets
     ADD CONSTRAINT pipeline_offsets_pkey PRIMARY KEY (pipeline_name);
+ALTER TABLE ONLY public.proposals
+    ADD CONSTRAINT proposals_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.revisions
@@ -1244,6 +1298,7 @@ CREATE INDEX idx_context_basket ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_doc ON public.context_items USING btree (document_id);
 CREATE INDEX idx_context_items_basket ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_items_basket_id ON public.context_items USING btree (basket_id);
+CREATE INDEX idx_context_items_state ON public.context_items USING btree (state);
 CREATE INDEX idx_documents_basket ON public.documents USING btree (basket_id);
 CREATE INDEX idx_documents_workspace ON public.documents USING btree (workspace_id);
 CREATE INDEX idx_events_agent_type ON public.events USING btree (agent_type);
@@ -1255,6 +1310,8 @@ CREATE INDEX idx_idem_delta_id ON public.idempotency_keys USING btree (delta_id)
 CREATE INDEX idx_idempotency_delta ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_idempotency_keys_delta_id ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
+CREATE INDEX idx_proposals_basket_status ON public.proposals USING btree (basket_id, status);
+CREATE INDEX idx_proposals_workspace_created ON public.proposals USING btree (workspace_id, created_at DESC);
 CREATE INDEX idx_queue_claimed ON public.agent_processing_queue USING btree (claimed_by, processing_state) WHERE (claimed_by IS NOT NULL);
 CREATE INDEX idx_queue_state_created ON public.agent_processing_queue USING btree (processing_state, created_at);
 CREATE INDEX idx_queue_workspace ON public.agent_processing_queue USING btree (workspace_id, processing_state);
@@ -1318,11 +1375,15 @@ ALTER TABLE ONLY public.blocks
 ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_parent_block_id_fkey FOREIGN KEY (parent_block_id) REFERENCES public.blocks(id);
 ALTER TABLE ONLY public.blocks
+    ADD CONSTRAINT blocks_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id);
+ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
 ALTER TABLE ONLY public.context_items
     ADD CONSTRAINT context_items_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.context_items
     ADD CONSTRAINT context_items_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.context_items
+    ADD CONSTRAINT context_items_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id);
 ALTER TABLE ONLY public.context_items
     ADD CONSTRAINT context_items_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
 ALTER TABLE ONLY public.document_context_items
@@ -1355,6 +1416,10 @@ ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
+ALTER TABLE ONLY public.proposals
+    ADD CONSTRAINT proposals_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
+ALTER TABLE ONLY public.proposals
+    ADD CONSTRAINT proposals_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.reflection_cache
@@ -1396,6 +1461,9 @@ CREATE POLICY "Anon can view events temporarily" ON public.basket_events FOR SEL
 CREATE POLICY "Authenticated users can view events" ON public.basket_events FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Service role can manage queue" ON public.agent_processing_queue TO service_role USING (true);
 CREATE POLICY "Service role full access" ON public.baskets TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Users can create proposals in their workspace" ON public.proposals FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can insert events for their workspaces" ON public.events FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -1417,6 +1485,9 @@ CREATE POLICY "Users can read blocks in their workspaces" ON public.blocks FOR S
 CREATE POLICY "Users can read documents in their workspaces" ON public.documents FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = documents.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+CREATE POLICY "Users can update proposals in their workspace" ON public.proposals FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can view blocks in their workspace" ON public.blocks FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.baskets
   WHERE ((baskets.id = blocks.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
@@ -1432,6 +1503,9 @@ CREATE POLICY "Users can view narrative in their workspace" ON public.narrative 
   WHERE ((baskets.id = narrative.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view proposals in their workspace" ON public.proposals FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can view queue in their workspace" ON public.agent_processing_queue FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -1626,6 +1700,7 @@ CREATE POLICY narrative_update_workspace_member ON public.narrative FOR UPDATE T
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((b.id = narrative.basket_id) AND (wm.user_id = auth.uid())))));
+ALTER TABLE public.proposals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.raw_dumps ENABLE ROW LEVEL SECURITY;
 CREATE POLICY raw_dumps_delete_workspace_member ON public.raw_dumps FOR DELETE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
