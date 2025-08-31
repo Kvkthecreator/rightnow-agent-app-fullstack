@@ -28,10 +28,10 @@ export default function LandingPage() {
           <div className="max-w-[1200px] mx-auto px-4 py-24 flex flex-col items-start">
             <h1 className="font-brand text-4xl md:text-7xl mb-4">yarnnn</h1>
             <p className="text-xl md:text-2xl max-w-[800px]">
-              Finally organize your AI chaos. Build a memory system that evolves with your ideas.
+              Control your memory. Control your world.
             </p>
             <p className="mt-6 text-md md:text-lg max-w-[800px]">
-              You’ve got raw ideas, AI chats, and half-finished docs everywhere. yarnnn helps you turn that chaos into something alive — evolving plans, reusable strategy, and meaningful memory.
+              Finally organize your AI chaos. Build a memory system that evolves with your ideas.
             </p>
 
             {/* Optional demo section */}
