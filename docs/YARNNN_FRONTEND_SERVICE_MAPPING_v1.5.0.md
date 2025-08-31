@@ -1,8 +1,8 @@
-# Frontend-Service Architecture Mapping v1.4.0
+# YARNNN Frontend-Service Architecture Mapping v1.5.0
 
-**Version**: 1.4.0 (Governance Evolution)  
-**Status**: Canon Extension + Governance Integration  
-**Purpose**: Define the comprehensive mapping between frontend logic and the canonical service architecture with governance workflows for sustainable development
+**Version**: 1.5.0 (Workspace Governance Hardening)  
+**Status**: Canon Extension + Workspace-Scoped Governance  
+**Purpose**: Define the comprehensive mapping between frontend logic and the canonical service architecture with workspace-level governance control
 
 ---
 
@@ -48,42 +48,42 @@ The frontend must be a pure rendering layer that mirrors durable server state, w
 
 ## 🏛️ Governance Integration Architecture
 
-### Governance Layer Overview
+### Workspace-Scoped Governance Layer
 
-The governance layer sits between user actions and substrate commitment, implementing the YARNNN Governance Canon v2.0 with three Sacred Principles:
+The governance layer implements workspace-level control over substrate mutations, following YARNNN Governance Canon v3.0 with Decision Gateway architecture:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    USER ACTIONS (Frontend)                     │
 ├─────────────────────────────────────────────────────────────────┤
-│  Raw Dumps      │ Manual Edits   │ File Uploads  │ Attachments │
+│  Raw Dumps      │ Manual Edits   │ File Uploads  │ Documents   │
 │  =============  │ ============   │ ============  │ =========== │
-│  • P0 Capture   │ • Human Intent │ • Bulk Import │ • Documents │
+│  • P0 Capture   │ • Human Intent │ • Bulk Import │ • Authoring │
 └─────────────────┬───────────────┬─────────────────┬─────────────┘
                   │               │                 │
                   ▼               ▼                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    GOVERNANCE LAYER (NEW)                      │
+│                   DECISION GATEWAY (Single Choke-Point)        │
 ├─────────────────────────────────────────────────────────────────┤
-│              DUAL INGESTION CONVERGENCE                        │
+│              ChangeDescriptor → PolicyDecider                  │
 │  ┌─────────────────┐              ┌─────────────────┐          │
-│  │   Agent Flow    │              │   Manual Flow   │          │
-│  │   =========     │              │   ==========    │          │
-│  │ P0→P1 Processing│◄────────────►│ Human→P1 Valid  │          │
+│  │ Workspace Flags │              │ Risk Assessment │          │
+│  │   ============  │              │   ============  │          │
+│  │ • per-EP policy │◄────────────►│ • blast_radius  │          │
+│  │ • hybrid routing│              │ • operation type│          │
 │  └─────────────────┘              └─────────────────┘          │
 │                    \              /                            │
 │                     ▼            ▼                             │
-│              PROPOSALS TABLE (Unified)                         │
-│              ├─ P1 Validator Agent (Mandatory)                 │
-│              ├─ Human Review & Approval                        │
-│              └─ Atomic Operation Execution                     │
+│              ROUTING DECISION                                   │
+│              ├─ 'direct' → Immediate Substrate Commit          │
+│              └─ 'proposal' → Governance Review Required        │
 └─────────────────────────────────────────────────────────────────┘
                                     │
                           ┌─────────▼─────────┐
                           │   SUBSTRATE DB    │
                           │   (Sacred Truth)  │
                           │   ============    │
-                          │ • blocks          │
+                          │ • context_blocks  │
                           │ • context_items   │
                           │ • relationships   │
                           └───────────────────┘
@@ -91,16 +91,20 @@ The governance layer sits between user actions and substrate commitment, impleme
 
 ### Governance API Endpoints
 
-**Proposal Management:**
-- `POST /api/baskets/[id]/proposals` - Create new proposal
-- `GET /api/baskets/[id]/proposals` - List proposals for review
-- `GET /api/baskets/[id]/proposals/[proposalId]` - Get proposal details
-- `POST /api/baskets/[id]/proposals/[proposalId]/approve` - Approve & execute
-- `POST /api/baskets/[id]/proposals/[proposalId]/reject` - Reject proposal
+**Decision Gateway:**
+- `POST /api/changes` - Universal change endpoint using ChangeDescriptor abstraction
+- Routes via PolicyDecider to either direct commit or proposal creation
 
-**Feature Flag Status:**
-- `GET /api/governance/status` - Get governance deployment status
-- Feature flags control governance activation phases
+**Proposal Management:**
+- `POST /api/baskets/[id]/proposals` - Create new proposal with mandatory validation
+- `GET /api/baskets/[id]/proposals` - List proposals for review (filtered by status/kind)
+- `POST /api/baskets/[id]/proposals/[proposalId]/approve` - Atomic operation execution
+- `POST /api/baskets/[id]/proposals/[proposalId]/reject` - Reject with reason
+
+**Workspace Governance:**
+- `GET /api/governance/workspace/settings` - Get workspace-level governance configuration
+- `POST /api/governance/workspace/settings` - Update per-entry-point policies
+- Workspace flags control governance behavior and routing decisions
 
 ## 📡 Service-Frontend Mapping Matrix
 
