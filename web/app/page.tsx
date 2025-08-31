@@ -49,7 +49,7 @@ export default function LandingPage() {
                 }}
                 className="inline-block bg-black text-white rounded-xl px-6 py-3 text-lg hover:bg-neutral-800 transition"
               >
-                try yarnnn - it remembers for you
+                try yarnnn - Start with your name
               </a>
             </div>
           </div>

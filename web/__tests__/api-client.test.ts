@@ -1,116 +1,211 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ApiClient, basketApi } from '@/lib/api/client';
+import { createManualEditDescriptor } from '@/lib/governance/changeDescriptor';
 
 // Mock fetch globally
-global.fetch = jest.fn();
-const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+global.fetch = vi.fn();
+const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
 
-describe('ApiClient', () => {
+describe('ApiClient (Canon-Aligned)', () => {
   beforeEach(() => {
     mockFetch.mockClear();
   });
 
-  describe('basket operations', () => {
-    test('processBasketWork sends correct request', async () => {
+  describe('Universal Changes API (ChangeDescriptor-based)', () => {
+    it('should submit changes using ChangeDescriptor abstraction', async () => {
+      // Mock successful change submission
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ 
-          delta_id: 'delta-123',
-          basket_id: 'basket-1',
-          summary: 'Test delta'
+          committed: true,
+          execution_summary: {
+            operations_executed: 1,
+            substrate_ids: ['block-new-123']
+          },
+          route: 'direct'
         })
       } as Response);
 
-      const result = await basketApi.processWork('basket-1', {
-        basket_id: 'basket-1',
-        intent: 'test intent',
-        request_id: 'req-123'
+      const changeDescriptor = createManualEditDescriptor(
+        'user-123',
+        'workspace-456',
+        'basket-789',
+        [{
+          type: 'CreateBlock',
+          data: { content: 'Canon-aligned goal', semantic_type: 'goal' }
+        }]
+      );
+
+      const client = new ApiClient();
+      const result = await client.request('/api/changes', {
+        method: 'POST',
+        body: JSON.stringify(changeDescriptor)
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/baskets/basket-1/work'),
+        expect.stringContaining('/api/changes'),
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json'
           }),
-          body: expect.stringContaining('test intent')
+          body: JSON.stringify(changeDescriptor)
         })
       );
 
-      expect(result.delta_id).toBe('delta-123');
+      expect(result.committed).toBe(true);
+      expect(result.execution_summary.operations_executed).toBe(1);
     });
 
-    test('getDeltas retrieves basket deltas', async () => {
-      const mockDeltas = [
-        { delta_id: 'delta-1', summary: 'First delta' },
-        { delta_id: 'delta-2', summary: 'Second delta' }
-      ];
-
+    it('should submit proposal-routed changes', async () => {
+      // Mock proposal creation response
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockDeltas
+        json: async () => ({ 
+          committed: false,
+          proposal_id: 'proposal-abc',
+          validation_report: {
+            confidence: 0.8,
+            dupes: [],
+            ontology_hits: ['strategy'],
+            warnings: [],
+            impact_summary: 'High-impact scope promotion'
+          }
+        })
       } as Response);
 
-      const result = await basketApi.getDeltas('basket-1');
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/baskets/basket-1/deltas'),
-        expect.objectContaining({ method: undefined }) // GET is default
+      const changeDescriptor = createManualEditDescriptor(
+        'user-123',
+        'workspace-456',
+        'basket-789',
+        [{
+          type: 'PromoteScope',
+          data: { block_id: 'block-123', to_scope: 'GLOBAL' }
+        }]
       );
+      changeDescriptor.blast_radius = 'Global';
 
-      expect(result).toEqual(mockDeltas);
+      const client = new ApiClient();
+      const result = await client.request('/api/changes', {
+        method: 'POST',
+        body: JSON.stringify(changeDescriptor)
+      });
+
+      expect(result.committed).toBe(false);
+      expect(result.proposal_id).toBe('proposal-abc');
+      expect(result.validation_report.confidence).toBe(0.8);
     });
 
-    test('applyDelta applies specific delta', async () => {
+    it('should handle governance validation errors', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: async () => ({ 
+          error: 'Invalid ChangeDescriptor',
+          validation_errors: ['actor_id required', 'ops array cannot be empty']
+        })
+      } as Response);
+
+      const invalidChangeDescriptor = {
+        entry_point: 'manual_edit',
+        workspace_id: 'workspace-456',
+        ops: [] // Invalid: empty ops array
+      };
+
+      const client = new ApiClient();
+      
+      await expect(client.request('/api/changes', {
+        method: 'POST',
+        body: JSON.stringify(invalidChangeDescriptor)
+      })).rejects.toThrow('API Error: 400 Bad Request');
+    });
+
+    it('should handle network errors gracefully', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+      const client = new ApiClient();
+      
+      await expect(client.request('/api/changes', {
+        method: 'POST',
+        body: JSON.stringify({})
+      })).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('Sacred Capture Path Integration', () => {
+    it('should integrate with sacred dump creation endpoint', async () => {
+      // Mock sacred capture endpoint
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          status: 'applied',
-          basket_id: 'basket-1',
-          delta_id: 'delta-123'
+          dump_id: 'dump-sacred-123',
+          workspace_id: 'workspace-456',
+          agent_queue_triggered: true,
+          immutable: true
         })
       } as Response);
 
-      const result = await basketApi.applyDelta('basket-1', 'delta-123');
+      const client = new ApiClient();
+      const result = await client.request('/api/dumps/new', {
+        method: 'POST',
+        body: JSON.stringify({
+          content: 'Sacred user input',
+          workspace_id: 'workspace-456',
+          content_type: 'text/plain'
+        })
+      });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/baskets/basket-1/apply/delta-123'),
+        expect.stringContaining('/api/dumps/new'),
         expect.objectContaining({
           method: 'POST'
         })
       );
 
-      expect(result.status).toBe('applied');
+      expect(result.dump_id).toBe('dump-sacred-123');
+      expect(result.agent_queue_triggered).toBe(true);
+      expect(result.immutable).toBe(true);
     });
 
-    test('handles API errors gracefully', async () => {
+    it('should support orchestrated basket+dump ingestion', async () => {
+      // Mock onboarding ingestion endpoint
       mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-        json: async () => ({ error: 'Server error' })
+        ok: true,
+        json: async () => ({
+          basket_id: 'basket-onboarding-123',
+          dump_ids: ['dump-1', 'dump-2'],
+          agent_processing_triggered: true,
+          substrate_generation_queued: true
+        })
       } as Response);
 
-      await expect(basketApi.processWork('basket-1', {
-        basket_id: 'basket-1',
-        intent: 'test'
-      })).rejects.toThrow('API Error: 500 Internal Server Error');
-    });
+      const client = new ApiClient();
+      const result = await client.request('/api/baskets/ingest', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspace_id: 'workspace-456',
+          template_id: 'template-basic',
+          initial_dumps: [
+            { content: 'First dump', content_type: 'text/plain' },
+            { content: 'Second dump', content_type: 'text/plain' }
+          ]
+        })
+      });
 
-    test('handles network errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
-
-      await expect(basketApi.getDeltas('basket-1')).rejects.toThrow('Network error');
+      expect(result.agent_processing_triggered).toBe(true);
+      expect(result.substrate_generation_queued).toBe(true);
+      expect(result.dump_ids).toHaveLength(2);
     });
   });
 
-  describe('ApiClient class', () => {
-    test('can be instantiated with custom base URL', () => {
+  describe('ApiClient Core Functionality', () => {
+    it('can be instantiated with custom base URL', () => {
       const client = new ApiClient('https://custom.api.com');
       expect(client).toBeInstanceOf(ApiClient);
     });
 
-    test('adds correct headers to requests', async () => {
+    it('adds correct headers to requests', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({})
@@ -127,6 +222,23 @@ describe('ApiClient', () => {
           })
         })
       );
+    });
+
+    it('should handle workspace-scoped API errors', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        json: async () => ({ 
+          error: 'Workspace access denied',
+          workspace_id: 'workspace-456',
+          user_id: 'user-123'
+        })
+      } as Response);
+
+      const client = new ApiClient();
+      
+      await expect(client.request('/api/test-workspace-endpoint')).rejects.toThrow('API Error: 403 Forbidden');
     });
   });
 });

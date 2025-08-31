@@ -427,57 +427,7 @@ async function promoteScope(supabase: any, op: any, basketId: string, workspaceI
   return { promoted_id: data.id, new_scope: op.data.to_scope, type: 'promotion' };
 }
 
-/**
- * Create governance proposal for human review.
- */
-async function createGovernanceProposal(
-  supabase: SupabaseClient,
-  cd: ChangeDescriptor,
-  decision: Decision,
-  riskHints?: RiskHints
-): Promise<ChangeResult> {
-  // Get validation report if validator was run
-  let validationReport = null;
-  
-  if (decision.require_validator && riskHints) {
-    validationReport = await runValidator(cd, decision);
-  }
-
-  // Infer proposal kind from operations
-  const proposalKind = inferProposalKind(cd.ops);
-
-  // Create proposal
-  const { data: proposal, error: createError } = await supabase
-    .from('proposals')
-    .insert({
-      workspace_id: cd.workspace_id,
-      basket_id: cd.basket_id,
-      proposal_kind: proposalKind,
-      ops: cd.ops,
-      origin: cd.entry_point === 'onboarding_dump' ? 'agent' : 'human',
-      provenance: cd.provenance || [],
-      basis_snapshot_id: cd.basis_snapshot_id,
-      validator_report: validationReport,
-      status: 'PROPOSED',
-      blast_radius: decision.effective_blast_radius,
-      created_by: cd.actor_id
-    })
-    .select()
-    .single();
-
-  if (createError) {
-    throw new Error(`Failed to create proposal: ${createError.message}`);
-  }
-
-  // Emit proposal submitted event
-  await emitProposalSubmittedEvent(supabase, proposal, cd);
-
-  return {
-    proposal_id: proposal.id,
-    decision,
-    validation_report: validationReport
-  };
-}
+// (Removed duplicate createGovernanceProposal definition; single implementation remains above)
 
 /**
  * Run P1 Validator Agent for proposal validation.
