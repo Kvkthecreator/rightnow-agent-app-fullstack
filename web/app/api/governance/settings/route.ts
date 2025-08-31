@@ -8,6 +8,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
+
+// Ensure this route is treated as dynamic (requires authentication)
+export const dynamic = 'force-dynamic';
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
 export async function GET(req: NextRequest) {
