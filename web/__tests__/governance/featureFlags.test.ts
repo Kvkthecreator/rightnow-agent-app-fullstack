@@ -76,7 +76,7 @@ describe('Governance Feature Flags', () => {
       const status = getGovernanceStatus();
       
       expect(status.status).toBe('disabled');
-      expect(status.description).toBe('Governance not enabled - legacy substrate writes only');
+      expect(status.description).toBe('Governance not active - legacy substrate writes only');
       expect(status.flags.governance_enabled).toBe(false);
     });
 
