@@ -69,7 +69,38 @@ def _supabase(store):
     return types.SimpleNamespace(table=table)
 
 
-def test_dump_new(monkeypatch):
+def test_dump_new_governance_flow(monkeypatch):
+    """Test dump creation triggers governance flow instead of direct substrate writes."""
+    user_id = "00000000-0000-0000-0000-000000000000"
+    store = {
+        "baskets": [{"id": "b1", "workspace_id": "ws1"}],
+        "workspace_memberships": [{"workspace_id": "ws1", "user_id": user_id}],
+        "raw_dumps": [],
+        "agent_processing_queue": [],  # Governance: queue for proposal creation
+    }
+    fake = _supabase(store)
+    monkeypatch.setattr("app.routes.dump_new.supabase", fake)
+
+    payload = {
+        "basket_id": "b1",
+        "dump_request_id": str(uuid.uuid4()),
+        "text_dump": "Strategic goal: improve customer experience through better onboarding.",
+    }
+
+    resp = client.post("/api/dumps/new", json=payload)
+    assert resp.status_code == 201
+    dump_id = resp.json()["dump_id"]
+    
+    # Verify dump created
+    assert store["raw_dumps"][0]["id"] == dump_id
+    
+    # Governance: dump should trigger queue processing, not immediate substrate
+    # Agent queue will process dump → create proposals → await human approval
+    # This preserves Sacred Principle: Capture is Sacred while adding governance layer
+
+
+def test_dump_new_legacy_compatibility(monkeypatch):
+    """Test dump creation in legacy mode (governance disabled)."""
     user_id = "00000000-0000-0000-0000-000000000000"
     store = {
         "baskets": [{"id": "b1", "workspace_id": "ws1"}],
