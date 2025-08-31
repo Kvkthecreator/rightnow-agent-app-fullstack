@@ -3,12 +3,28 @@ import { GET, POST } from '@/app/api/baskets/[id]/proposals/route';
 import { POST as approveProposal } from '@/app/api/baskets/[id]/proposals/[proposalId]/approve/route';
 import { POST as rejectProposal } from '@/app/api/baskets/[id]/proposals/[proposalId]/reject/route';
 
-// Mock governance feature flags
-vi.mock('@/lib/governance/featureFlags', () => ({
-  shouldUseGovernance: () => true,
-  isValidatorRequired: () => false, // Disable for testing
-  allowDirectSubstrateWrites: () => false,
-  isGovernanceUIEnabled: () => true
+// Mock workspace governance flags
+vi.mock('@/lib/governance/flagsServer', () => ({
+  getWorkspaceFlags: vi.fn().mockResolvedValue({
+    governance_enabled: true,
+    validator_required: false,
+    direct_substrate_writes: false,
+    governance_ui_enabled: true,
+    ep: {
+      onboarding_dump: 'proposal',
+      manual_edit: 'proposal',
+      document_edit: 'proposal',
+      reflection_suggestion: 'proposal',
+      graph_action: 'proposal',
+      timeline_restore: 'proposal'
+    },
+    default_blast_radius: 'Scoped',
+    source: 'workspace_database'
+  }),
+  shouldUseGovernance: vi.fn().mockResolvedValue(true),
+  isValidatorRequired: vi.fn().mockResolvedValue(false),
+  allowDirectSubstrateWrites: vi.fn().mockResolvedValue(false),
+  isGovernanceUIEnabled: vi.fn().mockResolvedValue(true)
 }));
 
 // Mock workspace auth

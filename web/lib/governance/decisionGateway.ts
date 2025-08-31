@@ -7,8 +7,10 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { getWorkspaceFlags } from './flagsServer';
-import { ChangeDescriptor, validateChangeDescriptor } from './changeDescriptor';
-import { decide, Decision, RiskHints } from './policyDecider';
+import type { ChangeDescriptor } from './changeDescriptor';
+import { validateChangeDescriptor, computeOperationRisk } from './changeDescriptor';
+import { decide } from './policyDecider';
+import type { Decision, RiskHints } from './policyDecider';
 
 export interface ChangeResult {
   committed?: boolean;

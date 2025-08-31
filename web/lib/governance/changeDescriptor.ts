@@ -5,7 +5,7 @@
  * Used by PolicyDecider to determine routing (proposal vs direct commit).
  */
 
-import { EntryPoint } from './flagsServer';
+import type { EntryPoint } from './flagsServer';
 
 export type ChangeDescriptor = {
   // Context

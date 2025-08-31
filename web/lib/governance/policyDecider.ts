@@ -5,8 +5,9 @@
  * Implements per-entry-point policies with risk-based hybrid routing.
  */
 
-import { WorkspaceFlags, EntryPoint } from './flagsServer';
-import { ChangeDescriptor, computeOperationRisk } from './changeDescriptor';
+import type { WorkspaceFlags, EntryPoint } from './flagsServer';
+import type { ChangeDescriptor } from './changeDescriptor';
+import { computeOperationRisk } from './changeDescriptor';
 
 export type Decision = {
   route: 'proposal' | 'direct';
@@ -90,7 +91,7 @@ export function decide(
   return {
     route,
     require_validator: requireValidator,
-    validator_mode,
+    validator_mode: validatorMode,
     effective_blast_radius: effectiveBlastRadius,
     reason
   };

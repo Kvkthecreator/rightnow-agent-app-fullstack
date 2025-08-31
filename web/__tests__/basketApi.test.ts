@@ -11,12 +11,22 @@ vi.mock("next/server", () => ({
   },
 }));
 
-vi.mock("@/lib/supabaseServerClient", () => ({
-  createServerSupabaseClient: () => ({}),
+vi.mock("@/lib/supabase/server", () => ({
+  createSupabaseServerClient: () => ({
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({ data: null, error: null })
+  }),
 }));
 
 vi.mock("@/lib/workspaces/ensureWorkspaceServer", () => ({
-  ensureWorkspaceServer: async () => ({}),
+  ensureWorkspaceServer: async () => ({
+    user: { id: 'test-user' },
+    workspace: { id: 'test-workspace' }
+  }),
 }));
 
 import { GET as getState } from "@/app/api/baskets/[id]/state/route";
@@ -30,7 +40,7 @@ beforeAll(() => {
   process.env.MOCK_BASKET_API = "1";
 });
 
-describe("basket api", () => {
+describe("Basket API Routes (Canon-Aligned)", () => {
   it("returns state", async () => {
     const res = await getState(new Request("http://test"), { params: { id: "b1" } });
     expect(res.status).toBe(200);

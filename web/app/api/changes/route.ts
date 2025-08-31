@@ -3,7 +3,8 @@ import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
 import { routeChange } from '@/lib/governance/decisionGateway';
-import { ChangeDescriptor, validateChangeDescriptor } from '@/lib/governance/changeDescriptor';
+import type { ChangeDescriptor } from '@/lib/governance/changeDescriptor';
+import { validateChangeDescriptor } from '@/lib/governance/changeDescriptor';
 import { getWorkspaceGovernanceStatus } from '@/lib/governance/flagsServer';
 // Legacy import for backward compatibility
 import { createUniversalChangeService, type ChangeRequest, type ChangeResult } from '@/lib/services/UniversalChangeService';
