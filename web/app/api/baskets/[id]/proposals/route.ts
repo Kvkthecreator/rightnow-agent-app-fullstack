@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
-import { shouldUseGovernance, isValidatorRequired } from "@/lib/governance/featureFlags";
+import { getWorkspaceFlags, isValidatorRequired as isValidatorRequiredLegacy } from "@/lib/governance/flagsServer";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -85,10 +85,13 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Get workspace governance flags
+    const workspaceFlags = await getWorkspaceFlags(supabase, workspace.id);
+    
     // Feature flag check
-    if (!shouldUseGovernance()) {
+    if (!workspaceFlags.governance_enabled) {
       return NextResponse.json({ 
-        error: "Governance not enabled",
+        error: "Governance not enabled for this workspace",
         governance_status: "disabled" 
       }, { status: 503 });
     }
@@ -96,7 +99,7 @@ export async function POST(
     // MANDATORY: Agent validation required per Governance Sacred Principle #3
     let validator_report;
     
-    if (isValidatorRequired()) {
+    if (workspaceFlags.validator_required) {
       try {
         // Call P1 Validator Agent for mandatory validation
         const validationResponse = await fetch(`${process.env.AGENT_API_URL}/api/validator/validate-proposal`, {

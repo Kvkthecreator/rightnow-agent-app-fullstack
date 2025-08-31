@@ -1,11 +1,13 @@
 /**
- * Governance Feature Flags
+ * Client-side Governance Feature Flags (v2.1)
  * 
- * Safe rollout controls for governance system deployment.
- * Allows gradual migration from direct substrate writes to governed proposals.
+ * Client hook that fetches workspace-scoped governance configuration.
+ * Replaces environment-only flags with workspace-aware policies.
  */
 
-interface GovernanceFlags {
+import { useState, useEffect } from 'react';
+
+export interface GovernanceFlags {
   governance_enabled: boolean;
   validator_required: boolean;
   direct_substrate_writes: boolean;
@@ -13,6 +15,16 @@ interface GovernanceFlags {
   cascade_events_enabled: boolean;
 }
 
+export interface WorkspaceGovernanceStatus {
+  status: 'disabled' | 'testing' | 'partial' | 'full';
+  flags: GovernanceFlags;
+  workspace_id: string;
+  description: string;
+  timestamp: string;
+  canon_version: string;
+}
+
+// Legacy environment-only flags (deprecated - use useWorkspaceGovernance hook)
 const DEFAULT_FLAGS: GovernanceFlags = {
   governance_enabled: false,
   validator_required: false, 
@@ -22,13 +34,20 @@ const DEFAULT_FLAGS: GovernanceFlags = {
 };
 
 /**
- * Get governance feature flags from environment.
- * Provides safe defaults with explicit override capability.
+ * DEPRECATED: Environment-only flags (use useWorkspaceGovernance instead)
  */
 export function getGovernanceFlags(): GovernanceFlags {
-  // Check for explicit environment overrides
+  console.warn('getGovernanceFlags() is deprecated - use useWorkspaceGovernance() hook for workspace-aware governance');
+  
   const envFlags: Partial<GovernanceFlags> = {};
   
+  if (typeof window !== 'undefined') {
+    // Client-side: return defaults and warn
+    console.warn('Client-side environment access deprecated - use server API');
+    return DEFAULT_FLAGS;
+  }
+  
+  // Server-side environment fallback
   if (process.env.GOVERNANCE_ENABLED !== undefined) {
     envFlags.governance_enabled = process.env.GOVERNANCE_ENABLED === 'true';
   }
@@ -52,6 +71,64 @@ export function getGovernanceFlags(): GovernanceFlags {
   return {
     ...DEFAULT_FLAGS,
     ...envFlags
+  };
+}
+
+/**
+ * NEW: Workspace-aware governance hook
+ * Fetches governance configuration from server API.
+ */
+export function useWorkspaceGovernance() {
+  const [status, setStatus] = useState<WorkspaceGovernanceStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchGovernanceStatus() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch('/api/governance/status');
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch governance status: ${response.status}`);
+        }
+        
+        const statusData = await response.json();
+        setStatus(statusData);
+        
+      } catch (err) {
+        console.error('Failed to fetch workspace governance status:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
+        
+        // Fallback to environment defaults
+        setStatus({
+          status: 'disabled',
+          flags: DEFAULT_FLAGS,
+          workspace_id: 'unknown',
+          description: 'Failed to load governance status - using defaults',
+          timestamp: new Date().toISOString(),
+          canon_version: 'v2.1'
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchGovernanceStatus();
+  }, []);
+
+  return {
+    status: status?.status || 'disabled',
+    flags: status?.flags || DEFAULT_FLAGS,
+    loading,
+    error,
+    refetch: () => {
+      setLoading(true);
+      // Re-trigger useEffect
+      setStatus(null);
+    }
   };
 }
 
