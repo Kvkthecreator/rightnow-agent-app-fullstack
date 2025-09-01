@@ -63,7 +63,7 @@ export default function LandingPage() {
 
         {/* Headline */}
         <h2 className="text-4xl md:text-5xl font-normal mb-16">
-          Why Yarnnn? Why Now?
+          Why yarnnn? Why Now?
         </h2>
         <p className="text-lg mb-12">
           In the age of AI, your thoughts and ideas are more scattered than ever. Brilliant insights from chats, meetings, and random notes are lost in a sea of digital noise. Yarnnn is the first platform designed to solve this new problem, giving you a persistent, intelligent memory to build upon.
@@ -87,7 +87,7 @@ export default function LandingPage() {
               <span role="img" aria-label="connections">🔗</span> Build Your Second Brain, Automatically
             </h3>
             <p className="text-black text-base md:text-lg font-normal leading-relaxed">
-              Yarnnn doesn't just store your notes; it connects them. As you add thoughts, our agents automatically build an interconnected web of your knowledge. This creates a powerful second brain that grows smarter and more valuable over time, allowing you to Evolve with Confidence as new ideas are checked against your core context.
+              Yarnnn doesn&apos;t just store your notes; it connects them. As you add thoughts, our agents automatically build an interconnected web of your knowledge. This creates a powerful second brain that grows smarter and more valuable over time, allowing you to Evolve with Confidence as new ideas are checked against your core context.
             </p>
           </div>
 
@@ -97,7 +97,7 @@ export default function LandingPage() {
               <span role="img" aria-label="robot">🤖</span> Your AI Thinking Partner
             </h3>
             <p className="text-black text-base md:text-lg font-normal leading-relaxed">
-              Our agents work in the background to analyze your memory, surface surprising connections, identify emerging patterns, and offer reflections. It's not just a tool; it's an active partner that helps you think better and discover what you didn't know about yourself.
+              Our agents work in the background to analyze your memory, surface surprising connections, identify emerging patterns, and offer reflections. It&apos;s not just a tool; it&apos;s an active partner that helps you think better and discover what you didn&apos;t know about yourself.
             </p>
           </div>
 
