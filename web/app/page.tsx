@@ -55,6 +55,64 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Why Yarnnn Section */}
+      <section className="w-full max-w-[1200px] mx-auto px-4 py-16">
+        {/* Divider */}
+        <div className="w-full h-px bg-black mb-8" />
+
+        {/* Headline */}
+        <h2 className="text-4xl md:text-5xl font-normal mb-16">
+          Why Yarnnn? Why Now?
+        </h2>
+        <p className="text-lg mb-12">
+          In the age of AI, your thoughts and ideas are more scattered than ever. Brilliant insights from chats, meetings, and random notes are lost in a sea of digital noise. Yarnnn is the first platform designed to solve this new problem, giving you a persistent, intelligent memory to build upon.
+        </p>
+
+        {/* Features (2 columns on desktop, 1 on mobile) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10">
+          {/* 1. End AI Amnesia */}
+          <div>
+            <h3 className="text-neutral-500 text-base md:text-xl font-normal mb-2 flex items-center gap-1">
+              <span role="img" aria-label="brain">🧠</span> End AI Amnesia
+            </h3>
+            <p className="text-black text-base md:text-lg font-normal leading-relaxed">
+              You have valuable conversations with AI, but that context vanishes into endless chat histories. Yarnnn acts as the persistent memory for your AI-powered work, capturing every fleeting idea, raw_dump, and insight in a single, high-fidelity narrative so that nothing you create is ever lost.
+            </p>
+          </div>
+
+          {/* 2. Build Your Second Brain, Automatically */}
+          <div>
+            <h3 className="text-neutral-500 text-base md:text-xl font-normal mb-2 flex items-center gap-1">
+              <span role="img" aria-label="connections">🔗</span> Build Your Second Brain, Automatically
+            </h3>
+            <p className="text-black text-base md:text-lg font-normal leading-relaxed">
+              Yarnnn doesn't just store your notes; it connects them. As you add thoughts, our agents automatically build an interconnected web of your knowledge. This creates a powerful second brain that grows smarter and more valuable over time, allowing you to Evolve with Confidence as new ideas are checked against your core context.
+            </p>
+          </div>
+
+          {/* 3. Your AI Thinking Partner */}
+          <div>
+            <h3 className="text-neutral-500 text-base md:text-xl font-normal mb-2 flex items-center gap-1">
+              <span role="img" aria-label="robot">🤖</span> Your AI Thinking Partner
+            </h3>
+            <p className="text-black text-base md:text-lg font-normal leading-relaxed">
+              Our agents work in the background to analyze your memory, surface surprising connections, identify emerging patterns, and offer reflections. It's not just a tool; it's an active partner that helps you think better and discover what you didn't know about yourself.
+            </p>
+          </div>
+
+          {/* 4. Create with Confidence & Provenance */}
+          <div>
+            <h3 className="text-neutral-500 text-base md:text-xl font-normal mb-2 flex items-center gap-1">
+              <span role="img" aria-label="document">📋</span> Create with Confidence & Provenance
+            </h3>
+            <p className="text-black text-base md:text-lg font-normal leading-relaxed">
+              Move from scattered insights to clear, decision-ready documents. Every Block you Promote Your Truth with, and every brief or plan you create, is backed by a clear line of provenance, allowing you to Lock In Your Canon and trust your work.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <LandingFooter />
     </>
   );
