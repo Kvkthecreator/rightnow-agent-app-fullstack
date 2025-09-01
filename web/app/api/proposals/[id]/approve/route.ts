@@ -16,9 +16,20 @@ export async function POST(
     const { review_notes } = await req.json();
     
     const supabase = createRouteHandlerClient({ cookies });
-    const { user, workspace } = await ensureWorkspaceServer(supabase);
-    if (!user || !workspace) {
+    // Get authenticated user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Ensure user has workspace access
+    const workspace = await ensureWorkspaceServer(supabase);
+    if (!workspace) {
+      return NextResponse.json({ error: "Workspace access required" }, { status: 401 });
     }
     
     // Get proposal details
