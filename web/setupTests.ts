@@ -4,10 +4,12 @@
 import { expect, vi } from 'vitest'
 import * as React from 'react'
 
-// Make React globally available for JSX (test environment only)
-if (typeof globalThis !== 'undefined' && process.env.NODE_ENV === 'test') {
-  globalThis.React = React
-}
+// Setup testing environment
+process.env.NODE_ENV = 'test'
+
+// Make React available globally 
+// @ts-ignore
+globalThis.React = React
 
 // Make vi.mock available as jest.mock for compatibility
 globalThis.jest = {

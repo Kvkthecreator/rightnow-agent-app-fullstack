@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { routeChange } from '@/lib/governance/decisionGateway';
+import { 
+  createManualEditDescriptor,
+  createDumpExtractionDescriptor, 
+  createDocumentEditDescriptor,
+  computeOperationRisk,
+  summarizeChange
+} from '@/lib/governance/changeDescriptor';
 
 // Mock dependencies
 vi.mock('@/lib/governance/flagsServer');

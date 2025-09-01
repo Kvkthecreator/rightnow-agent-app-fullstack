@@ -284,7 +284,8 @@ export function validateChangeDescriptor(cd: ChangeDescriptor): { valid: boolean
   if (!cd.ops || cd.ops.length === 0) errors.push('ops array required and non-empty');
   
   // Validate operations
-  for (let i = 0; i < cd.ops.length; i++) {
+  if (cd.ops && Array.isArray(cd.ops)) {
+    for (let i = 0; i < cd.ops.length; i++) {
     const op = cd.ops[i];
     if (!op.type) errors.push(`ops[${i}].type required`);
     if (!op.data) errors.push(`ops[${i}].data required`);
@@ -302,6 +303,7 @@ export function validateChangeDescriptor(cd: ChangeDescriptor): { valid: boolean
         if (!op.data.block_id) errors.push(`ops[${i}].data.block_id required for ReviseBlock`);
         break;
       // Add more validations as needed
+    }
     }
   }
   

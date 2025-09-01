@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 
-const root = path.join(process.cwd(), "web");
+const root = process.cwd();
 const targets = [
   path.join(root, "app/baskets/[id]"),
   path.join(root, "components/basket"),
