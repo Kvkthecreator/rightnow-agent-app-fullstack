@@ -36,6 +36,7 @@ export default function GovernancePage({ params }: PageProps) {
   const [basketId, setBasketId] = useState<string>("");
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'PROPOSED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'>('all');
 
   type StatusFilterType = 'all' | 'PROPOSED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
@@ -43,7 +44,11 @@ export default function GovernancePage({ params }: PageProps) {
   // Extract basket ID from params
   useEffect(() => {
     params.then(({ id }) => {
+      console.log('Governance page - basketId extracted:', id);
       setBasketId(id);
+    }).catch((err) => {
+      console.error('Failed to extract basket ID:', err);
+      setError('Failed to load basket ID');
     });
   }, [params]);
 
@@ -51,19 +56,27 @@ export default function GovernancePage({ params }: PageProps) {
     const fetchProposals = async () => {
       if (!basketId) return;
       
+      console.log('Fetching proposals for basket:', basketId, 'with filter:', statusFilter);
       setLoading(true);
+      setError(null);
+      
       try {
         const url = `/api/baskets/${basketId}/proposals${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`;
+        console.log('Fetching from URL:', url);
         const response = await fetch(url);
         
         if (!response.ok) {
-          throw new Error(`API error: ${response.status} ${response.statusText}`);
+          const errorText = await response.text();
+          console.error('API Response Error:', response.status, response.statusText, errorText);
+          throw new Error(`API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
         
         const data = await response.json();
+        console.log('Proposals data received:', data);
         setProposals(data.items || []);
       } catch (error) {
         console.error('Failed to fetch proposals:', error);
+        setError(error instanceof Error ? error.message : 'Unknown error occurred');
         setProposals([]);
       }
       setLoading(false);
@@ -130,6 +143,22 @@ export default function GovernancePage({ params }: PageProps) {
     if (confidence >= 0.6) return 'text-yellow-600 font-medium';
     return 'text-red-600';
   };
+
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Change Requests</h1>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded p-4">
+          <div className="text-sm font-medium text-red-800 mb-2">Error Loading Governance</div>
+          <div className="text-sm text-red-700">{error}</div>
+          <div className="text-xs text-red-600 mt-2">Basket ID: {basketId}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
