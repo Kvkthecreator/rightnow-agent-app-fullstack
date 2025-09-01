@@ -15,11 +15,20 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id: basketId } = await params;
   const { data, error } = await supabase
     .from("reflection_cache")
-    .select("pattern, tension, question, computed_at")
+    .select("reflection_text, computation_timestamp, meta")
     .eq("basket_id", basketId)
-    .order("computed_at", { ascending: false })
+    .order("computation_timestamp", { ascending: false })
     .limit(1)
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? { pattern: null, tension: null, question: null, computed_at: null });
+  
+  // Transform to legacy format for backward compatibility
+  const legacyFormat = data ? {
+    pattern: data.meta?.pattern || null,
+    tension: data.meta?.tension || null, 
+    question: data.meta?.question || null,
+    computed_at: data.computation_timestamp
+  } : { pattern: null, tension: null, question: null, computed_at: null };
+  
+  return NextResponse.json(legacyFormat);
 }

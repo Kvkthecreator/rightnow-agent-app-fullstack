@@ -1,10 +1,14 @@
-// Reflections
-export type ReflectionDTO = {
+// Reflections - Legacy format (deprecated)
+// Use ReflectionDTO from './reflections.ts' for new code
+export type LegacyReflectionDTO = {
   pattern: string | null;
   tension: string | null;
   question: string | null;
   computed_at: string; // ISO
 };
+
+// For backward compatibility
+export type ReflectionDTO = LegacyReflectionDTO;
 
 // Timeline
 export type TimelineItem =
