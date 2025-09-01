@@ -35,7 +35,9 @@ export type OperationDescriptor =
   | DetachOp
   | RenameOp
   | ContextAliasOp
-  | DocumentEditOp;
+  | DocumentEditOp
+  | DocumentComposeOp
+  | DocumentAddReferenceOp;
 
 // Block operations
 export interface CreateBlockOp {
@@ -139,9 +141,43 @@ export interface DocumentEditOp {
   };
 }
 
+// P4 Presentation operations (Sacred Principle #3)
+export interface DocumentComposeOp {
+  type: 'DocumentCompose';
+  data: {
+    title: string;
+    substrate_references: Array<{
+      id: string;
+      type: 'raw_dump' | 'context_block' | 'context_item' | 'timeline_event' | 'reflection';
+      order: number;
+      excerpt?: string;
+    }>;
+    narrative_sections: Array<{
+      id: string;
+      content: string;
+      order: number;
+      title?: string;
+    }>;
+    composition_type: 'substrate_plus_narrative' | 'pure_narrative' | 'substrate_only';
+  };
+}
+
+export interface DocumentAddReferenceOp {
+  type: 'DocumentAddReference';
+  data: {
+    document_id: string;
+    substrate_reference: {
+      id: string;
+      type: 'raw_dump' | 'context_block' | 'context_item' | 'timeline_event' | 'reflection';
+      order?: number;
+      excerpt?: string;
+    };
+  };
+}
+
 // Provenance tracking
 export interface ProvenanceEntry {
-  type: 'dump' | 'doc' | 'user' | 'agent' | 'import' | 'migration';
+  type: 'dump' | 'doc' | 'user' | 'agent' | 'import' | 'migration' | 'pipeline';
   id: string;
   metadata?: Record<string, any>;
 }
