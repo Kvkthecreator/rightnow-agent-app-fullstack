@@ -388,13 +388,14 @@ async function createContextItem(supabase: any, op: any, basketId: string, works
     .from('context_items')
     .insert({
       basket_id: basketId,
-      workspace_id: workspaceId,
       type: op.data.kind || 'concept',
-      title: op.data.label,
-      description: op.data.content,
-      confidence_score: op.data.confidence || 0.7,
-      metadata: { synonyms: op.data.synonyms || [] },
-      state: 'ACTIVE'
+      content: op.data.content,
+      metadata: { 
+        title: op.data.label,
+        synonyms: op.data.synonyms || [],
+        confidence_score: op.data.confidence || 0.7
+      },
+      status: 'active'
     })
     .select()
     .single();

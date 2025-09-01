@@ -52,13 +52,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <head>
-        <link
-          rel="preload"
-          href="/fonts/Pacifico-Regular.ttf"
-          as="font"
-          type="font/ttf"
-          crossOrigin="anonymous"
-        />
       </head>
       <body className="antialiased min-h-screen">
         <GlobalErrorBoundary>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getTestAwareAuth } from '@/lib/auth/testHelpers';
-import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from '@/lib/supabase/clients';
+import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -30,9 +30,23 @@ export async function GET(
 ) {
   try {
     const { id: basketId } = await ctx.params;
-    const supabase = createServerSupabaseClient();
-    const { userId, isTest } = await getTestAwareAuth(supabase);
-    const workspace = isTest ? { id: '00000000-0000-0000-0000-000000000002' } : await ensureWorkspaceForUser(userId, supabase);
+    const supabase = createRouteHandlerClient({ cookies });
+    
+    // Get authenticated user
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Ensure user has workspace access
+    const workspace = await ensureWorkspaceServer(supabase);
+    if (!workspace) {
+      return NextResponse.json({ error: "Workspace access required" }, { status: 401 });
+    }
 
     // Canon v1.4.0: Fetch all substrate types as peers with workspace isolation
     const [rawDumpsResult, contextItemsResult, blocksResult] = await Promise.all([
@@ -45,12 +59,11 @@ export async function GET(
         .order('created_at', { ascending: false })
         .limit(100),
       
-      // Foundational substrate - Context items
+      // Foundational substrate - Context items  
       supabase
         .from('context_items')
-        .select('id, type, title, description, content, created_at, metadata, confidence_score')
+        .select('id, type, content, created_at, metadata')
         .eq('basket_id', basketId)
-        .eq('workspace_id', workspace.id)
         .order('created_at', { ascending: false })
         .limit(100),
       
@@ -102,13 +115,13 @@ export async function GET(
       unifiedSubstrates.push({
         id: item.id,
         type: 'context_item',
-        title: item.title || `${item.type} context`,
-        content: item.content || item.description || '',
+        title: item.metadata?.title || `${item.type} context`,
+        content: item.content || '',
         agent_stage: 'P1', // Context items are foundational substrate
         created_at: item.created_at,
         metadata: item.metadata,
         processing_agent: 'Foundation Agent',
-        agent_confidence: item.confidence_score || 0.7,
+        agent_confidence: item.metadata?.confidence_score || 0.7,
       });
     });
 
