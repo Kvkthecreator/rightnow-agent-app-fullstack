@@ -5,6 +5,11 @@ CREATE TYPE public.basket_state AS ENUM (
     'ARCHIVED',
     'DEPRECATED'
 );
+CREATE TYPE public.blast_radius AS ENUM (
+    'Local',
+    'Scoped',
+    'Global'
+);
 CREATE TYPE public.block_state AS ENUM (
     'PROPOSED',
     'ACCEPTED',
@@ -35,7 +40,11 @@ CREATE TYPE public.proposal_kind AS ENUM (
     'Merge',
     'Attachment',
     'ScopePromotion',
-    'Deprecation'
+    'Deprecation',
+    'Revision',
+    'Detach',
+    'Rename',
+    'ContextAlias'
 );
 CREATE TYPE public.proposal_state AS ENUM (
     'DRAFT',
@@ -145,6 +154,20 @@ BEGIN
   RETURN v_event_id;
 END;
 $$;
+CREATE FUNCTION public.ensure_raw_dump_text_columns() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+  BEGIN
+    -- Ensure both columns have the same value on insert
+    IF NEW.body_md IS NOT NULL AND NEW.text_dump IS NULL THEN
+      NEW.text_dump = NEW.body_md;
+    ELSIF NEW.text_dump IS NOT NULL AND NEW.body_md IS NULL THEN
+      NEW.body_md = NEW.text_dump;
+    END IF;
+    
+    RETURN NEW;
+  END;
+  $$;
 CREATE FUNCTION public.fn_block_create(p_basket_id uuid, p_workspace_id uuid, p_title text, p_body_md text DEFAULT NULL::text) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
@@ -759,6 +782,25 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE FUNCTION public.proposal_validation_check() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- Prevent approval of unvalidated proposals
+    IF NEW.status = 'APPROVED' AND OLD.status != 'APPROVED' THEN
+        IF NEW.validation_required = true AND NEW.validation_bypassed = false THEN
+            -- Check if validator report is complete
+            IF NEW.validator_report IS NULL OR 
+               NOT (NEW.validator_report ? 'confidence') OR
+               NOT (NEW.validator_report ? 'impact_summary') THEN
+                RAISE EXCEPTION 'Cannot approve proposal without complete validator report. Use validation_bypassed=true to override.';
+            END IF;
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$;
 CREATE FUNCTION public.queue_agent_processing() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -788,6 +830,23 @@ begin
   end if;
   return new;
 end $$;
+CREATE FUNCTION public.sync_raw_dump_text_columns() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  -- When body_md is updated, sync to text_dump
+  IF NEW.body_md IS DISTINCT FROM OLD.body_md THEN
+    NEW.text_dump = NEW.body_md;
+  END IF;
+  
+  -- When text_dump is updated, sync to body_md  
+  IF NEW.text_dump IS DISTINCT FROM OLD.text_dump THEN
+    NEW.body_md = NEW.text_dump;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$;
 CREATE FUNCTION public.verify_canon_compatibility() RETURNS TABLE(test_name text, status text, details text)
     LANGUAGE plpgsql
     AS $$
@@ -1049,6 +1108,19 @@ CREATE TABLE public.pipeline_offsets (
     last_event_ts timestamp with time zone,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+CREATE TABLE public.proposal_executions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    proposal_id uuid NOT NULL,
+    operation_index integer NOT NULL,
+    operation_type text NOT NULL,
+    executed_at timestamp with time zone DEFAULT now() NOT NULL,
+    success boolean NOT NULL,
+    result_data jsonb DEFAULT '{}'::jsonb,
+    error_message text,
+    substrate_id uuid,
+    rpc_called text,
+    execution_time_ms integer
+);
 CREATE TABLE public.proposals (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid NOT NULL,
@@ -1066,6 +1138,15 @@ CREATE TABLE public.proposals (
     reviewed_at timestamp with time zone,
     review_notes text,
     metadata jsonb DEFAULT '{}'::jsonb,
+    blast_radius public.blast_radius DEFAULT 'Local'::public.blast_radius,
+    executed_at timestamp with time zone,
+    execution_log jsonb DEFAULT '[]'::jsonb,
+    commit_id uuid,
+    is_executed boolean DEFAULT false,
+    validator_version text DEFAULT 'v1.0'::text,
+    validation_required boolean DEFAULT true,
+    validation_bypassed boolean DEFAULT false,
+    bypass_reason text,
     CONSTRAINT proposals_origin_check CHECK ((origin = ANY (ARRAY['agent'::text, 'human'::text])))
 );
 CREATE TABLE public.raw_dumps (
@@ -1081,7 +1162,8 @@ CREATE TABLE public.raw_dumps (
     processed_at timestamp with time zone,
     source_meta jsonb DEFAULT '{}'::jsonb,
     ingest_trace_id text,
-    dump_request_id uuid
+    dump_request_id uuid,
+    text_dump text
 );
 ALTER TABLE ONLY public.raw_dumps REPLICA IDENTITY FULL;
 CREATE TABLE public.revisions (
@@ -1255,6 +1337,8 @@ ALTER TABLE ONLY public.pipeline_metrics
     ADD CONSTRAINT pipeline_metrics_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.pipeline_offsets
     ADD CONSTRAINT pipeline_offsets_pkey PRIMARY KEY (pipeline_name);
+ALTER TABLE ONLY public.proposal_executions
+    ADD CONSTRAINT proposal_executions_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.proposals
     ADD CONSTRAINT proposals_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.raw_dumps
@@ -1310,7 +1394,10 @@ CREATE INDEX idx_idem_delta_id ON public.idempotency_keys USING btree (delta_id)
 CREATE INDEX idx_idempotency_delta ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_idempotency_keys_delta_id ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
+CREATE INDEX idx_proposal_executions_proposal ON public.proposal_executions USING btree (proposal_id, operation_index);
 CREATE INDEX idx_proposals_basket_status ON public.proposals USING btree (basket_id, status);
+CREATE INDEX idx_proposals_blast_radius ON public.proposals USING btree (blast_radius);
+CREATE INDEX idx_proposals_executed ON public.proposals USING btree (is_executed, executed_at);
 CREATE INDEX idx_proposals_workspace_created ON public.proposals USING btree (workspace_id, created_at DESC);
 CREATE INDEX idx_queue_claimed ON public.agent_processing_queue USING btree (claimed_by, processing_state) WHERE (claimed_by IS NOT NULL);
 CREATE INDEX idx_queue_state_created ON public.agent_processing_queue USING btree (processing_state, created_at);
@@ -1348,6 +1435,9 @@ CREATE UNIQUE INDEX uq_relationship_identity ON public.substrate_relationships U
 CREATE UNIQUE INDEX uq_substrate_rel_directed ON public.substrate_relationships USING btree (basket_id, from_type, from_id, relationship_type, to_type, to_id);
 CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (basket_id, ingest_trace_id) WHERE (ingest_trace_id IS NOT NULL);
 CREATE TRIGGER after_dump_insert AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.queue_agent_processing();
+CREATE TRIGGER ensure_text_dump_columns BEFORE INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.ensure_raw_dump_text_columns();
+CREATE TRIGGER proposals_validation_gate BEFORE UPDATE ON public.proposals FOR EACH ROW EXECUTE FUNCTION public.proposal_validation_check();
+CREATE TRIGGER sync_text_dump_columns BEFORE UPDATE ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.sync_raw_dump_text_columns();
 CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
@@ -1416,6 +1506,8 @@ ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
+ALTER TABLE ONLY public.proposal_executions
+    ADD CONSTRAINT proposal_executions_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id);
 ALTER TABLE ONLY public.proposals
     ADD CONSTRAINT proposals_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.proposals
@@ -1498,6 +1590,11 @@ CREATE POLICY "Users can view context_items in their workspace" ON public.contex
   WHERE ((baskets.id = context_items.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view executions in their workspace" ON public.proposal_executions FOR SELECT USING ((proposal_id IN ( SELECT proposals.id
+   FROM public.proposals
+  WHERE (proposals.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid()))))));
 CREATE POLICY "Users can view narrative in their workspace" ON public.narrative FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.baskets
   WHERE ((baskets.id = narrative.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
@@ -1700,6 +1797,7 @@ CREATE POLICY narrative_update_workspace_member ON public.narrative FOR UPDATE T
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((b.id = narrative.basket_id) AND (wm.user_id = auth.uid())))));
+ALTER TABLE public.proposal_executions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.proposals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.raw_dumps ENABLE ROW LEVEL SECURITY;
 CREATE POLICY raw_dumps_delete_workspace_member ON public.raw_dumps FOR DELETE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
