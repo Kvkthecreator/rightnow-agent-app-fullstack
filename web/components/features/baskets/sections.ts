@@ -1,5 +1,5 @@
 export type BasketSection = {
-  key: "memory" | "timeline" | "reflections" | "graph" | "building-blocks" | "documents";
+  key: "memory" | "timeline" | "reflections" | "graph" | "building-blocks" | "documents" | "governance";
   label: string;
   href: (id: string) => string;
 };
@@ -7,10 +7,11 @@ export type BasketSection = {
 // \uD83D\uDD12 Canonical UI order (display only)
 export const SECTION_ORDER: BasketSection[] = [
   { key: "memory", label: "Memory", href: (id) => `/baskets/${id}/memory` },
+  { key: "governance", label: "Change Requests", href: (id) => `/baskets/${id}/governance` },
   { key: "timeline", label: "Timeline", href: (id) => `/baskets/${id}/timeline` },
   { key: "reflections", label: "Reflections", href: (id) => `/baskets/${id}/reflections` },
-  { key: "graph", label: "Graph", href: (id) => `/baskets/${id}/graph` },
   { key: "building-blocks", label: "Building Blocks", href: (id) => `/baskets/${id}/building-blocks` },
+  { key: "graph", label: "Graph", href: (id) => `/baskets/${id}/graph` },
   { key: "documents", label: "Documents", href: (id) => `/baskets/${id}/documents` },
 ];
 

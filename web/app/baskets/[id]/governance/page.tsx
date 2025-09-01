@@ -1,4 +1,4 @@
-/* Unified Governance Queue
+/* Unified Governance Queue - Basket Scoped
    Lists proposals from all substrate types (blocks, context_items)
    User can Approve → commits operations | Reject → archives proposal
    Implements YARNNN_GOVERNANCE_CANON.md review interface
@@ -20,7 +20,7 @@ interface Proposal {
   impact_summary: string;
   created_at: string;
   validator_report: {
-    dupes: any[];
+    dupes: unknown[];
     warnings: string[];
     suggested_merges: string[];
     ontology_hits: string[];
@@ -28,51 +28,46 @@ interface Proposal {
   provenance: string[];
 }
 
-const supabase = createBrowserClient();
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
-export default function GovernanceQueuePage() {
+export default function GovernancePage({ params }: PageProps) {
+  const [basketId, setBasketId] = useState<string>("");
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'PROPOSED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'>('all');
-  const [selectedBasket, setSelectedBasket] = useState<string>('');
-  const [baskets, setBaskets] = useState<any[]>([]);
 
-  // Fetch available baskets for selection
-  const fetchBaskets = async () => {
-    const { data } = await supabase
-      .from("baskets")
-      .select("id, raw_dump_id")
-      .order("created_at", { ascending: false });
-    setBaskets(data || []);
-    if (data && data.length > 0 && !selectedBasket) {
-      setSelectedBasket(data[0].id);
-    }
-  };
+  type StatusFilterType = 'all' | 'PROPOSED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
 
-  // Fetch proposals for selected basket
-  const fetchProposals = async () => {
-    if (!selectedBasket) return;
-    
-    setLoading(true);
-    try {
-      const url = `/api/baskets/${selectedBasket}/proposals${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      setProposals(data.items || []);
-    } catch (error) {
-      console.error('Failed to fetch proposals:', error);
-      setProposals([]);
-    }
-    setLoading(false);
-  };
+  // Extract basket ID from params
+  useEffect(() => {
+    params.then(({ id }) => {
+      setBasketId(id);
+    });
+  }, [params]);
 
   useEffect(() => {
-    fetchBaskets();
-  }, []);
+    const fetchProposals = async () => {
+      if (!basketId) return;
+      
+      setLoading(true);
+      try {
+        const url = `/api/baskets/${basketId}/proposals${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        setProposals(data.items || []);
+      } catch (error) {
+        console.error('Failed to fetch proposals:', error);
+        setProposals([]);
+      }
+      setLoading(false);
+    };
 
-  useEffect(() => {
-    fetchProposals();
-  }, [selectedBasket, statusFilter]);
+    if (basketId) {
+      fetchProposals();
+    }
+  }, [basketId, statusFilter]);
 
   const handleApprove = async (proposalId: string) => {
     try {
@@ -83,7 +78,8 @@ export default function GovernanceQueuePage() {
       });
       
       if (response.ok) {
-        await fetchProposals(); // Refresh list
+        // Trigger re-fetch by updating statusFilter
+        setStatusFilter(prev => prev);
       }
     } catch (error) {
       console.error('Failed to approve proposal:', error);
@@ -102,7 +98,8 @@ export default function GovernanceQueuePage() {
       });
       
       if (response.ok) {
-        await fetchProposals(); // Refresh list
+        // Trigger re-fetch by updating statusFilter
+        setStatusFilter(prev => prev);
       }
     } catch (error) {
       console.error('Failed to reject proposal:', error);
@@ -132,36 +129,20 @@ export default function GovernanceQueuePage() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Governance Queue</h1>
+        <h1 className="text-2xl font-bold">Change Requests</h1>
         <div className="text-sm text-muted-foreground">
           YARNNN Governance Canon v2.0 - Unified Substrate Review
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Status Filter */}
       <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium">Basket:</label>
-          <select
-            className="border rounded p-2 text-sm min-w-[200px]"
-            value={selectedBasket}
-            onChange={(e) => setSelectedBasket(e.target.value)}
-          >
-            <option value="">Select basket...</option>
-            {baskets.map((basket) => (
-              <option key={basket.id} value={basket.id}>
-                {basket.id.slice(0, 8)}...
-              </option>
-            ))}
-          </select>
-        </div>
-        
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium">Status:</label>
           <select
             className="border rounded p-2 text-sm"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilterType)}
           >
             <option value="all">All Proposals</option>
             <option value="PROPOSED">Proposed</option>
@@ -174,12 +155,7 @@ export default function GovernanceQueuePage() {
 
       {/* Loading and Empty States */}
       {loading && <p className="text-center py-8">Loading proposals...</p>}
-      {!loading && !selectedBasket && (
-        <p className="text-center py-8 text-muted-foreground">
-          Select a basket to view governance proposals
-        </p>
-      )}
-      {!loading && selectedBasket && proposals.length === 0 && (
+      {!loading && proposals.length === 0 && (
         <p className="text-center py-8 text-muted-foreground">
           No proposals found for selected filters 🎉
         </p>

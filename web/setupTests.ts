@@ -5,7 +5,9 @@ import { expect, vi } from 'vitest'
 import * as React from 'react'
 
 // Setup testing environment
-process.env.NODE_ENV = 'test'
+if (process.env.NODE_ENV !== 'production') {
+  process.env.NODE_ENV = 'test'
+}
 
 // Make React available globally 
 // @ts-ignore
