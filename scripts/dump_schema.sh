@@ -2,6 +2,7 @@
 set -euo pipefail
 mkdir -p docs
 
+# Supabase connection string for schema operations
 PG_DUMP_URL="postgresql://postgres.galytxxkrbksilekmhcw:4ogIUdwWzVyPH0nU@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?sslmode=require"
 
 echo "🔄 Starting concise pg_dump..."
@@ -16,3 +17,7 @@ pg_dump \
   | sed '/^$/d' \
   > docs/SCHEMA_SNAPSHOT.sql
 echo "✅ SCHEMA_SNAPSHOT.sql created successfully."
+
+# Usage note for migrations:
+# To execute migrations manually when CLI fails:
+# psql "$PG_DUMP_URL" -f supabase/migrations/YYYYMMDD_your_migration.sql
