@@ -1,16 +1,23 @@
+# Manual Schema Fix Required
+
+## Issue
+Backend agent service is failing with error: `column raw_dumps.text_dump does not exist`
+
+The backend expects `text_dump` column but frontend schema uses `body_md`.
+
+## Fix Required
+Execute this SQL directly in Supabase Dashboard → SQL Editor:
+
+```sql
 -- Add text_dump column to raw_dumps table for backend compatibility
--- Backend agent service expects text_dump column but frontend uses body_md
+ALTER TABLE public.raw_dumps ADD COLUMN IF NOT EXISTS text_dump text;
 
--- Add text_dump column as alias/copy of body_md
-ALTER TABLE public.raw_dumps 
-ADD COLUMN IF NOT EXISTS text_dump text;
-
--- Copy existing body_md values to text_dump for backwards compatibility
+-- Copy existing body_md values to text_dump  
 UPDATE public.raw_dumps 
 SET text_dump = body_md 
 WHERE text_dump IS NULL AND body_md IS NOT NULL;
 
--- Create trigger to sync body_md and text_dump columns
+-- Create sync function
 CREATE OR REPLACE FUNCTION sync_raw_dump_text_columns()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -28,14 +35,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger to keep columns in sync
-DROP TRIGGER IF EXISTS sync_text_dump_columns ON public.raw_dumps;
+-- Create triggers to keep columns in sync
 CREATE TRIGGER sync_text_dump_columns
   BEFORE UPDATE ON public.raw_dumps
   FOR EACH ROW
   EXECUTE FUNCTION sync_raw_dump_text_columns();
 
--- Create trigger for inserts to ensure both columns are populated
 CREATE OR REPLACE FUNCTION ensure_raw_dump_text_columns()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -50,12 +55,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS ensure_text_dump_columns ON public.raw_dumps;
 CREATE TRIGGER ensure_text_dump_columns
   BEFORE INSERT ON public.raw_dumps
   FOR EACH ROW
   EXECUTE FUNCTION ensure_raw_dump_text_columns();
+```
 
--- Add comment explaining the dual column approach
-COMMENT ON COLUMN public.raw_dumps.text_dump IS 'Backend compatibility column - synced with body_md';
-COMMENT ON COLUMN public.raw_dumps.body_md IS 'Frontend primary column - synced with text_dump';
+## Verification
+After executing, run this to verify:
+```sql
+SELECT column_name FROM information_schema.columns 
+WHERE table_name = 'raw_dumps' AND column_name IN ('body_md', 'text_dump');
+```
+
+## Next Steps
+1. Execute SQL in Supabase Dashboard
+2. Update schema_snapshot.sql with new schema
+3. Verify backend agent processing resumes
