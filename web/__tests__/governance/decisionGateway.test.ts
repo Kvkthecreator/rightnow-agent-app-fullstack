@@ -162,7 +162,7 @@ describe('DecisionGateway', () => {
         ops: []
       } as any;
 
-      expect(async () => {
+      await expect(async () => {
         await routeChange(mockSupabase, invalidDescriptor);
       }).rejects.toThrow('Invalid ChangeDescriptor');
     });

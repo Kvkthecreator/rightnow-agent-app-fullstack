@@ -44,7 +44,8 @@ CREATE TYPE public.proposal_kind AS ENUM (
     'Revision',
     'Detach',
     'Rename',
-    'ContextAlias'
+    'ContextAlias',
+    'Capture'
 );
 CREATE TYPE public.proposal_state AS ENUM (
     'DRAFT',

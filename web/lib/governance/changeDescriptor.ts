@@ -26,6 +26,7 @@ export type ChangeDescriptor = {
 };
 
 export type OperationDescriptor = 
+  | CreateDumpOp
   | CreateBlockOp
   | ReviseBlockOp
   | CreateContextItemOp
@@ -38,6 +39,17 @@ export type OperationDescriptor =
   | DocumentEditOp
   | DocumentComposeOp
   | DocumentAddReferenceOp;
+
+// Raw dump operations (P0 Capture)
+export interface CreateDumpOp {
+  type: 'CreateDump';
+  data: {
+    dump_request_id: string;
+    text_dump?: string;
+    file_url?: string;
+    source_meta?: Record<string, any>;
+  };
+}
 
 // Block operations
 export interface CreateBlockOp {
@@ -292,6 +304,10 @@ export function validateChangeDescriptor(cd: ChangeDescriptor): { valid: boolean
     
     // Type-specific validation
     switch (op.type) {
+      case 'CreateDump':
+        if (!op.data.dump_request_id) errors.push(`ops[${i}].data.dump_request_id required for CreateDump`);
+        if (!op.data.text_dump && !op.data.file_url) errors.push(`ops[${i}] CreateDump requires text_dump or file_url`);
+        break;
       case 'CreateBlock':
         if (!op.data.content) errors.push(`ops[${i}].data.content required for CreateBlock`);
         if (!op.data.semantic_type) errors.push(`ops[${i}].data.semantic_type required for CreateBlock`);
@@ -337,6 +353,9 @@ export function computeOperationRisk(ops: OperationDescriptor[]): {
     scopeImpact = 'high';
   } else if (ops.some(op => op.type === 'MergeContextItems' || op.type === 'AttachContextItem')) {
     scopeImpact = 'medium';
+  } else if (ops.some(op => op.type === 'CreateDump')) {
+    // Dump creation is typically low risk but can contain sensitive data
+    scopeImpact = 'low';
   }
   
   return {

@@ -7,6 +7,8 @@ import { createTestAwareClient, getTestAwareAuth, checkMembershipUnlessTest } fr
 import { z } from "zod";
 import { createTimelineEmitter } from "@/lib/canon/TimelineEventEmitter";
 import { PipelineBoundaryGuard } from "@/lib/canon/PipelineBoundaryGuard";
+import { createGovernedDump } from "@/lib/api/capture";
+import type { CaptureRequest } from "@/lib/api/capture";
 
 function normalize(body: any) {
   const b = body ?? {};
@@ -82,39 +84,50 @@ export async function POST(req: Request) {
       return Response.json({ error: `Membership check failed: ${message}` }, { status: 400 });
     }
 
-    // Idempotent RPC; DB trigger emits 'dump'
-    const { data, error: rpcErr } = await supabase.rpc("fn_ingest_dumps", {
-      p_workspace_id: basket.workspace_id,
-      p_basket_id: basket_id,
-      p_dumps: [
-        {
-          dump_request_id,
-          text_dump: text_dump ?? null,
-          file_url: file_url ?? null,
-          source_meta: meta ?? null,
-          ingest_trace_id: meta?.ingest_trace_id ?? null,
-        },
-      ],
-    });
-
-    if (rpcErr) {
-      const code = rpcErr.code === "23505" ? 409 : 500;
-      return Response.json({ error: "Ingest failed", details: rpcErr.message }, { status: code });
-    }
-
-    const dump_id = Array.isArray(data) && data[0]?.dump_id;
-    if (!dump_id) return Response.json({ error: "Ingest returned no dump_id" }, { status: 500 });
-
-    // Emit timeline events for dump creation (P0 Capture pipeline)
-    const timelineEmitter = createTimelineEmitter(supabase);
-    await timelineEmitter.emitDumpCreated({
+    // GOVERNANCE-COMPLIANT CAPTURE WORKFLOW
+    // Route through Decision Gateway per Sacred Principle #1
+    const captureRequest: CaptureRequest = {
       basket_id,
-      workspace_id: basket.workspace_id,
-      dump_id,
-      source_type: file_url ? 'file' : 'text'
-    });
+      text_dump: text_dump || undefined,
+      file_url: file_url || undefined,
+      source_meta: meta || undefined
+    };
 
-    return Response.json({ dump_id }, { status: 201 });
+    try {
+      const result = await createGovernedDump(
+        supabase,
+        userId,
+        basket.workspace_id,
+        captureRequest
+      );
+
+      if (result.route === 'direct') {
+        // Direct commit succeeded - extract dump_id from result
+        // For now, return success without dump_id (UX will handle)
+        return Response.json({ 
+          success: true,
+          route: 'direct',
+          message: result.message,
+          decision_reason: result.decision_reason
+        }, { status: 201 });
+      } else {
+        // Proposal created - return proposal info
+        return Response.json({
+          success: true,
+          route: 'proposal', 
+          proposal_id: result.proposal_id,
+          message: result.message,
+          decision_reason: result.decision_reason
+        }, { status: 202 }); // 202 Accepted for async processing
+      }
+
+    } catch (captureError) {
+      console.error('Governed capture failed:', captureError);
+      return Response.json({ 
+        error: "Capture workflow failed", 
+        details: captureError instanceof Error ? captureError.message : String(captureError)
+      }, { status: 500 });
+    }
   } catch (e: any) {
     return Response.json({ error: "Unexpected error", details: String(e?.message ?? e) }, { status: 500 });
   }

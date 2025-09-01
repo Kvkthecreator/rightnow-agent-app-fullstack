@@ -224,6 +224,7 @@ export async function GET(request: NextRequest) {
         'timeline_restore'
       ],
       supported_operations: [
+        'CreateDump',
         'CreateBlock',
         'ReviseBlock', 
         'CreateContextItem',

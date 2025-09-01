@@ -305,6 +305,8 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
   // This ensures operational parity between direct commits and approved proposals
   
   switch (operation.type) {
+    case 'CreateDump':
+      return await createDump(supabase, operation, basketId, workspaceId);
     case 'CreateBlock':
       return await createBlock(supabase, operation, basketId, workspaceId);
     case 'CreateContextItem':
@@ -327,6 +329,36 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
 }
 
 // Operation implementations (should be extracted to shared module)
+
+// P0 Capture Operations
+async function createDump(supabase: any, op: any, basketId: string, workspaceId: string) {
+  // Use canonical dump ingestion RPC (same as legacy but governance-routed)
+  const { data, error } = await supabase.rpc("fn_ingest_dumps", {
+    p_workspace_id: workspaceId,
+    p_basket_id: basketId,
+    p_dumps: [
+      {
+        dump_request_id: op.data.dump_request_id,
+        text_dump: op.data.text_dump || null,
+        file_url: op.data.file_url || null,
+        source_meta: op.data.source_meta || null,
+        ingest_trace_id: op.data.source_meta?.ingest_trace_id || null,
+      },
+    ],
+  });
+
+  if (error) {
+    throw new Error(`Failed to create dump: ${error.message}`);
+  }
+
+  const dump_id = Array.isArray(data) && data[0]?.dump_id;
+  if (!dump_id) {
+    throw new Error("Dump ingestion returned no dump_id");
+  }
+
+  return { created_id: dump_id, type: 'dump' };
+}
+
 async function createBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
   const { data, error } = await supabase
     .from('context_blocks')
@@ -514,6 +546,7 @@ function inferProposalKind(ops: any[]): string {
   const types = new Set(ops.map(op => op.type));
   
   // Pattern matching for proposal kinds
+  if (types.has('CreateDump')) return 'Capture';
   if (types.has('CreateBlock') && ops.length > 1) return 'Extraction';
   if (types.has('MergeContextItems')) return 'Merge';
   if (types.has('AttachContextItem')) return 'Attachment';
