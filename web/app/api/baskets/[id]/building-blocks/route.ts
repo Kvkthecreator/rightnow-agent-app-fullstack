@@ -50,6 +50,7 @@ export async function GET(
         .from('context_items')
         .select('id, type, title, description, content, created_at, metadata, confidence_score')
         .eq('basket_id', basketId)
+        .eq('workspace_id', workspace.id)
         .order('created_at', { ascending: false })
         .limit(100),
       

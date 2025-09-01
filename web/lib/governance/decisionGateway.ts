@@ -365,7 +365,7 @@ async function createDump(supabase: any, op: any, basketId: string, workspaceId:
 
 async function createBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
   const { data, error } = await supabase
-    .from('context_blocks')
+    .from('blocks')
     .insert({
       basket_id: basketId,
       workspace_id: workspaceId,
@@ -374,7 +374,7 @@ async function createBlock(supabase: any, op: any, basketId: string, workspaceId
       canonical_value: op.data.canonical_value,
       confidence_score: op.data.confidence || 0.7,
       scope: op.data.scope || 'LOCAL',
-      status: 'ACCEPTED'
+      state: 'ACTIVE'
     })
     .select()
     .single();
@@ -388,6 +388,7 @@ async function createContextItem(supabase: any, op: any, basketId: string, works
     .from('context_items')
     .insert({
       basket_id: basketId,
+      workspace_id: workspaceId,
       type: op.data.kind || 'concept',
       title: op.data.label,
       description: op.data.content,
