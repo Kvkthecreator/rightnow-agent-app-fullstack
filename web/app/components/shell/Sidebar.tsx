@@ -161,7 +161,7 @@ export default function Sidebar({ className }: SidebarProps) {
         id="global-sidebar"
         className={cn(
           "sidebar h-screen w-64 border-r border-border transition-transform duration-300 flex flex-col z-[50]",
-          isMobile ? "fixed top-0 left-0 bg-background shadow-xl" : "relative bg-card",
+          isMobile ? "fixed top-0 left-0 bg-background/95 backdrop-blur-md shadow-xl" : "relative bg-card",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           !open && !isMobile && "hidden",
           className,
@@ -170,8 +170,8 @@ export default function Sidebar({ className }: SidebarProps) {
         {/* Header */}
         <div
           className={cn(
-            "sticky top-0 z-10 flex h-12 items-center justify-between border-b px-4",
-            "bg-background",
+            "sticky top-0 z-10 flex h-12 items-center justify-center border-b px-4",
+            "bg-background/95 backdrop-blur-md",
           )}
         >
           <button
@@ -183,13 +183,6 @@ export default function Sidebar({ className }: SidebarProps) {
             className="text-xl tracking-tight hover:underline font-brand"
           >
             yarnnn
-          </button>
-          <button
-            onClick={toggle}
-            aria-label="Toggle sidebar"
-            className="p-1.5 rounded hover:bg-muted transition"
-          >
-            <SidebarToggleIcon className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
 
