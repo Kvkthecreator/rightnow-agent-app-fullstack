@@ -388,12 +388,11 @@ async function createContextItem(supabase: any, op: any, basketId: string, works
     .from('context_items')
     .insert({
       basket_id: basketId,
-      workspace_id: workspaceId,
-      label: op.data.label,
-      content: op.data.content,
-      synonyms: op.data.synonyms || [],
-      kind: op.data.kind || 'concept',
-      confidence: op.data.confidence || 0.7,
+      type: op.data.kind || 'concept',
+      title: op.data.label,
+      description: op.data.content,
+      confidence_score: op.data.confidence || 0.7,
+      metadata: { synonyms: op.data.synonyms || [] },
       state: 'ACTIVE'
     })
     .select()
@@ -501,38 +500,70 @@ async function addDocumentReference(supabase: any, op: any, basketId: string, wo
 async function editContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
   const updateData: any = {};
   
-  if (op.data.label) updateData.label = op.data.label;
-  if (op.data.content) updateData.content = op.data.content;
-  if (op.data.synonyms) updateData.synonyms = op.data.synonyms;
+  // Map to actual schema columns: context_items has title, description, metadata
+  if (op.data.label) updateData.title = op.data.label;
+  if (op.data.content) updateData.description = op.data.content;
+  if (op.data.synonyms) {
+    updateData.metadata = { synonyms: Array.isArray(op.data.synonyms) ? op.data.synonyms : op.data.synonyms.split(',').map((s: string) => s.trim()) };
+  }
+  
+  updateData.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
     .from('context_items')
     .update(updateData)
     .eq('id', op.data.context_item_id)
-    .eq('workspace_id', workspaceId)
+    .eq('basket_id', basketId)
     .select()
     .single();
 
   if (error) throw new Error(`Failed to edit context item: ${error.message}`);
+  
+  // Emit timeline event
+  await supabase.rpc('emit_timeline_event', {
+    p_basket_id: basketId,
+    p_event_type: 'context_item.updated',
+    p_event_data: {
+      context_item_id: data.id,
+      ref_id: data.id,
+      preview: `Updated: ${data.title || 'Context Item'}`
+    },
+    p_workspace_id: workspaceId
+  });
+  
   return { updated_id: data.id, type: 'context_item_edit' };
 }
 
 async function deleteSubstrate(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const tableName = op.data.target_type === 'block' ? 'context_blocks' : 'context_items';
+  const tableName = op.data.target_type === 'block' ? 'blocks' : 'context_items';
   
-  // Mark as deleted rather than hard delete (preserves references)
+  // Soft delete: both tables use state enum with different valid values
+  const updateData = op.data.target_type === 'block' 
+    ? { state: 'SUPERSEDED' } // Valid block_state enum value
+    : { state: 'DEPRECATED' }; // Valid context_item_state enum value
+  
   const { data, error } = await supabase
     .from(tableName)
-    .update({ 
-      status: op.data.target_type === 'block' ? 'DELETED' : undefined,
-      state: op.data.target_type === 'context_item' ? 'DELETED' : undefined
-    })
+    .update(updateData)
     .eq('id', op.data.target_id)
-    .eq('workspace_id', workspaceId)
+    .eq('basket_id', basketId)
     .select()
     .single();
 
   if (error) throw new Error(`Failed to delete ${op.data.target_type}: ${error.message}`);
+  
+  // Emit timeline event
+  await supabase.rpc('emit_timeline_event', {
+    p_basket_id: basketId,
+    p_event_type: `${op.data.target_type}.deleted`,
+    p_event_data: {
+      target_id: data.id,
+      ref_id: data.id,
+      preview: `Deleted: ${data.title || data.content || 'Substrate'}`
+    },
+    p_workspace_id: workspaceId
+  });
+  
   return { deleted_id: data.id, type: `${op.data.target_type}_delete` };
 }
 
