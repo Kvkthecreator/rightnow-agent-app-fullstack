@@ -1,10 +1,16 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Label } from '@/components/ui/Label';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Database, FileText, FolderOpen, Eye, Filter, Search } from 'lucide-react';
+import { Database, FileText, FolderOpen, Eye, Filter, Search, Plus } from 'lucide-react';
+import CreateBlockModal from '@/components/building-blocks/CreateBlockModal';
+import CreateContextItemModal from '@/components/building-blocks/CreateContextItemModal';
 
 // Canon v1.4.0: Unified substrate interface - All Substrates are Peers
 interface UnifiedSubstrate {
@@ -38,11 +44,114 @@ interface BuildingBlocksClientProps {
 
 interface DetailModalProps {
   substrate: UnifiedSubstrate | null;
+  basketId: string;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-function DetailModal({ substrate, onClose }: DetailModalProps) {
+function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalProps) {
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [editContent, setEditContent] = useState('');
+  const [editLabel, setEditLabel] = useState('');
+  const [editSemanticType, setEditSemanticType] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Initialize edit fields when substrate changes
+  useEffect(() => {
+    if (substrate) {
+      setEditContent(substrate.content || '');
+      setEditLabel(substrate.title || '');
+      setEditSemanticType(substrate.semantic_type || '');
+    }
+  }, [substrate]);
+
   if (!substrate) return null;
+
+  const canEdit = substrate.type !== 'raw_dump'; // Canon: raw_dumps are immutable
+  
+  const handleEdit = async () => {
+    if (!canEdit) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch('/api/changes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entry_point: 'manual_edit',
+          basket_id: basketId,
+          ops: [{
+            type: substrate.type === 'block' ? 'ReviseBlock' : 'EditContextItem',
+            data: substrate.type === 'block' ? {
+              block_id: substrate.id,
+              content: editContent,
+              semantic_type: editSemanticType,
+              revision_reason: 'Manual edit from building blocks'
+            } : {
+              context_item_id: substrate.id,
+              label: editLabel,
+              content: editContent
+            }
+          }]
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.route === 'direct') {
+        toast.success(`${substrate.type === 'block' ? 'Block' : 'Context item'} updated ✓`);
+      } else {
+        toast.success(`${substrate.type === 'block' ? 'Block' : 'Context item'} edit proposed for review ⏳`);
+      }
+      
+      setMode('view');
+      onClose();
+      onSuccess?.();
+    } catch (error) {
+      toast.error('Failed to save changes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!canEdit || !confirm(`Delete this ${substrate.type}?`)) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch('/api/changes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entry_point: 'manual_edit',
+          basket_id: basketId,
+          ops: [{
+            type: 'Delete',
+            data: {
+              target_id: substrate.id,
+              target_type: substrate.type,
+              delete_reason: 'Manual deletion from building blocks'
+            }
+          }]
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.route === 'direct') {
+        toast.success(`${substrate.type === 'block' ? 'Block' : 'Context item'} deleted ✓`);
+      } else {
+        toast.success(`${substrate.type === 'block' ? 'Block' : 'Context item'} deletion proposed for review ⏳`);
+      }
+      
+      onClose();
+      onSuccess?.();
+    } catch (error) {
+      toast.error('Failed to delete');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -55,8 +164,38 @@ function DetailModal({ substrate, onClose }: DetailModalProps) {
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAgentStageColor(substrate.agent_stage)}`}>
               {substrate.agent_stage} Agent
             </span>
+            {substrate.type === 'raw_dump' && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                Immutable
+              </span>
+            )}
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setMode(mode === 'view' ? 'edit' : 'view')}
+                  disabled={loading}
+                >
+                  {mode === 'view' ? 'Edit' : 'Cancel'}
+                </Button>
+                {mode === 'view' && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleDelete}
+                    disabled={loading}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    Delete
+                  </Button>
+                )}
+              </>
+            )}
+            <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
+          </div>
         </div>
 
         {/* Content */}
@@ -79,10 +218,55 @@ function DetailModal({ substrate, onClose }: DetailModalProps) {
 
             {/* Content */}
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">Content</h4>
-              <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-800 whitespace-pre-wrap max-h-64 overflow-y-auto">
-                {substrate.content || 'No content available'}
-              </div>
+              <h4 className="font-medium text-gray-900 mb-2">
+                {mode === 'edit' ? 'Edit Content' : 'Content'}
+              </h4>
+              {mode === 'edit' && canEdit ? (
+                <div className="space-y-3">
+                  {substrate.type === 'context_item' && (
+                    <div>
+                      <Label htmlFor="edit-label">Label</Label>
+                      <Input
+                        id="edit-label"
+                        value={editLabel}
+                        onChange={(e) => setEditLabel(e.target.value)}
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <Label htmlFor="edit-content">Content</Label>
+                    <Textarea
+                      id="edit-content"
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      rows={6}
+                      className="resize-none"
+                    />
+                  </div>
+                  {substrate.type === 'block' && (
+                    <div>
+                      <Label htmlFor="edit-semantic">Semantic Type</Label>
+                      <Input
+                        id="edit-semantic"
+                        value={editSemanticType}
+                        onChange={(e) => setEditSemanticType(e.target.value)}
+                      />
+                    </div>
+                  )}
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="ghost" onClick={() => setMode('view')} disabled={loading}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleEdit} disabled={loading}>
+                      {loading ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-800 whitespace-pre-wrap max-h-64 overflow-y-auto">
+                  {substrate.content || 'No content available'}
+                </div>
+              )}
             </div>
 
             {/* Metadata */}
@@ -123,6 +307,8 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedSubstrate, setSelectedSubstrate] = useState<UnifiedSubstrate | null>(null);
+  const [showCreateBlock, setShowCreateBlock] = useState(false);
+  const [showCreateContextItem, setShowCreateContextItem] = useState(false);
 
   async function loadBuildingBlocks() {
     try {
@@ -276,6 +462,28 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                   <option value="block">Processed Blocks</option>
                 </select>
               </div>
+              
+              {/* CRUD Creation Buttons */}
+              <div className="flex items-center gap-2 border-l pl-4">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setShowCreateContextItem(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Context Item
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setShowCreateBlock(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Block
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -327,8 +535,25 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
 
       {/* Detail Modal */}
       <DetailModal 
-        substrate={selectedSubstrate} 
-        onClose={() => setSelectedSubstrate(null)} 
+        substrate={selectedSubstrate}
+        basketId={basketId}
+        onClose={() => setSelectedSubstrate(null)}
+        onSuccess={loadBuildingBlocks}
+      />
+      
+      {/* Create Modals */}
+      <CreateBlockModal
+        basketId={basketId}
+        open={showCreateBlock}
+        onClose={() => setShowCreateBlock(false)}
+        onSuccess={loadBuildingBlocks}
+      />
+      
+      <CreateContextItemModal
+        basketId={basketId}
+        open={showCreateContextItem}
+        onClose={() => setShowCreateContextItem(false)}
+        onSuccess={loadBuildingBlocks}
       />
     </>
   );

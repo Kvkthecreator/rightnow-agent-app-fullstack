@@ -38,7 +38,9 @@ export type OperationDescriptor =
   | ContextAliasOp
   | DocumentEditOp
   | DocumentComposeOp
-  | DocumentAddReferenceOp;
+  | DocumentAddReferenceOp
+  | EditContextItemOp
+  | DeleteOp;
 
 // Raw dump operations (P0 Capture)
 export interface CreateDumpOp {
@@ -187,6 +189,28 @@ export interface DocumentAddReferenceOp {
   };
 }
 
+// Context item edit operations
+export interface EditContextItemOp {
+  type: 'EditContextItem';
+  data: {
+    context_item_id: string;
+    label?: string;
+    content?: string;
+    synonyms?: string[];
+    edit_reason?: string;
+  };
+}
+
+// Generic delete operations
+export interface DeleteOp {
+  type: 'Delete';
+  data: {
+    target_id: string;
+    target_type: 'block' | 'context_item';
+    delete_reason?: string;
+  };
+}
+
 // Provenance tracking
 export interface ProvenanceEntry {
   type: 'dump' | 'doc' | 'user' | 'agent' | 'import' | 'migration' | 'pipeline';
@@ -317,6 +341,13 @@ export function validateChangeDescriptor(cd: ChangeDescriptor): { valid: boolean
         break;
       case 'ReviseBlock':
         if (!op.data.block_id) errors.push(`ops[${i}].data.block_id required for ReviseBlock`);
+        break;
+      case 'EditContextItem':
+        if (!op.data.context_item_id) errors.push(`ops[${i}].data.context_item_id required for EditContextItem`);
+        break;
+      case 'Delete':
+        if (!op.data.target_id) errors.push(`ops[${i}].data.target_id required for Delete`);
+        if (!op.data.target_type) errors.push(`ops[${i}].data.target_type required for Delete`);
         break;
       // Add more validations as needed
     }

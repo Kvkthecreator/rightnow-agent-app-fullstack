@@ -323,6 +323,10 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
       return await composeDocument(supabase, operation, basketId, workspaceId);
     case 'DocumentAddReference':
       return await addDocumentReference(supabase, operation, basketId, workspaceId);
+    case 'EditContextItem':
+      return await editContextItem(supabase, operation, basketId, workspaceId);
+    case 'Delete':
+      return await deleteSubstrate(supabase, operation, basketId, workspaceId);
     default:
       throw new Error(`Unsupported operation type: ${operation.type}`);
   }
@@ -492,6 +496,44 @@ async function addDocumentReference(supabase: any, op: any, basketId: string, wo
 
   if (error) throw new Error(`Failed to add document reference: ${error.message}`);
   return { updated_id: op.data.document_id, type: 'document_reference' };
+}
+
+async function editContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
+  const updateData: any = {};
+  
+  if (op.data.label) updateData.label = op.data.label;
+  if (op.data.content) updateData.content = op.data.content;
+  if (op.data.synonyms) updateData.synonyms = op.data.synonyms;
+
+  const { data, error } = await supabase
+    .from('context_items')
+    .update(updateData)
+    .eq('id', op.data.context_item_id)
+    .eq('workspace_id', workspaceId)
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to edit context item: ${error.message}`);
+  return { updated_id: data.id, type: 'context_item_edit' };
+}
+
+async function deleteSubstrate(supabase: any, op: any, basketId: string, workspaceId: string) {
+  const tableName = op.data.target_type === 'block' ? 'context_blocks' : 'context_items';
+  
+  // Mark as deleted rather than hard delete (preserves references)
+  const { data, error } = await supabase
+    .from(tableName)
+    .update({ 
+      status: op.data.target_type === 'block' ? 'DELETED' : undefined,
+      state: op.data.target_type === 'context_item' ? 'DELETED' : undefined
+    })
+    .eq('id', op.data.target_id)
+    .eq('workspace_id', workspaceId)
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to delete ${op.data.target_type}: ${error.message}`);
+  return { deleted_id: data.id, type: `${op.data.target_type}_delete` };
 }
 
 // (Removed duplicate createGovernanceProposal definition; single implementation remains above)

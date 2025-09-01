@@ -155,16 +155,16 @@ describe('DecisionGateway', () => {
       expect(result.validation_report?.confidence).toBe(0.8);
     });
 
-    it('should handle validation errors gracefully', () => {
+    it('should handle validation errors gracefully', async () => {
       const invalidDescriptor = {
         entry_point: 'manual_edit' as const,
         // Missing required fields
         ops: []
       } as any;
 
-      await expect(async () => {
-        await routeChange(mockSupabase, invalidDescriptor);
-      }).rejects.toThrow('Invalid ChangeDescriptor');
+      await expect(
+        routeChange(mockSupabase, invalidDescriptor)
+      ).rejects.toThrow('Invalid ChangeDescriptor');
     });
   });
 
