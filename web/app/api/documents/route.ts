@@ -9,6 +9,59 @@ import {
   type CreateDocumentRequest,
 } from '@shared/contracts/documents';
 
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const basketId = searchParams.get('basketId');
+    
+    if (!basketId) {
+      return NextResponse.json({ error: 'basketId required' }, { status: 400 });
+    }
+
+    const supabase = createServerSupabaseClient();
+    const { userId } = await getAuthenticatedUser(supabase);
+    const workspace = await ensureWorkspaceForUser(userId, supabase);
+
+    // Validate basket access
+    const { data: basket, error: basketError } = await supabase
+      .from('baskets')
+      .select('id, workspace_id')
+      .eq('id', basketId)
+      .eq('workspace_id', workspace.id)
+      .maybeSingle();
+
+    if (basketError || !basket) {
+      return NextResponse.json({ error: 'basket not found' }, { status: 404 });
+    }
+
+    // Fetch documents for basket
+    const { data: documents, error: documentsError } = await supabase
+      .from('documents')
+      .select('id, title, document_type, created_at, updated_at')
+      .eq('basket_id', basketId)
+      .order('created_at', { ascending: false });
+
+    if (documentsError) {
+      return NextResponse.json(
+        { error: `Failed to fetch documents: ${documentsError.message}` },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ documents: documents || [] });
+
+  } catch (error) {
+    console.error('Documents fetch error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerSupabaseClient();

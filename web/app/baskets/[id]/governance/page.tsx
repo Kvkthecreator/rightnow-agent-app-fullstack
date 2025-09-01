@@ -55,6 +55,11 @@ export default function GovernancePage({ params }: PageProps) {
       try {
         const url = `/api/baskets/${basketId}/proposals${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`;
         const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status} ${response.statusText}`);
+        }
+        
         const data = await response.json();
         setProposals(data.items || []);
       } catch (error) {

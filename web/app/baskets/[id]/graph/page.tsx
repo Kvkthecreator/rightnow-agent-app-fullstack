@@ -28,7 +28,7 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
     // Verify basket exists and user has access
     const { data: basket, error: basketError } = await supabase
       .from('baskets')
-      .select('id, name, user_id, visibility, workspace_id')
+      .select('id, name, user_id, workspace_id')
       .eq('id', basketId)
       .maybeSingle();
 
@@ -39,7 +39,6 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
 
     // Check access permissions
     const hasAccess = basket.workspace_id === workspace.id || 
-      (basket.visibility === 'public' && basket.user_id === userId) ||
       basket.user_id === userId;
 
     if (!hasAccess) {
