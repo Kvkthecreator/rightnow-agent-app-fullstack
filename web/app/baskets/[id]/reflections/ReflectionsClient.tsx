@@ -15,6 +15,7 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Load reflections from API
   async function loadReflections(useCursor?: string) {
@@ -113,6 +114,12 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
     }
   }
 
+  // Filter reflections based on search query
+  const filteredReflections = reflections.filter(reflection =>
+    !searchQuery || 
+    reflection.reflection_text.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   // Load initial data
   useEffect(() => {
     loadReflections();
@@ -138,9 +145,9 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
         <p className="text-red-700 text-sm">{error}</p>
         <button
           onClick={() => loadReflections()}
-          className="mt-2 text-red-600 hover:text-red-800 text-sm underline"
+          className="mt-2 px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
         >
-          Try again
+          Try Again
         </button>
       </div>
     );
@@ -152,10 +159,10 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
         <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <span className="text-2xl">🤔</span>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Reflections Yet</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Insights Yet</h3>
         <p className="text-gray-600 text-sm mb-4">
-          The P3 Reflection Agent will generate insights once you have substrate to analyze.
-          Add some memory to your basket to get started.
+          Add some content to your knowledge base and insights will automatically be discovered.
+          Patterns, themes, and connections will appear here as your knowledge grows.
         </p>
         <div className="flex justify-center gap-3">
           <button
@@ -171,79 +178,78 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
 
   return (
     <div className="space-y-6">
-      {/* Refresh Controls */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-600">
-          {reflections.length} insight{reflections.length !== 1 ? 's' : ''} discovered
+      {/* Search & Controls */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-64 relative">
+            <input
+              type="text"
+              placeholder="Search insights..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">
+              {filteredReflections.length} of {reflections.length} insights
+            </span>
+            <button
+              onClick={refreshReflections}
+              className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors flex items-center gap-1"
+            >
+              <span>🔄</span>
+              <span>Find New</span>
+            </button>
+          </div>
         </div>
-        <button
-          onClick={refreshReflections}
-          className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors flex items-center gap-1"
-        >
-          <span>🔄</span>
-          <span>Refresh</span>
-        </button>
       </div>
 
-      {/* Reflections List */}
+      {/* Insights List */}
       <div className="space-y-4">
-        {reflections.map((reflection, index) => (
+        {filteredReflections.map((reflection, index) => (
           <div key={reflection.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            {/* Reflection Header */}
-            <div className="border-b border-gray-100 px-6 py-3 bg-purple-50">
+            {/* Insight Header */}
+            <div className="border-b border-gray-100 px-6 py-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-                  <span className="text-sm font-medium text-purple-800">
-                    Insight #{reflections.length - index}
-                  </span>
-                  <span className="text-xs text-purple-600">
-                    {formatTimeWindow(reflection.substrate_window_start, reflection.substrate_window_end)}
-                  </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">💡</span>
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Discovery #{filteredReflections.length - index}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Found {formatComputationTime(reflection.computation_timestamp)}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-xs text-purple-600">
-                  {formatComputationTime(reflection.computation_timestamp)}
-                </div>
+                {reflection.meta?.substrate_dump_count && (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    From {reflection.meta.substrate_dump_count} sources
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Reflection Content */}
-            <div className="px-6 py-4">
-              <div className="prose prose-sm max-w-none">
-                <div className="whitespace-pre-wrap text-gray-800">
+            {/* Insight Content */}
+            <div className="px-6 py-6">
+              <div className="prose prose-gray max-w-none">
+                <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
                   {reflection.reflection_text}
                 </div>
               </div>
             </div>
-
-            {/* Reflection Metadata */}
-            {reflection.meta && (
-              <div className="border-t border-gray-100 px-6 py-3 bg-gray-50">
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  {reflection.meta.substrate_dump_count && (
-                    <div className="flex items-center gap-1">
-                      <span>📄</span>
-                      <span>{reflection.meta.substrate_dump_count} sources</span>
-                    </div>
-                  )}
-                  {reflection.meta.substrate_tokens && (
-                    <div className="flex items-center gap-1">
-                      <span>🧮</span>
-                      <span>{reflection.meta.substrate_tokens.toLocaleString()} tokens analyzed</span>
-                    </div>
-                  )}
-                  {reflection.meta.computation_trace_id && (
-                    <div className="flex items-center gap-1">
-                      <span>🔍</span>
-                      <span>Trace {reflection.meta.computation_trace_id.slice(0, 8)}...</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         ))}
       </div>
+
+      {/* No Search Results */}
+      {filteredReflections.length === 0 && searchQuery && reflections.length > 0 && (
+        <div className="text-center py-8 text-gray-500">
+          No insights match your search. Try a different term.
+        </div>
+      )}
 
       {/* Load More */}
       {hasMore && (
@@ -251,9 +257,9 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
           <button
             onClick={loadMore}
             disabled={loadingMore}
-            className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50"
           >
-            {loadingMore ? "Loading..." : "Load More Insights"}
+            {loadingMore ? "Finding more..." : "Find More Insights"}
           </button>
         </div>
       )}
