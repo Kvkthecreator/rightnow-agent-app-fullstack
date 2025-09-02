@@ -514,8 +514,8 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                     <span>{graphData.dumps.length}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>References:</span>
-                    <span>{graphData.references.length}</span>
+                    <span>Relationships:</span>
+                    <span>{graphData.relationships.length}</span>
                   </div>
                 </CardContent>
               </Card>
