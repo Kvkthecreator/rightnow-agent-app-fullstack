@@ -382,7 +382,11 @@ export function computeOperationRisk(ops: OperationDescriptor[]): {
   
   if (ops.some(op => op.type === 'PromoteScope' || op.type === 'DocumentEdit')) {
     scopeImpact = 'high';
-  } else if (ops.some(op => op.type === 'MergeContextItems' || op.type === 'AttachContextItem')) {
+  } else if (ops.some(op => op.type === 'MergeContextItems' || op.type === 'AttachContextItem' || op.type === 'CreateContextItem')) {
+    // Canon: Context-items are semantic bridges that affect substrate relationships
+    scopeImpact = 'medium';
+  } else if (ops.some(op => op.type === 'CreateBlock' || op.type === 'ReviseBlock')) {
+    // All substrate creation should be governed per Canon
     scopeImpact = 'medium';
   } else if (ops.some(op => op.type === 'CreateDump')) {
     // Dump creation is typically low risk but can contain sensitive data

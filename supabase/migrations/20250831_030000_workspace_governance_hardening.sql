@@ -139,12 +139,12 @@ BEGIN
       'source', 'workspace_database'
     );
   ELSE
-    -- Return environment defaults (fallback)
+    -- Return Canon-compliant defaults (governance enabled by default)
     result := jsonb_build_object(
-      'governance_enabled', false,
+      'governance_enabled', true,
       'validator_required', false,
-      'direct_substrate_writes', true,
-      'governance_ui_enabled', false,
+      'direct_substrate_writes', false,
+      'governance_ui_enabled', true,
       'ep_onboarding_dump', 'proposal',
       'ep_manual_edit', 'proposal',
       'ep_document_edit', 'proposal',
@@ -152,7 +152,7 @@ BEGIN
       'ep_graph_action', 'proposal',
       'ep_timeline_restore', 'proposal',
       'default_blast_radius', 'Scoped',
-      'source', 'environment_fallback'
+      'source', 'canon_compliant_defaults'
     );
   END IF;
   

@@ -45,20 +45,14 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
       notFound();
     }
 
-    // Fetch graph data - simplified for debugging
-    const [documentsResult, blocksResult, dumpsResult] = await Promise.all([
-      supabase
-        .from('documents')
-        .select('id, title, content_raw, created_at, updated_at, document_type')
-        .eq('basket_id', basketId)
-        .eq('workspace_id', workspace.id)
-        .limit(100),
-      
+    // Fetch substrate data only (Canon-compliant graph)
+    const [blocksResult, dumpsResult, contextItemsResult, relationshipsResult] = await Promise.all([
       supabase
         .from('blocks')
-        .select('id, semantic_type, content, title, body_md, confidence_score, created_at, meta_agent_notes')
+        .select('id, semantic_type, content, title, body_md, confidence_score, created_at, meta_agent_notes, state')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
+        .in('state', ['ACTIVE', 'LOCKED', 'CONSTANT']) // Only approved substrate
         .limit(100),
       
       supabase
@@ -66,14 +60,23 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
         .select('id, basket_id, body_md, created_at, processing_status, file_url, source_meta')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
-        .limit(50)
+        .limit(50),
+        
+      supabase
+        .from('context_items')
+        .select('id, title, description, type, metadata, created_at, state')
+        .eq('basket_id', basketId)
+        .in('state', ['ACTIVE']) // Only approved context items
+        .limit(100),
+        
+      supabase
+        .from('context_relationships')
+        .select('id, from_id, to_id, relationship_type, from_type, to_type, weight')
+        .eq('workspace_id', workspace.id)
+        .limit(200)
     ]);
 
     // Check for database errors that might cause notFound()
-    if (documentsResult.error) {
-      console.error('Documents query error:', documentsResult.error);
-      throw new Error(`Documents query failed: ${documentsResult.error.message}`);
-    }
     if (blocksResult.error) {
       console.error('Blocks query error:', blocksResult.error);
       throw new Error(`Blocks query failed: ${blocksResult.error.message}`);
@@ -82,17 +85,20 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
       console.error('Dumps query error:', dumpsResult.error);
       throw new Error(`Dumps query failed: ${dumpsResult.error.message}`);
     }
-
-    // Note: Substrate references temporarily disabled to debug
-    // const { data: references } = await supabase
-    //   .from('substrate_references')  
-    //   .select(`...`)
+    if (contextItemsResult.error) {
+      console.error('Context items query error:', contextItemsResult.error);
+      throw new Error(`Context items query failed: ${contextItemsResult.error.message}`);
+    }
+    if (relationshipsResult.error) {
+      console.error('Relationships query error:', relationshipsResult.error);
+      throw new Error(`Relationships query failed: ${relationshipsResult.error.message}`);
+    }
 
     const graphData = {
-      documents: documentsResult.data || [],
       blocks: blocksResult.data || [],
       dumps: dumpsResult.data || [],
-      references: []
+      context_items: contextItemsResult.data || [],
+      relationships: relationshipsResult.data || []
     };
 
     return (

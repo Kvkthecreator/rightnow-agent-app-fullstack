@@ -26,7 +26,7 @@ import { SubpageHeader } from '@/components/basket/SubpageHeader';
 
 interface GraphNode {
   id: string;
-  type: 'document' | 'block' | 'dump';
+  type: 'block' | 'dump' | 'context_item';
   title: string;
   label: string;
   color: string;
@@ -41,17 +41,17 @@ interface GraphEdge {
   source: string;
   target: string;
   weight: number;
-  role?: string;
-  type: 'reference' | 'creation' | 'semantic';
+  relationship_type?: string;
+  type: 'semantic' | 'derivation';
   color: string;
   width: number;
 }
 
 interface GraphData {
-  documents: any[];
   blocks: any[];
   dumps: any[];
-  references: any[];
+  context_items: any[];
+  relationships: any[];
 }
 
 interface GraphViewProps {
@@ -66,9 +66,9 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [visibleTypes, setVisibleTypes] = useState({
-    document: true,
     block: true,
-    dump: true
+    dump: true,
+    context_item: true
   });
   const [graphLayout, setGraphLayout] = useState<'force' | 'hierarchy' | 'circular'>('force');
   const [zoom, setZoom] = useState(1);
@@ -90,17 +90,17 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
     const nodeMap = new Map<string, GraphNode>();
     const edgeList: GraphEdge[] = [];
 
-    // Create document nodes
-    if (visibleTypes.document) {
-      graphData.documents.forEach(doc => {
-        nodeMap.set(doc.id, {
-          id: doc.id,
-          type: 'document',
-          title: doc.title,
-          label: doc.title.length > 20 ? doc.title.substring(0, 20) + '...' : doc.title,
+    // Create context-item nodes (semantic bridges)
+    if (visibleTypes.context_item) {
+      graphData.context_items.forEach(item => {
+        nodeMap.set(item.id, {
+          id: item.id,
+          type: 'context_item',
+          title: item.title,
+          label: item.title.length > 15 ? item.title.substring(0, 15) + '...' : item.title,
           color: '#3b82f6', // blue
-          size: 20,
-          metadata: doc
+          size: 12,
+          metadata: item
         });
       });
     }
@@ -111,12 +111,12 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
         nodeMap.set(block.id, {
           id: block.id,
           type: 'block',
-          title: `${block.semantic_type} block`,
+          title: `${block.semantic_type}`,
           label: block.semantic_type.length > 15 ? 
                  block.semantic_type.substring(0, 15) + '...' : 
                  block.semantic_type,
           color: getBlockColor(block.confidence_score),
-          size: 15,
+          size: 18,
           metadata: block
         });
       });
@@ -125,35 +125,34 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
     // Create dump nodes
     if (visibleTypes.dump) {
       graphData.dumps.forEach(dump => {
+        const sourceType = dump.source_meta?.source_type || 'capture';
         nodeMap.set(dump.id, {
           id: dump.id,
           type: 'dump',
-          title: `${dump.source_type} dump`,
-          label: `${dump.source_type}`,
+          title: `${sourceType} capture`,
+          label: sourceType,
           color: '#10b981', // green
-          size: 12,
+          size: 14,
           metadata: dump
         });
       });
     }
 
-    // Context items removed - not part of Canon v1.4.0 architecture
-
-    // Create edges from substrate references
-    graphData.references.forEach(ref => {
-      const sourceNode = nodeMap.get(ref.document_id);
-      const targetNode = nodeMap.get(ref.substrate_id);
+    // Create edges from context relationships (Canon-compliant semantic bridges)
+    graphData.relationships.forEach(rel => {
+      const sourceNode = nodeMap.get(rel.from_id);
+      const targetNode = nodeMap.get(rel.to_id);
       
       if (sourceNode && targetNode) {
         edgeList.push({
-          id: ref.id,
-          source: ref.document_id,
-          target: ref.substrate_id,
-          weight: ref.weight || 0.5,
-          role: ref.role,
-          type: 'reference',
-          color: getReferenceColor(ref.role),
-          width: Math.max(1, (ref.weight || 0.5) * 4)
+          id: rel.id,
+          source: rel.from_id,
+          target: rel.to_id,
+          weight: rel.weight || 0.7,
+          relationship_type: rel.relationship_type,
+          type: 'semantic',
+          color: getRelationshipColor(rel.relationship_type),
+          width: Math.max(1, (rel.weight || 0.7) * 3)
         });
       }
     });
@@ -172,11 +171,12 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
     return '#ef4444'; // very low confidence - red
   };
 
-  const getReferenceColor = (role?: string) => {
-    switch (role) {
-      case 'primary': return '#dc2626'; // red
-      case 'supporting': return '#2563eb'; // blue
-      case 'citation': return '#7c3aed'; // purple
+  const getRelationshipColor = (relationshipType?: string) => {
+    switch (relationshipType) {
+      case 'relates_to': return '#3b82f6'; // blue
+      case 'contains': return '#10b981'; // green
+      case 'derived_from': return '#f59e0b'; // orange
+      case 'similar_to': return '#8b5cf6'; // purple
       default: return '#64748b'; // gray
     }
   };
@@ -194,8 +194,8 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
         }));
       
       case 'hierarchy':
-        // Simple hierarchy based on node types (Canon compliant)
-        const typeOrder = ['document', 'block', 'dump'];
+        // Simple hierarchy based on substrate types (Canon compliant)
+        const typeOrder = ['dump', 'block', 'context_item']; // Capture → Structure → Semantic
         return nodes.map(node => {
           const typeIndex = typeOrder.indexOf(node.type);
           const typeNodes = nodes.filter(n => n.type === node.type);
@@ -359,7 +359,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <Network className="h-5 w-5" />
-                      Memory Graph ({nodes.length} nodes, {edges.length} connections)
+                      Substrate Graph ({nodes.length} nodes, {edges.length} connections)
                     </CardTitle>
                     
                     <div className="flex items-center gap-2">
