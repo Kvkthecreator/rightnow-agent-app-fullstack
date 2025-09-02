@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { FileText, Plus, Edit3, MoreVertical } from 'lucide-react';
+import { FileText, Sparkles, Eye, Clock } from 'lucide-react';
 import type { DocumentDTO } from '@shared/contracts/documents';
 
 interface DocumentsListProps {
@@ -57,6 +58,40 @@ export function DocumentsList({ basketId }: DocumentsListProps) {
     router.push(`/baskets/${basketId}/documents/${document.id}`);
   };
 
+  const handleProposeBreakdown = async (document: DocumentDTO, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    try {
+      const response = await fetch('/api/changes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entry_point: 'document_edit',
+          basket_id: basketId,
+          ops: [{
+            type: 'BreakdownDocument',
+            data: {
+              document_id: document.id,
+              breakdown_reason: 'User requested document breakdown into substrate'
+            }
+          }]
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.route === 'direct') {
+        toast.success('Document breakdown started ✓');
+      } else {
+        toast.success('Document breakdown proposed for review ⏳');
+      }
+      
+    } catch (error) {
+      console.error('Breakdown proposal error:', error);
+      toast.error('Failed to propose breakdown');
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -86,15 +121,18 @@ export function DocumentsList({ basketId }: DocumentsListProps) {
 
   if (documents.length === 0) {
     return (
-      <EmptyState
-        icon={<FileText className="h-12 w-12 text-gray-400" />}
-        title="No documents yet"
-        action={
-          <p className="text-sm text-gray-500 mt-2">
-            Click "New Document" to create your first document
+      <Card className="border-2 border-dashed border-gray-200">
+        <CardContent className="p-12 text-center">
+          <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No documents yet</h3>
+          <p className="text-gray-600 text-sm mb-6">
+            Upload your first document to start building your knowledge library
           </p>
-        }
-      />
+          <div className="text-xs text-gray-500">
+            Supported: PDF, TXT, MD, DOCX, images
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -103,46 +141,60 @@ export function DocumentsList({ basketId }: DocumentsListProps) {
       {documents.map((document) => (
         <Card
           key={document.id}
-          className="hover:shadow-md transition-shadow cursor-pointer group"
-          onClick={() => handleDocumentClick(document)}
+          className="hover:shadow-md transition-shadow group border-blue-100"
         >
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                  <h3 className="text-lg font-medium text-gray-900">
-                    {document.title}
-                  </h3>
+              <div className="flex-1 cursor-pointer" onClick={() => handleDocumentClick(document)}>
+                <div className="flex items-center gap-3 mb-3">
+                  <FileText className="h-6 w-6 text-blue-600" />
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {document.title}
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Clock className="h-3 w-3" />
+                      <span>Updated {formatDate(document.updated_at)}</span>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="text-sm text-gray-500 mb-4">
-                  Last updated {formatDate(document.updated_at)}
-                </div>
-                
-                {document.metadata && Object.keys(document.metadata).length > 0 && (
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">Metadata:</span>{' '}
-                    {Object.entries(document.metadata).map(([key, value]) => (
-                      <span key={key} className="inline-block mr-3">
-                        {key}: {String(value)}
+                {document.metadata && (
+                  <div className="text-xs text-gray-600 mb-3">
+                    {document.metadata.original_filename && (
+                      <span className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
+                        {document.metadata.original_filename}
                       </span>
-                    ))}
+                    )}
+                    {document.metadata.file_size && (
+                      <span className="text-gray-500">
+                        {(document.metadata.file_size / 1024 / 1024).toFixed(2)} MB
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
               
-              <Button
-                variant="ghost"
-                size="sm"
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // TODO: Add document actions menu
-                }}
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2 ml-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDocumentClick(document)}
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  View
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => handleProposeBreakdown(document, e)}
+                  className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Propose Breakdown
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
