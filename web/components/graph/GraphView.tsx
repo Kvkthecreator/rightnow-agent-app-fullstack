@@ -308,14 +308,14 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
 
   const handleNodeNavigation = (node: GraphNode) => {
     switch (node.type) {
-      case 'document':
-        router.push(`/baskets/${basketId}/documents/${node.id}`);
-        break;
       case 'block':
-        router.push(`/baskets/${basketId}/blocks`);
+        router.push(`/baskets/${basketId}/building-blocks`);
         break;
       case 'dump':
         router.push(`/baskets/${basketId}/timeline`);
+        break;
+      case 'context_item':
+        router.push(`/baskets/${basketId}/building-blocks`);
         break;
     }
   };
