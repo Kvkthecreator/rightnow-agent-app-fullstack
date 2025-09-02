@@ -118,7 +118,7 @@ export async function getBasketDocuments(basketId: string) {
 export async function getDocument(basketId: string, documentId: string) {
   try {
     const documents = await getBasketDocuments(basketId);
-    return documents.find(doc => doc.id === documentId) || null;
+    return documents.find((doc: any) => doc.id === documentId) || null;
   } catch (error) {
     console.error('Error fetching document:', error);
     return null;

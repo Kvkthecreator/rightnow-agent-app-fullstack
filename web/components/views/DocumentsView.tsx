@@ -46,7 +46,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
   const { documents, isLoading, createDocument, updateDocument } = useBasketDocuments(basketId);
 
   // Find active document if documentId provided
-  const activeDocument = documentId ? documents.find(doc => doc.id === documentId) : null;
+  const activeDocument = documentId ? documents.find((doc: any) => doc.id === documentId) : null;
 
   const handleCreateDocument = async (title: string, template?: string) => {
     try {
