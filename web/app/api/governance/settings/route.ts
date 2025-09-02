@@ -71,14 +71,14 @@ export async function GET(req: NextRequest) {
         source: 'workspace_database'
       });
     } else {
-      // Return environment defaults
+      // Return Canon-compliant defaults (matches database function)
       return NextResponse.json({
         workspace_id: workspace.id,
         settings: {
-          governance_enabled: false,
+          governance_enabled: true,
           validator_required: false,
-          direct_substrate_writes: true,
-          governance_ui_enabled: false,
+          direct_substrate_writes: false,
+          governance_ui_enabled: true,
           
           entry_point_policies: {
             onboarding_dump: 'proposal',
@@ -91,8 +91,8 @@ export async function GET(req: NextRequest) {
           
           default_blast_radius: 'Scoped'
         },
-        source: 'environment_defaults',
-        note: 'No workspace-specific settings found - using environment defaults'
+        source: 'canon_compliant_defaults',
+        note: 'No workspace-specific settings found - using Canon-compliant defaults'
       });
     }
 

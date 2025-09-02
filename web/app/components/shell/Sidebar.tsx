@@ -276,6 +276,18 @@ export default function Sidebar({ className }: SidebarProps) {
                   <button
                     onClick={(e) => {
                       e.preventDefault();
+                      setOpenDropdown(false);
+                      router.push("/governance/settings");
+                      if (isMobile) setOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2 hover:bg-muted text-muted-foreground hover:text-foreground"
+                  >
+                    <Shield size={14} />
+                    Review Settings
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
                       handleLogout();
                     }}
                     className="flex w-full items-center gap-2 px-4 py-2 text-destructive hover:bg-muted"
