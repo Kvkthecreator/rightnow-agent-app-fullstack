@@ -10,6 +10,7 @@ interface UnifiedTimelineProps {
   basketId: string;
   className?: string;
   onEventClick?: (event: TimelineEventDTO) => void;
+  pipelineFilter?: string;
 }
 
 interface TimelineResponse {
@@ -174,6 +175,7 @@ export default function UnifiedTimeline({
   basketId,
   className = "",
   onEventClick,
+  pipelineFilter = "all",
 }: UnifiedTimelineProps) {
   const [events, setEvents] = useState<TimelineEventDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,7 +183,11 @@ export default function UnifiedTimeline({
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
   const [loadingMore, setLoadingMore] = useState(false);
-  const [pipelineFilter, setPipelineFilter] = useState<string>("all");
+  const [processingStats, setProcessingStats] = useState<{
+    activeProcessing: number;
+    avgProcessingTime: number;
+    successRate: number;
+  } | null>(null);
 
   if (!dayjsRef) {
     // Lazy load dayjs and relativeTime plugin when component mounts
@@ -194,7 +200,7 @@ export default function UnifiedTimeline({
 
   useEffect(() => {
     loadEvents();
-  }, [basketId]);
+  }, [basketId, pipelineFilter]);
 
   async function loadEvents(useCursor?: string) {
     try {
@@ -219,12 +225,42 @@ export default function UnifiedTimeline({
 
       setHasMore(data.has_more);
       setCursor(data.next_cursor);
+      
+      // Calculate processing stats from events
+      if (!useCursor) {
+        calculateProcessingStats(data.events);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load timeline");
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
+  }
+
+  function calculateProcessingStats(allEvents: TimelineEventDTO[]) {
+    // Count active processing
+    const activeProcessing = allEvents.filter(e => 
+      e.event_type === "queue.processing_started" && 
+      !allEvents.some(completed => 
+        completed.event_type === "queue.processing_completed" && 
+        completed.event_data.queue_id === e.event_data.queue_id
+      )
+    ).length;
+
+    // Calculate success rate (last 24h)
+    const last24h = dayjsRef().subtract(24, 'hour');
+    const recentEvents = allEvents.filter(e => dayjsRef(e.created_at).isAfter(last24h));
+    const completed = recentEvents.filter(e => e.event_type === "queue.processing_completed").length;
+    const failed = recentEvents.filter(e => e.event_type === "queue.processing_failed").length;
+    const total = completed + failed;
+    const successRate = total > 0 ? (completed / total) * 100 : 100;
+
+    setProcessingStats({
+      activeProcessing,
+      avgProcessingTime: 0, // Would need backend calculation
+      successRate
+    });
   }
 
   async function loadMore() {
@@ -276,13 +312,46 @@ export default function UnifiedTimeline({
     );
   }
 
+  // Filter events based on pipeline filter
+  const filteredEvents = pipelineFilter === "all" 
+    ? events 
+    : events.filter(event => {
+        const config = getEventConfig(event.event_type);
+        return (config as any).pipeline === pipelineFilter;
+      });
+
+  if (filteredEvents.length === 0 && pipelineFilter !== "all") {
+    return (
+      <div className={`p-4 text-sm text-muted-foreground ${className}`}>
+        No events found for the selected filter
+      </div>
+    );
+  }
+
   return (
     <div className={`${className}`}>
+      {/* Processing Status Bar */}
+      {processingStats && processingStats.activeProcessing > 0 && (
+        <div className="bg-blue-50 border-b border-blue-200 p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              <span className="text-sm font-medium text-blue-900">
+                Currently processing {processingStats.activeProcessing} item{processingStats.activeProcessing > 1 ? 's' : ''}
+              </span>
+            </div>
+            <span className="text-xs text-blue-700">
+              {processingStats.successRate.toFixed(0)}% success rate (24h)
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-0">
-        {events.map((event, index) => {
+        {filteredEvents.map((event, index) => {
           const config = getEventConfig(event.event_type);
           const description = getEventDescription(event);
-          const isLast = index === events.length - 1;
+          const isLast = index === filteredEvents.length - 1;
 
           return (
             <div
@@ -313,15 +382,46 @@ export default function UnifiedTimeline({
                     {description}
                   </p>
                 )}
+                
+                {/* Processing-specific insights */}
+                {event.event_type === "queue.processing_started" && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-orange-600">Processing in progress...</span>
+                  </div>
+                )}
+                
+                {event.event_type === "queue.processing_completed" && event.event_data.duration_ms && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-green-600">
+                      Completed in {(event.event_data.duration_ms / 1000).toFixed(1)}s
+                    </span>
+                  </div>
+                )}
+                
+                {event.event_type === "queue.processing_failed" && event.event_data.error && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-red-600">
+                      Failed: {event.event_data.error}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Show source/trigger information */}
+                {event.event_data.source && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Started from {event.event_data.source}
+                  </div>
+                )}
+                
                 {/* Show agent attribution when available */}
                 {event.processing_agent && (
                   <p className="text-xs text-gray-600 mt-1">
                     <span className="inline-flex items-center gap-1">
                       <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                      Processed by {event.processing_agent}
+                      {event.processing_agent} agent
                       {event.agent_confidence && (
                         <span className="text-gray-500">
-                          ({Math.round(event.agent_confidence * 100)}% confidence)
+                          • {Math.round(event.agent_confidence * 100)}% confident
                         </span>
                       )}
                     </span>

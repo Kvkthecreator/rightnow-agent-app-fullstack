@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { SubpageHeader } from "@/components/basket/SubpageHeader";
 
 interface Proposal {
   id: string;
@@ -134,32 +135,32 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
     );
   }
 
+  const filterComponent = (
+    <label className="text-sm font-medium text-gray-700">
+      Filter:
+      <select
+        value={statusFilter}
+        onChange={(e) => setStatusFilter(e.target.value as StatusFilterType)}
+        className="ml-2 border border-gray-300 rounded px-3 py-1"
+      >
+        <option value="all">All Proposals</option>
+        <option value="PROPOSED">Proposed</option>
+        <option value="UNDER_REVIEW">Under Review</option>
+        <option value="APPROVED">Approved</option>
+        <option value="REJECTED">Rejected</option>
+      </select>
+    </label>
+  );
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white border-b p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Change Requests</h1>
-            <p className="text-gray-600 mt-1">Review and approve substrate changes</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-gray-700">
-              Filter:
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilterType)}
-                className="ml-2 border border-gray-300 rounded px-3 py-1"
-              >
-                <option value="all">All Proposals</option>
-                <option value="PROPOSED">Proposed</option>
-                <option value="UNDER_REVIEW">Under Review</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-              </select>
-            </label>
-          </div>
-        </div>
+      <div className="border-b p-4">
+        <SubpageHeader 
+          title="Change Requests" 
+          basketId={basketId}
+          description="Review and approve substrate change proposals"
+          rightContent={filterComponent}
+        />
       </div>
 
       {/* Proposals List */}

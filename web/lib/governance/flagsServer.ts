@@ -31,35 +31,35 @@ export type WorkspaceFlags = {
   default_blast_radius: 'Local' | 'Scoped' | 'Global';
   
   // Source tracking for debugging
-  source: 'workspace_database' | 'environment_fallback';
+  source: 'workspace_database' | 'safe_defaults';
 };
 
 /**
- * Environment defaults used when no workspace-specific settings exist.
- * Provides safe fallback behavior.
+ * Safe defaults used when workspace governance settings are missing.
+ * All operations default to proposal mode for safety.
  */
-const ENV_DEFAULTS: WorkspaceFlags = {
-  governance_enabled: process.env.GOVERNANCE_ENABLED === 'true',
-  validator_required: process.env.GOVERNANCE_VALIDATOR_REQUIRED === 'true',
-  direct_substrate_writes: process.env.GOVERNANCE_DIRECT_WRITES !== 'false',
-  governance_ui_enabled: process.env.GOVERNANCE_UI_ENABLED === 'true',
+const SAFE_DEFAULTS: WorkspaceFlags = {
+  governance_enabled: true,
+  validator_required: false,
+  direct_substrate_writes: false,
+  governance_ui_enabled: true,
   
   ep: {
-    onboarding_dump: (process.env.EP_ONBOARDING_DUMP as EntryPointPolicy) || 'proposal',
-    manual_edit: (process.env.EP_MANUAL_EDIT as EntryPointPolicy) || 'proposal',
-    document_edit: (process.env.EP_DOCUMENT_EDIT as EntryPointPolicy) || 'proposal',
-    reflection_suggestion: (process.env.EP_REFLECTION_SUGGESTION as EntryPointPolicy) || 'proposal',
-    graph_action: (process.env.EP_GRAPH_ACTION as EntryPointPolicy) || 'proposal',
-    timeline_restore: (process.env.EP_TIMELINE_RESTORE as EntryPointPolicy) || 'proposal'
+    onboarding_dump: 'proposal',
+    manual_edit: 'proposal',
+    document_edit: 'proposal',
+    reflection_suggestion: 'proposal',
+    graph_action: 'proposal',
+    timeline_restore: 'proposal'
   },
   
-  default_blast_radius: (process.env.DEFAULT_BLAST_RADIUS as 'Local' | 'Scoped' | 'Global') || 'Scoped',
-  source: 'environment_fallback'
+  default_blast_radius: 'Scoped',
+  source: 'safe_defaults'
 };
 
 /**
  * Get comprehensive governance flags for a workspace.
- * Uses workspace database settings with environment fallback.
+ * Requires workspace governance settings to be configured.
  */
 export async function getWorkspaceFlags(
   supabase: SupabaseClient,
@@ -72,12 +72,12 @@ export async function getWorkspaceFlags(
     });
 
     if (error) {
-      console.warn('Workspace flags query failed, using env defaults:', error);
-      return ENV_DEFAULTS;
+      console.warn('Workspace flags query failed, using safe defaults:', error);
+      return SAFE_DEFAULTS;
     }
 
     if (!flagsData) {
-      return ENV_DEFAULTS;
+      return SAFE_DEFAULTS;
     }
 
     // Transform database response to WorkspaceFlags
@@ -101,8 +101,8 @@ export async function getWorkspaceFlags(
     };
 
   } catch (error) {
-    console.warn('Workspace flags evaluation failed, using env defaults:', error);
-    return ENV_DEFAULTS;
+    console.warn('Workspace flags evaluation failed, using safe defaults:', error);
+    return SAFE_DEFAULTS;
   }
 }
 

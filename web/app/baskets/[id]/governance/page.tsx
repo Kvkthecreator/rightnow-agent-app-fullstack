@@ -29,13 +29,6 @@ export default async function GovernancePage({ params }: PageProps) {
   return (
     <RequestBoundary>
       <div className="flex h-full flex-col">
-        <div className="border-b p-4">
-          <SubpageHeader 
-            title="Change Requests" 
-            basketId={basketId}
-            description="Review and approve substrate change proposals"
-          />
-        </div>
         <div className="flex-1 overflow-y-auto">
           <GovernanceClient basketId={basketId} />
         </div>

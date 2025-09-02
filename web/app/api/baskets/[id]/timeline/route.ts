@@ -97,7 +97,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     basket_id: e.basket_id,
     event_type: e.kind,          // leave as-is for now to avoid enum mismatches
     event_data: e.payload || {},
-    created_at: e.ts,
+    created_at: new Date(e.ts).toISOString(), // Ensure ISO format for cursor
     preview: e.preview,
     ref_id: e.ref_id,
   }));

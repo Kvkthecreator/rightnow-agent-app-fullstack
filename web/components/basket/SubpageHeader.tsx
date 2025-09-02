@@ -4,11 +4,13 @@ import Link from "next/link";
 export function SubpageHeader({ 
   title, 
   basketId, 
-  description 
+  description,
+  rightContent
 }: { 
   title: string; 
   basketId: string; 
   description?: string;
+  rightContent?: React.ReactNode;
 }) {
   return (
     <div className="flex items-center justify-between mb-4">
@@ -18,9 +20,11 @@ export function SubpageHeader({
           <p className="text-sm text-gray-600 mt-1">{description}</p>
         )}
       </div>
-      <Link href={`/baskets/${basketId}/memory`} className="text-sm underline">
-        Back to Memory
-      </Link>
+      {rightContent || (
+        <Link href={`/baskets/${basketId}/memory`} className="text-sm underline">
+          Back to Memory
+        </Link>
+      )}
     </div>
   );
 }
