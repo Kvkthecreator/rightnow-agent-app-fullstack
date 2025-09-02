@@ -34,25 +34,30 @@ export default function DocumentUploadModal({
 
     setIsUploading(true);
     try {
-      // Create document record first
+      // Document Upload Path (Canon v1.4.0): Document Creation → File Processing
       const createResponse = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           basket_id: basketId,
           title: selectedFile.name,
-          content_raw: '',
-          substrate_type: 'document'
+          metadata: {
+            original_filename: selectedFile.name,
+            file_size: selectedFile.size,
+            file_type: selectedFile.type
+          }
         })
       });
 
       if (!createResponse.ok) {
-        throw new Error('Failed to create document');
+        const errorData = await createResponse.json();
+        console.error('Document creation failed:', errorData);
+        throw new Error(errorData.error || 'Failed to create document');
       }
 
       const { document_id } = await createResponse.json();
 
-      // Upload file content
+      // Link to raw_dump via file upload
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('document_id', document_id);
@@ -64,7 +69,9 @@ export default function DocumentUploadModal({
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file');
+        const errorData = await uploadResponse.json();
+        console.error('File upload failed:', errorData);
+        throw new Error(errorData.error || 'Failed to upload file');
       }
 
       onSuccess();

@@ -9,11 +9,15 @@ Default path: POST /api/baskets/new then fan-out POST /api/dumps/new.
 Optional path: POST /api/baskets/ingest reduces round-trips during onboarding (idempotent on basket & each dump).
 
 ### 2. Document Upload Path (New in v1.4.0)
-**Entry Point**: `/baskets/[id]/memory` page → Document Library mode
-**Flow**: File Upload → Document Creation → Optional Breakdown Proposal
-- Creates `document` record via `fn_document_create`
-- Links to `raw_dump` via `/api/dumps/upload` for file processing
-- Enables user-initiated breakdown through governance system
+**Entry Point**: `/baskets/[id]/memory` page → Upload Document button → Modal
+**Flow**: File Upload → Document Creation → raw_dump Linkage → Agent Processing
+- Creates `document` record via `POST /api/documents` → calls `fn_document_create`
+- Links file to `raw_dump` via `POST /api/dumps/upload` with `document_id`
+- Agent processes raw_dump asynchronously → creates blocks via governance
+- User can optionally compose resulting blocks into document narrative
+
+**API Schema**: Document creation requires `{basket_id, title, metadata?}` (NOT substrate_type)
+**File Processing**: Uses existing `/api/dumps/upload` endpoint requiring `document_id`
 
 Blocks (**context_blocks**) are structured units created during interpretation.
 
