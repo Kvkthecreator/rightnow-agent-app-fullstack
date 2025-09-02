@@ -17,7 +17,7 @@ interface Document {
 export function useBasketDocuments(basketId: string) {
   // Keep legacy SWR fetching for GET operations (not migrated yet)
   const { data, error, isLoading, mutate } = useSWR(
-    basketId ? `/api/documents?basketId=${basketId}` : null,
+    basketId && basketId.trim() ? `/api/documents?basketId=${basketId}` : null,
     async (url: string) => {
       const response = await fetchWithToken(url);
       if (!response.ok) throw new Error('Failed to fetch documents');
