@@ -156,22 +156,22 @@ export default function GovernanceSettingsClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto py-6 space-y-6 max-w-4xl px-4">
+      <div className="container mx-auto py-8 space-y-8 max-w-4xl px-6">
         
         {/* Header */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Settings className="h-5 w-5 text-blue-600" />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Settings className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Review Settings</h1>
-                <p className="text-gray-600">Configure when content needs approval • {workspaceName}</p>
+                <h1 className="text-3xl font-bold text-gray-900">Review Settings</h1>
+                <p className="text-gray-600 mt-1">Configure when content needs approval • {workspaceName}</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <StatusIcon className="h-5 w-5" />
               <Badge className={governanceStatus.color}>
                 {governanceStatus.status}
@@ -188,12 +188,12 @@ export default function GovernanceSettingsClient({
               Content Review Controls
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8 p-8">
             
             {/* Main toggles */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     id="governance-enabled"
@@ -202,18 +202,19 @@ export default function GovernanceSettingsClient({
                       ...prev, 
                       governance_enabled: e.target.checked 
                     }))}
+                    className="h-4 w-4"
                   />
                   <Label htmlFor="governance-enabled" className="font-medium">
                     Enable Content Review
                   </Label>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 ml-7">
                   Require approval for content changes
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     id="governance-ui"
@@ -223,18 +224,19 @@ export default function GovernanceSettingsClient({
                       governance_ui_enabled: e.target.checked 
                     }))}
                     disabled={!settings.governance_enabled}
+                    className="h-4 w-4"
                   />
                   <Label htmlFor="governance-ui" className="font-medium">
                     Show Review Interface
                   </Label>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 ml-7">
                   Display pending approvals and review tools
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     id="validator-required"
@@ -244,18 +246,19 @@ export default function GovernanceSettingsClient({
                       validator_required: e.target.checked 
                     }))}
                     disabled={!settings.governance_enabled}
+                    className="h-4 w-4"
                   />
                   <Label htmlFor="validator-required" className="font-medium">
                     Require AI Quality Check
                   </Label>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 ml-7">
                   AI validates all content before human review
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     id="direct-writes"
@@ -264,19 +267,20 @@ export default function GovernanceSettingsClient({
                       ...prev, 
                       direct_substrate_writes: e.target.checked 
                     }))}
+                    className="h-4 w-4"
                   />
                   <Label htmlFor="direct-writes" className="font-medium">
                     Allow Instant Changes
                   </Label>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 ml-7">
                   Some changes can bypass review process
                 </p>
               </div>
             </div>
 
             {/* Blast Radius */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label className="font-medium">Default Change Scope</Label>
               <select
                 value={settings.default_blast_radius}
@@ -284,7 +288,7 @@ export default function GovernanceSettingsClient({
                   ...prev, 
                   default_blast_radius: e.target.value 
                 }))}
-                className="w-full md:w-48 border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full md:w-64 border border-gray-300 rounded-lg px-4 py-3 text-sm"
               >
                 <option value="Local">Local (single basket)</option>
                 <option value="Scoped">Scoped (workspace-wide)</option>
@@ -296,21 +300,21 @@ export default function GovernanceSettingsClient({
 
         {/* Entry Point Policies */}
         <Card>
-          <CardHeader>
+          <CardHeader className="p-6">
             <CardTitle>Action Review Policies</CardTitle>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 mt-2">
               Choose when different types of content changes need approval
             </p>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="p-8">
+            <div className="space-y-6">
               {Object.entries(settings.entry_point_policies).map(([entryPoint, policy]) => (
-                <div key={entryPoint} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={entryPoint} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div>
                     <div className="font-medium text-sm">
                       {entryPoint.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </div>
-                    <div className="text-xs text-gray-600">
+                    <div className="text-xs text-gray-600 mt-1">
                       {getEntryPointDescription(entryPoint)}
                     </div>
                   </div>
@@ -325,7 +329,7 @@ export default function GovernanceSettingsClient({
                       }
                     }))}
                     disabled={!settings.governance_enabled}
-                    className="border border-gray-300 rounded px-2 py-1 text-sm min-w-24"
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-28"
                   >
                     <option value="proposal">Proposal</option>
                     <option value="direct">Direct</option>
@@ -335,10 +339,10 @@ export default function GovernanceSettingsClient({
               ))}
             </div>
             
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="text-sm text-blue-800">
                 <strong>Policy Types:</strong>
-                <ul className="mt-1 space-y-1 text-xs">
+                <ul className="mt-2 space-y-1 text-xs">
                   <li><strong>Proposal:</strong> All changes require approval</li>
                   <li><strong>Direct:</strong> Changes applied immediately</li>
                   <li><strong>Hybrid:</strong> Risk-based routing (low risk = direct, high risk = proposal)</li>
@@ -349,7 +353,7 @@ export default function GovernanceSettingsClient({
         </Card>
 
         {/* Save Controls */}
-        <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+        <div className="flex items-center justify-between p-6 bg-white rounded-lg border border-gray-200">
           <div className="text-sm text-gray-600">
             {hasChanges ? (
               <span className="text-orange-600">You have unsaved changes</span>
@@ -358,7 +362,7 @@ export default function GovernanceSettingsClient({
             )}
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Button 
               variant="ghost" 
               onClick={() => window.location.reload()}
