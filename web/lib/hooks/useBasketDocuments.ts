@@ -22,8 +22,8 @@ export function useBasketDocuments(basketId: string) {
       const response = await fetchWithToken(url);
       if (!response.ok) throw new Error('Failed to fetch documents');
       const result = await response.json();
-      // API returns array directly, not wrapped in documents property
-      return Array.isArray(result) ? result : [];
+      // API returns { documents: [...] }
+      return result.documents || [];
     }
   );
 

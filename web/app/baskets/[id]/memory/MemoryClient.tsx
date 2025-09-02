@@ -47,7 +47,10 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
 
       const { document_id } = await response.json();
       
-      // Navigate to the new document
+      // Small delay to ensure document is fully persisted before navigation
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Navigate to the new document (full reload ensures sidebar updates)
       window.location.href = `/baskets/${basketId}/documents/${document_id}`;
       
     } catch (error) {
