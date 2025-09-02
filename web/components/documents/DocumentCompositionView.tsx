@@ -200,19 +200,32 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
 
     setIsDigesting(true);
     try {
-      // Follow Sacred Capture Path: Content → raw_dump → governance → blocks/context_items
-      const response = await fetch('/api/dumps/new', {
+      // Use Decision Gateway for Canon v1.4.0 compliance
+      const response = await fetch('/api/changes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          entry_point: 'document_edit',
+          actor_id: 'current_user', // Will be resolved server-side
+          workspace_id: 'current_workspace', // Will be resolved server-side
           basket_id: basketId,
-          dump_request_id: crypto.randomUUID(),
-          text_dump: documentContent.trim(),
-          meta: {
-            linked_document_id: document.id,
-            source: 'document_digest',
-            timestamp: new Date().toISOString()
-          }
+          blast_radius: 'Local',
+          ops: [{
+            type: 'CreateDump',
+            data: {
+              dump_request_id: crypto.randomUUID(),
+              text_dump: documentContent.trim(),
+              source_meta: {
+                linked_document_id: document.id,
+                source: 'document_digest',
+                timestamp: new Date().toISOString()
+              }
+            }
+          }],
+          provenance: [
+            { type: 'doc', id: document.id },
+            { type: 'user', id: 'current_user' }
+          ]
         })
       });
 
@@ -223,14 +236,14 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
 
       const result = await response.json();
       
-      if (result.route === 'proposal') {
-        alert(`Content sent for review! Check governance for ${result.proposal_id ? 'proposal ' + result.proposal_id : 'new proposals'}`);
-        // Navigate to governance to see proposals
+      if (result.proposal_id) {
+        alert(`Content sent for governance review! Proposal ID: ${result.proposal_id}`);
         router.push(`/baskets/${basketId}/governance`);
-      } else {
-        alert('Content processed directly!');
-        // Refresh composition to see new substrate
+      } else if (result.committed) {
+        alert('Content processed and committed directly!');
         window.location.reload();
+      } else {
+        alert('Content submitted for processing');
       }
       
     } catch (error) {

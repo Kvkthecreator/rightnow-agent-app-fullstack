@@ -1,4 +1,4 @@
-# Canon v1.3.1 — docs clarification (no code change)
+# Canon v1.4.0 — docs clarification (no code change)
 Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
 
 # Reflection Read-Model (Authoritative + Optimistic)

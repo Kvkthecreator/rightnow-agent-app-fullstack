@@ -103,7 +103,7 @@ export function DocumentGrid({ documents, onDocumentAction }: DocumentGridProps)
                 Updated {new Date(doc.lastEvolution).toLocaleDateString()}
               </span>
               <div className="flex space-x-1">
-                {doc.actions.map((action) => (
+                {doc.actions.map((action: any) => (
                   <button
                     key={action.type}
                     onClick={() => handleActionClick(doc.id, action)}
