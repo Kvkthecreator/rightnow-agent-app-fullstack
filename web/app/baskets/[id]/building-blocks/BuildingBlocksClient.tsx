@@ -301,6 +301,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
   const [data, setData] = useState<BuildingBlocksResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'meaning' | 'all'>('meaning');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedSubstrate, setSelectedSubstrate] = useState<UnifiedSubstrate | null>(null);
@@ -365,13 +366,16 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-2xl">🧱</span>
+          <span className="text-2xl">🏷️</span>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Your Knowledge Starts Here</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Add Meaning to Your Memory</h3>
         <p className="text-gray-600 text-sm mb-4">
-          Your knowledge will appear here as you add and organize information.
-          Start by uploading content or creating new blocks and tags.
+          Start adding tags and labels to organize your captured thoughts.
+          This helps you find and connect related ideas later.
         </p>
+        <Button onClick={() => setShowCreateContextItem(true)} className="mt-4">
+          Add Your First Meaning
+        </Button>
       </div>
     );
   }
@@ -379,153 +383,265 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
   return (
     <>
       <div className="space-y-6">
-        {/* Search & Filter */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex-1 min-w-64 relative">
-                <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search your knowledge..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-400" />
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                >
-                  <option value="all">All Types</option>
-                  <option value="raw_dump">Original Notes</option>
-                  <option value="context_item">Tags & Labels</option>
-                  <option value="block">Organized Blocks</option>
-                </select>
-              </div>
-              
-              {/* Create Buttons */}
-              <div className="flex items-center gap-2 border-l pl-4">
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => setShowCreateContextItem(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Tag
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => setShowCreateBlock(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Block
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Knowledge Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
-                <FolderOpen className="h-4 w-4" />
-                Original Notes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{data.counts.raw_dumps}</div>
-              <div className="text-xs text-gray-500">As you wrote them</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Tags & Labels
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{data.counts.context_items}</div>
-              <div className="text-xs text-gray-500">Your organization</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                Organized Blocks
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{data.counts.blocks}</div>
-              <div className="text-xs text-gray-500">AI organized</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-gray-600">Total Items</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{data.counts.total}</div>
-              <div className="text-xs text-gray-500">Your knowledge</div>
-            </CardContent>
-          </Card>
+        {/* View Toggle */}
+        <div className="flex items-center justify-center">
+          <div className="inline-flex bg-gray-100 rounded-lg p-1">
+            <button
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'meaning' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              onClick={() => setViewMode('meaning')}
+            >
+              Add Meaning
+            </button>
+            <button
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'all' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              onClick={() => setViewMode('all')}
+            >
+              All Types
+            </button>
+          </div>
         </div>
 
-        {/* Your Knowledge Items */}
-        <div className="space-y-3">
-          {filteredSubstrates.map((substrate) => (
-            <Card 
-              key={substrate.id} 
-              className="hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => setSelectedSubstrate(substrate)}
-            >
-              <CardContent className="p-4">
+        {viewMode === 'meaning' ? (
+          /* Primary View: Add Meaning */
+          <div className="space-y-6">
+            {/* Hero Action */}
+            <Card className="border-2 border-blue-200 bg-blue-50">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">🏷️</span>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Add Meaning to Your Memory</h3>
+                <p className="text-gray-600 text-sm mb-4 max-w-md mx-auto">
+                  Create tags and labels to organize your thoughts. Connect related ideas and make your memory searchable.
+                </p>
+                <Button 
+                  onClick={() => setShowCreateContextItem(true)}
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Meaning
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Existing Context Items */}
+            {data.counts.context_items > 0 && (
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    {getSubstrateIcon(substrate.type)}
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-gray-900 truncate">{substrate.title}</h4>
-                      <p className="text-sm text-gray-600 truncate">{substrate.content}</p>
-                    </div>
+                  <h3 className="text-lg font-medium text-gray-900">Your Tags & Labels</h3>
+                  <div className="text-sm text-gray-500">{data.counts.context_items} meanings</div>
+                </div>
+                
+                {/* Simple search for context items */}
+                <div className="relative max-w-md">
+                  <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search your meanings..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </div>
+                
+                {/* Context Items Grid */}
+                <div className="grid gap-3">
+                  {filteredSubstrates
+                    .filter(s => s.type === 'context_item')
+                    .map((substrate) => (
+                      <Card 
+                        key={substrate.id} 
+                        className="hover:shadow-md transition-shadow cursor-pointer border-blue-100"
+                        onClick={() => setSelectedSubstrate(substrate)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <FileText className="h-5 w-5 text-blue-600" />
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-gray-900 truncate">{substrate.title}</h4>
+                                <p className="text-sm text-gray-600 truncate">{substrate.content}</p>
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {formatDate(substrate.created_at)}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  }
+                </div>
+                
+                {filteredSubstrates.filter(s => s.type === 'context_item').length === 0 && searchQuery && (
+                  <div className="text-center py-8 text-gray-500">
+                    No meanings match your search.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Secondary View: All Types */
+          <div className="space-y-6">
+            {/* Search & Filter */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex-1 min-w-64 relative">
+                    <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search your knowledge..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
                   </div>
                   
-                  <div className="flex items-center gap-2 ml-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(substrate.type)}`}>
-                      {getTypeLabel(substrate.type)}
-                    </span>
-                    {substrate.agent_confidence && (
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(substrate.agent_confidence)}`}>
-                        {Math.round(substrate.agent_confidence * 100)}%
-                      </span>
-                    )}
-                    <div className="text-xs text-gray-500">
-                      {formatDate(substrate.created_at)}
-                    </div>
-                    <Eye className="h-4 w-4 text-gray-400" />
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-gray-400" />
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    >
+                      <option value="all">All Types</option>
+                      <option value="raw_dump">Original Notes</option>
+                      <option value="context_item">Tags & Labels</option>
+                      <option value="block">Organized Blocks</option>
+                    </select>
+                  </div>
+                  
+                  {/* Create Buttons */}
+                  <div className="flex items-center gap-2 border-l pl-4">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setShowCreateContextItem(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Meaning
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setShowCreateBlock(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      New Block
+                    </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
 
-        {filteredSubstrates.length === 0 && data.counts.total > 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No items match your search or filter.
+            {/* Knowledge Summary */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4" />
+                    Original Notes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{data.counts.raw_dumps}</div>
+                  <div className="text-xs text-gray-500">As you wrote them</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Tags & Labels
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">{data.counts.context_items}</div>
+                  <div className="text-xs text-gray-500">Your organization</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    Organized Blocks
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-600">{data.counts.blocks}</div>
+                  <div className="text-xs text-gray-500">AI organized</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm text-gray-600">Total Items</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-600">{data.counts.total}</div>
+                  <div className="text-xs text-gray-500">Your knowledge</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Your Knowledge Items */}
+            <div className="space-y-3">
+              {filteredSubstrates.map((substrate) => (
+                <Card 
+                  key={substrate.id} 
+                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => setSelectedSubstrate(substrate)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        {getSubstrateIcon(substrate.type)}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 truncate">{substrate.title}</h4>
+                          <p className="text-sm text-gray-600 truncate">{substrate.content}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 ml-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(substrate.type)}`}>
+                          {getTypeLabel(substrate.type)}
+                        </span>
+                        {substrate.agent_confidence && (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(substrate.agent_confidence)}`}>
+                            {Math.round(substrate.agent_confidence * 100)}%
+                          </span>
+                        )}
+                        <div className="text-xs text-gray-500">
+                          {formatDate(substrate.created_at)}
+                        </div>
+                        <Eye className="h-4 w-4 text-gray-400" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {filteredSubstrates.length === 0 && data.counts.total > 0 && (
+              <div className="text-center py-8 text-gray-500">
+                No items match your search or filter.
+              </div>
+            )}
           </div>
         )}
       </div>

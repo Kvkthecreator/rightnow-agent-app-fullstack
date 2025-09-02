@@ -26,7 +26,7 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
 
   const handleSubmit = async () => {
     if (!label.trim()) {
-      toast.error('Label is required');
+      toast.error('Please describe the meaning you want to add');
       return;
     }
 
@@ -61,9 +61,9 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
       const result = await response.json();
       
       if (result.route === 'direct') {
-        toast.success('Context item created ✓');
+        toast.success('Meaning added ✓');
       } else {
-        toast.success('Context item creation proposed for review ⏳');
+        toast.success('Meaning addition proposed for review ⏳');
         console.log(`View proposal at: /baskets/${basketId}/governance?highlight=${result.proposal_id}`);
       }
 
@@ -76,8 +76,8 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
       onSuccess?.();
 
     } catch (error) {
-      console.error('Context item creation failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create context item');
+      console.error('Meaning addition failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to add meaning');
     } finally {
       setLoading(false);
     }
@@ -88,30 +88,30 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-blue-600" />
-            Create New Context Item
+            <span className="text-xl">🏷️</span>
+            Add Meaning
           </DialogTitle>
         </DialogHeader>
         
         <Card>
           <CardContent className="p-6 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="label">Label *</Label>
+              <Label htmlFor="label">What meaning would you like to add? *</Label>
               <Input
                 id="label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="e.g., Project Management, Customer Feedback, Technical Debt"
+                placeholder="e.g., Important Project, Customer Insight, Technical Issue"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="content">Description</Label>
+              <Label htmlFor="content">Why is this meaningful?</Label>
               <Textarea
                 id="content"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Optional detailed description of this context item..."
+                placeholder="Explain why this is important or how it connects to other ideas..."
                 rows={3}
                 className="resize-none"
               />
@@ -119,7 +119,7 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="kind">Kind</Label>
+                <Label htmlFor="kind">Type of meaning</Label>
                 <select
                   id="kind"
                   value={kind}
@@ -127,27 +127,26 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 >
                   <option value="concept">Concept</option>
-                  <option value="entity">Entity</option>
+                  <option value="entity">Person/Organization</option>
                   <option value="topic">Topic</option>
                   <option value="theme">Theme</option>
                 </select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="synonyms">Synonyms</Label>
+                <Label htmlFor="synonyms">Related terms</Label>
                 <Input
                   id="synonyms"
                   value={synonyms}
                   onChange={(e) => setSynonyms(e.target.value)}
-                  placeholder="Alternative terms, comma-separated"
+                  placeholder="Other ways to say this, comma-separated"
                 />
               </div>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="text-sm text-blue-800">
-                <strong>Governance Notice:</strong> This context item will be created through the governance workflow. 
-                Depending on workspace settings, it may be created immediately or require approval.
+                <strong>Note:</strong> Your meaning will be added immediately or may need approval depending on your workspace settings.
               </div>
             </div>
 
@@ -156,7 +155,7 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
                 Cancel
               </Button>
               <Button onClick={handleSubmit} disabled={loading}>
-                {loading ? 'Creating...' : 'Create Context Item'}
+                {loading ? 'Adding...' : 'Add Meaning'}
               </Button>
             </div>
           </CardContent>
