@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { X, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { v4 as uuidv4 } from 'uuid';
 
 interface DocumentUploadModalProps {
   basketId: string;
@@ -57,7 +56,7 @@ export default function DocumentUploadModal({
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('document_id', document_id);
-      formData.append('dump_request_id', uuidv4());
+      formData.append('dump_request_id', crypto.randomUUID());
 
       const uploadResponse = await fetch('/api/dumps/upload', {
         method: 'POST',
