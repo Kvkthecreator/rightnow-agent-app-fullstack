@@ -38,7 +38,7 @@ export default async function GovernanceSettingsPage() {
     return (
       <GovernanceSettingsClient 
         workspaceId={workspace.id}
-        workspaceName={workspace.name}
+        workspaceName="My Workspace"
         initialSettings={settings}
         userRole={membership.role}
       />
