@@ -93,15 +93,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'basket not found' }, { status: 404 });
     }
 
-    // Use existing fn_document_create RPC with proper parameters
-    const { data: documentId, error: createError } = await supabase
-      .rpc('fn_document_create', {
-        p_basket_id: basket_id,
-        p_title: title,
-        p_content_raw: '',
-        p_document_type: 'narrative',
-        p_metadata: metadata || {},
-      });
+    // Direct insert since fn_document_create has workspace_id issues
+    const { data: documentData, error: createError } = await supabase
+      .from('documents')
+      .insert({
+        basket_id: basket_id,
+        workspace_id: workspace.id,
+        title: title,
+        content_raw: '',
+        document_type: 'narrative',
+        metadata: metadata || {},
+      })
+      .select('id')
+      .single();
 
     if (createError) {
       return NextResponse.json(
@@ -109,6 +113,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const documentId = documentData.id;
 
     // Emit timeline event
     await supabase.rpc('fn_timeline_emit', {
