@@ -354,7 +354,7 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
             {activeTab === 'documents' && (
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold">Documents</h2>
-                {substrate.documents.map(doc => (
+                {substrate.documents.map((doc: any) => (
                   <div key={doc.id} className="p-3 bg-gray-50 border border-gray-200 rounded-md">
                     <h4 className="font-medium text-sm">{doc.title}</h4>
                     <p className="text-xs text-gray-600 mt-1">{doc.content.slice(0, 100)}...</p>

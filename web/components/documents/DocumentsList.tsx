@@ -138,7 +138,7 @@ export function DocumentsList({ basketId }: DocumentsListProps) {
 
   return (
     <div className="space-y-4">
-      {documents.map((document) => (
+      {documents.map((document: any) => (
         <Card
           key={document.id}
           className="hover:shadow-md transition-shadow group border-blue-100"

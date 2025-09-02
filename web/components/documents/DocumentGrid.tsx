@@ -58,7 +58,7 @@ export function DocumentGrid({ documents, onDocumentClick, onDocumentAction }: D
 
   return (
     <div className="document-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {documents.map(document => (
+      {documents.map((document: any) => (
         <Card 
           key={document.id}
           className="document-card hover:shadow-md transition-shadow cursor-pointer group relative"

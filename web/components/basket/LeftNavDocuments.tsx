@@ -128,7 +128,7 @@ export default function LeftNavDocuments({
             No documents yet
           </div>
         ) : (
-          documents.map((doc) => (
+          documents.map((doc: any) => (
             <DocumentNavItem
               key={doc.id}
               document={doc}

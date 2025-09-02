@@ -68,7 +68,7 @@ export function DocumentGrid({ documents, onDocumentAction }: DocumentGridProps)
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {documents.map((doc) => (
+        {documents.map((doc: any) => (
           <div key={doc.id} className="border rounded-lg p-4 hover:border-blue-300 transition-colors">
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1 min-w-0">

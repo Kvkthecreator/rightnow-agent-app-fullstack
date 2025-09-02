@@ -156,7 +156,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
         ) : (
           <div className="p-6">
             <DocumentGrid
-              documents={documents.filter(doc => 
+              documents={documents.filter((doc: any) => 
                 (doc.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (doc.content_raw || '').toLowerCase().includes(searchQuery.toLowerCase())
               )}
