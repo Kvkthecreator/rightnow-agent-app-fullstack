@@ -502,12 +502,12 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>Documents:</span>
-                    <span>{graphData.documents.length}</span>
-                  </div>
-                  <div className="flex justify-between">
                     <span>Blocks:</span>
                     <span>{graphData.blocks.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Context Items:</span>
+                    <span>{graphData.context_items.length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dumps:</span>
