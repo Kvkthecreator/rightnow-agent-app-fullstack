@@ -301,9 +301,6 @@ export default function Sidebar({ className }: SidebarProps) {
           ) : (
             <p className="text-sm text-muted-foreground">Not signed in</p>
           )}
-          {showHint && (
-            <p className="mt-4 text-xs hidden md:block">⇧ V to quick-dump into this basket</p>
-          )}
         </div>
       </aside>
     </>
