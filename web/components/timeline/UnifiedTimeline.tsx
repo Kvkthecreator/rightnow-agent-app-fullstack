@@ -244,7 +244,7 @@ export default function UnifiedTimeline({
       e.event_type === "queue.processing_started" && 
       !allEvents.some(completed => 
         completed.event_type === "queue.processing_completed" && 
-        completed.event_data.queue_id === e.event_data.queue_id
+        completed.event_data?.queue_id === e.event_data?.queue_id
       )
     ).length;
 
@@ -384,34 +384,34 @@ export default function UnifiedTimeline({
                 )}
                 
                 {/* Processing-specific insights */}
-                {event.event_type === "queue.processing_started" && (
+                {event.event_type === "queue.processing_started" ? (
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs text-orange-600">Processing in progress...</span>
                   </div>
-                )}
+                ) : null}
                 
-                {event.event_type === "queue.processing_completed" && event.event_data.duration_ms && (
+                {event.event_type === "queue.processing_completed" && event.event_data?.duration_ms ? (
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs text-green-600">
-                      Completed in {(event.event_data.duration_ms / 1000).toFixed(1)}s
+                      Completed in {(Number(event.event_data.duration_ms) / 1000).toFixed(1)}s
                     </span>
                   </div>
-                )}
+                ) : null}
                 
-                {event.event_type === "queue.processing_failed" && event.event_data.error && (
+                {event.event_type === "queue.processing_failed" && event.event_data?.error ? (
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs text-red-600">
-                      Failed: {event.event_data.error}
+                      Failed: {String(event.event_data.error)}
                     </span>
                   </div>
-                )}
+                ) : null}
                 
                 {/* Show source/trigger information */}
-                {event.event_data.source && (
+                {event.event_data?.source ? (
                   <div className="text-xs text-gray-500 mt-1">
-                    Started from {event.event_data.source}
+                    Started from {String(event.event_data.source)}
                   </div>
-                )}
+                ) : null}
                 
                 {/* Show agent attribution when available */}
                 {event.processing_agent && (
