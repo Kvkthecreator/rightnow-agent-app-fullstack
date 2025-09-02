@@ -29,7 +29,7 @@ export function RefactoredDocumentView({
   
   // Document management
   const { documents, isLoading, updateDocument } = useBasketDocuments(basketId);
-  const activeDocument = documents.find(doc => doc.id === documentId);
+  const activeDocument = documents.find((doc: any) => doc.id === documentId);
   
   // Universal changes for the companion workflow
   const changeManager = useUniversalChanges(basketId);

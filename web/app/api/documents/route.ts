@@ -34,20 +34,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'basket not found' }, { status: 404 });
     }
 
-    // Fetch documents for basket
+    // Fetch documents for basket with workspace filter for RLS
     const { data: documents, error: documentsError } = await supabase
       .from('documents')
-      .select('id, title, document_type, created_at, updated_at')
+      .select('id, title, document_type, created_at, updated_at, workspace_id')
       .eq('basket_id', basketId)
+      .eq('workspace_id', workspace.id)
       .order('created_at', { ascending: false });
 
     if (documentsError) {
+      console.error('Documents query error:', documentsError);
       return NextResponse.json(
         { error: `Failed to fetch documents: ${documentsError.message}` },
         { status: 400 }
       );
     }
 
+    console.log(`Documents API: Found ${documents?.length || 0} documents for basket ${basketId} in workspace ${workspace.id}`);
+    
     return NextResponse.json({ documents: documents || [] });
 
   } catch (error) {
