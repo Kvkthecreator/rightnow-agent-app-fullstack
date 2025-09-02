@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
 import { listBasketsByWorkspace } from "@/lib/baskets/listBasketsByWorkspace";
-import DumpDockGate from "@/components/dump/DumpDockGate";
 
 export default async function BasketLayout({
   params,
@@ -19,10 +18,5 @@ export default async function BasketLayout({
 
   const canonical = baskets[0];
 
-  return (
-    <>
-      {children}
-      <DumpDockGate basketId={id} />
-    </>
-  );
+  return children;
 }

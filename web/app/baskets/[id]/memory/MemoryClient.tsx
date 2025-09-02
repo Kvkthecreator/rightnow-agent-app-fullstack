@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { toast } from 'react-hot-toast';
-import { TodayReflectionCard, ReflectionCards, AddMemoryComposer } from "@/components/basket";
+import { useState } from 'react';
+import { TodayReflectionCard, ReflectionCards } from "@/components/basket";
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/Label';
-import { Upload, FileText, Sparkles } from 'lucide-react';
+import { SubpageHeader } from '@/components/basket/SubpageHeader';
+import { PenTool, Upload } from 'lucide-react';
+import AddMemoryModal from '@/components/memory/AddMemoryModal';
+import DocumentUploadModal from '@/components/memory/DocumentUploadModal';
 
 interface Props {
   basketId: string;
@@ -20,169 +19,53 @@ interface Props {
 }
 
 export default function MemoryClient({ basketId, pattern, tension, question, fallback }: Props) {
-  const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState('');
-  const [uploading, setUploading] = useState(false);
+  const [showAddMemory, setShowAddMemory] = useState(false);
+  const [showUploadDoc, setShowUploadDoc] = useState(false);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      setFile(selectedFile);
-      if (!title) {
-        setTitle(selectedFile.name.replace(/\.[^/.]+$/, ""));
-      }
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file || !title.trim()) return;
-    
-    setUploading(true);
-    try {
-      const createResponse = await fetch('/api/documents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          basket_id: basketId,
-          title: title.trim(),
-          metadata: {
-            original_filename: file.name,
-            file_size: file.size,
-            file_type: file.type
-          }
-        })
-      });
-
-      if (!createResponse.ok) {
-        throw new Error('Failed to create document');
-      }
-
-      const { document_id } = await createResponse.json();
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('document_id', document_id);
-      formData.append('dump_request_id', crypto.randomUUID());
-
-      const uploadResponse = await fetch(`/api/dumps/upload`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file');
-      }
-
-      toast.success('Document uploaded ✓');
-      setFile(null);
-      setTitle('');
-      router.push(`/baskets/${basketId}/documents/${document_id}`);
-      
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Upload failed');
-    } finally {
-      setUploading(false);
-    }
+  const refreshDocuments = () => {
+    // This will trigger DocumentsList to refresh
+    window.location.reload();
   };
 
   return (
     <div className="space-y-6">
+      
+      <SubpageHeader
+        title="Your Memory"
+        basketId={basketId}
+        description="Capture thoughts and upload documents to build your knowledge base"
+        rightContent={
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setShowAddMemory(true)}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <PenTool className="h-4 w-4" />
+              Add Memory
+            </Button>
+            <Button
+              onClick={() => setShowUploadDoc(true)}
+              size="sm"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              <Upload className="h-4 w-4" />
+              Upload Document
+            </Button>
+          </div>
+        }
+      />
+      
       <TodayReflectionCard line={undefined} fallback={fallback} />
       
       <div className="grid grid-cols-12 gap-6">
-        {/* Left Column - Memory Actions */}
-        <div className="col-span-8 space-y-6">
-          
-          {/* Text Capture */}
+        {/* Left Column - Documents */}
+        <div className="col-span-8">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-blue-600" />
-                Add Memory
-              </CardTitle>
-              <p className="text-sm text-gray-600">Quick capture thoughts and notes</p>
-            </CardHeader>
-            <CardContent>
-              <AddMemoryComposer basketId={basketId} />
-            </CardContent>
-          </Card>
-
-          {/* Document Upload */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-blue-600" />
-                Upload Document
-              </CardTitle>
-              <p className="text-sm text-gray-600">Add existing documents, PDFs, or files</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              
-              {!file ? (
-                <div 
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Click to choose file or drag and drop</p>
-                  <p className="text-xs text-gray-500 mt-1">PDF, TXT, MD, DOCX, images</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    onChange={handleFileSelect}
-                    accept=".pdf,.txt,.md,.docx,.doc,.png,.jpg,.jpeg"
-                    className="hidden"
-                  />
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                    <FileText className="h-5 w-5 text-green-600" />
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{file.name}</p>
-                      <p className="text-xs text-gray-600">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setFile(null)}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="doc-title">Document Title</Label>
-                    <Input
-                      id="doc-title"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Enter document title"
-                    />
-                  </div>
-                  
-                  <Button 
-                    onClick={handleUpload}
-                    disabled={!title.trim() || uploading}
-                    className="w-full"
-                  >
-                    {uploading ? 'Uploading...' : 'Upload Document'}
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Recent Documents */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Documents</CardTitle>
-              <p className="text-sm text-gray-600">Your uploaded documents</p>
+              <CardTitle>Documents & Files</CardTitle>
+              <p className="text-sm text-gray-600">Your uploaded documents and files</p>
             </CardHeader>
             <CardContent>
               <DocumentsList basketId={basketId} />
@@ -203,6 +86,24 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
           </Card>
         </div>
       </div>
+
+      {/* Modals */}
+      <AddMemoryModal
+        basketId={basketId}
+        open={showAddMemory}
+        onClose={() => setShowAddMemory(false)}
+        onSuccess={() => setShowAddMemory(false)}
+      />
+      
+      <DocumentUploadModal
+        basketId={basketId}
+        open={showUploadDoc}
+        onClose={() => setShowUploadDoc(false)}
+        onSuccess={() => {
+          setShowUploadDoc(false);
+          refreshDocuments();
+        }}
+      />
     </div>
   );
 }
