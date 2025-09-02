@@ -12,7 +12,6 @@ import { Database, FileText, FolderOpen, Eye, Filter, Search, Plus } from 'lucid
 import CreateBlockModal from '@/components/building-blocks/CreateBlockModal';
 import CreateContextItemModal from '@/components/building-blocks/CreateContextItemModal';
 
-// Canon v1.4.0: Unified substrate interface - All Substrates are Peers
 interface UnifiedSubstrate {
   id: string;
   type: 'raw_dump' | 'context_item' | 'block';
@@ -67,7 +66,7 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
 
   if (!substrate) return null;
 
-  const canEdit = substrate.type !== 'raw_dump'; // Canon: raw_dumps are immutable
+  const canEdit = substrate.type !== 'raw_dump'; // Original notes are read-only
   
   const handleEdit = async () => {
     if (!canEdit) return;
@@ -161,12 +160,12 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
           <div className="flex items-center gap-2">
             {getSubstrateIcon(substrate.type)}
             <h3 className="font-semibold text-gray-900">{substrate.title}</h3>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAgentStageColor(substrate.agent_stage)}`}>
-              {substrate.agent_stage} Agent
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(substrate.type)}`}>
+              {getTypeLabel(substrate.type)}
             </span>
             {substrate.type === 'raw_dump' && (
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                Immutable
+                Read-only
               </span>
             )}
           </div>
@@ -201,20 +200,22 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
         {/* Content */}
         <div className="p-4 overflow-y-auto">
           <div className="space-y-4">
-            {/* Agent Attribution */}
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <span>🤖</span>
-                  <span className="font-medium">{substrate.processing_agent}</span>
+            {/* Processing Info */}
+            {substrate.processing_agent && (
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <span>🔧</span>
+                    <span className="font-medium">Processed automatically</span>
+                  </div>
+                  {substrate.agent_confidence && (
+                    <span className={`px-2 py-1 rounded-full text-xs ${getConfidenceColor(substrate.agent_confidence)}`}>
+                      {Math.round(substrate.agent_confidence * 100)}% quality
+                    </span>
+                  )}
                 </div>
-                {substrate.agent_confidence && (
-                  <span className={`px-2 py-1 rounded-full text-xs ${getConfidenceColor(substrate.agent_confidence)}`}>
-                    {Math.round(substrate.agent_confidence * 100)}% confidence
-                  </span>
-                )}
               </div>
-            </div>
+            )}
 
             {/* Content */}
             <div>
@@ -269,13 +270,13 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
               )}
             </div>
 
-            {/* Metadata */}
+            {/* Details */}
             <div>
               <h4 className="font-medium text-gray-900 mb-2">Details</h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-gray-500">Type:</span>
-                  <div className="font-medium">{substrate.type.replace('_', ' ')}</div>
+                  <div className="font-medium">{getTypeLabel(substrate.type)}</div>
                 </div>
                 <div>
                   <span className="text-gray-500">Created:</span>
@@ -283,14 +284,10 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
                 </div>
                 {substrate.semantic_type && (
                   <div>
-                    <span className="text-gray-500">Semantic Type:</span>
+                    <span className="text-gray-500">Category:</span>
                     <div className="font-medium">{substrate.semantic_type}</div>
                   </div>
                 )}
-                <div>
-                  <span className="text-gray-500">ID:</span>
-                  <div className="font-mono text-xs">{substrate.id}</div>
-                </div>
               </div>
             </div>
           </div>
@@ -370,10 +367,10 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <span className="text-2xl">🧱</span>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Building Blocks Yet</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Your Knowledge Starts Here</h3>
         <p className="text-gray-600 text-sm mb-4">
-          Your building blocks will appear here as agents process your memory. 
-          All substrate types are treated as equals in the Canon architecture.
+          Your knowledge will appear here as you add and organize information.
+          Start by uploading content or creating new blocks and tags.
         </p>
       </div>
     );
@@ -382,59 +379,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
   return (
     <>
       <div className="space-y-6">
-        {/* Substrate Counts - Canon Equality Display */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
-                <FolderOpen className="h-4 w-4" />
-                Raw Captures
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{data.counts.raw_dumps}</div>
-              <div className="text-xs text-gray-500">P0 Agent</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Context Items
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{data.counts.context_items}</div>
-              <div className="text-xs text-gray-500">Foundation</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                Processed Blocks
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{data.counts.blocks}</div>
-              <div className="text-xs text-gray-500">P1 Agent</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-gray-600">Total Building Blocks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{data.counts.total}</div>
-              <div className="text-xs text-gray-500">All Substrates</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters & Search */}
+        {/* Search & Filter */}
         <Card>
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center gap-4">
@@ -442,7 +387,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                 <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search all building blocks..."
+                  placeholder="Search your knowledge..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
@@ -457,13 +402,13 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                   className="border border-gray-300 rounded px-3 py-2 text-sm"
                 >
                   <option value="all">All Types</option>
-                  <option value="raw_dump">Raw Captures</option>
-                  <option value="context_item">Context Items</option>
-                  <option value="block">Processed Blocks</option>
+                  <option value="raw_dump">Original Notes</option>
+                  <option value="context_item">Tags & Labels</option>
+                  <option value="block">Organized Blocks</option>
                 </select>
               </div>
               
-              {/* CRUD Creation Buttons */}
+              {/* Create Buttons */}
               <div className="flex items-center gap-2 border-l pl-4">
                 <Button 
                   size="sm" 
@@ -472,7 +417,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                   className="flex items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
-                  Context Item
+                  New Tag
                 </Button>
                 <Button 
                   size="sm" 
@@ -481,14 +426,66 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                   className="flex items-center gap-2"
                 >
                   <Plus className="h-4 w-4" />
-                  Block
+                  New Block
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Unified Substrate List - Canon Equality */}
+        {/* Knowledge Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
+                <FolderOpen className="h-4 w-4" />
+                Original Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{data.counts.raw_dumps}</div>
+              <div className="text-xs text-gray-500">As you wrote them</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Tags & Labels
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">{data.counts.context_items}</div>
+              <div className="text-xs text-gray-500">Your organization</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                Organized Blocks
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">{data.counts.blocks}</div>
+              <div className="text-xs text-gray-500">AI organized</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm text-gray-600">Total Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">{data.counts.total}</div>
+              <div className="text-xs text-gray-500">Your knowledge</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Your Knowledge Items */}
         <div className="space-y-3">
           {filteredSubstrates.map((substrate) => (
             <Card 
@@ -507,8 +504,8 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                   </div>
                   
                   <div className="flex items-center gap-2 ml-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAgentStageColor(substrate.agent_stage)}`}>
-                      {substrate.agent_stage}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(substrate.type)}`}>
+                      {getTypeLabel(substrate.type)}
                     </span>
                     {substrate.agent_confidence && (
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(substrate.agent_confidence)}`}>
@@ -528,7 +525,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
 
         {filteredSubstrates.length === 0 && data.counts.total > 0 && (
           <div className="text-center py-8 text-gray-500">
-            No building blocks match your current filters.
+            No items match your search or filter.
           </div>
         )}
       </div>
@@ -559,7 +556,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
   );
 }
 
-// Helper functions for consistent Canon-compliant styling
+// Helper functions for user-friendly display
 
 function getSubstrateIcon(type: string) {
   switch (type) {
@@ -570,13 +567,21 @@ function getSubstrateIcon(type: string) {
   }
 }
 
-function getAgentStageColor(stage: string): string {
-  switch (stage) {
-    case 'P0': return 'bg-green-100 text-green-800';
-    case 'P1': return 'bg-orange-100 text-orange-800';
-    case 'P2': return 'bg-cyan-100 text-cyan-800';
-    case 'P3': return 'bg-purple-100 text-purple-800';
+function getTypeColor(type: string): string {
+  switch (type) {
+    case 'raw_dump': return 'bg-green-100 text-green-800';
+    case 'context_item': return 'bg-blue-100 text-blue-800';
+    case 'block': return 'bg-orange-100 text-orange-800';
     default: return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function getTypeLabel(type: string): string {
+  switch (type) {
+    case 'raw_dump': return 'Original';
+    case 'context_item': return 'Tag';
+    case 'block': return 'Block';
+    default: return 'Item';
   }
 }
 
