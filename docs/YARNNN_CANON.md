@@ -181,6 +181,9 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 - Added Pure Supabase Async Intelligence Model as 5th Architectural Pillar
 - Updated to reflect queue-based agent processing architecture 
 - Clarified service role vs anon role authentication patterns
-- Reinforced Agent Intelligence Mandatory principle (#4)  
+- Reinforced Agent Intelligence Mandatory principle (#4)
+- **Memory Page Evolution**: Transformed primary operating surface into comprehensive memory interface
+- **Document Library Integration**: Added document upload, library management, and breakdown proposal workflow
+- **UX Simplification**: Dual-mode interface (Quick Capture ↔ Document Library) for clearer user journey  
 
 ---

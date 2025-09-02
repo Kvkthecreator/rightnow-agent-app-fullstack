@@ -1,10 +1,19 @@
-# Canon v1.3.1 — docs clarification (no code change)
-Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+# Canon v1.4.0 — Memory Interface Evolution
 
 # YARNNN Ingestion Canon (Authoritative)
 
+## Core Ingestion Paths
+
+### 1. Traditional Capture Path (Preserved)
 Default path: POST /api/baskets/new then fan-out POST /api/dumps/new.
 Optional path: POST /api/baskets/ingest reduces round-trips during onboarding (idempotent on basket & each dump).
+
+### 2. Document Upload Path (New in v1.4.0)
+**Entry Point**: `/baskets/[id]/memory` page → Document Library mode
+**Flow**: File Upload → Document Creation → Optional Breakdown Proposal
+- Creates `document` record via `fn_document_create`
+- Links to `raw_dump` via `/api/dumps/upload` for file processing
+- Enables user-initiated breakdown through governance system
 
 Blocks (**context_blocks**) are structured units created during interpretation.
 

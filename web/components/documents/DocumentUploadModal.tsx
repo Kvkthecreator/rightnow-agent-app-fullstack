@@ -158,9 +158,103 @@ export default function DocumentUploadModal({
           
           {/* File Upload Area */}
           <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${\n              dragActive \n                ? 'border-blue-400 bg-blue-50' \n                : file \n                ? 'border-green-400 bg-green-50'\n                : 'border-gray-300 hover:border-blue-400'\n            }`}
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              dragActive 
+                ? 'border-blue-400 bg-blue-50' 
+                : file 
+                ? 'border-green-400 bg-green-50'
+                : 'border-gray-300 hover:border-blue-400'
+            }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
-          >\n            {file ? (\n              <div className=\"space-y-3\">\n                <FileText className=\"h-12 w-12 text-green-600 mx-auto\" />\n                <div>\n                  <p className=\"font-medium text-gray-900\">{file.name}</p>\n                  <p className=\"text-sm text-gray-600\">\n                    {(file.size / 1024 / 1024).toFixed(2)} MB • {file.type || 'Unknown type'}\n                  </p>\n                </div>\n                <Button \n                  variant=\"ghost\" \n                  size=\"sm\" \n                  onClick={() => setFile(null)}\n                  className=\"text-gray-600 hover:text-gray-900\"\n                >\n                  Choose Different File\n                </Button>\n              </div>\n            ) : (\n              <div className=\"space-y-3\">\n                <Upload className=\"h-12 w-12 text-gray-400 mx-auto\" />\n                <div>\n                  <p className=\"font-medium text-gray-900\">Drop your document here</p>\n                  <p className=\"text-sm text-gray-600\">or click to browse files</p>\n                  <p className=\"text-xs text-gray-500 mt-2\">\n                    Supports PDF, TXT, MD, DOCX, and images\n                  </p>\n                </div>\n                <input\n                  type=\"file\"\n                  onChange={handleFileSelect}\n                  accept=\".pdf,.txt,.md,.docx,.doc,.png,.jpg,.jpeg\"\n                  className=\"absolute inset-0 w-full h-full opacity-0 cursor-pointer\"\n                />\n              </div>\n            )}\n          </div>\n\n          {/* Document Title */}\n          <div className=\"space-y-2\">\n            <Label htmlFor=\"document-title\" className=\"font-medium\">\n              Document Title\n            </Label>\n            <Input\n              id=\"document-title\"\n              value={title}\n              onChange={(e) => setTitle(e.target.value)}\n              placeholder=\"Enter a title for this document\"\n              className=\"text-sm\"\n            />\n            <p className=\"text-xs text-gray-500\">\n              This will help you find and organize your document later\n            </p>\n          </div>\n\n          {/* Upload Info */}\n          {file && (\n            <div className=\"bg-blue-50 border border-blue-200 rounded-lg p-4\">\n              <div className=\"text-sm text-blue-800\">\n                <p className=\"font-medium mb-1\">What happens next:</p>\n                <ul className=\"space-y-1 text-xs\">\n                  <li>• Document will be uploaded and stored in your memory</li>\n                  <li>• You'll be able to view the document immediately</li>\n                  <li>• From the document page, you can request breakdown into organized knowledge</li>\n                  <li>• Breakdown requests go through your governance settings for approval</li>\n                </ul>\n              </div>\n            </div>\n          )}\n        </div>\n\n        {/* Footer */}\n        <div className=\"border-t p-6 flex items-center justify-between\">\n          <Button variant=\"ghost\" onClick={handleClose} disabled={loading}>\n            Cancel\n          </Button>\n          <Button \n            onClick={handleUpload}\n            disabled={!file || !title.trim() || loading}\n          >\n            {loading ? 'Uploading...' : 'Upload Document'}\n          </Button>\n        </div>\n\n      </div>\n    </div>\n  );\n}
+          >
+            {file ? (
+              <div className="space-y-3">
+                <FileText className="h-12 w-12 text-green-600 mx-auto" />
+                <div>
+                  <p className="font-medium text-gray-900">{file.name}</p>
+                  <p className="text-sm text-gray-600">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB • {file.type || 'Unknown type'}
+                  </p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setFile(null)}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Choose Different File
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Upload className="h-12 w-12 text-gray-400 mx-auto" />
+                <div>
+                  <p className="font-medium text-gray-900">Drop your document here</p>
+                  <p className="text-sm text-gray-600">or click to browse files</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Supports PDF, TXT, MD, DOCX, and images
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  onChange={handleFileSelect}
+                  accept=".pdf,.txt,.md,.docx,.doc,.png,.jpg,.jpeg"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Document Title */}
+          <div className="space-y-2">
+            <Label htmlFor="document-title" className="font-medium">
+              Document Title
+            </Label>
+            <Input
+              id="document-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter a title for this document"
+              className="text-sm"
+            />
+            <p className="text-xs text-gray-500">
+              This will help you find and organize your document later
+            </p>
+          </div>
+
+          {/* Upload Info */}
+          {file && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">What happens next:</p>
+                <ul className="space-y-1 text-xs">
+                  <li>• Document will be uploaded and stored in your memory</li>
+                  <li>• You'll be able to view the document immediately</li>
+                  <li>• From the document page, you can request breakdown into organized knowledge</li>
+                  <li>• Breakdown requests go through your governance settings for approval</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t p-6 flex items-center justify-between">
+          <Button variant="ghost" onClick={handleClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleUpload}
+            disabled={!file || !title.trim() || loading}
+          >
+            {loading ? 'Uploading...' : 'Upload Document'}
+          </Button>
+        </div>
+
+      </div>
+    </div>
+  );
+}

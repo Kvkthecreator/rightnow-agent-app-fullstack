@@ -1,8 +1,8 @@
-# Frontend Canon v1.3.1: Complete Scaffolding Documentation
+# Frontend Canon v1.4.0: Memory Interface Evolution
 
 ## Overview
 
-This document provides comprehensive documentation for the Frontend Canon v1.3.1 implementation, detailing the complete scaffolding system built for substrate-aware document composition. The implementation follows strict canon compliance where all substrate types (blocks, dumps, context_items, reflections, timeline_events) are treated as peers in a generic composition system.
+This document provides comprehensive documentation for the Frontend Canon v1.4.0 implementation, including the evolved memory interface with document library integration and the complete substrate-aware composition system. The implementation follows strict canon compliance where all substrate types (blocks, dumps, context_items, reflections, timeline_events) are treated as peers in a generic composition system.
 
 ## Table of Contents
 
