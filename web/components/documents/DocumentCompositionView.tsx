@@ -54,6 +54,8 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
   const [newTitle, setNewTitle] = useState(document.title);
   const [filterType, setFilterType] = useState<SubstrateType | 'all'>('all');
   const [showAttachModal, setShowAttachModal] = useState(false);
+  const [documentContent, setDocumentContent] = useState('');
+  const [isDigesting, setIsDigesting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -187,6 +189,55 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
       });
     } catch (err) {
       console.error('Error detaching reference:', err);
+    }
+  };
+
+  const handleDigestContent = async () => {
+    if (!documentContent.trim()) {
+      alert('Please enter some content to digest');
+      return;
+    }
+
+    setIsDigesting(true);
+    try {
+      // Follow Sacred Capture Path: Content → raw_dump → governance → blocks/context_items
+      const response = await fetch('/api/dumps/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          basket_id: basketId,
+          dump_request_id: crypto.randomUUID(),
+          text_dump: documentContent.trim(),
+          meta: {
+            linked_document_id: document.id,
+            source: 'document_digest',
+            timestamp: new Date().toISOString()
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to digest content');
+      }
+
+      const result = await response.json();
+      
+      if (result.route === 'proposal') {
+        alert(`Content sent for review! Check governance for ${result.proposal_id ? 'proposal ' + result.proposal_id : 'new proposals'}`);
+        // Navigate to governance to see proposals
+        router.push(`/baskets/${basketId}/governance`);
+      } else {
+        alert('Content processed directly!');
+        // Refresh composition to see new substrate
+        window.location.reload();
+      }
+      
+    } catch (error) {
+      console.error('Digest failed:', error);
+      alert('Failed to digest content. Please try again.');
+    } finally {
+      setIsDigesting(false);
     }
   };
 
@@ -505,22 +556,35 @@ export function DocumentCompositionView({ document, basketId }: DocumentComposit
           </CardContent>
         </Card>
 
-        {/* Composition Surface Placeholder */}
+        {/* Content Input Surface */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Composition Surface
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Edit3 className="h-5 w-5" />
+                Document Content
+              </CardTitle>
+              <Button
+                onClick={handleDigestContent}
+                disabled={isDigesting || !documentContent.trim()}
+                className="bg-green-600 hover:bg-green-700"
+                size="sm"
+              >
+                <Lightbulb className="h-4 w-4 mr-2" />
+                {isDigesting ? 'Processing...' : 'Digest This'}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-lg">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 mb-2">Document composition surface</p>
-              <p className="text-sm text-gray-500">
-                This will display linked block references and allow composition without substrate edits
-              </p>
-            </div>
+            <textarea
+              value={documentContent}
+              onChange={(e) => setDocumentContent(e.target.value)}
+              placeholder="Start typing or paste content here. Use 'Digest This' to break content into structured blocks and context items..."
+              className="w-full min-h-[300px] p-4 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Tip: Write freely, then use "Digest This" to extract blocks and context items through governance
+            </p>
           </CardContent>
         </Card>
 

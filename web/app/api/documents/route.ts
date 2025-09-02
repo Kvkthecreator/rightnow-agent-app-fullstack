@@ -93,11 +93,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'basket not found' }, { status: 404 });
     }
 
-    // Use existing fn_document_create RPC for consistency
+    // Use existing fn_document_create RPC with proper parameters
     const { data: documentId, error: createError } = await supabase
       .rpc('fn_document_create', {
         p_basket_id: basket_id,
         p_title: title,
+        p_content_raw: '',
+        p_document_type: 'narrative',
         p_metadata: metadata || {},
       });
 
