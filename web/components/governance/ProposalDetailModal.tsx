@@ -145,6 +145,33 @@ export function ProposalDetailModal({
     return 'text-red-600 bg-red-50';
   };
 
+  const formatOperationNarrative = (op: ProposalOperation) => {
+    switch (op.type) {
+      case 'CreateDump':
+        return `Create new content dump from source`;
+      case 'CreateBlock':
+        return `Create new structured block`;
+      case 'CreateContextItem':
+        return `Add new context item to workspace`;
+      case 'ReviseBlock':
+        return `Update existing block content`;
+      case 'EditContextItem':
+        return `Modify context item details`;
+      case 'AttachContextItem':
+        return `Link context item to current scope`;
+      case 'MergeContextItems':
+        return `Combine multiple context items`;
+      case 'PromoteScope':
+        return `Elevate item to broader scope`;
+      case 'DocumentCompose':
+        return `Compose document from substrate`;
+      case 'Delete':
+        return `Remove item from workspace`;
+      default:
+        return `Execute ${op.type} operation`;
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -255,58 +282,129 @@ export function ProposalDetailModal({
                   </CardContent>
                 </Card>
 
-                {/* Operations Detail */}
+                {/* Change Impact Narrative */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5" />
-                      Operations ({proposal.ops.length})
+                      <FileText className="h-5 w-5" />
+                      Change Summary
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {proposal.ops.map((op, index) => (
-                        <div key={index} className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center gap-2 mb-3">
-                            {getOperationIcon(op.type)}
-                            <h4 className="font-medium text-gray-900">{op.type}</h4>
-                            <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
-                          </div>
-                          
-                          <div className="bg-gray-50 rounded-md p-3">
-                            <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
-                              {JSON.stringify(op.data, null, 2)}
-                            </pre>
+                    <div className="space-y-6">
+                      {/* Impact Summary - Main Narrative */}
+                      <div className="prose prose-sm max-w-none">
+                        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                          <div className="text-gray-900 leading-relaxed text-base">
+                            {proposal.validator_report.impact_summary}
                           </div>
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Blast Radius & Scope */}
+                      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-700">Scope:</span>
+                          <Badge className={getBlastRadiusColor(proposal.blast_radius)}>
+                            {proposal.blast_radius}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-700">Operations:</span>
+                          <span className="text-sm text-gray-600">{proposal.ops.length} changes</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-700">Origin:</span>
+                          <Badge variant="outline">{proposal.origin}</Badge>
+                        </div>
+                      </div>
+
+                      {/* Detailed Operations */}
+                      <div className="space-y-3">
+                        <h4 className="font-medium text-gray-900 text-sm">Proposed Operations:</h4>
+                        {proposal.ops.map((op, index) => (
+                          <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                            <div className="flex items-center gap-2 mb-1">
+                              {getOperationIcon(op.type)}
+                              <span className="font-medium text-gray-900 text-sm">
+                                {formatOperationNarrative(op)}
+                              </span>
+                            </div>
+                            {op.data.title && (
+                              <div className="text-sm text-gray-700 font-medium">
+                                "{op.data.title}"
+                              </div>
+                            )}
+                            {(op.data.content || op.data.body_md || op.data.text_dump) && (
+                              <div className="mt-1 text-xs text-gray-600 bg-gray-100 p-2 rounded">
+                                {(op.data.content || op.data.body_md || op.data.text_dump || '').substring(0, 150)}
+                                {(op.data.content || op.data.body_md || op.data.text_dump || '').length > 150 && '...'}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Provenance */}
+                {/* Substrate Context & Provenance */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Clock className="h-5 w-5" />
-                      Provenance Trail
+                      <Layers className="h-5 w-5" />
+                      Change Context
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {proposal.provenance.map((entry, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
-                          <Badge variant="outline">{entry.type}</Badge>
-                          <span className="text-sm font-mono text-gray-600">{entry.id.slice(0, 8)}...</span>
-                          {entry.metadata && (
-                            <span className="text-xs text-gray-500">
-                              {Object.entries(entry.metadata).map(([key, value]) => 
-                                `${key}: ${value}`
-                              ).join(', ')}
-                            </span>
-                          )}
+                    <div className="space-y-4">
+                      {/* Provenance Chain */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">Triggered by:</h4>
+                        <div className="space-y-2">
+                          {proposal.provenance.map((entry, index) => (
+                            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                              <div className={`
+                                inline-flex items-center px-2 py-1 rounded text-xs font-medium
+                                ${entry.type === 'doc' ? 'bg-blue-100 text-blue-800' : ''}
+                                ${entry.type === 'user' ? 'bg-green-100 text-green-800' : ''}
+                                ${entry.type === 'block' ? 'bg-purple-100 text-purple-800' : ''}
+                                ${entry.type === 'dump' ? 'bg-yellow-100 text-yellow-800' : ''}
+                                ${!['doc', 'user', 'block', 'dump'].includes(entry.type) ? 'bg-gray-100 text-gray-800' : ''}
+                              `}>
+                                {entry.type}
+                              </div>
+                              <span className="text-sm font-mono text-gray-600">
+                                {entry.id.slice(0, 8)}...
+                              </span>
+                              {entry.metadata && (
+                                <span className="text-xs text-gray-500">
+                                  {Object.entries(entry.metadata).map(([key, value]) => 
+                                    `${key}: ${value}`
+                                  ).join(', ')}
+                                </span>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Substrate Scope Analysis */}
+                      {proposal.ops.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-700 mb-3">Substrate Types Affected:</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {Array.from(new Set(proposal.ops.map(op => op.type))).map(opType => (
+                              <div key={opType} className="flex items-center gap-1 px-3 py-1 bg-white border border-gray-200 rounded-full">
+                                {getOperationIcon(opType)}
+                                <span className="text-xs font-medium text-gray-700">
+                                  {opType.replace(/([A-Z])/g, ' $1').trim()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

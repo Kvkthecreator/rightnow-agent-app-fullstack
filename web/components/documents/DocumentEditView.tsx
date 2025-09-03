@@ -139,7 +139,7 @@ export function DocumentEditView({ document, basketId }: DocumentEditViewProps) 
           </CardHeader>
           <CardContent>
             <div className="text-center py-8 text-gray-500">
-              <p>Substrate attachment interface will be implemented here</p>
+              <p>Substrate attachment interface coming soon</p>
               <p className="text-sm mt-2">Attach existing blocks, dumps, context items, reflections, timeline events</p>
             </div>
           </CardContent>
