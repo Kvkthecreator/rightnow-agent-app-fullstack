@@ -21,7 +21,6 @@ import {
 import { useBasketDocuments } from "@/lib/hooks/useBasketDocuments";
 
 // Import document components
-import { LiveDocumentEditor } from "@/components/documents/LiveDocumentEditor";
 import { DocumentGrid } from "@/components/documents/DocumentGrid";
 import { DocumentCreationModal } from "@/components/documents/DocumentCreationModal";
 import { MarkdownDisplay } from "@/components/documents/MarkdownDisplay";
@@ -321,12 +320,11 @@ function DocumentEditorView({
       {/* Live Editor */}
       <div className="editor-workspace flex-1 flex">
         <div className={`editor-main ${showPreview ? 'w-1/2' : 'flex-1'} p-6 ${showPreview ? 'border-r border-gray-200' : ''}`}>
-          <LiveDocumentEditor
-            content={content}
-            onChange={setContent}
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
             placeholder="Start writing your strategic insights..."
-            basketId={basketId}
-            documentId={document.id}
+            className="w-full h-full resize-none border border-gray-300 rounded-lg p-4 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
         
