@@ -179,19 +179,19 @@ export function ProposalDetailModal({
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
         
-        <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+        <div className="relative bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[85vh] flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Proposal Review</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Proposal Review</h2>
               {proposal && (
-                <p className="text-sm text-gray-500 mt-1">
-                  ID: {proposal.id.slice(0, 8)}... • {proposal.proposal_kind} • {proposal.origin}
+                <p className="text-xs text-gray-500 mt-1">
+                  {proposal.id.slice(0, 8)}... • {proposal.proposal_kind} • {proposal.origin}
                 </p>
               )}
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <X className="h-6 w-6" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
@@ -206,43 +206,39 @@ export function ProposalDetailModal({
                 <Button onClick={fetchProposalDetail}>Retry</Button>
               </div>
             ) : proposal ? (
-              <div className="p-6 space-y-6">
+              <div className="p-4 space-y-4">
                 
                 {/* Overview */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Brain className="h-5 w-5" />
-                      Proposal Overview
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Status</p>
-                        <Badge variant={proposal.status === 'PROPOSED' ? 'default' : 'secondary'}>
-                          {proposal.status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Blast Radius</p>
-                        <Badge className={getBlastRadiusColor(proposal.blast_radius)}>
-                          {proposal.blast_radius}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Confidence</p>
-                        <Badge className={getConfidenceColor(proposal.validator_report.confidence)}>
-                          {Math.round(proposal.validator_report.confidence * 100)}%
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Operations</p>
-                        <span className="text-sm font-medium">{proposal.ops.length}</span>
-                      </div>
+                <div className="bg-gray-50 border border-gray-100 rounded p-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Brain className="h-4 w-4 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-700">Overview</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Status</p>
+                      <Badge variant={proposal.status === 'PROPOSED' ? 'default' : 'secondary'} className="text-xs">
+                        {proposal.status}
+                      </Badge>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Blast Radius</p>
+                      <Badge className={getBlastRadiusColor(proposal.blast_radius) + ' text-xs'}>
+                        {proposal.blast_radius}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Confidence</p>
+                      <Badge className={getConfidenceColor(proposal.validator_report.confidence) + ' text-xs'}>
+                        {Math.round(proposal.validator_report.confidence * 100)}%
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-1">Operations</p>
+                      <span className="text-xs font-medium">{proposal.ops.length}</span>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Impact Analysis */}
                 <Card>

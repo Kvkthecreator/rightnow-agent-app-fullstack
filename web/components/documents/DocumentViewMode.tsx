@@ -111,35 +111,29 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="flex h-full flex-col">
       {/* Document Header */}
-      <div className="border-b bg-white sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-4 max-w-4xl">
+      <div className="border-b border-gray-100 bg-white">
+        <div className="p-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 onClick={handleBack}
                 className="p-2"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-4 w-4" />
               </Button>
               
-              <div className="flex items-center gap-3">
-                <FileText className="h-8 w-8 text-blue-600" />
-                <div>
-                  <h1 className="text-2xl font-semibold text-gray-900">
-                    {document.title}
-                  </h1>
-                  <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>Created {formatDate(document.created_at)}</span>
-                    </div>
-                    {document.updated_at !== document.created_at && (
-                      <span>Updated {formatDate(document.updated_at)}</span>
-                    )}
-                  </div>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">
+                  {document.title}
+                </h1>
+                <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                  <span>Created {formatDate(document.created_at)}</span>
+                  {document.updated_at !== document.created_at && (
+                    <span>Updated {formatDate(document.updated_at)}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -150,7 +144,7 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
                 onClick={handleShare}
                 size="sm"
               >
-                <Share2 className="h-4 w-4 mr-2" />
+                <Share2 className="h-4 w-4 mr-1" />
                 Share
               </Button>
               <Button
@@ -158,7 +152,7 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
                 onClick={handleExport}
                 size="sm"
               >
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-4 w-4 mr-1" />
                 Export
               </Button>
               <Button
@@ -166,7 +160,7 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
                 size="sm"
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                <Edit3 className="h-4 w-4 mr-2" />
+                <Edit3 className="h-4 w-4 mr-1" />
                 Edit
               </Button>
             </div>
@@ -175,16 +169,17 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
       </div>
 
       {/* Document Content */}
-      <div className="container mx-auto px-6 py-8 max-w-4xl">
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6 max-w-4xl mx-auto">
         
         {/* Composition Statistics */}
         {composition && (
-          <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <Layers className="h-4 w-4 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">Document Composition</span>
+          <div className="mb-6 p-3 bg-gray-50 rounded border-l-4 border-blue-500">
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className="h-3 w-3 text-gray-600" />
+              <span className="text-xs font-medium text-gray-700">Composition</span>
             </div>
-            <div className="grid grid-cols-5 gap-4 text-center text-sm">
+            <div className="grid grid-cols-5 gap-3 text-center text-xs">
               <div>
                 <div className="font-semibold text-blue-600">{composition.composition_stats.blocks_count}</div>
                 <div className="text-gray-500">Blocks</div>
@@ -210,18 +205,18 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
         )}
 
         {/* Main Document Content */}
-        <div className="space-y-8">
+        <div className="space-y-6">
           {composition ? (
             <>
               {/* Authored Prose Content */}
               {composition.document.content_raw ? (
-                <div className="prose prose-lg max-w-none">
-                  <div className="bg-white border border-gray-200 rounded-lg p-8 shadow-sm">
+                <div className="prose max-w-none">
+                  <div className="bg-white border border-gray-100 rounded p-4">
                     <div 
-                      className="whitespace-pre-wrap text-gray-900 leading-relaxed"
+                      className="whitespace-pre-wrap text-gray-900 text-sm leading-relaxed"
                       dangerouslySetInnerHTML={{ 
                         __html: composition.document.content_raw
-                          .replace(/\n\n/g, '</p><p class="mt-6">')
+                          .replace(/\n\n/g, '</p><p class="mt-3">')
                           .replace(/\n/g, '<br>')
                           .replace(/^/, '<p>')
                           .replace(/$/, '</p>')
@@ -231,24 +226,24 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
-                  <p className="text-lg">No authored content yet</p>
-                  <p className="text-sm mt-2">Add prose content in edit mode to create your narrative</p>
+                  <p className="text-sm">No authored content yet</p>
+                  <p className="text-xs text-gray-400 mt-1">Add prose content in edit mode</p>
                 </div>
               )}
 
               {/* Substrate References Section */}
               {composition.references.length > 0 && (
-                <div className="border-t pt-8">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                    <Layers className="h-5 w-5 text-blue-600" />
+                <div className="border-t border-gray-100 pt-6">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <Layers className="h-3 w-3 text-gray-500" />
                     Referenced Substrate
-                  </h2>
+                  </h3>
                   
-                  <div className="grid gap-4">
+                  <div className="space-y-3">
                     {composition.references.map((ref, idx) => (
-                      <div key={idx} className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
+                      <div key={idx} className="bg-gray-50 border border-gray-100 rounded p-3">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
                             <div className={`
                               inline-flex items-center px-2 py-1 rounded text-xs font-medium
                               ${ref.substrate.substrate_type === 'block' ? 'bg-blue-100 text-blue-800' : ''}
@@ -266,27 +261,27 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
                             )}
                           </div>
                           
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-400">
                             {new Date(ref.substrate.created_at).toLocaleDateString()}
                           </div>
                         </div>
                         
                         {ref.substrate.title && (
-                          <h4 className="font-medium text-gray-900 mb-2">
+                          <h4 className="font-medium text-gray-900 mb-1 text-sm">
                             {ref.substrate.title}
                           </h4>
                         )}
                         
-                        <div className="text-sm text-gray-700 leading-relaxed">
+                        <div className="text-xs text-gray-600 leading-relaxed">
                           {ref.substrate.preview}
                         </div>
 
                         {/* Specific snippets if any */}
                         {ref.reference.snippets && ref.reference.snippets.length > 0 && (
-                          <div className="mt-3 border-l-2 border-gray-300 pl-3">
-                            <div className="text-xs text-gray-500 mb-1">Referenced excerpts:</div>
+                          <div className="mt-2 border-l-2 border-gray-200 pl-2">
+                            <div className="text-xs text-gray-400 mb-1">Excerpts:</div>
                             {ref.reference.snippets.map((snippet, sidx) => (
-                              <div key={sidx} className="text-sm text-gray-600 italic mb-1">
+                              <div key={sidx} className="text-xs text-gray-600 italic mb-1">
                                 "{snippet}"
                               </div>
                             ))}
@@ -299,13 +294,14 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
               )}
             </>
           ) : (
-            <div className="text-center py-12 text-gray-500">
-              <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <h3 className="text-lg font-medium mb-2">Empty Document</h3>
-              <p>This document has no content or substrate references yet.</p>
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="h-8 w-8 mx-auto mb-3 text-gray-300" />
+              <h3 className="text-sm font-medium mb-1">Empty Document</h3>
+              <p className="text-xs text-gray-400">No content or substrate references yet</p>
               <Button 
                 onClick={handleEdit}
-                className="mt-4"
+                size="sm"
+                className="mt-3"
               >
                 Start Editing
               </Button>
