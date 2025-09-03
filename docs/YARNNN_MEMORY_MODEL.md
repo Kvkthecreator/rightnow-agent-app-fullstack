@@ -69,14 +69,14 @@ Organizes raw_dumps, context_blocks, documents, context_items.
 Unstructured input, immutable.
 May be referenced by context_blocks or documents.
 ⬛ block
-Reusable unit of structured meaning.
-Proposed by agents or users.
-May reference a region of a raw_dump.
+Structured knowledge ingredient extracted from raw_dumps.
+Contains semantic data (goals, constraints, metrics, entities) with transformation capabilities.
+Agents extract these as data ingredients for document synthesis.
 Lifecycle: PROPOSED → ACCEPTED → LOCKED → CONSTANT.
 📄 document
-Composition of selected blocks, narrative, and optional context_items.
-Persisted as structured content.
-Not a source of memory, but an expression of it.
+Synthesized artifact generated from block ingredients + context_items + user intent.
+P4 agent transforms ingredient data into coherent narratives.
+Not a source of memory, but a generated expression of accumulated knowledge.
 🏷️ context_item
 Semantic connector (tags/themes).
 May link to blocks, documents, baskets.
@@ -87,7 +87,7 @@ Immutable audit entry.
 Records creations, updates, proposals, rejections, and compositions.
 6. Canonical Summary
 All substrates are peers — no hierarchy.
-Blocks (**context_blocks**) are the reusable, structured memory atoms.
-Documents are compositions, not containers of truth.
-Narrative text is persisted inside documents.
+Blocks (**context_blocks**) are structured knowledge ingredients with transformation capabilities.
+Documents are synthesized artifacts, not manual compositions.
+Narrative text is generated from ingredient data, not manually authored.
 Events ensure full auditability and immutability.

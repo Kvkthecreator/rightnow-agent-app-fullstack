@@ -25,7 +25,7 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 ## 📚 The Five Substrate Types (All Peers)
 
 1. **raw_dumps** - Immutable user input (text, files, captures)
-2. **context_blocks** - Structured units of meaning with state lifecycle
+2. **context_blocks** - Structured knowledge ingredients extracted from raw input (goals, constraints, metrics, entities, relationships) with semantic classification and transformation capabilities
 3. **context_items** - Semantic connectors and tags
 4. **reflections** - Derived patterns (computed, optionally cached)
 5. **timeline_events** - Append-only activity stream
@@ -37,10 +37,10 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 | Pipeline | Purpose | Sacred Rule |
 |----------|---------|-------------|
 | **P0: Capture** | Ingest raw memory | Only writes dumps, never interprets |
-| **P1: Substrate** | Create structured units | Never writes relationships or reflections |
+| **P1: Substrate** | Extract structured knowledge ingredients from raw_dumps | Never writes relationships or reflections |
 | **P2: Graph** | Connect substrates | Never modifies substrate content |
 | **P3: Reflection** | Derive insights | Read-only computation, optional cache |
-| **P4: Presentation** | Author narrative | Consumes substrate, never creates it |
+| **P4: Presentation** | Synthesize artifacts from ingredient data | Consumes substrate, never creates it |
 
 ## 🏛️ Architectural Pillars
 
@@ -90,9 +90,9 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 ```
 
 ### Document Composition
-- Documents = substrate references + narrative
-- Any substrate type can be referenced (no hierarchy)
-- Narrative provides coherent story atop substrate signals
+- Documents = synthesized artifacts from ingredient data + intentional composition
+- Any substrate type can be used as ingredient data (no hierarchy)
+- P4 agent transforms structured block ingredients into coherent narratives based on user intent
 
 ## 💡 Key Insights from Canon
 
