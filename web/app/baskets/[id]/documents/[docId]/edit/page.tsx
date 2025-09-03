@@ -2,13 +2,13 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import { notFound } from 'next/navigation';
-import { DocumentViewMode } from '@/components/documents/DocumentViewMode';
+import { DocumentEditView } from '@/components/documents/DocumentEditView';
 
 interface PageProps {
   params: Promise<{ id: string; docId: string }>;
 }
 
-export default async function DocumentDetailPage({ params }: PageProps) {
+export default async function DocumentEditPage({ params }: PageProps) {
   const { id: basketId, docId } = await params;
   
   // Authentication and workspace validation
@@ -19,7 +19,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   // Validate document exists and user has access
   const { data: document, error: documentError } = await supabase
     .from('documents')
-    .select('id, basket_id, title, created_at, updated_at, metadata, workspace_id')
+    .select('id, basket_id, title, content_raw, created_at, updated_at, metadata, workspace_id')
     .eq('id', docId)
     .maybeSingle();
 
@@ -33,7 +33,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   }
 
   return (
-    <DocumentViewMode 
+    <DocumentEditView 
       document={document} 
       basketId={basketId}
     />

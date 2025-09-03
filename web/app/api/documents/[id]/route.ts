@@ -83,12 +83,12 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    const { title, metadata } = parseResult.data;
+    const { title, content_raw, metadata } = parseResult.data;
 
     // Validate document exists and user has access
     const { data: document, error: documentError } = await supabase
       .from('documents')
-      .select('id, basket_id, title, workspace_id')
+      .select('id, basket_id, title, content_raw, workspace_id')
       .eq('id', id)
       .maybeSingle();
 
@@ -104,11 +104,12 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
     // Use existing fn_document_update RPC for consistency
     const updateData: any = {};
     if (title !== undefined) updateData.p_title = title;
+    if (content_raw !== undefined) updateData.p_content_raw = content_raw;
     if (metadata !== undefined) updateData.p_metadata = metadata;
 
     const { error: updateError } = await supabase
       .rpc('fn_document_update', {
-        p_document_id: id,
+        p_doc_id: id,
         ...updateData,
       });
 

@@ -29,7 +29,7 @@ export async function GET(
     // Get document with workspace check
     const { data: document, error: docError } = await supabase
       .from('documents')
-      .select('id, basket_id, title, created_at, updated_at, metadata, workspace_id')
+      .select('id, basket_id, title, content_raw, created_at, updated_at, metadata, workspace_id')
       .eq('id', id)
       .maybeSingle();
 
@@ -209,6 +209,7 @@ export async function GET(
         id: document.id,
         basket_id: document.basket_id,
         title: document.title,
+        content_raw: document.content_raw || '',
         created_at: document.created_at,
         updated_at: document.updated_at,
         metadata: document.metadata || {}

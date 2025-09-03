@@ -104,6 +104,7 @@ export const DocumentCompositionSchema = z.object({
     id: z.string().uuid(),
     basket_id: z.string().uuid(),
     title: z.string(),
+    content_raw: z.string(),
     created_at: z.string(),
     updated_at: z.string(),
     metadata: z.record(z.any()),

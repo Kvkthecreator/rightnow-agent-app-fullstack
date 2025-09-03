@@ -58,6 +58,7 @@ export type CreateDocumentResponse = z.infer<typeof CreateDocumentResponseSchema
 
 export const UpdateDocumentRequestSchema = z.object({
   title: z.string().optional(),
+  content_raw: z.string().optional(),
   metadata: z.record(z.any()).optional(),
 });
 export type UpdateDocumentRequest = z.infer<typeof UpdateDocumentRequestSchema>;

@@ -26,6 +26,40 @@ This document provides comprehensive documentation for the Frontend Canon v1.4.0
 3. **Workspace Scoping**: All operations respect workspace boundaries via RLS
 4. **Timeline Consistency**: All mutations emit canonical timeline events
 5. **Component Composition**: UI atoms compose into dashboard experiences
+6. **Document Mode Separation**: Documents have distinct View and Edit modes that respect Sacred Principle #3
+
+### Document Mode Architecture
+
+Per Sacred Principle #3: "Narrative is Deliberate" - Documents compose substrate references plus authored prose.
+
+#### View Mode (Default - Read Interface)
+- **Purpose**: Display composed narrative (substrate + prose layered cohesively)
+- **Routing**: `/baskets/[id]/documents/[docId]` (default)
+- **Function**: P4 Presentation - render final composition
+- **Content**: 
+  - Authored prose sections
+  - Referenced substrate embedded contextually
+  - Navigation between sections
+- **Actions**: Edit, Export, Share
+- **Canon Compliance**: Pure P4 - no substrate creation
+
+#### Edit Mode (Composition Interface)
+- **Purpose**: Compose narrative from existing substrate + authored prose
+- **Routing**: `/baskets/[id]/documents/[docId]/edit`
+- **Function**: P4 Composition - arrange substrate + prose
+- **Content**:
+  - Prose editor for authored sections
+  - Substrate attachment panel (existing substrate only)
+  - Role/weight management for references
+- **Actions**: Save composition, Preview, Cancel
+- **Canon Compliance**: Pure P4 - consumes substrate, never creates
+
+#### Critical Separation
+- **Capture** (P1): Memory page `/baskets/[id]/memory` - creates raw_dumps → substrate
+- **Composition** (P4): Document edit mode - references existing substrate + authored prose
+- **Presentation** (P4): Document view mode - displays composed narrative
+
+**Anti-Pattern**: Document pages that capture new content violate Sacred Principle #3
 
 ### Layer Architecture
 
