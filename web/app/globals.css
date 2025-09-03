@@ -220,7 +220,7 @@
 @layer components {
   /* Interactive element base */
   .interactive-base {
-    @apply transition-base disabled-state;
+    @apply transition-base disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   /* Card patterns */
@@ -236,13 +236,13 @@
   .input-base {
     @apply w-full rounded-lg border border-input bg-background px-3 py-2 text-sm
            placeholder:text-muted-foreground
-           disabled-state transition-base;
+           disabled:cursor-not-allowed disabled:opacity-50 transition-base;
   }
 
   /* Button patterns */
   .button-base {
     @apply inline-flex items-center justify-center rounded-lg font-medium
-           transition-base disabled-state;
+           transition-base disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   /* Ensure button default variant has proper background */
