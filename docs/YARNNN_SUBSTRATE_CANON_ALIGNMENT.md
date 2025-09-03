@@ -5,7 +5,7 @@
 Per YARNNN_CANON.md and YARNNN_MEMORY_MODEL.md:
 
 1. **Documents compose ALL substrate types as peers**:
-   - `context_blocks` (structured units from dumps)
+   - `context_blocks` (structured knowledge ingredients with goals, constraints, metrics, entities extracted from dumps)
    - `raw_dumps` (immutable captures)
    - `context_items` (semantic connectors)
    - `reflections` (computed insights, optionally cached)

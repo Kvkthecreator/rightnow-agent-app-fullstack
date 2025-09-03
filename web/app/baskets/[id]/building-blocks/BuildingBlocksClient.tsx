@@ -25,6 +25,13 @@ interface UnifiedSubstrate {
   metadata: any;
   processing_agent?: string;
   agent_confidence?: number;
+  structured_ingredients?: {
+    goals?: any[];
+    constraints?: any[];
+    metrics?: any[];
+    entities?: any[];
+    provenance?: any;
+  };
 }
 
 interface BuildingBlocksResponse {
@@ -269,6 +276,66 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
                 </div>
               )}
             </div>
+
+            {/* Structured Ingredients */}
+            {substrate.type === 'block' && substrate.structured_ingredients && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Knowledge Ingredients</h4>
+                <div className="bg-gray-50 rounded p-3 space-y-3">
+                  {substrate.structured_ingredients.goals && substrate.structured_ingredients.goals.length > 0 && (
+                    <div>
+                      <span className="text-xs font-medium text-blue-700">🎯 Goals ({substrate.structured_ingredients.goals.length})</span>
+                      <div className="mt-1 space-y-1">
+                        {substrate.structured_ingredients.goals.slice(0, 3).map((goal: any, i: number) => (
+                          <div key={i} className="text-xs text-gray-700 bg-blue-50 rounded px-2 py-1">
+                            {goal.title || goal.description}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {substrate.structured_ingredients.constraints && substrate.structured_ingredients.constraints.length > 0 && (
+                    <div>
+                      <span className="text-xs font-medium text-red-700">⚠️ Constraints ({substrate.structured_ingredients.constraints.length})</span>
+                      <div className="mt-1 space-y-1">
+                        {substrate.structured_ingredients.constraints.slice(0, 3).map((constraint: any, i: number) => (
+                          <div key={i} className="text-xs text-gray-700 bg-red-50 rounded px-2 py-1">
+                            {constraint.title || constraint.description}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {substrate.structured_ingredients.metrics && substrate.structured_ingredients.metrics.length > 0 && (
+                    <div>
+                      <span className="text-xs font-medium text-green-700">📊 Metrics ({substrate.structured_ingredients.metrics.length})</span>
+                      <div className="mt-1 space-y-1">
+                        {substrate.structured_ingredients.metrics.slice(0, 3).map((metric: any, i: number) => (
+                          <div key={i} className="text-xs text-gray-700 bg-green-50 rounded px-2 py-1">
+                            {metric.name}: {metric.target}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {substrate.structured_ingredients.entities && substrate.structured_ingredients.entities.length > 0 && (
+                    <div>
+                      <span className="text-xs font-medium text-purple-700">👥 Entities ({substrate.structured_ingredients.entities.length})</span>
+                      <div className="mt-1 space-y-1">
+                        {substrate.structured_ingredients.entities.slice(0, 3).map((entity: any, i: number) => (
+                          <div key={i} className="text-xs text-gray-700 bg-purple-50 rounded px-2 py-1">
+                            {entity.name} ({entity.type})
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Details */}
             <div>

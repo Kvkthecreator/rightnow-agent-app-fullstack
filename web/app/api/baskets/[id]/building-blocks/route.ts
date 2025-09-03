@@ -22,6 +22,14 @@ interface UnifiedSubstrate {
   // Agent attribution for Canon compliance
   processing_agent?: string;
   agent_confidence?: number;
+  // Structured ingredients for blocks
+  structured_ingredients?: {
+    goals?: any[];
+    constraints?: any[];
+    metrics?: any[];
+    entities?: any[];
+    provenance?: any;
+  };
 }
 
 export async function GET(
@@ -67,10 +75,10 @@ export async function GET(
         .order('created_at', { ascending: false })
         .limit(100),
       
-      // P1 Substrate Agent - Processed blocks
+      // P1 Substrate Agent - Processed blocks with structured ingredients
       supabase
         .from('blocks')
-        .select('id, semantic_type, content, confidence_score, title, body_md, created_at, meta_agent_notes')
+        .select('id, semantic_type, content, confidence_score, title, body_md, created_at, meta_agent_notes, metadata')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .order('created_at', { ascending: false })
@@ -136,9 +144,13 @@ export async function GET(
         confidence_score: block.confidence_score,
         semantic_type: block.semantic_type,
         created_at: block.created_at,
-        metadata: { agent_notes: block.meta_agent_notes },
+        metadata: { 
+          agent_notes: block.meta_agent_notes,
+          ...block.metadata 
+        },
         processing_agent: 'P1 Substrate Agent',
         agent_confidence: block.confidence_score,
+        structured_ingredients: block.metadata?.knowledge_ingredients,
       });
     });
 

@@ -19,7 +19,7 @@ Optional path: POST /api/baskets/ingest reduces round-trips during onboarding (i
 **API Schema**: Document creation requires `{basket_id, title, metadata?}` (NOT substrate_type)
 **File Processing**: Uses existing `/api/dumps/upload` endpoint requiring `document_id`
 
-Blocks (**context_blocks**) are structured units created during interpretation.
+Blocks (**context_blocks**) are structured knowledge ingredients extracted from raw_dumps containing goals, constraints, metrics, entities, and relationships with semantic classification and transformation capabilities.
 
 ## Contract
 - **Single dump**: `POST /api/dumps/new`
@@ -38,9 +38,9 @@ Capture → `/api/dumps/new` → `fn_ingest_dumps` → `raw_dumps`
 → trigger `fn_timeline_after_raw_dump` → `timeline_events('dump')`
 
 **Governance Integration** (New):
-→ agents read dumps → create proposals via `fn_proposal_create`
+→ P1 Substrate Agent extracts structured knowledge (goals, constraints, metrics, entities) → creates proposals via `fn_proposal_create`
 → governance review → `fn_proposal_approve` → commits substrate operations
-→ each approval calls substrate RPCs: `fn_block_create`, `fn_context_item_upsert_bulk`, etc.
+→ each approval calls substrate RPCs: `fn_block_create` (with knowledge_ingredients), `fn_context_item_upsert_bulk`, etc.
 
 **Manual Substrate Path** (New):
 User intent → agent validation → `fn_proposal_create` → governance → substrate commitment

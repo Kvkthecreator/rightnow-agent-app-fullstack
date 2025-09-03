@@ -144,11 +144,11 @@ class TestAgentSubstrateService:
         """Test memory analysis functionality."""
         basket_id = uuid4()
         
-        # Mock blocks data
+        # Mock blocks data with structured ingredients
         mock_blocks = [
-            {"id": str(uuid4()), "state": "PROPOSED", "semantic_type": "goal", "content": "Test goal"},
-            {"id": str(uuid4()), "state": "ACCEPTED", "semantic_type": "insight", "content": "Test insight"},
-            {"id": str(uuid4()), "state": "LOCKED", "semantic_type": "constraint", "content": "Test constraint"}
+            {"id": str(uuid4()), "state": "PROPOSED", "semantic_type": "goal", "content": "Test goal", "metadata": {"knowledge_ingredients": {"goals": [{"title": "Test goal"}], "constraints": [], "metrics": [], "entities": []}}},
+            {"id": str(uuid4()), "state": "ACCEPTED", "semantic_type": "insight", "content": "Test insight", "metadata": {"knowledge_ingredients": {"goals": [], "constraints": [], "metrics": [{"name": "Test metric"}], "entities": []}}},
+            {"id": str(uuid4()), "state": "LOCKED", "semantic_type": "constraint", "content": "Test constraint", "metadata": {"knowledge_ingredients": {"goals": [], "constraints": [{"title": "Test constraint"}], "metrics": [], "entities": []}}}
         ]
         
         # Mock context items

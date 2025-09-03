@@ -1,4 +1,6 @@
 // Block core types and API contracts
+// DEPRECATED: Use substrate_references.ts for new implementations
+// This file maintained for backward compatibility only
 
 export type Block = {
   id: string;

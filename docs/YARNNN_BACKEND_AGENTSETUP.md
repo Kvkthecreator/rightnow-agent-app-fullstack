@@ -56,14 +56,15 @@ class P0CaptureAgent:
 ```
 
 ### 2. P1 Substrate Agent  
-**File**: `agents/pipeline/substrate_agent.py`
-**Purpose**: Create structured substrate from raw dumps
+**File**: `agents/pipeline/substrate_agent_v2.py`
+**Purpose**: Extract structured knowledge ingredients from raw dumps
 **Sacred Rule**: Creates blocks/context_items, never relationships or reflections
 **Operations**:
-- Block proposal from dump content
-- Context item extraction
-- Semantic type classification
-- Substrate persistence via proper RPCs
+- Extract goals, constraints, metrics, entities, and relationships from dump content
+- Create blocks with structured knowledge data and provenance tracking  
+- Use OpenAI Structured Outputs with JSON Schema enforcement
+- Context item extraction with semantic classification
+- Substrate persistence via proper RPCs with knowledge_ingredients metadata
 
 ```python
 class P1SubstrateAgent:
@@ -71,8 +72,10 @@ class P1SubstrateAgent:
     pipeline = "P1_SUBSTRATE"
     
     async def create_substrate(self, dump_id: str) -> SubstrateResult:
-        # Create blocks via BlockProposalService
-        # Extract context_items
+        # Extract structured knowledge (goals, constraints, metrics, entities)
+        # Create blocks with knowledge_ingredients via BlockProposalService
+        # Extract context_items with semantic types
+        # Track provenance for all extracted data
         # NO relationship creation, NO pattern analysis
 ```
 

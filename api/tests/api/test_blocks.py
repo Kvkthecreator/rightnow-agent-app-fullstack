@@ -94,7 +94,7 @@ def _fake_supabase(store):
 
 
 def test_block_update_delete(monkeypatch):
-    store = {"blocks": [{"id": "b1", "workspace_id": "ws1", "basket_id": "bx", "content": "old"}]}
+    store = {"blocks": [{"id": "b1", "workspace_id": "ws1", "basket_id": "bx", "content": "old", "metadata": {"knowledge_ingredients": {"goals": [], "constraints": [], "metrics": [], "entities": []}}}]}
     fake = _fake_supabase(store)
     monkeypatch.setattr("app.routes.blocks.supabase", fake)
     monkeypatch.setattr(
@@ -106,6 +106,8 @@ def test_block_update_delete(monkeypatch):
     r = client.put("/api/blocks/b1", json={"content": "new"})
     assert r.status_code == 200
     assert store["blocks"][0]["content"] == "new"
+    # Verify structured ingredients metadata is preserved
+    assert "knowledge_ingredients" in store["blocks"][0]["metadata"]
 
     r = client.delete("/api/blocks/b1")
     assert r.status_code == 204

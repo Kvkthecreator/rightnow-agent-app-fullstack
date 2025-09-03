@@ -37,15 +37,21 @@ Frontend     API Proxy     Agent Orchestra    Delta System   Document View
 **Purpose**: Transform raw content into structured knowledge components
 
 **Agent Orchestra**:
-1. **Block Proposer Agent**: Creates structured insights from content
-2. **Context Extractor Agent**: Identifies themes, questions, and key concepts
-3. **Narrative Builder Agent**: Constructs coherent understanding
-4. **Relationship Mapper Agent**: Maps connections between elements
+1. **Block Proposer Agent (P1)**: Extracts structured knowledge ingredients (goals, constraints, metrics, entities) from content
+2. **Context Extractor Agent (P1)**: Identifies themes, questions, and key concepts with semantic classification
+3. **Narrative Builder Agent (P4)**: Composes coherent documents from structured ingredients
+4. **Relationship Mapper Agent (P2)**: Maps connections between substrate elements
 
 **Output Structure**:
-- **Blocks**: Structured insights with confidence scores and keywords
-- **Context Items**: Themes, questions, and significant concepts
-- **Narrative Elements**: Coherent synthesis and progression analysis
+- **Blocks**: Structured knowledge ingredients containing:
+  - Goals: Objectives and desired outcomes
+  - Constraints: Limitations and requirements  
+  - Metrics: Measurable criteria and success indicators
+  - Entities: Key actors, systems, and components
+  - Provenance: Source text spans for traceability
+  - Confidence scores and semantic types
+- **Context Items**: Themes, questions, and significant concepts with semantic classification
+- **Narrative Elements**: Documents composed from substrate ingredients
 - **Relationships**: Substrate interconnections and dependencies
 
 **Database Integration**:
