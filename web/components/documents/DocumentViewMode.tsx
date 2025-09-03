@@ -309,6 +309,7 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
           )}
         </div>
       </div>
+      </div>
     </div>
   );
 }
