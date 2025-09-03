@@ -30,7 +30,7 @@ export default async function BuildingBlocksPage({ params }: PageProps) {
   return (
     <RequestBoundary>
       <div className="flex h-full flex-col">
-        <div className="border-b p-4">
+        <div className="border-b border-gray-100 p-3">
           <SubpageHeader 
             title="Building Blocks" 
             basketId={basketId}
@@ -39,7 +39,7 @@ export default async function BuildingBlocksPage({ params }: PageProps) {
         </div>
         <div className="flex-1 overflow-y-auto bg-gray-50">
           <div className="mx-auto max-w-6xl">
-            <div className="p-6">
+            <div className="p-4">
               <BuildingBlocksClient basketId={basketId} />
             </div>
           </div>
