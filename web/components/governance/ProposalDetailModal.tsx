@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { X, FileText, Database, FolderOpen, Lightbulb, Clock, AlertTriangle, CheckCircle, Brain, Eye } from 'lucide-react';
+import { X, FileText, Database, FolderOpen, Lightbulb, Clock, AlertTriangle, CheckCircle, Brain, Eye, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
