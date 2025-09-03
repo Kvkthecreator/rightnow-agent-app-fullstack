@@ -102,15 +102,12 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
     }
 
     // Use existing fn_document_update RPC for consistency
-    const updateData: any = {};
-    if (title !== undefined) updateData.p_title = title;
-    if (content_raw !== undefined) updateData.p_content_raw = content_raw;
-    if (metadata !== undefined) updateData.p_metadata = metadata;
-
     const { error: updateError } = await supabase
       .rpc('fn_document_update', {
         p_doc_id: id,
-        ...updateData,
+        p_title: title || null,
+        p_content_raw: content_raw || null,
+        p_metadata: metadata || null,
       });
 
     if (updateError) {
