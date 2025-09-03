@@ -10,6 +10,7 @@ import { createBrowserClient } from "@/lib/supabase/clients";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { SubpageHeader } from "@/components/basket/SubpageHeader";
+import { ProposalDetailModal } from "@/components/governance/ProposalDetailModal";
 
 interface Proposal {
   id: string;
@@ -38,6 +39,8 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'PROPOSED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'>('all');
+  const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   type StatusFilterType = 'all' | 'PROPOSED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
 
@@ -76,12 +79,22 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
     }
   }, [basketId, statusFilter]);
 
-  const handleApprove = async (proposalId: string) => {
+  const openProposalDetail = (proposalId: string) => {
+    setSelectedProposalId(proposalId);
+    setIsDetailModalOpen(true);
+  };
+
+  const closeProposalDetail = () => {
+    setSelectedProposalId(null);
+    setIsDetailModalOpen(false);
+  };
+
+  const handleApprove = async (proposalId: string, notes?: string) => {
     try {
       const response = await fetch(`/api/proposals/${proposalId}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ review_notes: 'Approved via governance queue' })
+        body: JSON.stringify({ review_notes: notes || 'Approved via governance queue' })
       });
       
       if (response.ok) {
@@ -93,14 +106,14 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
     }
   };
 
-  const handleReject = async (proposalId: string, reason: string = '') => {
+  const handleReject = async (proposalId: string, reason: string) => {
     try {
       const response = await fetch(`/api/proposals/${proposalId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           review_notes: 'Rejected via governance queue',
-          reason: reason || 'No reason provided'
+          reason: reason
         })
       });
       
@@ -223,31 +236,30 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
                     )}
                   </div>
 
-                  {proposal.status === 'PROPOSED' && (
-                    <div className="flex gap-2 ml-4">
-                      <Button
-                        onClick={() => handleApprove(proposal.id)}
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        onClick={() => handleReject(proposal.id)}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 border-red-600 hover:bg-red-50"
-                      >
-                        Reject
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex gap-2 ml-4">
+                    <Button
+                      onClick={() => openProposalDetail(proposal.id)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Review Details
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           ))
         )}
       </div>
+
+      <ProposalDetailModal
+        isOpen={isDetailModalOpen}
+        proposalId={selectedProposalId}
+        basketId={basketId}
+        onClose={closeProposalDetail}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
     </div>
   );
 }

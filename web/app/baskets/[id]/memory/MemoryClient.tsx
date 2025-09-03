@@ -50,8 +50,8 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
       // Small delay to ensure document is fully persisted before navigation
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Navigate to the new document (full reload ensures sidebar updates)
-      window.location.href = `/baskets/${basketId}/documents/${document_id}`;
+      // Force full page reload to ensure sidebar updates with new document  
+      window.location.replace(`/baskets/${basketId}/documents/${document_id}`);
       
     } catch (error) {
       console.error('Document creation failed:', error);

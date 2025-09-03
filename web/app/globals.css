@@ -213,19 +213,7 @@
       0 4px 6px -2px rgba(0, 0, 0, 0.2);
   }
 
-  /* Consistent hover states */
-  .hover-lift {
-    @apply hover:shadow-medium hover:-translate-y-0.5 transition-spring;
-  }
 
-  .hover-glow {
-    @apply hover:shadow-large transition-spring;
-  }
-
-  /* Consistent disabled states */
-  .disabled-state {
-    @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:pointer-events-none;
-  }
 }
 
 /* Component-specific patterns */

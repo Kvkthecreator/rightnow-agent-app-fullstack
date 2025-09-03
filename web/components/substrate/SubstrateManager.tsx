@@ -155,19 +155,6 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
     }
   };
 
-  // Approve/reject blocks
-  const handleBlockAction = async (blockId: string, action: 'approve' | 'reject') => {
-    try {
-      if (action === 'approve') {
-        await substrateService.approveBlock(blockId);
-      } else {
-        await substrateService.rejectBlock(blockId);
-      }
-    } catch (err) {
-      console.error(`Failed to ${action} block:`, err);
-      setError(err instanceof Error ? err.message : `Failed to ${action} block`);
-    }
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -297,28 +284,17 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
                 {pendingBlocks.length > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-orange-600">Pending Review ({pendingBlocks.length})</h3>
-                    {pendingBlocks.map(block => (
-                      <div key={block.id} className="p-3 bg-orange-50 border border-orange-200 rounded-md">
-                        <h4 className="font-medium text-sm">{block.title}</h4>
-                        <p className="text-xs text-gray-600 mt-1">{block.body_md.slice(0, 100)}...</p>
-                        <div className="flex gap-2 mt-2">
-                          <button
-                            onClick={() => handleBlockAction(block.id, 'approve')}
-                            className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
-                          >
-                            <CheckCircle className="w-3 h-3" />
-                            Accept
-                          </button>
-                          <button
-                            onClick={() => handleBlockAction(block.id, 'reject')}
-                            className="flex items-center gap-1 px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-                          >
-                            <X className="w-3 h-3" />
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="text-sm text-blue-800">
+                        Blocks requiring review are managed through the Governance interface.
+                      </p>
+                      <a
+                        href={`/baskets/${basketId}/governance`}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        Go to Governance →
+                      </a>
+                    </div>
                   </div>
                 )}
 

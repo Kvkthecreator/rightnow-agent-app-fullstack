@@ -55,31 +55,6 @@ export async function listBlocks(basketId: string, options?: {
   return PaginatedSchema(BlockSchema).parse(response);
 }
 
-// Accept block
-export async function acceptBlock(blockId: string): Promise<Block> {
-  const response = await apiClient({
-    url: `/api/blocks/${blockId}/accept`,
-    method: 'POST',
-    signal: timeoutSignal(10000),
-  });
-  
-  // Extract the block from the response wrapper
-  const responseData = response as { success: boolean; block: unknown };
-  return BlockSchema.parse(responseData.block);
-}
-
-// Reject block
-export async function rejectBlock(blockId: string): Promise<Block> {
-  const response = await apiClient({
-    url: `/api/blocks/${blockId}/reject`,
-    method: 'POST',
-    signal: timeoutSignal(10000),
-  });
-  
-  // Extract the block from the response wrapper
-  const responseData = response as { success: boolean; block: unknown };
-  return BlockSchema.parse(responseData.block);
-}
 
 // Update block (title, content, etc.)
 export async function updateBlock(
