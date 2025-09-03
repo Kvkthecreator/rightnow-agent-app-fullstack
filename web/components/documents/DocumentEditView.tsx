@@ -39,7 +39,9 @@ export function DocumentEditView({ document, basketId }: DocumentEditViewProps) 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save document');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Save API error:', response.status, errorData);
+        throw new Error(errorData.error || `Save failed: ${response.status}`);
       }
 
       router.push(`/baskets/${basketId}/documents/${document.id}`);

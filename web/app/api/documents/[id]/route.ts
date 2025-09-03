@@ -101,13 +101,24 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
     }
 
+    // Get current document data to use as fallbacks for non-provided fields
+    const { data: currentDoc, error: fetchError } = await supabase
+      .from('documents')
+      .select('title, content_raw, metadata')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
+
     // Use existing fn_document_update RPC for consistency
     const { error: updateError } = await supabase
       .rpc('fn_document_update', {
         p_doc_id: id,
-        p_title: title || null,
-        p_content_raw: content_raw || null,
-        p_metadata: metadata || null,
+        p_title: title ?? currentDoc.title,
+        p_content_raw: content_raw ?? currentDoc.content_raw ?? '',
+        p_metadata: metadata ?? currentDoc.metadata ?? null,
       });
 
     if (updateError) {
