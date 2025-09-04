@@ -13,7 +13,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { ConsumerMemoryAdapter, type ConsumerInsight, type ConsumerEvent, type ConsumerMemory } from '../ConsumerMemoryAdapter';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/lib/useAuth';
 import { useWorkspace } from '@/lib/hooks/useWorkspace';
 
 /**

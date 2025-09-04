@@ -26,9 +26,8 @@ export default function UserNav({ compact = false }: UserNavProps) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   
-  // StrictMode guards
+  // StrictMode guard for initialization only
   const hasInitialized = useRef(false);
-  const hasSubscribed = useRef(false);
 
   // Fetch initial user and redirect if not authenticated
   useEffect(() => {
@@ -52,35 +51,7 @@ export default function UserNav({ compact = false }: UserNavProps) {
     });
   }, [router]);
 
-  // Subscribe to auth state changes for logout only
-  useEffect(() => {
-    if (hasSubscribed.current) {
-      dlog('auth/user-nav-skip-subscribe', { reason: 'already-subscribed' });
-      return;
-    }
-    
-    hasSubscribed.current = true;
-    
-    dlog('auth/user-nav-subscribe', { timestamp: Date.now() });
-    
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event) => {
-      dlog('auth/user-nav-change', { event });
-
-      // Only handle sign out - avoid refresh token conflicts
-      if (event === 'SIGNED_OUT') {
-        clearSessionCache();
-        setUser(null);
-        router.replace("/about");
-      }
-    });
-    
-    return () => {
-      dlog('auth/user-nav-unsubscribe', { timestamp: Date.now() });
-      subscription.unsubscribe();
-    };
-  }, [router]);
+  // Auth state now managed by consolidated useAuth hook - no duplicate listeners needed
 
   // Close dropdown on outside click
   useEffect(() => {
