@@ -4,7 +4,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@/lib/supabase/clients';
 import { Send, FileText, Loader2 } from 'lucide-react';
 
 interface SimplifiedSubstrateProps {
@@ -24,7 +24,7 @@ export function SimplifiedSubstrate({ basketId }: SimplifiedSubstrateProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient();
 
   // Direct query - no abstractions
   useEffect(() => {

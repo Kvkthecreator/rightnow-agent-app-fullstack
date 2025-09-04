@@ -120,13 +120,7 @@ export class SupabaseAuthHelper {
         return null
       }
       
-      // Additional validation: check if token is expired
-      if (session?.expires_at && Date.now() / 1000 > session.expires_at) {
-        console.warn('Session token expired, refreshing...')
-        
-        const { data: { session: refreshedSession } } = await this.client.auth.refreshSession()
-        return refreshedSession
-      }
+      // Let Supabase SDK handle auto-refresh to prevent 429 conflicts
       
       return session
     } catch (error) {

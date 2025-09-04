@@ -1,11 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { SessionContextProvider } from "@supabase/auth-helpers-react";
 import type { Database } from "@/lib/dbTypes";
 
-const supabase = createPagesBrowserClient<Database>();
+const supabase = createBrowserClient();
 
 export default function ClientLayoutWrapper({
   children,

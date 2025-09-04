@@ -99,12 +99,8 @@ export async function getCachedSession() {
       sessionCache = null;
       return null;
     }
-    let current = session;
-    if (session.expires_at && session.expires_at * 1000 <= now) {
-      const { data: refreshed } = await supabase.auth.refreshSession();
-      if (refreshed.session) current = refreshed.session;
-    }
-    const mergedSession = { ...current, user };
+    // Let Supabase SDK handle auto-refresh to prevent 429 conflicts
+    const mergedSession = { ...session, user };
     sessionCache = {
       session: mergedSession,
       timestamp: now,

@@ -52,7 +52,7 @@ export default function UserNav({ compact = false }: UserNavProps) {
     });
   }, [router]);
 
-  // Subscribe to auth state changes for auto-refresh and logout
+  // Subscribe to auth state changes for logout only
   useEffect(() => {
     if (hasSubscribed.current) {
       dlog('auth/user-nav-skip-subscribe', { reason: 'already-subscribed' });
@@ -68,14 +68,9 @@ export default function UserNav({ compact = false }: UserNavProps) {
     } = supabase.auth.onAuthStateChange(async (event) => {
       dlog('auth/user-nav-change', { event });
 
-      // Clear session cache on any auth state change
-      clearSessionCache();
-
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        setUser({ email: user.email || "" });
-      } else {
+      // Only handle sign out - avoid refresh token conflicts
+      if (event === 'SIGNED_OUT') {
+        clearSessionCache();
         setUser(null);
         router.replace("/about");
       }

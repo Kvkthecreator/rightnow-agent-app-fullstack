@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import type { Database } from "@/lib/dbTypes";
 
 export default function EnsureWorkspace() {
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createBrowserClient();
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [message, setMessage] = useState<string | null>(null);
 

@@ -11,7 +11,16 @@ let browserClient: SupabaseClient<Database> | undefined;
 let serviceRoleClient: SupabaseClient<Database> | undefined;
 
 export const createBrowserClient = (): SupabaseClient<Database> => {
-  if (!browserClient) browserClient = createClientComponentClient<Database>();
+  if (!browserClient) {
+    browserClient = createClientComponentClient<Database>({
+      cookieOptions: {
+        name: 'sb-access-token',
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+      }
+    });
+  }
   return browserClient;
 };
 
