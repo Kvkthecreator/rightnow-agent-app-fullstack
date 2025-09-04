@@ -52,7 +52,7 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
         .select('id, semantic_type, content, title, body_md, confidence_score, created_at, meta_agent_notes, state')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
-        .in('state', ['ACTIVE', 'LOCKED', 'CONSTANT']) // Only approved substrate
+        .in('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']) // Only approved substrate
         .limit(100),
       
       supabase

@@ -5,15 +5,31 @@
  * RLS: workspace-scoped reads, service_role writes
  */
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerComponentClient } from "@/lib/supabase/clients";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
+import { ensureWorkspaceForUser } from "@/lib/workspaces/ensureWorkspaceForUser";
 import { persistReflection } from "@/app/_server/memory/persistReflection";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const supabase = createServerComponentClient({ cookies });
-  const { id: basketId } = await params;
+  try {
+    const { id: basketId } = await params;
+    const supabase = createServerSupabaseClient();
+    const { userId } = await getAuthenticatedUser(supabase);
+    const workspace = await ensureWorkspaceForUser(userId, supabase);
+
+    // Validate basket exists and user has access
+    const { data: basket, error: basketError } = await supabase
+      .from('baskets')
+      .select('id, workspace_id')
+      .eq('id', basketId)
+      .eq('workspace_id', workspace.id)
+      .maybeSingle();
+
+    if (basketError || !basket) {
+      return NextResponse.json({ error: 'basket not found' }, { status: 404 });
+    }
 
   // 1) Load substrate (dumps/context/relationships + analyzer artifacts from blocks)
   // Keep queries tight; limit rows as needed.
@@ -52,7 +68,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     created_at: d.created_at,
   }));
 
-  return NextResponse.json({
-    reflections: { pattern, tension, question, computed_at },
-  });
+    return NextResponse.json({
+      reflections: { pattern, tension, question, computed_at },
+    });
+  } catch (error) {
+    console.error('Projection API error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
 }

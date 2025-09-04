@@ -29,7 +29,7 @@ export async function listDocuments(basketId: string, options?: {
   document_type?: string;
 }): Promise<Paginated<DocumentDTO>> {
   const params = new URLSearchParams();
-  params.set('basket_id', basketId);
+  params.set('basketId', basketId);
   
   if (options?.after_created_at) {
     params.set('after_created_at', options.after_created_at);
