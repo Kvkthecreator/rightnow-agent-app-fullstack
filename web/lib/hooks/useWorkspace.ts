@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@/lib/supabase/clients';
-import { useAuth } from './useAuth';
+import { useAuth } from '../useAuth';
 
 interface Workspace {
   id: string;
