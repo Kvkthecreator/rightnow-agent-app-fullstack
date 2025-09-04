@@ -1,38 +1,57 @@
-# Running agents
+# Running Pipeline Agents
 
-You can run agents via the [`Runner`][agents.run.Runner] class. You have 3 options:
+The system uses a **custom 5-stage pipeline** for processing content through specialized agents:
 
-1. [`Runner.run()`][agents.run.Runner.run], which runs async and returns a [`RunResult`][agents.result.RunResult].
-2. [`Runner.run_sync()`][agents.run.Runner.run_sync], which is a sync method and just runs `.run()` under the hood.
-3. [`Runner.run_streamed()`][agents.run.Runner.run_streamed], which runs async and returns a [`RunResultStreaming`][agents.result.RunResultStreaming]. It calls the LLM in streaming mode, and streams those events to you as they are received.
+## Pipeline Overview
 
-```python
-from agents import Agent, Runner
-
-async def main():
-    agent = Agent(name="Assistant", instructions="You are a helpful assistant")
-
-    result = await Runner.run(agent, "Write a haiku about recursion in programming.")
-    print(result.final_output)
-    # Code within the code,
-    # Functions calling themselves,
-    # Infinite loop's dance.
+```
+P0 Capture → P1 Substrate → P2 Graph → P3 Reflection → P4 Presentation
 ```
 
-Read more in the [results guide](results.md).
+Each pipeline stage has strict boundaries and specific responsibilities.
 
-## The agent loop
+## Queue-Based Processing
 
-When you use the run method in `Runner`, you pass in a starting agent and input. The input can either be a string (which is considered a user message), or a list of input items, which are the items in the OpenAI Responses API.
+Raw dumps are processed asynchronously through the canonical queue processor:
 
-The runner then runs a loop:
+```python
+# Queue processor runs automatically on server startup
+from services.canonical_queue_processor import CanonicalQueueProcessor
 
-1. We call the LLM for the current agent, with the current input.
-2. The LLM produces its output.
-    1. If the LLM returns a `final_output`, the loop ends and we return the result.
-    2. If the LLM does a handoff, we update the current agent and input, and re-run the loop.
-    3. If the LLM produces tool calls, we run those tool calls, append the results, and re-run the loop.
-3. If we exceed the `max_turns` passed, we raise a [`MaxTurnsExceeded`][agents.exceptions.MaxTurnsExceeded] exception.
+processor = CanonicalQueueProcessor()
+await processor.start()  # Polls queue every 10 seconds
+```
+
+## Individual Pipeline Agents
+
+### P1 Substrate Agent (Working Implementation)
+
+```python
+from app.agents.pipeline.substrate_agent_v2 import P1SubstrateAgentV2
+
+# Extract structured knowledge from raw dumps
+p1_agent = P1SubstrateAgentV2()
+result = await p1_agent.create_substrate({
+    "dump_id": dump_id,
+    "workspace_id": workspace_id,
+    "basket_id": basket_id,
+    "max_blocks": 10
+})
+
+# Returns structured knowledge blocks with provenance
+print(result["blocks_created"])
+print(result["context_items_created"])
+```
+
+### Queue Processing Flow
+
+1. **Raw dumps** inserted into database
+2. **Database trigger** creates queue entry
+3. **Queue processor** claims dumps atomically
+4. **P0**: Validates dump content exists
+5. **P1**: Extracts structured knowledge via OpenAI API
+6. **P2**: Maps relationships (deferred until governance approval)
+7. **P3**: Computes reflections (deferred until governance approval)
 
 !!! note
 

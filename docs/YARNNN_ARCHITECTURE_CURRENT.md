@@ -18,10 +18,10 @@
   - Database triggers sync basket_deltas → baskets table
 
 ### Backend Architecture
-- **Manager Agent Orchestration**: `api/src/services/manager.py` ✅
-  - Coordinates real worker agents (InfraBasketAnalyzerAgent, TasksDocumentComposerAgent)
-  - Returns actual BasketDelta objects (no more fake data)
-  - Proper error handling and conflict resolution
+- **Canonical Queue Processor**: `api/src/services/canonical_queue_processor.py` ✅
+  - Orchestrates P0-P4 pipeline agents in strict sequence
+  - Processes dumps via queue system with atomic claiming
+  - Real P1 agent with OpenAI structured extraction (not full SDK)
 
 - **Repository Pattern**: `api/src/repositories/` ✅
   - `BasketRepository` - CRUD operations for baskets

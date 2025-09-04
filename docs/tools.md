@@ -1,41 +1,40 @@
-# Tools
+# Pipeline Agent Tools
 
-Tools let agents take actions: things like fetching data, running code, calling external APIs, and even using a computer. There are three classes of tools in the Agent SDK:
+The system uses custom pipeline agents with direct OpenAI API integration for substrate processing:
 
--   Hosted tools: these run on LLM servers alongside the AI models. OpenAI offers retrieval, web search and computer use as hosted tools.
--   Function calling: these allow you to use any Python function as a tool.
--   Agents as tools: this allows you to use an agent as a tool, allowing Agents to call other agents without handing off to them.
+## Pipeline Boundaries
 
-## Hosted tools
+Each pipeline stage has strict tool restrictions:
 
-OpenAI offers a few built-in tools when using the [`OpenAIResponsesModel`][agents.models.openai_responses.OpenAIResponsesModel]:
+-   **P0 Capture**: Only reads/validates raw dumps
+-   **P1 Substrate**: Only creates blocks and context items via structured extraction  
+-   **P2 Graph**: Only creates relationships between substrate elements
+-   **P3 Reflection**: Only computes read-only insights and patterns
 
--   The [`WebSearchTool`][agents.tool.WebSearchTool] lets an agent search the web.
--   The [`FileSearchTool`][agents.tool.FileSearchTool] allows retrieving information from your OpenAI Vector Stores.
--   The [`ComputerTool`][agents.tool.ComputerTool] allows automating computer use tasks.
+## P1 Substrate Agent Tools
+
+The working P1 agent uses direct OpenAI API calls with structured outputs:
 
 ```python
-from agents import Agent, FileSearchTool, Runner, WebSearchTool
+from app.agents.pipeline.substrate_agent_v2 import P1SubstrateAgentV2
+from app.schemas.knowledge_extraction import KnowledgeBlockList
 
-agent = Agent(
-    name="Assistant",
-    tools=[
-        WebSearchTool(),
-        FileSearchTool(
-            max_num_results=3,
-            vector_store_ids=["VECTOR_STORE_ID"],
-        ),
-    ],
+# P1 agent extracts structured knowledge using OpenAI Structured Outputs
+p1_agent = P1SubstrateAgentV2()
+
+# Structured extraction with provenance tracking
+extraction_result = await p1_agent._extract_with_llm(
+    text=dump_content,
+    dump_id=str(dump_id)
 )
 
-async def main():
-    result = await Runner.run(agent, "Which coffee shop should I go to, taking into account my preferences and the weather today in SF?")
-    print(result.final_output)
+# Returns KnowledgeBlockList with entities, goals, constraints, metrics
+knowledge_blocks = extraction_result["blocks"]
 ```
 
-## Function tools
+## Database Integration
 
-You can use any Python function as a tool. The Agents SDK will setup the tool automatically:
+Pipeline agents integrate directly with Supabase via admin client:
 
 -   The name of the tool will be the name of the Python function (or you can provide a name)
 -   Tool description will be taken from the docstring of the function (or you can provide a description)
