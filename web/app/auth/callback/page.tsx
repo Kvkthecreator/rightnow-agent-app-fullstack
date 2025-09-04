@@ -13,12 +13,19 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const run = async () => {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
+      // PKCE flow: Exchange authorization code for session first
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("❌ Session error after callback:", sessionError);
+        router.replace("/login");
+        return;
+      }
 
-      if (error || !user) {
+      // Then verify user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
         console.warn("❌ No user after callback. Redirecting to /login.");
         router.replace("/login");
         return;
