@@ -3,7 +3,6 @@ import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import { notFound } from 'next/navigation';
 import { DocumentsList } from '@/components/documents/DocumentsList';
-import { CreateDocumentButton } from '@/components/documents/CreateDocumentButton';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -31,12 +30,9 @@ export default async function DocumentsPage({ params }: PageProps) {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Documents</h1>
-          <p className="text-gray-600 mt-1">Compose and organize your documents</p>
-        </div>
-        <CreateDocumentButton basketId={id} />
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900">Documents</h1>
+        <p className="text-gray-600 mt-1">Compose and organize your documents</p>
       </div>
       
       <DocumentsList basketId={id} />
