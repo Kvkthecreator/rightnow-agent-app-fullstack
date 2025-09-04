@@ -16,13 +16,11 @@ export async function POST(req: Request) {
     meta_derived_from: `basket_${basketId}_${Date.now()}`
   };
 
-  // Cache the reflection
-  const { data, error } = await supabase.rpc('fn_reflection_cache_upsert', {
+  // Create substrate reflection artifact
+  const reflection_text = `Pattern: ${reflection.pattern}\n\nTension: ${reflection.tension}\n\nQuestion: ${reflection.question}`;
+  const { data, error } = await supabase.rpc('fn_reflection_create_from_substrate', {
     p_basket_id: basketId,
-    p_pattern: reflection.pattern,
-    p_tension: reflection.tension,
-    p_question: reflection.question,
-    p_meta_hash: reflection.meta_derived_from
+    p_reflection_text: reflection_text
   });
 
   if (error) {

@@ -22,32 +22,41 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
   Stream        Dumps          Required           Substrates            Patterns             Documents
 ```
 
-## 📚 The Five Substrate Types (All Peers)
+## 📚 Substrate vs Artifact Distinction
 
-1. **raw_dumps** - Immutable user input (text, files, captures)
-2. **context_blocks** - Structured knowledge ingredients extracted from raw input (goals, constraints, metrics, entities, relationships) with semantic classification and transformation capabilities
-3. **context_items** - Semantic connectors and tags
-4. **reflections** - Derived patterns (computed, optionally cached)
-5. **timeline_events** - Append-only activity stream
+### Four Substrate Types (Memory Layer)
 
-**Critical**: These are PEERS. No hierarchy. Documents can compose ANY substrate type.
+1. **raw_dumps** - Immutable user input (text, files, captures) - Sacred capture
+2. **context_blocks** - Structured knowledge ingredients extracted from raw input (goals, constraints, metrics, entities) - Building blocks
+3. **context_items** - Semantic connective tissue between substrates - Linking layer
+4. **timeline_events** - Append-only activity stream - System memory
 
-## 🔄 The Five Pipelines (Strict Separation)
+**Critical**: These are PEERS. No hierarchy between substrates.
 
-| Pipeline | Purpose | Sacred Rule |
-|----------|---------|-------------|
-| **P0: Capture** | Ingest raw memory | Only writes dumps, never interprets |
-| **P1: Substrate** | Extract structured knowledge ingredients from raw_dumps | Never writes relationships or reflections |
-| **P2: Graph** | Connect substrates | Never modifies substrate content |
-| **P3: Reflection** | Derive insights | Read-only computation, optional cache |
-| **P4: Presentation** | Synthesize artifacts from ingredient data | Consumes substrate, never creates it |
+### Two Artifact Types (Expression Layer)
+
+1. **documents** - Deliberate narrative compositions FROM substrate + authored prose
+2. **reflections** - Computed insights and observations ABOUT substrate patterns
+
+**Critical**: Artifacts are derived FROM substrates, never the reverse. No artifact recursion.
+
+## 🔄 The Five Pipelines (Substrate → Artifacts)
+
+| Pipeline | Layer | Purpose | Sacred Rule |
+|----------|-------|---------|-------------|
+| **P0: Capture** | Substrate | Ingest raw memory | Only writes raw_dumps, never interprets |
+| **P1: Extract** | Substrate | Extract structured knowledge from raw_dumps | Creates context_blocks only |
+| **P2: Connect** | Substrate | Link substrates semantically | Creates context_items and relationships only |
+| **P3: Reflect** | Artifact | Compute insights about substrates | Creates reflections only, never modifies substrate |
+| **P4: Compose** | Artifact | Create narrative compositions | Creates documents only, consumes substrate |
 
 ## 🏛️ Architectural Pillars
 
 ### 1. Memory-First Architecture
 - User thoughts emerge from captured substrate, not imposed structure
-- Reflections are **derived read-models**, not stored truths
-- Timeline events provide append-only memory stream
+- **Substrate Layer**: Immutable memory (raw_dumps, context_blocks, context_items, timeline_events)
+- **Artifact Layer**: Derived expressions (documents, reflections) that never become substrate
+- Unidirectional flow: Substrate → Artifacts
 
 ### 2. Workspace-Scoped Security
 - Single workspace per user (strong guarantee)
@@ -95,20 +104,23 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 - Single governance proposal generated from unified structured ingredients
 - Batch processing maintains semantic coherence across related inputs
 
-### Document Composition
-- Documents = synthesized artifacts from ingredient data + intentional composition
-- Any substrate type can be used as ingredient data (no hierarchy)
-- P4 agent transforms structured block ingredients into coherent narratives based on user intent
+### Document Composition (Artifact Layer)
+- Documents = independent artifacts composed from substrate ingredients + authored prose
+- Git-inspired versioning: Documents create snapshots for stable references
+- Substrate ingredients remain immutable; documents evolve independently
+- P4 agent creates initial composition, users freely edit afterward
 
 ## 💡 Key Insights from Canon
 
-1. **Substrate Equality** - The system must never privilege one substrate type over another
-2. **Derived Reflections** - Patterns/tensions/questions are computed at read-time
-3. **Pipeline Discipline** - Each pipeline has strict write boundaries
-4. **Memory Permanence** - Dumps are immutable; evolution happens through new substrate
-5. **Workspace Isolation** - Complete data isolation between workspaces
-6. **Agent Necessity** - Substrate (blocks, context_items, relationships) cannot exist without agent processing
-7. **Async Intelligence** - User feedback is instant, intelligence processing happens asynchronously
+1. **Substrate Equality** - The four substrate types (dumps, blocks, context_items, events) are peers
+2. **Substrate vs Artifacts** - Clear separation between memory (substrate) and expressions (artifacts)
+3. **Artifact Independence** - Documents and reflections evolve separately from substrate
+4. **Pipeline Discipline** - P0-P2 create substrate, P3-P4 create artifacts
+5. **Memory Permanence** - Substrate is immutable; artifacts can be edited freely
+6. **Document Versioning** - Git-inspired versioning for stable artifact references
+7. **Workspace Isolation** - Complete data isolation between workspaces
+8. **Agent Necessity** - Substrate cannot exist without agent processing
+9. **Async Intelligence** - User feedback is instant, intelligence processing happens asynchronously
 
 ## 🚀 Implementation Guidelines
 
@@ -179,9 +191,17 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 
 ## Version Lock
 
-- Canon version: **v1.4**  
-- Frozen as of: **2025-08-28**  
+- Canon version: **v2.0**  
+- Frozen as of: **2025-01-04**  
 - Update policy: Do not edit in place. Amendments require a new canon version.
+
+### v2.0.0 Changes (Breaking)
+- **Substrate/Artifact Separation**: Clear distinction between memory (substrate) and expressions (artifacts)
+- **Four Pure Substrates**: raw_dumps, context_blocks, context_items, timeline_events
+- **Two Artifact Types**: documents (versioned), reflections (computed)
+- **Document Versioning**: Git-inspired versioning for stable artifact references
+- **Legacy Table Removal**: Eliminated block_links, document_context_items, basket_events, revisions
+- **No Artifact Recursion**: Reflections can target substrates OR document versions, never other artifacts
 
 ### v1.4.0 Changes
 - Added Pure Supabase Async Intelligence Model as 5th Architectural Pillar

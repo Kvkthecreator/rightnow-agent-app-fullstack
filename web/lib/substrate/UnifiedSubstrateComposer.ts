@@ -66,7 +66,7 @@ export class UnifiedSubstrateComposer {
       // Store locally (convert to compatible format for now)
       const compatibleRawDump = {
         id: rawDump.id,
-        type: 'raw_dump' as const,
+        type: 'dump' as const,
         content: this.serializeFragments(fragments),
         basketId,
         workspaceId,

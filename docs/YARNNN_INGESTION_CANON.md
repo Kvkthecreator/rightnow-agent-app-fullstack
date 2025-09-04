@@ -1,4 +1,4 @@
-# Canon v1.4.0 — Memory Interface Evolution
+# Canon v2.0 — Substrate/Artifact Model
 
 # YARNNN Ingestion Canon (Authoritative)
 
@@ -19,7 +19,7 @@ Optional path: POST /api/baskets/ingest reduces round-trips during onboarding (i
 **API Schema**: Document creation requires `{basket_id, title, metadata?}` (NOT substrate_type)
 **File Processing**: Uses existing `/api/dumps/upload` endpoint requiring `document_id`
 
-Blocks (**context_blocks**) are structured knowledge ingredients extracted from raw_dumps containing goals, constraints, metrics, entities, and relationships with semantic classification and transformation capabilities.
+Blocks (substrate_type: 'block' in context_blocks table) are structured knowledge ingredients extracted from dumps (substrate_type: 'dump' in raw_dumps table). Reflections are artifacts, not substrates.
 
 ## Contract
 - **Single dump**: `POST /api/dumps/new`

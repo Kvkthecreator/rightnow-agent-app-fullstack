@@ -1,12 +1,12 @@
-# YARNNN Governance Canon v3.0.0
+# YARNNN Governance Canon v4.0.0
 
-**The Authoritative Reference for Workspace-Scoped Governance**
+**Substrate/Artifact Model - Pure Substrate Governance**
 
 ## Sacred Principles
 
-**Governance Sacred Principle #1**: All substrate mutations flow through governed proposals  
-**Governance Sacred Principle #2**: Proposals are intent, not truth - truth changes only on approval  
-**Governance Sacred Principle #3**: Agent validation is mandatory for all proposals regardless of origin  
+**Governance Sacred Principle #1**: All pure substrate mutations flow through governed proposals
+**Governance Sacred Principle #2**: Proposals target substrates only - artifacts are generated separately
+**Governance Sacred Principle #3**: Agent validation is mandatory for substrate proposals only  
 
 ## 🏛️ Governance Architecture
 

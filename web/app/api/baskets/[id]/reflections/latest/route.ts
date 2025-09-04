@@ -2,7 +2,7 @@
  * Route: GET /api/baskets/:id/reflections/latest
  * @contract input  : none
  * @contract output : ReflectionDTO
- * RLS: workspace-scoped reads on reflection_cache
+ * RLS: workspace-scoped reads on reflections_artifact
  */
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
@@ -14,8 +14,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const supabase = createServerComponentClient({ cookies });
   const { id: basketId } = await params;
   const { data, error } = await supabase
-    .from("reflection_cache")
-    .select("reflection_text, computation_timestamp, meta")
+    .from("reflections_artifact")
+    .select("reflection_text, computation_timestamp, meta, reflection_target_type")
     .eq("basket_id", basketId)
     .order("computation_timestamp", { ascending: false })
     .limit(1)

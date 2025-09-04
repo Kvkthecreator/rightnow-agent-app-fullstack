@@ -10,10 +10,10 @@ export interface SubstrateElement {
   updatedAt: Date;
 }
 
-export type SubstrateType = 'raw_dump' | 'block' | 'context_item' | 'narrative' | 'document';
+export type SubstrateType = 'dump' | 'block' | 'context_item' | 'timeline_event';
 
 export interface RawDump extends SubstrateElement {
-  type: 'raw_dump';
+  type: 'dump';
   content: string;
   source?: string;
   metadata?: Record<string, any>;
@@ -36,19 +36,14 @@ export interface ContextElement extends SubstrateElement, ContractContextItem {
   references: SubstrateRef[];
 }
 
-export interface Narrative extends SubstrateElement {
-  type: 'narrative';
-  title: string;
-  content: string;
-  format: 'markdown' | 'html' | 'plain';
-  references: SubstrateRef[];
-  metadata?: Record<string, any>;
-}
+// Note: Document and Narrative are now artifacts, not substrates
+// They are handled separately in the artifact layer
 
-export interface Document extends SubstrateElement {
-  type: 'document';
-  title: string;
-  composition: CompositionElement[];
+export interface TimelineEvent extends SubstrateElement {
+  type: 'timeline_event';
+  kind: string;
+  payload: Record<string, any>;
+  actor_id?: string;
   metadata?: Record<string, any>;
 }
 
@@ -77,9 +72,8 @@ export interface Relationship {
 }
 
 export type RelationshipType = 
-  | 'derives_from'    // block derives from raw_dump
-  | 'references'      // document references block
-  | 'contextualizes'  // context_item contextualizes anything
+  | 'derives_from'    // block derives from dump
+  | 'contextualizes'  // context_item contextualizes substrate
   | 'contradicts'     // semantic opposition
   | 'supports'        // semantic agreement
   | 'extends'         // builds upon

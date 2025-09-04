@@ -1,7 +1,7 @@
-# Canon v1.4.0 — docs clarification (no code change)
-Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+# Canon v2.0 — Substrate/Artifact Model
+Reflections are now artifacts stored in reflections_artifact table, targeting substrate or document versions.
 
-# Reflection Read-Model (Authoritative + Optimistic)
+# Reflection Artifact Model (Authoritative + Versioned)
 
 **Goal:** Deterministic reflections computed from substrate; same code can run on server (truth) and client (optimism).
 
@@ -26,11 +26,14 @@ type Reflections = {
 - **Client (optimistic)**: run `computeReflections(notes)` without graph immediately after submit; reconcile to server result on revalidate.
 
 ## Storage
-- **Optional cache**: `reflection_cache` stores the computed shape with timestamp; non-authoritative
-- **Stream**: `timeline_events` append-only log of all memory events (dump|reflection|narrative|system_note)
+- **Artifact table**: `reflections_artifact` stores reflections with flexible targeting
+- **Stream**: `timeline_events` append-only log of all memory events
 - **Events**: canonical `events` table (basket_events deprecated)
 
-Reflections are derived from substrate. If persisted, they live in reflection_cache as a non-authoritative cache; readers may recompute on demand.
+Reflections are artifacts that target either:
+- Substrate state (computed from current basket substrate)
+- Document versions (computed from specific document snapshots)
+- Legacy baskets (backward compatibility)
 
 ## Guarantees
 - **No schema changes**.

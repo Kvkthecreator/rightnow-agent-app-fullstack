@@ -54,9 +54,9 @@ export class DashboardQueries {
       .eq('basket_id', basket_id)
       .order('created_at', { ascending: false });
 
-    // Get reflection metrics
+    // Get reflection artifact metrics
     const { data: reflectionStats } = await this.supabase
-      .from('reflection_cache')
+      .from('reflections_artifact')
       .select('computation_timestamp')
       .eq('basket_id', basket_id)
       .order('computation_timestamp', { ascending: false });
@@ -121,7 +121,7 @@ export class DashboardQueries {
 
   async getMostRecentReflection(basket_id: string): Promise<RecentReflectionSummary | null> {
     const { data, error } = await this.supabase
-      .from('reflection_cache')
+      .from('reflections_artifact')
       .select('*')
       .eq('basket_id', basket_id)
       .order('computation_timestamp', { ascending: false })

@@ -1,8 +1,8 @@
-# Frontend Canon v1.4.0: Memory Interface Evolution
+# Frontend Canon v2.0: Substrate/Artifact Interface
 
 ## Overview
 
-This document provides comprehensive documentation for the Frontend Canon v1.4.0 implementation, including the evolved memory interface with document library integration and the complete substrate-aware composition system. The implementation follows strict canon compliance where all substrate types (blocks, dumps, context_items, reflections, timeline_events) are treated as peers in a generic composition system.
+This document provides comprehensive documentation for the Frontend Canon v2.0 implementation with pure substrate composition and separate artifact handling. Documents compose only substrate types (block, dump, context_item, timeline_event) while reflections are handled as artifacts.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ This document provides comprehensive documentation for the Frontend Canon v1.4.0
 
 ### Core Principles
 
-1. **Substrate Equality**: All substrates are peers - no hierarchy between blocks, dumps, context_items, reflections, timeline_events
+1. **Pure Substrate Equality**: Substrate types are peers - block, dump, context_item, timeline_event (reflections removed)
 2. **Contracts-First**: All data flows through Zod-validated contracts in `shared/contracts/*`
 3. **Workspace Scoping**: All operations respect workspace boundaries via RLS
 4. **Timeline Consistency**: All mutations emit canonical timeline events

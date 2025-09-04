@@ -1,8 +1,8 @@
-# Adapter Layer Strategy v1.4.0: Stable Core, Swappable Lenses
+# Adapter Layer Strategy v2.0: Substrate/Artifact Core
 
-**Version**: 1.4.0  
+**Version**: 2.0  
 **Status**: Strategic Architecture Document  
-**Purpose**: Define the adapter layer approach for sustainable dual GTM strategy while preserving the canonical service core
+**Purpose**: Define presentation adapters on pure substrate core with separate artifact processing
 
 ---
 
@@ -46,8 +46,10 @@ The Supabase backend serves as a **Context Graph Service** - a durable, agent-pr
 │                    ==================                          │
 │ P0 Agent        │ P1 Agent       │ P2 Agent      │ P3 Agent      │
 │ ========        │ ========       │ ========      │ ========      │  
-│ • raw_dumps     │ • blocks       │ • context     │ • reflections │
-│   (immutable)   │ • context_items│   _relations  │   (computed)  │
+│ • raw_dumps     │ • blocks       │ • context     │ • document     │
+│   (immutable)   │ • context_items│   _relations  │   versions     │
+│                 │ (substrates)   │ (substrate)   │ • reflections  │
+│                 │                │               │   (artifacts)  │
 │                 │   (structured) │   (connect)   │               │
 │                 │                │               │ P4 Agent      │
 │                 │                │               │ • documents   │

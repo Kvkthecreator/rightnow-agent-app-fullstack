@@ -1,8 +1,8 @@
 /**
  * Pipeline Boundary Guard
  * 
- * Enforces YARNNN Canon v1.4.0 pipeline write restrictions (P0-P4)
- * Ensures strict separation of concerns across capture, substrate, graph, reflection, and presentation pipelines
+ * Enforces YARNNN Canon v2.0 substrate/artifact pipeline restrictions (P0-P4)
+ * Ensures strict separation between substrate operations and artifact generation
  */
 
 export class PipelineBoundaryViolation extends Error {

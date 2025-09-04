@@ -14,12 +14,23 @@ export async function persistReflection({
   question,
 }: PersistArgs) {
   const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase.rpc("fn_persist_reflection", {
+  
+  // Build reflection text from pattern/tension/question
+  const reflectionParts = [
+    pattern ? `Pattern: ${pattern}` : null,
+    tension ? `Tension: ${tension}` : null,
+    question ? `Question: ${question}` : null
+  ].filter(Boolean);
+  
+  const reflection_text = reflectionParts.join('\n\n');
+  if (!reflection_text) return null;
+  
+  // Use new substrate reflection function
+  const { data, error } = await supabase.rpc("fn_reflection_create_from_substrate", {
     p_basket_id: basketId,
-    p_pattern: pattern ?? null,
-    p_tension: tension ?? null,
-    p_question: question ?? null,
+    p_reflection_text: reflection_text,
   });
+  
   if (error) throw new Error(error.message);
   return data as string; // reflection_id
 }

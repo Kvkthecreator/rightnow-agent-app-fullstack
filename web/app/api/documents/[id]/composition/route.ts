@@ -126,25 +126,8 @@ export async function GET(
             }
             break;
 
-          case 'reflection':
-            const { data: reflectionData } = await supabase
-              .from('reflection_cache')
-              .select('id, content, reflection_type, computation_timestamp, created_at')
-              .eq('id', ref.substrate_id)
-              .maybeSingle();
-            substrateData = reflectionData;
-            if (substrateData) {
-              substrateSummary = {
-                substrate_type: 'reflection',
-                substrate_id: substrateData.id,
-                title: null,
-                preview: substrateData.content?.substring(0, 200) + '...' || '',
-                created_at: substrateData.created_at,
-                reflection_type: substrateData.reflection_type,
-                computation_timestamp: substrateData.computation_timestamp
-              };
-            }
-            break;
+          // Note: reflections removed from substrate_type enum
+          // Reflections are now artifacts in reflections_artifact table
 
           case 'timeline_event':
             const { data: eventData } = await supabase
@@ -199,7 +182,7 @@ export async function GET(
       blocks_count: compositionRefs.filter(r => r.reference.substrate_type === 'block').length,
       dumps_count: compositionRefs.filter(r => r.reference.substrate_type === 'dump').length,
       context_items_count: compositionRefs.filter(r => r.reference.substrate_type === 'context_item').length,
-      reflections_count: compositionRefs.filter(r => r.reference.substrate_type === 'reflection').length,
+      // reflections_count removed - reflections are artifacts not substrates
       timeline_events_count: compositionRefs.filter(r => r.reference.substrate_type === 'timeline_event').length,
       total_references: compositionRefs.length
     };

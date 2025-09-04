@@ -11,7 +11,7 @@ import {
 describe('Substrate Reference Contracts', () => {
   describe('SubstrateTypeSchema', () => {
     it('validates all canonical substrate types', () => {
-      const validTypes = ['block', 'dump', 'context_item', 'reflection', 'timeline_event'];
+      const validTypes = ['block', 'dump', 'context_item', 'timeline_event'];
       
       validTypes.forEach(type => {
         const result = SubstrateTypeSchema.safeParse(type);
@@ -116,7 +116,7 @@ describe('Substrate Reference Contracts', () => {
 
     it('validates minimal attachment request', () => {
       const minimal = {
-        substrate_type: 'reflection',
+        substrate_type: 'timeline_event',
         substrate_id: '123e4567-e89b-12d3-a456-426614174000',
       };
 

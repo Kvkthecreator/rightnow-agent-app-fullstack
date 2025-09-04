@@ -1,5 +1,5 @@
-# Canon v1.4.0 — docs clarification (no code change)
-Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+# Canon v2.0 — Substrate/Artifact Model
+Reflections are artifacts stored in reflections_artifact table. Pure substrate memory layer.
 
 # Yarnnn — Basket Work Canon (Display-Only, Phase 1)
 
@@ -12,10 +12,10 @@ Users return to see:
 2) **The most important next move** (bounded, reviewable suggestion)
 
 ## Authority
-- Memory reflections: server computes → `reflection_cache (optional, non-authoritative)` → `timeline_events` → `events`
+- Memory reflections: server computes → `reflections_artifact` → `timeline_events` → `events`
 - Frontend mirrors durable state; no client-side synthesis
 
-Reflections are derived from substrate. If persisted, they live in reflection_cache as a non-authoritative cache; readers may recompute on demand.
+Reflections are artifacts targeting substrate state or document versions. Stored durably in reflections_artifact with flexible targeting.
 
 ## Pages & Panels
 

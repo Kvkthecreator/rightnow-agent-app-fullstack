@@ -44,10 +44,8 @@ export class ReflectionEngine {
       const cached = await this.getCachedReflection(basket_id, substrate_hash);
       if (cached) {
         // Update last accessed timestamp
-        await this.supabase
-          .from('reflection_cache')
-          .update({ last_accessed_at: new Date().toISOString() })
-          .eq('id', cached.id);
+        // Note: reflections_artifact doesn't have last_accessed_at
+        // Reflections are now durable artifacts, not cache
         return cached;
       }
     }
@@ -70,34 +68,27 @@ export class ReflectionEngine {
       // Compute reflection
       const reflection_text = await this.generateReflection(window.substrate_content);
       
-      // Store in cache using service role
-      const { data: reflection, error } = await this.supabase
-        .from('reflection_cache')
-        .upsert({
-          basket_id,
-          workspace_id,
-          substrate_hash,
-          reflection_text,
-          substrate_window_start: window.start_timestamp,
-          substrate_window_end: window.end_timestamp,
-          computation_timestamp: new Date().toISOString(),
-          meta: {
-            computation_trace_id,
-            substrate_dump_count: window.dump_count,
-            substrate_tokens: window.total_tokens,
-          },
-        }, {
-          onConflict: 'basket_id,substrate_hash',
-        })
-        .select('*')
-        .single();
+      // Use new artifact creation function
+      const { data: reflection_id, error } = await this.supabase
+        .rpc('fn_reflection_create_from_substrate', {
+          p_basket_id: basket_id,
+          p_reflection_text: reflection_text
+        });
 
       if (error) {
         throw new Error(`Failed to store reflection: ${error.message}`);
       }
 
-      // Emit timeline event
-      await this.emitReflectionEvent(basket_id, reflection.id, computation_trace_id);
+      // Get the created reflection for return
+      const { data: reflection, error: fetchError } = await this.supabase
+        .from('reflections_artifact')
+        .select('*')
+        .eq('id', reflection_id)
+        .single();
+        
+      if (fetchError || !reflection) {
+        throw new Error('Failed to fetch created reflection');
+      }
 
       return {
         id: reflection.id,
@@ -126,7 +117,7 @@ export class ReflectionEngine {
     }
 
     let query = this.supabase
-      .from('reflection_cache')
+      .from('reflections_artifact')
       .select('*')
       .eq('basket_id', basket_id)
       .eq('workspace_id', workspace_id)
@@ -147,19 +138,18 @@ export class ReflectionEngine {
     const results = has_more ? reflections.slice(0, limit) : reflections;
     const next_cursor = has_more ? results[results.length - 1].computation_timestamp : undefined;
 
-    // Update last accessed for returned reflections
-    if (results.length > 0) {
-      await this.supabase
-        .from('reflection_cache')
-        .update({ last_accessed_at: new Date().toISOString() })
-        .in('id', results.map(r => r.id));
-    }
+    // Note: No last_accessed tracking in reflections_artifact
+    // Reflections are durable artifacts, not cache entries
 
     return {
       reflections: results.map(r => ({
         id: r.id,
         basket_id: r.basket_id,
+        workspace_id: r.workspace_id,
         reflection_text: r.reflection_text,
+        reflection_target_type: r.reflection_target_type || 'legacy',
+        reflection_target_id: r.reflection_target_id,
+        reflection_target_version: r.reflection_target_version,
         substrate_window_start: r.substrate_window_start,
         substrate_window_end: r.substrate_window_end,
         computation_timestamp: r.computation_timestamp,
@@ -267,10 +257,11 @@ export class ReflectionEngine {
     substrate_hash: string
   ): Promise<ReflectionDTO | null> {
     const { data, error } = await this.supabase
-      .from('reflection_cache')
+      .from('reflections_artifact')
       .select('*')
       .eq('basket_id', basket_id)
       .eq('substrate_hash', substrate_hash)
+      .eq('reflection_target_type', 'substrate')
       .maybeSingle();
 
     if (error || !data) return null;
@@ -278,7 +269,11 @@ export class ReflectionEngine {
     return {
       id: data.id,
       basket_id: data.basket_id,
+      workspace_id: data.workspace_id,
       reflection_text: data.reflection_text,
+      reflection_target_type: data.reflection_target_type,
+      reflection_target_id: data.reflection_target_id,
+      reflection_target_version: data.reflection_target_version,
       substrate_window_start: data.substrate_window_start,
       substrate_window_end: data.substrate_window_end,
       computation_timestamp: data.computation_timestamp,
@@ -288,7 +283,7 @@ export class ReflectionEngine {
 
   private async getMostRecentReflection(basket_id: string): Promise<ReflectionDTO | null> {
     const { data, error } = await this.supabase
-      .from('reflection_cache')
+      .from('reflections_artifact')
       .select('*')
       .eq('basket_id', basket_id)
       .order('computation_timestamp', { ascending: false })
@@ -300,7 +295,11 @@ export class ReflectionEngine {
     return {
       id: data.id,
       basket_id: data.basket_id,
+      workspace_id: data.workspace_id,
       reflection_text: data.reflection_text,
+      reflection_target_type: data.reflection_target_type || 'legacy',
+      reflection_target_id: data.reflection_target_id,
+      reflection_target_version: data.reflection_target_version,
       substrate_window_start: data.substrate_window_start,
       substrate_window_end: data.substrate_window_end,
       computation_timestamp: data.computation_timestamp,

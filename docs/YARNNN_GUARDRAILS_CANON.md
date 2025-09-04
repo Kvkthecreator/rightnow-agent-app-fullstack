@@ -1,9 +1,9 @@
-# Canon v1.4.0 — docs clarification (no code change)
-Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+# Canon v2.0 — Substrate/Artifact Model
+Pure substrate pipelines with separate artifact generation. Clear governance boundaries.
 
 # YARNNN_GUARDRAILS_CANON.md
-Version: 1.0
-Status: Canon — Enforcement & Guardrails
+Version: 2.0
+Status: Canon — Substrate/Artifact Enforcement
 
 ## Purpose
 Make the P0–P4 separation enforceable and auditable: code, database, CI, and secrets. This doc lists controls, how we verify them, and the runbooks to react when something drifts.
@@ -12,13 +12,13 @@ Make the P0–P4 separation enforceable and auditable: code, database, CI, and s
 
 ## 1) Invariants (deny-by-default)
 - **P0** only ingests `raw_dumps`.  
- - **P1** only mutates `context_items`, `blocks (**context_blocks**)`, `block_revisions`, `proposals` (governance).
-- **P2** only mutates `substrate_relationships`.  
- - **P3** is read-only; may write **cache** to `reflection_cache (optional, non-authoritative)`.
-- **P4** only mutates `documents` and *joins* (`block_links`, `document_context_items`).
-- Cross-pipeline writes are forbidden.
+- **P1** only mutates pure substrates: `context_items`, `context_blocks`, `proposals`.
+- **P2** only mutates `substrate_relationships`.
+- **P3** generates artifacts: writes `reflections_artifact` and `document_versions`.
+- **P4** composes documents: mutates `documents` and `substrate_references`.
+- Cross-pipeline substrate writes forbidden; artifacts generated separately.
 
-Reflections are derived from substrate. If persisted, they live in reflection_cache as a non-authoritative cache; readers may recompute on demand.
+Reflections are artifacts stored in reflections_artifact with flexible targeting (substrate or document versions).
 
 ---
 

@@ -1,24 +1,24 @@
 import { z } from "zod";
 
 /**
- * Substrate Canon v1.3.1 - Generic Substrate Reference System
+ * Substrate Canon v2.0 - Pure Substrate Reference System
  * 
- * Documents can compose ANY substrate type as peer references:
- * - blocks (context_blocks)
- * - dumps (raw_dumps)  
- * - context_items
- * - reflections
- * - timeline_events
+ * Documents can compose SUBSTRATE types only (artifacts separated):
+ * - blocks (context_blocks) - Knowledge ingredients
+ * - dumps (raw_dumps) - Sacred capture
+ * - context_items - Connective tissue
+ * - timeline_events - System memory
  * 
- * Cache-bust: 2025-08-25
+ * REMOVED: reflections (now artifacts, not substrates)
+ * 
+ * Cache-bust: 2025-01-04
  */
 
-// Substrate types that can be referenced
+// Pure substrate types (no artifacts)
 export const SubstrateTypeSchema = z.enum([
   "block",           // context_blocks
   "dump",            // raw_dumps
   "context_item",    // context_items
-  "reflection",      // reflections (from cache)
   "timeline_event"   // timeline_events
 ]);
 export type SubstrateType = z.infer<typeof SubstrateTypeSchema>;
@@ -89,9 +89,6 @@ export const SubstrateSummarySchema = z.object({
   // For context_items
   context_type: z.string().optional(),
   is_validated: z.boolean().optional(),
-  // For reflections
-  reflection_type: z.string().optional(),
-  computation_timestamp: z.string().optional(),
   // For timeline_events
   event_kind: z.string().optional(),
   actor_id: z.string().optional(),
@@ -117,9 +114,9 @@ export const DocumentCompositionSchema = z.object({
     blocks_count: z.number(),
     dumps_count: z.number(),
     context_items_count: z.number(),
-    reflections_count: z.number(),
     timeline_events_count: z.number(),
     total_references: z.number(),
+    // Note: reflections_count removed - reflections are artifacts
   }),
 });
 export type DocumentComposition = z.infer<typeof DocumentCompositionSchema>;

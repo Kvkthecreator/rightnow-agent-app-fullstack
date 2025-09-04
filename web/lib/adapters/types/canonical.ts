@@ -1,8 +1,8 @@
 /**
- * Canon v1.4.0 Canonical Types for Adapter Layer
+ * Canon v2.0 Canonical Types for Adapter Layer
  * 
- * These types define the canonical data structures that adapters
- * can transform for presentation. All intelligence comes from agents.
+ * Pure substrate types with separate artifact handling.
+ * Reflections are artifacts, not substrates.
  */
 
 /**
@@ -75,28 +75,36 @@ export interface CanonicalTimelineEvent {
 }
 
 /**
- * Canonical reflection from P3 Agent
- * Canon v1.4.0: All insights from agent computation
+ * Canonical reflection artifact from P3 Agent
+ * Canon v2.0: Artifacts targeting substrate or document versions
  */
 export interface CanonicalReflection {
   id: string;
   basket_id: string;
+  workspace_id: string;
   reflection_text: string;
-  substrate_window_start: string;
-  substrate_window_end: string;
   computation_timestamp: string;
   
-  // Canon v1.4.0: Agent-computed metadata only
-  reflection_title?: string; // P3 Agent generated title
-  reflection_tags?: string[]; // P3 Agent classified tags
-  estimated_reading_time?: number; // P3 Agent computed estimate
-  confidence_score: number; // P3 Agent confidence
+  // New flexible targeting
+  reflection_target_type: 'substrate' | 'document' | 'legacy';
+  reflection_target_id?: string;
+  reflection_target_version?: string;
   
-  meta: {
-    trace_id: string;
-    substrate_count: number;
-    token_usage: number;
-    processing_agent: string; // Always P3 for reflections
+  // Legacy fields (backward compatibility)
+  substrate_window_start?: string;
+  substrate_window_end?: string;
+  substrate_hash?: string;
+  
+  // Agent-computed metadata
+  reflection_title?: string;
+  reflection_tags?: string[];
+  confidence_score?: number;
+  
+  meta?: {
+    trace_id?: string;
+    substrate_count?: number;
+    token_usage?: number;
+    processing_agent?: string;
   };
 }
 
@@ -128,7 +136,7 @@ export interface CanonicalMemoryProjection {
   basket_id: string;
   memories: Array<{
     id: string;
-    substrate_type: 'raw_dump' | 'block' | 'context_item' | 'reflection' | 'timeline_event';
+    substrate_type: 'dump' | 'block' | 'context_item' | 'timeline_event';
     content: string;
     created_at: string;
     confidence_score?: number;

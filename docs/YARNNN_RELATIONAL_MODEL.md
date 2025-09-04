@@ -1,9 +1,9 @@
-# Canon v1.4.0 — docs clarification (no code change)
-Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+# Canon v2.0 — Substrate/Artifact Model
+Pure substrate memory with separate artifact expressions. Clear substrate/artifact boundaries.
 
 # Yarnnn Relational Model
 
-**Version 3.0 — Canonical Substrate Model**
+**Version 4.0 — Substrate/Artifact Separation Model**
 Aligned with Context OS substrate v1.2
 Blocks (**context_blocks**) are structured units derived from dumps.
 
@@ -11,22 +11,27 @@ Blocks (**context_blocks**) are structured units derived from dumps.
 
 ## 1. Substrate Roles
 
-| Role              | Type(s)           | Description |
-| ----------------- | ----------------- | ----------- |
-| Capture           | `raw_dump`        | Immutable input stream (text, files) |
-| Interpretation    | `context_block`           | Structured units derived from dumps |
-| Expression        | `document`        | Compositions of context_blocks, narrative, context_items |
-| Narrative Layer   | `narrative`       | Authored prose inside a document |
-| Threading         | `context_item`    | Semantic connectors across substrates |
-| Scope Container   | `basket`          | Contextual boundary for all activity |
+| Role              | Layer    | Type(s)           | Description |
+| ----------------- | -------- | ----------------- | ----------- |
+| Capture           | Substrate| `dump`            | Immutable input stream (raw_dumps) |
+| Interpretation    | Substrate| `block`           | Structured units (context_blocks) |
+| Threading         | Substrate| `context_item`    | Semantic connectors |
+| Activity Log      | Substrate| `timeline_event`  | System audit trail |
+| Compositions      | Artifact | `document`        | Versioned narrative expressions |
+| Insights          | Artifact | `reflection`      | Computed patterns/tensions |
+| Scope Container   | Meta     | `basket`          | Workspace boundary |
 
-### Memory Plane
+### Memory Plane (Substrate Only)
 | Component | Purpose | Storage |
 |-----------|---------|---------|
-| reflection_cache (optional, non-authoritative) | Computed insights | pattern, tension, question, computed_at |
+| substrate_references | Links substrate to documents | substrate_type, substrate_id |
 | timeline_events | Append-only memory stream | kind, ts, ref_id, preview, payload |
 
-**Note**: `basket_events` is deprecated; use `events` table for canonical event bus.
+### Artifact Plane (Separate)
+| Component | Purpose | Storage |
+|-----------|---------|---------|
+| document_versions | Git-like versioning | version_hash, content, metadata |
+| reflections_artifact | Computed insights | target_type, target_id, reflection_text |
 | Change Tracker    | `event`, `revision` | Logs of evolution across types |
 | Composer          | `agent`, `user`   | Actor that creates/edits content |
 

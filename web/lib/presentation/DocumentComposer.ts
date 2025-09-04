@@ -4,10 +4,10 @@
  * Sacred Principle #3: "Narrative is Deliberate"
  * Documents = substrate references + authored prose
  * 
- * Canon v1.4.0 Compliance:
- * - P4 consumes substrate, never creates it
- * - Any substrate type can be referenced (no hierarchy)
- * - Narrative provides coherent story atop substrate signals
+ * Canon v2.0 Compliance:
+ * - P4 consumes pure substrates, generates document artifacts
+ * - Substrate types: block, dump, context_item, timeline_event
+ * - Reflections are artifacts, not substrate references
  */
 
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
@@ -17,7 +17,7 @@ import type { ChangeDescriptor } from "@/lib/governance/changeDescriptor";
 
 export interface SubstrateReference {
   id: string;
-  type: 'raw_dump' | 'context_block' | 'context_item' | 'timeline_event' | 'reflection';
+  type: 'dump' | 'block' | 'context_item' | 'timeline_event';
   excerpt?: string;
   order: number;
 }

@@ -11,9 +11,10 @@ export type EntryPoint =
   | 'onboarding_dump' 
   | 'manual_edit' 
   | 'document_edit'
-  | 'reflection_suggestion' 
   | 'graph_action' 
   | 'timeline_restore';
+  
+// Note: reflection_suggestion removed - reflections are artifacts
 
 export type EntryPointPolicy = 'proposal' | 'direct' | 'hybrid';
 
@@ -48,7 +49,6 @@ const SAFE_DEFAULTS: WorkspaceFlags = {
     onboarding_dump: 'proposal',
     manual_edit: 'proposal',
     document_edit: 'proposal',
-    reflection_suggestion: 'proposal',
     graph_action: 'proposal',
     timeline_restore: 'proposal'
   },

@@ -66,7 +66,6 @@ CREATE TYPE public.substrate_type AS ENUM (
     'block',
     'dump',
     'context_item',
-    'reflection',
     'timeline_event'
 );
 CREATE FUNCTION public.check_block_depth() RETURNS trigger
@@ -314,78 +313,53 @@ end;
 $$;
 CREATE FUNCTION public.fn_document_attach_substrate(p_document_id uuid, p_substrate_type public.substrate_type, p_substrate_id uuid, p_role text DEFAULT NULL::text, p_weight numeric DEFAULT NULL::numeric, p_snippets jsonb DEFAULT '[]'::jsonb, p_metadata jsonb DEFAULT '{}'::jsonb) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
     AS $$
 DECLARE
-  v_id uuid;
-  v_basket uuid;
-  v_event_kind text;
+  v_reference_id uuid;
+  v_workspace_id uuid;
 BEGIN
-  -- Validate substrate exists based on type (using actual table names)
-  CASE p_substrate_type
-    WHEN 'block' THEN
-      IF NOT EXISTS (SELECT 1 FROM blocks WHERE id = p_substrate_id) THEN
-        RAISE EXCEPTION 'Block % not found', p_substrate_id;
-      END IF;
-    WHEN 'dump' THEN
-      IF NOT EXISTS (SELECT 1 FROM raw_dumps WHERE id = p_substrate_id) THEN
-        RAISE EXCEPTION 'Dump % not found', p_substrate_id;
-      END IF;
-    WHEN 'context_item' THEN
-      IF NOT EXISTS (SELECT 1 FROM context_items WHERE id = p_substrate_id) THEN
-        RAISE EXCEPTION 'Context item % not found', p_substrate_id;
-      END IF;
-    WHEN 'reflection' THEN
-      IF NOT EXISTS (SELECT 1 FROM reflection_cache WHERE id = p_substrate_id) THEN
-        RAISE EXCEPTION 'Reflection % not found', p_substrate_id;
-      END IF;
-    WHEN 'timeline_event' THEN
-      IF NOT EXISTS (SELECT 1 FROM timeline_events WHERE id = p_substrate_id) THEN
-        RAISE EXCEPTION 'Timeline event % not found', p_substrate_id;
-      END IF;
-  END CASE;
-  -- Check if reference already exists
-  SELECT id INTO v_id FROM substrate_references
-  WHERE document_id = p_document_id 
-    AND substrate_type = p_substrate_type 
-    AND substrate_id = p_substrate_id;
-  IF v_id IS NULL THEN
-    -- Insert new reference
-    INSERT INTO substrate_references (
-      document_id, substrate_type, substrate_id, role, weight, snippets, metadata, created_by
-    )
-    VALUES (
-      p_document_id, p_substrate_type, p_substrate_id, p_role, p_weight, p_snippets, p_metadata, auth.uid()
-    )
-    RETURNING id INTO v_id;
-  ELSE
-    -- Update existing reference
-    UPDATE substrate_references
-    SET 
-      role = COALESCE(p_role, role),
-      weight = COALESCE(p_weight, weight),
-      snippets = p_snippets,
-      metadata = p_metadata || metadata  -- Merge metadata
-    WHERE id = v_id;
-  END IF;
-  -- Emit timeline event
-  SELECT basket_id INTO v_basket FROM documents WHERE id = p_document_id;
-  v_event_kind := 'document.' || p_substrate_type || '.attached';
+  -- Get document workspace
+  SELECT d.workspace_id INTO v_workspace_id
+  FROM documents d WHERE d.id = p_document_id;
   
-  PERFORM emit_timeline_event(
-    p_basket_id => v_basket,
-    p_kind => v_event_kind,
-    p_ref_id => p_document_id,
-    p_payload => jsonb_build_object(
-      'document_id', p_document_id,
-      'substrate_type', p_substrate_type,
-      'substrate_id', p_substrate_id,
-      'reference_id', v_id
-    )
+  -- Insert or update reference
+  INSERT INTO substrate_references (
+    document_id,
+    substrate_type, 
+    substrate_id,
+    role,
+    weight,
+    snippets,
+    metadata,
+    created_by
+  ) VALUES (
+    p_document_id,
+    p_substrate_type,
+    p_substrate_id,
+    p_role,
+    p_weight,
+    p_snippets,
+    p_metadata,
+    auth.uid()
+  ) ON CONFLICT (document_id, substrate_type, substrate_id) 
+  DO UPDATE SET
+    role = EXCLUDED.role,
+    weight = EXCLUDED.weight,
+    snippets = EXCLUDED.snippets,
+    metadata = EXCLUDED.metadata
+  RETURNING id INTO v_reference_id;
+  
+  -- Emit timeline event
+  PERFORM fn_timeline_emit(
+    (SELECT basket_id FROM documents WHERE id = p_document_id),
+    'document.' || p_substrate_type || '.attached',
+    v_reference_id,
+    'Attached ' || p_substrate_type || ' to document',
+    jsonb_build_object('substrate_id', p_substrate_id, 'substrate_type', p_substrate_type)
   );
-  RETURN v_id;
-END;
-$$;
+  
+  RETURN v_reference_id;
+END $$;
 CREATE FUNCTION public.fn_document_create(p_basket_id uuid, p_workspace_id uuid, p_title text, p_content_raw text) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
@@ -418,39 +392,99 @@ begin
   return v_doc_id;
 end;
 $$;
-CREATE FUNCTION public.fn_document_detach_substrate(p_document_id uuid, p_substrate_type public.substrate_type, p_substrate_id uuid) RETURNS boolean
+CREATE FUNCTION public.fn_document_create_version(p_document_id uuid, p_content text, p_version_message text DEFAULT NULL::text) RETURNS character varying
     LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
     AS $$
 DECLARE
-  v_basket uuid;
-  v_event_kind text;
+  v_version_hash varchar(64);
+  v_workspace_id uuid;
+BEGIN
+  -- Generate version hash (git-like)
+  v_version_hash := 'doc_v' || substr(encode(sha256(p_content::bytea), 'hex'), 1, 58);
+  
+  -- Get document workspace for validation
+  SELECT workspace_id INTO v_workspace_id 
+  FROM documents WHERE id = p_document_id;
+  
+  IF v_workspace_id IS NULL THEN
+    RAISE EXCEPTION 'Document % not found', p_document_id;
+  END IF;
+  
+  -- Insert version (idempotent by hash)
+  INSERT INTO document_versions (
+    version_hash,
+    document_id,
+    content,
+    metadata_snapshot,
+    substrate_refs_snapshot,
+    created_by,
+    version_message,
+    parent_version_hash
+  ) 
+  SELECT 
+    v_version_hash,
+    p_document_id,
+    p_content,
+    d.metadata,
+    COALESCE(
+      (SELECT jsonb_agg(to_jsonb(sr.*)) 
+       FROM substrate_references sr 
+       WHERE sr.document_id = p_document_id), 
+      '[]'::jsonb
+    ),
+    auth.uid(),
+    p_version_message,
+    d.current_version_hash
+  FROM documents d 
+  WHERE d.id = p_document_id
+  ON CONFLICT (version_hash) DO NOTHING;
+  
+  -- Update document current version
+  UPDATE documents 
+  SET current_version_hash = v_version_hash,
+      updated_at = now()
+  WHERE id = p_document_id;
+  
+  -- Emit timeline event
+  PERFORM fn_timeline_emit(
+    (SELECT basket_id FROM documents WHERE id = p_document_id),
+    'document.versioned',
+    p_document_id,
+    'Document version created: ' || left(v_version_hash, 12),
+    jsonb_build_object('version_hash', v_version_hash, 'message', p_version_message)
+  );
+  
+  RETURN v_version_hash;
+END $$;
+CREATE FUNCTION public.fn_document_detach_substrate(p_document_id uuid, p_substrate_type public.substrate_type, p_substrate_id uuid) RETURNS boolean
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  v_deleted_count int;
 BEGIN
   -- Delete the reference
   DELETE FROM substrate_references
-  WHERE document_id = p_document_id 
-    AND substrate_type = p_substrate_type 
+  WHERE document_id = p_document_id
+    AND substrate_type = p_substrate_type
     AND substrate_id = p_substrate_id;
-  IF NOT FOUND THEN
-    RETURN false;
-  END IF;
-  -- Emit timeline event
-  SELECT basket_id INTO v_basket FROM documents WHERE id = p_document_id;
-  v_event_kind := 'document.' || p_substrate_type || '.detached';
+    
+  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
   
-  PERFORM emit_timeline_event(
-    p_basket_id => v_basket,
-    p_kind => v_event_kind,
-    p_ref_id => p_document_id,
-    p_payload => jsonb_build_object(
-      'document_id', p_document_id,
-      'substrate_type', p_substrate_type,
-      'substrate_id', p_substrate_id
-    )
-  );
-  RETURN true;
-END;
-$$;
+  IF v_deleted_count > 0 THEN
+    -- Emit timeline event
+    PERFORM fn_timeline_emit(
+      (SELECT basket_id FROM documents WHERE id = p_document_id),
+      'document.' || p_substrate_type || '.detached',
+      p_substrate_id,
+      'Detached ' || p_substrate_type || ' from document',
+      jsonb_build_object('substrate_id', p_substrate_id, 'substrate_type', p_substrate_type)
+    );
+    
+    RETURN true;
+  END IF;
+  
+  RETURN false;
+END $$;
 CREATE FUNCTION public.fn_document_update(p_doc_id uuid, p_title text, p_content_raw text, p_metadata jsonb DEFAULT NULL::jsonb) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
@@ -647,6 +681,84 @@ begin
   return v_changed;
 end;
 $$;
+CREATE FUNCTION public.fn_reflection_create_from_document(p_basket_id uuid, p_document_id uuid, p_reflection_text text) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  v_reflection_id uuid;
+  v_workspace_id uuid;
+  v_version_hash varchar(64);
+BEGIN
+  -- Get workspace and current document version
+  SELECT d.workspace_id, d.current_version_hash
+  INTO v_workspace_id, v_version_hash
+  FROM documents d WHERE d.id = p_document_id;
+  
+  -- Create document-focused reflection
+  INSERT INTO reflections_artifact (
+    basket_id,
+    workspace_id,
+    reflection_text,
+    substrate_hash,
+    reflection_target_type,
+    reflection_target_id,
+    reflection_target_version,
+    computation_timestamp
+  ) VALUES (
+    p_basket_id,
+    v_workspace_id,
+    p_reflection_text,
+    'document_' || COALESCE(v_version_hash, 'current'),
+    'document',
+    p_document_id,
+    v_version_hash,
+    now()
+  ) RETURNING id INTO v_reflection_id;
+  
+  RETURN v_reflection_id;
+END $$;
+CREATE FUNCTION public.fn_reflection_create_from_substrate(p_basket_id uuid, p_reflection_text text) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  v_reflection_id uuid;
+  v_workspace_id uuid;
+  v_substrate_hash varchar(64);
+BEGIN
+  -- Get workspace
+  SELECT workspace_id INTO v_workspace_id FROM baskets WHERE id = p_basket_id;
+  
+  -- Generate substrate hash for this basket's current state
+  v_substrate_hash := 'substrate_' || encode(sha256((p_basket_id || now())::text::bytea), 'hex');
+  
+  -- Insert substrate-focused reflection
+  INSERT INTO reflections_artifact (
+    basket_id,
+    workspace_id,
+    reflection_text,
+    substrate_hash,
+    reflection_target_type,
+    computation_timestamp
+  ) VALUES (
+    p_basket_id,
+    v_workspace_id,
+    p_reflection_text,
+    v_substrate_hash,
+    'substrate',
+    now()
+  ) RETURNING id INTO v_reflection_id;
+  
+  -- Emit timeline event
+  PERFORM fn_timeline_emit(
+    p_basket_id,
+    'reflection.computed',
+    v_reflection_id,
+    left(p_reflection_text, 140),
+    jsonb_build_object('target_type', 'substrate')
+  );
+  
+  RETURN v_reflection_id;
+END $$;
 CREATE FUNCTION public.fn_relationship_upsert(p_basket_id uuid, p_from_type text, p_from_id uuid, p_to_type text, p_to_id uuid, p_relationship_type text, p_description text DEFAULT NULL::text, p_strength double precision DEFAULT 0.5) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
@@ -1021,6 +1133,16 @@ BEGIN
   WHERE proname = 'fn_timeline_emit';
 END;
 $$;
+CREATE TABLE public.artifact_generation_settings (
+    workspace_id uuid NOT NULL,
+    auto_substrate_reflection boolean DEFAULT true,
+    auto_document_reflection boolean DEFAULT false,
+    reflection_frequency interval DEFAULT '01:00:00'::interval,
+    auto_version_on_edit boolean DEFAULT true,
+    version_retention_days integer DEFAULT 90,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
 CREATE TABLE public.basket_deltas (
     delta_id uuid NOT NULL,
     basket_id uuid NOT NULL,
@@ -1148,9 +1270,8 @@ CREATE VIEW public.document_composition_stats AS
     count(*) FILTER (WHERE (substrate_references.substrate_type = 'block'::public.substrate_type)) AS blocks_count,
     count(*) FILTER (WHERE (substrate_references.substrate_type = 'dump'::public.substrate_type)) AS dumps_count,
     count(*) FILTER (WHERE (substrate_references.substrate_type = 'context_item'::public.substrate_type)) AS context_items_count,
-    count(*) FILTER (WHERE (substrate_references.substrate_type = 'reflection'::public.substrate_type)) AS reflections_count,
     count(*) FILTER (WHERE (substrate_references.substrate_type = 'timeline_event'::public.substrate_type)) AS timeline_events_count,
-    count(*) AS total_references
+    count(*) AS total_substrate_references
    FROM public.substrate_references
   GROUP BY substrate_references.document_id;
 CREATE TABLE public.document_context_items (
@@ -1160,6 +1281,19 @@ CREATE TABLE public.document_context_items (
     role text,
     weight numeric,
     created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE TABLE public.document_versions (
+    version_hash character varying(64) NOT NULL,
+    document_id uuid NOT NULL,
+    content text NOT NULL,
+    metadata_snapshot jsonb DEFAULT '{}'::jsonb,
+    substrate_refs_snapshot jsonb DEFAULT '[]'::jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    version_message text,
+    parent_version_hash character varying(64),
+    CONSTRAINT non_empty_content CHECK ((length(content) > 0)),
+    CONSTRAINT valid_version_hash CHECK (((version_hash)::text ~ '^doc_v[a-f0-9]{58}$'::text))
 );
 CREATE TABLE public.documents (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1173,7 +1307,8 @@ CREATE TABLE public.documents (
     updated_by uuid,
     workspace_id uuid NOT NULL,
     document_type text DEFAULT 'general'::text NOT NULL,
-    metadata jsonb DEFAULT '{}'::jsonb NOT NULL
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    current_version_hash character varying(64)
 );
 CREATE TABLE public.events (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1287,7 +1422,7 @@ CREATE TABLE public.raw_dumps (
     text_dump text
 );
 ALTER TABLE ONLY public.raw_dumps REPLICA IDENTITY FULL;
-CREATE TABLE public.reflection_cache (
+CREATE TABLE public.reflections_artifact (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid NOT NULL,
     workspace_id uuid NOT NULL,
@@ -1299,7 +1434,11 @@ CREATE TABLE public.reflection_cache (
     last_accessed_at timestamp with time zone DEFAULT now(),
     meta jsonb DEFAULT '{}'::jsonb,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    reflection_target_type character varying(20) DEFAULT 'legacy'::character varying,
+    reflection_target_id uuid,
+    reflection_target_version character varying(64),
+    CONSTRAINT valid_reflection_target CHECK (((reflection_target_type)::text = ANY ((ARRAY['substrate'::character varying, 'document'::character varying, 'legacy'::character varying])::text[])))
 );
 CREATE TABLE public.revisions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1439,17 +1578,18 @@ CREATE TABLE public.workspace_governance_settings (
     ep_onboarding_dump text DEFAULT 'proposal'::text NOT NULL,
     ep_manual_edit text DEFAULT 'proposal'::text NOT NULL,
     ep_document_edit text DEFAULT 'proposal'::text NOT NULL,
-    ep_reflection_suggestion text DEFAULT 'proposal'::text NOT NULL,
     ep_graph_action text DEFAULT 'proposal'::text NOT NULL,
     ep_timeline_restore text DEFAULT 'proposal'::text NOT NULL,
     default_blast_radius public.blast_radius DEFAULT 'Scoped'::public.blast_radius NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    artifact_generation_enabled boolean DEFAULT true,
+    auto_reflection_compute boolean DEFAULT true,
+    document_versioning_enabled boolean DEFAULT true,
     CONSTRAINT workspace_governance_settings_ep_document_edit_check CHECK ((ep_document_edit = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text]))),
     CONSTRAINT workspace_governance_settings_ep_graph_action_check CHECK ((ep_graph_action = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text]))),
     CONSTRAINT workspace_governance_settings_ep_manual_edit_check CHECK ((ep_manual_edit = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text]))),
     CONSTRAINT workspace_governance_settings_ep_onboarding_dump_check CHECK ((ep_onboarding_dump = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text]))),
-    CONSTRAINT workspace_governance_settings_ep_reflection_suggestion_check CHECK ((ep_reflection_suggestion = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text]))),
     CONSTRAINT workspace_governance_settings_ep_timeline_restore_check CHECK ((ep_timeline_restore = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text])))
 );
 CREATE SEQUENCE public.workspace_memberships_id_seq
@@ -1474,11 +1614,13 @@ ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_dump_id_key UNIQUE (dump_id);
 ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.artifact_generation_settings
+    ADD CONSTRAINT artifact_generation_settings_pkey PRIMARY KEY (workspace_id);
 ALTER TABLE ONLY public.basket_deltas
     ADD CONSTRAINT basket_deltas_pkey PRIMARY KEY (delta_id);
 ALTER TABLE ONLY public.basket_events
     ADD CONSTRAINT basket_events_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.reflection_cache
+ALTER TABLE ONLY public.reflections_artifact
     ADD CONSTRAINT basket_reflections_pkey PRIMARY KEY (id);
 ALTER TABLE public.baskets
     ADD CONSTRAINT baskets_idem_is_uuid CHECK (((idempotency_key IS NULL) OR ((idempotency_key)::text ~* '^[0-9a-f-]{36}$'::text))) NOT VALID;
@@ -1494,6 +1636,8 @@ ALTER TABLE ONLY public.context_items
     ADD CONSTRAINT context_items_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.document_context_items
     ADD CONSTRAINT document_context_items_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT document_versions_pkey PRIMARY KEY (version_hash);
 ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_pkey PRIMARY KEY (id);
 ALTER TABLE public.raw_dumps
@@ -1558,7 +1702,11 @@ CREATE INDEX idx_context_doc ON public.context_items USING btree (document_id);
 CREATE INDEX idx_context_items_basket ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_items_basket_id ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_items_state ON public.context_items USING btree (state);
+CREATE INDEX idx_document_versions_created ON public.document_versions USING btree (created_at DESC);
+CREATE INDEX idx_document_versions_document ON public.document_versions USING btree (document_id);
+CREATE INDEX idx_document_versions_hash ON public.document_versions USING btree (version_hash);
 CREATE INDEX idx_documents_basket ON public.documents USING btree (basket_id);
+CREATE INDEX idx_documents_current_version ON public.documents USING btree (current_version_hash) WHERE (current_version_hash IS NOT NULL);
 CREATE INDEX idx_documents_workspace ON public.documents USING btree (workspace_id);
 CREATE INDEX idx_events_agent_type ON public.events USING btree (agent_type);
 CREATE INDEX idx_events_basket_kind_ts ON public.events USING btree (basket_id, kind, ts);
@@ -1585,8 +1733,10 @@ CREATE INDEX idx_raw_dumps_file_url ON public.raw_dumps USING btree (file_url);
 CREATE INDEX idx_raw_dumps_source_meta_gin ON public.raw_dumps USING gin (source_meta);
 CREATE INDEX idx_raw_dumps_trace ON public.raw_dumps USING btree (ingest_trace_id);
 CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
-CREATE INDEX idx_reflection_cache_basket_computation ON public.reflection_cache USING btree (basket_id, computation_timestamp DESC);
-CREATE INDEX idx_reflection_cache_computation_timestamp ON public.reflection_cache USING btree (computation_timestamp DESC);
+CREATE INDEX idx_reflection_cache_basket_computation ON public.reflections_artifact USING btree (basket_id, computation_timestamp DESC);
+CREATE INDEX idx_reflection_cache_computation_timestamp ON public.reflections_artifact USING btree (computation_timestamp DESC);
+CREATE INDEX idx_reflections_basket ON public.reflections_artifact USING btree (basket_id);
+CREATE INDEX idx_reflections_target ON public.reflections_artifact USING btree (reflection_target_type, reflection_target_id);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
 CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
 CREATE INDEX idx_substrate_references_created ON public.substrate_references USING btree (created_at);
@@ -1602,7 +1752,7 @@ CREATE INDEX ix_block_links_doc_block ON public.block_links USING btree (documen
 CREATE INDEX ix_events_kind_ts ON public.events USING btree (kind, ts);
 CREATE INDEX ix_pipeline_metrics_basket ON public.pipeline_metrics USING btree (basket_id, ts DESC);
 CREATE INDEX ix_pipeline_metrics_recent ON public.pipeline_metrics USING btree (pipeline, ts DESC);
-CREATE UNIQUE INDEX reflection_cache_uq ON public.reflection_cache USING btree (basket_id, substrate_hash);
+CREATE UNIQUE INDEX reflection_cache_uq ON public.reflections_artifact USING btree (basket_id, substrate_hash);
 CREATE UNIQUE INDEX timeline_dump_unique ON public.timeline_events USING btree (ref_id) WHERE (kind = 'dump'::text);
 CREATE INDEX timeline_events_basket_ts_idx ON public.timeline_events USING btree (basket_id, ts DESC);
 CREATE UNIQUE INDEX uq_baskets_user_idem ON public.baskets USING btree (user_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
@@ -1616,7 +1766,7 @@ CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (b
 CREATE TRIGGER after_dump_insert AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.queue_agent_processing();
 CREATE TRIGGER ensure_text_dump_columns BEFORE INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.ensure_raw_dump_text_columns();
 CREATE TRIGGER proposals_validation_gate BEFORE UPDATE ON public.proposals FOR EACH ROW EXECUTE FUNCTION public.proposal_validation_check();
-CREATE TRIGGER reflection_cache_updated_at_trigger BEFORE UPDATE ON public.reflection_cache FOR EACH ROW EXECUTE FUNCTION public.update_reflection_cache_updated_at();
+CREATE TRIGGER reflection_cache_updated_at_trigger BEFORE UPDATE ON public.reflections_artifact FOR EACH ROW EXECUTE FUNCTION public.update_reflection_cache_updated_at();
 CREATE TRIGGER sync_text_dump_columns BEFORE UPDATE ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.sync_raw_dump_text_columns();
 CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
@@ -1628,7 +1778,9 @@ ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_dump_id_fkey FOREIGN KEY (dump_id) REFERENCES public.raw_dumps(id);
 ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
-ALTER TABLE ONLY public.reflection_cache
+ALTER TABLE ONLY public.artifact_generation_settings
+    ADD CONSTRAINT artifact_generation_settings_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.reflections_artifact
     ADD CONSTRAINT basket_reflections_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.block_links
     ADD CONSTRAINT block_links_block_id_fkey FOREIGN KEY (block_id) REFERENCES public.blocks(id) ON DELETE CASCADE;
@@ -1660,6 +1812,10 @@ ALTER TABLE ONLY public.document_context_items
     ADD CONSTRAINT document_context_items_context_item_id_fkey FOREIGN KEY (context_item_id) REFERENCES public.context_items(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.document_context_items
     ADD CONSTRAINT document_context_items_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT document_versions_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.document_versions
+    ADD CONSTRAINT document_versions_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.documents
@@ -1694,7 +1850,7 @@ ALTER TABLE ONLY public.proposals
     ADD CONSTRAINT proposals_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.reflection_cache
+ALTER TABLE ONLY public.reflections_artifact
     ADD CONSTRAINT reflection_cache_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
@@ -1810,6 +1966,10 @@ CREATE POLICY "allow agent insert" ON public.revisions FOR INSERT TO authenticat
   WHERE (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
+ALTER TABLE public.artifact_generation_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY artifact_settings_workspace ON public.artifact_generation_settings USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 ALTER TABLE public.basket_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY basket_member_delete ON public.baskets FOR DELETE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -1862,14 +2022,14 @@ CREATE POLICY blocks_service_role_all ON public.blocks TO service_role USING (tr
 CREATE POLICY blocks_update_workspace_member ON public.blocks FOR UPDATE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
-CREATE POLICY br_insert_workspace_member ON public.reflection_cache FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+CREATE POLICY br_insert_workspace_member ON public.reflections_artifact FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = reflection_cache.basket_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY br_select_workspace_member ON public.reflection_cache FOR SELECT USING ((EXISTS ( SELECT 1
+  WHERE ((b.id = reflections_artifact.basket_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY br_select_workspace_member ON public.reflections_artifact FOR SELECT USING ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = reflection_cache.basket_id) AND (wm.user_id = auth.uid())))));
+  WHERE ((b.id = reflections_artifact.basket_id) AND (wm.user_id = auth.uid())))));
 ALTER TABLE public.context_items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY context_items_delete ON public.context_items FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
    FROM (public.baskets b
@@ -1925,7 +2085,18 @@ CREATE POLICY ctx_member_update ON public.context_items FOR UPDATE USING ((baske
   WHERE (wm.user_id = auth.uid()))));
 CREATE POLICY "debug insert bypass" ON public.workspaces FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "delete history by service role" ON public.timeline_events FOR DELETE USING ((auth.role() = 'service_role'::text));
-CREATE POLICY "delete reflections by service role" ON public.reflection_cache FOR DELETE USING ((auth.role() = 'service_role'::text));
+CREATE POLICY "delete reflections by service role" ON public.reflections_artifact FOR DELETE USING ((auth.role() = 'service_role'::text));
+ALTER TABLE public.document_versions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY document_versions_workspace_insert ON public.document_versions FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM ((public.documents d
+     JOIN public.baskets b ON ((d.basket_id = b.id)))
+     JOIN public.workspace_memberships wm ON ((b.workspace_id = wm.workspace_id)))
+  WHERE ((d.id = document_versions.document_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY document_versions_workspace_select ON public.document_versions FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM ((public.documents d
+     JOIN public.baskets b ON ((d.basket_id = b.id)))
+     JOIN public.workspace_memberships wm ON ((b.workspace_id = wm.workspace_id)))
+  WHERE ((d.id = document_versions.document_id) AND (wm.user_id = auth.uid())))));
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 CREATE POLICY documents_delete_workspace_member ON public.documents FOR DELETE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -2008,17 +2179,21 @@ CREATE POLICY "read history by workspace members" ON public.timeline_events FOR 
    FROM (public.baskets b
      JOIN public.v_user_workspaces m ON ((m.workspace_id = b.workspace_id)))
   WHERE ((b.id = timeline_events.basket_id) AND (m.user_id = auth.uid()))))));
-CREATE POLICY "read reflections by workspace members" ON public.reflection_cache FOR SELECT USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+CREATE POLICY "read reflections by workspace members" ON public.reflections_artifact FOR SELECT USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.v_user_workspaces m ON ((m.workspace_id = b.workspace_id)))
-  WHERE ((b.id = reflection_cache.basket_id) AND (m.user_id = auth.uid()))))));
-ALTER TABLE public.reflection_cache ENABLE ROW LEVEL SECURITY;
-CREATE POLICY reflection_cache_no_user_delete ON public.reflection_cache FOR DELETE USING (false);
-CREATE POLICY reflection_cache_no_user_insert ON public.reflection_cache FOR INSERT WITH CHECK (false);
-CREATE POLICY reflection_cache_no_user_update ON public.reflection_cache FOR UPDATE USING (false) WITH CHECK (false);
-CREATE POLICY reflection_cache_read ON public.reflection_cache FOR SELECT USING ((EXISTS ( SELECT 1
+  WHERE ((b.id = reflections_artifact.basket_id) AND (m.user_id = auth.uid()))))));
+CREATE POLICY reflection_cache_no_user_delete ON public.reflections_artifact FOR DELETE USING (false);
+CREATE POLICY reflection_cache_no_user_insert ON public.reflections_artifact FOR INSERT WITH CHECK (false);
+CREATE POLICY reflection_cache_no_user_update ON public.reflections_artifact FOR UPDATE USING (false) WITH CHECK (false);
+CREATE POLICY reflection_cache_read ON public.reflections_artifact FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships m
-  WHERE ((m.user_id = auth.uid()) AND (m.workspace_id = reflection_cache.workspace_id)))));
+  WHERE ((m.user_id = auth.uid()) AND (m.workspace_id = reflections_artifact.workspace_id)))));
+ALTER TABLE public.reflections_artifact ENABLE ROW LEVEL SECURITY;
+CREATE POLICY reflections_artifact_service_insert ON public.reflections_artifact FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
+CREATE POLICY reflections_artifact_workspace_select ON public.reflections_artifact FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships wm
+  WHERE ((wm.workspace_id = reflections_artifact.workspace_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY revision_member_delete ON public.block_revisions FOR DELETE USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
@@ -2072,7 +2247,7 @@ CREATE POLICY "timeline read: workspace member" ON public.timeline_events FOR SE
   WHERE ((b.id = timeline_events.basket_id) AND (m.user_id = auth.uid())))));
 ALTER TABLE public.timeline_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "update history by service role" ON public.timeline_events FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
-CREATE POLICY "update reflections by service role" ON public.reflection_cache FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
+CREATE POLICY "update reflections by service role" ON public.reflections_artifact FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
 ALTER TABLE public.workspace_governance_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY workspace_governance_settings_insert ON public.workspace_governance_settings FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -2086,7 +2261,7 @@ CREATE POLICY workspace_governance_settings_update ON public.workspace_governanc
 ALTER TABLE public.workspace_memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "write history by service role" ON public.timeline_events FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
-CREATE POLICY "write reflections by service role" ON public.reflection_cache FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
+CREATE POLICY "write reflections by service role" ON public.reflections_artifact FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
 CREATE POLICY ws_owner_delete ON public.workspaces FOR DELETE USING ((owner_id = auth.uid()));
 CREATE POLICY ws_owner_or_member_read ON public.workspaces FOR SELECT USING (((owner_id = auth.uid()) OR (id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships

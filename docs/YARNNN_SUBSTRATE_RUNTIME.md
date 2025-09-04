@@ -1,9 +1,9 @@
-# Canon v1.3.1 — docs clarification (no code change)
-Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+# Canon v2.0 — Substrate/Artifact Model
+Pure substrate pipelines with artifact generation. Clear substrate/artifact boundaries.
 
 # YARNNN_SUBSTRATE_RUNTIME.md
-Version: 1.0
-Status: Canon — Runtime Boundaries
+Version: 2.0
+Status: Canon — Substrate/Artifact Boundaries
 
 ## Purpose
 Operational runtime for Yarnnn with **strict pipeline separation** and **memory-first** discipline. Defines what each pipeline may/may-not do, allowed RPCs, event contracts, and verification.
@@ -16,11 +16,11 @@ Blocks (**context_blocks**) are the structured units handled in P1.
 
 | Pipeline | Purpose | Allowed Writes | Disallowed | Emits |
 |---|---|---|---|---|
-| **P0 Capture** | Immutable ingestion of raw memory | `raw_dumps` | context_items, context_blocks, relationships, reflections, docs | `dump.created` |
-| **P1 Substrate CRUD** | Create/update substrate atoms via governance: **context_items**, **context_blocks** (proposal-first) | `context_items`, `context_blocks`, `block_revisions`, `proposals` | relationships, reflections, docs | `context.bulk_tagged`, `block.proposed|accepted|revised`, `proposal.submitted` |
-| **P2 Graph Fabric** | Materialize typed, directional edges | `substrate_relationships` | substrate writes, reflections, docs | `rel.bulk_upserted` |
-| **P3 Signals/Reflections** | Compute derived signals from projection | `reflection_cache` (optional) | substrate/graph/doc writes | `reflection.computed` (if cached) |
-| **P4 Presentation** | Author narrative and compose documents | `documents` (+joins) | substrate/graph writes | `doc.created|updated` |
+| **P0 Capture** | Immutable ingestion of raw memory | `raw_dumps` | artifacts, relationships | `dump.created` |
+| **P1 Substrate CRUD** | Create/update substrate atoms: **context_items**, **context_blocks** | `context_items`, `context_blocks`, proposals | artifacts, relationships | `block.proposed|accepted`, `context.tagged` |
+| **P2 Graph Fabric** | Materialize substrate relationships | `substrate_relationships` | artifacts | `rel.bulk_upserted` |
+| **P3 Artifact Gen** | Generate artifacts from substrate | `reflections_artifact`, `document_versions` | substrate writes | `reflection.computed`, `document.versioned` |
+| **P4 Presentation** | Document composition and editing | `documents`, substrate_references | substrate writes | `doc.created|updated` |
 
 > **Narrative is downstream (P4)**: it consumes substrate/graph; it is not part of substrate CRUD. If atomized "rememberable prose" is needed, use `context_item.kind='cue'` in P1.
 
