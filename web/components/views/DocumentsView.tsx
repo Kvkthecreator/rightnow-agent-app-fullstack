@@ -126,7 +126,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
         ) : documents.length === 0 ? (
           <DocumentsEmptyState 
             basketName={basketName}
-            onCreateDocument={() => setShowCreateModal(true)}
+            onCreateDocument={() => {}}
           />
         ) : (
           <div className="p-6">
