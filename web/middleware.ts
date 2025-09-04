@@ -25,25 +25,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(redirectUrl, req.url));
   }
 
-  const m = req.nextUrl.pathname.match(/^\/baskets\/([^/]+)(\/.*)?$/)
-  if (m) {
-    const reqId = m[1]
-    const tail = m[2] || '/memory'
-    try {
-      const upstream = await fetch(new URL('/api/baskets/resolve', req.nextUrl.origin), {
-        headers: { cookie: req.headers.get('cookie') ?? '' },
-      })
-      if (upstream.ok) {
-        const { id } = await upstream.json()
-        if (id && id !== reqId) {
-          const next = new URL(`/baskets/${id}${tail}`, req.nextUrl)
-          return NextResponse.redirect(next)
-        }
-      }
-    } catch {
-      return NextResponse.next()
-    }
-  }
+  // Basket ID canonicalization disabled to prevent auth cascade failures
+  // Per Canon v1.4.0: Middleware MUST NOT gate access by calling auth.getUser()
+  // The resolve API triggers auth validation on every basket route request
 
   return NextResponse.next()
 }
