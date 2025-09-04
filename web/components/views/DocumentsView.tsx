@@ -22,7 +22,6 @@ import { useBasketDocuments } from "@/lib/hooks/useBasketDocuments";
 
 // Import document components
 import { DocumentGrid } from "@/components/documents/DocumentGrid";
-import { DocumentCreationModal } from "@/components/documents/DocumentCreationModal";
 import { MarkdownDisplay } from "@/components/documents/MarkdownDisplay";
 
 // Import substrate integration
@@ -38,25 +37,14 @@ interface DocumentsViewProps {
 
 export function DocumentsView({ basketId, basketName, documentId }: DocumentsViewProps) {
   const router = useRouter();
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  const { documents, isLoading, createDocument, updateDocument } = useBasketDocuments(basketId);
+  const { documents, isLoading, updateDocument } = useBasketDocuments(basketId);
 
   // Find active document if documentId provided
   const activeDocument = documentId ? documents.find((doc: any) => doc.id === documentId) : null;
 
-  const handleCreateDocument = async (title: string, template?: string) => {
-    try {
-      const newDoc = await createDocument(title, template || '');
-      setShowCreateModal(false);
-      // Navigate to the new document
-      router.push(`/baskets/${basketId}/documents/${newDoc.id}`);
-    } catch (error) {
-      console.error('Failed to create document:', error);
-    }
-  };
 
   const handleDocumentSave = async (documentId: string, content: string, title?: string) => {
     try {
@@ -83,16 +71,10 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
     );
   }
 
-  // If creating new document, show creation flow
+  // Document creation removed per Canon v1.4.0 - documents are generated artifacts
   if (documentId === 'new') {
-    return (
-      <DocumentCreationView
-        basketId={basketId}
-        basketName={basketName}
-        onCancel={() => router.push(`/baskets/${basketId}/documents`)}
-        onCreate={handleCreateDocument}
-      />
-    );
+    router.push(`/baskets/${basketId}/documents`);
+    return null;
   }
 
   // Default: DocumentDTO management view
@@ -107,13 +89,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
           </div>
           
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowCreateModal(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Document
-            </Button>
+            <p className="text-sm text-gray-500">Documents are generated from structured ingredients</p>
           </div>
         </div>
 
@@ -167,13 +143,6 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
       </div>
 
       {/* Document Creation Modal */}
-      {showCreateModal && (
-        <DocumentCreationModal
-          basketName={basketName}
-          onClose={() => setShowCreateModal(false)}
-          onCreate={handleCreateDocument}
-        />
-      )}
     </div>
   );
 }
