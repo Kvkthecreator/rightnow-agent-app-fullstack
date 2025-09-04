@@ -6,7 +6,7 @@ import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SubpageHeader } from '@/components/basket/SubpageHeader';
-import { PenTool, FileText } from 'lucide-react';
+import { PenTool } from 'lucide-react';
 import AddMemoryModal from '@/components/memory/AddMemoryModal';
 
 interface Props {
@@ -19,46 +19,9 @@ interface Props {
 
 export default function MemoryClient({ basketId, pattern, tension, question, fallback }: Props) {
   const [showAddMemory, setShowAddMemory] = useState(false);
-  const [isCreatingDocument, setIsCreatingDocument] = useState(false);
-
   const refreshDocuments = () => {
     // This will trigger DocumentsList to refresh
     window.location.reload();
-  };
-
-  const handleCreateDocument = async () => {
-    setIsCreatingDocument(true);
-    try {
-      const response = await fetch('/api/documents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          basket_id: basketId,
-          title: 'Untitled Document',
-          metadata: {
-            created_via: 'memory_page'
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create document');
-      }
-
-      const { document_id } = await response.json();
-      
-      // Small delay to ensure document is fully persisted before navigation
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Force full page reload to ensure sidebar updates with new document  
-      window.location.replace(`/baskets/${basketId}/documents/${document_id}`);
-      
-    } catch (error) {
-      console.error('Document creation failed:', error);
-      alert('Failed to create document. Please try again.');
-    } finally {
-      setIsCreatingDocument(false);
-    }
   };
 
   return (
@@ -78,15 +41,6 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
             >
               <PenTool className="h-4 w-4" />
               Add Memory
-            </Button>
-            <Button
-              onClick={handleCreateDocument}
-              disabled={isCreatingDocument}
-              size="sm"
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-            >
-              <FileText className="h-4 w-4" />
-              {isCreatingDocument ? 'Creating...' : 'Create Document'}
             </Button>
           </div>
         }

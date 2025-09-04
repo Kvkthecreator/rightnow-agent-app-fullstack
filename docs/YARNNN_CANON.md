@@ -89,6 +89,12 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
           REJECTED → SUPERSEDED
 ```
 
+### Share Updates & Comprehensive Review
+- Share Updates = unified multi-input ingestion (text + files + images)
+- P1 Substrate Agent v2 performs comprehensive cross-content analysis
+- Single governance proposal generated from unified structured ingredients
+- Batch processing maintains semantic coherence across related inputs
+
 ### Document Composition
 - Documents = synthesized artifacts from ingredient data + intentional composition
 - Any substrate type can be used as ingredient data (no hierarchy)

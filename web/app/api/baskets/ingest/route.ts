@@ -23,6 +23,8 @@ export async function POST(req: NextRequest) {
       idempotency_key: body.idempotency_key,
       basket: body.basket,
       dumps: body.dumps,
+      batch_id: body.batch_id,
+      comprehensive_review: body.comprehensive_review,
       token,
     });
     // Log request and response separately per canon - no field synthesis

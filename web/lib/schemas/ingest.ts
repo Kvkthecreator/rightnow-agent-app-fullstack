@@ -21,6 +21,8 @@ export const IngestReqSchema = z.object({
     name: z.string().optional(),
   }).optional(),
   dumps: z.array(IngestItemSchema),
+  batch_id: z.string().uuid().optional(), // For Share Updates comprehensive review
+  comprehensive_review: z.boolean().optional(), // Trigger batch processing mode
 }) satisfies z.ZodType<IngestReq>;
 
 export const IngestResSchema = z.object({

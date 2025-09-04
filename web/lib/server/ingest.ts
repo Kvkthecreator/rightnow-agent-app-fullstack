@@ -15,17 +15,29 @@ interface IngestArgs {
   basket?: { name?: string };
   dumps: IngestItem[];
   token: string;
+  batch_id?: string;
+  comprehensive_review?: boolean;
 }
 
 export async function ingestBasketAndDumps(
   args: IngestArgs
 ): Promise<{ raw: unknown; data: IngestRes }> {
   const supabase = createUserClient(args.token);
+  // Add batch metadata to dumps for comprehensive review
+  const enrichedDumps = args.dumps.map(dump => ({
+    ...dump,
+    meta: {
+      ...dump.meta,
+      ...(args.batch_id && { batch_id: args.batch_id }),
+      ...(args.comprehensive_review && { comprehensive_review: true })
+    }
+  }));
+  
   const payload = {
     p_workspace_id: args.workspaceId,
     p_idempotency_key: args.idempotency_key,
     p_basket_name: args.basket?.name ?? null,
-    p_dumps: JSON.stringify(args.dumps),
+    p_dumps: JSON.stringify(enrichedDumps),
   };
   const { data, error } = await supabase.rpc('ingest_basket_and_dumps', payload);
   if (error) {

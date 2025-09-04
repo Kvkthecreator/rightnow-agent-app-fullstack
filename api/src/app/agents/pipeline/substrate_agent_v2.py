@@ -32,11 +32,13 @@ logger = logging.getLogger("uvicorn.error")
 
 class P1SubstrateAgentV2:
     """
-    Canon v1.4.0 compliant P1 Substrate Agent with concrete LLM implementation.
+    Canon v1.4.0 compliant P1 Substrate Agent with comprehensive batch processing.
     
     Features:
+    - Batch mode for Share Updates: multiple raw dumps → unified analysis
+    - Cross-content relationship detection and semantic coherence analysis
     - OpenAI Structured Outputs for guaranteed schema compliance
-    - Provenance tracking with text span validation
+    - Provenance tracking with text span validation across all inputs
     - Retry/backoff logic for production reliability
     - Environment-driven configuration
     """
@@ -71,35 +73,51 @@ class P1SubstrateAgentV2:
         
     async def create_substrate(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Create structured substrate from raw dump using knowledge extraction.
+        Create structured substrate from raw dumps using comprehensive knowledge extraction.
         
-        Returns blocks as data ingredients with structured knowledge.
+        Supports both single dump and batch mode for Share Updates comprehensive review.
+        Returns blocks as data ingredients with structured knowledge and cross-content relationships.
         """
         start_time = datetime.utcnow()
-        dump_id = UUID(request["dump_id"])
         workspace_id = UUID(request["workspace_id"])
         basket_id = UUID(request["basket_id"])
         max_blocks = request.get("max_blocks", 10)
         agent_id = request["agent_id"]
         
+        # Support both single dump and batch processing (Share Updates)
+        dump_ids = request.get("dump_ids", [request["dump_id"]]) if "dump_ids" in request else [request["dump_id"]]
+        dump_ids = [UUID(did) for did in dump_ids]
+        
         try:
-            # Get raw dump content
-            dump_content = await self._get_dump_content(dump_id, workspace_id)
-            if not dump_content:
-                raise ValueError(f"Raw dump {dump_id} has no content to process")
+            # Get all raw dump contents for comprehensive analysis
+            dump_contents = []
+            for dump_id in dump_ids:
+                content = await self._get_dump_content(dump_id, workspace_id)
+                if content:
+                    dump_contents.append({"dump_id": dump_id, "content": content})
             
-            # Extract structured knowledge with concrete LLM
-            extraction_result = await self._extract_with_llm(dump_content, str(dump_id))
+            if not dump_contents:
+                raise ValueError(f"No content found in provided dumps: {dump_ids}")
+            
+            # Extract structured knowledge with comprehensive cross-content analysis
+            if len(dump_contents) == 1:
+                # Single dump processing
+                extraction_result = await self._extract_with_llm(dump_contents[0]["content"], str(dump_contents[0]["dump_id"]))
+            else:
+                # Batch processing for Share Updates comprehensive review
+                extraction_result = await self._extract_batch_with_llm(dump_contents)
+            
             knowledge_blocks = extraction_result.get("blocks", [])
             
             # Transform knowledge blocks into database-ready format
+            primary_dump_id = dump_ids[0]  # Use first dump as primary for legacy compatibility
             block_ingredients = self._transform_knowledge_blocks(
-                knowledge_blocks, dump_id, max_blocks
+                knowledge_blocks, primary_dump_id, max_blocks, dump_contents
             )
             
             # Persist blocks as structured ingredients
             created_blocks = await self._persist_block_ingredients(
-                basket_id, dump_id, block_ingredients, agent_id
+                basket_id, primary_dump_id, block_ingredients, agent_id
             )
             
             # Extract context items from knowledge blocks
@@ -121,16 +139,18 @@ class P1SubstrateAgentV2:
             )
             
             return {
-                "dump_id": str(dump_id),
+                "primary_dump_id": str(primary_dump_id),
+                "processed_dump_ids": [str(did) for did in dump_ids],
+                "batch_mode": len(dump_ids) > 1,
                 "blocks_created": created_blocks,
                 "context_items_created": created_context_items,
                 "processing_time_ms": processing_time_ms,
                 "agent_confidence": extraction_result.get("extraction_metadata", {}).get("confidence", 0.8),
-                "extraction_method": "structured_knowledge_ingredients"
+                "extraction_method": "comprehensive_structured_ingredients" if len(dump_ids) > 1 else "structured_knowledge_ingredients"
             }
             
         except Exception as e:
-            self.logger.error(f"P1 Substrate v2 failed for dump {dump_id}: {e}")
+            self.logger.error(f"P1 Substrate v2 failed for dumps {dump_ids}: {e}")
             raise
     
     async def _extract_with_llm(self, text: str, dump_id: str) -> Dict[str, Any]:
@@ -193,14 +213,111 @@ class P1SubstrateAgentV2:
                 self.logger.error(f"LLM extraction attempt {attempt + 1} error: {e}")
                 time.sleep(1.5 * (attempt + 1))
     
+    async def _extract_batch_with_llm(self, dump_contents: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Extract structured knowledge from multiple dumps with comprehensive cross-content analysis.
+        Supports Share Updates unified review workflow.
+        """
+        # Combine all dump contents for comprehensive analysis
+        combined_text = ""
+        dump_mapping = {}
+        
+        for i, dump_data in enumerate(dump_contents):
+            dump_id = str(dump_data["dump_id"])
+            content = dump_data["content"]
+            
+            # Add section markers for provenance tracking
+            section_start = len(combined_text)
+            combined_text += f"\n\n=== CONTENT SOURCE {i+1} (dump_id: {dump_id}) ===\n{content}\n"
+            section_end = len(combined_text)
+            
+            dump_mapping[dump_id] = {
+                "section_index": i,
+                "start_offset": section_start,
+                "end_offset": section_end,
+                "content": content
+            }
+        
+        sys = (
+            "You extract structured knowledge from multiple related content sources. "
+            "Perform comprehensive cross-content analysis to identify themes, relationships, and semantic coherence. "
+            "Return ONLY the JSON that matches the provided schema. "
+            "All items MUST include provenance spans that reference the original dump_id and text positions."
+        )
+        
+        dump_ids_str = ", ".join([str(dc["dump_id"]) for dc in dump_contents])
+        user = (
+            f"Multiple content sources to analyze comprehensively:\n{combined_text}\n\n"
+            "Instructions:\n"
+            "- Perform unified analysis across ALL content sources\n"
+            "- Identify cross-content relationships and shared themes\n"
+            "- Extract goals, constraints, metrics, entities that span multiple sources\n" 
+            "- Normalize and deduplicate related concepts\n"
+            "- Generate single coherent structured ingredient set\n"
+            f"- provenance.dump_id must match one of: {dump_ids_str}\n"
+            "- Include comprehensive cross-dump relationships in the analysis"
+        )
+
+        cli = self._client()
+        
+        # Retry/backoff logic for batch processing
+        for attempt in range(4):
+            try:
+                resp = cli.chat.completions.create(
+                    model=MODEL_P1,
+                    messages=[
+                        {"role": "system", "content": sys},
+                        {"role": "user", "content": user}
+                    ],
+                    response_format=self._response_format_schema(),
+                    temperature=TEMP_P1,
+                    max_tokens=MAXTOK_P1 * 2,  # Increase for batch processing
+                    seed=SEED_P1
+                )
+                
+                raw = resp.choices[0].message.content
+                data = json.loads(raw)
+                obj = KnowledgeBlockList.model_validate(data)
+                
+                # Add batch processing metadata
+                extraction_metadata = {
+                    "batch_mode": True,
+                    "source_dumps": len(dump_contents),
+                    "confidence": 0.85,  # Default for batch processing
+                    "cross_content_analysis": True
+                }
+                
+                result = obj.model_dump()
+                result["extraction_metadata"] = extraction_metadata
+                
+                self.logger.info(f"Batch LLM extraction successful: {len(obj.blocks)} blocks from {len(dump_contents)} dumps")
+                return result
+                
+            except (ValidationError, ValueError, json.JSONDecodeError) as e:
+                if attempt == 3:
+                    raise e
+                self.logger.warning(f"Batch LLM extraction attempt {attempt + 1} failed: {e}")
+                time.sleep(2.0 * (attempt + 1))  # Longer delays for batch processing
+                
+            except Exception as e:
+                if attempt == 3:
+                    raise e
+                self.logger.error(f"Batch LLM extraction attempt {attempt + 1} error: {e}")
+                time.sleep(2.0 * (attempt + 1))
+    
     def _transform_knowledge_blocks(
         self,
         knowledge_blocks: List[Dict[str, Any]],
         dump_id: UUID,
-        max_blocks: int
+        max_blocks: int,
+        dump_contents: List[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
-        """Transform LLM-extracted knowledge blocks into database format."""
+        """Transform LLM-extracted knowledge blocks into database format.
+        
+        Supports both single dump and batch processing modes.
+        """
         block_ingredients = []
+        batch_mode = dump_contents and len(dump_contents) > 1
         
         for kb in knowledge_blocks[:max_blocks]:
             # Create legacy content for backward compatibility
@@ -216,6 +333,8 @@ class P1SubstrateAgentV2:
                     "knowledge_ingredients": kb,
                     "extraction_method": "llm_structured_v2",
                     "provenance_validated": True,
+                    "batch_processing": batch_mode,
+                    "source_dumps": len(dump_contents) if dump_contents else 1,
                     "transformation_hints": {
                         "composable_as": ["reference", "context", "ingredient"],
                         "synthesis_priority": "medium"

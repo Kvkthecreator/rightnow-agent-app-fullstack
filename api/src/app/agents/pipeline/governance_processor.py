@@ -55,6 +55,63 @@ class GovernanceDumpProcessor:
         self.logger = logger
         self.validator = P1ValidatorAgent()
         
+    async def process_batch_dumps(self, dump_ids: List[UUID], basket_id: UUID, workspace_id: UUID) -> Dict[str, Any]:
+        """
+        Process multiple raw dumps through comprehensive governance review.
+        
+        Share Updates workflow: multiple dumps → unified proposal → comprehensive review
+        
+        Flow:
+        1. Extract substrate candidates from all dumps with cross-content analysis
+        2. Generate single unified proposal with comprehensive operations
+        3. Validate unified operations with P1 Validator
+        4. Create single governance proposal for all changes
+        5. Return proposal ID for comprehensive human review
+        """
+        try:
+            # Get all dump contents
+            dump_data = []
+            for dump_id in dump_ids:
+                dump_response = supabase.table("raw_dumps").select(
+                    "id,text_dump,file_url,source_meta"
+                ).eq("id", str(dump_id)).single().execute()
+                
+                if dump_response.data:
+                    dump_data.append(dump_response.data)
+            
+            if not dump_data:
+                raise ValueError(f"No valid dumps found in {dump_ids}")
+            
+            # Extract substrate candidates with comprehensive analysis
+            candidates = await self._extract_batch_candidates(dump_data)
+            
+            if not candidates:
+                self.logger.info(f"No substrate candidates found in batch dumps {dump_ids}")
+                return {
+                    'proposals_created': 0,
+                    'status': 'no_candidates', 
+                    'message': 'No substrate candidates found in batch dumps'
+                }
+            
+            # Create unified governance proposal
+            proposal_id = await self._create_comprehensive_proposal(
+                candidates, basket_id, workspace_id, dump_ids
+            )
+            
+            self.logger.info(f"Comprehensive proposal created: {proposal_id} from {len(dump_ids)} dumps")
+            
+            return {
+                'proposals_created': 1,
+                'proposal_ids': [proposal_id],
+                'batch_mode': True,
+                'source_dumps': len(dump_ids),
+                'status': 'comprehensive_proposal_created'
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Batch governance processing failed for dumps {dump_ids}: {e}")
+            raise
+        
     async def process_dump(self, dump_id: UUID, basket_id: UUID, workspace_id: UUID) -> Dict[str, Any]:
         """
         Process a raw dump by creating governance proposals for substrate creation.

@@ -30,6 +30,52 @@ class GovernanceDumpProcessorV2:
             # Fall back to None - governance processor will handle gracefully
             self.p1_agent = None
         
+    async def process_batch_dumps(self, dump_ids: List[UUID], basket_id: UUID, workspace_id: UUID) -> Dict[str, Any]:
+        """
+        Process multiple dumps through comprehensive governance review for Share Updates.
+        
+        Creates unified proposal from cross-content analysis of all provided dumps.
+        """
+        start_time = datetime.utcnow()
+        
+        try:
+            # Validate P1 agent is available
+            if not self.p1_agent:
+                raise RuntimeError("P1SubstrateAgentV2 not initialized - likely missing OPENAI_API_KEY")
+            
+            # Check governance settings for workspace
+            governance_enabled = await self._check_governance_enabled(workspace_id)
+            
+            if not governance_enabled:
+                # Direct substrate creation (legacy path) - process first dump only
+                return await self._direct_substrate_creation(
+                    dump_ids[0], basket_id, workspace_id, 20
+                )
+            
+            # Create comprehensive governance proposal with structured ingredients
+            proposals_result = await self._create_batch_ingredient_proposals(
+                dump_ids, basket_id, workspace_id, 20
+            )
+            
+            processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+            
+            self.logger.info(
+                f"Governance batch processing v2 completed: {len(dump_ids)} dumps, "
+                f"proposals={proposals_result['proposals_created']}, "
+                f"processing_time_ms={processing_time_ms}"
+            )
+            
+            return {
+                **proposals_result,
+                "processing_time_ms": processing_time_ms,
+                "batch_mode": True,
+                "source_dumps": len(dump_ids)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Governance batch processing v2 failed for dumps {dump_ids}: {e}")
+            raise
+        
     async def process_dump(
         self, 
         dump_id: UUID, 
@@ -172,6 +218,56 @@ class GovernanceDumpProcessorV2:
                 "avg_confidence": 0.0
             }
     
+    async def _create_batch_ingredient_proposals(
+        self,
+        dump_ids: List[UUID], 
+        basket_id: UUID, 
+        workspace_id: UUID, 
+        max_blocks: int
+    ) -> Dict[str, Any]:
+        """Create unified governance proposal from comprehensive batch analysis."""
+        
+        try:
+            # Use P1 Agent v2 batch mode for comprehensive analysis
+            agent_request = {
+                "dump_ids": [str(did) for did in dump_ids],
+                "workspace_id": str(workspace_id),
+                "basket_id": str(basket_id),
+                "agent_id": f"governance_v2_batch_{uuid4().hex[:8]}",
+                "max_blocks": max_blocks
+            }
+            
+            substrate_result = await self.p1_agent.create_substrate(agent_request)
+            blocks_created = substrate_result.get("blocks_created", [])
+            
+            if not blocks_created:
+                return {
+                    "proposals_created": 0,
+                    "status": "no_substrate_from_batch",
+                    "message": f"No structured ingredients extracted from {len(dump_ids)} dumps"
+                }
+            
+            # Create single unified proposal
+            proposal_id = await self._create_unified_governance_proposal(
+                basket_id, workspace_id, blocks_created, dump_ids
+            )
+            
+            return {
+                "proposals_created": 1,
+                "proposal_ids": [str(proposal_id)],
+                "substrate_candidates": len(blocks_created),
+                "comprehensive_analysis": True,
+                "source_dumps": len(dump_ids)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to create batch ingredient proposals: {e}")
+            return {
+                "proposals_created": 0,
+                "proposal_ids": [],
+                "comprehensive_analysis": False
+            }
+    
     async def _direct_substrate_creation(
         self,
         dump_id: UUID,
@@ -206,6 +302,69 @@ class GovernanceDumpProcessorV2:
         except Exception as e:
             self.logger.error(f"Direct substrate creation v2 failed: {e}")
             raise
+    
+    async def _create_unified_governance_proposal(
+        self,
+        basket_id: UUID,
+        workspace_id: UUID, 
+        blocks_created: List[Dict[str, Any]],
+        dump_ids: List[UUID]
+    ) -> UUID:
+        """Create single unified proposal for comprehensive batch processing."""
+        
+        # Generate comprehensive summary
+        summary_parts = []
+        total_goals = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("goals", [])) for block in blocks_created)
+        total_constraints = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("constraints", [])) for block in blocks_created)
+        total_metrics = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("metrics", [])) for block in blocks_created)
+        total_entities = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("entities", [])) for block in blocks_created)
+        
+        summary_parts.append(f"Comprehensive analysis of {len(dump_ids)} content sources")
+        if total_goals > 0:
+            summary_parts.append(f"{total_goals} strategic goals identified")
+        if total_constraints > 0:
+            summary_parts.append(f"{total_constraints} operational constraints") 
+        if total_metrics > 0:
+            summary_parts.append(f"{total_metrics} measurable success criteria")
+        if total_entities > 0:
+            summary_parts.append(f"{total_entities} key stakeholders and systems")
+            
+        ops_summary = "; ".join(summary_parts)
+        
+        # Create unified proposal data
+        proposal_data = {
+            "id": str(uuid4()),
+            "workspace_id": str(workspace_id),
+            "basket_id": str(basket_id),
+            "proposal_kind": "create_blocks",
+            "origin": "agent",
+            "status": "PROPOSED",
+            "ops": {
+                "operation": "batch_create_blocks",
+                "blocks": blocks_created,
+                "source_dumps": [str(did) for did in dump_ids],
+                "comprehensive_analysis": True,
+                "extraction_method": "comprehensive_structured_ingredients",
+                "summary": ops_summary
+            },
+            "metadata": {
+                "batch_mode": True,
+                "source_dumps": len(dump_ids),
+                "comprehensive_review": True,
+                "processing_method": "share_updates_batch"
+            }
+        }
+        
+        # Insert unified proposal
+        response = supabase.table("proposals").insert(proposal_data).select().execute()
+        
+        if not response.data:
+            raise RuntimeError("Failed to create unified governance proposal")
+            
+        proposal_id = UUID(response.data[0]["id"])
+        self.logger.info(f"Created unified proposal {proposal_id} from {len(dump_ids)} dumps")
+        
+        return proposal_id
     
     def get_agent_info(self) -> Dict[str, str]:
         """Get processor information."""

@@ -95,12 +95,14 @@ interface Metric {
 - Creates immutable `raw_dumps`
 - No interpretation or structuring
 
-### 2. P1 Substrate Agent v2
-- Reads raw dumps
-- Uses OpenAI Structured Outputs with JSON Schema
-- Extracts structured knowledge ingredients
-- Validates provenance with UTF-8 span tracking
-- Stores in `blocks.metadata.knowledge_ingredients`
+### 2. P1 Substrate Agent v2 (Comprehensive Batch Mode)
+- Processes multiple raw dumps in unified batch operation for Share Updates
+- Performs cross-content analysis to identify relationships spanning inputs
+- Uses OpenAI Structured Outputs with JSON Schema for consistency
+- Extracts unified structured knowledge ingredients from comprehensive analysis
+- Validates provenance with UTF-8 span tracking across all source dumps
+- Generates single coherent proposal with cross-dump relationships
+- Stores comprehensive ingredients in `blocks.metadata.knowledge_ingredients`
 
 ### 3. P2-P3 Agents
 - Work with structured data, not text

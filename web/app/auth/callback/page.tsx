@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs";
+import { createBrowserClient } from "@/lib/supabase/clients";
 import { SessionContextProvider } from "@supabase/auth-helpers-react";
 import YarnSpinner from "@/components/ui/OrganicSpinner";
 
-const supabase = createPagesBrowserClient();
+const supabase = createBrowserClient();
 
 export default function AuthCallbackPage() {
   const router = useRouter();

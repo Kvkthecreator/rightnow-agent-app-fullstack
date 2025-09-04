@@ -145,18 +145,29 @@ class CanonicalQueueProcessor:
             await self._validate_p0_capture(dump_id, workspace_id)
             logger.info(f"P0 Capture validated for dump {dump_id}")
             
-            # P1 GOVERNANCE: Create proposals using structured ingredients or legacy
+            # P1 GOVERNANCE: Create proposals using comprehensive review or single dump processing
             # Sacred Rule: All substrate mutations flow through governed proposals
+            batch_dumps = await self._get_batch_group(dump_id)
+            
             if self.use_structured_ingredients:
-                # Use v2 processor with structured knowledge extraction
-                governance_result = await self.p1_governance_v2.process_dump(
-                    dump_id=dump_id,
-                    basket_id=basket_id,
-                    workspace_id=workspace_id
-                )
-                logger.info(f"Using P1 Governance v2 (structured ingredients) for dump {dump_id}")
+                if len(batch_dumps) > 1:
+                    # Comprehensive batch processing for Share Updates
+                    governance_result = await self.p1_governance_v2.process_batch_dumps(
+                        dump_ids=[UUID(did) for did in batch_dumps],
+                        basket_id=UUID(basket_id),
+                        workspace_id=UUID(workspace_id)
+                    )
+                    logger.info(f"Using P1 Governance v2 batch mode ({len(batch_dumps)} dumps)")
+                else:
+                    # Single dump structured processing
+                    governance_result = await self.p1_governance_v2.process_dump(
+                        dump_id=dump_id,
+                        basket_id=basket_id,
+                        workspace_id=workspace_id
+                    )
+                    logger.info(f"Using P1 Governance v2 (structured ingredients) for dump {dump_id}")
             else:
-                # Use legacy processor with text chunking
+                # Legacy single dump processing only
                 governance_result = await self.p1_governance.process_dump(
                     dump_id=dump_id,
                     basket_id=basket_id,
@@ -189,6 +200,44 @@ class CanonicalQueueProcessor:
             logger.exception(f"Canonical processing failed for dump {dump_id}: {e}")
             await self._mark_failed(queue_id, str(e))
             raise
+    
+    async def _get_batch_group(self, dump_id: str) -> List[str]:
+        """
+        Get batch group for Share Updates comprehensive processing.
+        
+        Looks for dumps created within same time window with batch metadata
+        to support comprehensive multi-dump analysis.
+        """
+        try:
+            # Check if dump has batch metadata indicating Share Updates origin
+            dump_response = supabase.table("raw_dumps").select(
+                "id,source_meta,created_at"
+            ).eq("id", dump_id).single().execute()
+            
+            if not dump_response.data:
+                return [dump_id]  # Single dump fallback
+                
+            dump = dump_response.data
+            source_meta = dump.get("source_meta", {})
+            
+            # Check for batch processing metadata
+            batch_id = source_meta.get("batch_id")
+            if not batch_id:
+                return [dump_id]  # Single dump
+                
+            # Find all dumps in the same batch
+            batch_response = supabase.table("raw_dumps").select("id").eq(
+                "source_meta->>batch_id", batch_id
+            ).order("created_at").execute()
+            
+            if batch_response.data:
+                return [d["id"] for d in batch_response.data]
+            else:
+                return [dump_id]  # Fallback to single dump
+                
+        except Exception as e:
+            logger.warning(f"Failed to get batch group for dump {dump_id}: {e}")
+            return [dump_id]  # Safe fallback
     
     async def _validate_p0_capture(self, dump_id: UUID, workspace_id: UUID):
         """
