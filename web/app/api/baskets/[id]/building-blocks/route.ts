@@ -75,9 +75,9 @@ export async function GET(
         .order('created_at', { ascending: false })
         .limit(100),
       
-      // P1 Substrate Agent - Processed context_blocks with structured ingredients
+      // P1 Substrate Agent - Processed blocks with structured ingredients
       supabase
-        .from('context_blocks')
+        .from('blocks')
         .select('id, semantic_type, content, confidence_score, title, body_md, created_at, meta_agent_notes, metadata')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
