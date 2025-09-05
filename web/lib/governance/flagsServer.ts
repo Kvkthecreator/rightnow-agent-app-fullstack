@@ -91,7 +91,6 @@ export async function getWorkspaceFlags(
         onboarding_dump: flagsData.ep_onboarding_dump,
         manual_edit: flagsData.ep_manual_edit,
         document_edit: flagsData.ep_document_edit,
-        reflection_suggestion: flagsData.ep_reflection_suggestion,
         graph_action: flagsData.ep_graph_action,
         timeline_restore: flagsData.ep_timeline_restore
       },

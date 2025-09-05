@@ -36,7 +36,7 @@ describe('Sacred Principles (Canon Compliance)', () => {
 
   describe('Sacred Principle #2: All Substrates are Peers', () => {
     it('should treat all substrate types equally', () => {
-      const substrateTypes = ['raw_dumps', 'context_blocks', 'context_items', 'timeline_events', 'reflections'];
+      const substrateTypes = ['raw_dumps', 'context_blocks', 'context_items', 'timeline_events'];  // v2.0: reflections removed
       
       // All substrate types should have equal treatment
       substrateTypes.forEach(type => {

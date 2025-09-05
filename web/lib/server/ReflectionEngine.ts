@@ -93,10 +93,12 @@ export class ReflectionEngine {
       return {
         id: reflection.id,
         basket_id: reflection.basket_id,
+        workspace_id: reflection.workspace_id,
         reflection_text: reflection.reflection_text,
         substrate_window_start: reflection.substrate_window_start,
         substrate_window_end: reflection.substrate_window_end,
         computation_timestamp: reflection.computation_timestamp,
+        reflection_target_type: 'legacy' as const,  // v2.0 required field
         meta: reflection.meta,
       };
     } finally {

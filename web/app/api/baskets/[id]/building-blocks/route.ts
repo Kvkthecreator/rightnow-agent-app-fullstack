@@ -10,7 +10,7 @@ interface RouteContext {
 // Unified substrate type for Canon compliance - All Substrates are Peers
 interface UnifiedSubstrate {
   id: string;
-  type: 'raw_dump' | 'context_item' | 'block';
+  type: 'dump' | 'context_item' | 'block' | 'timeline_event';  // v2.0 substrate types
   title: string;
   content: string;
   agent_stage: 'P0' | 'P1' | 'P2' | 'P3';
@@ -75,9 +75,9 @@ export async function GET(
         .order('created_at', { ascending: false })
         .limit(100),
       
-      // P1 Substrate Agent - Processed blocks with structured ingredients
+      // P1 Substrate Agent - Processed context_blocks with structured ingredients
       supabase
-        .from('blocks')
+        .from('context_blocks')
         .select('id, semantic_type, content, confidence_score, title, body_md, created_at, meta_agent_notes, metadata')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
@@ -102,12 +102,12 @@ export async function GET(
     // Transform all substrate types to unified format - Canon compliance: Equal treatment
     const unifiedSubstrates: UnifiedSubstrate[] = [];
 
-    // Raw dumps (P0 Capture)
+    // Raw dumps (P0 Capture) - v2.0 substrate type 'dump'
     rawDumpsResult.data?.forEach(dump => {
       const sourceType = dump.file_url ? 'file' : 'text';
       unifiedSubstrates.push({
         id: dump.id,
-        type: 'raw_dump',
+        type: 'dump',  // v2.0 substrate type
         title: `${sourceType} capture`,
         content: dump.body_md || '',
         agent_stage: 'P0',
@@ -159,11 +159,11 @@ export async function GET(
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
-    // Return unified substrate view
+    // Return unified substrate view - v2.0 substrate counts
     return NextResponse.json({
       substrates: unifiedSubstrates,
       counts: {
-        raw_dumps: rawDumpsResult.data?.length || 0,
+        dumps: rawDumpsResult.data?.length || 0,        // v2.0 naming
         context_items: contextItemsResult.data?.length || 0,
         blocks: blocksResult.data?.length || 0,
         total: unifiedSubstrates.length

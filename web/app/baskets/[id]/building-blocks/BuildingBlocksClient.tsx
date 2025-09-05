@@ -14,7 +14,7 @@ import CreateContextItemModal from '@/components/building-blocks/CreateContextIt
 
 interface UnifiedSubstrate {
   id: string;
-  type: 'raw_dump' | 'context_item' | 'block';
+  type: 'dump' | 'context_item' | 'block' | 'timeline_event';  // v2.0 substrate types
   title: string;
   content: string;
   agent_stage: 'P0' | 'P1' | 'P2' | 'P3';
@@ -37,7 +37,7 @@ interface UnifiedSubstrate {
 interface BuildingBlocksResponse {
   substrates: UnifiedSubstrate[];
   counts: {
-    raw_dumps: number;
+    dumps: number;       // v2.0 naming
     context_items: number;
     blocks: number;
     total: number;
@@ -73,7 +73,7 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
 
   if (!substrate) return null;
 
-  const canEdit = substrate.type !== 'raw_dump'; // Original notes are read-only
+  const canEdit = substrate.type !== 'dump'; // Original notes are read-only
   
   const handleEdit = async () => {
     if (!canEdit) return;
@@ -170,7 +170,7 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(substrate.type)}`}>
               {getTypeLabel(substrate.type)}
             </span>
-            {substrate.type === 'raw_dump' && (
+            {substrate.type === 'dump' && (
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                 Read-only
               </span>
@@ -578,7 +578,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                     className="border border-gray-200 rounded px-2 py-1 text-xs"
                   >
                     <option value="all">All Types</option>
-                    <option value="raw_dump">Original Notes</option>
+                    <option value="dump">Original Notes</option>
                     <option value="context_item">Tags & Labels</option>
                     <option value="block">Organized Blocks</option>
                   </select>
@@ -615,7 +615,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                   <FolderOpen className="h-3 w-3 text-green-600" />
                   <span className="text-xs font-medium text-gray-600">Original Notes</span>
                 </div>
-                <div className="text-lg font-bold text-green-600">{data.counts.raw_dumps}</div>
+                <div className="text-lg font-bold text-green-600">{data.counts.dumps}</div>
                 <div className="text-xs text-gray-500">As you wrote them</div>
               </div>
 
@@ -719,27 +719,30 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
 
 function getSubstrateIcon(type: string) {
   switch (type) {
-    case 'raw_dump': return <FolderOpen className="h-4 w-4 text-green-600" />;
+    case 'dump': return <FolderOpen className="h-4 w-4 text-green-600" />;
     case 'context_item': return <FileText className="h-4 w-4 text-blue-600" />;
     case 'block': return <Database className="h-4 w-4 text-orange-600" />;
+    case 'timeline_event': return <Database className="h-4 w-4 text-purple-600" />;
     default: return <Database className="h-4 w-4 text-gray-600" />;
   }
 }
 
 function getTypeColor(type: string): string {
   switch (type) {
-    case 'raw_dump': return 'bg-green-100 text-green-800';
+    case 'dump': return 'bg-green-100 text-green-800';
     case 'context_item': return 'bg-blue-100 text-blue-800';
     case 'block': return 'bg-orange-100 text-orange-800';
+    case 'timeline_event': return 'bg-purple-100 text-purple-800';
     default: return 'bg-gray-100 text-gray-800';
   }
 }
 
 function getTypeLabel(type: string): string {
   switch (type) {
-    case 'raw_dump': return 'Original';
+    case 'dump': return 'Original';
     case 'context_item': return 'Tag';
     case 'block': return 'Block';
+    case 'timeline_event': return 'Event';
     default: return 'Item';
   }
 }

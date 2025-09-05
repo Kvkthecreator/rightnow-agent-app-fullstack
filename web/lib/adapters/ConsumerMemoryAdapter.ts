@@ -131,13 +131,13 @@ export class ConsumerMemoryAdapter extends BaseLensAdapter<ConsumerMemory, Canon
     // Canon Compliant: Transform agent-computed reflections for consumer UX
     return reflections.map(r => ({
       id: r.id,
-      title: r.reflection_title || this.extractFirstSentence(r.reflection_text), // Use agent title or fallback
+      title: this.extractFirstSentence(r.reflection_text), // Extract title from reflection text
       description: r.reflection_text,
-      tags: r.reflection_tags || [], // Use agent-processed tags
-      readingTime: r.estimated_reading_time || this.estimateFromLength(r.reflection_text), // Agent estimate or fallback
-      personalRelevance: r.confidence_score,
+      tags: [], // No reflection_tags in v2.0 model
+      readingTime: this.estimateFromLength(r.reflection_text), // Calculate reading time from length
+      personalRelevance: 0.8, // Default relevance for reflections
       createdAt: r.computation_timestamp,
-      agentAttribution: r.meta.processing_agent
+      agentAttribution: r.meta?.processing_agent || 'P3 Agent'
     }));
   }
 

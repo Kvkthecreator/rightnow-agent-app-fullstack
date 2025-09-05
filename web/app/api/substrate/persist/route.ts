@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     let data: any;
 
     switch (substrate.type) {
-      case 'raw_dump':
+      case 'dump':
         tableName = 'raw_dumps';
         data = {
           id: substrate.id,
@@ -63,30 +63,15 @@ export async function POST(request: NextRequest) {
         };
         break;
 
-      case 'narrative':
-        tableName = 'narrative';
+      // Note: narrative and document are artifacts in v2.0, not substrates
+      case 'timeline_event':
+        tableName = 'timeline_events';
         data = {
           id: substrate.id,
           basket_id: substrate.basketId,
           workspace_id: substrate.workspaceId,
-          title: (substrate as any).title,
-          content: (substrate as any).content,
-          format: (substrate as any).format,
-          references: (substrate as any).references,
-          metadata: (substrate as any).metadata,
-          created_at: substrate.createdAt,
-          updated_at: substrate.updatedAt
-        };
-        break;
-
-      case 'document':
-        tableName = 'documents';
-        data = {
-          id: substrate.id,
-          basket_id: substrate.basketId,
-          workspace_id: substrate.workspaceId,
-          title: (substrate as any).title,
-          composition: (substrate as any).composition,
+          event_kind: (substrate as any).event_kind,
+          event_data: (substrate as any).event_data,
           metadata: (substrate as any).metadata,
           created_at: substrate.createdAt,
           updated_at: substrate.updatedAt

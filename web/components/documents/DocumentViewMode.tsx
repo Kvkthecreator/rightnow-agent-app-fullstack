@@ -193,10 +193,6 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
                 <div className="text-gray-500">Context</div>
               </div>
               <div>
-                <div className="font-semibold text-orange-600">{composition.composition_stats.reflections_count}</div>
-                <div className="text-gray-500">Reflections</div>
-              </div>
-              <div>
                 <div className="font-semibold text-red-600">{composition.composition_stats.timeline_events_count}</div>
                 <div className="text-gray-500">Timeline</div>
               </div>
@@ -249,7 +245,6 @@ export function DocumentViewMode({ document, basketId }: DocumentViewModeProps) 
                               ${ref.substrate.substrate_type === 'block' ? 'bg-blue-100 text-blue-800' : ''}
                               ${ref.substrate.substrate_type === 'dump' ? 'bg-green-100 text-green-800' : ''}
                               ${ref.substrate.substrate_type === 'context_item' ? 'bg-purple-100 text-purple-800' : ''}
-                              ${ref.substrate.substrate_type === 'reflection' ? 'bg-orange-100 text-orange-800' : ''}
                               ${ref.substrate.substrate_type === 'timeline_event' ? 'bg-red-100 text-red-800' : ''}
                             `}>
                               {ref.substrate.substrate_type}

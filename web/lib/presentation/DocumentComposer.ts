@@ -258,7 +258,7 @@ export class DocumentComposer {
 
         // Check each substrate type (respecting substrate equality)
         switch (ref.type) {
-          case 'raw_dump':
+          case 'dump':
             const { data: dump } = await supabase
               .from('raw_dumps')
               .select('id')
@@ -268,7 +268,7 @@ export class DocumentComposer {
             exists = !!dump;
             break;
 
-          case 'context_block':
+          case 'block':
             const { data: block } = await supabase
               .from('context_blocks')
               .select('id')
@@ -298,16 +298,7 @@ export class DocumentComposer {
             exists = !!event;
             break;
 
-          case 'reflection':
-            // Reflections are computed read-models, validate via reflection cache
-            const { data: reflection } = await supabase
-              .from('reflection_cache')
-              .select('id')
-              .eq('id', ref.id)
-              .eq('workspace_id', workspace_id)
-              .single();
-            exists = !!reflection;
-            break;
+          // Note: Reflections are now artifacts, not substrate references
 
           default:
             errors.push(`Unknown substrate type: ${ref.type}`);
@@ -399,7 +390,7 @@ export class DocumentComposer {
 
         // Equal treatment for all substrate types (Sacred Principle #2)
         switch (ref.type) {
-          case 'raw_dump':
+          case 'dump':
             const { data: dump } = await supabase
               .from('raw_dumps')
               .select('*')
@@ -409,7 +400,7 @@ export class DocumentComposer {
             data = dump;
             break;
 
-          case 'context_block':
+          case 'block':
             const { data: block } = await supabase
               .from('context_blocks')
               .select('*')
@@ -439,15 +430,7 @@ export class DocumentComposer {
             data = event;
             break;
 
-          case 'reflection':
-            const { data: reflection } = await supabase
-              .from('reflection_cache')
-              .select('*')
-              .eq('id', ref.id)
-              .eq('workspace_id', workspace_id)
-              .single();
-            data = reflection;
-            break;
+          // Note: Reflections are now artifacts, not substrate references
         }
 
         if (data) {

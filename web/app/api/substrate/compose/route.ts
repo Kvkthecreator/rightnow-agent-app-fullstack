@@ -170,11 +170,11 @@ export async function GET(request: NextRequest) {
     switch (operation) {
       case 'get_all':
         const substrate = {
-          rawDumps: composer.getSubstrateByType('raw_dump', basketId),
+          rawDumps: composer.getSubstrateByType('dump', basketId),  // v2.0 substrate type
           blocks: composer.getSubstrateByType('block', basketId),
           contextItems: composer.getSubstrateByType('context_item', basketId),
-          narrative: composer.getSubstrateByType('narrative', basketId),
-          documents: composer.getSubstrateByType('document', basketId)
+          timelineEvents: composer.getSubstrateByType('timeline_event', basketId),  // v2.0 substrate type
+          // Note: narrative and documents are artifacts, not substrate
         };
         response = { success: true, data: substrate };
         break;

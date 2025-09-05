@@ -12,14 +12,13 @@ export function useSubstrate(basketId: string, workspaceId: string) {
     rawDumps: SubstrateElement[];
     blocks: SubstrateElement[];
     contextItems: SubstrateElement[];
-    narrative: SubstrateElement[];
-    documents: SubstrateElement[];
+    timelineEvents: SubstrateElement[];  // v2.0 substrate type
+    // Note: narrative and documents are artifacts in v2.0, not substrate
   }>({
     rawDumps: [],
     blocks: [],
     contextItems: [],
-    narrative: [],
-    documents: []
+    timelineEvents: []
   });
   
   const [loading, setLoading] = useState(false);
@@ -28,11 +27,11 @@ export function useSubstrate(basketId: string, workspaceId: string) {
   // Load substrate from composer
   const refreshSubstrate = useCallback(() => {
     setSubstrate({
-      rawDumps: composer.getSubstrateByType('raw_dump', basketId),
+      rawDumps: composer.getSubstrateByType('dump', basketId),  // v2.0 substrate type
       blocks: composer.getSubstrateByType('block', basketId),
       contextItems: composer.getSubstrateByType('context_item', basketId),
-      narrative: composer.getSubstrateByType('narrative', basketId),
-      documents: composer.getSubstrateByType('document', basketId),
+      timelineEvents: composer.getSubstrateByType('timeline_event', basketId),  // v2.0 substrate type
+      // Note: narrative and documents are artifacts in v2.0, not substrate
     });
   }, [composer, basketId]);
 

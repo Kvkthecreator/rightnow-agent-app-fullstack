@@ -162,7 +162,7 @@ export interface DocumentComposeOp {
     title: string;
     substrate_references: Array<{
       id: string;
-      type: 'raw_dump' | 'context_block' | 'context_item' | 'timeline_event' | 'reflection';
+      type: 'dump' | 'block' | 'context_item' | 'timeline_event';  // v2.0 substrate types
       order: number;
       excerpt?: string;
     }>;
@@ -182,7 +182,7 @@ export interface DocumentAddReferenceOp {
     document_id: string;
     substrate_reference: {
       id: string;
-      type: 'raw_dump' | 'context_block' | 'context_item' | 'timeline_event' | 'reflection';
+      type: 'dump' | 'block' | 'context_item' | 'timeline_event';  // v2.0 substrate types
       order?: number;
       excerpt?: string;
     };
@@ -293,7 +293,7 @@ export function createReflectionSuggestionDescriptor(
   ops: OperationDescriptor[]
 ): ChangeDescriptor {
   return {
-    entry_point: 'reflection_suggestion',
+    entry_point: 'manual_edit',  // Reflections are now artifacts, treated as manual edits
     actor_id: actorId,
     workspace_id: workspaceId,
     basket_id: basketId,
