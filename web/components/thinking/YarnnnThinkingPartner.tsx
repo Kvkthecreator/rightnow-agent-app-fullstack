@@ -461,7 +461,7 @@ export function YarnnnThinkingPartner({
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept=".txt,.pdf,.png,.jpg,.jpeg"
+                    accept=".txt,.md,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp"
                     onChange={handleAddAttachment}
                     className="hidden"
                     id="thinking-partner-file-input"

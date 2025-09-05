@@ -133,9 +133,8 @@ class P0CaptureAgent:
         This is a P0 operation - pure extraction without interpretation.
         """
         try:
-            # Use existing content extractor for file processing
-            extractor = ContentExtractor()
-            content = await extractor.extract_from_url(file_url)
+            # Use structured content extraction for canonical file types
+            content = await ContentExtractor.extract_content_from_supabase_url(file_url)
             
             if content and content.strip():
                 self.logger.info(f"P0 extracted {len(content)} chars from file: {file_url}")

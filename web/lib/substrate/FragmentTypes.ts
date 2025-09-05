@@ -42,17 +42,25 @@ export interface CompositeInput {
   workspaceId: string;
 }
 
-// Helper to determine fragment type from file
-export function getFragmentType(file: File): FragmentType {
+// Helper to determine fragment type from file (canonical formats only)
+export function getFragmentType(file: File): FragmentType | null {
   const mimeTypeMap: Record<string, FragmentType> = {
+    // Text formats (canonical)
     'text/plain': 'text-dump',
+    'text/markdown': 'text-dump',
+    // PDF format (canonical)
     'application/pdf': 'pdf',
+    // Image formats (canonical)
     'image/png': 'image',
     'image/jpeg': 'image',
-    'image/jpg': 'image'
+    'image/jpg': 'image',
+    'image/gif': 'image',
+    'image/bmp': 'image',
+    'image/tiff': 'image',
+    'image/webp': 'image'
   };
   
-  return mimeTypeMap[file.type] || 'text-dump';
+  return mimeTypeMap[file.type] || null;
 }
 
 // Helper to check if content should be treated as text-dump

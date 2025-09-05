@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { ContentInput } from '@/lib/intelligence/useUniversalIntelligence';
+import { CANONICAL_ACCEPT_ATTRIBUTE, SUPPORTED_FORMAT_DESCRIPTION } from '@/shared/constants/canonical_file_types';
 
 interface SubstrateContentInputProps {
   onAddContext: (content: string, type: 'text' | 'file' | 'pdf' | 'image', files?: File[]) => Promise<void>;
@@ -83,7 +84,7 @@ export function SubstrateContentInput({ onAddContext, isVisible }: SubstrateCont
         <div className="text-4xl mb-2">📁</div>
         <h3 className="font-medium text-sm mb-1">Upload files</h3>
         <p className="text-xs text-gray-600 mb-4">
-          Supports PDFs, images, and text files
+          {SUPPORTED_FORMAT_DESCRIPTION}
         </p>
         <input
           type="file"
@@ -91,7 +92,7 @@ export function SubstrateContentInput({ onAddContext, isVisible }: SubstrateCont
           disabled={isProcessing}
           className="hidden"
           id="file-upload"
-          accept=".pdf,.jpg,.jpeg,.png,.gif,.txt,.md,.doc,.docx"
+          accept={CANONICAL_ACCEPT_ATTRIBUTE}
         />
         <label 
           htmlFor="file-upload"

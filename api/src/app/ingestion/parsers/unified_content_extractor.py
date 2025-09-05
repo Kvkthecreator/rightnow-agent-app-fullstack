@@ -193,13 +193,11 @@ class ContentExtractor:
     
     @classmethod
     def get_supported_mime_types(cls) -> list[str]:
-        """Get list of supported MIME types for content extraction."""
+        """Get list of canonically supported MIME types for structured content extraction."""
         supported = [
             'application/pdf',
             'text/plain',
             'text/markdown',
-            'text/csv',
-            'text/html',
         ]
         
         if OCR_AVAILABLE:

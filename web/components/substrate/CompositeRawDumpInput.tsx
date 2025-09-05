@@ -6,6 +6,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Paperclip, FileText, Image, File } from 'lucide-react';
 import { getFragmentType, type Fragment, type CompositeInput } from '@/lib/substrate/FragmentTypes';
+import { CANONICAL_ACCEPT_ATTRIBUTE, SUPPORTED_FORMAT_DESCRIPTION } from '@/shared/constants/canonical_file_types';
 
 interface CompositeRawDumpInputProps {
   onSubmit: (fragments: Fragment[]) => Promise<void>;
@@ -144,7 +145,7 @@ export function CompositeRawDumpInput({ onSubmit, className = "" }: CompositeRaw
             ref={fileInputRef}
             type="file"
             multiple
-            accept=".txt,.pdf,.png,.jpg,.jpeg"
+            accept={CANONICAL_ACCEPT_ATTRIBUTE}
             onChange={handleAddAttachment}
             className="hidden"
             id="composite-file-input"
@@ -159,7 +160,7 @@ export function CompositeRawDumpInput({ onSubmit, className = "" }: CompositeRaw
           </label>
           
           <span className="text-xs text-gray-500">
-            Supports: Text, PDF, Images
+            {SUPPORTED_FORMAT_DESCRIPTION}
           </span>
         </div>
         

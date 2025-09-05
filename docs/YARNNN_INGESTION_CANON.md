@@ -98,16 +98,28 @@ The content processing system follows a strict **Memory-First philosophy** for u
 - **Text + Files only**: Users can input text and upload files
 - **All text as-is**: URLs pasted as text are just treated as text content
 
-## Supported File Types (Supabase Storage Only)
+## Supported File Types (Canonical v2.0 - Supabase Storage Only)
 
-### Currently Implemented
-- **PDF files** (`.pdf`): Text extraction via PyMuPDF from downloaded bytes
-- **Text files** (`.txt`, `.md`, `.csv`, `.html`): Direct content reading from downloaded bytes
-- **Images** (`.jpg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.webp`): OCR via Tesseract from downloaded bytes
+### Canon-Compliant Formats (Memory-First Processing)
+- **Text files** (`.txt`, `.md`): Direct content reading from downloaded bytes - immediate text processing
+- **PDF files** (`.pdf`): Structured text extraction via PyMuPDF from downloaded bytes - intelligent parsing
+- **Images** (`.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.webp`): OCR text extraction via Tesseract from downloaded bytes - visual content processing
 
-### Extension Points
-- Additional file types can be added to `ContentExtractor.extract_content_from_supabase_url()`
-- New parsers follow the pattern: `supabase_url → download_bytes → extract_text`
+### Removed Legacy Formats (Canon Consolidation)
+- ❌ **CSV files** (`.csv`): Removed - tail data format with poor structured extraction
+- ❌ **HTML files** (`.html`): Removed - tail data format with poor structured extraction  
+- ❌ **Office documents** (`.doc`, `.docx`): Never supported - not in canonical format set
+
+### Canon Philosophy: Structured Content Extraction
+- **Text formats**: Immediate text content processing for direct substrate creation
+- **Binary formats**: Supabase Storage + structured extraction (PDF parsing, OCR) for knowledge ingredient extraction
+- **Batch processing**: Multiple files processed together for unified substrate analysis via P1 Substrate Agent
+- **No tail formats**: Focus on formats with proven structured knowledge extraction capabilities
+
+### Extension Points (Canon-Compliant)
+- Additional canonical file types can be added to `ContentExtractor.get_supported_mime_types()`
+- New parsers must follow: `supabase_url → download_bytes → structured_text_extraction → knowledge_ingredients`
+- All new formats must support LLM-based structured knowledge extraction (goals, constraints, metrics, entities)
 
 ## Memory-First Benefits
 
@@ -153,14 +165,18 @@ raw_dump.file_url = supabase_file_url  # Process during interpretation
 
 ## Configuration
 
-### Required Dependencies
+### Required Dependencies (Canonical v2.0)
 ```python
-# Core file processing (Memory-First)
-pymupdf>=1.24.0        # PDF text extraction from bytes
+# Core file processing (Memory-First, Canon-Compliant)
+pymupdf>=1.24.0        # PDF structured text extraction from bytes
+httpx>=0.25.0          # Supabase Storage file downloading for canonical processing
 
-# Optional OCR for image bytes
-Pillow>=10.0.0         # Image processing from bytes
+# Canonical OCR for image bytes (structured text extraction)
+Pillow>=10.0.0         # Image processing from bytes for OCR pipeline
 pytesseract>=0.3.10    # OCR engine (requires tesseract system package)
+
+# Canon-compliant constants
+# shared/constants/canonical_file_types.ts - Authoritative format definitions
 ```
 
 ### Environment Setup
