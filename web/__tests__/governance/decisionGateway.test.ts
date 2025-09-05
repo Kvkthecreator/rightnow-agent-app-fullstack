@@ -3,7 +3,6 @@ import { routeChange } from '@/lib/governance/decisionGateway';
 import { 
   createManualEditDescriptor,
   createDumpExtractionDescriptor, 
-  createDocumentEditDescriptor,
   computeOperationRisk,
   summarizeChange
 } from '@/lib/governance/changeDescriptor';
@@ -199,26 +198,17 @@ describe('DecisionGateway', () => {
       ]);
     });
 
-    it('should create document edit descriptor with global scope', () => {
-      const cd = createDocumentEditDescriptor(
-        'user-123',
-        'workspace-456',
-        'doc-xyz',
-        [{ type: 'DocumentEdit', data: { document_id: 'doc-xyz', title: 'Updated' } }]
-      );
-
-      expect(cd.entry_point).toBe('document_edit');
-      expect(cd.blast_radius).toBe('Global');
-    });
+    // Test removed: document_edit entry point and DocumentEdit operations no longer exist
+    // Documents are now artifacts (not substrates) per Canon v2.0
   });
 
   describe('Risk computation', () => {
     it('should assess operation risk correctly', () => {
-      const lowRiskOps = [
+      const mediumRiskOps = [
         { type: 'CreateBlock', data: { content: 'Simple goal', semantic_type: 'goal' } }
       ];
 
-      const mediumRiskOps = [
+      const mediumRiskOps2 = [
         { type: 'MergeContextItems', data: { from_ids: ['a', 'b'], canonical_id: 'c' } }
       ];
 
@@ -226,8 +216,8 @@ describe('DecisionGateway', () => {
         { type: 'PromoteScope', data: { block_id: 'block-1', to_scope: 'GLOBAL' } }
       ];
 
-      expect(computeOperationRisk(lowRiskOps).scope_impact).toBe('low');
       expect(computeOperationRisk(mediumRiskOps).scope_impact).toBe('medium');
+      expect(computeOperationRisk(mediumRiskOps2).scope_impact).toBe('medium');
       expect(computeOperationRisk(highRiskOps).scope_impact).toBe('high');
     });
 
@@ -248,19 +238,19 @@ describe('DecisionGateway', () => {
   describe('Change summarization', () => {
     it('should create readable change summaries', () => {
       const change = {
-        entry_point: 'document_edit' as const,
+        entry_point: 'manual_edit' as const,
         actor_id: 'user-123',
         workspace_id: 'workspace-456',
         blast_radius: 'Global' as const,
         ops: [
-          { type: 'DocumentEdit', data: { document_id: 'doc-1', title: 'Updated' } },
+          { type: 'PromoteScope', data: { block_id: 'block-1', to_scope: 'GLOBAL' } },
           { type: 'CreateBlock', data: { content: 'New goal', semantic_type: 'goal' } }
         ]
       };
 
       const summary = summarizeChange(change);
 
-      expect(summary).toBe('document_edit: 2 ops (DocumentEdit, CreateBlock) [Global]');
+      expect(summary).toBe('manual_edit: 2 ops (PromoteScope, CreateBlock) [Global]');
     });
   });
 });

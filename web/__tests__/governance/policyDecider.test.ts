@@ -12,8 +12,6 @@ describe('PolicyDecider', () => {
     ep: {
       onboarding_dump: 'proposal',
       manual_edit: 'proposal',
-      document_edit: 'proposal',
-      reflection_suggestion: 'proposal',
       graph_action: 'proposal',
       timeline_restore: 'proposal'
     },

@@ -3,7 +3,6 @@ import {
   validateChangeDescriptor, 
   createManualEditDescriptor,
   createDumpExtractionDescriptor,
-  createDocumentEditDescriptor,
   summarizeChange,
   computeOperationRisk
 } from '@/lib/governance/changeDescriptor';
@@ -113,32 +112,19 @@ describe('ChangeDescriptor', () => {
       ]);
     });
 
-    it('should create document edit descriptor with global scope', () => {
-      const cd = createDocumentEditDescriptor(
-        'user-123',
-        'workspace-456',
-        'doc-xyz',
-        [{ type: 'DocumentEdit', data: { document_id: 'doc-xyz', title: 'Updated title' } }]
-      );
-
-      expect(cd.entry_point).toBe('document_edit');
-      expect(cd.blast_radius).toBe('Global');
-      expect(cd.provenance).toEqual([
-        { type: 'doc', id: 'doc-xyz' },
-        { type: 'user', id: 'user-123' }
-      ]);
-    });
+    // Test removed: document_edit entry point and DocumentEdit operations no longer exist
+    // Documents are now artifacts (not substrates) per Canon v2.0
   });
 
   describe('Risk assessment', () => {
-    it('should assess low risk for simple operations', () => {
-      const simpleOps = [
+    it('should assess medium risk for substrate operations', () => {
+      const blockOps = [
         { type: 'CreateBlock', data: { content: 'Simple goal', semantic_type: 'goal' } }
       ];
 
-      const risk = computeOperationRisk(simpleOps);
+      const risk = computeOperationRisk(blockOps);
 
-      expect(risk.scope_impact).toBe('low');
+      expect(risk.scope_impact).toBe('medium');
       expect(risk.operation_count).toBe(1);
       expect(risk.operation_types).toEqual(['CreateBlock']);
     });
@@ -160,14 +146,14 @@ describe('ChangeDescriptor', () => {
     it('should assess high risk for scope promotion operations', () => {
       const highOps = [
         { type: 'PromoteScope', data: { block_id: 'block-1', to_scope: 'GLOBAL' } },
-        { type: 'DocumentEdit', data: { document_id: 'doc-1', title: 'Updated' } }
+        { type: 'Delete', data: { target_id: 'item-1', target_type: 'block' } }
       ];
 
       const risk = computeOperationRisk(highOps);
 
       expect(risk.scope_impact).toBe('high');
       expect(risk.operation_types).toContain('PromoteScope');
-      expect(risk.operation_types).toContain('DocumentEdit');
+      expect(risk.operation_types).toContain('Delete');
     });
   });
 
