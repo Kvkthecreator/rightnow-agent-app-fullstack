@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { X, FileText, Clock, CheckCircle, XCircle, AlertTriangle, ChevronRight, Eye, Settings, BookOpen, Zap, Pause, Skip } from 'lucide-react';
+import { X, FileText, Clock, CheckCircle, XCircle, AlertTriangle, ChevronRight, Eye, Settings, BookOpen, Zap, Pause, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -281,7 +281,7 @@ export function DocumentImpactCheckpoint({
                     onClick={() => handleBatchAction('skip_all')}
                     disabled={processingImpactId === 'batch'}
                   >
-                    <Skip className="h-3 w-3 mr-1" />
+                    <SkipForward className="h-3 w-3 mr-1" />
                     Skip All
                   </Button>
                 </div>
