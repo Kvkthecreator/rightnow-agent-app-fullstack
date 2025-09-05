@@ -162,10 +162,7 @@
 
 /* Design System Utilities */
 @layer utilities {
-  /* Consistent transitions */
-  .transition-base {
-    @apply transition-colors duration-150 ease-in-out;
-  }
+  /* Consistent transitions - replaced with standard Tailwind classes */
 
   .transition-smooth {
     @apply transition-all duration-200 ease-in-out;
@@ -220,7 +217,7 @@
 @layer components {
   /* Interactive element base */
   .interactive-base {
-    @apply transition-base disabled:cursor-not-allowed disabled:opacity-50;
+    @apply transition-colors duration-150 ease-in-out disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   /* Card patterns */
@@ -236,13 +233,13 @@
   .input-base {
     @apply w-full rounded-lg border border-input bg-background px-3 py-2 text-sm
            placeholder:text-muted-foreground
-           disabled:cursor-not-allowed disabled:opacity-50 transition-base;
+           disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-150 ease-in-out;
   }
 
   /* Button patterns */
   .button-base {
     @apply inline-flex items-center justify-center rounded-lg font-medium
-           transition-base disabled:cursor-not-allowed disabled:opacity-50;
+           transition-colors duration-150 ease-in-out disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   /* Ensure button default variant has proper background */

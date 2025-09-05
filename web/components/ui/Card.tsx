@@ -32,6 +32,15 @@ export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHead
 }
 
 /**
+ * CardDescription provides styled description text for Card header.
+ */
+export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return (
+    <p className={cn("text-sm text-muted-foreground", className)} {...props} />
+  );
+}
+
+/**
  * CardContent wraps the content area inside a Card.
  */
 export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
