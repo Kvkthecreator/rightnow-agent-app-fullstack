@@ -89,55 +89,13 @@ export class DocumentComposer {
         };
       }
 
-      // Create document composition through governance (follows Sacred Principle #1)
-      const changeDescriptor: ChangeDescriptor = {
-        entry_point: 'document_edit',
-        actor_id: composition.author_id,
-        workspace_id: composition.workspace_id,
-        basket_id: composition.basket_id,
-        blast_radius: 'Global', // Document composition affects workspace-level narrative
-        ops: [{
-          type: 'DocumentCompose',
-          data: {
-            title: composition.title,
-            substrate_references: composition.substrate_references,
-            narrative_sections: composition.narrative_sections,
-            composition_type: 'substrate_plus_narrative'
-          }
-        }],
-        provenance: [
-          { type: 'user', id: composition.author_id },
-          { type: 'pipeline', id: 'P4_PRESENTATION' }
-        ]
+      // TODO: Canon v2.0 - Documents are artifacts, not substrates
+      // This needs to be refactored to use P4 presentation pipeline instead of substrate governance
+      // Temporarily disabled to fix build error during canon transition
+      return {
+        success: false,
+        error: 'Document composition temporarily disabled during canon v2.0 transition. Documents are now artifacts managed by P4 pipeline.'
       };
-
-      // Route through governance (respects workspace governance settings)
-      const result = await routeChange(supabase, changeDescriptor);
-
-      if (result.committed) {
-        // Direct composition committed
-        return {
-          success: true,
-          document: {
-            id: `doc-${Date.now()}`, // Generate document ID
-            title: composition.title,
-            composition,
-            created_at: new Date().toISOString(),
-            created_by: composition.author_id
-          }
-        };
-      } else if (result.proposal_id) {
-        // Composition sent to governance for review
-        return {
-          success: false,
-          error: `Document composition requires approval. Proposal ID: ${result.proposal_id}`
-        };
-      } else {
-        return {
-          success: false,
-          error: 'Failed to process document composition'
-        };
-      }
 
     } catch (error) {
       return {
@@ -204,31 +162,11 @@ export class DocumentComposer {
         };
       }
 
-      // Add reference through governance
-      const changeDescriptor: ChangeDescriptor = {
-        entry_point: 'document_edit',
-        actor_id,
-        workspace_id,
-        blast_radius: 'Local', // Adding reference is local to document
-        ops: [{
-          type: 'DocumentAddReference',
-          data: {
-            document_id,
-            substrate_reference: substrate_ref
-          }
-        }],
-        provenance: [
-          { type: 'user', id: actor_id },
-          { type: 'doc', id: document_id },
-          { type: 'pipeline', id: 'P4_PRESENTATION' }
-        ]
-      };
-
-      const result = await routeChange(supabase, changeDescriptor);
-
+      // TODO: Canon v2.0 - Documents are artifacts, not substrates
+      // This needs to be refactored to use P4 presentation pipeline instead of substrate governance
       return {
-        success: result.committed || !!result.proposal_id,
-        error: result.committed ? undefined : `Reference addition requires approval. Proposal: ${result.proposal_id}`
+        success: false,
+        error: 'Document reference addition temporarily disabled during canon v2.0 transition. Documents are now artifacts managed by P4 pipeline.'
       };
 
     } catch (error) {
