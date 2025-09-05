@@ -60,7 +60,7 @@ const nextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname),
-      '@shared': path.resolve(__dirname, '../shared'),
+      // '@shared': path.resolve(__dirname, './shared'), // Using @/shared instead
       // PDF.js server-side compatibility
       canvas: false,
     }
