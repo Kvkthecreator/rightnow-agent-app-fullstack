@@ -250,18 +250,21 @@ export function YarnnnThinkingPartner({
       
       // Add file fragments
       for (const file of attachments) {
-        fragments.push({
-          id: `fragment-${Date.now()}-${position}`,
-          type: getFragmentType(file),
-          content: file,
-          position: position++,
-          metadata: {
-            filename: file.name,
-            mimeType: file.type,
-            size: file.size,
-            processing: 'pending'
-          }
-        });
+        const fragmentType = getFragmentType(file);
+        if (fragmentType) {
+          fragments.push({
+            id: `fragment-${Date.now()}-${position}`,
+            type: fragmentType,
+            content: file,
+            position: position++,
+            metadata: {
+              filename: file.name,
+              mimeType: file.type,
+              size: file.size,
+              processing: 'pending'
+            }
+          });
+        }
       }
       
       setProcessingStep('Processing files...');

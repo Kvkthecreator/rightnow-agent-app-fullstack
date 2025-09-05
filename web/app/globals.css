@@ -226,7 +226,7 @@
   }
 
   .card-interactive {
-    @apply bg-white text-slate-900 rounded-lg border border-slate-200 shadow-sm hover-lift cursor-pointer;
+    @apply bg-white text-slate-900 rounded-lg border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer;
   }
 
   /* Input patterns */
