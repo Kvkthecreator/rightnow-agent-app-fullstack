@@ -19,7 +19,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { SubpageHeader } from '@/components/basket/SubpageHeader';
-import type { BlockDTO } from '@shared/contracts/documents';
+import type { BlockDTO } from '@/shared/contracts/documents';
 
 interface BlocksListViewProps {
   basketId: string;

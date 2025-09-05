@@ -7,7 +7,7 @@ import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import { ReflectionEngine } from "@/lib/server/ReflectionEngine";
 import { withSchema } from "@/lib/api/withSchema";
-import { GetReflectionsResponseSchema } from "../../../../../../shared/contracts/reflections";
+import { GetReflectionsResponseSchema } from "@/shared/contracts/reflections";
 import { z } from "zod";
 
 const GetParamsSchema = z.object({

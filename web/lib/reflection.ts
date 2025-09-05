@@ -7,7 +7,7 @@
  * @contract renders: ReflectionDTO
  */
 
-import type { ReflectionDTO } from '@shared/contracts/memory';
+import type { ReflectionDTO } from '@/shared/contracts/memory';
 
 // Legacy types for compatibility
 export type Note = { 

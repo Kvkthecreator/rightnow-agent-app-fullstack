@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { withSchema } from '@/lib/fetchers/withSchema';
-import type { ReflectionDTO } from '@shared/contracts/memory';
+import type { ReflectionDTO } from '@/shared/contracts/memory';
 
 const ProjectionSchema = z.object({
   reflections: z.object({

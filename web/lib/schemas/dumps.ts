@@ -5,7 +5,7 @@
  * @contract output : CreateDumpRes
  */
 import { z } from 'zod';
-import type { CreateDumpReq, CreateDumpRes } from '@shared/contracts/dumps';
+import type { CreateDumpReq, CreateDumpRes } from '@/shared/contracts/dumps';
 
 export const CreateDumpReqSchema = z.object({
   basket_id: z.string().uuid(),

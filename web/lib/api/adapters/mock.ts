@@ -11,7 +11,7 @@ import {
   type RawDump,
   type Paginated
 } from '../contracts';
-import type { DocumentDTO } from '@shared/contracts/documents';
+import type { DocumentDTO } from '@/shared/contracts/documents';
 
 // Generate consistent IDs based on input
 function mockId(seed: string): string {

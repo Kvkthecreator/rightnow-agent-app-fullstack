@@ -5,7 +5,7 @@
  * @contract output : IngestRes
  */
 import { createUserClient } from '@/lib/supabase/user';
-import type { IngestRes, IngestItem } from '@shared/contracts/ingest';
+import type { IngestRes, IngestItem } from '@/shared/contracts/ingest';
 import { IngestResSchema } from '@/lib/schemas/ingest';
 
 interface IngestArgs {

@@ -7,7 +7,7 @@ import {
   CreateDocumentRequestSchema, 
   CreateDocumentResponseSchema,
   type CreateDocumentRequest,
-} from '@shared/contracts/documents';
+} from '@/shared/contracts/documents';
 
 export async function GET(request: NextRequest) {
   try {

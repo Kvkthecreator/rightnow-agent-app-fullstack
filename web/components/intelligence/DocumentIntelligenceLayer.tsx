@@ -8,7 +8,7 @@ import BlockSuggestionPopover from "./BlockSuggestionPopover";
 import MemoryConnectionHighlight from "./MemoryConnectionHighlight";
 import CursorContextTooltip from "./CursorContextTooltip";
 import FloatingIntelligenceActions from "./FloatingIntelligenceActions";
-import type { ContextItem } from "@shared/contracts/context";
+import type { ContextItem } from "@/shared/contracts/context";
 
 interface Props {
   documentId: string;

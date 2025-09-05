@@ -3,7 +3,7 @@ import 'server-only';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { cookies } from 'next/headers';
 import * as crypto from 'crypto';
-import type { ReflectionDTO } from '../../../shared/contracts/reflections';
+import type { ReflectionDTO } from '@/shared/contracts/reflections';
 
 export interface ReflectionComputationOptions {
   computation_trace_id?: string;

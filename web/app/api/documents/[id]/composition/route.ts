@@ -6,11 +6,11 @@ import { withSchema } from '@/lib/api/withSchema';
 import { 
   DocumentCompositionSchema,
   type DocumentComposition
-} from '@shared/contracts/documents';
+} from '@/shared/contracts/documents';
 import {
   type SubstrateReferenceDTO,
   type SubstrateSummary
-} from '@shared/contracts/substrate_references';
+} from '@/shared/contracts/substrate_references';
 
 interface RouteContext {
   params: Promise<{ id: string }>;

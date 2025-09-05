@@ -1,4 +1,4 @@
-import type { TimelineItem } from '@shared/contracts/memory';
+import type { TimelineItem } from '@/shared/contracts/memory';
 import { z } from 'zod';
 import { withSchema } from '@/lib/fetchers/withSchema';
 

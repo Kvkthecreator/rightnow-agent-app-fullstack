@@ -10,7 +10,7 @@ import {
   createTimelineCursor,
   parseTimelineCursor,
   type TimelineCursor
-} from '../../../../../../shared/contracts/timeline';
+} from '@/shared/contracts/timeline';
 // NOTE: we’ll return plain JSON to avoid strict enum validation until kinds are normalized
 import { z } from 'zod';
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
-import type { GetReflectionsResponse, ReflectionDTO } from '../../../../../shared/contracts/reflections';
+import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
 
 interface ReflectionsClientProps {
   basketId: string;

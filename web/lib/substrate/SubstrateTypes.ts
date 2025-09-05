@@ -28,7 +28,7 @@ export interface Block extends SubstrateElement {
   metadata?: Record<string, any>;
 }
 
-import type { ContextItem as ContractContextItem } from '@shared/contracts/context';
+import type { ContextItem as ContractContextItem } from '@/shared/contracts/context';
 
 export interface ContextElement extends SubstrateElement, ContractContextItem {
   type: 'context_item';

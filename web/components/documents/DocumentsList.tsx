@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FileText, Sparkles, Eye, Clock } from 'lucide-react';
-import type { DocumentDTO } from '@shared/contracts/documents';
+import type { DocumentDTO } from '@/shared/contracts/documents';
 
 interface DocumentsListProps {
   basketId: string;

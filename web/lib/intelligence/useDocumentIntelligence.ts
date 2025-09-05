@@ -4,7 +4,7 @@ import useSWR from "swr";
 import { useAuth } from "@/lib/useAuth";
 import { fetchWithToken } from "@/lib/fetchWithToken";
 import { useSmartPolling } from "@/lib/hooks/useSmartPolling";
-import type { ContextItem } from "@shared/contracts/context";
+import type { ContextItem } from "@/shared/contracts/context";
 
 interface BlockSuggestion {
   suggestion_id: string;

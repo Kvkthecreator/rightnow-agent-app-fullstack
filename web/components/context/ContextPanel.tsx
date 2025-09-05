@@ -1,6 +1,6 @@
 "use client";
 
-import type { ContextItem } from "@shared/contracts/context";
+import type { ContextItem } from "@/shared/contracts/context";
 
 export default function ContextPanel({ items }: { items: ContextItem[] }) {
   if (!items?.length) {

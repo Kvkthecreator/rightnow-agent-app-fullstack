@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { withSchema } from '@/lib/fetchers/withSchema';
-import type { ReflectionDTO } from '@shared/contracts/memory';
+import type { ReflectionDTO } from '@/shared/contracts/memory';
 
 const ReflectionSchema: z.ZodType<ReflectionDTO> = z.object({
   pattern: z.string().nullable(),

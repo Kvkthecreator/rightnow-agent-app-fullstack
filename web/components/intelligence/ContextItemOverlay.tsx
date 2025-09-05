@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
-import type { ContextItem } from "@shared/contracts/context";
+import type { ContextItem } from "@/shared/contracts/context";
 
 interface Props {
   contextItem: ContextItem & { relevance_score?: number; content?: string };

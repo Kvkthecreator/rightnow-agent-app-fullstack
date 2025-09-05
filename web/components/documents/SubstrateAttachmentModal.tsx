@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { X } from 'lucide-react';
-import type { SubstrateType } from '@shared/contracts/documents';
+import type { SubstrateType } from '@/shared/contracts/documents';
 
 interface SubstrateAttachmentModalProps {
   isOpen: boolean;

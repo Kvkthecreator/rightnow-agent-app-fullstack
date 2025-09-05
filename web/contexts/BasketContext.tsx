@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
-import type { DocumentDTO } from '@shared/contracts/documents';
+import type { DocumentDTO } from '@/shared/contracts/documents';
 
 // Think of this as a "shared data store" that all components can access
 // Like having a central database that updates everywhere at once

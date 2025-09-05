@@ -6,7 +6,7 @@
  * @contract output : BasketDelta
  */
 
-import type { BasketChangeRequest, BasketDelta } from '@shared/contracts/basket'
+import type { BasketChangeRequest, BasketDelta } from '@/shared/contracts/basket'
 import { fetchWithToken } from '@/lib/fetchWithToken'
 import { getCacheManager } from '@/lib/performance/CacheManager'
 

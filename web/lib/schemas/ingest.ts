@@ -6,7 +6,7 @@
  * @contract renders: IngestItem
  */
 import { z } from 'zod';
-import type { IngestItem, IngestReq, IngestRes } from '@shared/contracts/ingest';
+import type { IngestItem, IngestReq, IngestRes } from '@/shared/contracts/ingest';
 
 export const IngestItemSchema = z.object({
   dump_request_id: z.string().uuid(),

@@ -9,7 +9,7 @@ import {
   CreateDocumentResponseSchema,
   type DocumentDTO,
   type CreateDocumentRequest 
-} from '@shared/contracts/documents';
+} from '@/shared/contracts/documents';
 
 interface RouteContext {
   params: Promise<{ id: string }>;

@@ -1,4 +1,4 @@
-import { OnboardingSubmitSchema } from '@shared/contracts/onboarding';
+import { OnboardingSubmitSchema } from '@/shared/contracts/onboarding';
 
 describe('OnboardingSubmitSchema', () => {
   it('accepts valid data', () => {

@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-import type { ContextItem } from "@shared/contracts/context";
+import type { ContextItem } from "@/shared/contracts/context";
 
 interface Props {
   position: { x: number; y: number };

@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { useCreateActions } from "@/hooks/useCreateActions";
 
-import type { DocumentDTO } from "@shared/contracts/documents";
+import type { DocumentDTO } from "@/shared/contracts/documents";
 
 interface Props {
   basketId: string;

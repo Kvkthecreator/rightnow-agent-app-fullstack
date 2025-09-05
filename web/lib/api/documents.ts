@@ -4,7 +4,7 @@ import {
   type Document as LegacyDocument,
   type Paginated,
 } from './contracts';
-import { DocumentSchema, type DocumentDTO } from '@shared/contracts/documents';
+import { DocumentSchema, type DocumentDTO } from '@/shared/contracts/documents';
 
 /**
  * Document API functions with Zod validation

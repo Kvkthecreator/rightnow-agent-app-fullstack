@@ -9,7 +9,7 @@ import {
   DocumentCompositionSchema,
   type DocumentDTO,
   type DocumentComposition
-} from '@shared/contracts/documents';
+} from '@/shared/contracts/documents';
 
 interface RouteContext {
   params: Promise<{ id: string }>;

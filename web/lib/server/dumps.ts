@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
-import type { Dump } from "@shared/contracts/dumps";
+import type { Dump } from "@/shared/contracts/dumps";
 
 export async function getLatestDumpServer(basketId: string): Promise<Dump | null> {
   const supabase = createServerComponentClient({ cookies });

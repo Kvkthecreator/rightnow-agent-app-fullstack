@@ -1,5 +1,5 @@
 import { apiClient, timeoutSignal } from './http';
-import type { CreateDumpReq, CreateDumpRes } from '@shared/contracts/dumps';
+import type { CreateDumpReq, CreateDumpRes } from '@/shared/contracts/dumps';
 
 export async function createDump(req: CreateDumpReq): Promise<CreateDumpRes> {
   const res = (await apiClient({

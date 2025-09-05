@@ -6,7 +6,7 @@
  */
 import { apiClient, timeoutSignal } from './http';
 import { BasketSchema, PaginatedSchema, type Basket, type Paginated } from './contracts';
-import type { CreateBasketReq, CreateBasketRes } from '@shared/contracts/baskets';
+import type { CreateBasketReq, CreateBasketRes } from '@/shared/contracts/baskets';
 
 // Get single basket
 export async function getBasket(basketId: string): Promise<Basket> {

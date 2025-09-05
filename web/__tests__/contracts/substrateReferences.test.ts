@@ -6,7 +6,7 @@ import {
   GetDocumentReferencesRequestSchema,
   DocumentCompositionSchema,
   SubstrateSummarySchema,
-} from '@shared/contracts/substrate_references';
+} from '@/shared/contracts/substrate_references';
 
 describe('Substrate Reference Contracts', () => {
   describe('SubstrateTypeSchema', () => {

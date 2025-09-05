@@ -17,7 +17,7 @@ import type {
   DocumentComposition, 
   SubstrateReferenceDTO, 
   SubstrateSummary 
-} from '@shared/contracts/documents';
+} from '@/shared/contracts/documents';
 
 interface DocumentViewModeProps {
   document: {

@@ -3,7 +3,7 @@ import { createServerComponentClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import { getBasketServer } from "@/lib/server/baskets";
 import { getDocumentsServer } from "@/lib/server/documents";
-import type { DocumentDTO } from "@shared/contracts/documents";
+import type { DocumentDTO } from "@/shared/contracts/documents";
 
 // Clean data fetching utilities for baskets work
 export async function getBasketData(basketId: string) {

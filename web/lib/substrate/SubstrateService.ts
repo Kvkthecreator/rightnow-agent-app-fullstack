@@ -6,7 +6,7 @@ import { createBrowserClient } from '@/lib/supabase/clients';
 import { authHelper } from '@/lib/supabase/auth-helper';
 import { createDump } from '@/lib/api/dumps';
 import { apiClient } from '@/lib/api/client';
-import type { ContextItem } from '@shared/contracts/context';
+import type { ContextItem } from '@/shared/contracts/context';
 
 export interface RawDump {
   id: string;

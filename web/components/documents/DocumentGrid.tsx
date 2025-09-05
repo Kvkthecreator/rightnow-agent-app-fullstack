@@ -13,7 +13,7 @@ import {
   Download
 } from "lucide-react";
 
-import type { DocumentDTO } from "@shared/contracts/documents";
+import type { DocumentDTO } from "@/shared/contracts/documents";
 
 interface DocumentGridProps {
   documents: DocumentDTO[];

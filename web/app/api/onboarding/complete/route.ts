@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { OnboardingSubmitSchema, OnboardingResultSchema } from '@shared/contracts/onboarding';
+import { OnboardingSubmitSchema, OnboardingResultSchema } from '@/shared/contracts/onboarding';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import { createGenesisProfileDocument } from '@/lib/server/onboarding';

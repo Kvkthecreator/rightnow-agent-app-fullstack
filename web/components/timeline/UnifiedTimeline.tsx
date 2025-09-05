@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { fetchWithToken } from "@/lib/fetchWithToken";
-import type { TimelineEventDTO } from "../../../shared/contracts/timeline";
+import type { TimelineEventDTO } from "@/shared/contracts/timeline";
 
 let dayjsRef: any;
 
