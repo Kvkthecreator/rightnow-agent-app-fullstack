@@ -222,11 +222,11 @@
 
   /* Card patterns */
   .card-base {
-    @apply bg-card text-card-foreground rounded-lg border border-border;
+    @apply bg-white text-slate-900 rounded-lg border border-slate-200 shadow-sm;
   }
 
   .card-interactive {
-    @apply card-base hover-lift cursor-pointer;
+    @apply bg-white text-slate-900 rounded-lg border border-slate-200 shadow-sm hover-lift cursor-pointer;
   }
 
   /* Input patterns */

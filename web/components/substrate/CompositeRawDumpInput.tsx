@@ -62,18 +62,21 @@ export function CompositeRawDumpInput({ onSubmit, className = "" }: CompositeRaw
       
       // Add file fragments
       for (const file of attachments) {
-        fragments.push({
-          id: `fragment-${Date.now()}-${position}`,
-          type: getFragmentType(file),
-          content: file, // Will be processed by handler
-          position: position++,
-          metadata: {
-            filename: file.name,
-            mimeType: file.type,
-            size: file.size,
-            processing: 'pending'
-          }
-        });
+        const fragmentType = getFragmentType(file);
+        if (fragmentType) {
+          fragments.push({
+            id: `fragment-${Date.now()}-${position}`,
+            type: fragmentType,
+            content: file, // Will be processed by handler
+            position: position++,
+            metadata: {
+              filename: file.name,
+              mimeType: file.type,
+              size: file.size,
+              processing: 'pending'
+            }
+          });
+        }
       }
       
       await onSubmit(fragments);
@@ -94,6 +97,9 @@ export function CompositeRawDumpInput({ onSubmit, className = "" }: CompositeRaw
     switch (type) {
       case 'pdf': return <FileText className="w-4 h-4" />;
       case 'image': return <Image className="w-4 h-4" />;
+      case 'text':
+      case 'text-dump':
+        return <FileText className="w-4 h-4" />;
       default: return <File className="w-4 h-4" />;
     }
   };
