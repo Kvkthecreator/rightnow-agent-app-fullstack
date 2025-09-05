@@ -1,24 +1,24 @@
 import { redirect } from 'next/navigation';
-import { resolveTargetBasket } from '@/lib/baskets/resolveTargetBasket';
-import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
-import { isFirstEverUser } from '@/lib/server/onboarding';
-import { ONBOARDING_ENABLED, ONBOARDING_MODE } from '@/lib/env';
+import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
+import { getOrCreateDefaultBasket } from '@/lib/baskets/getOrCreateDefaultBasket';
+import { randomUUID } from 'crypto';
 
 export default async function MemoryRedirect() {
   const supabase = createServerSupabaseClient();
   const { userId } = await getAuthenticatedUser(supabase);
-
-  if (ONBOARDING_ENABLED) {
-    if (ONBOARDING_MODE === 'welcome') {
-      redirect('/welcome');
-    }
-    if (ONBOARDING_MODE === 'auto' && (await isFirstEverUser(userId))) {
-      redirect('/welcome');
-    }
-  }
-
-  const id = await resolveTargetBasket({ headers: { Cookie: cookies().toString() } });
-  redirect(`/baskets/${id}/memory`);
+  
+  // Ensure workspace exists
+  const workspace = await ensureWorkspaceForUser(userId, supabase);
+  
+  // Get or create default basket
+  const basket = await getOrCreateDefaultBasket({
+    workspaceId: workspace.id,
+    idempotencyKey: randomUUID(),
+    name: 'My Workspace',
+  });
+  
+  // Always redirect to memory page - onboarding happens there
+  redirect(`/baskets/${basket.id}/memory`);
 }

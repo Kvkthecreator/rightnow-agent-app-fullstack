@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { SubpageHeader } from '@/components/basket/SubpageHeader';
 import { PenTool } from 'lucide-react';
 import AddMemoryModal from '@/components/memory/AddMemoryModal';
+import OnboardingPanel from '@/components/memory/OnboardingPanel';
 
 interface Props {
   basketId: string;
@@ -15,9 +16,10 @@ interface Props {
   tension?: string | null;
   question?: string;
   fallback: string;
+  needsOnboarding?: boolean;
 }
 
-export default function MemoryClient({ basketId, pattern, tension, question, fallback }: Props) {
+export default function MemoryClient({ basketId, pattern, tension, question, fallback, needsOnboarding }: Props) {
   const [showAddMemory, setShowAddMemory] = useState(false);
   const refreshDocuments = () => {
     // This will trigger DocumentsList to refresh
@@ -26,6 +28,12 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
 
   return (
     <div className="space-y-6">
+      {needsOnboarding && (
+        <OnboardingPanel 
+          basketId={basketId}
+          onComplete={() => window.location.reload()}
+        />
+      )}
       
       <SubpageHeader
         title="Your Memory"

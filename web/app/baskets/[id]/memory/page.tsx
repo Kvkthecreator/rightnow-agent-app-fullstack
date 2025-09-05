@@ -9,9 +9,8 @@ import { createServerComponentClient } from "@/lib/supabase/clients";
 import { checkBasketAccess } from "@/lib/baskets/access";
 import MemoryClient from "./MemoryClient";
 import { fetchProjection } from "@/lib/api/projection";
-import OnboardingGate from "@/components/memory/OnboardingGate";
-import { isBlankBasket, hasIdentityGenesis } from "@/lib/server/onboarding";
-import { ONBOARDING_ENABLED, ONBOARDING_MODE } from "@/lib/env";
+import { hasIdentityGenesis } from "@/lib/server/onboarding";
+import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 
 async function fetchProjectionSafe(basketId: string) {
   try {
@@ -37,15 +36,9 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
   // Consolidated authorization and basket access check
   const { basket } = await checkBasketAccess(supabase, id);
 
-  const showOnboarding =
-    ONBOARDING_ENABLED &&
-    ONBOARDING_MODE !== "welcome" &&
-    (await isBlankBasket(id)) &&
-    !(await hasIdentityGenesis(id));
-
-  if (showOnboarding) {
-    return <OnboardingGate basketId={id} />;
-  }
+  // Check if user needs onboarding
+  const { userId } = await getAuthenticatedUser(supabase);
+  const needsOnboarding = !(await hasIdentityGenesis(id));
 
   // Fetch server-computed projection (authority)
   const projection = await fetchProjectionSafe(id);
@@ -59,6 +52,7 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
         tension={undefined}
         question={undefined}
         fallback="Unable to load reflections. Please try again."
+        needsOnboarding={needsOnboarding}
       />
     );
   }
@@ -118,6 +112,7 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
         tension={reflections.tension ?? undefined}
         question={reflections.question ?? undefined}
         fallback={fallback}
+        needsOnboarding={needsOnboarding}
       />
     </div>
   );
