@@ -216,18 +216,25 @@ export class FileFragmentHandler {
   ): Promise<Fragment[]> {
     onProgress(`Uploading ${files.length} file(s)...`);
     
-    const fragments: Fragment[] = files.map((file, index) => ({
-      id: `fragment-${Date.now()}-${index}`,
-      type: getFragmentType(file),
-      content: file,
-      position: index,
-      metadata: {
-        filename: file.name,
-        mimeType: file.type,
-        size: file.size,
-        processing: 'pending'
-      }
-    }));
+    const fragments: Fragment[] = files
+      .map((file, index) => {
+        const fragmentType = getFragmentType(file);
+        if (!fragmentType) return null;
+        
+        return {
+          id: `fragment-${Date.now()}-${index}`,
+          type: fragmentType,
+          content: file,
+          position: index,
+          metadata: {
+            filename: file.name,
+            mimeType: file.type,
+            size: file.size,
+            processing: 'pending'
+          }
+        };
+      })
+      .filter((fragment): fragment is Fragment => fragment !== null);
     
     return await this.processFragments(fragments, (status, index) => {
       onProgress(`[${index + 1}/${files.length}] ${status}`);
