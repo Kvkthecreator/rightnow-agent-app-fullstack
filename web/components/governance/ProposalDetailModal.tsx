@@ -104,10 +104,31 @@ export function ProposalDetailModal({
   const fetchDocumentImpactPreview = async (proposal: ProposalDetail) => {
     try {
       const supabase = createBrowserClient();
+      
+      // Get workspace ID from current session
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user for document impact preview');
+        return;
+      }
+
+      // Get workspace from user session
+      const { data: workspaces } = await supabase
+        .from('workspace_memberships')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      const workspaceId = workspaces?.[0]?.workspace_id;
+      if (!workspaceId) {
+        console.error('No workspace found for document impact preview');
+        return;
+      }
+
       const previews = await previewDocumentImpacts(
         supabase,
         proposal.ops,
-        proposal.workspace_id,
+        workspaceId,
         basketId
       );
       setDocumentImpactPreviews(previews);
