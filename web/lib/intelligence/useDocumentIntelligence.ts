@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { useAuth } from "@/lib/useAuth";
 import { fetchWithToken } from "@/lib/fetchWithToken";
+import { useSmartPolling } from "@/lib/hooks/useSmartPolling";
 import type { ContextItem } from "@shared/contracts/context";
 
 interface BlockSuggestion {
@@ -38,9 +39,16 @@ interface CursorContextData {
 export function useDocumentIntelligence(
   documentId: string,
   cursorPosition?: number,
-  refreshInterval: number = 3000
+  refreshInterval: number = 12000  // Reduced from 3s to 12s
 ) {
   const { user } = useAuth();
+  
+  // Smart polling: slower when inactive
+  const { swrConfig } = useSmartPolling({
+    activeInterval: refreshInterval,
+    inactiveInterval: 0,  // Pause when inactive
+    refreshOnFocus: true,
+  });
   
   const { data, error, isLoading, mutate } = useSWR<CursorContextData>(
     documentId && user && cursorPosition !== undefined
@@ -54,9 +62,7 @@ export function useDocumentIntelligence(
       return response.json();
     },
     {
-      refreshInterval,
-      revalidateOnFocus: false,
-      revalidateOnReconnect: true,
+      ...swrConfig,  // Use smart polling config
       errorRetryCount: 2,
       errorRetryInterval: 1000,
       dedupingInterval: 500

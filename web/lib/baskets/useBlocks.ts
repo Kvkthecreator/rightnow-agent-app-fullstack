@@ -15,7 +15,11 @@ export function useBlocks(basketId: string) {
   const { data, isLoading, error } = useSWR(
     `/api/baskets/${basketId}/building-blocks`,
     fetcher,
-    { refreshInterval: 10_000 },
+    { 
+      refreshInterval: 20_000,  // Reduced from 10s to 20s
+      revalidateOnFocus: true,  // Refresh when user returns to tab
+      revalidateOnReconnect: true,
+    },
   );
   return { blocks: data ?? [], isLoading, error };
 }

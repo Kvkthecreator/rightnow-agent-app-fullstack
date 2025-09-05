@@ -25,7 +25,11 @@ export function useDocuments(basketId: string) {
   const { data, error, isLoading } = useSWR(
     () => (basketId ? basketId : null),
     fetcher,
-    { refreshInterval: 10_000 },
+    { 
+      refreshInterval: 20_000,  // Reduced from 10s to 20s  
+      revalidateOnFocus: true,  // Refresh when user returns to tab
+      revalidateOnReconnect: true,
+    },
   );
   return { docs: data ?? [], isLoading, error };
 }

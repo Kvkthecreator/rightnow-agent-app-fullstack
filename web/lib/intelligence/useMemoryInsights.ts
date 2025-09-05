@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { useAuth } from "@/lib/useAuth";
 import { fetchWithToken } from "@/lib/fetchWithToken";
+import { useSmartPolling } from "@/lib/hooks/useSmartPolling";
 
 interface ForgottenInsight {
   insight_id: string;
@@ -39,8 +40,15 @@ interface MemoryInsights {
   status: "analyzing" | "complete" | "error";
 }
 
-export function useMemoryInsights(basketId: string, refreshInterval: number = 10000) {
+export function useMemoryInsights(basketId: string, refreshInterval: number = 25000) {  // Reduced from 10s to 25s
   const { user } = useAuth();
+  
+  // Smart polling: pause when inactive (memory insights can wait)
+  const { swrConfig } = useSmartPolling({
+    activeInterval: refreshInterval,
+    inactiveInterval: 0,  // Pause when inactive
+    refreshOnFocus: true,
+  });
   
   const { data, error, isLoading, mutate } = useSWR<MemoryInsights>(
     basketId && user ? `/api/intelligence/basket/${basketId}/memory-insights` : null,
@@ -52,9 +60,7 @@ export function useMemoryInsights(basketId: string, refreshInterval: number = 10
       return response.json();
     },
     {
-      refreshInterval,
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
+      ...swrConfig,  // Use smart polling config
       errorRetryCount: 3,
       errorRetryInterval: 2000,
       dedupingInterval: 2000

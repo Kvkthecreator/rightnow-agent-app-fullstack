@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createBrowserClient } from '@/lib/supabase/clients';
+import { useSmartPolling } from './useSmartPolling';
 
 // Create supabase client once per module
 const supabase = createBrowserClient();
@@ -20,6 +21,13 @@ export function useBasketPolling(basketId: string) {
   const [lastEvent, setLastEvent] = useState<{ type: string; payload: any } | null>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const lastEventIdRef = useRef<string | null>(null);
+  
+  // Smart polling: 8s when active, pause when inactive
+  const { isTabActive, currentInterval } = useSmartPolling({
+    activeInterval: 8000,  // Reduced from 3s to 8s
+    inactiveInterval: 0,   // Pause completely when tab inactive  
+    refreshOnFocus: true,
+  });
 
   useEffect(() => {
     if (!basketId) {
@@ -80,26 +88,34 @@ export function useBasketPolling(basketId: string) {
     // Initial poll to get current state
     pollEvents();
 
-    // Set up polling interval (3 seconds)
-    const interval = setInterval(pollEvents, 3000);
-
-    console.log(`📊 Polling interval started (3s) for basket: ${basketId}`);
+    // Set up smart polling interval
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (currentInterval > 0) {
+      interval = setInterval(pollEvents, currentInterval);
+      console.log(`📊 Smart polling started (${currentInterval}ms) for basket: ${basketId}`);
+    } else {
+      console.log(`📊 Polling paused (tab inactive) for basket: ${basketId}`);
+    }
 
     // Cleanup function
     return () => {
-      clearInterval(interval);
-      console.log(`📊 Polling stopped for basket: ${basketId}`);
+      if (interval) {
+        clearInterval(interval);
+        console.log(`📊 Polling stopped for basket: ${basketId}`);
+      }
     };
-  }, [basketId, status]);
+  }, [basketId, status, currentInterval]);
 
   return { 
     lastEvent, 
     status,
     // Additional metadata for debugging
     _pollingInfo: {
-      isPolling: true,
-      interval: '3 seconds',
-      basketId: basketId
+      isPolling: currentInterval > 0,
+      interval: `${currentInterval}ms`,
+      basketId: basketId,
+      tabActive: isTabActive
     }
   };
 }

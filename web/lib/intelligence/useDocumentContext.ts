@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { useAuth } from "@/lib/useAuth";
 import { fetchWithToken } from "@/lib/fetchWithToken";
+import { useSmartPolling } from "@/lib/hooks/useSmartPolling";
 
 interface ActiveContextItem {
   type: string;
@@ -22,8 +23,15 @@ interface DocumentContext {
   status: "analyzing" | "complete" | "error";
 }
 
-export function useDocumentContext(documentId?: string, refreshInterval: number = 5000) {
+export function useDocumentContext(documentId?: string, refreshInterval: number = 15000) {  // Increased from 5s to 15s
   const { user } = useAuth();
+  
+  // Smart polling: pause when inactive
+  const { swrConfig } = useSmartPolling({
+    activeInterval: refreshInterval,
+    inactiveInterval: 0,  // Pause when inactive
+    refreshOnFocus: true,
+  });
   
   const { data, error, isLoading, mutate } = useSWR<DocumentContext>(
     documentId && user ? `/api/intelligence/document/${documentId}/context` : null,
@@ -35,9 +43,7 @@ export function useDocumentContext(documentId?: string, refreshInterval: number 
       return response.json();
     },
     {
-      refreshInterval,
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
+      ...swrConfig,  // Use smart polling config
       errorRetryCount: 3,
       errorRetryInterval: 2000,
       dedupingInterval: 1000
