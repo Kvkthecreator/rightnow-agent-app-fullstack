@@ -71,7 +71,7 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
       setLabel('');
       setContent('');
       setSynonyms('');
-      setKind('concept');
+      setKind('entity');
       onClose();
       onSuccess?.();
 
