@@ -91,7 +91,7 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
 
   const handleApprove = async (proposalId: string, notes?: string) => {
     try {
-      const response = await fetch(`/api/proposals/${proposalId}/approve`, {
+      const response = await fetch(`/api/baskets/${basketId}/proposals/${proposalId}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ review_notes: notes || 'Approved via governance queue' })
@@ -108,7 +108,7 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
 
   const handleReject = async (proposalId: string, reason: string) => {
     try {
-      const response = await fetch(`/api/proposals/${proposalId}/reject`, {
+      const response = await fetch(`/api/baskets/${basketId}/proposals/${proposalId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

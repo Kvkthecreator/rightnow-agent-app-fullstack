@@ -21,7 +21,7 @@ This document provides comprehensive documentation for the Frontend Canon v2.0 i
 
 ### Core Principles
 
-1. **Pure Substrate Equality**: Substrate types are peers - block, dump, context_item, timeline_event (reflections removed)
+1. **Pure Substrate Equality**: Substrate types are peers - block, dump, context_item, timeline_event (reflections now artifacts)
 2. **Contracts-First**: All data flows through Zod-validated contracts in `shared/contracts/*`
 3. **Workspace Scoping**: All operations respect workspace boundaries via RLS
 4. **Timeline Consistency**: All mutations emit canonical timeline events
@@ -114,8 +114,13 @@ export const SubstrateTypeSchema = z.enum([
   "block",           // context_blocks
   "dump",            // raw_dumps
   "context_item",    // context_items
-  "reflection",      // reflections (from cache)
   "timeline_event"   // timeline_events
+]);
+
+// Artifacts (not substrate)
+export const ArtifactTypeSchema = z.enum([
+  "reflection",      // reflections_artifact
+  "document"         // documents
 ]);
 
 // Generic reference linking documents to any substrate
@@ -143,7 +148,6 @@ export const DocumentCompositionSchema = z.object({
     blocks_count: z.number(),
     dumps_count: z.number(),
     context_items_count: z.number(),
-    reflections_count: z.number(),
     timeline_events_count: z.number(),
     total_references: z.number(),
   }),
@@ -382,11 +386,13 @@ CREATE INDEX idx_substrate_references_substrate ON substrate_references(substrat
 ```sql
 CREATE TYPE substrate_type AS ENUM (
   'block',           -- context_blocks
-  'dump',            -- raw_dumps
+  'dump',            -- raw_dumps  
   'context_item',    -- context_items
-  'reflection',      -- reflections (from cache)
   'timeline_event'   -- timeline_events
 );
+
+-- Artifacts are separate from substrate
+-- reflections_artifact table stores reflections as artifacts
 ```
 
 ### RLS Policies
@@ -515,7 +521,7 @@ CREATE OR REPLACE FUNCTION fn_document_detach_substrate(
 ```typescript
 describe('Substrate Reference Contracts', () => {
   it('validates all canonical substrate types', () => {
-    const validTypes = ['block', 'dump', 'context_item', 'reflection', 'timeline_event'];
+    const validTypes = ['block', 'dump', 'context_item', 'timeline_event'];
     validTypes.forEach(type => {
       const result = SubstrateTypeSchema.safeParse(type);
       expect(result.success).toBe(true);
@@ -525,8 +531,15 @@ describe('Substrate Reference Contracts', () => {
   it('enforces substrate canon equality', () => {
     // All substrate types should have equal status
     const substrateTypes = SubstrateTypeSchema.options;
-    expect(substrateTypes.length).toBe(5);
+    expect(substrateTypes.length).toBe(4);
     // No type should have special precedence
+  });
+
+  it('separates artifacts from substrate', () => {
+    const artifactTypes = ArtifactTypeSchema.options;
+    expect(artifactTypes).toContain('reflection');
+    expect(artifactTypes).toContain('document');
+    // Artifacts are not substrate
   });
 });
 ```

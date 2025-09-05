@@ -25,6 +25,7 @@ export type ChangeDescriptor = {
   provenance?: ProvenanceEntry[];
 };
 
+// Canon v2.0: Substrate-Only Operations
 export type OperationDescriptor = 
   | CreateDumpOp
   | CreateBlockOp
@@ -36,9 +37,6 @@ export type OperationDescriptor =
   | DetachOp
   | RenameOp
   | ContextAliasOp
-  | DocumentEditOp
-  | DocumentComposeOp
-  | DocumentAddReferenceOp
   | EditContextItemOp
   | DeleteOp;
 
@@ -145,49 +143,9 @@ export interface ContextAliasOp {
   };
 }
 
-export interface DocumentEditOp {
-  type: 'DocumentEdit';
-  data: {
-    document_id: string;
-    title?: string;
-    content?: string;
-    edit_reason?: string;
-  };
-}
-
-// P4 Presentation operations (Sacred Principle #3)
-export interface DocumentComposeOp {
-  type: 'DocumentCompose';
-  data: {
-    title: string;
-    substrate_references: Array<{
-      id: string;
-      type: 'dump' | 'block' | 'context_item' | 'timeline_event';  // v2.0 substrate types
-      order: number;
-      excerpt?: string;
-    }>;
-    narrative_sections: Array<{
-      id: string;
-      content: string;
-      order: number;
-      title?: string;
-    }>;
-    composition_type: 'substrate_plus_narrative' | 'pure_narrative' | 'substrate_only';
-  };
-}
-
-export interface DocumentAddReferenceOp {
-  type: 'DocumentAddReference';
-  data: {
-    document_id: string;
-    substrate_reference: {
-      id: string;
-      type: 'dump' | 'block' | 'context_item' | 'timeline_event';  // v2.0 substrate types
-      order?: number;
-      excerpt?: string;
-    };
-  };
-}
+// REMOVED: Document operations are artifacts, not substrates
+// DocumentEditOp, DocumentComposeOp, DocumentAddReferenceOp moved to artifact layer
+// These operations belong in P4 presentation pipeline, NOT governance
 
 // Context item edit operations
 export interface EditContextItemOp {
@@ -266,24 +224,8 @@ export function createDumpExtractionDescriptor(
   };
 }
 
-export function createDocumentEditDescriptor(
-  actorId: string,
-  workspaceId: string,
-  documentId: string,
-  ops: OperationDescriptor[]
-): ChangeDescriptor {
-  return {
-    entry_point: 'document_edit',
-    actor_id: actorId,
-    workspace_id: workspaceId,
-    blast_radius: 'Global', // Document edits can affect multiple baskets
-    ops,
-    provenance: [
-      { type: 'doc', id: documentId },
-      { type: 'user', id: actorId }
-    ]
-  };
-}
+// REMOVED: createDocumentEditDescriptor
+// Document operations are artifacts and should use separate P4 pipeline
 
 export function createReflectionSuggestionDescriptor(
   actorId: string,
@@ -380,7 +322,7 @@ export function computeOperationRisk(ops: OperationDescriptor[]): {
   // Assess scope impact based on operation types
   let scopeImpact: 'low' | 'medium' | 'high' = 'low';
   
-  if (ops.some(op => op.type === 'PromoteScope' || op.type === 'DocumentEdit')) {
+  if (ops.some(op => op.type === 'PromoteScope')) {
     scopeImpact = 'high';
   } else if (ops.some(op => op.type === 'MergeContextItems' || op.type === 'AttachContextItem' || op.type === 'CreateContextItem')) {
     // Canon: Context-items are semantic bridges that affect substrate relationships

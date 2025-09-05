@@ -167,6 +167,26 @@ export async function POST(
           p_actor_id: user.id
         });
 
+        // Canon v2.0: Trigger artifact impact detection after substrate commit
+        try {
+          const { handleSubstrateCommit } = await import('@/lib/artifacts/substrateCommitHandler');
+          
+          const impactResult = await handleSubstrateCommit(supabase, {
+            proposal_id: proposalId,
+            commit_id: commitId,
+            operations: executionLog,
+            workspace_id: workspace.id,
+            basket_id: basketId,
+            actor_id: user.id
+          });
+
+          console.log(`Document impact processing: ${impactResult.impacts_created} impacts created, ${impactResult.auto_applied} auto-applied`);
+
+        } catch (impactError) {
+          // Don't fail the approval if document impact processing fails
+          console.error('Document impact processing failed:', impactError);
+        }
+
         return NextResponse.json({
           success: true,
           proposal_id: proposalId,

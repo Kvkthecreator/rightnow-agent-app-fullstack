@@ -319,10 +319,8 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
       return await attachContextItem(supabase, operation, basketId, workspaceId);
     case 'PromoteScope':
       return await promoteScope(supabase, operation, basketId, workspaceId);
-    case 'DocumentCompose':
-      return await composeDocument(supabase, operation, basketId, workspaceId);
-    case 'DocumentAddReference':
-      return await addDocumentReference(supabase, operation, basketId, workspaceId);
+    // REMOVED: Document operations are artifacts, not substrates
+    // DocumentCompose and DocumentAddReference moved to P4 presentation pipeline
     case 'EditContextItem':
       return await editContextItem(supabase, operation, basketId, workspaceId);
     case 'Delete':
@@ -470,34 +468,9 @@ async function promoteScope(supabase: any, op: any, basketId: string, workspaceI
   return { promoted_id: data.id, new_scope: op.data.to_scope, type: 'promotion' };
 }
 
-// P4 Presentation Pipeline Operations (Sacred Principle #3)
-async function composeDocument(supabase: any, op: any, basketId: string, workspaceId: string) {
-  // Use P4 canonical composition RPC
-  const { data, error } = await supabase.rpc('fn_p4_compose_document', {
-    p_workspace_id: workspaceId,
-    p_basket_id: basketId,
-    p_title: op.data.title,
-    p_substrate_references: op.data.substrate_references,
-    p_narrative_sections: op.data.narrative_sections
-  });
-
-  if (error) throw new Error(`Failed to compose document: ${error.message}`);
-  return { created_id: data, type: 'document', composition_type: op.data.composition_type };
-}
-
-async function addDocumentReference(supabase: any, op: any, basketId: string, workspaceId: string) {
-  // Use P4 canonical reference addition RPC
-  const { data, error } = await supabase.rpc('fn_p4_add_substrate_reference', {
-    p_document_id: op.data.document_id,
-    p_substrate_id: op.data.substrate_reference.id,
-    p_substrate_type: op.data.substrate_reference.type,
-    p_order_index: op.data.substrate_reference.order || 999,
-    p_excerpt: op.data.substrate_reference.excerpt
-  });
-
-  if (error) throw new Error(`Failed to add document reference: ${error.message}`);
-  return { updated_id: op.data.document_id, type: 'document_reference' };
-}
+// REMOVED: Document operations moved to P4 presentation pipeline
+// composeDocument() and addDocumentReference() are artifact operations
+// These belong in /lib/presentation/ or /app/api/presentation/, NOT governance
 
 async function editContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
   const updateData: any = {};

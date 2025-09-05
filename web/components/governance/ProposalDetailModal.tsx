@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { X, FileText, Database, FolderOpen, Lightbulb, Clock, AlertTriangle, CheckCircle, Brain, Eye, Layers } from 'lucide-react';
+import { X, FileText, Database, FolderOpen, Lightbulb, Clock, AlertTriangle, CheckCircle, Brain, Eye, Layers, ChevronDown, ChevronRight, Edit, Plus, Trash2, GitBranch, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { createBrowserClient } from '@/lib/supabase/clients';
+import { previewDocumentImpacts, getConfidenceLevel, getConfidenceColor, getImpactTypeIcon } from '@/lib/artifacts/documentImpactPreview';
+import type { DocumentImpactPreview } from '@/lib/artifacts/documentImpactPreview';
 
 interface ProposalOperation {
   type: string;
@@ -56,9 +59,18 @@ export function ProposalDetailModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [showRequestChanges, setShowRequestChanges] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [approvalNotes, setApprovalNotes] = useState('');
+  const [requestChangesReason, setRequestChangesReason] = useState('');
+  const [reviewNotes, setReviewNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    changes: true,
+    context: false,
+    impact: false,
+    documents: false
+  });
+  const [documentImpactPreviews, setDocumentImpactPreviews] = useState<DocumentImpactPreview[]>([]);
 
   useEffect(() => {
     if (isOpen && proposalId) {
@@ -79,10 +91,29 @@ export function ProposalDetailModal({
       }
       const data = await response.json();
       setProposal(data);
+      
+      // Fetch document impact preview (read-only)
+      await fetchDocumentImpactPreview(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load proposal');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDocumentImpactPreview = async (proposal: ProposalDetail) => {
+    try {
+      const supabase = createBrowserClient();
+      const previews = await previewDocumentImpacts(
+        supabase,
+        proposal.ops,
+        proposal.workspace_id,
+        basketId
+      );
+      setDocumentImpactPreviews(previews);
+    } catch (err) {
+      console.error('Failed to fetch document impact preview:', err);
+      setDocumentImpactPreviews([]);
     }
   };
 
@@ -91,10 +122,40 @@ export function ProposalDetailModal({
     
     setSubmitting(true);
     try {
-      await onApprove(proposal.id, approvalNotes);
+      await onApprove(proposal.id, reviewNotes);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to approve proposal');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRequestChanges = async () => {
+    if (!proposal || !requestChangesReason.trim()) return;
+    
+    setSubmitting(true);
+    try {
+      // Update proposal status to UNDER_REVIEW with request changes reason
+      const response = await fetch(`/api/baskets/${basketId}/proposals/${proposal.id}/request-changes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          review_notes: requestChangesReason,
+          status: 'UNDER_REVIEW'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to request changes');
+      }
+      
+      setShowRequestChanges(false);
+      setRequestChangesReason('');
+      onClose();
+      // Parent component should refresh the proposals list
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to request changes');
     } finally {
       setSubmitting(false);
     }
@@ -116,18 +177,62 @@ export function ProposalDetailModal({
 
   const getOperationIcon = (type: string) => {
     switch (type) {
-      case 'CreateDump': return <Database className="h-4 w-4 text-green-600" />;
-      case 'CreateBlock': return <FileText className="h-4 w-4 text-blue-600" />;
-      case 'CreateContextItem': return <FolderOpen className="h-4 w-4 text-purple-600" />;
-      case 'ReviseBlock': return <FileText className="h-4 w-4 text-orange-600" />;
-      case 'EditContextItem': return <FolderOpen className="h-4 w-4 text-orange-600" />;
-      case 'AttachContextItem': return <Lightbulb className="h-4 w-4 text-yellow-600" />;
-      case 'MergeContextItems': return <Lightbulb className="h-4 w-4 text-red-600" />;
+      case 'CreateDump': return <Plus className="h-4 w-4 text-green-600" />;
+      case 'CreateBlock': return <Plus className="h-4 w-4 text-blue-600" />;
+      case 'CreateContextItem': return <Plus className="h-4 w-4 text-purple-600" />;
+      case 'ReviseBlock': return <Edit className="h-4 w-4 text-orange-600" />;
+      case 'EditContextItem': return <Edit className="h-4 w-4 text-orange-600" />;
+      case 'AttachContextItem': return <GitBranch className="h-4 w-4 text-yellow-600" />;
+      case 'MergeContextItems': return <GitBranch className="h-4 w-4 text-red-600" />;
       case 'PromoteScope': return <Brain className="h-4 w-4 text-indigo-600" />;
-      case 'DocumentCompose': return <FileText className="h-4 w-4 text-gray-600" />;
-      case 'Delete': return <X className="h-4 w-4 text-red-600" />;
+      case 'Delete': return <Trash2 className="h-4 w-4 text-red-600" />;
+      // REMOVED: DocumentCompose - documents are artifacts, not substrates
       default: return <Eye className="h-4 w-4 text-gray-400" />;
     }
+  };
+
+  const formatOperationDescription = (op: ProposalOperation) => {
+    switch (op.type) {
+      case 'CreateDump':
+        return `Add new content to workspace`;
+      case 'CreateBlock':
+        return `Create new knowledge block${op.data.title ? `: "${op.data.title}"` : ''}`;
+      case 'CreateContextItem':
+        return `Add context item${op.data.label ? `: "${op.data.label}"` : ''}`;
+      case 'ReviseBlock':
+        return `Update existing content${op.data.title ? `: "${op.data.title}"` : ''}`;
+      case 'EditContextItem':
+        return `Modify context${op.data.label ? `: "${op.data.label}"` : ''}`;
+      case 'AttachContextItem':
+        return `Connect context to current scope`;
+      case 'MergeContextItems':
+        return `Combine related context items`;
+      case 'PromoteScope':
+        return `Expand scope to workspace level`;
+      // REMOVED: DocumentCompose - documents are artifacts, not substrates
+      case 'Delete':
+        return `Remove from workspace`;
+      default:
+        return `Execute ${op.type} operation`;
+    }
+  };
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const getAffectedSubstrateTypes = (ops: ProposalOperation[]) => {
+    const types = new Set<string>();
+    ops.forEach(op => {
+      if (op.type.includes('Block')) types.add('blocks');
+      if (op.type.includes('Dump')) types.add('dumps');
+      if (op.type.includes('ContextItem')) types.add('context items');
+      if (op.type.includes('Timeline')) types.add('timeline events');
+    });
+    return Array.from(types);
   };
 
   const getBlastRadiusColor = (radius: string) => {
@@ -145,31 +250,9 @@ export function ProposalDetailModal({
     return 'text-red-600 bg-red-50';
   };
 
-  const formatOperationNarrative = (op: ProposalOperation) => {
-    switch (op.type) {
-      case 'CreateDump':
-        return `Create new content dump from source`;
-      case 'CreateBlock':
-        return `Create new structured block`;
-      case 'CreateContextItem':
-        return `Add new context item to workspace`;
-      case 'ReviseBlock':
-        return `Update existing block content`;
-      case 'EditContextItem':
-        return `Modify context item details`;
-      case 'AttachContextItem':
-        return `Link context item to current scope`;
-      case 'MergeContextItems':
-        return `Combine multiple context items`;
-      case 'PromoteScope':
-        return `Elevate item to broader scope`;
-      case 'DocumentCompose':
-        return `Compose document from substrate`;
-      case 'Delete':
-        return `Remove item from workspace`;
-      default:
-        return `Execute ${op.type} operation`;
-    }
+  const hasBlockingWarnings = (proposal: ProposalDetail) => {
+    return proposal.validator_report.confidence < 0.3 || 
+           proposal.validator_report.warnings.some(w => w.includes('CRITICAL'));
   };
 
   if (!isOpen) return null;
@@ -179,14 +262,14 @@ export function ProposalDetailModal({
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
         
-        <div className="relative bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[85vh] flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+        <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+          {/* Streamlined Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-100">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Proposal Review</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Change Request Review</h2>
               {proposal && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {proposal.id.slice(0, 8)}... • {proposal.proposal_kind} • {proposal.origin}
+                <p className="text-sm text-gray-500 mt-1">
+                  {proposal.proposal_kind} • {proposal.origin} • {new Date(proposal.created_at).toLocaleDateString()}
                 </p>
               )}
             </div>
@@ -206,205 +289,271 @@ export function ProposalDetailModal({
                 <Button onClick={fetchProposalDetail}>Retry</Button>
               </div>
             ) : proposal ? (
-              <div className="p-4 space-y-4">
+              <div className="p-6 space-y-6">
                 
-                {/* Overview */}
-                <div className="bg-gray-50 border border-gray-100 rounded p-3">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Brain className="h-4 w-4 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-700">Overview</span>
+                {/* PRIMARY: Decision Context (Always Visible) */}
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    {proposal.validator_report.impact_summary || "Changes to workspace substrate"}
+                  </h3>
+                  
+                  <div className="flex items-center gap-4 mb-4">
+                    <Badge variant={proposal.origin === 'agent' ? 'default' : 'secondary'}>
+                      {proposal.origin === 'agent' ? 'AI Proposed' : 'User Proposed'}
+                    </Badge>
+                    <Badge className={getBlastRadiusColor(proposal.blast_radius)}>
+                      {proposal.blast_radius} Impact
+                    </Badge>
+                    <Badge variant="outline">
+                      {proposal.ops.length} {proposal.ops.length === 1 ? 'change' : 'changes'}
+                    </Badge>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Status</p>
-                      <Badge variant={proposal.status === 'PROPOSED' ? 'default' : 'secondary'} className="text-xs">
-                        {proposal.status}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Blast Radius</p>
-                      <Badge className={getBlastRadiusColor(proposal.blast_radius) + ' text-xs'}>
-                        {proposal.blast_radius}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Confidence</p>
-                      <Badge className={getConfidenceColor(proposal.validator_report.confidence) + ' text-xs'}>
+
+                  {/* Risk Assessment */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700">Confidence:</span>
+                      <Badge className={getConfidenceColor(proposal.validator_report.confidence)}>
                         {Math.round(proposal.validator_report.confidence * 100)}%
                       </Badge>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Operations</p>
-                      <span className="text-xs font-medium">{proposal.ops.length}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Impact Analysis */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5" />
-                      Impact Analysis
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-700 mb-4">{proposal.validator_report.impact_summary}</p>
                     
                     {proposal.validator_report.warnings.length > 0 && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                        <h4 className="flex items-center gap-2 text-sm font-medium text-yellow-800 mb-2">
-                          <AlertTriangle className="h-4 w-4" />
-                          Validation Warnings
-                        </h4>
-                        <ul className="space-y-1">
-                          {proposal.validator_report.warnings.map((warning, i) => (
-                            <li key={i} className="text-sm text-yellow-700">• {warning}</li>
-                          ))}
-                        </ul>
+                      <div className="flex items-center gap-2 text-yellow-600">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span className="text-sm font-medium">
+                          {proposal.validator_report.warnings.length} warnings
+                        </span>
                       </div>
                     )}
+                  </div>
 
-                    {proposal.validator_report.ontology_hits.length > 0 && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-blue-800 mb-2">Ontology Matches</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {proposal.validator_report.ontology_hits.map((hit, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">{hit}</Badge>
-                          ))}
-                        </div>
+                  {/* Inline Warnings */}
+                  {proposal.validator_report.warnings.length > 0 && (
+                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-yellow-800 mb-2">Review Required:</h4>
+                      <ul className="space-y-1">
+                        {proposal.validator_report.warnings.slice(0, 3).map((warning, i) => (
+                          <li key={i} className="text-sm text-yellow-700">• {warning}</li>
+                        ))}
+                        {proposal.validator_report.warnings.length > 3 && (
+                          <li className="text-sm text-yellow-600 italic">
+                            +{proposal.validator_report.warnings.length - 3} more warnings
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* SECONDARY: Expandable Sections */}
+                <div className="space-y-4">
+                  
+                  {/* What's Changing Section */}
+                  <div className="border border-gray-200 rounded-lg">
+                    <button
+                      onClick={() => toggleSection('changes')}
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-2">
+                        <GitBranch className="h-4 w-4 text-gray-600" />
+                        <span className="font-medium">What's Changing</span>
+                        <Badge variant="outline" className="text-xs">
+                          {proposal.ops.length} operations
+                        </Badge>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Change Impact Narrative */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      Change Summary
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      {/* Impact Summary - Main Narrative */}
-                      <div className="prose prose-sm max-w-none">
-                        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                          <div className="text-gray-900 leading-relaxed text-base">
-                            {proposal.validator_report.impact_summary}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Blast Radius & Scope */}
-                      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-700">Scope:</span>
-                          <Badge className={getBlastRadiusColor(proposal.blast_radius)}>
-                            {proposal.blast_radius}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-700">Operations:</span>
-                          <span className="text-sm text-gray-600">{proposal.ops.length} changes</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-700">Origin:</span>
-                          <Badge variant="outline">{proposal.origin}</Badge>
-                        </div>
-                      </div>
-
-                      {/* Detailed Operations */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-gray-900 text-sm">Proposed Operations:</h4>
+                      {expandedSections.changes ? 
+                        <ChevronDown className="h-4 w-4 text-gray-400" /> : 
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      }
+                    </button>
+                    
+                    {expandedSections.changes && (
+                      <div className="border-t border-gray-200 p-4 space-y-3">
                         {proposal.ops.map((op, index) => (
-                          <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
-                            <div className="flex items-center gap-2 mb-1">
-                              {getOperationIcon(op.type)}
-                              <span className="font-medium text-gray-900 text-sm">
-                                {formatOperationNarrative(op)}
-                              </span>
+                          <div key={index} className="flex items-start gap-3 p-3 bg-white border border-gray-100 rounded">
+                            {getOperationIcon(op.type)}
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900 text-sm">
+                                {formatOperationDescription(op)}
+                              </div>
+                              {(op.data.content || op.data.body_md) && (
+                                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                  {(op.data.content || op.data.body_md).substring(0, 120)}
+                                  {(op.data.content || op.data.body_md).length > 120 && '...'}
+                                </div>
+                              )}
                             </div>
-                            {op.data.title && (
-                              <div className="text-sm text-gray-700 font-medium">
-                                "{op.data.title}"
-                              </div>
-                            )}
-                            {(op.data.content || op.data.body_md || op.data.text_dump) && (
-                              <div className="mt-1 text-xs text-gray-600 bg-gray-100 p-2 rounded">
-                                {(op.data.content || op.data.body_md || op.data.text_dump || '').substring(0, 150)}
-                                {(op.data.content || op.data.body_md || op.data.text_dump || '').length > 150 && '...'}
-                              </div>
-                            )}
                           </div>
                         ))}
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    )}
+                  </div>
 
-                {/* Substrate Context & Provenance */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Layers className="h-5 w-5" />
-                      Change Context
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {/* Provenance Chain */}
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-3">Triggered by:</h4>
-                        <div className="space-y-2">
-                          {proposal.provenance.map((entry, index) => (
-                            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                              <div className={`
-                                inline-flex items-center px-2 py-1 rounded text-xs font-medium
-                                ${entry.type === 'doc' ? 'bg-blue-100 text-blue-800' : ''}
-                                ${entry.type === 'user' ? 'bg-green-100 text-green-800' : ''}
-                                ${entry.type === 'block' ? 'bg-purple-100 text-purple-800' : ''}
-                                ${entry.type === 'dump' ? 'bg-yellow-100 text-yellow-800' : ''}
-                                ${!['doc', 'user', 'block', 'dump'].includes(entry.type) ? 'bg-gray-100 text-gray-800' : ''}
-                              `}>
-                                {entry.type}
-                              </div>
-                              <span className="text-sm font-mono text-gray-600">
-                                {entry.id.slice(0, 8)}...
-                              </span>
-                              {entry.metadata && (
-                                <span className="text-xs text-gray-500">
-                                  {Object.entries(entry.metadata).map(([key, value]) => 
-                                    `${key}: ${value}`
-                                  ).join(', ')}
-                                </span>
-                              )}
+                  {/* Why This Change Section */}
+                  <div className="border border-gray-200 rounded-lg">
+                    <button
+                      onClick={() => toggleSection('context')}
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Brain className="h-4 w-4 text-gray-600" />
+                        <span className="font-medium">Why This Change</span>
+                      </div>
+                      {expandedSections.context ? 
+                        <ChevronDown className="h-4 w-4 text-gray-400" /> : 
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      }
+                    </button>
+                    
+                    {expandedSections.context && (
+                      <div className="border-t border-gray-200 p-4">
+                        <div className="space-y-3">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Triggered by:</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {proposal.provenance.map((entry, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {entry.type}: {entry.id.slice(0, 8)}...
+                                </Badge>
+                              ))}
                             </div>
-                          ))}
+                          </div>
+                          
+                          {proposal.validator_report.ontology_hits.length > 0 && (
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">Related concepts:</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {proposal.validator_report.ontology_hits.map((hit, i) => (
+                                  <Badge key={i} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                    {hit}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
+                    )}
+                  </div>
 
-                      {/* Substrate Scope Analysis */}
-                      {proposal.ops.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-3">Substrate Types Affected:</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {Array.from(new Set(proposal.ops.map(op => op.type))).map(opType => (
-                              <div key={opType} className="flex items-center gap-1 px-3 py-1 bg-white border border-gray-200 rounded-full">
-                                {getOperationIcon(opType)}
-                                <span className="text-xs font-medium text-gray-700">
-                                  {opType.replace(/([A-Z])/g, ' $1').trim()}
-                                </span>
-                              </div>
-                            ))}
+                  {/* Impact Analysis Section */}
+                  <div className="border border-gray-200 rounded-lg">
+                    <button
+                      onClick={() => toggleSection('impact')}
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-gray-600" />
+                        <span className="font-medium">Impact Analysis</span>
+                      </div>
+                      {expandedSections.impact ? 
+                        <ChevronDown className="h-4 w-4 text-gray-400" /> : 
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      }
+                    </button>
+                    
+                    {expandedSections.impact && (
+                      <div className="border-t border-gray-200 p-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Substrate affected:</h4>
+                            <div className="space-y-1">
+                              {getAffectedSubstrateTypes(proposal.ops).map(type => (
+                                <div key={type} className="text-sm text-gray-600">• {type}</div>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Scope:</h4>
+                            <div className="text-sm text-gray-600">
+                              <Badge className={getBlastRadiusColor(proposal.blast_radius)}>
+                                {proposal.blast_radius}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Document Impact Preview Section (Read-Only) */}
+                  {documentImpactPreviews.length > 0 && (
+                    <div className="border border-blue-200 rounded-lg bg-blue-50/30">
+                      <button
+                        onClick={() => toggleSection('documents')}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-blue-50"
+                      >
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-blue-900">Document Impact Preview</span>
+                          <Badge variant="outline" className="text-xs bg-white">
+                            {documentImpactPreviews.length} document{documentImpactPreviews.length === 1 ? '' : 's'}
+                          </Badge>
+                        </div>
+                        {expandedSections.documents ? 
+                          <ChevronDown className="h-4 w-4 text-blue-400" /> : 
+                          <ChevronRight className="h-4 w-4 text-blue-400" />
+                        }
+                      </button>
+                      
+                      {expandedSections.documents && (
+                        <div className="border-t border-blue-200 p-4 bg-white">
+                          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                            <p className="text-xs text-blue-700 font-medium mb-1">📋 Read-Only Preview</p>
+                            <p className="text-xs text-blue-600">
+                              These documents may be affected by the substrate changes. Document update decisions will be handled separately after substrate approval.
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            {documentImpactPreviews.map(preview => {
+                              const confidenceLevel = getConfidenceLevel(preview.confidence_score);
+                              const confidenceColor = getConfidenceColor(confidenceLevel);
+                              const impactIcon = getImpactTypeIcon(preview.impact_type);
+                              
+                              return (
+                                <div key={preview.document_id} className="border border-gray-100 rounded p-3 bg-gray-50">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-lg">{impactIcon}</span>
+                                      <div>
+                                        <h5 className="font-medium text-gray-900 text-sm">
+                                          {preview.document_title}
+                                        </h5>
+                                        <p className="text-xs text-gray-600 mt-1">
+                                          {preview.impact_summary}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        {preview.affected_references_count} refs
+                                      </Badge>
+                                      <Badge className={`text-xs ${confidenceColor}`}>
+                                        {confidenceLevel} confidence
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-gray-600 bg-white p-2 rounded border">
+                                    {preview.preview_description}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                            <p className="text-xs text-yellow-800">
+                              💡 <strong>Next Steps:</strong> After substrate approval, you'll be notified to review and approve document updates separately.
+                            </p>
                           </div>
                         </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
+                  )}
 
+                </div>
               </div>
             ) : null}
           </div>
@@ -414,40 +563,95 @@ export function ProposalDetailModal({
             <div className="border-t p-6 bg-gray-50">
               {!showRejectForm ? (
                 <div className="space-y-4">
-                  {/* Approval Notes */}
+                  {/* Review Notes */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Review Notes (Optional)
                     </label>
                     <textarea
-                      value={approvalNotes}
-                      onChange={(e) => setApprovalNotes(e.target.value)}
-                      placeholder="Add any notes about this approval..."
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      placeholder="Add any notes about this review..."
                       className="w-full p-3 border border-gray-300 rounded-md text-sm resize-none"
                       rows={3}
                     />
                   </div>
                   
-                  <div className="flex justify-between">
-                    <Button
-                      onClick={() => setShowRejectForm(true)}
-                      variant="outline"
-                      className="text-red-600 border-red-600 hover:bg-red-50"
-                      disabled={submitting}
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Reject
-                    </Button>
+                  {/* Git-style Action Panel */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => setShowRejectForm(true)}
+                        variant="outline"
+                        className="text-red-600 border-red-600 hover:bg-red-50"
+                        disabled={submitting}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Reject
+                      </Button>
+                      
+                      {!showRequestChanges ? (
+                        <Button
+                          onClick={() => setShowRequestChanges(true)}
+                          variant="outline"
+                          className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
+                          disabled={submitting}
+                        >
+                          Request Changes
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => {
+                            setShowRequestChanges(false);
+                            setRequestChangesReason('');
+                          }}
+                          variant="ghost"
+                          disabled={submitting}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
                     
                     <Button
                       onClick={handleApprove}
                       className="bg-green-600 hover:bg-green-700"
-                      disabled={submitting}
+                      disabled={submitting || (proposal && hasBlockingWarnings(proposal))}
+                      title={proposal && hasBlockingWarnings(proposal) ? 'Cannot approve - critical warnings present' : ''}
                     >
                       <CheckCircle className="h-4 w-4 mr-2" />
                       {submitting ? 'Approving...' : 'Approve & Execute'}
                     </Button>
                   </div>
+                  
+                  {/* Request Changes Form */}
+                  {showRequestChanges && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                      <div className="mb-3">
+                        <label className="block text-sm font-medium text-yellow-800 mb-2">
+                          What changes are needed? <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          value={requestChangesReason}
+                          onChange={(e) => setRequestChangesReason(e.target.value)}
+                          placeholder="Please describe what changes are needed before this can be approved..."
+                          className="w-full p-3 border border-yellow-300 rounded-md text-sm resize-none bg-white"
+                          rows={3}
+                          autoFocus
+                        />
+                      </div>
+                      
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={handleRequestChanges}
+                          className="bg-yellow-600 hover:bg-yellow-700"
+                          disabled={submitting || !requestChangesReason.trim()}
+                        >
+                          {submitting ? 'Submitting...' : 'Submit Request'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">

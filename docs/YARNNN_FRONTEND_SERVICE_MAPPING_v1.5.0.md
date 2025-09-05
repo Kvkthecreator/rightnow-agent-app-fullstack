@@ -1,8 +1,8 @@
-# YARNNN Frontend-Service Architecture Mapping v1.5.0
+# YARNNN Frontend-Service Architecture Mapping v2.0
 
-**Version**: 1.5.0 (Workspace Governance Hardening)  
-**Status**: Canon Extension + Workspace-Scoped Governance  
-**Purpose**: Define the comprehensive mapping between frontend logic and the canonical service architecture with workspace-level governance control
+**Version**: 2.0 (Substrate/Artifact Separation)  
+**Status**: Canon v2.0 + Pure Substrate Model  
+**Purpose**: Define the comprehensive mapping between frontend logic and the canonical service architecture with substrate/artifact separation and workspace governance
 
 ---
 
@@ -24,7 +24,7 @@ The frontend must be a pure rendering layer that mirrors durable server state, w
 │  Agent          │ Agent          │ Agent         │ Agent         │
 │  ============   │ ============   │ ============  │ ============  │
 │  • raw_dumps    │ • blocks       │ • context     │ • reflections │
-│                 │ • context_items│   _relationships│              │
+│                 │ • context_items│   _relationships│   (artifacts)  │
 │                 │                │               │               │
 └─────────────────────────────────────────────────────────────────┘
                                     │
@@ -177,21 +177,22 @@ function getEventDescription(event: TimelineEventDTO): string {
 }
 ```
 
-### 2. Reflection Service → Reflections View
+### 2. Reflection Service → Reflections View (Artifact Layer)
 
 **Service Layer:**
 - **API Route**: `/api/baskets/[id]/reflections` 
-- **Data Source**: Real-time P3 Agent computation via `ReflectionEngine`
-- **Agent Integration**: P3 Agent insights with substrate window analysis
-- **Contracts**: `ReflectionDTO` with computation metadata
+- **Data Source**: `reflections_artifact` table - computed artifacts from P3 Agent
+- **Agent Integration**: P3 Agent insights with substrate window analysis (artifacts, not substrate)
+- **Contracts**: `ReflectionDTO` with artifact metadata
 
 **Frontend Layer:**
 - **Component**: `ReflectionsClient.tsx`
-- **Responsibility**: Display P3 Agent insights with provenance
+- **Responsibility**: Display P3 Agent artifacts with provenance
 - **Canon Compliance**:
   - ✅ Shows agent computation metadata
   - ✅ Displays substrate analysis windows  
   - ✅ No client-side pattern recognition
+  - 🆕 Treats reflections as artifacts, not substrate
 
 ```typescript
 // Service-computed reflection
@@ -211,7 +212,7 @@ interface ReflectionDTO {
 
 **Service Layer (Updated):**
 - **API Route**: `/api/baskets/[id]/blocks`
-- **Data Source**: `blocks` table (canonical substrate via governance approval)
+- **Data Source**: `context_blocks` table (pure substrate via governance approval)
 - **Agent Integration**: P1 Substrate + Validator Agent with governance metadata
 - **Contracts**: `BlockDTO` with governance provenance
 

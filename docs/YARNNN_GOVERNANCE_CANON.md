@@ -22,12 +22,12 @@ workspace_governance_settings {
   direct_substrate_writes: boolean DEFAULT true,
   governance_ui_enabled: boolean DEFAULT false,
   
-  -- Per-entry-point policies  
+  -- Per-entry-point policies (substrate only)
   ep_onboarding_dump: 'proposal' | 'direct' | 'hybrid',
   ep_manual_edit: 'proposal' | 'direct' | 'hybrid',
-  ep_document_edit: 'proposal' | 'direct' | 'hybrid',
-  ep_context_management: 'proposal' | 'direct' | 'hybrid',
-  ep_bulk_operations: 'proposal' | 'direct' | 'hybrid',
+  ep_graph_action: 'proposal' | 'direct' | 'hybrid',
+  ep_timeline_restore: 'proposal' | 'direct' | 'hybrid',
+  -- REMOVED: ep_document_edit - documents are artifacts
   
   -- Risk-based routing
   default_blast_radius: 'Local' | 'Scoped' | 'Global',
@@ -46,7 +46,7 @@ await routeChange(supabase: SupabaseClient, cd: ChangeDescriptor): Promise<Chang
 **ChangeDescriptor** provides unified abstraction for all mutation intents:
 ```typescript
 interface ChangeDescriptor {
-  entry_point: 'onboarding_dump' | 'manual_edit' | 'document_edit' | 'context_management' | 'bulk_operations',
+  entry_point: 'onboarding_dump' | 'manual_edit' | 'graph_action' | 'timeline_restore',
   actor_id: string,
   workspace_id: string,
   basket_id?: string,
@@ -280,9 +280,9 @@ CREATE TABLE workspace_governance_settings (
   governance_ui_enabled boolean DEFAULT false,
   ep_onboarding_dump text DEFAULT 'proposal',
   ep_manual_edit text DEFAULT 'proposal',
-  ep_document_edit text DEFAULT 'proposal',
-  ep_context_management text DEFAULT 'proposal',
-  ep_bulk_operations text DEFAULT 'proposal',
+  ep_graph_action text DEFAULT 'proposal',
+  ep_timeline_restore text DEFAULT 'proposal',
+  -- REMOVED: ep_document_edit - documents are artifacts, not substrates
   default_blast_radius blast_radius DEFAULT 'Local',
   hybrid_risk_threshold text DEFAULT 'medium'
 );

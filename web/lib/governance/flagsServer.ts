@@ -9,12 +9,11 @@ import { SupabaseClient } from '@supabase/supabase-js';
 
 export type EntryPoint =
   | 'onboarding_dump' 
-  | 'manual_edit' 
-  | 'document_edit'
+  | 'manual_edit'
   | 'graph_action' 
   | 'timeline_restore';
   
-// Note: reflection_suggestion removed - reflections are artifacts
+// Note: reflection_suggestion and document_edit removed - these are artifacts, not substrates
 
 export type EntryPointPolicy = 'proposal' | 'direct' | 'hybrid';
 
@@ -48,9 +47,9 @@ const SAFE_DEFAULTS: WorkspaceFlags = {
   ep: {
     onboarding_dump: 'proposal',
     manual_edit: 'proposal',
-    document_edit: 'proposal',
     graph_action: 'proposal',
     timeline_restore: 'proposal'
+    // REMOVED: document_edit - documents are artifacts, not substrates
   },
   
   default_blast_radius: 'Scoped',
@@ -90,9 +89,9 @@ export async function getWorkspaceFlags(
       ep: {
         onboarding_dump: flagsData.ep_onboarding_dump,
         manual_edit: flagsData.ep_manual_edit,
-        document_edit: flagsData.ep_document_edit,
         graph_action: flagsData.ep_graph_action,
         timeline_restore: flagsData.ep_timeline_restore
+        // REMOVED: document_edit - documents are artifacts, not substrates
       },
       
       default_blast_radius: flagsData.default_blast_radius,
