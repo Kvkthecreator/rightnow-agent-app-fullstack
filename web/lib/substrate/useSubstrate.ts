@@ -100,7 +100,7 @@ export function useSubstrate(basketId: string, workspaceId: string) {
 
   const createContextItem = useCallback(async (
     title: string,
-    semanticType: 'theme' | 'question' | 'insight' | 'connection' | 'tag',
+    semanticType: 'entity' | 'topic' | 'intent' | 'source_ref' | 'cue' | 'task',
     references: { id: string; type: SubstrateType; basketId: string }[],
     description?: string
   ): Promise<SubstrateResponse> => {
