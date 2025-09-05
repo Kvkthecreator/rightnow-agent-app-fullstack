@@ -28,8 +28,8 @@ export const ReflectionDTOSchema = z.object({
   
   // New flexible targeting
   reflection_target_type: ReflectionTargetTypeSchema.default("legacy"),
-  reflection_target_id: z.string().uuid().optional(),
-  reflection_target_version: z.string().optional(),
+  reflection_target_id: z.string().uuid().nullable().optional(),
+  reflection_target_version: z.string().nullable().optional(),
   
   // Legacy fields (for backward compatibility)
   substrate_window_start: z.string().optional(),
