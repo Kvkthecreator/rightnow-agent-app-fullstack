@@ -8,7 +8,7 @@ Status: Canon — Substrate/Artifact Boundaries
 ## Purpose
 Operational runtime for Yarnnn with **strict pipeline separation** and **memory-first** discipline. Defines what each pipeline may/may-not do, allowed RPCs, event contracts, and verification.
 
-Blocks (**context_blocks**) are the structured units handled in P1.
+Blocks (**context_blocks**) are structured knowledge ingredients extracted from raw_dumps by P1. Each block contains goals, constraints, metrics, entities, relationships, and provenance.
 
 ---
 

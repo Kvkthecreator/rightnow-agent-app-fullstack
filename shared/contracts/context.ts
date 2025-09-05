@@ -4,7 +4,7 @@ export type ContextItem = {
   id: string;
   basket_id: string;
   document_id?: string;
-  type: string;                    // Required: 'theme' | 'question' | 'entity' | 'yarnnn_system' 
+  type: string;                    // Required: 'entity' | 'topic' | 'intent' | 'source_ref' | 'cue' | 'task' 
   content?: string;                // Main content/label
   title?: string;
   description?: string;

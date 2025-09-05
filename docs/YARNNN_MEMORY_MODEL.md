@@ -4,7 +4,7 @@ Pure substrate memory layer with separate artifact expressions. Reflections are 
 # Yarnnn Memory Model — Canonical Substrate Contract (v2.0)
 
 Aligned with Context OS substrate v1.2
-Blocks (**context_blocks**) are structured units of meaning.
+Blocks (**context_blocks**) are structured knowledge ingredients extracted from raw_dumps. Each block contains goals, constraints, metrics, entities, relationships, and provenance.
 Last updated: 2025-07-25
 
 ---

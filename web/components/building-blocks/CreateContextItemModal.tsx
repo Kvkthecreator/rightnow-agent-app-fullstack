@@ -21,7 +21,7 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
   const [label, setLabel] = useState('');
   const [content, setContent] = useState('');
   const [synonyms, setSynonyms] = useState('');
-  const [kind, setKind] = useState<'concept' | 'entity' | 'topic' | 'theme'>('concept');
+  const [kind, setKind] = useState<'entity' | 'topic' | 'intent' | 'source_ref' | 'cue' | 'task'>('entity');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
@@ -126,10 +126,12 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
                   onChange={(e) => setKind(e.target.value as typeof kind)}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 >
-                  <option value="concept">Concept</option>
                   <option value="entity">Person/Organization</option>
-                  <option value="topic">Topic</option>
-                  <option value="theme">Theme</option>
+                  <option value="topic">Topic/Theme</option>
+                  <option value="intent">Goal/Intent</option>
+                  <option value="source_ref">Source Reference</option>
+                  <option value="cue">Key Phrase/Concept</option>
+                  <option value="task">Task/Action</option>
                 </select>
               </div>
 

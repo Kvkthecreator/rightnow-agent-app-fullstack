@@ -32,7 +32,7 @@ import type { ContextItem as ContractContextItem } from '@shared/contracts/conte
 
 export interface ContextElement extends SubstrateElement, ContractContextItem {
   type: 'context_item';
-  semanticType: 'theme' | 'question' | 'insight' | 'connection' | 'tag';
+  semanticType: 'entity' | 'topic' | 'intent' | 'source_ref' | 'cue' | 'task';
   references: SubstrateRef[];
 }
 

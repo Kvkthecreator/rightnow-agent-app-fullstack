@@ -5,7 +5,7 @@ Pure substrate memory with separate artifact expressions. Clear substrate/artifa
 
 **Version 4.0 — Substrate/Artifact Separation Model**
 Aligned with Context OS substrate v1.2
-Blocks (**context_blocks**) are structured units derived from dumps.
+Blocks (**context_blocks**) are structured knowledge ingredients extracted from raw_dumps by the P1 Substrate Agent. Each block contains goals, constraints, metrics, entities, relationships, and provenance for traceability.
 
 ---
 

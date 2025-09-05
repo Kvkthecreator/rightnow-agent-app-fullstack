@@ -274,7 +274,7 @@ function generateContextItems(
   // Generate context items from key themes
   semantics.themes.forEach((theme, index) => {
     items.push({
-      type: 'theme',
+      type: 'topic',
       content: theme.replace('-', ' '),
       relevance_score: Math.max(0.9 - (index * 0.1), 0.6)
     });
@@ -391,7 +391,7 @@ async function suggestBasketStructure(
       type: 'strategy',
       description: `Strategic overview and analysis for ${themeWords.toLowerCase()}`,
       initial_content: `# ${themeWords} Overview\n\nThis document captures the strategic approach and key considerations for ${themeWords.toLowerCase()}.\n\n## Key Focus Areas\n\n${intelligence.context_items
-        .filter(item => item.type === 'theme' || item.type === 'concept')
+        .filter(item => item.type === 'topic' || item.type === 'concept')
         .slice(0, 3)
         .map(item => `- ${item.content}`)
         .join('\n')}\n\n## Next Steps\n\n- Define specific objectives\n- Identify key stakeholders\n- Establish success metrics`,

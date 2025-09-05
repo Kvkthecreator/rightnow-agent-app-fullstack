@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       .from('context_items')
       .select('id')
       .eq('basket_id', payload.basket_id)
-      .eq('type', 'yarnnn_system')
+      .eq('type', 'task')
       .eq('content', 'identity_genesis')
       .maybeSingle();
 
@@ -144,7 +144,7 @@ export async function POST(req: Request) {
       .from('context_items')
       .insert({
         basket_id: payload.basket_id,
-        type: 'yarnnn_system',
+        type: 'task',
         content: 'identity_genesis',
         title: 'Identity Genesis Marker',
         metadata: {

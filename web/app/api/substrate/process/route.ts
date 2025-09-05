@@ -189,7 +189,7 @@ async function extractContextualThemes(content: string, basketId: string) {
     contextItems.push({
       title: `Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`,
       description: `Recurring concept appearing ${frequency} times, indicating significance in the content analysis`,
-      type: 'theme',
+      type: 'topic',
       confidence: Math.min(0.9, 0.5 + (frequency * 0.1))
     });
   });
@@ -200,7 +200,7 @@ async function extractContextualThemes(content: string, basketId: string) {
     contextItems.push({
       title: 'Research Questions',
       description: `${questionCount} question${questionCount !== 1 ? 's' : ''} identified that require further investigation`,
-      type: 'question',
+      type: 'intent',
       confidence: 0.9
     });
   }
