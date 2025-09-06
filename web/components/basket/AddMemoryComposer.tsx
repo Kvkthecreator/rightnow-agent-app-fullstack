@@ -6,7 +6,7 @@ import { fetchWithToken } from "@/lib/fetchWithToken";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { Paperclip, X, FileText, Image, File } from "lucide-react";
-import { CANONICAL_ACCEPT_ATTRIBUTE, SUPPORTED_FORMAT_DESCRIPTION, isCanonicalMimeType } from "@/shared/constants/canonical_file_types";
+import { CANONICAL_ACCEPT_ATTRIBUTE, SUPPORTED_FORMAT_DESCRIPTION, isCanonicalFile } from "@/shared/constants/canonical_file_types";
 
 interface AddMemoryComposerProps {
   basketId: string;
@@ -43,7 +43,7 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
 
   const handleAddAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => isCanonicalMimeType(file.type));
+    const validFiles = files.filter(file => isCanonicalFile(file));
     
     if (validFiles.length !== files.length) {
       alert(`Some files were not added. ${SUPPORTED_FORMAT_DESCRIPTION}`);
@@ -124,9 +124,24 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
         const allSuccessful = results.every(res => res.ok);
         
         if (allSuccessful) {
+          // Parse all responses to understand the routes
+          const responses = await Promise.all(results.map(r => r.json()));
+          console.log("Batch responses:", responses);
+          
+          const proposalCount = responses.filter(r => r.route === 'proposal').length;
+          const directCount = responses.filter(r => r.route === 'direct').length;
+          
           onSuccess?.({ dump_id: batchId }); // Return batch ID for tracking
           setText("");
           setAttachments([]);
+          
+          // Log feedback
+          if (proposalCount > 0) {
+            console.log(`${proposalCount} items submitted for review`);
+          }
+          if (directCount > 0) {
+            console.log(`${directCount} items added directly`);
+          }
         } else {
           console.error("Some uploads failed", results);
           alert("Some uploads failed. Please try again.");
@@ -149,10 +164,21 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
         
         if (res.ok) {
           const dump = await res.json();
+          console.log("Dump response:", dump);
           onSuccess?.(dump);
           setText("");
+          
+          // Show feedback based on response
+          if (dump.route === 'proposal') {
+            // Async processing via proposal
+            console.log(`Memory submitted for review (proposal: ${dump.proposal_id})`);
+          } else if (dump.route === 'direct') {
+            // Direct commit
+            console.log("Memory added successfully");
+          }
         } else {
           console.error("Failed to create dump", await res.text());
+          alert("Failed to add memory. Please try again.");
         }
       }
     } catch (err) {

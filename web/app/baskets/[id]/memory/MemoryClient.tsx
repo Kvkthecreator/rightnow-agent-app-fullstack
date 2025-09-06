@@ -89,7 +89,10 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
         basketId={basketId}
         open={showAddMemory}
         onClose={() => setShowAddMemory(false)}
-        onSuccess={() => setShowAddMemory(false)}
+        onSuccess={() => {
+          setShowAddMemory(false);
+          refreshDocuments();
+        }}
       />
     </div>
   );

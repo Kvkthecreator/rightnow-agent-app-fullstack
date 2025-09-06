@@ -70,6 +70,39 @@ export function isCanonicalMimeType(mimeType: string): boolean {
   return (SUPPORTED_MIME_TYPES as readonly string[]).includes(mimeType);
 }
 
+export function isCanonicalFile(file: File): boolean {
+  // First check MIME type
+  if (isCanonicalMimeType(file.type)) {
+    return true;
+  }
+  
+  // Fallback to file extension check (for cases where MIME type is unreliable)
+  const extension = '.' + file.name.split('.').pop()?.toLowerCase();
+  return (SUPPORTED_FILE_EXTENSIONS as readonly string[]).includes(extension);
+}
+
+export function getCanonicalMimeType(file: File): string | null {
+  // If MIME type is canonical, use it
+  if (isCanonicalMimeType(file.type)) {
+    return file.type;
+  }
+  
+  // Otherwise, infer from extension
+  const extension = '.' + file.name.split('.').pop()?.toLowerCase();
+  
+  if (extension === '.md') return 'text/markdown';
+  if (extension === '.txt') return 'text/plain';
+  if (extension === '.pdf') return 'application/pdf';
+  if (['.jpg', '.jpeg'].includes(extension)) return 'image/jpeg';
+  if (extension === '.png') return 'image/png';
+  if (extension === '.gif') return 'image/gif';
+  if (extension === '.bmp') return 'image/bmp';
+  if (extension === '.tiff') return 'image/tiff';
+  if (extension === '.webp') return 'image/webp';
+  
+  return null;
+}
+
 export function isCanonicalTextFormat(mimeType: string): boolean {
   return (CANONICAL_TEXT_MIME_TYPES as readonly string[]).includes(mimeType);
 }

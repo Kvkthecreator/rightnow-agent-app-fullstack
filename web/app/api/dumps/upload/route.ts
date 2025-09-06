@@ -6,7 +6,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { CANONICAL_TEXT_MIME_TYPES, CANONICAL_BINARY_MIME_TYPES, SUPPORTED_FORMAT_DESCRIPTION } from '@/shared/constants/canonical_file_types';
+import { 
+  CANONICAL_TEXT_MIME_TYPES, 
+  CANONICAL_BINARY_MIME_TYPES, 
+  SUPPORTED_FORMAT_DESCRIPTION,
+  isCanonicalFile,
+  getCanonicalMimeType,
+  isCanonicalTextFormat,
+  isCanonicalBinaryFormat
+} from '@/shared/constants/canonical_file_types';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,17 +47,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Basket access denied' }, { status: 403 });
     }
 
+    // Validate file is canonical
+    if (!isCanonicalFile(file)) {
+      return NextResponse.json({ 
+        error: 'Unsupported file type',
+        details: SUPPORTED_FORMAT_DESCRIPTION,
+        received_type: file.type,
+        file_name: file.name
+      }, { status: 400 });
+    }
+
+    // Get canonical MIME type (handles extension-based detection)
+    const canonicalMimeType = getCanonicalMimeType(file) || file.type;
+
     // Process file content based on canonical supported types
     let fileContent = '';
     let fileUrl = '';
     
-    const supportedTextTypes = [...CANONICAL_TEXT_MIME_TYPES];
-    const supportedFileTypes = [...CANONICAL_BINARY_MIME_TYPES];
-    
-    if (supportedTextTypes.includes(file.type as any)) {
+    if (isCanonicalTextFormat(canonicalMimeType)) {
       // Read text content directly for canonical text types
       fileContent = await file.text();
-    } else if (supportedFileTypes.includes(file.type as any)) {
+    } else if (isCanonicalBinaryFormat(canonicalMimeType)) {
       // Upload to Supabase Storage for canonical file types (PDF/images)
       const fileBuffer = Buffer.from(await file.arrayBuffer());
       const fileName = `dumps/${basket_id}/${Date.now()}-${file.name}`;
@@ -76,13 +94,6 @@ export async function POST(request: NextRequest) {
       fileUrl = publicUrl;
       // Content will be extracted by P0 Capture Agent using ContentExtractor
       fileContent = '';
-    } else {
-      // Reject unsupported file types (canon purity)
-      return NextResponse.json({ 
-        error: 'Unsupported file type',
-        details: SUPPORTED_FORMAT_DESCRIPTION,
-        supported_types: [...supportedTextTypes, ...supportedFileTypes]
-      }, { status: 400 });
     }
 
     // Create raw_dump via RPC
