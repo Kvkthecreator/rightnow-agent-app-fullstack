@@ -7,19 +7,10 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from ..agents.services.dump_interpreter import (
-    DumpInterpreterService,
-    SmartDumpInterpreter,
-    RawDumpInterpretationRequest
-)
-from ..agents.services.context_tagger import (
-    ContextTaggerService,
-    ContextTagRequest
-)
-from ..agents.services.substrate_ops import (
-    AgentSubstrateService,
-    AgentSubstrateRequest,
-    SubstrateOperationType
+# Legacy services replaced with canonical pipeline agents
+from ..agents.pipeline.substrate_agent_v2 import P1SubstrateAgentV2
+from ..agents.pipeline.graph_agent import P2GraphAgent
+from ..agents.pipeline.reflection_agent import P3ReflectionAgent
 )
 from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace

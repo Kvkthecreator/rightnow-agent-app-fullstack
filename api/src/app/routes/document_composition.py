@@ -19,7 +19,7 @@ from ..documents.services.context_composition import ContextCompositionService
 from ..documents.services.document_architect import DocumentArchitectService
 from ..documents.services.lifecycle_management import DocumentLifecycleService
 from ..documents.services.coherence_analyzer import CoherenceAnalyzerService
-from ..agents.services.document_composition import AgentDocumentCompositionService
+from ..agents.pipeline.presentation_agent import P4PresentationAgent
 from ..dependencies import get_current_user
 
 logger = logging.getLogger("uvicorn.error")
@@ -224,10 +224,20 @@ async def agent_compose_document(
     """Create document using agent-driven composition."""
     
     try:
-        document = await AgentDocumentCompositionService.compose_document_for_agent(
-            request=request,
-            workspace_id=current_user.workspace_id
-        )
+        # Use canonical P4 presentation agent for document composition
+        agent = P4PresentationAgent()
+        document_id = await agent.compose_document({
+            "basket_id": request.basket_id,
+            "workspace_id": current_user.workspace_id,
+            "title": request.title,
+            "document_type": request.document_type or "narrative",
+            "agent_id": request.agent_id
+        })
+        
+        # Get the created document
+        from ..utils.supabase_client import supabase_admin_client
+        doc_response = supabase_admin_client.table("documents").select("*").eq("id", str(document_id)).single().execute()
+        document = doc_response.data
         
         logger.info(f"Agent-composed document created: {document.id} by {request.agent_id}")
         return document
@@ -250,11 +260,12 @@ async def get_agent_composition_suggestions(
     """Get composition suggestions optimized for agent capabilities."""
     
     try:
-        suggestions = await AgentDocumentCompositionService.suggest_compositions_for_agent(
-            agent_id=agent_id,
-            agent_type=agent_type,
+        # Use canonical P3 reflection agent for composition suggestions
+        agent = P3ReflectionAgent()
+        suggestions = await agent.suggest_compositions(
             basket_id=basket_id,
-            workspace_id=current_user.workspace_id
+            workspace_id=current_user.workspace_id,
+            agent_context={"agent_id": agent_id, "agent_type": agent_type}
         )
         
         logger.info(f"Agent composition suggestions generated for basket {basket_id}")

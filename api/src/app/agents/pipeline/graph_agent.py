@@ -399,9 +399,14 @@ class P2GraphAgent:
                 return response.data if response.data else []
                 
             except Exception:
-                # Fallback to direct insert
-                response = supabase.table("substrate_relationships").insert(relationship_data).select().execute()
-                return response.data if response.data else []
+                # FIXED: Split insert and select calls for Supabase client compatibility
+                response = supabase.table("substrate_relationships").insert(relationship_data).execute()
+                if response.data:
+                    # Get the inserted records with all fields
+                    inserted_ids = [record["id"] for record in response.data]
+                    select_response = supabase.table("substrate_relationships").select("*").in_("id", inserted_ids).execute()
+                    return select_response.data if select_response.data else []
+                return []
                 
         except Exception as e:
             self.logger.error(f"Failed to create relationships: {e}")

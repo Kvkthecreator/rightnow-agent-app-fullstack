@@ -26,7 +26,7 @@ from app.agents.pipeline import (
     P3ReflectionAgent
 )
 from app.agents.pipeline.capture_agent import DumpIngestionRequest
-from app.agents.pipeline.substrate_agent import SubstrateCreationRequest
+from app.agents.pipeline.substrate_agent_v2 import P1SubstrateAgentV2
 from app.agents.pipeline.graph_agent import RelationshipMappingRequest
 from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
 from app.agents.pipeline.governance_processor import GovernanceDumpProcessor

@@ -16,7 +16,7 @@ from .services.coherence_suggestions import CoherenceSuggestionsService
 from .services.relationship_discovery import RelationshipDiscoveryService
 from .services.inconsistency_accommodation import InconsistencyAccommodationService
 from .services.improvement_guidance import ImprovementGuidanceService
-from ..agents.runtime.infra_basket_analyzer_agent import InfraBasketAnalyzerAgent
+from ..agents.pipeline.reflection_agent import P3ReflectionAgent
 
 router = APIRouter(prefix="/baskets", tags=["basket-intelligence"])
 

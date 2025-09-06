@@ -1,1 +1,0 @@
-# Legacy integration agent stubs - replaced by canonical pipeline agents

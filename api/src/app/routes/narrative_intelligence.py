@@ -10,13 +10,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 
-from ..agents.integration.agent_substrate_bridge import (
-    agent_get_project_understanding,
-    agent_generate_ai_assistance,
-    agent_get_intelligent_guidance,
-    agent_assess_project_health,
-    agent_get_contextual_next_steps
-)
+from ..agents.pipeline.reflection_agent import P3ReflectionAgent
+from ..agents.pipeline.presentation_agent import P4PresentationAgent
 from ..dependencies import get_current_user
 
 logger = logging.getLogger("uvicorn.error")

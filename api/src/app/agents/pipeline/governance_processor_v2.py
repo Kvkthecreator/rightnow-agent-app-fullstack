@@ -198,11 +198,15 @@ class GovernanceDumpProcessorV2:
                     "status": "PROPOSED"
                 }
                 
-                # Insert proposal
-                response = supabase.table("proposals").insert(proposal_data).select().execute()
+                # FIXED: Split insert and select calls for Supabase client compatibility
+                response = supabase.table("proposals").insert(proposal_data).execute()
                 if response.data:
-                    proposals.extend(response.data)
-                    proposal_ids.extend([p["id"] for p in response.data])
+                    # Get the inserted records with all fields
+                    inserted_ids = [record["id"] for record in response.data]
+                    select_response = supabase.table("proposals").select("*").in_("id", inserted_ids).execute()
+                    if select_response.data:
+                        proposals.extend(select_response.data)
+                        proposal_ids.extend([p["id"] for p in select_response.data])
             
             return {
                 "proposals_created": len(proposals),
@@ -355,13 +359,20 @@ class GovernanceDumpProcessorV2:
             }
         }
         
-        # Insert unified proposal
-        response = supabase.table("proposals").insert(proposal_data).select().execute()
+        # FIXED: Split insert and select calls for Supabase client compatibility
+        response = supabase.table("proposals").insert(proposal_data).execute()
         
         if not response.data:
             raise RuntimeError("Failed to create unified governance proposal")
+        
+        # Get the inserted record with all fields
+        inserted_id = response.data[0]["id"]
+        select_response = supabase.table("proposals").select("*").eq("id", inserted_id).single().execute()
+        
+        if not select_response.data:
+            raise RuntimeError("Failed to retrieve created unified governance proposal")
             
-        proposal_id = UUID(response.data[0]["id"])
+        proposal_id = UUID(select_response.data["id"])
         self.logger.info(f"Created unified proposal {proposal_id} from {len(dump_ids)} dumps")
         
         return proposal_id

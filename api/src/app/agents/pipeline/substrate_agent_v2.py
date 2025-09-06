@@ -401,22 +401,35 @@ class P1SubstrateAgentV2:
             created_blocks = []
             
             for ingredient in block_ingredients:
+                # Get workspace_id from basket lookup
+                basket_resp = supabase.table("baskets").select("workspace_id").eq("id", str(basket_id)).single().execute()
+                workspace_id = basket_resp.data["workspace_id"] if basket_resp.data else None
+                
+                if not workspace_id:
+                    self.logger.error(f"Could not find workspace_id for basket {basket_id}")
+                    continue
+                
                 block_data = {
                     "basket_id": str(basket_id),
+                    "workspace_id": workspace_id,
                     "raw_dump_id": str(dump_id),
                     "title": ingredient["title"],
-                    "body_md": ingredient["content"],  # Legacy compatibility
+                    "body_md": ingredient["content"],  # Streamlined: align with web layer convention
                     "status": "proposed",
                     "confidence_score": ingredient["confidence"],
                     "processing_agent": agent_id,
                     "semantic_type": ingredient["semantic_type"],
-                    "metadata": ingredient["metadata"]  # Contains structured ingredients
+                    "metadata": ingredient["metadata"]
                 }
                 
-                # Insert block with structured ingredients
-                response = supabase.table("blocks").insert(block_data).select().execute()
+                # FIXED: Split insert and select calls for Supabase client compatibility
+                response = supabase.table("blocks").insert(block_data).execute()
                 if response.data:
-                    created_blocks.extend(response.data)
+                    # Get the inserted records with all fields
+                    inserted_ids = [record["id"] for record in response.data]
+                    select_response = supabase.table("blocks").select("*").in_("id", inserted_ids).execute()
+                    if select_response.data:
+                        created_blocks.extend(select_response.data)
                     
             return created_blocks
             
@@ -458,8 +471,14 @@ class P1SubstrateAgentV2:
             
             # Bulk insert context items
             if context_data:
-                response = supabase.table("context_items").insert(context_data).select().execute()
-                return response.data if response.data else []
+                # FIXED: Split insert and select calls for Supabase client compatibility
+                response = supabase.table("context_items").insert(context_data).execute()
+                if response.data:
+                    # Get the inserted records with all fields
+                    inserted_ids = [record["id"] for record in response.data]
+                    select_response = supabase.table("context_items").select("*").in_("id", inserted_ids).execute()
+                    return select_response.data if select_response.data else []
+                return []
             else:
                 return []
                 

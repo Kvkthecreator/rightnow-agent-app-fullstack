@@ -13,15 +13,17 @@ Pipeline Agents:
 """
 
 from .capture_agent import P0CaptureAgent
-from .substrate_agent import P1SubstrateAgent
 from .substrate_agent_v2 import P1SubstrateAgentV2  
 from .graph_agent import P2GraphAgent
 from .reflection_agent import P3ReflectionAgent
 from .presentation_agent import P4PresentationAgent
 
+# Alias for compatibility
+P1SubstrateAgent = P1SubstrateAgentV2
+
 __all__ = [
     "P0CaptureAgent",
-    "P1SubstrateAgent",
+    "P1SubstrateAgent", 
     "P1SubstrateAgentV2",
     "P2GraphAgent", 
     "P3ReflectionAgent",

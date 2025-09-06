@@ -6,10 +6,8 @@ from fastapi import APIRouter, HTTPException, Request
 
 from src.utils.db import json_safe
 
-from .agents.utils.supabase_helpers import (
-    create_task_and_session,
-    supabase,
-)
+# Legacy supabase helpers removed - use app.utils.supabase_client directly
+from .utils.supabase_client import supabase_admin_client as supabase
 
 
 # Phase 1 stubs
@@ -75,7 +73,8 @@ async def run_agent_direct(req: Request):
     if not user_id:
         raise HTTPException(422, "Missing 'user_id'")
     if not task_id:
-        task_id = create_task_and_session(user_id, agent.name)
+        # Legacy task creation removed - use canonical agents directly
+        task_id = f"canonical-{agent.name}-{user_id[:8]}"
 
     prompt = data.get("prompt") or data.get("message") or ""
     context = {

@@ -528,11 +528,18 @@ class P4PresentationAgent:
                 "status": "draft"
             }
             
-            # Insert document
-            response = supabase.table("documents").insert(document_data).select().execute()
+            # FIXED: Split insert and select calls for Supabase client compatibility
+            response = supabase.table("documents").insert(document_data).execute()
             
             if response.data and len(response.data) > 0:
-                return UUID(response.data[0]["id"])
+                # Get the inserted record with all fields
+                inserted_id = response.data[0]["id"]
+                select_response = supabase.table("documents").select("*").eq("id", inserted_id).single().execute()
+                
+                if select_response.data:
+                    return UUID(select_response.data["id"])
+                else:
+                    raise RuntimeError("Failed to retrieve created document")
             else:
                 raise RuntimeError("Document persistence returned no document_id")
                 
