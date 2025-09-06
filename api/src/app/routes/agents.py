@@ -17,7 +17,7 @@ class AgentRunPayload(BaseModel):
 
 
 @router.post("/{name}/run")
-def run_agent(name: str, payload: AgentRunPayload):
+async def run_agent(name: str, payload: AgentRunPayload):
     res = (
         supabase.table("baskets")
         .select("id")
