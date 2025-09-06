@@ -264,8 +264,8 @@ class GovernanceDumpProcessor:
         # Convert operations to JSON-serializable format
         ops_data = [op.dict() for op in operations]
         
-        # Create proposal
-        proposal_response = supabase.table("proposals").insert({
+        # Create proposal - split insert and select for Supabase client compatibility
+        insert_response = supabase.table("proposals").insert({
             'basket_id': str(basket_id),
             'workspace_id': str(workspace_id),
             'proposal_kind': 'Extraction',
@@ -275,11 +275,18 @@ class GovernanceDumpProcessor:
             'validator_report': validation_report.dict(),
             'status': 'PROPOSED',
             'blast_radius': 'Local'  # Default for agent extractions
-        }).select().single().execute()
+        }).execute()
         
-        if not proposal_response.data:
+        if not insert_response.data:
             raise ValueError("Failed to create governance proposal")
         
+        # Get the inserted proposal with all fields
+        inserted_id = insert_response.data[0]["id"]
+        proposal_response = supabase.table("proposals").select("*").eq("id", inserted_id).single().execute()
+        
+        if not proposal_response.data:
+            raise ValueError("Failed to retrieve created governance proposal")
+            
         proposal_id = proposal_response.data['id']
         
         # Emit timeline event
