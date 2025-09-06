@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 from ..agents.pipeline.substrate_agent_v2 import P1SubstrateAgentV2
 from ..agents.pipeline.graph_agent import P2GraphAgent
 from ..agents.pipeline.reflection_agent import P3ReflectionAgent
-)
 from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace
 
