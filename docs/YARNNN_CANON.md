@@ -45,10 +45,36 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 | Pipeline | Layer | Purpose | Sacred Rule |
 |----------|-------|---------|-------------|
 | **P0: Capture** | Substrate | Ingest raw memory | Only writes raw_dumps, never interprets |
-| **P1: Extract** | Substrate | Extract structured knowledge from raw_dumps | Creates context_blocks only |
-| **P2: Connect** | Substrate | Link substrates semantically | Creates context_items and relationships only |
+| **P1: Evolve** | Substrate | Evolve basket substrate to reflect new information | **Creates, Updates, and Merges substrate via governance proposals** |
+| **P2: Connect** | Substrate | Link existing substrates semantically | Creates relationships only, never creates new substrate |
 | **P3: Reflect** | Artifact | Compute insights about substrates | Creates reflections only, never modifies substrate |
 | **P4: Compose** | Artifact | Create narrative compositions | Creates documents only, consumes substrate |
+
+### Pipeline Detail: P0→P1 Substrate Scaffolding
+
+**P0: Capture Phase**
+```
+User Input → Collection of raw_dumps (unstructured)
+- Text, PDFs, images become immutable raw_dumps
+- Multiple inputs in one session linked by batch/provenance
+- No interpretation, pure capture
+```
+
+**P1: Evolve & Refine Phase** 
+```
+New raw_dumps + Existing substrate → Agent Analysis → Governance Proposal → Substrate Evolution
+
+1. Agent reads new raw_dumps collectively 
+2. Agent reads existing substrate in basket (blocks, context_items)
+3. Agent determines evolution needed:
+   - Novel concepts → CREATE new substrate
+   - Refined understanding → UPDATE existing substrate  
+   - Duplicate concepts → MERGE substrate
+   - Contradictions → REVISE substrate
+4. Proposal approval → Operations executed → Substrate evolved
+```
+
+**Critical Insight**: P1 is a **substrate evolution agent**, not just creation. Early baskets see mostly CREATE operations, mature baskets see mostly UPDATE/MERGE operations as conceptual space fills out.
 
 ## 🏛️ Architectural Pillars
 
@@ -71,9 +97,74 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 ### 4. Sacred Write Paths
 - **Primary**: `POST /api/dumps/new` - One dump per call
 - **Onboarding**: `POST /api/baskets/ingest` - Orchestrates basket + dumps
+- **Governance**: `POST /api/baskets/[id]/proposals/[id]/approve` - Execute substrate operations
 - **No side effects** - These endpoints only write what they declare
 
-### 5. Pure Supabase Async Intelligence Model
+### 5. Governance-Mediated Substrate Creation
+
+**Sacred Principle**: All substrate mutations flow through governed proposals
+
+```
+Raw Input → P0 Capture → P1 Proposal → Approval → Substrate Creation
+```
+
+**Proposal Structure** (Unapplied Changeset):
+```typescript
+interface Proposal {
+  ops: Operation[]  // The substrate changes to apply
+  status: 'PROPOSED' | 'APPROVED' | 'EXECUTED'
+  origin: 'agent' | 'human'
+  provenance: uuid[]  // Source raw_dump IDs
+}
+```
+
+**Operation Schema** (P1 Evolution Agent Output):
+```typescript
+// Creation operations - novel concepts
+{
+  type: "CreateBlock",
+  content: "New insight from dumps...",
+  semantic_type: "insight" | "fact" | "plan" | "reflection", 
+  confidence: 0.8
+}
+
+{
+  type: "CreateContextItem",
+  label: "New Project Beta", 
+  kind: "project" | "person" | "concept" | "goal",
+  synonyms: ["Project β", "Beta"],
+  confidence: 0.9
+}
+
+// Evolution operations - refining existing substrate
+{
+  type: "ReviseBlock",
+  block_id: "existing-uuid",
+  content: "Updated content with new information...",
+  confidence: 0.85
+}
+
+{
+  type: "MergeContextItems", 
+  from_ids: ["uuid1", "uuid2"],
+  canonical_id: "uuid1",
+  merged_synonyms: ["all", "combined", "labels"]
+}
+
+{
+  type: "UpdateContextItem",
+  context_item_id: "existing-uuid", 
+  label: "Updated label",
+  additional_synonyms: ["new", "aliases"]
+}
+```
+
+**Approval Criteria**:
+- Agent-generated proposals: Auto-approve if confidence > 0.7
+- Human-generated proposals: Manual review required
+- Operations executed atomically on approval
+
+### 6. Pure Supabase Async Intelligence Model
 - Raw dumps automatically trigger agent queue processing via database triggers
 - Pure Supabase architecture: no DATABASE_URL dependency, single connection type
 - Service role authentication for backend operations, anon role for user operations
@@ -98,11 +189,18 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
           REJECTED → SUPERSEDED
 ```
 
-### Share Updates & Comprehensive Review
-- Share Updates = unified multi-input ingestion (text + files + images)
-- P1 Substrate Agent v2 performs comprehensive cross-content analysis
-- Single governance proposal generated from unified structured ingredients
-- Batch processing maintains semantic coherence across related inputs
+### Substrate Evolution Flow
+- **Multi-Input Capture**: Text, files, images become collection of raw_dumps
+- **Context-Aware Processing**: P1 Agent analyzes new dumps + existing substrate
+- **Evolution Decisions**: Agent determines Create/Update/Merge operations needed
+- **Governance Proposal**: Single proposal with mixed operation types based on basket maturity
+- **Auto-Approval**: High confidence evolution proposals execute immediately
+- **Substrate Evolution**: Operations evolve the basket's knowledge representation
+
+**Operation Mix Over Basket Lifecycle**:
+- **Early Stage (1-10 dumps)**: 90% Create, 10% Update - exploring new conceptual space
+- **Growing Stage (10-50 dumps)**: 60% Create, 40% Update - filling out knowledge gaps  
+- **Mature Stage (50+ dumps)**: 30% Create, 70% Update - refining existing knowledge
 
 ### Document Composition (Artifact Layer)
 - Documents = independent artifacts composed from substrate ingredients + authored prose
@@ -115,12 +213,13 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 1. **Substrate Equality** - The four substrate types (dumps, blocks, context_items, events) are peers
 2. **Substrate vs Artifacts** - Clear separation between memory (substrate) and expressions (artifacts)
 3. **Artifact Independence** - Documents and reflections evolve separately from substrate
-4. **Pipeline Discipline** - P0-P2 create substrate, P3-P4 create artifacts
+4. **Pipeline Discipline** - P0-P1 create substrate via governance, P2 links substrate, P3-P4 create artifacts
 5. **Memory Permanence** - Substrate is immutable; artifacts can be edited freely
 6. **Document Versioning** - Git-inspired versioning for stable artifact references
 7. **Workspace Isolation** - Complete data isolation between workspaces
 8. **Agent Necessity** - Substrate cannot exist without agent processing
 9. **Async Intelligence** - User feedback is instant, intelligence processing happens asynchronously
+10. **Governance-Mediated Creation** - All substrate mutations flow through proposals, enabling review and atomic execution
 
 ## 🚀 Implementation Guidelines
 
@@ -135,9 +234,13 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
    - Maintain workspace isolation via RLS
 
 3. **Agents Must**:
-   - Respect pipeline restrictions
-   - Write only allowed substrate types
-   - Emit proper event contracts
+   - **P1 Evolution Agents**: 
+     - Read new raw_dumps AND existing substrate in basket
+     - Make intelligent Create/Update/Merge decisions based on conceptual overlap
+     - Use proper operation schema (flat structure, not nested objects)
+     - Process actual dump content, never hardcoded templates
+     - Achieve confidence > 0.7 for auto-approval eligibility
+     - Handle basket lifecycle: heavy Create (early) → heavy Update (mature)
 
 ---
 

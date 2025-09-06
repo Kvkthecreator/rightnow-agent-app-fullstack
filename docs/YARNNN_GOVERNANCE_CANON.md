@@ -76,10 +76,19 @@ function decide(
 
 ## 🔄 Dual Ingestion Model
 
-### Sacred Capture Path (Preserved)
+### Sacred Capture Path (Standard Agent Flow)
 ```
-raw_dumps → P1 Agent → ChangeDescriptor → PolicyDecider → [direct | proposal] → Substrate
+raw_dumps + existing_substrate → P1 Evolution Agent → Proposal (with Operations) → Auto-Approval → Substrate Evolution
 ```
+
+**P1 Evolution Agent Process**:
+1. **Context Analysis**: Reads new dumps + existing substrate in basket
+2. **Evolution Planning**: Determines what operations are needed:
+   - Novel concepts → CREATE operations
+   - Refined understanding → UPDATE/REVISE operations  
+   - Duplicate detection → MERGE operations
+3. **Proposal Generation**: Mixed operation types based on basket maturity
+4. **High confidence proposals auto-approved for immediate substrate evolution**
 
 ### Manual Curation Path
 ```  
@@ -123,13 +132,52 @@ interface Proposal {
 }
 ```
 
-### Proposal Operations
-**Atomic Operations** (can be bundled):
-- `CreateBlock { content, semantic_type, confidence }`
-- `CreateContextItem { label, synonyms[], confidence }`
-- `AttachContextItem { context_item_id, target: Block|Doc|Basket }`
+### Proposal Operations Schema
+**P1 Evolution Agent Operations** (substrate lifecycle management):
+```typescript
+// Creation operations - novel concepts not in existing substrate
+{
+  type: "CreateBlock",
+  content: string,                    // New content from raw_dumps
+  semantic_type: "insight" | "fact" | "plan" | "reflection",
+  confidence: number                  // 0.0-1.0 confidence score
+}
+
+{
+  type: "CreateContextItem", 
+  label: string,                     // New concept identifier
+  kind: "project" | "person" | "concept" | "goal",
+  synonyms: string[],               // Alternative labels
+  confidence: number                // 0.0-1.0 confidence score
+}
+
+// Evolution operations - refining existing substrate
+{
+  type: "ReviseBlock",
+  block_id: string,                  // Target existing block
+  content: string,                   // Updated content
+  confidence: number                 // Confidence in revision
+}
+
+{
+  type: "MergeContextItems",
+  from_ids: string[],               // Items to merge  
+  canonical_id: string,             // Surviving item
+  merged_synonyms: string[]         // Combined synonyms
+}
+
+{
+  type: "UpdateContextItem", 
+  context_item_id: string,          // Target existing item
+  label?: string,                   // Optional label update
+  additional_synonyms?: string[]    // Optional new synonyms
+}
+```
+
+**Other Operations** (curation and maintenance):
+- `AttachBlockToDoc { block_id, document_id }`
 - `MergeContextItems { from_ids[], canonical_id }`
-- `EditBlock { block_id, patch }`
+- `ReviseBlock { block_id, content, confidence }`
 - `PromoteScope { block_id, from: LOCAL, to: WORKSPACE }`
 
 ## 🔀 Policy-Based Routing
@@ -177,8 +225,10 @@ DRAFT → PROPOSED → UNDER_REVIEW → [APPROVED | REJECTED]
 
 **PROPOSED** (Entry point for agent-originated):
 - Agent validation complete
-- Ready for human review
-- Agent proposals skip DRAFT
+- **Auto-approval criteria**:
+  - Agent origin + confidence > 0.7 → Auto-approved
+  - Low confidence or warnings → Requires manual review
+- Agent proposals skip DRAFT state
 
 **UNDER_REVIEW**:
 - Human reviewer assigned
