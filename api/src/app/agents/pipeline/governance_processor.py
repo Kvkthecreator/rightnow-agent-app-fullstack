@@ -620,7 +620,8 @@ class GovernanceDumpProcessor:
         op_data = operation.get('data', operation)  # Handle both nested and flat structures
         
         if op_type == 'CreateBlock':
-            response = supabase.table("blocks").insert({
+            # Split insert and select for Supabase client compatibility
+            insert_response = supabase.table("blocks").insert({
                 'basket_id': str(basket_id),
                 'workspace_id': str(workspace_id),
                 'content': op_data.get('content'),
@@ -628,14 +629,20 @@ class GovernanceDumpProcessor:
                 'semantic_type': op_data.get('semantic_type'),
                 'confidence_score': op_data.get('confidence', 0.7),
                 'state': 'ACCEPTED'
-            }).select().single().execute()
+            }).execute()
             
-            if response.error:
-                raise Exception(f"Failed to create block: {response.error.message}")
-            return {'created_id': response.data['id'], 'type': 'block'}
+            if insert_response.error:
+                raise Exception(f"Failed to create block: {insert_response.error.message}")
+            
+            if not insert_response.data:
+                raise Exception("No block created - insert returned empty data")
+                
+            block_id = insert_response.data[0]['id']
+            return {'created_id': block_id, 'type': 'block'}
             
         elif op_type == 'CreateContextItem':
-            response = supabase.table("context_items").insert({
+            # Split insert and select for Supabase client compatibility
+            insert_response = supabase.table("context_items").insert({
                 'basket_id': str(basket_id),
                 'workspace_id': str(workspace_id),
                 'normalized_label': op_data.get('label'),
@@ -643,22 +650,32 @@ class GovernanceDumpProcessor:
                 'confidence_score': op_data.get('confidence', 0.7),
                 'state': 'ACTIVE',
                 'metadata': {'synonyms': op_data.get('synonyms', [])}
-            }).select().single().execute()
+            }).execute()
             
-            if response.error:
-                raise Exception(f"Failed to create context item: {response.error.message}")
-            return {'created_id': response.data['id'], 'type': 'context_item'}
+            if insert_response.error:
+                raise Exception(f"Failed to create context item: {insert_response.error.message}")
+            
+            if not insert_response.data:
+                raise Exception("No context item created - insert returned empty data")
+                
+            item_id = insert_response.data[0]['id']
+            return {'created_id': item_id, 'type': 'context_item'}
             
         elif op_type == 'ReviseBlock':
-            response = supabase.table("blocks").update({
+            # Split update and select for Supabase client compatibility  
+            update_response = supabase.table("blocks").update({
                 'content': op_data.get('content'),
                 'body_md': op_data.get('content'),
                 'confidence_score': op_data.get('confidence', 0.7)
-            }).eq('id', op_data.get('block_id')).eq('workspace_id', str(workspace_id)).select().single().execute()
+            }).eq('id', op_data.get('block_id')).eq('workspace_id', str(workspace_id)).execute()
             
-            if response.error:
-                raise Exception(f"Failed to revise block: {response.error.message}")
-            return {'updated_id': response.data['id'], 'type': 'revision'}
+            if update_response.error:
+                raise Exception(f"Failed to revise block: {update_response.error.message}")
+            
+            if not update_response.data:
+                raise Exception("No block revised - update returned empty data")
+                
+            return {'updated_id': op_data.get('block_id'), 'type': 'revision'}
             
         elif op_type == 'UpdateContextItem':
             update_data = {'updated_at': datetime.utcnow().isoformat()}
@@ -669,13 +686,18 @@ class GovernanceDumpProcessor:
             if op_data.get('confidence'):
                 update_data['confidence_score'] = op_data['confidence']
                 
-            response = supabase.table("context_items").update(update_data).eq(
+            # Split update and select for Supabase client compatibility
+            update_response = supabase.table("context_items").update(update_data).eq(
                 'id', op_data.get('context_item_id')
-            ).eq('workspace_id', str(workspace_id)).select().single().execute()
+            ).eq('workspace_id', str(workspace_id)).execute()
             
-            if response.error:
-                raise Exception(f"Failed to update context item: {response.error.message}")
-            return {'updated_id': response.data['id'], 'type': 'update'}
+            if update_response.error:
+                raise Exception(f"Failed to update context item: {update_response.error.message}")
+            
+            if not update_response.data:
+                raise Exception("No context item updated - update returned empty data")
+                
+            return {'updated_id': op_data.get('context_item_id'), 'type': 'update'}
             
         elif op_type == 'MergeContextItems':
             # Mark source items as merged
