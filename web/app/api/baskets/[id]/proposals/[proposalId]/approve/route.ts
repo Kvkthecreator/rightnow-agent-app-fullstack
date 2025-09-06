@@ -260,6 +260,9 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
     case 'ReviseBlock':
       return await reviseBlock(supabase, operation, basketId, workspaceId);
     
+    case 'UpdateContextItem':
+      return await updateContextItem(supabase, operation, basketId, workspaceId);
+    
     case 'PromoteScope':
       return await promoteScope(supabase, operation, basketId, workspaceId);
     
@@ -270,15 +273,15 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
 
 async function createBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
   const { data, error } = await supabase
-    .from('context_blocks')
+    .from('blocks')
     .insert({
       basket_id: basketId,
       workspace_id: workspaceId,
       content: op.content,
+      body_md: op.content, // Store content in both fields for compatibility
       semantic_type: op.semantic_type,
-      canonical_value: op.canonical_value,
       confidence_score: op.confidence || 0.7,
-      status: 'ACCEPTED'
+      state: 'ACCEPTED'
     })
     .select()
     .single();
@@ -296,11 +299,11 @@ async function createContextItem(supabase: any, op: any, basketId: string, works
     .insert({
       basket_id: basketId,
       workspace_id: workspaceId,
-      label: op.label,
-      synonyms: op.synonyms || [],
-      kind: op.kind || 'concept',
-      confidence: op.confidence || 0.7,
-      state: 'ACTIVE'
+      normalized_label: op.label,
+      type: op.kind || 'concept', 
+      confidence_score: op.confidence || 0.7,
+      state: 'ACTIVE',
+      metadata: { synonyms: op.synonyms || [] }
     })
     .select()
     .single();
@@ -343,13 +346,14 @@ async function mergeContextItems(supabase: any, op: any, basketId: string, works
 
 async function reviseBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
   const { data, error } = await supabase
-    .from('context_blocks')
+    .from('blocks')
     .update({
       content: op.content,
-      canonical_value: op.canonical_value,
+      body_md: op.content, // Update both fields
       confidence_score: op.confidence || 0.7
     })
     .eq('id', op.block_id)
+    .eq('workspace_id', workspaceId)
     .select()
     .single();
 
@@ -363,9 +367,10 @@ async function reviseBlock(supabase: any, op: any, basketId: string, workspaceId
 async function promoteScope(supabase: any, op: any, basketId: string, workspaceId: string) {
   // Update scope from LOCAL to WORKSPACE
   const { data, error } = await supabase
-    .from('context_blocks')
+    .from('blocks')
     .update({ scope: op.to_scope })
     .eq('id', op.block_id)
+    .eq('workspace_id', workspaceId)
     .select()
     .single();
 
@@ -374,4 +379,48 @@ async function promoteScope(supabase: any, op: any, basketId: string, workspaceI
   }
 
   return { promoted_id: data.id, new_scope: op.to_scope, type: 'promotion' };
+}
+
+async function updateContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
+  // Build update object from operation
+  const updateData: any = {};
+  
+  if (op.label) updateData.normalized_label = op.label;
+  if (op.kind) updateData.type = op.kind;  
+  if (op.confidence !== undefined) updateData.confidence_score = op.confidence;
+  
+  // Handle synonyms - either replace or append
+  if (op.synonyms || op.additional_synonyms) {
+    // Get existing metadata to preserve other fields
+    const { data: existing } = await supabase
+      .from('context_items')
+      .select('metadata')
+      .eq('id', op.context_item_id)
+      .single();
+      
+    const existingMetadata = existing?.metadata || {};
+    const existingSynonyms = existingMetadata.synonyms || [];
+    
+    if (op.synonyms) {
+      updateData.metadata = { ...existingMetadata, synonyms: op.synonyms };
+    } else if (op.additional_synonyms) {
+      updateData.metadata = { ...existingMetadata, synonyms: [...existingSynonyms, ...op.additional_synonyms] };
+    }
+  }
+  
+  updateData.updated_at = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('context_items')
+    .update(updateData)
+    .eq('id', op.context_item_id)
+    .eq('workspace_id', workspaceId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update context item: ${error.message}`);
+  }
+
+  return { updated_id: data.id, type: 'update' };
 }
