@@ -169,8 +169,8 @@ class GovernanceDumpProcessor:
                 provenance=[dump_id]
             )
             
-            # Update processing queue
-            await self._mark_dump_processed(dump_id, proposal_id)
+            # Queue state management handled by canonical queue processor
+            logger.info(f"P1 Governance processing completed for dump {dump_id}, proposal {proposal_id}")
             
             return {
                 'proposals_created': 1,
@@ -182,7 +182,7 @@ class GovernanceDumpProcessor:
             
         except Exception as e:
             self.logger.error(f"Dump processing failed for {dump_id}: {e}")
-            await self._mark_dump_failed(dump_id, str(e))
+            # Queue state management handled by canonical queue processor
             raise
     
     async def _extract_candidates(self, dump: Dict[str, Any]) -> List[SubstrateCandidate]:
@@ -305,24 +305,7 @@ class GovernanceDumpProcessor:
         
         return UUID(proposal_id)
     
-    async def _mark_dump_processed(self, dump_id: UUID, proposal_id: UUID):
-        """Mark dump as processed in agent queue."""
-        supabase.table("agent_processing_queue").update({
-            'processing_state': 'processed',
-            'result_data': {
-                'proposal_id': str(proposal_id),
-                'governance_flow': True
-            },
-            'completed_at': datetime.utcnow().isoformat()
-        }).eq('dump_id', str(dump_id)).execute()
-    
-    async def _mark_dump_failed(self, dump_id: UUID, error_message: str):
-        """Mark dump processing as failed."""
-        supabase.table("agent_processing_queue").update({
-            'processing_state': 'failed',
-            'error_message': error_message,
-            'completed_at': datetime.utcnow().isoformat()
-        }).eq('dump_id', str(dump_id)).execute()
+    # Queue state management removed - handled by canonical queue processor
     
     def get_agent_info(self) -> Dict[str, str]:
         """Get agent information."""
