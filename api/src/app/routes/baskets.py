@@ -16,7 +16,8 @@ from services.idempotency import (
     fetch_delta_by_request_id,
     mark_processed,
 )
-from services.manager import run_manager_plan
+# Legacy manager removed - use canonical queue processor
+from src.services.canonical_queue_processor import CanonicalQueueProcessor, get_canonical_queue_health
 from pydantic import ValidationError
 
 # Import deps AFTER path setup
@@ -66,8 +67,9 @@ async def post_basket_work(
                 raise HTTPException(409, "Duplicate request but missing delta")
             return BasketDelta(**json.loads(cached_delta["payload"]))
 
-        # ✅ Call manager with basket_id + new request
-        delta = await run_manager_plan(db, basket_id, work_req, workspace_id)
+        # ✅ Call canonical queue processor for basket work
+        processor = CanonicalQueueProcessor()
+        delta = await processor.process_basket_work(basket_id, work_req, workspace_id)
 
         await persist_delta(db, delta, request_id)
         await mark_processed(db, request_id, delta.delta_id)
@@ -88,8 +90,9 @@ async def post_basket_work(
                 raise HTTPException(409, "Duplicate request but missing delta")
             return BasketDelta(**json.loads(cached_delta["payload"]))
 
-        # Legacy path with basket_id
-        delta = await run_manager_plan(db, basket_id, req, workspace_id)
+        # Legacy path with basket_id - use canonical queue processor
+        processor = CanonicalQueueProcessor()
+        delta = await processor.process_basket_change(basket_id, req, workspace_id)
 
         await persist_delta(db, delta, req.request_id)
         await mark_processed(db, req.request_id, delta.delta_id)

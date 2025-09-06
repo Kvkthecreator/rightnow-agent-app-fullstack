@@ -1,10 +1,10 @@
 import json
 from datetime import datetime
 
-from agents import Runner
 from fastapi import APIRouter, HTTPException, Request
 
 from src.utils.db import json_safe
+from src.services.canonical_queue_processor import get_canonical_queue_health
 
 # Legacy supabase helpers removed - use app.utils.supabase_client directly
 from .utils.supabase_client import supabase_admin_client as supabase
@@ -61,47 +61,18 @@ async def run_agent(req: Request):
 
 
 async def run_agent_direct(req: Request):
+    """Legacy agent runner replaced with canonical queue health check."""
     data = await req.json()
-
+    
     agent_type = data.get("agent_type")
-    agent = AGENT_REGISTRY.get(agent_type)
-    if not agent:
-        raise HTTPException(422, f"Unknown agent_type: {agent_type}")
-
-    task_id = data.get("task_id")
     user_id = data.get("user_id")
+    
     if not user_id:
         raise HTTPException(422, "Missing 'user_id'")
-    if not task_id:
-        # Legacy task creation removed - use canonical agents directly
-        task_id = f"canonical-{agent.name}-{user_id[:8]}"
-
-    prompt = data.get("prompt") or data.get("message") or ""
-    context = {
-        "task_id": task_id,
-        "user_id": user_id,
-        "profile_data": data.get("profile_data"),
-    }
-
-    result = await Runner.run(agent, input=prompt, context=context, max_turns=12)
-    raw = result.final_output.strip()
-
-    try:
-        content = json.loads(raw)
-        reason = "Agent returned structured JSON"
-        msg = {"type": "structured", "content": content}
-    except json.JSONDecodeError:
-        reason = "Agent returned unstructured output"
-        msg = {"type": "text", "content": raw}
-
-    trace = result.to_debug_dict() if hasattr(result, "to_debug_dict") else []
-    payload = build_payload(  # noqa: F841
-        task_id=task_id,
-        user_id=user_id,
-        agent_type=agent.name,
-        message=msg,
-        reason=reason,
-        trace=trace,
-    )
-    log_agent_message(task_id, user_id, agent.name, msg)
-    return {"ok": True, "task_id": task_id}
+    
+    # Legacy agent runner removed - return canonical queue status
+    if agent_type == "canonical_queue":
+        health = await get_canonical_queue_health()
+        return {"ok": True, "canonical_queue_health": health}
+    else:
+        raise HTTPException(501, f"Legacy agent runner removed. Agent type '{agent_type}' not supported in canonical pipeline.")

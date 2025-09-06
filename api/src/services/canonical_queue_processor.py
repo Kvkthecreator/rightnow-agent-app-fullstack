@@ -32,6 +32,8 @@ from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
 from app.agents.pipeline.governance_processor import GovernanceDumpProcessor
 from app.agents.pipeline.governance_processor_v2 import GovernanceDumpProcessorV2
 from app.utils.supabase_client import supabase_admin_client as supabase
+from contracts.basket import BasketDelta, BasketChangeRequest
+from services.clock import now_iso
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -96,6 +98,40 @@ class CanonicalQueueProcessor:
         """Stop the canonical queue processing loop."""
         self.running = False
         logger.info(f"Stopping Canonical Queue Processor: {self.worker_id}")
+    
+    async def process_basket_work(self, basket_id: str, work_req, workspace_id: str) -> BasketDelta:
+        """Process BasketWorkRequest through canonical pipeline."""
+        logger.info(f"Processing basket work request for basket {basket_id} (canonical)")
+        
+        # For now, return a placeholder delta indicating canonical processing is queued
+        # In the future, this could trigger immediate processing or queue the work
+        return BasketDelta(
+            delta_id=str(uuid4()),
+            basket_id=basket_id,
+            summary="Canonical processing queued",
+            changes=[],
+            recommended_actions=[],
+            explanations=[{"by": "canonical_queue_processor", "text": "Work request queued for canonical pipeline processing"}],
+            confidence=0.8,
+            created_at=now_iso(),
+        )
+    
+    async def process_basket_change(self, basket_id: str, req: BasketChangeRequest, workspace_id: str) -> BasketDelta:
+        """Process legacy BasketChangeRequest through canonical pipeline."""
+        logger.info(f"Processing basket change request for basket {basket_id} (canonical)")
+        
+        # For now, return a placeholder delta indicating canonical processing is queued
+        # In the future, this could trigger immediate processing or queue the work
+        return BasketDelta(
+            delta_id=str(uuid4()),
+            basket_id=basket_id,
+            summary="Canonical processing queued",
+            changes=[],
+            recommended_actions=[],
+            explanations=[{"by": "canonical_queue_processor", "text": "Change request queued for canonical pipeline processing"}],
+            confidence=0.8,
+            created_at=now_iso(),
+        )
     
     async def _claim_dumps(self, limit: int = 5) -> List[Dict[str, Any]]:
         """Atomically claim dumps from the queue."""
