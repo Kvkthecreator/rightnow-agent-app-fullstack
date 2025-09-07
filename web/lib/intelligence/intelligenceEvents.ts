@@ -1,9 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SubstrateIntelligence } from '@/lib/substrate/types';
 import type { IntelligenceEvent, IntelligenceChange, ContentHash } from './changeDetection';
+import { createTimelineEventViaGovernance } from './universalIntelligenceRouter';
 
 /**
- * Store intelligence event in the events table
+ * Store intelligence event via governance system (Canon v2.2 compliant)
  */
 export async function storeIntelligenceEvent(
   supabase: SupabaseClient,
@@ -15,34 +16,44 @@ export async function storeIntelligenceEvent(
     timestamp: new Date().toISOString()
   };
 
-  // Store in timeline_events table with canonical schema
-  const { data, error } = await supabase
-    .from('timeline_events')
-    .insert({
-      basket_id: event.basketId,
-      workspace_id: event.workspaceId, // CRITICAL: Store workspace_id as direct column for RLS
-      kind: event.kind,
-      payload: {
-        intelligence: event.intelligence,
-        contentHash: event.contentHash,
-        changes: event.changes,
-        approvalState: event.approvalState,
-        approvedSections: event.approvedSections,
-        workspaceId: event.workspaceId, // Also keep in payload for backwards compatibility
-        actorId: event.actorId,
-        origin: event.origin,
-        eventId: fullEvent.id
-      },
-      ts: fullEvent.timestamp
-    })
-    .select()
-    .single();
+  // Route timeline event creation through universal work orchestration
+  const timelineData = {
+    kind: event.kind,
+    payload: {
+      intelligence: event.intelligence,
+      contentHash: event.contentHash,
+      changes: event.changes,
+      approvalState: event.approvalState,
+      approvedSections: event.approvedSections,
+      workspaceId: event.workspaceId,
+      actorId: event.actorId,
+      origin: event.origin,
+      eventId: fullEvent.id,
+      timestamp: fullEvent.timestamp
+    },
+    workspace_id: event.workspaceId
+  };
 
-  if (error) {
-    throw new Error(`Failed to store intelligence event: ${error.message}`);
+  try {
+    // Route through governance - high confidence for intelligence events
+    const workResult = await createTimelineEventViaGovernance(
+      event.basketId,
+      timelineData,
+      {
+        confidence_score: 0.9,
+        user_override: 'allow_auto' // Intelligence events are system-generated
+      }
+    );
+
+    // Note: The actual timeline event will be created by the work system
+    // We return the event data for backwards compatibility
+    return fullEvent;
+    
+  } catch (error) {
+    // Fallback: If governance system fails, log error but don't break intelligence
+    console.error('Failed to route intelligence event through governance:', error);
+    throw new Error(`Failed to store intelligence event via governance: ${error instanceof Error ? error.message : String(error)}`);
   }
-
-  return fullEvent;
 }
 
 /**

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { routeIntelligenceWork, createIntelligenceWorkRequest } from "@/lib/intelligence/universalIntelligenceRouter";
 
 interface InitializeRequest {
   intelligence: {
@@ -101,37 +102,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Optionally create raw dump
+    // Prepare substrate operations for governance routing
+    const substrateOperations = [];
+
+    // Raw dump creation (if provided)
     if (raw_dump) {
-      const { error: dumpError } = await supabase
-        .from('raw_dumps')
-        .insert({
+      substrateOperations.push({
+        type: 'create_raw_dumps' as const,
+        data: {
           basket_id: basket.id,
           workspace_id: workspace.id,
           body_md: raw_dump.body_md,
           file_url: raw_dump.file_url || null
-        });
-      if (dumpError) {
-        console.error('Raw dump creation error:', dumpError);
-      }
+        },
+        confidence: 0.95
+      });
     }
 
-    // Create context items
+    // Context items creation
     const contextItemsData = intelligence.context_items.map(item => ({
       basket_id: basket.id,
       type: item.type,
       content: item.content,
-      status: 'active'
+      status: 'active',
+      workspace_id: workspace.id
     }));
 
-    const { data: contextItems, error: contextError } = await supabase
-      .from("context_items")
-      .insert(contextItemsData)
-      .select();
-
-    if (contextError) {
-      console.error("Context items creation error:", contextError);
-      // Continue with creation even if context items fail
+    if (contextItemsData.length > 0) {
+      substrateOperations.push({
+        type: 'create_context_items' as const,
+        data: { items: contextItemsData },
+        confidence: 0.8
+      });
     }
 
     // Create documents
@@ -172,7 +174,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create blocks from patterns (optional enhancement)
+    // Blocks creation from patterns
     const blocksData = intelligence.patterns.map(pattern => ({
       basket_id: basket.id,
       semantic_type: 'insight',
@@ -186,17 +188,37 @@ export async function POST(request: NextRequest) {
       })
     }));
 
-    const { data: blocks, error: blocksError } = await supabase
-      .from("blocks")
-      .insert(blocksData)
-      .select();
-
-    if (blocksError) {
-      console.error("Blocks creation error:", blocksError);
-      // Continue even if blocks fail
+    if (blocksData.length > 0) {
+      substrateOperations.push({
+        type: 'create_blocks' as const,
+        data: { blocks: blocksData },
+        confidence: intelligence.confidence_score || 0.7
+      });
     }
 
-    // Generate success response
+    // Route substrate operations through governance (Canon v2.2 compliant)
+    let substrateWorkResult = null;
+    if (substrateOperations.length > 0) {
+      try {
+        const workRequest = createIntelligenceWorkRequest(
+          substrateOperations,
+          basket.id,
+          {
+            confidence_score: intelligence.confidence_score || 0.8,
+            user_override: 'allow_auto', // Intelligence initialization can auto-execute
+            trace_id: `intelligence-init-${Date.now()}`,
+            provenance: raw_dump ? [`intelligence-analysis`] : []
+          }
+        );
+
+        substrateWorkResult = await routeIntelligenceWork(workRequest);
+      } catch (error) {
+        console.error("Substrate creation via governance failed:", error);
+        // Continue with document creation even if substrate operations fail
+      }
+    }
+
+    // Generate success response (Canon v2.2 compliant)
     const result = {
       basket: {
         id: basket.id,
@@ -209,20 +231,32 @@ export async function POST(request: NextRequest) {
         title: doc.title,
         type: doc.document_type
       })),
-      context_items: contextItems?.length || 0,
-      blocks_created: blocks?.length || 0,
+      substrate_work: substrateWorkResult ? {
+        work_id: substrateWorkResult.work_id,
+        routing_decision: substrateWorkResult.routing_decision,
+        execution_mode: substrateWorkResult.execution_mode,
+        status_url: substrateWorkResult.status_url,
+        operations_planned: substrateOperations.length
+      } : null,
       intelligence_summary: {
         themes_count: intelligence.themes.length,
         confidence_score: intelligence.confidence_score,
         patterns_identified: intelligence.patterns.length
       },
-      next_steps: generateNextSteps(intelligence, createdDocuments)
+      next_steps: generateNextSteps(intelligence, createdDocuments),
+      governance_compliance: {
+        substrate_operations_routed: substrateOperations.length,
+        artifacts_created_directly: createdDocuments.length,
+        canon_version: "v2.2"
+      }
     };
 
     return NextResponse.json({
       success: true,
       result,
-      message: "Basket initialized successfully"
+      message: substrateWorkResult 
+        ? `Basket initialized successfully. Substrate operations ${substrateWorkResult.execution_mode === 'auto_execute' ? 'executed' : 'queued for review'}.`
+        : "Basket initialized successfully with documents only."
     });
 
   } catch (error) {
