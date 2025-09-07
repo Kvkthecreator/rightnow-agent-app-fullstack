@@ -69,11 +69,12 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
         .in('state', ['ACTIVE']) // Only approved context items
         .limit(100),
         
+      // Canon-aligned relationships table
       supabase
-        .from('context_relationships')
-        .select('id, from_id, to_id, relationship_type, from_type, to_type, weight')
-        .eq('workspace_id', workspace.id)
-        .limit(200)
+        .from('substrate_relationships')
+        .select('id, basket_id, from_id, to_id, relationship_type, from_type, to_type, strength')
+        .eq('basket_id', basketId)
+        .limit(500)
     ]);
 
     // Check for database errors that might cause notFound()
@@ -94,11 +95,17 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
       throw new Error(`Relationships query failed: ${relationshipsResult.error.message}`);
     }
 
+    const relationships = (relationshipsResult.data || []).map((r: any) => ({
+      ...r,
+      // Normalize field name for GraphView expectations
+      weight: r.strength ?? r.weight ?? 0.7,
+    }));
+
     const graphData = {
       blocks: blocksResult.data || [],
       dumps: dumpsResult.data || [],
       context_items: contextItemsResult.data || [],
-      relationships: relationshipsResult.data || []
+      relationships,
     };
 
     return (
