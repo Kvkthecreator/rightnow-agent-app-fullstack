@@ -3,6 +3,8 @@ import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import { notFound } from 'next/navigation';
 import { DocumentsList } from '@/components/documents/DocumentsList';
+import BasketSubpageLayout from '@/components/layouts/BasketSubpageLayout';
+import { SectionCard } from '@/components/ui/SectionCard';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -29,13 +31,14 @@ export default async function DocumentsPage({ params }: PageProps) {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Documents</h1>
-        <p className="text-gray-600 mt-1">Compose and organize your documents</p>
-      </div>
-      
-      <DocumentsList basketId={id} />
-    </div>
+    <BasketSubpageLayout
+      basketId={id}
+      title="Documents"
+      description="Compose and organize your documents"
+    >
+      <SectionCard>
+        <DocumentsList basketId={id} />
+      </SectionCard>
+    </BasketSubpageLayout>
   );
 }

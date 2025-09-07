@@ -4,6 +4,8 @@ import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import dynamic from 'next/dynamic';
 import { notFound } from 'next/navigation';
+import BasketSubpageLayout from '@/components/layouts/BasketSubpageLayout';
+import { SectionCard } from '@/components/ui/SectionCard';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -109,12 +111,20 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
     };
 
     return (
-      <GraphView 
+      <BasketSubpageLayout
         basketId={basketId}
-        basketTitle={basket.name}
-        graphData={graphData}
-        canEdit={basket.user_id === userId}
-      />
+        title="Graph"
+        description="Interactive relationships between your notes, meanings, and documents"
+      >
+        <SectionCard>
+          <GraphView 
+            basketId={basketId}
+            basketTitle={basket.name}
+            graphData={graphData}
+            canEdit={basket.user_id === userId}
+          />
+        </SectionCard>
+      </BasketSubpageLayout>
     );
   } catch (error) {
     console.error('Graph page error:', error);
