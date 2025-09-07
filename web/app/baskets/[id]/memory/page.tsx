@@ -77,34 +77,6 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
           )}
         </div>
       )}
-      
-      {/* Canonical Agent Processing Indicator */}
-      <div className="rounded-lg border bg-blue-50 p-4 text-sm text-blue-800">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-              <span className="font-medium">Continuous Processing Active</span>
-            </span>
-            <span className="text-blue-600">•</span>
-            <span>Your memory is being analyzed by intelligent agents</span>
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
-              <span>Organizing</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></span>
-              <span>Connecting</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
-              <span>Reflecting</span>
-            </span>
-          </div>
-        </div>
-      </div>
 
       <MemoryClient
         basketId={id}

@@ -31,6 +31,7 @@ from app.schemas.work_status import (
 from app.utils.supabase_client import supabase_admin_client as supabase
 from app.utils.jwt import verify_jwt
 from services.universal_work_tracker import universal_work_tracker, WorkContext
+from app.services.status_derivation import status_derivation_service
 
 router = APIRouter(prefix="/api/work", tags=["work-status"])
 
@@ -93,29 +94,40 @@ async def get_queue_health():
 @router.get("/{work_id}/status", response_model=WorkStatusResponse)
 async def get_work_status(work_id: str, user: dict = Depends(verify_jwt)):
     """
-    Get comprehensive status for any work item.
+    Get comprehensive status for any work item with cascade flow visualization.
     
     Canon-compliant status derivation from canonical queue + substrate impact.
+    Includes cascade flow status and relationship mapping.
     Respects workspace isolation via user JWT verification.
     """
     try:
-        # Get work status using universal work tracker
-        status_response = await universal_work_tracker.get_work_status(work_id)
-        
-        # Verify user has access to this workspace
         user_id = user.get('sub')
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid user token")
         
-        # Check workspace access
-        access_response = supabase.table("workspace_memberships").select(
+        # Get user's workspace IDs for access control
+        workspaces_response = supabase.table("workspace_memberships").select(
             "workspace_id"
-        ).eq("user_id", user_id).eq("workspace_id", status_response.workspace_id).execute()
+        ).eq("user_id", user_id).execute()
         
-        if not access_response.data:
+        if not workspaces_response.data:
             raise HTTPException(
                 status_code=403, 
-                detail="Access denied: User not member of workspace"
+                detail="User has no workspace access"
+            )
+        
+        user_workspace_ids = [w['workspace_id'] for w in workspaces_response.data]
+        
+        # Get comprehensive work status using status derivation service
+        status_response = await status_derivation_service.derive_work_status(
+            work_id=work_id,
+            user_workspace_ids=user_workspace_ids
+        )
+        
+        if not status_response:
+            raise HTTPException(
+                status_code=404, 
+                detail="Work not found or access denied"
             )
         
         return status_response
@@ -185,12 +197,16 @@ async def list_work_statuses(
         
         work_items = response.data or []
         
-        # Get detailed status for each work item
+        # Get detailed status for each work item using status derivation service
         work_statuses = []
         for item in work_items:
             try:
-                detailed_status = await universal_work_tracker.get_work_status(item['work_id'])
-                work_statuses.append(detailed_status)
+                detailed_status = await status_derivation_service.derive_work_status(
+                    work_id=item['work_id'],
+                    user_workspace_ids=workspace_ids
+                )
+                if detailed_status:
+                    work_statuses.append(detailed_status)
             except Exception as e:
                 # Skip items that fail status lookup
                 continue
@@ -358,4 +374,101 @@ async def retry_failed_work(work_id: str, user: dict = Depends(verify_jwt)):
         raise HTTPException(
             status_code=500, 
             detail=f"Failed to retry work: {str(e)}"
+        )
+
+@router.get("/{work_id}/cascade", response_model=dict)
+async def get_cascade_flow_status(work_id: str, user: dict = Depends(verify_jwt)):
+    """
+    Get detailed cascade flow status for work item.
+    
+    Shows full P1→P2→P3 flow relationships, completion status, and timing.
+    Canon-compliant with workspace isolation.
+    """
+    try:
+        user_id = user.get('sub')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user token")
+        
+        # Get user's workspace IDs for access control
+        workspaces_response = supabase.table("workspace_memberships").select(
+            "workspace_id"
+        ).eq("user_id", user_id).execute()
+        
+        if not workspaces_response.data:
+            raise HTTPException(
+                status_code=403, 
+                detail="User has no workspace access"
+            )
+        
+        user_workspace_ids = [w['workspace_id'] for w in workspaces_response.data]
+        
+        # Verify work exists and user has access
+        work_response = supabase.table("agent_processing_queue").select(
+            "work_id, workspace_id"
+        ).eq("work_id", work_id).single().execute()
+        
+        if not work_response.data:
+            raise HTTPException(status_code=404, detail="Work not found")
+        
+        work = work_response.data
+        if work['workspace_id'] not in user_workspace_ids:
+            raise HTTPException(
+                status_code=403, 
+                detail="Access denied: Work not in user workspace"
+            )
+        
+        # Get cascade status using status derivation service
+        cascade_status = await status_derivation_service.derive_cascade_status(work_id)
+        
+        return {
+            "work_id": work_id,
+            "cascade_flow": cascade_status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to get cascade flow status: {str(e)}"
+        )
+
+@router.get("/workspace/{workspace_id}/summary", response_model=dict)
+async def get_workspace_work_summary(workspace_id: str, user: dict = Depends(verify_jwt)):
+    """
+    Get comprehensive work summary for a workspace.
+    
+    Shows all active work, cascade flows, queue health, and timing metrics.
+    Canon-compliant with workspace isolation.
+    """
+    try:
+        user_id = user.get('sub')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user token")
+        
+        # Check workspace access
+        access_response = supabase.table("workspace_memberships").select(
+            "workspace_id"
+        ).eq("user_id", user_id).eq("workspace_id", workspace_id).execute()
+        
+        if not access_response.data:
+            raise HTTPException(
+                status_code=403, 
+                detail="Access denied: User not member of workspace"
+            )
+        
+        # Get workspace work summary using status derivation service
+        summary = await status_derivation_service.get_workspace_work_summary(workspace_id)
+        
+        return {
+            "workspace_id": workspace_id,
+            "summary": summary
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to get workspace work summary: {str(e)}"
         )

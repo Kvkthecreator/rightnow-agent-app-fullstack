@@ -296,9 +296,16 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 
 ## Version Lock
 
-- Canon version: **v2.0**  
-- Frozen as of: **2025-01-04**  
+- Canon version: **v2.1**  
+- Frozen as of: **2025-01-07**  
 - Update policy: Do not edit in place. Amendments require a new canon version.
+
+### v2.1.0 Changes (Extension)
+- **Universal Work Orchestration**: Extended canonical_queue to handle all async operations
+- **Real-time Status Visibility**: Canon-compliant status derivation across all workflows  
+- **Cascade Framework Integration**: Unified P0→P1→P2→P3 orchestration with status tracking
+- **Schema Enhancement**: Extended canonical_queue with cascade metadata and universal work support
+- **Sacred Principle Preservation**: All changes maintain strict canon compliance
 
 ### v2.0.0 Changes (Breaking)
 - **Substrate/Artifact Separation**: Clear distinction between memory (substrate) and expressions (artifacts)
