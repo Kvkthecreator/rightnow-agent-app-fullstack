@@ -12,7 +12,6 @@ import { useAuth } from '../useAuth';
 interface Workspace {
   id: string;
   name: string;
-  slug: string;
 }
 
 export function useWorkspace() {
@@ -32,14 +31,7 @@ export function useWorkspace() {
     // Get user's workspace via workspace_memberships
     supabase
       .from('workspace_memberships')
-      .select(`
-        workspace_id,
-        workspaces (
-          id,
-          name,
-          slug
-        )
-      `)
+      .select(`workspace_id, workspaces ( id, name )`)
       .eq('user_id', user.id)
       .single()
       .then(({ data, error }) => {
@@ -48,11 +40,7 @@ export function useWorkspace() {
           setWorkspace(null);
         } else {
           const ws = data.workspaces as any;
-          setWorkspace({
-            id: ws.id,
-            name: ws.name,
-            slug: ws.slug
-          });
+          setWorkspace({ id: ws.id, name: ws.name });
         }
         setLoading(false);
       });

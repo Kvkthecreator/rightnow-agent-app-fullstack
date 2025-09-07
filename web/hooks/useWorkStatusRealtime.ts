@@ -268,6 +268,7 @@ export function useWorkStatusRealtime(
  * Useful for dashboard views showing overall work activity.
  */
 export function useWorkQueueRealtime(workspaceId: string) {
+  const realtimeEnabled = process.env.NEXT_PUBLIC_ENABLE_WORK_STATUS_REALTIME === 'true';
   const [queueStats, setQueueStats] = useState<{
     pending: number;
     processing: number;
@@ -285,6 +286,7 @@ export function useWorkQueueRealtime(workspaceId: string) {
 
   const fetchQueueStats = useCallback(async () => {
     try {
+      if (!workspaceId) return;
       const response = await fetch(`/api/work/workspace/${workspaceId}/summary`);
       if (response.ok) {
         const data = await response.json();
@@ -296,6 +298,10 @@ export function useWorkQueueRealtime(workspaceId: string) {
   }, [workspaceId]);
 
   useEffect(() => {
+    if (!workspaceId || !realtimeEnabled) {
+      setConnectionStatus('disconnected');
+      return;
+    }
     const supabase = createBrowserClient();
     let channel: any = null;
 
@@ -355,7 +361,7 @@ export function useWorkQueueRealtime(workspaceId: string) {
       }
       setConnectionStatus('disconnected');
     };
-  }, [workspaceId, fetchQueueStats]);
+  }, [workspaceId, fetchQueueStats, realtimeEnabled]);
 
   return {
     queueStats,
