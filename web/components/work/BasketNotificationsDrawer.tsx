@@ -49,7 +49,7 @@ export function BasketNotificationsDrawer({ basketId, open, onClose }: Props) {
           <section>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active</h4>
-              <Button size="xs" variant="outline" onClick={() => toBasket('timeline')}>Timeline</Button>
+              <Button size="sm" variant="outline" onClick={() => toBasket('timeline')}>Timeline</Button>
             </div>
             {activeWork.length === 0 ? (
               <div className="text-center text-xs text-muted-foreground py-4">No active work</div>
@@ -72,7 +72,7 @@ export function BasketNotificationsDrawer({ basketId, open, onClose }: Props) {
           <section>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Action Required</h4>
-              <Button size="xs" variant="outline" onClick={() => toBasket('governance')}>Review</Button>
+              <Button size="sm" variant="outline" onClick={() => toBasket('governance')}>Review</Button>
             </div>
             {proposals.length === 0 ? (
               <div className="text-center text-xs text-muted-foreground py-4">No pending changes</div>
@@ -98,7 +98,7 @@ export function BasketNotificationsDrawer({ basketId, open, onClose }: Props) {
           <section>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent</h4>
-              <Button size="xs" variant="outline" onClick={() => toBasket('timeline')}>Open</Button>
+              <Button size="sm" variant="outline" onClick={() => toBasket('timeline')}>Open</Button>
             </div>
             {events.length === 0 ? (
               <div className="text-center text-xs text-muted-foreground py-4">No recent updates</div>
@@ -123,4 +123,3 @@ export function BasketNotificationsDrawer({ basketId, open, onClose }: Props) {
     </div>
   );
 }
-
