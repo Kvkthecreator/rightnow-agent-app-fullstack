@@ -12,19 +12,18 @@ import {
   type PipelineOperation 
 } from '@/lib/canon/PipelineBoundaryGuard';
 
-// Route to pipeline mapping
+// Route to pipeline mapping - UPDATED FOR UNIVERSAL WORK ORCHESTRATION
 const PIPELINE_ROUTES: Record<string, string> = {
+  // Universal Work Orchestration - ALL substrate operations flow through here
+  '/api/work': 'UNIVERSAL_ORCHESTRATION',
+  
   // P0: Capture Pipeline
-  '/api/dumps/new': 'P0_CAPTURE',
+  '/api/dumps/upload': 'P0_CAPTURE',
   '/api/baskets/ingest': 'P0_CAPTURE',
   '/api/onboarding/complete': 'P0_CAPTURE',
   
-  // P1: Substrate Pipeline  
-  '/api/blocks': 'P1_SUBSTRATE',
-  '/api/blocks/create': 'P1_SUBSTRATE',
-  '/api/context-items': 'P1_SUBSTRATE',
-  '/api/context-items/create': 'P1_SUBSTRATE',
-  '/api/context-blocks/update': 'P1_SUBSTRATE',
+  // Read-only endpoints (no governance needed)
+  '/api/baskets/[id]/context-items': 'READ_ONLY',
   
   // P2: Graph Pipeline
   '/api/relationships': 'P2_GRAPH',
@@ -40,7 +39,11 @@ const PIPELINE_ROUTES: Record<string, string> = {
   '/api/documents': 'P4_PRESENTATION',
   '/api/documents/create': 'P4_PRESENTATION',
   '/api/documents/compose': 'P4_PRESENTATION',
-  '/api/narrative': 'P4_PRESENTATION'
+  '/api/narrative': 'P4_PRESENTATION',
+  
+  // Legacy AI substrate creation endpoints (TO BE CONVERTED)
+  '/api/intelligence/initialize': 'P1_SUBSTRATE_LEGACY',
+  '/api/intelligence/generate/[basketId]': 'P1_SUBSTRATE_LEGACY'
 };
 
 // Extract operation from request

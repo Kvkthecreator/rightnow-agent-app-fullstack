@@ -41,12 +41,24 @@ export async function fetchBlocks(
 }
 
 
-export async function toggleAuto(id: string, enable: boolean) {
-  return apiClient.request("/api/context-blocks/update", {
-    method: "PUT",
+export async function toggleAuto(id: string, enable: boolean, basketId: string) {
+  return apiClient.request("/api/work", {
+    method: "POST",
     body: JSON.stringify({
-      id,
-      update_policy: enable ? "auto" : "manual",
+      work_type: "MANUAL_EDIT",
+      work_payload: {
+        operations: [{
+          type: "update_block",
+          data: {
+            id,
+            update_policy: enable ? "auto" : "manual"
+          }
+        }],
+        basket_id: basketId,
+        confidence_score: 1.0,
+        user_override: "allow_auto"
+      },
+      priority: "normal"
     })
   });
 }
@@ -62,15 +74,40 @@ export async function fetchBlock(id: string, workspaceId: string) {
   return { data, error };
 }
 
-export async function updateBlock(id: string, updates: Record<string, any>) {
-  return apiClient.request("/api/context-blocks/update", {
-    method: "PUT",
-    body: JSON.stringify({ id, ...updates })
+export async function updateBlock(id: string, updates: Record<string, any>, basketId: string) {
+  return apiClient.request("/api/work", {
+    method: "POST",
+    body: JSON.stringify({
+      work_type: "MANUAL_EDIT",
+      work_payload: {
+        operations: [{
+          type: "update_block",
+          data: { id, ...updates }
+        }],
+        basket_id: basketId,
+        confidence_score: 0.9,
+        user_override: updates.user_override || undefined
+      },
+      priority: "normal"
+    })
   });
 }
 
-export async function deleteBlock(id: string) {
-  return apiClient.request(`/api/context-blocks/${id}`, {
-    method: "DELETE"
+export async function deleteBlock(id: string, basketId: string) {
+  return apiClient.request("/api/work", {
+    method: "POST",
+    body: JSON.stringify({
+      work_type: "MANUAL_EDIT",
+      work_payload: {
+        operations: [{
+          type: "delete_block",
+          data: { id }
+        }],
+        basket_id: basketId,
+        confidence_score: 1.0,
+        user_override: "require_review" // Deletions should be reviewed
+      },
+      priority: "normal"
+    })
   });
 }

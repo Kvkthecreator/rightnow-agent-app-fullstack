@@ -1,4 +1,4 @@
-# YARNNN Canon v1.4.0 — The Authoritative Reference
+# YARNNN Canon v2.2 — The Authoritative Reference
 
 **The Single Source of Truth for Yarnnn Service Philosophy and Implementation**
 
@@ -12,6 +12,12 @@ Yarnnn is a **memory-first cognitive system** that captures human thought as imm
 2. **All Substrates are Peers** - No substrate type is privileged over another  
 3. **Narrative is Deliberate** - Documents compose substrate references plus authored prose
 4. **Agent Intelligence is Mandatory** - Substrate cannot exist without agent interpretation
+
+### The Three Governance Principles (v2.2)
+
+1. **Universal Governance** - ALL substrate mutations flow through governance framework
+2. **User-Controlled Execution Mode** - Users control execution policy via governance flags
+3. **Confidence-Informed Routing** - Confidence scores inform routing within governance modes
 
 ## 🎯 Conceptual Model
 
@@ -94,11 +100,12 @@ New raw_dumps + Existing substrate → Agent Analysis → Governance Proposal �
 - Events flow: `timeline_events` → `events` → client subscriptions
 - Single source of truth: the substrate tables
 
-### 4. Sacred Write Paths
-- **Primary**: `POST /api/dumps/new` - One dump per call
-- **Onboarding**: `POST /api/baskets/ingest` - Orchestrates basket + dumps
-- **Governance**: `POST /api/baskets/[id]/proposals/[id]/approve` - Execute substrate operations
-- **No side effects** - These endpoints only write what they declare
+### 4. Universal Work Orchestration (v2.2)
+- **Universal Endpoint**: `POST /api/work` - ALL substrate mutations flow through here
+- **Work Types**: P0_CAPTURE, P1_SUBSTRATE, P2_GRAPH, P3_REFLECTION, P4_COMPOSE, MANUAL_EDIT, PROPOSAL_REVIEW, TIMELINE_RESTORE
+- **Governance Integration**: Every work request is evaluated against workspace governance policies
+- **No Direct Substrate Writes** - All operations must flow through universal orchestration
+- **Confidence-Informed Routing** - High-confidence operations can auto-execute within governance framework
 
 ### 5. Governance-Mediated Substrate Creation
 
@@ -294,11 +301,89 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 
 ---
 
+---
+
+## ⚙️ Universal Work Orchestration (v2.2)
+
+**The Governance Revolution**: ALL substrate mutations flow through a single orchestrated pipeline.
+
+### Core Concept: Work-Type Based Governance
+
+```typescript
+interface WorkRequest {
+  work_type: 'P0_CAPTURE' | 'P1_SUBSTRATE' | 'P2_GRAPH' | 'P3_REFLECTION' | 
+            'P4_COMPOSE' | 'MANUAL_EDIT' | 'PROPOSAL_REVIEW' | 'TIMELINE_RESTORE'
+  work_payload: {
+    operations: Operation[]     // What substrate changes to make
+    basket_id: string          // Workspace context
+    confidence_score?: number  // AI confidence level
+    user_override?: 'require_review' | 'allow_auto'
+    provenance?: string[]      // Source raw_dumps or context
+  }
+}
+```
+
+### Governance Policy Framework
+
+Each workspace has governance policies that determine execution mode:
+
+```typescript
+interface WorkTypePolicy {
+  mode: 'auto' | 'proposal' | 'confidence'
+  confidence_threshold: number  // Used in confidence mode
+  require_validation: boolean   // Manual validator required
+}
+```
+
+**Mode Behaviors:**
+- `auto`: Execute immediately (like git auto-merge)
+- `proposal`: Always create proposal for review (like git pull request)
+- `confidence`: Route based on AI confidence score within governance framework
+
+### Universal Routing Algorithm
+
+```
+1. Work Request → Universal Work API (/api/work)
+2. Fetch workspace governance policy for work_type
+3. Apply routing logic:
+   - user_override takes precedence
+   - otherwise use policy.mode
+   - confidence mode uses confidence_threshold
+4. Route to execution path:
+   - auto_execute → immediate substrate modification
+   - create_proposal → create review proposal
+5. Emit timeline events for visibility
+6. Return work_id and routing decision
+```
+
+### Sacred Principles Enforcement
+
+1. **Universal Governance**: No direct substrate endpoints exist - all flow through `/api/work`
+2. **User Control**: Governance policies are user-configurable per workspace
+3. **Confidence Integration**: AI confidence informs routing but doesn't override governance
+
+### Eliminated Dual Approaches
+
+**DELETED Legacy Patterns:**
+- Direct block creation: `/api/context-blocks/create` → Use universal work
+- Direct block updates: `/api/context-blocks/update` → Use universal work  
+- Entry-point governance → Work-type governance
+- Confidence-only routing → Confidence within governance modes
+
+---
+
 ## Version Lock
 
-- Canon version: **v2.1**  
+- Canon version: **v2.2**  
 - Frozen as of: **2025-01-07**  
 - Update policy: Do not edit in place. Amendments require a new canon version.
+
+### v2.2.0 Changes (Revolutionary)
+- **Universal Work Orchestration**: ALL substrate mutations flow through single governance pipeline
+- **Work-Type Based Governance**: Replaced entry-point routing with universal work type policies
+- **Eliminated Dual Approaches**: Deleted all legacy direct substrate endpoints
+- **Enhanced User Control**: Workspace-level governance configuration with confidence sub-options
+- **Canon Purity**: Complete elimination of governance bypass patterns
 
 ### v2.1.0 Changes (Extension)
 - **Universal Work Orchestration**: Extended canonical_queue to handle all async operations

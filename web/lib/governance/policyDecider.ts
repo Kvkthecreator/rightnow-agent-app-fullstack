@@ -278,3 +278,95 @@ export function getDecisionMetrics(decision: Decision): Record<string, any> {
     timestamp: new Date().toISOString()
   };
 }
+
+/**
+ * UNIVERSAL WORK ORCHESTRATION - Canon v2.2
+ * 
+ * New work-type based governance policy system.
+ * Replaces entry-point based routing with universal work type policies.
+ */
+
+import { SupabaseClient } from '@supabase/supabase-js';
+
+export interface WorkTypePolicy {
+  mode: 'auto' | 'proposal' | 'confidence';
+  confidence_threshold: number;
+  require_validation: boolean;
+}
+
+export const policyDecider = {
+  /**
+   * Get governance policy for a specific work type in a workspace.
+   */
+  async getWorkTypePolicy(
+    supabase: SupabaseClient,
+    workspace_id: string,
+    work_type: string
+  ): Promise<WorkTypePolicy> {
+    
+    // Fetch workspace governance settings
+    const { data: settings, error } = await supabase
+      .from('workspace_governance')
+      .select('*')
+      .eq('workspace_id', workspace_id)
+      .single();
+
+    if (error || !settings) {
+      // Default to proposal mode for safety
+      return {
+        mode: 'proposal',
+        confidence_threshold: 0.8,
+        require_validation: false
+      };
+    }
+
+    // Map work types to governance policies
+    switch (work_type) {
+      case 'P0_CAPTURE':
+        return {
+          mode: settings.ep_onboarding_dump || 'proposal',
+          confidence_threshold: settings.confidence_threshold_onboarding || 0.8,
+          require_validation: settings.validator_required || false
+        };
+        
+      case 'P1_SUBSTRATE':
+        return {
+          mode: settings.ep_onboarding_dump || 'proposal',
+          confidence_threshold: settings.confidence_threshold_onboarding || 0.8,
+          require_validation: settings.validator_required || false
+        };
+        
+      case 'MANUAL_EDIT':
+        return {
+          mode: settings.ep_manual_edit || 'proposal',
+          confidence_threshold: settings.confidence_threshold_manual || 0.6,
+          require_validation: settings.validator_required || false
+        };
+        
+      case 'P2_GRAPH':
+      case 'P3_REFLECTION':
+      case 'P4_COMPOSE':
+        return {
+          mode: 'confidence', // AI operations benefit from confidence routing
+          confidence_threshold: 0.7,
+          require_validation: false
+        };
+        
+      case 'PROPOSAL_REVIEW':
+      case 'TIMELINE_RESTORE':
+        return {
+          mode: 'proposal', // These are always review operations
+          confidence_threshold: 1.0,
+          require_validation: true
+        };
+        
+      default:
+        // Unknown work types default to strict governance
+        return {
+          mode: 'proposal',
+          confidence_threshold: 0.9,
+          require_validation: true
+        };
+    }
+  }
+};
