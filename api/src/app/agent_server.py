@@ -50,6 +50,7 @@ from .routes.narrative_intelligence import router as narrative_intelligence_rout
 from .routes.narrative_jobs import router as narrative_jobs_router
 from .routes.phase1_routes import router as phase1_router
 from .routes.projection import router as projection_router
+from .routes.work_status import router as work_status_router
 from .api.validator.validate_proposal import router as validator_router
 
 
@@ -72,9 +73,9 @@ async def lifespan(app: FastAPI):
     # Validate environment
     _assert_env()
 
-    # Start canonical agent queue processor (Canon v1.4.0 compliant)
+    # Start canonical agent queue processor (Canon v2.1 compliant)
     await start_canonical_queue_processor()
-    logger.info("Canonical agent queue processor started - Canon v1.4.0 ready")
+    logger.info("Canonical agent queue processor started - Canon v2.1 ready")
 
     try:
         yield
@@ -114,6 +115,7 @@ routers = (
     narrative_intelligence_router,
     auth_health_router,
     health_router,
+    work_status_router,
     validator_router,
 )
 

@@ -1,8 +1,9 @@
 """
-Canonical Queue Processor - YARNNN Canon v1.4.0 Compliant
+Canonical Queue Processor - YARNNN Canon v2.1 Compliant
 
 Orchestrates the canonical pipeline agents (P0-P4) in proper sequence
 while respecting Sacred Principles and pipeline boundaries.
+Integrates with Universal Work Tracker for comprehensive status visibility.
 
 Pipeline Processing Sequence:
 1. P0 Capture: Raw dump ingestion only
@@ -34,16 +35,18 @@ from app.agents.pipeline.governance_processor_v2 import GovernanceDumpProcessorV
 from app.utils.supabase_client import supabase_admin_client as supabase
 from contracts.basket import BasketDelta, BasketChangeRequest
 from services.clock import now_iso
+from services.universal_work_tracker import universal_work_tracker
 
 logger = logging.getLogger("uvicorn.error")
 
 
 class CanonicalQueueProcessor:
     """
-    Canonical queue processor implementing YARNNN Canon v1.4.0 pipeline boundaries.
+    Canonical queue processor implementing YARNNN Canon v2.1 pipeline boundaries.
     
     This processor orchestrates P0-P3 agents in strict sequence while maintaining
-    Sacred Principles and pipeline boundaries.
+    Sacred Principles and pipeline boundaries. Integrates with Universal Work Tracker
+    for comprehensive status visibility across all async operations.
     """
     
     def __init__(self, worker_id: Optional[str] = None, poll_interval: int = 10):
@@ -227,13 +230,35 @@ class CanonicalQueueProcessor:
             # P2 Graph and P3 Reflection will run on approved substrate via cascade events
             logger.info("P2/P3 deferred - proposals must be approved before relationship mapping and reflection")
             
-            # Mark as completed
+            # Mark as completed with work result
+            work_result = {
+                'proposals_created': governance_result['proposals_created'],
+                'confidence': governance_result.get('confidence', 0.0),
+                'summary': f"P1 governance completed: {governance_result['proposals_created']} proposals"
+            }
+            
+            # Update universal work tracker if work_id exists
+            if queue_entry.get('work_id'):
+                await universal_work_tracker.complete_work(
+                    queue_entry['work_id'], 
+                    work_result,
+                    'P1_governance_completed'
+                )
+            
             await self._update_queue_state(queue_id, 'completed')
             
             logger.info(f"Canonical processing completed successfully for dump {dump_id}")
             
         except Exception as e:
             logger.exception(f"Canonical processing failed for dump {dump_id}: {e}")
+            
+            # Update universal work tracker for failure
+            if queue_entry.get('work_id'):
+                await universal_work_tracker.fail_work(
+                    queue_entry['work_id'],
+                    str(e)
+                )
+            
             await self._mark_failed(queue_id, str(e))
             raise
     
@@ -318,7 +343,7 @@ class CanonicalQueueProcessor:
         return {
             "processor_name": "CanonicalQueueProcessor",
             "worker_id": self.worker_id,
-            "canon_version": "v1.4.0",
+            "canon_version": "v2.1",
             "pipeline_agents": {
                 "P0_CAPTURE": self.p0_capture.get_agent_info(),
                 "P1_GOVERNANCE": self.p1_governance.get_agent_info(),
@@ -346,7 +371,7 @@ async def start_canonical_queue_processor():
     if _canonical_processor is None:
         _canonical_processor = CanonicalQueueProcessor()
         asyncio.create_task(_canonical_processor.start())
-        logger.info("Canonical queue processor started - Canon v1.4.0 compliant")
+        logger.info("Canonical queue processor started - Canon v2.1 compliant")
 
 
 async def stop_canonical_queue_processor():
@@ -373,7 +398,7 @@ async def get_canonical_queue_health() -> Dict[str, Any]:
         
         return {
             "status": "healthy",
-            "canon_version": "v1.4.0",
+            "canon_version": "v2.1",
             "queue_stats": queue_stats,
             "processor_info": processor_info,
             "pipeline_boundaries_enforced": True,
@@ -384,7 +409,7 @@ async def get_canonical_queue_health() -> Dict[str, Any]:
         logger.error(f"Failed to get canonical queue health: {e}")
         return {
             "status": "unhealthy",
-            "canon_version": "v1.4.0",
+            "canon_version": "v2.1",
             "error": str(e),
             "processor_running": False
         }
