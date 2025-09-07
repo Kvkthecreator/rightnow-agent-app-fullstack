@@ -29,7 +29,7 @@ interface WorkActivity {
  * - Connection status indicator
  */
 export function UniversalWorkStatusIndicator() {
-  const { workspaceId } = useWorkspace();
+  const { workspace } = useWorkspace();
   const [isExpanded, setIsExpanded] = useState(false);
   
   const {
@@ -37,7 +37,7 @@ export function UniversalWorkStatusIndicator() {
     recentActivity,
     connectionStatus,
     isConnected
-  } = useWorkQueueRealtime(workspaceId || '');
+  } = useWorkQueueRealtime(workspace?.id || '');
 
   // Calculate total active work
   const activeWork = queueStats 
@@ -93,7 +93,7 @@ export function UniversalWorkStatusIndicator() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isExpanded]);
 
-  if (!workspaceId) return null;
+  if (!workspace?.id) return null;
 
   return (
     <div className="relative" data-work-indicator>

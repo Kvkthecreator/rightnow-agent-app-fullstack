@@ -36,4 +36,8 @@ export type CreateDumpReq = {
 
 export type CreateDumpRes = {
   dump_id: string;
+  work_id?: string;  // Canon v2.1: Universal work orchestration ID
+  status_url?: string;  // URL for real-time status tracking
+  processing_method?: string;
+  warning?: string;  // Non-fatal warnings
 };

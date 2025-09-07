@@ -183,12 +183,59 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    return NextResponse.json({
-      success: true,
-      dump_id: dumpResult?.[0]?.dump_id,
-      message: 'File uploaded and processed',
-      processing_method: fileContent ? 'immediate_text' : 'storage_extraction'
-    }, { status: 201 });
+    const dumpId = dumpResult?.[0]?.dump_id;
+    if (!dumpId) {
+      return NextResponse.json({ 
+        error: 'Failed to get dump ID from creation result' 
+      }, { status: 500 });
+    }
+
+    // Canon v2.1: Create P0_CAPTURE work in universal orchestration system
+    try {
+      const work_id = await initiateUniversalWork(
+        supabase,
+        'P0_CAPTURE',
+        {
+          dump_id: dumpId,
+          source_type: fileContent ? 'text_content' : 'file_url',
+          file_meta: {
+            original_filename: file.name,
+            file_size: file.size,
+            file_type: file.type,
+            canonical_mime_type: canonicalMimeType
+          },
+          processing_method: fileContent ? 'immediate_text' : 'storage_extraction'
+        },
+        {
+          user_id: userId,
+          workspace_id: workspace.id,
+          basket_id: basket_id,
+          dump_id: dumpId
+        },
+        6 // Higher priority for user-initiated uploads
+      );
+
+      return NextResponse.json({
+        success: true,
+        dump_id: dumpId,
+        work_id: work_id,
+        message: 'File uploaded and queued for processing',
+        processing_method: fileContent ? 'immediate_text' : 'storage_extraction',
+        status_url: `/api/work/${work_id}/status`
+      }, { status: 201 });
+
+    } catch (workError) {
+      console.error('Failed to create P0_CAPTURE work:', workError);
+      // Don't fail the upload, just log the issue
+      return NextResponse.json({
+        success: true,
+        dump_id: dumpId,
+        work_id: null,
+        message: 'File uploaded but work tracking failed',
+        processing_method: fileContent ? 'immediate_text' : 'storage_extraction',
+        warning: 'Status tracking unavailable'
+      }, { status: 201 });
+    }
 
   } catch (error) {
     console.error('File upload error:', error);

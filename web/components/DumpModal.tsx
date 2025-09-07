@@ -14,6 +14,7 @@ import ThumbnailStrip from "@/components/ThumbnailStrip";
 import { Button } from "@/components/ui/Button";
 import { createDump } from "@/lib/api/dumps";
 import { toast } from "react-hot-toast";
+import { InlineWorkStatus } from "@/components/work/InlineWorkStatus";
 
 export interface DumpModalProps {
   basketId: string;
@@ -29,6 +30,8 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
   const [text, setText] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const [workId, setWorkId] = useState<string | null>(null);
+  const [showStatus, setShowStatus] = useState(false);
 
   useEffect(() => setOpen(initialOpen), [initialOpen]);
   useEffect(() => {
@@ -44,13 +47,22 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
     }
     setLoading(true);
     try {
-      await createDump({
+      const result = await createDump({
         basket_id: basketId,
         dump_request_id: crypto.randomUUID(),
         text_dump: text,
       });
-      toast.success("Dump saved ✓");
-      setOpen(false);
+      
+      if (result.work_id) {
+        // Canon v2.1: Show universal work status
+        setWorkId(result.work_id);
+        setShowStatus(true);
+        toast.success("Dump queued for processing ✓");
+      } else {
+        toast.success("Dump saved ✓");
+        setOpen(false);
+      }
+      
       setText("");
       setImages([]);
     } catch (err) {
@@ -61,8 +73,19 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
     }
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      // Reset state when closing
+      setShowStatus(false);
+      setWorkId(null);
+      setText("");
+      setImages([]);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Dump</DialogTitle>
@@ -72,19 +95,52 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
         </DialogHeader>
         <Card className="max-w-2xl p-8 mx-auto">
           <CardContent className="space-y-4 p-0">
-            <SmartDropZone
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onImages={(f) => setImages((prev) => [...prev, ...f])}
-              rows={5}
-            />
-            {images.length > 0 && <ThumbnailStrip files={images} />}
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={handleSubmit} disabled={loading}>
-                {loading ? (basketId ? "Adding…" : "Creating…") : "Save to Basket ↵"}
-              </Button>
-            </div>
+            {!showStatus ? (
+              <>
+                <SmartDropZone
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onImages={(f) => setImages((prev) => [...prev, ...f])}
+                  rows={5}
+                />
+                {images.length > 0 && <ThumbnailStrip files={images} />}
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button onClick={handleSubmit} disabled={loading}>
+                    {loading ? (basketId ? "Adding…" : "Creating…") : "Save to Basket ↵"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Processing Status Display */}
+                <div className="text-center mb-4">
+                  <h3 className="text-lg font-medium mb-2">Processing Started</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Your content is being processed through the P0→P1→P2→P3 pipeline
+                  </p>
+                  {workId && (
+                    <InlineWorkStatus
+                      workId={workId}
+                      showProgress={true}
+                      size="lg"
+                      className="justify-center"
+                    />
+                  )}
+                </div>
+                <div className="flex justify-center space-x-2 pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => window.open(`/baskets/${basketId}/memory`, '_blank')}
+                  >
+                    View in Memory
+                  </Button>
+                  <Button onClick={() => setOpen(false)}>
+                    Done
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </DialogContent>
