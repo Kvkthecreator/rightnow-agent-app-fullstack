@@ -316,16 +316,20 @@ export function useWorkQueueRealtime(workspaceId: string) {
           (payload) => {
             const workData = payload.new || payload.old;
             
-            // Update recent activity
-            setRecentActivity(prev => [
-              {
-                work_id: workData.work_id,
-                work_type: workData.work_type,
-                status: workData.processing_state,
-                timestamp: new Date().toISOString()
-              },
-              ...prev.slice(0, 9) // Keep last 10 activities
-            ]);
+            // Type guard to ensure workData has required properties
+            if (workData && typeof workData === 'object' && 
+                'work_id' in workData && 'work_type' in workData && 'processing_state' in workData) {
+              // Update recent activity
+              setRecentActivity(prev => [
+                {
+                  work_id: workData.work_id as string,
+                  work_type: workData.work_type as string,
+                  status: workData.processing_state as string,
+                  timestamp: new Date().toISOString()
+                },
+                ...prev.slice(0, 9) // Keep last 10 activities
+              ]);
+            }
             
             // Refresh stats
             fetchQueueStats();
