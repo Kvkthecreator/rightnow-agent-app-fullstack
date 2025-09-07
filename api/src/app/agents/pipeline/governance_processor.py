@@ -302,7 +302,17 @@ class GovernanceDumpProcessor:
             return 'concept'
     
     def _decide_evolution_action(self, concept: Dict, existing_substrate: Dict) -> 'SubstrateCandidate':
-        """Decide whether to Create, Update, or Merge based on existing substrate."""
+        """Decide whether to Create, Update, or Merge based on existing substrate.
+        
+        FUTURE CONSIDERATION: Deletion operations (Archive, Expire, Deprecate) are 
+        intentionally not implemented yet. We need real-world data on substrate 
+        lifecycle patterns before designing deletion heuristics. Key questions:
+        - How long does substrate remain relevant?
+        - What patterns indicate obsolescence?
+        - How often do users want to remove vs. keep historical context?
+        
+        See /docs/FUTURE_DELETION_AGENT_DISCUSSION.md for conceptual framework.
+        """
         
         if concept['type'] == 'block_concept':
             # Check for similar existing blocks

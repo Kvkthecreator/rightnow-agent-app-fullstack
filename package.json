@@ -6,11 +6,11 @@
     "agent:test:unit": "npm run agent:test -- --subset=unit",
     "agent:test:contracts": "npm run agent:test -- --subset=contracts",
     "test:canon": "playwright test --project=canon-v1.4 --reporter=list",
-    "test:features": "playwright test --project=features --reporter=list", 
+    "test:features": "playwright test --project=features --reporter=list",
     "test:e2e": "playwright test --project=e2e --reporter=list",
     "test:contracts": "playwright test --project=api-contracts --reporter=list",
     "test:unit": "npm --prefix web run test:unit",
-    "test:integration": "playwright test --project=integration --reporter=list", 
+    "test:integration": "playwright test --project=integration --reporter=list",
     "test:all": "npm run test:canon && npm run test:contracts && npm run test:features && npm run test:integration && npm run test:e2e",
     "seed:e2e": "tsx scripts/seed-e2e.ts",
     "test:debug": "playwright test --debug",
@@ -45,6 +45,7 @@
     "@supabase/supabase-js": "^2.39.0",
     "glob": "^11.0.3",
     "react-hot-toast": "^2.5.2",
+    "uuid": "^12.0.0",
     "zod": "^3.24.4",
     "zustand": "^5.0.6"
   }

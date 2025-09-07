@@ -202,6 +202,8 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 - **Growing Stage (10-50 dumps)**: 60% Create, 40% Update - filling out knowledge gaps  
 - **Mature Stage (50+ dumps)**: 30% Create, 70% Update - refining existing knowledge
 
+**Future Consideration**: Deletion operations (Archive, Expire, Deprecate) are intentionally deferred until we collect real-world substrate lifecycle data. We need empirical evidence about obsolescence patterns, usage metrics, and user behavior before implementing intelligent substrate pruning. See `/docs/FUTURE_DELETION_AGENT_DISCUSSION.md` for conceptual framework.
+
 ### Document Composition (Artifact Layer)
 - Documents = independent artifacts composed from substrate ingredients + authored prose
 - Git-inspired versioning: Documents create snapshots for stable references
