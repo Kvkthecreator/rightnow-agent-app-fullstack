@@ -10,6 +10,11 @@ import {
 
 /**
  * Block API functions with Zod validation
+ * 
+ * Canon v2.2 Compliance:
+ * - Read operations (getBlock, listBlocks) use direct API calls
+ * - Write operations (updateBlock) route through Universal Work Orchestration (/api/work)
+ * - Create/Delete operations should use /api/work directly or specialized endpoints
  */
 
 // Get single block
@@ -56,20 +61,37 @@ export async function listBlocks(basketId: string, options?: {
 }
 
 
-// Update block (title, content, etc.)
+// Update block (title, content, etc.) via Universal Work Orchestration
 export async function updateBlock(
   blockId: string,
-  updates: UpdateBlockRequest
-): Promise<Block> {
+  updates: UpdateBlockRequest,
+  basketId: string
+): Promise<{ work_id: string; routing_decision: string; execution_mode: string }> {
   // Validate request payload
   const validatedUpdates = UpdateBlockRequestSchema.parse(updates);
   
+  // Route through Universal Work Orchestration (Canon v2.2 compliant)
   const response = await apiClient({
-    url: `/api/blocks/${blockId}`,
-    method: 'PATCH',
-    body: validatedUpdates,
+    url: `/api/work`,
+    method: 'POST',
+    body: {
+      work_type: 'MANUAL_EDIT',
+      work_payload: {
+        operations: [{
+          type: 'update_block',
+          data: {
+            id: blockId,
+            ...validatedUpdates
+          }
+        }],
+        basket_id: basketId,
+        confidence_score: 0.9,
+        user_override: undefined // Let governance decide
+      },
+      priority: 'normal'
+    },
     signal: timeoutSignal(10000),
   });
   
-  return BlockSchema.parse(response);
+  return response; // Returns work routing information instead of updated block
 }
