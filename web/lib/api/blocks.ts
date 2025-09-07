@@ -93,5 +93,5 @@ export async function updateBlock(
     signal: timeoutSignal(10000),
   });
   
-  return response; // Returns work routing information instead of updated block
+  return response as { work_id: string; routing_decision: string; execution_mode: string };
 }

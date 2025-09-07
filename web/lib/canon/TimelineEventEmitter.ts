@@ -33,7 +33,10 @@ export type TimelineEventKind =
   | 'queue.entry_created'
   | 'queue.processing_started'
   | 'queue.processing_completed'
-  | 'queue.processing_failed';
+  | 'queue.processing_failed'
+  // Universal Work Orchestration events
+  | 'work.initiated'
+  | 'work.routed';
 
 export interface CanonicalTimelineEvent {
   kind: TimelineEventKind;
@@ -139,6 +142,10 @@ export class TimelineEventEmitter {
       case 'queue.processing_completed':
       case 'queue.processing_failed':
         return payload.queue_entry_id || null;
+        
+      case 'work.initiated':
+      case 'work.routed':
+        return payload.work_id || null;
         
       default:
         return null;
@@ -316,6 +323,30 @@ export class TimelineEventEmitter {
     });
   }
 
+  async emitWorkInitiated(params: {
+    work_id: string;
+    work_type: string;
+    workspace_id: string;
+    user_id: string;
+    routing_decision: string;
+  }): Promise<void> {
+    await this.emit({
+      kind: 'work.initiated',
+      basket_id: 'system', // Universal work is system-level, not basket-specific
+      workspace_id: params.workspace_id,
+      payload: {
+        work_id: params.work_id,
+        work_type: params.work_type,
+        routing_decision: params.routing_decision,
+        initiated_by: params.user_id
+      },
+      metadata: {
+        pipeline: 'UNIVERSAL_WORK',
+        user_id: params.user_id
+      }
+    });
+  }
+
   /**
    * Validate event kind matches expected pipeline
    */
@@ -328,7 +359,8 @@ export class TimelineEventEmitter {
       'P1_SUBSTRATE': ['block.created', 'block.updated', 'block.state_changed', 'context_item.created', 'context_item.updated'],
       'P2_GRAPH': ['relationship.created', 'relationship.deleted'],
       'P3_REFLECTION': ['reflection.computed', 'reflection.cached'],
-      'P4_PRESENTATION': ['document.created', 'document.updated', 'document.composed', 'narrative.authored']
+      'P4_PRESENTATION': ['document.created', 'document.updated', 'document.composed', 'narrative.authored'],
+      'UNIVERSAL_WORK': ['work.initiated', 'work.routed', 'queue.entry_created', 'queue.processing_started', 'queue.processing_completed', 'queue.processing_failed']
     };
     
     const allowedEvents = pipelineEvents[pipeline];

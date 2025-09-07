@@ -62,12 +62,14 @@ export async function routeIntelligenceWork(
     })
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Universal work routing failed: ${error.error || 'Unknown error'}`);
-  }
-
-  return response.json();
+  // apiClient.request already handles error checking and returns parsed JSON
+  return response as {
+    work_id: string;
+    routing_decision: string;
+    execution_mode: string;
+    proposal_id?: string;
+    status_url: string;
+  };
 }
 
 /**
