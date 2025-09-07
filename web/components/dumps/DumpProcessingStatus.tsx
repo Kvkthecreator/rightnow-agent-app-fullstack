@@ -209,9 +209,9 @@ export default function DumpProcessingStatus({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => window.open(`/queue`, '_blank')}
+          onClick={() => basketId ? window.open(`/baskets/${basketId}/timeline`, '_blank') : window.open('/baskets','_blank')}
         >
-          Monitor Queue
+          Open Timeline
         </Button>
       </div>
     </div>

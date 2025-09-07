@@ -244,6 +244,22 @@ interface BlockDTO {
   };
 }
 ```
+ 
+### 4. Top Bar: Basket‑Scoped Notifications
+
+Purpose: Show a compact view of work activity and pending reviews for the current basket. No global queue pages.
+
+- Component: `web/components/work/UniversalWorkStatusIndicator.tsx`
+- Drawer: `web/components/work/BasketNotificationsDrawer.tsx`
+- Data sources (read‑only):
+  - `GET /api/baskets/[id]/work` → recent work items (agent_processing_queue) scoped by basket
+  - `GET /api/baskets/[id]/proposals?status=PROPOSED` → action required
+  - `GET /api/baskets/[id]/timeline?limit=20` → recent events
+- Quick actions: Timeline (`/baskets/:id/timeline`), Review (`/baskets/:id/governance`)
+- Realtime: disabled by default; drawer uses polling
+
+Legacy cleanup:
+- Remove links to `/work` and `/queue`. These routes are not used in basket‑scoped UX.
 
 ### 4. Memory Service → Memory View
 
