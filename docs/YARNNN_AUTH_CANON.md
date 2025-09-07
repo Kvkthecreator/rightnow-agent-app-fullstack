@@ -26,6 +26,15 @@ All backend services must validate tokens by:
 - Verifying JWT with raw secret (no base64 decoding)
 - Returning 401 on invalid/missing tokens with optional debug info via `x-yarnnn-debug-auth: 1`
 
+## Realtime (Canon‑Aligned Default)
+
+- Default transport is polling; enable Realtime only with feature flags after verification.
+- Flags:
+  - `NEXT_PUBLIC_BASKET_EVENTS` (polling | websocket)
+  - `NEXT_PUBLIC_ENABLE_WORK_STATUS_REALTIME` (false by default)
+- Pitfall: ensure `NEXT_PUBLIC_SUPABASE_ANON_KEY` has no trailing newline (a `%0A` in the ws URL breaks handshake).
+- Subscribe narrowly (basket/workspace) and auto‑fallback on `CHANNEL_ERROR`.
+
 ## Server-side routes
 
 Next.js API routes must:
@@ -33,6 +42,18 @@ Next.js API routes must:
 - Forward user tokens to backend services (both `sb-access-token` and `Authorization` headers)
 - Never use service-role keys in client-facing routes
 - Try headers first, then fall back to cookies for auth token extraction
+
+## Workspace Client Helper (Minimal)
+
+Client workspace helpers must only project canon fields:
+
+```
+select workspace_id, workspaces (id, name)
+from workspace_memberships
+where user_id = auth.uid()
+```
+
+Avoid depending on non‑canonical fields (e.g., `workspaces.slug`) to prevent schema drift. Server remains the authority via `ensureWorkspaceForUser()`.
 
 ## Python Backend Auth Stack
 

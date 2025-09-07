@@ -198,6 +198,63 @@ Errors return a machine-readable JSON:
 { "error": { "code": "FORBIDDEN", "message": "Owner role required." } }
 
 Canonicalization
+
+---
+
+## 12) Realtime Guidance (Stabilized)
+
+Purpose: avoid auth drift and noisy failures when using Supabase Realtime.
+
+- Default transport: polling. Enable WebSocket only behind feature flags after verification.
+- Environment flags (frontend):
+  - `NEXT_PUBLIC_BASKET_EVENTS` = `polling` | `websocket` (default: polling)
+  - `NEXT_PUBLIC_ENABLE_WORK_STATUS_REALTIME` = `true|false` (default: false)
+- Known pitfall: ensure `NEXT_PUBLIC_SUPABASE_ANON_KEY` has no trailing newline or spaces. A copied newline surfaces as `%0A` in the ws URL and causes connection failure.
+- Scope: subscribe narrowly (basket‑scoped or workspace‑scoped) and auto‑fallback to polling on `CHANNEL_ERROR`.
+
+Implementation reference
+- Basket events hook selects polling unless explicitly set to `websocket`.
+- Work queue indicator subscribes only when `NEXT_PUBLIC_ENABLE_WORK_STATUS_REALTIME` is `true` and a valid `workspace_id` exists.
+
+---
+
+## 13) Workspace Hook (Client) — Canon Constraints
+
+Client helpers MUST NOT broaden the server contract or assume schema fields beyond canon. The recommended minimal shape is:
+
+```ts
+// useWorkspace() should derive only id + name via a membership join
+select `workspace_id, workspaces (id, name)` from workspace_memberships where user_id = auth.uid()
+```
+
+Rules
+- Avoid non‑canonical fields like `workspaces.slug` unless documented in schema.
+- If no membership row exists, treat as unauthenticated workspace context; server will bootstrap on demand.
+
+---
+
+## 14) Optional Work Status Surfaces (Universal Queue)
+
+These endpoints are optional and may be enabled later; they are listed here to avoid future drift:
+
+- `GET /api/work/{work_id}/status` — Canonical per‑work status (see Universal Orchestration Canon v2.1)
+- `GET /api/work/workspace/{workspace_id}/summary` — Optional summary used by top‑bar indicators
+
+Requirements
+- Both endpoints MUST enforce workspace isolation (RLS + server validation).
+- If not implemented, the UI MUST guard calls and keep realtime disabled.
+
+---
+
+## 15) Drift Watchlist (Auth/Workspace)
+
+Use this checklist during reviews:
+- [ ] All server routes: `getAuthenticatedUser()` + `ensureWorkspaceForUser()` before data access
+- [ ] No client use of service‑role keys; browser uses `anon` only
+- [ ] All queries filtered by `workspace_id`; never rely on client‑supplied workspace
+- [ ] Realtime disabled in prod unless explicitly enabled by flags
+- [ ] Env keys sanitized (no trailing newline in anon key)
+- [ ] Writes flow only through `/api/dumps/*` or `/api/changes`
 - Stale `/baskets/:id/*` paths SHOULD be corrected by middleware before render.
 - Server routes encountering `PGRST116` (no rows) MAY redirect to `/memory` as a last resort; this SHOULD be rare if §8.1 is in place.
 
