@@ -1,11 +1,12 @@
 """
-P3 Reflection Agent - YARNNN Canon v1.4.0 Compliant
+P3 Reflection Agent - YARNNN Canon v2.1 Compliant
 
 Sacred Rule: Read-only computation, optionally cached
 Pipeline: P3_REFLECTION
 
 This agent computes derived patterns and insights from existing substrate
-without creating new substrate or modifying existing content.
+without creating new substrate or modifying existing content. Terminal
+stage in cascade flow (P4 is on-demand only).
 """
 
 import logging

@@ -1,11 +1,12 @@
 """
-P2 Graph Agent - YARNNN Canon v1.4.0 Compliant
+P2 Graph Agent - YARNNN Canon v2.1 Compliant
 
 Sacred Rule: Creates relationships, never modifies substrate content
 Pipeline: P2_GRAPH
 
 This agent connects existing substrate elements without modifying
-their content or creating new substrate.
+their content or creating new substrate. Integrates with enhanced
+cascade manager for P2→P3 pipeline flow.
 """
 
 import logging
@@ -15,6 +16,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.utils.supabase_client import supabase_admin_client as supabase
+from services.enhanced_cascade_manager import canonical_cascade_manager
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -117,6 +119,13 @@ class P2GraphAgent:
                 f"P2 Graph completed: workspace_id={request.workspace_id}, "
                 f"relationships={len(created_relationships)}, substrate_analyzed={len(substrate_elements)}, "
                 f"processing_time_ms={processing_time_ms}"
+            )
+            
+            # Trigger P2→P3 cascade if relationships were created
+            await self._trigger_p2_cascade(
+                request=request,
+                relationships_created=len(created_relationships),
+                processing_time_ms=processing_time_ms
             )
             
             return RelationshipResult(
@@ -412,6 +421,51 @@ class P2GraphAgent:
             self.logger.error(f"Failed to create relationships: {e}")
             return []
     
+    async def _trigger_p2_cascade(
+        self,
+        request: RelationshipMappingRequest,
+        relationships_created: int,
+        processing_time_ms: int
+    ):
+        """
+        Trigger P2→P3 cascade after successful relationship mapping.
+        
+        Creates P3 reflection work if relationships were successfully created.
+        """
+        try:
+            if relationships_created > 0:
+                # Create work_id for this P2 work (using request context)
+                work_id = f"p2-graph-{request.agent_id}-{request.basket_id}"
+                
+                # Import WorkContext here to avoid circular imports
+                from services.universal_work_tracker import WorkContext
+                
+                context = WorkContext(
+                    user_id="system",  # System user for agent-triggered cascades
+                    workspace_id=str(request.workspace_id),
+                    basket_id=str(request.basket_id)
+                )
+                
+                # Trigger cascade via enhanced cascade manager
+                cascade_work_id = await canonical_cascade_manager.trigger_p2_graph_cascade(
+                    work_id=work_id,
+                    relationships_created=relationships_created,
+                    context=context
+                )
+                
+                if cascade_work_id:
+                    self.logger.info(
+                        f"P2→P3 cascade triggered: {relationships_created} relationships → work {cascade_work_id}"
+                    )
+                else:
+                    self.logger.info(f"P2→P3 cascade skipped: {relationships_created} relationships")
+            else:
+                self.logger.info("No relationships created, skipping P2→P3 cascade")
+                
+        except Exception as e:
+            # Don't fail P2 processing on cascade failure
+            self.logger.error(f"P2→P3 cascade trigger failed: {e}")
+
     def get_agent_info(self) -> Dict[str, str]:
         """Get agent information."""
         return {

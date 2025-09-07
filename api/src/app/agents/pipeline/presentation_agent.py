@@ -1,11 +1,11 @@
 """
-P4 Presentation Agent - YARNNN Canon v1.4.0 Compliant
+P4 Presentation Agent - YARNNN Canon v2.1 Compliant
 
 Sacred Rule: Consumes substrate for narrative, never creates substrate
 Pipeline: P4_PRESENTATION
 
 This agent composes documents and narratives from existing substrate
-without creating new substrate elements.
+without creating new substrate elements. On-demand only (not in cascade).
 """
 
 import logging

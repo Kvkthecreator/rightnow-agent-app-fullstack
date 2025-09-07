@@ -1,11 +1,12 @@
 """
-Governance-Aware Dump Processor - YARNNN Canon v2.0 Compliant
+Governance-Aware Dump Processor - YARNNN Canon v2.1 Compliant
 
 Sacred Rule: All substrate mutations flow through governed proposals
 Pipeline: P1_SUBSTRATE (Governance Evolution)
 
 This processor extracts substrate candidates from raw_dumps and creates
-governance proposals instead of direct substrate writes.
+governance proposals instead of direct substrate writes. Integrates with
+enhanced cascade manager for P1→P2 pipeline flow.
 """
 
 import logging
@@ -17,6 +18,7 @@ import hashlib
 
 from app.utils.supabase_client import supabase_admin_client as supabase
 from app.agents.pipeline.validator_agent import P1ValidatorAgent, ProposalOperation, ProposalValidationRequest
+from services.enhanced_cascade_manager import canonical_cascade_manager
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -616,6 +618,14 @@ class GovernanceDumpProcessor:
             
             self.logger.info(f"Auto-executed proposal {proposal_id} with {len(operations)} operations")
             
+            # Trigger P1→P2 cascade after successful substrate creation
+            await self._trigger_p1_cascade(
+                proposal_id=proposal_id,
+                basket_id=basket_id, 
+                workspace_id=workspace_id,
+                execution_log=execution_log
+            )
+            
         except Exception as e:
             # Mark proposal execution as failed
             supabase.table("proposals").update({
@@ -724,6 +734,66 @@ class GovernanceDumpProcessor:
     
     # Queue state management removed - handled by canonical queue processor
     
+    async def _trigger_p1_cascade(
+        self,
+        proposal_id: str,
+        basket_id: UUID,
+        workspace_id: UUID,
+        execution_log: List[Dict[str, Any]]
+    ):
+        """
+        Trigger P1→P2 cascade after successful substrate creation.
+        
+        Analyzes execution log to determine what substrate was created
+        and triggers P2 graph processing if conditions are met.
+        """
+        try:
+            # Extract substrate creation counts from execution log
+            substrate_created = {'blocks': 0, 'context_items': 0, 'updates': 0}
+            
+            for log_entry in execution_log:
+                if log_entry.get('success', False):
+                    op_type = log_entry.get('operation_type', '')
+                    if op_type in ['CreateBlock', 'ReviseBlock']:
+                        substrate_created['blocks'] += 1
+                    elif op_type in ['CreateContextItem', 'UpdateContextItem']:
+                        substrate_created['context_items'] += 1
+                    elif 'Update' in op_type or 'Merge' in op_type:
+                        substrate_created['updates'] += 1
+            
+            total_substrate = sum(substrate_created.values())
+            
+            if total_substrate > 0:
+                # Get user_id from workspace (for now, use system user)
+                # TODO: Get actual user_id from the governance request context
+                user_id = "system"  # System user for agent-triggered cascades
+                
+                # Trigger cascade via enhanced cascade manager
+                cascade_work_id = await canonical_cascade_manager.trigger_p1_substrate_cascade(
+                    proposal_id=proposal_id,
+                    basket_id=str(basket_id),
+                    workspace_id=str(workspace_id),
+                    user_id=user_id,
+                    substrate_created=substrate_created
+                )
+                
+                if cascade_work_id:
+                    self.logger.info(
+                        f"P1→P2 cascade triggered: proposal {proposal_id} → work {cascade_work_id} "
+                        f"(substrate: {substrate_created})"
+                    )
+                else:
+                    self.logger.info(
+                        f"P1→P2 cascade skipped: proposal {proposal_id} "
+                        f"(substrate: {substrate_created})"
+                    )
+            else:
+                self.logger.info(f"No substrate created in proposal {proposal_id}, skipping cascade")
+                
+        except Exception as e:
+            # Don't fail the proposal execution on cascade failure
+            self.logger.error(f"P1→P2 cascade trigger failed for proposal {proposal_id}: {e}")
+
     def get_agent_info(self) -> Dict[str, str]:
         """Get agent information."""
         return {

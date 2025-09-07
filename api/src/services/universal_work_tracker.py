@@ -115,7 +115,7 @@ class UniversalWorkTracker:
         work_id = str(uuid4())
         
         try:
-            # Create work entry in canonical queue (agent_processing_queue)
+            # Create work entry in canonical queue (agent_processing_queue)  
             work_entry = {
                 'id': work_id,
                 'work_type': work_type,
@@ -127,10 +127,12 @@ class UniversalWorkTracker:
                 'processing_state': 'pending',
                 'priority': priority,
                 'work_payload': payload,
-                'cascade_metadata': {'parent_work_id': parent_work_id} if parent_work_id else {},
-                'parent_work_id': parent_work_id,
-                'created_at': datetime.now(timezone.utc).isoformat(),
+                'cascade_metadata': {'parent_work_id': parent_work_id} if parent_work_id else {}
             }
+            
+            # Only add parent_work_id if it's a valid UUID format
+            if parent_work_id and self._is_valid_uuid(parent_work_id):
+                work_entry['parent_work_id'] = parent_work_id
             
             # Insert work entry
             response = supabase.table("agent_processing_queue").insert(work_entry).execute()
@@ -435,6 +437,14 @@ class UniversalWorkTracker:
         except Exception as e:
             # Timeline event failures should not break work processing
             logger.warning(f"Failed to emit timeline event for work {work_id}: {e}")
+    
+    def _is_valid_uuid(self, uuid_string: str) -> bool:
+        """Check if string is a valid UUID format."""
+        try:
+            UUID(uuid_string)
+            return True
+        except (ValueError, TypeError):
+            return False
 
 # Global instance for application use
 universal_work_tracker = UniversalWorkTracker()
