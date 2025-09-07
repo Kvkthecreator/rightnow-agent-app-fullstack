@@ -9,7 +9,7 @@ import { createServerComponentClient } from "@/lib/supabase/clients";
 import { checkBasketAccess } from "@/lib/baskets/access";
 import MemoryClient from "./MemoryClient";
 import { fetchProjection } from "@/lib/api/projection";
-import { hasIdentityGenesis } from "@/lib/server/onboarding";
+import { hasIdentityGenesis, isBlankBasket } from "@/lib/server/onboarding";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 
 async function fetchProjectionSafe(basketId: string) {
@@ -36,9 +36,13 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
   // Consolidated authorization and basket access check
   const { basket } = await checkBasketAccess(supabase, id);
 
-  // Check if user needs onboarding
+  // Check if user needs onboarding (only if basket blank AND no identity genesis)
   const { userId } = await getAuthenticatedUser(supabase);
-  const needsOnboarding = !(await hasIdentityGenesis(id));
+  const [blank, hasGenesis] = await Promise.all([
+    isBlankBasket(id),
+    hasIdentityGenesis(id),
+  ]);
+  const needsOnboarding = blank && !hasGenesis;
 
   // Fetch server-computed projection (authority)
   const projection = await fetchProjectionSafe(id);

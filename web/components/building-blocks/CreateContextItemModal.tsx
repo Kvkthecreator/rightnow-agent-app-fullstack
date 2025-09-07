@@ -15,13 +15,15 @@ interface CreateContextItemModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  initialKind?: 'entity' | 'topic' | 'intent' | 'source_ref' | 'cue' | 'task';
+  variant?: 'default' | 'onboarding';
 }
 
-export default function CreateContextItemModal({ basketId, open, onClose, onSuccess }: CreateContextItemModalProps) {
+export default function CreateContextItemModal({ basketId, open, onClose, onSuccess, initialKind = 'entity', variant = 'default' }: CreateContextItemModalProps) {
   const [label, setLabel] = useState('');
   const [content, setContent] = useState('');
   const [synonyms, setSynonyms] = useState('');
-  const [kind, setKind] = useState<'entity' | 'topic' | 'intent' | 'source_ref' | 'cue' | 'task'>('entity');
+  const [kind, setKind] = useState<'entity' | 'topic' | 'intent' | 'source_ref' | 'cue' | 'task'>(initialKind);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
@@ -83,13 +85,23 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
     }
   };
 
+  const labelPlaceholder = variant === 'onboarding'
+    ? "What’s your current focus?"
+    : "e.g., Important Project, Customer Insight, Technical Issue";
+  const contentPlaceholder = variant === 'onboarding'
+    ? "Why this matters, or how you’ll know it’s done"
+    : "Explain why this is important or how it connects to other ideas...";
+  const synonymsPlaceholder = variant === 'onboarding'
+    ? "Other ways you refer to this (comma separated)"
+    : "Other ways to say this, comma-separated";
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="text-xl">🏷️</span>
-            Add Meaning
+            {variant === 'onboarding' ? 'Set Your Focus' : 'Add Meaning'}
           </DialogTitle>
         </DialogHeader>
         
@@ -101,7 +113,7 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
                 id="label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="e.g., Important Project, Customer Insight, Technical Issue"
+                placeholder={labelPlaceholder}
               />
             </div>
 
@@ -111,7 +123,7 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
                 id="content"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Explain why this is important or how it connects to other ideas..."
+                placeholder={contentPlaceholder}
                 rows={3}
                 className="resize-none"
               />
@@ -141,16 +153,24 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
                   id="synonyms"
                   value={synonyms}
                   onChange={(e) => setSynonyms(e.target.value)}
-                  placeholder="Other ways to say this, comma-separated"
+                  placeholder={synonymsPlaceholder}
                 />
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="text-sm text-blue-800">
-                <strong>Note:</strong> Your meaning will be added immediately or may need approval depending on your workspace settings.
+            {variant === 'onboarding' ? (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <div className="text-sm text-purple-800">
+                  This helps me prioritize your notes and suggestions.
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="text-sm text-blue-800">
+                  <strong>Note:</strong> Your meaning will be added immediately or may need approval depending on your workspace settings.
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={onClose} disabled={loading}>

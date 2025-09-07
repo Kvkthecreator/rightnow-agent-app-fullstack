@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import React from "react";
 import Link from "next/link";
 import { SECTION_ORDER } from "@/components/features/baskets/sections";
+import { UniversalWorkStatusIndicator } from "@/components/work/UniversalWorkStatusIndicator";
+import UserNav from "@/components/UserNav";
 
 export default function TopBar() {
   const { toggle, open } = useNavState();
@@ -95,7 +97,11 @@ export default function TopBar() {
         </ol>
       </nav>
 
-      <div className="w-5" />
+      {/* Top Bar Actions */}
+      <div className="flex items-center gap-2">
+        <UniversalWorkStatusIndicator />
+        <UserNav compact />
+      </div>
     </header>
   );
 

@@ -16,6 +16,66 @@ import {
   isCanonicalBinaryFormat
 } from '@/shared/constants/canonical_file_types';
 
+// Universal Work Initiation Helper for Canon v2.1 compliance
+async function initiateUniversalWork(
+  supabase: any,
+  workType: string,
+  payload: any,
+  context: {
+    user_id: string;
+    workspace_id: string;
+    basket_id?: string;
+    dump_id?: string;
+  },
+  priority: number = 5
+): Promise<string> {
+  const work_id = crypto.randomUUID();
+  
+  const workEntry = {
+    id: work_id,
+    work_id: work_id,
+    work_type: workType,
+    user_id: context.user_id,
+    workspace_id: context.workspace_id,
+    basket_id: context.basket_id,
+    dump_id: context.dump_id,
+    processing_state: 'pending',
+    priority: priority,
+    work_payload: payload,
+    cascade_metadata: {}
+  };
+
+  const { data, error } = await supabase
+    .table('agent_processing_queue')
+    .insert(workEntry);
+
+  if (error) {
+    throw new Error(`Failed to create work entry: ${error.message}`);
+  }
+
+  // Emit timeline event
+  try {
+    await supabase.table('timeline_events').insert({
+      id: crypto.randomUUID(),
+      workspace_id: context.workspace_id,
+      basket_id: context.basket_id,
+      kind: 'work.initiated',
+      ref_id: work_id,
+      preview: `${workType.replace('_', ' ')} work initiated`,
+      payload: {
+        work_id: work_id,
+        work_type: workType,
+        user_id: context.user_id
+      }
+    });
+  } catch (e) {
+    // Timeline event failure shouldn't break work creation
+    console.warn('Failed to emit timeline event:', e);
+  }
+
+  return work_id;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();

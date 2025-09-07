@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/useAuth';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { Textarea } from '@/components/ui/Textarea';
-import { Button } from '@/components/ui/Button';
-import { CheckCircle2, Circle, X, ChevronRight, User, Brain, Target, Archive, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Sparkles, FileText, Upload, Tag, X } from "lucide-react";
+import AddMemoryModal from "@/components/memory/AddMemoryModal";
+import CreateContextItemModal from "@/components/building-blocks/CreateContextItemModal";
 
 interface OnboardingPanelProps {
   basketId: string;
@@ -17,118 +14,61 @@ interface OnboardingPanelProps {
 }
 
 export default function OnboardingPanel({ basketId, onComplete, onDismiss }: OnboardingPanelProps) {
-  const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Form state
-  const [name, setName] = useState('');
-  const [tension, setTension] = useState('');
-  const [aspiration, setAspiration] = useState('');
-  const [memory, setMemory] = useState('');
-  
-  const storageKey = user ? `onboarding-unified-${user.id}` : null;
+  const [showAddMemory, setShowAddMemory] = useState(false);
+  const [showAddMeaning, setShowAddMeaning] = useState(false);
 
-  // Load saved data
+  // When opening file upload, auto-trigger the hidden file input click
   useEffect(() => {
-    if (storageKey) {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setName(parsed.name ?? '');
-          setTension(parsed.tension ?? '');
-          setAspiration(parsed.aspiration ?? '');
-          setMemory(parsed.memory ?? '');
-        } catch (e) {
-          console.error('Failed to load saved onboarding data', e);
-        }
-      }
+    if (showAddMemory) {
+      // Let the modal mount, then try to click file input if present
+      const t = setTimeout(() => {
+        const input = document.getElementById("memory-file-input") as HTMLInputElement | null;
+        if (input) input.click();
+      }, 50);
+      return () => clearTimeout(t);
     }
-  }, [storageKey]);
+  }, [showAddMemory]);
 
-  // Save on change
-  useEffect(() => {
-    if (storageKey) {
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({ name, tension, aspiration, memory })
-      );
-    }
-  }, [storageKey, name, tension, aspiration, memory]);
-
-  const isComplete = (field: string) => {
-    switch (field) {
-      case 'name': return name.trim().length > 0;
-      case 'tension': return tension.trim().length > 0;
-      case 'aspiration': return aspiration.trim().length > 0;
-      case 'memory': return memory.trim().length > 0;
-      default: return false;
-    }
+  const handleNoteClick = () => {
+    // Hint AddMemoryComposer to focus textarea
+    try {
+      window.location.hash = "#add";
+    } catch {}
+    setShowAddMemory(true);
   };
 
-  const canSubmit = isComplete('name') && isComplete('tension') && isComplete('aspiration');
-  const completedCount = ['name', 'tension', 'aspiration', 'memory'].filter(isComplete).length;
+  const handleFileClick = () => {
+    setShowAddMemory(true);
+  };
 
-  const handleSubmit = async () => {
-    if (!canSubmit) {
-      toast.error('Please complete all required fields');
-      return;
-    }
+  const handleMeaningClick = () => {
+    setShowAddMeaning(true);
+  };
 
-    setIsSubmitting(true);
-    try {
-      const { fetchWithToken } = await import('@/lib/fetchWithToken');
-      const res = await fetchWithToken('/api/onboarding/complete', {
-        method: 'POST',
-        body: JSON.stringify({
-          basket_id: basketId,
-          name,
-          tension,
-          aspiration,
-          memory_paste: memory || undefined,
-        }),
-      });
-      
-      if (res.ok) {
-        if (storageKey) localStorage.removeItem(storageKey);
-        toast.success('Welcome to your memory workspace!');
-        onComplete?.();
-        window.location.reload(); // Refresh to show updated state
-      } else {
-        const error = await res.json();
-        toast.error(error.detail || 'Failed to complete onboarding');
-      }
-    } catch (error) {
-      console.error('Onboarding submission failed:', error);
-      toast.error('Failed to complete onboarding');
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleSuccess = () => {
+    setShowAddMemory(false);
+    setShowAddMeaning(false);
+    setIsExpanded(false);
+    onComplete?.();
+    // Refresh to recompute gating and hide panel next render
+    window.location.reload();
   };
 
   if (!isExpanded) {
     return (
       <Card className="mb-4 border-purple-200 bg-purple-50">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Sparkles className="w-5 h-5 text-purple-600" />
-              <div>
-                <p className="font-medium text-sm">Complete your profile to unlock full features</p>
-                <p className="text-xs text-muted-foreground">{completedCount} of 4 sections completed</p>
-              </div>
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Sparkles className="w-5 h-5 text-purple-600" />
+            <div>
+              <p className="font-medium text-sm">Get started</p>
+              <p className="text-xs text-muted-foreground">Upload a file, paste a note, or add a meaning</p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsExpanded(true)}
-              className="flex items-center gap-1"
-            >
-              Continue Setup
-              <ChevronRight className="w-4 h-4" />
-            </Button>
           </div>
+          <Button variant="ghost" size="sm" onClick={() => setIsExpanded(true)}>
+            Continue
+          </Button>
         </CardContent>
       </Card>
     );
@@ -141,10 +81,10 @@ export default function OnboardingPanel({ basketId, onComplete, onDismiss }: Onb
           <div>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Sparkles className="w-5 h-5 text-purple-600" />
-              Welcome to Your Memory Workspace
+              Let’s get you started
             </CardTitle>
             <CardDescription className="mt-1">
-              Help us understand you better to enhance your experience
+              Bring in what you’re working on or set your focus
             </CardDescription>
           </div>
           <Button
@@ -160,109 +100,61 @@ export default function OnboardingPanel({ basketId, onComplete, onDismiss }: Onb
           </Button>
         </div>
       </CardHeader>
-
-      <CardContent className="p-6 space-y-6">
-        {/* Progress indicators */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { key: 'name', label: 'Name', icon: User, required: true },
-            { key: 'tension', label: 'Current Focus', icon: Brain, required: true },
-            { key: 'aspiration', label: 'Aspiration', icon: Target, required: true },
-            { key: 'memory', label: 'Memory Import', icon: Archive, required: false },
-          ].map(({ key, label, icon: Icon, required }) => (
-            <div
-              key={key}
-              className={cn(
-                "flex items-center gap-2 p-2 rounded-lg border transition-colors",
-                isComplete(key)
-                  ? "border-green-200 bg-green-50"
-                  : "border-gray-200 bg-gray-50"
-              )}
-            >
-              {isComplete(key) ? (
-                <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
-              ) : (
-                <Circle className="w-4 h-4 text-gray-400 shrink-0" />
-              )}
-              <Icon className="w-4 h-4 text-gray-600 shrink-0" />
-              <span className="text-xs font-medium truncate">
-                {label} {required && '*'}
-              </span>
+      <CardContent className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Add Memory Card */}
+          <div className="border rounded-lg p-4 bg-white">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-blue-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Bring in what you’re working on</h3>
             </div>
-          ))}
-        </div>
-
-        {/* Form fields */}
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-1 block">
-              Your Name <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="How should we address you?"
-              className="w-full"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-1 block">
-              What's on your mind? <span className="text-red-500">*</span>
-            </label>
-            <Textarea
-              value={tension}
-              onChange={(e) => setTension(e.target.value)}
-              placeholder="What challenges or questions are you currently working through?"
-              className="w-full min-h-[80px]"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-1 block">
-              What do you aspire to? <span className="text-red-500">*</span>
-            </label>
-            <Textarea
-              value={aspiration}
-              onChange={(e) => setAspiration(e.target.value)}
-              placeholder="What would you like to achieve or become?"
-              className="w-full min-h-[80px]"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-1 block">
-              Memory Import <span className="text-muted-foreground">(Optional)</span>
-            </label>
-            <Textarea
-              value={memory}
-              onChange={(e) => setMemory(e.target.value)}
-              placeholder="Paste any existing notes, thoughts, or content you'd like to import..."
-              className="w-full min-h-[100px]"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              This helps us understand your thinking patterns and interests
+            <p className="text-xs text-gray-600 mb-3">
+              Upload a file or paste a quick note. I’ll organize it for you.
             </p>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={handleFileClick}>
+                <Upload className="h-4 w-4 mr-1" /> Upload a file
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleNoteClick}>
+                Paste a note
+              </Button>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2">PDFs, images, and text supported</p>
+          </div>
+
+          {/* Add Meaning Card */}
+          <div className="border rounded-lg p-4 bg-white">
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="w-4 h-4 text-purple-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Set your focus</h3>
+            </div>
+            <p className="text-xs text-gray-600 mb-3">
+              Tell me the one thing you’re aiming for. It helps me prioritize.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={handleMeaningClick}>
+                Create your first meaning
+              </Button>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2">We’ll treat this as your current focus</p>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-2">
-          <Button
-            variant="ghost"
-            onClick={() => setIsExpanded(false)}
-            disabled={isSubmitting}
-          >
-            Complete Later
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!canSubmit || isSubmitting}
-            className="min-w-[120px]"
-          >
-            {isSubmitting ? 'Creating...' : 'Start My Journey'}
-          </Button>
-        </div>
+        {/* Modals */}
+        <AddMemoryModal
+          basketId={basketId}
+          open={showAddMemory}
+          onClose={() => setShowAddMemory(false)}
+          onSuccess={handleSuccess}
+        />
+        <CreateContextItemModal
+          basketId={basketId}
+          open={showAddMeaning}
+          onClose={() => setShowAddMeaning(false)}
+          onSuccess={handleSuccess}
+          initialKind="intent"
+          variant="onboarding"
+        />
       </CardContent>
     </Card>
   );

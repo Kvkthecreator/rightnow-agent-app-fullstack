@@ -1,195 +1,219 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-
-interface ProcessingStatus {
-  dump_id: string;
-  stage: 'uploaded' | 'queued' | 'analyzing' | 'substrate_created' | 'linking' | 'reflecting' | 'awaiting_review' | 'completed' | 'failed';
-  stage_display: string;
-  current_pipeline_stage?: string;
-  queue_position?: number;
-  started_at: string;
-  last_activity: string;
-  cascade_active: boolean;
-  progress_percentage: number;
-  meta: {
-    proposals_created: number;
-    proposals_executed: number;
-    substrate_created: {
-      blocks: number;
-      context_items: number;
-    };
-    queue_entries: number;
-    error?: string;
-  };
-  estimated_time_remaining: string;
-  average_total_time: string;
-}
+import { UniversalWorkStatus } from '@/components/work/UniversalWorkStatus';
+import { InlineWorkStatus } from '@/components/work/InlineWorkStatus';
+import { useWorkStatusRealtime } from '@/hooks/useWorkStatusRealtime';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 
 interface DumpProcessingStatusProps {
   dumpId: string;
-  onComplete?: (status: ProcessingStatus) => void;
+  basketId?: string;
+  /** Show compact inline view instead of full card */
+  compact?: boolean;
+  /** Enable real-time updates */
+  enableRealtime?: boolean;
+  /** Callback when processing completes */
+  onComplete?: (status: any) => void;
+  /** Callback when processing fails */
   onError?: (error: Error) => void;
-  pollingInterval?: number;
+  /** Custom CSS class */
+  className?: string;
 }
 
-const stageColors = {
-  uploaded: 'text-gray-500 bg-gray-50',
-  queued: 'text-yellow-700 bg-yellow-50',
-  analyzing: 'text-blue-700 bg-blue-50 animate-pulse',
-  substrate_created: 'text-purple-700 bg-purple-50',
-  linking: 'text-indigo-700 bg-indigo-50 animate-pulse',
-  reflecting: 'text-pink-700 bg-pink-50 animate-pulse',
-  awaiting_review: 'text-orange-700 bg-orange-50',
-  completed: 'text-green-700 bg-green-50',
-  failed: 'text-red-700 bg-red-50'
-};
+interface DumpWorkMapping {
+  dump_id: string;
+  work_id: string;
+  work_type: string;
+  created_at: string;
+}
 
-const stageIcons = {
-  uploaded: '📤',
-  queued: '⏳',
-  analyzing: '🔬',
-  substrate_created: '🧱',
-  linking: '🔗',
-  reflecting: '💭',
-  awaiting_review: '👁️',
-  completed: '✅',
-  failed: '❌'
-};
-
+/**
+ * Dump Processing Status - Canon v2.1 Compliant
+ * 
+ * Integrates dump processing with the universal work orchestration system.
+ * Shows real-time status for P0→P1→P2→P3 pipeline processing triggered by dump uploads.
+ * 
+ * Features:
+ * - Real-time status updates via WebSocket
+ * - Cascade flow visualization for P1→P2→P3
+ * - Substrate impact tracking
+ * - Error handling with recovery actions
+ * - Both compact and detailed views
+ */
 export default function DumpProcessingStatus({ 
   dumpId, 
+  basketId,
+  compact = false,
+  enableRealtime = true,
   onComplete, 
   onError,
-  pollingInterval = 2000 
+  className
 }: DumpProcessingStatusProps) {
-  const [status, setStatus] = useState<ProcessingStatus | null>(null);
-  const [isPolling, setIsPolling] = useState(true);
-  const supabase = createClientComponentClient();
+  const [workMappings, setWorkMappings] = useState<DumpWorkMapping[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Fetch work IDs associated with this dump
   useEffect(() => {
-    if (!dumpId || !isPolling) return;
-
-    const fetchStatus = async () => {
+    const fetchWorkMappings = async () => {
       try {
-        const response = await fetch(`/api/dumps/${dumpId}/status`, {
-          headers: {
-            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-          }
-        });
+        setLoading(true);
+        setError(null);
 
+        // Query the agent_processing_queue for work related to this dump
+        const response = await fetch(`/api/dumps/${dumpId}/work`);
+        
         if (!response.ok) {
-          throw new Error(`Status fetch failed: ${response.statusText}`);
-        }
-
-        const newStatus = await response.json() as ProcessingStatus;
-        setStatus(newStatus);
-
-        // Stop polling if completed or failed
-        if (newStatus.stage === 'completed' || newStatus.stage === 'failed') {
-          setIsPolling(false);
-          if (newStatus.stage === 'completed' && onComplete) {
-            onComplete(newStatus);
+          if (response.status === 404) {
+            // No work found yet, this is normal for newly uploaded dumps
+            setWorkMappings([]);
+          } else {
+            throw new Error(`Failed to fetch work mappings: ${response.statusText}`);
           }
+        } else {
+          const data = await response.json();
+          setWorkMappings(data.work_mappings || []);
         }
       } catch (err) {
-        console.error('Failed to fetch processing status:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load processing status';
+        setError(errorMessage);
         if (onError) {
           onError(err as Error);
         }
+      } finally {
+        setLoading(false);
       }
     };
 
-    // Initial fetch
-    fetchStatus();
+    fetchWorkMappings();
+    
+    // Poll for work mappings every 5 seconds until we find some
+    const interval = workMappings.length === 0 ? setInterval(fetchWorkMappings, 5000) : null;
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [dumpId, workMappings.length, onError]);
 
-    // Set up polling
-    const interval = setInterval(fetchStatus, pollingInterval);
-
-    return () => clearInterval(interval);
-  }, [dumpId, isPolling, pollingInterval, supabase, onComplete, onError]);
-
-  if (!status) {
+  // Loading state
+  if (loading) {
     return (
-      <div className="animate-pulse">
+      <div className={cn("animate-pulse", className)}>
         <div className="h-20 bg-gray-200 rounded-lg"></div>
       </div>
     );
   }
 
-  const { stage, stage_display, progress_percentage, meta, estimated_time_remaining } = status;
-  const colorClass = stageColors[stage];
-  const icon = stageIcons[stage];
-
-  return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      {/* Main Status */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-3">
-          <span className="text-2xl">{icon}</span>
-          <div>
-            <h3 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
-              {stage_display}
-            </h3>
-            {status.current_pipeline_stage && (
-              <p className="text-xs text-gray-500 mt-1">{status.current_pipeline_stage}</p>
-            )}
+  // Error state
+  if (error) {
+    return (
+      <Card className={cn("border-red-200", className)}>
+        <CardContent className="pt-6">
+          <div className="text-center text-red-600">
+            <div className="font-medium mb-2">Error loading processing status</div>
+            <div className="text-sm text-red-500">{error}</div>
           </div>
-        </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-600">{estimated_time_remaining}</p>
-          {status.queue_position && (
-            <p className="text-xs text-gray-500">Position #{status.queue_position}</p>
-          )}
-        </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // No work found yet
+  if (workMappings.length === 0) {
+    return (
+      <Card className={cn("border-yellow-200 bg-yellow-50", className)}>
+        <CardContent className="pt-6">
+          <div className="text-center text-yellow-800">
+            <div className="font-medium mb-2">⏳ Preparing for processing</div>
+            <div className="text-sm">Your dump is being queued for pipeline processing...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Sort work by pipeline stage order (P0, P1, P2, P3)
+  const sortedWork = workMappings.sort((a, b) => {
+    const order = { 'P0_CAPTURE': 0, 'P1_SUBSTRATE': 1, 'P2_GRAPH': 2, 'P3_REFLECTION': 3 };
+    return (order[a.work_type as keyof typeof order] || 999) - (order[b.work_type as keyof typeof order] || 999);
+  });
+
+  // Compact view - show only the most recent/active work
+  if (compact) {
+    const activeWork = sortedWork.find(w => !['completed', 'failed'].includes(w.work_type)) || sortedWork[sortedWork.length - 1];
+    
+    return (
+      <div className={className}>
+        <InlineWorkStatus 
+          workId={activeWork.work_id}
+          showProgress={true}
+          pollInterval={enableRealtime ? 2000 : 5000}
+          size="md"
+        />
       </div>
+    );
+  }
 
-      {/* Progress Bar */}
-      <div className="mb-3">
-        <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
-          <div 
-            className={`h-full transition-all duration-500 ease-out ${
-              stage === 'failed' ? 'bg-red-500' : 'bg-blue-500'
-            }`}
-            style={{ width: `${progress_percentage}%` }}
-          />
-        </div>
+  // Full detailed view
+  return (
+    <div className={cn("space-y-4", className)}>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center justify-between">
+            <span>Dump Processing Pipeline</span>
+            <Badge variant="secondary" className="text-xs">
+              {sortedWork.length} stages
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {sortedWork.map((work, index) => (
+            <div key={work.work_id} className="relative">
+              {/* Pipeline Stage Indicator */}
+              {index < sortedWork.length - 1 && (
+                <div className="absolute left-6 top-12 w-0.5 h-6 bg-gray-200 z-0" />
+              )}
+              
+              {/* Work Status */}
+              <UniversalWorkStatus
+                workId={work.work_id}
+                enableRealtime={enableRealtime}
+                showCascadeFlow={true}
+                showSubstrateImpact={true}
+                onStatusChange={(status) => {
+                  if (status.status === 'completed' && onComplete) {
+                    onComplete(status);
+                  }
+                }}
+                className="relative z-10"
+              />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open(`/baskets/${basketId}/memory`, '_blank')}
+          disabled={!basketId}
+        >
+          View in Memory
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open(`/queue`, '_blank')}
+        >
+          Monitor Queue
+        </Button>
       </div>
-
-      {/* Metadata */}
-      <div className="grid grid-cols-3 gap-2 text-xs">
-        <div className="text-center">
-          <p className="text-gray-500">Proposals</p>
-          <p className="font-semibold">{meta.proposals_created}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-gray-500">Blocks</p>
-          <p className="font-semibold">{meta.substrate_created.blocks}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-gray-500">Context Items</p>
-          <p className="font-semibold">{meta.substrate_created.context_items}</p>
-        </div>
-      </div>
-
-      {/* Cascade Indicator */}
-      {status.cascade_active && stage !== 'completed' && (
-        <div className="mt-3 flex items-center text-xs text-blue-600">
-          <svg className="animate-spin mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Pipeline cascade active
-        </div>
-      )}
-
-      {/* Error Display */}
-      {meta.error && (
-        <div className="mt-3 p-2 bg-red-50 rounded text-xs text-red-700">
-          {meta.error}
-        </div>
-      )}
     </div>
   );
 }
