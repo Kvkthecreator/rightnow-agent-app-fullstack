@@ -101,7 +101,7 @@ export default function OnboardingPanel({ basketId, onComplete, onDismiss }: Onb
         </div>
       </CardHeader>
       <CardContent className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {/* Add Memory Card */}
           <div className="border border-gray-200 rounded-lg p-4 bg-white">
             <div className="flex items-center gap-2 mb-2">

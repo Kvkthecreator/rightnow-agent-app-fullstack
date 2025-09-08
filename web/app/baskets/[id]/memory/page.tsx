@@ -55,16 +55,12 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
         pattern={undefined}
         tension={undefined}
         question={undefined}
-        fallback="Unable to load reflections. Please try again."
         needsOnboarding={needsOnboarding}
       />
     );
   }
 
   const { reflections } = projection;
-  const fallback = reflections.pattern
-    ? `You keep orbiting "${reflections.pattern}".`
-    : "Add a note to see what emerges.";
 
   return (
     <div className="space-y-6 pb-8">
@@ -87,7 +83,6 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
         pattern={reflections.pattern ?? undefined}
         tension={reflections.tension ?? undefined}
         question={reflections.question ?? undefined}
-        fallback={fallback}
         needsOnboarding={needsOnboarding}
       />
     </div>

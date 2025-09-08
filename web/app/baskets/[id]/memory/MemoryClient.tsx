@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { TodayReflectionCard, ReflectionCards } from "@/components/basket";
+import { ReflectionCards } from "@/components/basket";
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -15,11 +15,10 @@ interface Props {
   pattern?: string;
   tension?: string | null;
   question?: string;
-  fallback: string;
   needsOnboarding?: boolean;
 }
 
-export default function MemoryClient({ basketId, pattern, tension, question, fallback, needsOnboarding }: Props) {
+export default function MemoryClient({ basketId, pattern, tension, question, needsOnboarding }: Props) {
   const [showAddMemory, setShowAddMemory] = useState(false);
   const refreshDocuments = () => {
     // This will trigger DocumentsList to refresh
@@ -55,34 +54,25 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
         />
       )}
       
-      <TodayReflectionCard line={undefined} fallback={fallback} />
-      
-      <div className="grid grid-cols-12 gap-6">
-        {/* Left Column - Documents */}
-        <div className="col-span-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents & Files</CardTitle>
-              <p className="text-sm text-gray-600">Your uploaded documents and files</p>
-            </CardHeader>
-            <CardContent>
-              <DocumentsList basketId={basketId} />
-            </CardContent>
-          </Card>
-        </div>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Documents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DocumentsList basketId={basketId} />
+          </CardContent>
+        </Card>
 
-        {/* Right Column - Insights */}
-        <div className="col-span-4">
-          <Card className="sticky top-6">
-            <CardHeader>
-              <CardTitle>Memory Insights</CardTitle>
-              <p className="text-sm text-gray-600">Patterns discovered in your memory</p>
-            </CardHeader>
-            <CardContent>
-              <ReflectionCards pattern={pattern} tension={tension} question={question || null} />
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Memory Insights</CardTitle>
+            <p className="text-sm text-gray-600">Patterns discovered in your memory</p>
+          </CardHeader>
+          <CardContent>
+            <ReflectionCards pattern={pattern} tension={tension} question={question || null} />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Modals */}
