@@ -32,7 +32,8 @@ CREATE TYPE public.processing_state AS ENUM (
     'claimed',
     'processing',
     'completed',
-    'failed'
+    'failed',
+    'cascading'
 );
 CREATE TYPE public.proposal_kind AS ENUM (
     'Extraction',
@@ -205,8 +206,8 @@ BEGIN
 END; $$;
 CREATE TABLE public.agent_processing_queue (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
-    dump_id uuid NOT NULL,
-    basket_id uuid NOT NULL,
+    dump_id uuid,
+    basket_id uuid,
     workspace_id uuid NOT NULL,
     processing_state public.processing_state DEFAULT 'pending'::public.processing_state,
     claimed_at timestamp without time zone,
@@ -214,7 +215,17 @@ CREATE TABLE public.agent_processing_queue (
     completed_at timestamp without time zone,
     attempts integer DEFAULT 0,
     error_message text,
-    created_at timestamp without time zone DEFAULT now()
+    created_at timestamp without time zone DEFAULT now(),
+    processing_stage text,
+    work_payload jsonb DEFAULT '{}'::jsonb,
+    work_result jsonb DEFAULT '{}'::jsonb,
+    cascade_metadata jsonb DEFAULT '{}'::jsonb,
+    parent_work_id uuid,
+    user_id uuid,
+    work_id text,
+    work_type text DEFAULT 'P1_SUBSTRATE'::text,
+    priority integer DEFAULT 5,
+    CONSTRAINT valid_work_type_v21 CHECK ((work_type = ANY (ARRAY['P0_CAPTURE'::text, 'P1_SUBSTRATE'::text, 'P2_GRAPH'::text, 'P3_REFLECTION'::text, 'P4_COMPOSE'::text, 'MANUAL_EDIT'::text, 'PROPOSAL_REVIEW'::text, 'TIMELINE_RESTORE'::text])))
 );
 CREATE FUNCTION public.fn_claim_next_dumps(p_worker_id text, p_limit integer DEFAULT 10, p_stale_after_minutes integer DEFAULT 5) RETURNS SETOF public.agent_processing_queue
     LANGUAGE plpgsql SECURITY DEFINER
@@ -1044,6 +1055,9 @@ begin
   end if;
   return new;
 end $$;
+CREATE FUNCTION public.sql(query text) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$ BEGIN RETURN to_json(query); END; $$;
 CREATE FUNCTION public.sync_raw_dump_text_columns() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -1611,8 +1625,6 @@ ALTER TABLE ONLY public.pipeline_metrics ALTER COLUMN id SET DEFAULT nextval('pu
 ALTER TABLE ONLY public.timeline_events ALTER COLUMN id SET DEFAULT nextval('public.timeline_events_id_seq'::regclass);
 ALTER TABLE ONLY public.workspace_memberships ALTER COLUMN id SET DEFAULT nextval('public.workspace_memberships_id_seq'::regclass);
 ALTER TABLE ONLY public.agent_processing_queue
-    ADD CONSTRAINT agent_processing_queue_dump_id_key UNIQUE (dump_id);
-ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.artifact_generation_settings
     ADD CONSTRAINT artifact_generation_settings_pkey PRIMARY KEY (workspace_id);
@@ -1681,6 +1693,12 @@ ALTER TABLE ONLY public.workspaces
 CREATE INDEX baskets_user_idx ON public.baskets USING btree (user_id);
 CREATE INDEX blk_doc_idx ON public.block_links USING btree (block_id, document_id);
 CREATE UNIQUE INDEX docs_basket_title_idx ON public.documents USING btree (basket_id, title);
+CREATE INDEX idx_agent_queue_cascade ON public.agent_processing_queue USING gin (cascade_metadata);
+CREATE UNIQUE INDEX idx_agent_queue_dump_id_unique ON public.agent_processing_queue USING btree (dump_id) WHERE (dump_id IS NOT NULL);
+CREATE INDEX idx_agent_queue_priority ON public.agent_processing_queue USING btree (priority DESC, created_at);
+CREATE INDEX idx_agent_queue_user_workspace ON public.agent_processing_queue USING btree (user_id, workspace_id);
+CREATE INDEX idx_agent_queue_work_id ON public.agent_processing_queue USING btree (work_id);
+CREATE INDEX idx_agent_queue_work_type ON public.agent_processing_queue USING btree (work_type, processing_state);
 CREATE INDEX idx_basket_deltas_applied_at ON public.basket_deltas USING btree (applied_at);
 CREATE INDEX idx_basket_deltas_basket ON public.basket_deltas USING btree (basket_id, created_at DESC);
 CREATE INDEX idx_basket_deltas_basket_id ON public.basket_deltas USING btree (basket_id);
@@ -1773,9 +1791,9 @@ CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EA
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
 CREATE TRIGGER trg_timeline_after_raw_dump AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.fn_timeline_after_raw_dump();
 ALTER TABLE ONLY public.agent_processing_queue
-    ADD CONSTRAINT agent_processing_queue_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
+    ADD CONSTRAINT agent_processing_queue_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE ONLY public.agent_processing_queue
-    ADD CONSTRAINT agent_processing_queue_dump_id_fkey FOREIGN KEY (dump_id) REFERENCES public.raw_dumps(id);
+    ADD CONSTRAINT agent_processing_queue_dump_id_fkey FOREIGN KEY (dump_id) REFERENCES public.raw_dumps(id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.artifact_generation_settings
