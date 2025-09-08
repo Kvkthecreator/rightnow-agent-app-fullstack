@@ -22,7 +22,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { SubpageHeader } from '@/components/basket/SubpageHeader';
+// Page-level header supplied by parent layout
 
 interface GraphNode {
   id: string;
@@ -343,14 +343,9 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const hasData = nodes.length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto py-6 space-y-6 max-w-7xl px-4">
-        
-        {/* Header */}
-        <SubpageHeader title="Knowledge Graph" basketId={basketId} />
-
-        {hasData ? (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <>
+      {hasData ? (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             
             {/* Graph Visualization */}
             <div className="lg:col-span-3">
@@ -538,8 +533,6 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
             </CardContent>
           </Card>
         )}
-
-      </div>
-    </div>
+    </>
   );
 }
