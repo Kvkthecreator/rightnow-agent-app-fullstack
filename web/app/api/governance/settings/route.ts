@@ -154,9 +154,9 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    if (default_blast_radius && !validBlastRadius.includes(default_blast_radius)) {
+    if (default_blast_radius_in && !validBlastRadius.includes(default_blast_radius_in)) {
       return NextResponse.json({
-        error: `Invalid blast_radius '${default_blast_radius}'. Must be: ${validBlastRadius.join(', ')}`
+        error: `Invalid blast_radius '${default_blast_radius_in}'. Must be: ${validBlastRadius.join(', ')}`
       }, { status: 400 });
     }
 
