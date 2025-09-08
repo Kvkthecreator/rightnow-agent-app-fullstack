@@ -27,10 +27,10 @@ test.describe('[API] Add Memory — capture + governance boundaries', () => {
   }
 
   async function getDumpCount(request: any, basketId: string) {
-    const res = await request.get(`/api/baskets/${basketId}/building-blocks`, { headers: TEST_HEADER });
+    const res = await request.get(`/api/baskets/${basketId}/dumps`, { headers: TEST_HEADER });
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
-    return body?.counts?.dumps ?? 0;
+    return Array.isArray(body?.dumps) ? body.dumps.length : 0;
   }
 
   test('text-only add memory creates exactly one dump and no immediate substrate', async ({ request }) => {
