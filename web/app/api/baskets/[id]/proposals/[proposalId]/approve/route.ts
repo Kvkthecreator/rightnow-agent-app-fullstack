@@ -244,27 +244,30 @@ export async function POST(
 }
 
 async function executeOperation(supabase: any, operation: any, basketId: string, workspaceId: string) {
+  // Support both flat and nested op format
+  const op = operation;
+  const data = (operation && operation.data) ? operation.data : operation;
   switch (operation.type) {
     case 'CreateBlock':
-      return await createBlock(supabase, operation, basketId, workspaceId);
+      return await createBlock(supabase, data, basketId, workspaceId);
     
     case 'CreateContextItem':
-      return await createContextItem(supabase, operation, basketId, workspaceId);
+      return await createContextItem(supabase, data, basketId, workspaceId);
     
     case 'AttachBlockToDoc':
-      return await attachBlockToDoc(supabase, operation, basketId, workspaceId);
+      return await attachBlockToDoc(supabase, data, basketId, workspaceId);
     
     case 'MergeContextItems':
-      return await mergeContextItems(supabase, operation, basketId, workspaceId);
+      return await mergeContextItems(supabase, data, basketId, workspaceId);
     
     case 'ReviseBlock':
-      return await reviseBlock(supabase, operation, basketId, workspaceId);
+      return await reviseBlock(supabase, data, basketId, workspaceId);
     
     case 'UpdateContextItem':
-      return await updateContextItem(supabase, operation, basketId, workspaceId);
+      return await updateContextItem(supabase, data, basketId, workspaceId);
     
     case 'PromoteScope':
-      return await promoteScope(supabase, operation, basketId, workspaceId);
+      return await promoteScope(supabase, data, basketId, workspaceId);
     
     default:
       throw new Error(`Unsupported operation type: ${operation.type}`);
@@ -298,7 +301,6 @@ async function createContextItem(supabase: any, op: any, basketId: string, works
     .from('context_items')
     .insert({
       basket_id: basketId,
-      workspace_id: workspaceId,
       normalized_label: op.label,
       type: op.kind || 'concept', 
       confidence_score: op.confidence || 0.7,
@@ -414,7 +416,6 @@ async function updateContextItem(supabase: any, op: any, basketId: string, works
     .from('context_items')
     .update(updateData)
     .eq('id', op.context_item_id)
-    .eq('workspace_id', workspaceId)
     .select()
     .single();
 
