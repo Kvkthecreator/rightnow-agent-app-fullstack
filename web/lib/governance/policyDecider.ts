@@ -75,8 +75,9 @@ export function decide(
       reason = `ep_policy_unknown:${cd.entry_point}:fallback_proposal`;
   }
 
-  // Step 4: Override route if direct writes are disabled
-  if (route === 'direct' && !flags.direct_substrate_writes) {
+  // Step 4: Override route if direct writes are disabled, except for P0 capture
+  // Canon: P0 (onboarding_dump) is always direct insert of raw memory
+  if (route === 'direct' && !flags.direct_substrate_writes && cd.entry_point !== 'onboarding_dump') {
     route = 'proposal';
     reason += ':forced_proposal_no_direct_writes';
   }
