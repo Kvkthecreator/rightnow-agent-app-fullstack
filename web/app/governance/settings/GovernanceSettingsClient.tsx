@@ -130,7 +130,8 @@ export default function GovernanceSettingsClient({
     if (!settings.governance_enabled) {
       return { status: 'disabled', color: 'bg-red-100 text-red-800', icon: Circle };
     }
-    if (settings.governance_enabled && !settings.direct_substrate_writes && settings.validator_required) {
+    // Canon: full mode when governance is enabled and validator is required (P0 always direct, direct_substrate_writes is enforced server-side)
+    if (settings.governance_enabled && settings.validator_required) {
       return { status: 'full', color: 'bg-green-100 text-green-800', icon: CheckCircle2 };
     }
     if (settings.governance_enabled && settings.governance_ui_enabled) {
