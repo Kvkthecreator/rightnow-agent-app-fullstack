@@ -166,7 +166,7 @@ export async function POST(
         provenance,
         basis_snapshot_id,
         validator_report,
-        created_by: user.id,
+        created_by: userId,
         status: 'PROPOSED'
       })
       .select()
@@ -186,7 +186,7 @@ export async function POST(
         origin
       },
       p_workspace_id: basket.workspace_id,
-      p_actor_id: user.id
+      p_actor_id: userId
     });
 
     if (timelineError) {
