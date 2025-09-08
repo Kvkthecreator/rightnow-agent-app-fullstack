@@ -103,7 +103,7 @@ export default function OnboardingPanel({ basketId, onComplete, onDismiss }: Onb
       <CardContent className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Add Memory Card */}
-          <div className="border rounded-lg p-4 bg-white">
+          <div className="border border-gray-200 rounded-lg p-4 bg-white">
             <div className="flex items-center gap-2 mb-2">
               <FileText className="w-4 h-4 text-blue-600" />
               <h3 className="text-sm font-semibold text-gray-900">Bring in what you’re working on</h3>
@@ -123,7 +123,7 @@ export default function OnboardingPanel({ basketId, onComplete, onDismiss }: Onb
           </div>
 
           {/* Add Meaning Card */}
-          <div className="border rounded-lg p-4 bg-white">
+          <div className="border border-gray-200 rounded-lg p-4 bg-white">
             <div className="flex items-center gap-2 mb-2">
               <Tag className="w-4 h-4 text-purple-600" />
               <h3 className="text-sm font-semibold text-gray-900">Set your focus</h3>

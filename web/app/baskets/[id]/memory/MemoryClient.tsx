@@ -28,12 +28,6 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
 
   return (
     <div className="space-y-6">
-      {needsOnboarding && (
-        <OnboardingPanel 
-          basketId={basketId}
-          onComplete={() => window.location.reload()}
-        />
-      )}
       
       <SubpageHeader
         title="Your Memory"
@@ -53,6 +47,13 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
           </div>
         }
       />
+
+      {needsOnboarding && (
+        <OnboardingPanel 
+          basketId={basketId}
+          onComplete={() => window.location.reload()}
+        />
+      )}
       
       <TodayReflectionCard line={undefined} fallback={fallback} />
       
@@ -97,4 +98,3 @@ export default function MemoryClient({ basketId, pattern, tension, question, fal
     </div>
   );
 }
-
