@@ -166,7 +166,7 @@ describe('Work Status Derivation - Canon v2.2', () => {
       const batchResult = processBatchStatuses(workStatuses);
       
       expect(batchResult.processed_count).toBe(50);
-      expect(batchResult.by_status.running).toBe(50);
+      expect(batchResult.by_status.processing).toBe(50);
       expect(batchResult.total_processing).toBe(50);
     });
 
@@ -181,8 +181,8 @@ describe('Work Status Derivation - Canon v2.2', () => {
       
       const batchResult = processBatchStatuses(workStatuses);
       
-      expect(batchResult.by_status.pending).toBe(1);
-      expect(batchResult.by_status.running).toBe(2);
+      expect(batchResult.by_status.queued).toBe(1);
+      expect(batchResult.by_status.processing).toBe(2);
       expect(batchResult.by_status.completed).toBe(1);
       expect(batchResult.by_status.failed).toBe(1);
     });

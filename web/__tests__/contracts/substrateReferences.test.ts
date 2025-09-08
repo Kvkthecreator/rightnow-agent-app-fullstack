@@ -11,7 +11,8 @@ import {
 describe('Substrate Reference Contracts', () => {
   describe('SubstrateTypeSchema', () => {
     it('validates all canonical substrate types', () => {
-      const validTypes = ['block', 'dump', 'context_item', 'reflection', 'timeline_event'];
+      // Reflections are artifacts, not substrates
+      const validTypes = ['block', 'dump', 'context_item', 'timeline_event'];
       
       validTypes.forEach(type => {
         const result = SubstrateTypeSchema.safeParse(type);
@@ -116,7 +117,7 @@ describe('Substrate Reference Contracts', () => {
 
     it('validates minimal attachment request', () => {
       const minimal = {
-        substrate_type: 'reflection',
+        substrate_type: 'dump',
         substrate_id: '123e4567-e89b-12d3-a456-426614174000',
       };
 
@@ -213,10 +214,10 @@ describe('Substrate Reference Contracts', () => {
 
     it('allows null title for substrate types without titles', () => {
       const summaryWithNullTitle = {
-        substrate_type: 'reflection',
+        substrate_type: 'dump',
         substrate_id: '123e4567-e89b-12d3-a456-426614174000',
         title: null,
-        preview: 'Computed reflection',
+        preview: 'Raw dump preview',
         created_at: '2025-01-01T10:00:00Z',
       };
 
@@ -310,15 +311,14 @@ describe('Substrate Reference Contracts', () => {
       expect(substrateTypes).toContain('block');
       expect(substrateTypes).toContain('dump');
       expect(substrateTypes).toContain('context_item');
-      expect(substrateTypes).toContain('reflection');
       expect(substrateTypes).toContain('timeline_event');
       
       // No type should have special precedence
-      expect(substrateTypes.length).toBe(5);
+      expect(substrateTypes.length).toBe(4);
     });
 
     it('validates substrate reference uniformity', () => {
-      const substrateTypes = ['block', 'dump', 'context_item', 'reflection', 'timeline_event'];
+      const substrateTypes = ['block', 'dump', 'context_item', 'timeline_event'];
       
       substrateTypes.forEach(type => {
         const reference = {
@@ -335,7 +335,7 @@ describe('Substrate Reference Contracts', () => {
     });
 
     it('supports generic attachment for all substrate types', () => {
-      const substrateTypes = ['block', 'dump', 'context_item', 'reflection', 'timeline_event'];
+      const substrateTypes = ['block', 'dump', 'context_item', 'timeline_event'];
       
       substrateTypes.forEach(type => {
         const attachRequest = {
