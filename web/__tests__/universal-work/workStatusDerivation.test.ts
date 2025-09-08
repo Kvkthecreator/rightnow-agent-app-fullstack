@@ -223,6 +223,8 @@ function deriveUserFacingStatus(workStatus: any): string {
   
   if (workStatus.execution_mode === 'create_proposal') {
     if (workStatus.proposal_status === 'pending') return 'awaiting_review';
+    // Default to awaiting_review when proposal mode but proposal_status absent
+    if (!workStatus.proposal_status && workStatus.processing_state === 'pending') return 'awaiting_review';
     if (workStatus.proposal_status === 'approved') {
       return workStatus.processing_state === 'pending' ? 'approved_pending' : 'processing';
     }

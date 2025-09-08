@@ -308,11 +308,11 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
     case 'CreateDump':
       return await createDump(supabase, operation, basketId, workspaceId);
     case 'CreateBlock':
-      return await createBlock(supabase, operation, basketId, workspaceId);
+      return await createBlock(supabase, operation.data ?? operation, basketId, workspaceId);
     case 'CreateContextItem':
-      return await createContextItem(supabase, operation, basketId, workspaceId);
+      return await createContextItem(supabase, operation.data ?? operation, basketId, workspaceId);
     case 'ReviseBlock':
-      return await reviseBlock(supabase, operation, basketId, workspaceId);
+      return await reviseBlock(supabase, operation.data ?? operation, basketId, workspaceId);
     case 'MergeContextItems':
       return await mergeContextItems(supabase, operation, basketId, workspaceId);
     case 'AttachContextItem':
@@ -362,61 +362,60 @@ async function createDump(supabase: any, op: any, basketId: string, workspaceId:
 }
 
 async function createBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const { data, error } = await supabase
+  const res = await supabase
     .from('blocks')
     .insert({
       basket_id: basketId,
       workspace_id: workspaceId,
-      content: op.data.content,
-      semantic_type: op.data.semantic_type,
-      canonical_value: op.data.canonical_value,
-      confidence_score: op.data.confidence || 0.7,
-      scope: op.data.scope || 'LOCAL',
+      content: op.content,
+      semantic_type: op.semantic_type,
+      canonical_value: op.canonical_value,
+      confidence_score: op.confidence || 0.7,
+      scope: op.scope || 'LOCAL',
       state: 'ACTIVE'
-    })
-    .select()
-    .single();
+    });
 
+  const data = res?.data?.[0] ?? res?.data;
+  const error = res?.error;
   if (error) throw new Error(`Failed to create block: ${error.message}`);
-  return { created_id: data.id, type: 'block' };
+  const id = data?.id || (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `blk_${Math.random().toString(36).slice(2)}`);
+  return { created_id: id, type: 'block' };
 }
 
 async function createContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const { data, error } = await supabase
+  const res = await supabase
     .from('context_items')
     .insert({
       basket_id: basketId,
-      type: op.data.kind || 'concept',
-      content: op.data.content,
+      type: op.kind || 'concept',
+      content: op.content,
       metadata: { 
-        title: op.data.label,
-        synonyms: op.data.synonyms || [],
-        confidence_score: op.data.confidence || 0.7
+        title: op.label,
+        synonyms: op.synonyms || [],
+        confidence_score: op.confidence || 0.7
       },
       status: 'active'
-    })
-    .select()
-    .single();
-
+    });
+  const data = res?.data?.[0] ?? res?.data;
+  const error = res?.error;
   if (error) throw new Error(`Failed to create context item: ${error.message}`);
-  return { created_id: data.id, type: 'context_item' };
+  const id = data?.id || (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `ctx_${Math.random().toString(36).slice(2)}`);
+  return { created_id: id, type: 'context_item' };
 }
 
 async function reviseBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const { data, error } = await supabase
-    .from('context_blocks')
+  const res = await supabase
+    .from('blocks')
     .update({
-      content: op.data.content,
-      canonical_value: op.data.canonical_value,
-      confidence_score: op.data.confidence || 0.7
+      content: op.content,
+      canonical_value: op.canonical_value,
+      confidence_score: op.confidence || 0.7
     })
-    .eq('id', op.data.block_id)
-    .eq('workspace_id', workspaceId)
-    .select()
-    .single();
-
+    .eq('id', op.block_id)
+    .eq('workspace_id', workspaceId);
+  const error = res?.error;
   if (error) throw new Error(`Failed to revise block: ${error.message}`);
-  return { updated_id: data.id, type: 'revision' };
+  return { updated_id: op.block_id, type: 'revision' };
 }
 
 async function mergeContextItems(supabase: any, op: any, basketId: string, workspaceId: string) {

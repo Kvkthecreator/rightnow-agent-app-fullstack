@@ -19,8 +19,10 @@ describe('Work Type Handlers - Canon v2.2', () => {
       select: vi.fn().mockReturnThis(),
       insert: vi.fn().mockReturnThis(),
       update: vi.fn().mockReturnThis(),
+      delete: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: { id: 'gen-id' }, error: null }),
       execute: vi.fn()
     };
   });

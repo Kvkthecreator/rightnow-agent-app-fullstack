@@ -24,7 +24,7 @@ describe('Canonical Queue Operations - Canon v2.2', () => {
       in: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
-      single: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: { id: 'work-123' }, error: null }),
       execute: vi.fn()
     };
   });
