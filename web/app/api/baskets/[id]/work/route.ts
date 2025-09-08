@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
     // Query agent/canonical queue for this basket
     const { data: work, error: workError } = await supabase
       .from('agent_processing_queue')
-      .select('work_id, work_type, processing_state, created_at, updated_at, basket_id, dump_id')
+      .select('work_id, work_type, processing_state, created_at, basket_id, dump_id')
       .eq('basket_id', basketId)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -49,7 +49,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
         work_type: (w as any).work_type,
         status: (w as any).processing_state,
         created_at: (w as any).created_at,
-        last_activity: (w as any).updated_at ?? (w as any).created_at,
+        last_activity: (w as any).created_at,
         dump_id: (w as any).dump_id ?? null,
       })),
     });
