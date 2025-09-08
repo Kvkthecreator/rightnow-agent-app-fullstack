@@ -1584,7 +1584,7 @@ CREATE TABLE public.workspace_governance_settings (
     workspace_id uuid NOT NULL,
     governance_enabled boolean DEFAULT false NOT NULL,
     validator_required boolean DEFAULT false NOT NULL,
-    direct_substrate_writes boolean DEFAULT true NOT NULL,
+    direct_substrate_writes boolean DEFAULT false NOT NULL,
     governance_ui_enabled boolean DEFAULT false NOT NULL,
     ep_onboarding_dump text DEFAULT 'direct'::text NOT NULL,
     ep_manual_edit text DEFAULT 'proposal'::text NOT NULL,
