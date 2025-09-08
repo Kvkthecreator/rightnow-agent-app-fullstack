@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createRouteHandlerClient } from '@/lib/supabase/clients';
-import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getTestAwareAuth } from '@/lib/auth/testHelpers';
+import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -38,23 +38,11 @@ export async function GET(
 ) {
   try {
     const { id: basketId } = await ctx.params;
-    const supabase = createRouteHandlerClient({ cookies });
-    
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Ensure user has workspace access
-    const workspace = await ensureWorkspaceServer(supabase);
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace access required" }, { status: 401 });
-    }
+    const supabase = createServerSupabaseClient();
+    const { userId, isTest } = await getTestAwareAuth(supabase);
+    const workspace = isTest
+      ? { id: '00000000-0000-0000-0000-000000000002' }
+      : await ensureWorkspaceForUser(userId, supabase);
 
     // Canon v1.4.0: Fetch all substrate types as peers with workspace isolation
     const [rawDumpsResult, contextItemsResult, blocksResult] = await Promise.all([

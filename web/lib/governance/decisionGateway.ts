@@ -47,11 +47,18 @@ export async function routeChange(
   const decision = decide(flags, cd, riskHints);
 
   // Step 5: Execute based on decision
+  // Canon hardening: allow 'direct' only for P0 onboarding_dump with CreateDump ops
   if (decision.route === 'direct') {
-    return await executeDirectCommit(supabase, cd, decision);
-  } else {
+    const isP0 = cd.entry_point === 'onboarding_dump';
+    const onlyCreateDump = Array.isArray(cd.ops) && cd.ops.every(op => op.type === 'CreateDump');
+    if (isP0 && onlyCreateDump) {
+      return await executeDirectCommit(supabase, cd, decision);
+    }
+    // Fallback to proposal for any other case
     return await createGovernanceProposal(supabase, cd, decision, riskHints);
   }
+
+  return await createGovernanceProposal(supabase, cd, decision, riskHints);
 }
 
 /**

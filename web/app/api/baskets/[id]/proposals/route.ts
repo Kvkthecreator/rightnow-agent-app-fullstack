@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@/lib/supabase/clients";
-import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { createTestAwareClient, getTestAwareAuth } from "@/lib/auth/testHelpers";
+import { ensureWorkspaceForUser } from "@/lib/workspaces/ensureWorkspaceForUser";
 import { getWorkspaceFlags, isValidatorRequired as isValidatorRequiredLegacy } from "@/lib/governance/flagsServer";
 
 interface RouteContext {
@@ -18,22 +18,11 @@ export async function GET(
     const status = searchParams.get('status');
     const kind = searchParams.get('kind');
     
-    const supabase = createRouteHandlerClient({ cookies });
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Ensure user has workspace access
-    const workspace = await ensureWorkspaceServer(supabase);
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace access required" }, { status: 401 });
-    }
+    const supabase = createTestAwareClient({ cookies });
+    const { userId, isTest } = await getTestAwareAuth(supabase);
+    const workspace = isTest
+      ? { id: '00000000-0000-0000-0000-000000000002' }
+      : await ensureWorkspaceForUser(userId, supabase);
     
     let query = supabase
       .from('proposals')
@@ -90,22 +79,11 @@ export async function POST(
       basis_snapshot_id 
     } = await req.json();
     
-    const supabase = createRouteHandlerClient({ cookies });
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Ensure user has workspace access
-    const workspace = await ensureWorkspaceServer(supabase);
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace access required" }, { status: 401 });
-    }
+    const supabase = createTestAwareClient({ cookies });
+    const { userId, isTest } = await getTestAwareAuth(supabase);
+    const workspace = isTest
+      ? { id: '00000000-0000-0000-0000-000000000002' }
+      : await ensureWorkspaceForUser(userId, supabase);
 
     // Get workspace governance flags
     const workspaceFlags = await getWorkspaceFlags(supabase, workspace.id);
