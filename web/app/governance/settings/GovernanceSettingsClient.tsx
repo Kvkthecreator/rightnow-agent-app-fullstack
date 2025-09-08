@@ -11,13 +11,11 @@ import { Settings, Shield, AlertTriangle, CheckCircle2, Circle } from 'lucide-re
 interface GovernanceSettings {
   governance_enabled: boolean;
   validator_required: boolean;
-  direct_substrate_writes: boolean;
+  // Removed from UI: direct_substrate_writes is canon-enforced server-side (always false)
   governance_ui_enabled: boolean;
   entry_point_policies: {
     onboarding_dump: string;
     manual_edit: string;
-    document_edit: string;
-    reflection_suggestion: string;
     graph_action: string;
     timeline_restore: string;
   };
@@ -42,17 +40,14 @@ export default function GovernanceSettingsClient({
       return {
         governance_enabled: initialSettings.governance_enabled,
         validator_required: initialSettings.validator_required,
-        direct_substrate_writes: initialSettings.direct_substrate_writes,
         governance_ui_enabled: initialSettings.governance_ui_enabled,
         entry_point_policies: {
-          onboarding_dump: initialSettings.ep_onboarding_dump,
+          onboarding_dump: 'direct', // Canon: P0 capture must be direct
           manual_edit: initialSettings.ep_manual_edit,
-          document_edit: initialSettings.ep_document_edit,
-          reflection_suggestion: initialSettings.ep_reflection_suggestion,
           graph_action: initialSettings.ep_graph_action,
           timeline_restore: initialSettings.ep_timeline_restore
         },
-        default_blast_radius: initialSettings.default_blast_radius
+        default_blast_radius: initialSettings.default_blast_radius === 'Global' ? 'Scoped' : initialSettings.default_blast_radius
       };
     }
     
@@ -60,13 +55,10 @@ export default function GovernanceSettingsClient({
     return {
       governance_enabled: true,
       validator_required: false,
-      direct_substrate_writes: false,
       governance_ui_enabled: true,
       entry_point_policies: {
-        onboarding_dump: 'proposal',
+        onboarding_dump: 'direct',
         manual_edit: 'proposal',
-        document_edit: 'proposal',
-        reflection_suggestion: 'proposal',
         graph_action: 'proposal',
         timeline_restore: 'proposal'
       },
@@ -86,17 +78,14 @@ export default function GovernanceSettingsClient({
       return {
         governance_enabled: initialSettings.governance_enabled,
         validator_required: initialSettings.validator_required,
-        direct_substrate_writes: initialSettings.direct_substrate_writes,
         governance_ui_enabled: initialSettings.governance_ui_enabled,
         entry_point_policies: {
-          onboarding_dump: initialSettings.ep_onboarding_dump,
+          onboarding_dump: 'direct',
           manual_edit: initialSettings.ep_manual_edit,
-          document_edit: initialSettings.ep_document_edit,
-          reflection_suggestion: initialSettings.ep_reflection_suggestion,
           graph_action: initialSettings.ep_graph_action,
           timeline_restore: initialSettings.ep_timeline_restore
         },
-        default_blast_radius: initialSettings.default_blast_radius
+        default_blast_radius: initialSettings.default_blast_radius === 'Global' ? 'Scoped' : initialSettings.default_blast_radius
       };
     }
     return null;
@@ -112,7 +101,6 @@ export default function GovernanceSettingsClient({
         body: JSON.stringify({
           governance_enabled: settings.governance_enabled,
           validator_required: settings.validator_required,
-          direct_substrate_writes: settings.direct_substrate_writes,
           governance_ui_enabled: settings.governance_ui_enabled,
           entry_point_policies: settings.entry_point_policies,
           default_blast_radius: settings.default_blast_radius
@@ -257,33 +245,14 @@ export default function GovernanceSettingsClient({
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="direct-writes"
-                    checked={settings.direct_substrate_writes}
-                    onChange={(e) => setSettings(prev => ({ 
-                      ...prev, 
-                      direct_substrate_writes: e.target.checked 
-                    }))}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="direct-writes" className="font-medium">
-                    Allow Instant Changes
-                  </Label>
-                </div>
-                <p className="text-sm text-gray-600 ml-7">
-                  Some changes can bypass review process
-                </p>
-              </div>
+              {/* Canon: direct_substrate_writes is enforced server-side (always false). Removed from UI. */}
             </div>
 
             {/* Blast Radius */}
             <div className="space-y-3">
               <Label className="font-medium">Default Change Scope</Label>
               <select
-                value={settings.default_blast_radius}
+                value={settings.default_blast_radius === 'Global' ? 'Scoped' : settings.default_blast_radius}
                 onChange={(e) => setSettings(prev => ({ 
                   ...prev, 
                   default_blast_radius: e.target.value 
@@ -292,7 +261,6 @@ export default function GovernanceSettingsClient({
               >
                 <option value="Local">Local (single basket)</option>
                 <option value="Scoped">Scoped (workspace-wide)</option>
-                <option value="Global">Global (cross-workspace)</option>
               </select>
             </div>
           </CardContent>
@@ -308,7 +276,9 @@ export default function GovernanceSettingsClient({
           </CardHeader>
           <CardContent className="p-8">
             <div className="space-y-6">
-              {Object.entries(settings.entry_point_policies).map(([entryPoint, policy]) => (
+              {Object.entries(settings.entry_point_policies)
+                .filter(([entryPoint]) => ['onboarding_dump','manual_edit','graph_action','timeline_restore'].includes(entryPoint))
+                .map(([entryPoint, policy]) => (
                 <div key={entryPoint} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div>
                     <div className="font-medium text-sm">
@@ -319,22 +289,39 @@ export default function GovernanceSettingsClient({
                     </div>
                   </div>
                   
-                  <select
-                    value={policy}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      entry_point_policies: {
-                        ...prev.entry_point_policies,
-                        [entryPoint]: e.target.value
-                      }
-                    }))}
-                    disabled={!settings.governance_enabled}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-28"
-                  >
-                    <option value="proposal">Proposal</option>
-                    <option value="direct">Direct</option>
-                    <option value="hybrid">Hybrid</option>
-                  </select>
+                  {entryPoint === 'onboarding_dump' ? (
+                    <select
+                      value={'direct'}
+                      disabled
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-28 bg-gray-100 text-gray-600"
+                    >
+                      <option value="direct">Direct</option>
+                    </select>
+                  ) : entryPoint === 'timeline_restore' ? (
+                    <select
+                      value={'proposal'}
+                      disabled={!settings.governance_enabled}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-28"
+                    >
+                      <option value="proposal">Proposal</option>
+                    </select>
+                  ) : (
+                    <select
+                      value={policy === 'direct' ? 'proposal' : policy}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        entry_point_policies: {
+                          ...prev.entry_point_policies,
+                          [entryPoint]: e.target.value
+                        }
+                      }))}
+                      disabled={!settings.governance_enabled}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-28"
+                    >
+                      <option value="proposal">Proposal</option>
+                      <option value="hybrid">Hybrid</option>
+                    </select>
+                  )}
                 </div>
               ))}
             </div>

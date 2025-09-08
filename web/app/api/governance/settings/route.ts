@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Workspace access required" }, { status: 401 });
     }
 
-    // Get workspace governance settings
+    // Get workspace governance settings (raw table read)
     const { data: settings, error } = await supabase
       .from('workspace_governance_settings')
       .select('*')
@@ -45,26 +45,24 @@ export async function GET(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // Return settings or defaults
+    // Return settings or defaults (filtered to canon-safe fields)
     if (settings) {
       return NextResponse.json({
         workspace_id: workspace.id,
         settings: {
           governance_enabled: settings.governance_enabled,
           validator_required: settings.validator_required,
-          direct_substrate_writes: settings.direct_substrate_writes,
+          direct_substrate_writes: false, // Canon: never exposed/true
           governance_ui_enabled: settings.governance_ui_enabled,
           
           entry_point_policies: {
-            onboarding_dump: settings.ep_onboarding_dump,
-            manual_edit: settings.ep_manual_edit,
-            document_edit: settings.ep_document_edit,
-            reflection_suggestion: settings.ep_reflection_suggestion,
-            graph_action: settings.ep_graph_action,
-            timeline_restore: settings.ep_timeline_restore
+            onboarding_dump: 'direct',
+            manual_edit: settings.ep_manual_edit === 'direct' ? 'proposal' : settings.ep_manual_edit,
+            graph_action: settings.ep_graph_action === 'direct' ? 'proposal' : settings.ep_graph_action,
+            timeline_restore: 'proposal'
           },
           
-          default_blast_radius: settings.default_blast_radius
+          default_blast_radius: settings.default_blast_radius === 'Global' ? 'Scoped' : settings.default_blast_radius
         },
         created_at: settings.created_at,
         updated_at: settings.updated_at,
@@ -81,10 +79,8 @@ export async function GET(req: NextRequest) {
           governance_ui_enabled: true,
           
           entry_point_policies: {
-            onboarding_dump: 'proposal',
+            onboarding_dump: 'direct',
             manual_edit: 'proposal',
-            document_edit: 'proposal',
-            reflection_suggestion: 'proposal',
             graph_action: 'proposal',
             timeline_restore: 'proposal'
           },
@@ -123,7 +119,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Workspace access required" }, { status: 401 });
     }
 
-    // Check if user is workspace admin
+    // Check if user is workspace admin/owner
     const { data: membership, error: membershipError } = await supabase
       .from('workspace_memberships')
       .select('role')
@@ -131,20 +127,18 @@ export async function PUT(req: NextRequest) {
       .eq('user_id', user.id)
       .single();
 
-    if (membershipError || !membership || membership.role !== 'admin') {
+    if (membershipError || !membership || !['admin','owner'].includes(membership.role)) {
       return NextResponse.json({ 
         error: "Admin access required to modify governance settings" 
       }, { status: 403 });
     }
 
-    const {
-      governance_enabled,
-      validator_required,
-      direct_substrate_writes,
-      governance_ui_enabled,
-      entry_point_policies,
-      default_blast_radius
-    } = await req.json();
+    const body = await req.json();
+    const governance_enabled = Boolean(body.governance_enabled);
+    const validator_required = Boolean(body.validator_required);
+    const governance_ui_enabled = Boolean(body.governance_ui_enabled);
+    const entry_point_policies = body.entry_point_policies || {};
+    const default_blast_radius_in = body.default_blast_radius;
 
     // Validate entry point policies
     const validPolicies = ['proposal', 'direct', 'hybrid'];
@@ -166,25 +160,33 @@ export async function PUT(req: NextRequest) {
       }, { status: 400 });
     }
 
+    // Canon coercions
+    const sanitized = {
+      ep_onboarding_dump: 'direct', // P0 must be direct
+      ep_manual_edit: entry_point_policies?.manual_edit === 'direct' ? 'proposal' : (entry_point_policies?.manual_edit || 'proposal'),
+      ep_graph_action: entry_point_policies?.graph_action === 'direct' ? 'proposal' : (entry_point_policies?.graph_action || 'proposal'),
+      ep_timeline_restore: 'proposal',
+      // Artifacts removed: document_edit, reflection_suggestion
+      default_blast_radius: validBlastRadius.includes(default_blast_radius_in) && default_blast_radius_in !== 'Global' ? default_blast_radius_in : 'Scoped'
+    } as const;
+
     // Upsert workspace governance settings
     const { data: settings, error: upsertError } = await supabase
       .from('workspace_governance_settings')
       .upsert({
         workspace_id: workspace.id,
-        governance_enabled: governance_enabled ?? false,
-        validator_required: validator_required ?? false,
-        direct_substrate_writes: direct_substrate_writes ?? true,
-        governance_ui_enabled: governance_ui_enabled ?? false,
+        governance_enabled: governance_enabled,
+        validator_required: validator_required,
+        direct_substrate_writes: false, // Canon: never allow direct substrate writes
+        governance_ui_enabled: governance_ui_enabled,
         
         // Entry point policies (with defaults)
-        ep_onboarding_dump: entry_point_policies?.onboarding_dump || 'proposal',
-        ep_manual_edit: entry_point_policies?.manual_edit || 'proposal',
-        ep_document_edit: entry_point_policies?.document_edit || 'proposal',
-        ep_reflection_suggestion: entry_point_policies?.reflection_suggestion || 'proposal',
-        ep_graph_action: entry_point_policies?.graph_action || 'proposal',
-        ep_timeline_restore: entry_point_policies?.timeline_restore || 'proposal',
+        ep_onboarding_dump: sanitized.ep_onboarding_dump,
+        ep_manual_edit: sanitized.ep_manual_edit,
+        ep_graph_action: sanitized.ep_graph_action,
+        ep_timeline_restore: sanitized.ep_timeline_restore,
         
-        default_blast_radius: default_blast_radius || 'Scoped'
+        default_blast_radius: sanitized.default_blast_radius
       }, {
         onConflict: 'workspace_id'
       })
@@ -217,14 +219,12 @@ export async function PUT(req: NextRequest) {
       settings: {
         governance_enabled: settings.governance_enabled,
         validator_required: settings.validator_required,
-        direct_substrate_writes: settings.direct_substrate_writes,
+        direct_substrate_writes: false,
         governance_ui_enabled: settings.governance_ui_enabled,
         
         entry_point_policies: {
-          onboarding_dump: settings.ep_onboarding_dump,
+          onboarding_dump: 'direct',
           manual_edit: settings.ep_manual_edit,
-          document_edit: settings.ep_document_edit,
-          reflection_suggestion: settings.ep_reflection_suggestion,
           graph_action: settings.ep_graph_action,
           timeline_restore: settings.ep_timeline_restore
         },
