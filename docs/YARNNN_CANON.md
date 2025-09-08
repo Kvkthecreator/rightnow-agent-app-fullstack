@@ -50,8 +50,8 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 
 | Pipeline | Layer | Purpose | Sacred Rule |
 |----------|-------|---------|-------------|
-| **P0: Capture** | Substrate | Ingest raw memory | Only writes raw_dumps, never interprets |
-| **P1: Evolve** | Substrate | Evolve basket substrate to reflect new information | **Creates, Updates, and Merges substrate via governance proposals** |
+| **P0: Capture** | Substrate | Ingest raw memory | Only writes raw_dumps, never interprets (always direct, no proposals) |
+| **P1: Governed Evolution (Propose → Commit)** | Substrate | Propose and (upon approval) evolve basket substrate | **All Create/Revise/Merge occur only via approved governance proposals (no direct writes)** |
 | **P2: Connect** | Substrate | Link existing substrates semantically | Creates relationships only, never creates new substrate |
 | **P3: Reflect** | Artifact | Compute insights about substrates | Creates reflections only, never modifies substrate |
 | **P4: Compose** | Artifact | Create narrative compositions | Creates documents only, consumes substrate |
@@ -66,9 +66,9 @@ User Input → Collection of raw_dumps (unstructured)
 - No interpretation, pure capture
 ```
 
-**P1: Evolve & Refine Phase** 
+**P1: Governed Evolution Phase (Propose → Commit)** 
 ```
-New raw_dumps + Existing substrate → Agent Analysis → Governance Proposal → Substrate Evolution
+New raw_dumps + Existing substrate → Agent Analysis → Governance Proposal → Approval → Substrate Evolution
 
 1. Agent reads new raw_dumps collectively 
 2. Agent reads existing substrate in basket (blocks, context_items)
@@ -77,7 +77,7 @@ New raw_dumps + Existing substrate → Agent Analysis → Governance Proposal �
    - Refined understanding → UPDATE existing substrate  
    - Duplicate concepts → MERGE substrate
    - Contradictions → REVISE substrate
-4. Proposal approval → Operations executed → Substrate evolved
+4. Proposal approval → Operations executed atomically → Substrate evolved
 ```
 
 **Critical Insight**: P1 is a **substrate evolution agent**, not just creation. Early baskets see mostly CREATE operations, mature baskets see mostly UPDATE/MERGE operations as conceptual space fills out.

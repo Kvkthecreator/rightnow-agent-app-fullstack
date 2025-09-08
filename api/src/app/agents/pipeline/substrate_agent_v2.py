@@ -53,6 +53,7 @@ class P1SubstrateAgentV2:
             raise RuntimeError("OPENAI_API_KEY not set")
         
         self.logger.info(f"P1 Substrate Agent v2 initialized with model={MODEL_P1}, temp={TEMP_P1}")
+        # Canon purity: do NOT persist substrate here. Extraction-only.
     
     def _client(self) -> OpenAI:
         """Get OpenAI client with explicit API key handling."""
@@ -115,19 +116,9 @@ class P1SubstrateAgentV2:
                 knowledge_blocks, primary_dump_id, max_blocks, dump_contents
             )
             
-            # Persist blocks as structured ingredients
-            created_blocks = await self._persist_block_ingredients(
-                basket_id, primary_dump_id, block_ingredients, agent_id
-            )
-            
-            # Extract context items from knowledge blocks
-            all_entities = []
-            for kb in knowledge_blocks:
-                all_entities.extend(kb.get("entities", []))
-            
-            created_context_items = await self._create_context_items_from_entities(
-                basket_id, all_entities
-            )
+            # Canon purity: never persist at P1; leave to governance approval
+            created_blocks = []
+            created_context_items = []
             
             # Calculate metrics
             processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
@@ -138,7 +129,7 @@ class P1SubstrateAgentV2:
                 f"processing_time_ms={processing_time_ms}"
             )
             
-            return {
+            result: Dict[str, Any] = {
                 "primary_dump_id": str(primary_dump_id),
                 "processed_dump_ids": [str(did) for did in dump_ids],
                 "batch_mode": len(dump_ids) > 1,
@@ -148,6 +139,9 @@ class P1SubstrateAgentV2:
                 "agent_confidence": extraction_result.get("extraction_metadata", {}).get("confidence", 0.8),
                 "extraction_method": "comprehensive_structured_ingredients" if len(dump_ids) > 1 else "structured_knowledge_ingredients"
             }
+            # Always include candidate ingredients for governance to consume
+            result["block_ingredients"] = block_ingredients
+            return result
             
         except Exception as e:
             self.logger.error(f"P1 Substrate v2 failed for dumps {dump_ids}: {e}")

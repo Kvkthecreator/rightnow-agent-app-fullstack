@@ -17,13 +17,13 @@ Governance operates at the **workspace level**, providing fine-grained control o
 -- Governance is configured per workspace
 workspace_governance_settings {
   workspace_id: uuid PRIMARY KEY,
-  governance_enabled: boolean DEFAULT false,
+  governance_enabled: boolean DEFAULT true,
   validator_required: boolean DEFAULT false,
-  direct_substrate_writes: boolean DEFAULT true,
+  direct_substrate_writes: boolean DEFAULT false,
   governance_ui_enabled: boolean DEFAULT false,
   
   -- Per-entry-point policies (substrate only)
-  ep_onboarding_dump: 'proposal' | 'direct' | 'hybrid',
+  ep_onboarding_dump: 'direct',              -- P0 capture is always direct (no proposals)
   ep_manual_edit: 'proposal' | 'direct' | 'hybrid',
   ep_graph_action: 'proposal' | 'direct' | 'hybrid',
   ep_timeline_restore: 'proposal' | 'direct' | 'hybrid',
@@ -78,7 +78,7 @@ function decide(
 
 ### Sacred Capture Path (Standard Agent Flow)
 ```
-raw_dumps + existing_substrate → P1 Evolution Agent → Proposal (with Operations) → Auto-Approval → Substrate Evolution
+raw_dumps (P0 direct) + existing_substrate → P1 Governed Evolution → Proposal (with Operations) → [Approval | Auto-Approval (policy)] → Substrate Evolution
 ```
 
 **P1 Evolution Agent Process**:
@@ -90,9 +90,9 @@ raw_dumps + existing_substrate → P1 Evolution Agent → Proposal (with Operati
 3. **Proposal Generation**: Mixed operation types based on basket maturity
 4. **High confidence proposals auto-approved for immediate substrate evolution**
 
-### Manual Curation Path
+### Manual Curation Path (Substrate Only)
 ```  
-Human Intent → ChangeDescriptor → PolicyDecider → [direct | proposal] → Agent Validation → Substrate
+Human Intent → ChangeDescriptor → PolicyDecider → proposal → Agent Validation → Substrate
 ```
 
 **Key**: Both paths converge at the Decision Gateway, preserving agent intelligence while enabling human curation.
@@ -186,8 +186,8 @@ interface Proposal {
 Each entry point can be configured with one of three policies:
 
 - **proposal**: All changes create proposals requiring human approval
-- **direct**: Changes committed directly to substrate (bypasses governance)  
-- **hybrid**: Risk-based routing - low risk goes direct, high risk becomes proposals
+- **direct**: Only for P0 capture (raw_dumps). For P1/P2 substrate mutations, direct commits are disabled by default.
+- **hybrid**: Risk-based routing for certain entry points (e.g., manual edits); high risk becomes proposals
 
 ### Risk-Based Hybrid Routing
 When `hybrid` policy is active, the PolicyDecider evaluates:

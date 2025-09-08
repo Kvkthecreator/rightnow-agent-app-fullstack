@@ -6,7 +6,7 @@ Integrates P1SubstrateAgentV2 with governance workflow for structured knowledge 
 import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app.agents.pipeline.substrate_agent_v2 import P1SubstrateAgentV2
 from app.utils.supabase_client import supabase_admin_client as supabase
@@ -43,14 +43,7 @@ class GovernanceDumpProcessorV2:
             if not self.p1_agent:
                 raise RuntimeError("P1SubstrateAgentV2 not initialized - likely missing OPENAI_API_KEY")
             
-            # Check governance settings for workspace
-            governance_enabled = await self._check_governance_enabled(workspace_id)
-            
-            if not governance_enabled:
-                # Direct substrate creation (legacy path) - process first dump only
-                return await self._direct_substrate_creation(
-                    dump_ids[0], basket_id, workspace_id, 20
-                )
+            # Canon purity: governance is mandatory; no direct substrate writes here.
             
             # Create comprehensive governance proposal with structured ingredients
             proposals_result = await self._create_batch_ingredient_proposals(
@@ -95,14 +88,7 @@ class GovernanceDumpProcessorV2:
             if not self.p1_agent:
                 raise RuntimeError("P1SubstrateAgentV2 not initialized - likely missing OPENAI_API_KEY")
             
-            # Check governance settings for workspace
-            governance_enabled = await self._check_governance_enabled(workspace_id)
-            
-            if not governance_enabled:
-                # Direct substrate creation (legacy path)
-                return await self._direct_substrate_creation(
-                    dump_id, basket_id, workspace_id, max_blocks
-                )
+            # Canon purity: governance is mandatory; no direct substrate writes here.
             
             # Create governance proposals with structured ingredients
             proposals_result = await self._create_ingredient_proposals(
@@ -171,29 +157,61 @@ class GovernanceDumpProcessorV2:
             proposals = []
             proposal_ids = []
             
+            # Prefer non-persisted ingredients in strict mode; fall back to persisted blocks
+            blocks_source = substrate_result.get("block_ingredients") or substrate_result.get("blocks_created", [])
+
             # Create proposals for each block ingredient
-            for block_data in substrate_result["blocks_created"]:
+            for block_data in blocks_source:
+                # Normalize fields between ingredient (confidence) and persisted (confidence_score)
+                confidence = block_data.get("confidence") if isinstance(block_data, dict) else None
+                if confidence is None:
+                    confidence = block_data.get("confidence_score", 0.7)
+                metadata = block_data.get("metadata", {})
+                semantic_type = block_data.get("semantic_type")
+                title = block_data.get("title")
+                # Build ops: always include CreateBlock, optionally a few CreateContextItem
+                ops_list: List[Dict[str, Any]] = [{
+                    "type": "CreateBlock",
+                    "data": {
+                        "title": title,
+                        "semantic_type": semantic_type,
+                        "metadata": metadata,
+                        "confidence": confidence
+                    }
+                }]
+
+                # Derive a couple of context items from entities
+                try:
+                    entities = metadata.get("knowledge_ingredients", {}).get("entities", [])
+                    for ent in entities[:2]:  # limit for safety
+                        label = ent.get("name") or ent.get("title")
+                        if not label:
+                            continue
+                        ops_list.append({
+                            "type": "CreateContextItem",
+                            "data": {
+                                "label": label,
+                                "content": ent.get("description") or label,
+                                "kind": ent.get("type", "concept"),
+                                "confidence": ent.get("confidence", confidence or 0.7)
+                            }
+                        })
+                except Exception:
+                    pass
+
                 proposal_data = {
                     "basket_id": str(basket_id),
                     "workspace_id": str(workspace_id),
                     "proposal_kind": "Extraction",
                     "origin": "agent",
                     "provenance": [{"dump_id": str(dump_id), "method": "structured_extraction_v2"}],
-                    "ops": [{
-                        "type": "CreateBlock",
-                        "data": {
-                            "title": block_data["title"],
-                            "semantic_type": block_data["semantic_type"],
-                            "metadata": block_data["metadata"],
-                            "confidence": block_data["confidence_score"]
-                        }
-                    }],
+                    "ops": ops_list,
                     "blast_radius": "Local",
                     "validator_report": {
-                        "confidence": block_data["confidence_score"],
+                        "confidence": confidence,
                         "method": "structured_knowledge_extraction",
-                        "ingredients_count": len(block_data["metadata"].get("knowledge_ingredients", {}).get("entities", [])),
-                        "extraction_quality": "high" if block_data["confidence_score"] > 0.7 else "medium"
+                        "ingredients_count": len(metadata.get("knowledge_ingredients", {}).get("entities", [])),
+                        "extraction_quality": "high" if confidence and confidence > 0.7 else "medium"
                     },
                     "status": "PROPOSED"
                 }
@@ -242,7 +260,7 @@ class GovernanceDumpProcessorV2:
             }
             
             substrate_result = await self.p1_agent.create_substrate(agent_request)
-            blocks_created = substrate_result.get("blocks_created", [])
+            blocks_created = substrate_result.get("block_ingredients") or substrate_result.get("blocks_created", [])
             
             if not blocks_created:
                 return {
@@ -296,10 +314,10 @@ class GovernanceDumpProcessorV2:
             return {
                 "dump_id": str(dump_id),
                 "proposals_created": 0,  # No proposals, direct creation
-                "blocks_created": len(result["blocks_created"]),
-                "context_items_created": len(result["context_items_created"]),
-                "processing_time_ms": result["processing_time_ms"],
-                "confidence": result["agent_confidence"],
+                "blocks_created": len(result.get("blocks_created", [])),
+                "context_items_created": len(result.get("context_items_created", [])),
+                "processing_time_ms": result.get("processing_time_ms"),
+                "confidence": result.get("agent_confidence"),
                 "method": "direct_structured_ingredients_v2"
             }
             
@@ -335,27 +353,37 @@ class GovernanceDumpProcessorV2:
             
         ops_summary = "; ".join(summary_parts)
         
-        # Create unified proposal data
+        # Translate blocks into an array of CreateBlock operations
+        ops: List[Dict[str, Any]] = []
+        for b in blocks_created:
+            conf = b.get("confidence") if isinstance(b, dict) else None
+            if conf is None:
+                conf = b.get("confidence_score", 0.7)
+            ops.append({
+                "type": "CreateBlock",
+                "data": {
+                    "title": b.get("title"),
+                    "semantic_type": b.get("semantic_type"),
+                    "metadata": b.get("metadata", {}),
+                    "confidence": conf
+                }
+            })
+
+        # Create unified proposal data using canonical ops[] array
         proposal_data = {
             "id": str(uuid4()),
             "workspace_id": str(workspace_id),
             "basket_id": str(basket_id),
-            "proposal_kind": "create_blocks",
+            "proposal_kind": "Extraction",
             "origin": "agent",
             "status": "PROPOSED",
-            "ops": {
-                "operation": "batch_create_blocks",
-                "blocks": blocks_created,
-                "source_dumps": [str(did) for did in dump_ids],
-                "comprehensive_analysis": True,
-                "extraction_method": "comprehensive_structured_ingredients",
-                "summary": ops_summary
-            },
+            "ops": ops,
             "metadata": {
                 "batch_mode": True,
                 "source_dumps": len(dump_ids),
                 "comprehensive_review": True,
-                "processing_method": "share_updates_batch"
+                "processing_method": "share_updates_batch",
+                "ops_summary": ops_summary
             }
         }
         
