@@ -258,6 +258,16 @@ Use this checklist during reviews:
 - Stale `/baskets/:id/*` paths SHOULD be corrected by middleware before render.
 - Server routes encountering `PGRST116` (no rows) MAY redirect to `/memory` as a last resort; this SHOULD be rare if §8.1 is in place.
 
+---
+
+## 16) Capture Policy (P0) — Canon Defaults
+
+P0 capture (raw dumps) is always direct insert. Governance applies to substrate evolution (P1+), not to raw dump creation.
+
+- Default route for `entry_point=onboarding_dump`: `direct`
+- Side‑effects: database triggers enqueue work for P1/P2/P3, but API success is not gated by downstream processing
+- Rationale: users need immediate acknowledgement of capture; intelligence arrives asynchronously
+
 ## 12) Threat Model (baseline)
 Token forgery: mitigated by JWKS signature verification.
 Cross-tenant data leakage: mitigated by RLS + workspace_id checks.
