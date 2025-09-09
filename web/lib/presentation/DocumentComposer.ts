@@ -108,21 +108,28 @@ export class DocumentComposer {
         .join('\n\n');
 
       // Create document artifact (P4-only)
-      const { data: documentId, error: createErr } = await supabase.rpc('fn_document_create', {
-        p_basket_id: composition.basket_id,
-        p_title: composition.title,
-        p_content_raw: prose,
-        p_document_type: composition.document_type || 'narrative',
-        p_metadata: {
-          composition_context: composition.composition_context || {},
-          composition_signature: composition.composition_signature || null,
-          composition_type: 'substrate_plus_narrative'
-        }
-      });
+      // Prefer direct insert to ensure workspace_id is set and avoid function signature drift
+      const { data: createdDocs, error: createErr } = await supabase
+        .from('documents')
+        .insert({
+          basket_id: composition.basket_id,
+          workspace_id: composition.workspace_id,
+          title: composition.title,
+          content_raw: prose,
+          document_type: composition.document_type || 'narrative',
+          metadata: {
+            composition_context: composition.composition_context || {},
+            composition_signature: composition.composition_signature || null,
+            composition_type: 'substrate_plus_narrative'
+          }
+        })
+        .select('id')
+        .limit(1);
 
-      if (createErr || !documentId) {
+      if (createErr || !createdDocs || createdDocs.length === 0) {
         return { success: false, error: `Failed to create document: ${createErr?.message || 'unknown error'}` };
       }
+      const documentId = createdDocs[0].id;
 
       // Attach substrate references (generic)
       for (const ref of [...composition.substrate_references].sort((a, b) => a.order - b.order)) {
