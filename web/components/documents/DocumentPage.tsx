@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/Card';
 import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon } from 'lucide-react';
 
@@ -299,4 +299,3 @@ function VersionContent({ documentId, versionHash }: { documentId: string; versi
   }, [documentId, versionHash]);
   return <pre className="text-xs whitespace-pre-wrap">{content}</pre>;
 }
-

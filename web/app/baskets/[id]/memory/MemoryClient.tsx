@@ -7,6 +7,7 @@ import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SubpageHeader } from '@/components/basket/SubpageHeader';
+import { DocumentCreateButton } from '@/components/documents/DocumentCreateButton';
 import { PenTool } from 'lucide-react';
 import AddMemoryModal from '@/components/memory/AddMemoryModal';
 import OnboardingPanel from '@/components/memory/OnboardingPanel';
@@ -36,6 +37,7 @@ export default function MemoryClient({ basketId, pattern, tension, question, nee
         description="Capture thoughts and create documents to organize your knowledge"
         rightContent={
           <div className="flex items-center gap-3">
+            <DocumentCreateButton basketId={basketId} />
             <Button
               onClick={async () => {
                 try {
