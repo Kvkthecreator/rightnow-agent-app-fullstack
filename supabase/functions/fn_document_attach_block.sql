@@ -1,4 +1,6 @@
 -- fn_document_attach_block.sql (uses existing public.block_links)
+-- DEPRECATED: Use generic substrate reference attach functions targeting public.substrate_references.
+-- This function remains for backward compatibility during migration.
 create or replace function public.fn_document_attach_block(
   p_document_id uuid,
   p_block_id uuid,

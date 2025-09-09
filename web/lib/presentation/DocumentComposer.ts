@@ -36,6 +36,9 @@ export interface DocumentComposition {
   workspace_id: string;
   basket_id?: string;
   author_id: string;
+  document_type?: string; // e.g., 'narrative' | 'plan' | 'brief'
+  composition_context?: Record<string, any>; // intent, window, pinned, etc.
+  composition_signature?: string; // duplication control hash
 }
 
 export interface ComposedDocument {
@@ -75,6 +78,15 @@ export class DocumentComposer {
         emitsEvents: ['document.composed', 'narrative.authored']
       });
 
+      // Basic validation
+      if (!composition.basket_id) {
+        return { success: false, error: 'basket_id is required for document composition' };
+      }
+
+      if (!composition.narrative_sections || composition.narrative_sections.length === 0) {
+        return { success: false, error: 'At least one narrative section is required' };
+      }
+
       // Validate substrate references exist and are accessible
       const validationResult = await this.validateSubstrateReferences(
         composition.substrate_references,
@@ -89,13 +101,76 @@ export class DocumentComposer {
         };
       }
 
-      // TODO: Canon v2.0 - Documents are artifacts, not substrates
-      // This needs to be refactored to use P4 presentation pipeline instead of substrate governance
-      // Temporarily disabled to fix build error during canon transition
-      return {
-        success: false,
-        error: 'Document composition temporarily disabled during canon v2.0 transition. Documents are now artifacts managed by P4 pipeline.'
+      // Build raw content from narrative sections (ordered)
+      const prose = [...composition.narrative_sections]
+        .sort((a, b) => a.order - b.order)
+        .map(s => s.content)
+        .join('\n\n');
+
+      // Create document artifact (P4-only)
+      const { data: documentId, error: createErr } = await supabase.rpc('fn_document_create', {
+        p_basket_id: composition.basket_id,
+        p_title: composition.title,
+        p_content_raw: prose,
+        p_document_type: composition.document_type || 'narrative',
+        p_metadata: {
+          composition_context: composition.composition_context || {},
+          composition_signature: composition.composition_signature || null,
+          composition_type: 'substrate_plus_narrative'
+        }
+      });
+
+      if (createErr || !documentId) {
+        return { success: false, error: `Failed to create document: ${createErr?.message || 'unknown error'}` };
+      }
+
+      // Attach substrate references (generic)
+      for (const ref of [...composition.substrate_references].sort((a, b) => a.order - b.order)) {
+        const { error: attachErr } = await supabase.rpc('fn_document_attach_substrate', {
+          p_document_id: documentId,
+          p_substrate_type: ref.type,
+          p_substrate_id: ref.id,
+          p_role: 'reference',
+          p_weight: 0.5,
+          p_snippets: ref.excerpt ? [ref.excerpt] : [],
+          p_metadata: { order: ref.order }
+        });
+        if (attachErr) {
+          // Continue attaching others; collect errors if needed
+          console.warn(`Failed to attach reference ${ref.type}:${ref.id} →`, attachErr.message);
+        }
+      }
+
+      // Create initial version snapshot (idempotent by content hash)
+      const versionMessage = 'Initial composition';
+      const { data: versionHash, error: versionErr } = await supabase.rpc('fn_document_create_version', {
+        p_document_id: documentId,
+        p_content: prose,
+        p_version_message: versionMessage
+      });
+      if (versionErr) {
+        console.warn('Version creation failed:', versionErr.message);
+      }
+
+      // Fetch composed document for return
+      const { data: docRow, error: docErr } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', documentId)
+        .single();
+      if (docErr || !docRow) {
+        return { success: false, error: 'Document created but not retrievable' };
+      }
+
+      const composed: ComposedDocument = {
+        id: docRow.id,
+        title: docRow.title,
+        composition,
+        created_at: docRow.created_at,
+        created_by: docRow.created_by || composition.author_id
       };
+
+      return { success: true, document: composed };
 
     } catch (error) {
       return {
@@ -285,12 +360,24 @@ export class DocumentComposer {
         };
       }
 
-      // Get resolved substrate references (P4 consumption, not creation)
-      const resolvedRefs = await this.resolveSubstrateReferences(
-        document.substrate_references || [],
-        workspace_id,
-        supabase
-      );
+      // Load substrate references for this document (P4 consumption, not creation)
+      const { data: refs, error: refsErr } = await supabase
+        .from('substrate_references')
+        .select('substrate_id, substrate_type, metadata, snippets, role, weight, created_at')
+        .eq('document_id', document_id)
+        .order('created_at', { ascending: true });
+      if (refsErr) {
+        return { success: false, error: 'Failed to load document references' };
+      }
+
+      const references: SubstrateReference[] = (refs || []).map((r: any, idx: number) => ({
+        id: r.substrate_id,
+        type: r.substrate_type,
+        order: r.metadata?.order ?? idx,
+        excerpt: Array.isArray(r.snippets) && r.snippets.length > 0 ? r.snippets[0] : undefined
+      }));
+
+      const resolvedRefs = await this.resolveSubstrateReferences(references, workspace_id, supabase);
 
       return {
         success: true,

@@ -31,6 +31,7 @@
   "/api/documents/[id]",
   "/api/documents/[id]/composition",
   "/api/documents/[id]/references",
+  "/api/documents/[id]/analyze-lite",
   "/api/dumps/[id]",
   "/api/dumps/[id]/work",
   "/api/dumps/new",
