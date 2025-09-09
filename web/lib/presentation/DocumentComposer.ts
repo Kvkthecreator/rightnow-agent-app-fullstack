@@ -217,8 +217,12 @@ export class DocumentComposer {
       }
 
       // Fetch composed document for return
+      if (!documentId) {
+        return { success: false, error: 'Document ID missing after composition' };
+      }
+
       const composed: ComposedDocument = {
-        id: documentId,
+        id: documentId as string,
         title: composition.title,
         composition,
         created_at: new Date().toISOString(),
