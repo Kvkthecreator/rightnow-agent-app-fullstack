@@ -275,10 +275,11 @@ export function ProposalDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
+      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
+        {/* Lightened backdrop to match Add Memory modal */}
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-[1px]" onClick={onClose} />
         
-        <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+        <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl md:max-w-5xl w-full max-h-[90vh] flex flex-col">
           {/* Streamlined Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-100">
             <div>
