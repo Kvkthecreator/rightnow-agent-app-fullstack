@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/Button';
 import { ReflectionCards } from "@/components/basket";
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -36,6 +37,23 @@ export default function MemoryClient({ basketId, pattern, tension, question, nee
         description="Capture thoughts and create documents to organize your knowledge"
         rightContent={
           <div className="flex items-center gap-3">
+            <Button
+              onClick={async () => {
+                try {
+                  await fetch('/api/reflections/trigger', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ basket_id: basketId }),
+                  });
+                } catch {}
+                router.refresh();
+              }}
+              variant="ghost"
+              size="sm"
+              className="text-sm"
+            >
+              Refresh insights
+            </Button>
             <Button
               onClick={() => setShowAddMemory(true)}
               variant="outline"

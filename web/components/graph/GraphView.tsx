@@ -62,6 +62,22 @@ interface GraphViewProps {
 }
 
 export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphViewProps) {
+  // Helpers: ensure safe strings and truncation (avoid null.length crashes)
+  const toStringSafe = (val: unknown, fallback = ''): string => {
+    if (typeof val === 'string') return val;
+    if (val === null || val === undefined) return fallback;
+    try {
+      return String(val);
+    } catch {
+      return fallback;
+    }
+  };
+
+  const truncate = (text: string, max = 15): string => {
+    const s = toStringSafe(text, '');
+    return s.length > max ? s.substring(0, max) + '...' : s;
+  };
+
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
@@ -92,12 +108,13 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
 
     // Create context-item nodes (semantic bridges)
     if (visibleTypes.context_item) {
-      graphData.context_items.forEach(item => {
+      (graphData.context_items || []).forEach(item => {
+        const title = toStringSafe(item?.title, toStringSafe(item?.normalized_label, toStringSafe(item?.type, 'context item')));
         nodeMap.set(item.id, {
           id: item.id,
           type: 'context_item',
-          title: item.title,
-          label: item.title.length > 15 ? item.title.substring(0, 15) + '...' : item.title,
+          title,
+          label: truncate(title, 15),
           color: '#3b82f6', // blue
           size: 12,
           metadata: item
@@ -107,15 +124,14 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
 
     // Create block nodes (Canon compliant - using semantic_type)
     if (visibleTypes.block) {
-      graphData.blocks.forEach(block => {
+      (graphData.blocks || []).forEach(block => {
+        const semantic = toStringSafe(block?.semantic_type, toStringSafe(block?.title, 'block'));
         nodeMap.set(block.id, {
           id: block.id,
           type: 'block',
-          title: `${block.semantic_type}`,
-          label: block.semantic_type.length > 15 ? 
-                 block.semantic_type.substring(0, 15) + '...' : 
-                 block.semantic_type,
-          color: getBlockColor(block.confidence_score),
+          title: semantic,
+          label: truncate(semantic, 15),
+          color: getBlockColor(typeof block?.confidence_score === 'number' ? block.confidence_score : 0.5),
           size: 18,
           metadata: block
         });
@@ -124,8 +140,8 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
 
     // Create dump nodes
     if (visibleTypes.dump) {
-      graphData.dumps.forEach(dump => {
-        const sourceType = dump.source_meta?.source_type || 'capture';
+      (graphData.dumps || []).forEach(dump => {
+        const sourceType = toStringSafe(dump?.source_meta?.source_type, 'capture');
         nodeMap.set(dump.id, {
           id: dump.id,
           type: 'dump',
@@ -139,7 +155,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
     }
 
     // Create edges from context relationships (Canon-compliant semantic bridges)
-    graphData.relationships.forEach(rel => {
+    (graphData.relationships || []).forEach(rel => {
       const sourceNode = nodeMap.get(rel.from_id);
       const targetNode = nodeMap.get(rel.to_id);
       
@@ -148,11 +164,11 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
           id: rel.id,
           source: rel.from_id,
           target: rel.to_id,
-          weight: rel.weight || 0.7,
+          weight: typeof rel?.weight === 'number' ? rel.weight : 0.7,
           relationship_type: rel.relationship_type,
           type: 'semantic',
           color: getRelationshipColor(rel.relationship_type),
-          width: Math.max(1, (rel.weight || 0.7) * 3)
+          width: Math.max(1, ((typeof rel?.weight === 'number' ? rel.weight : 0.7) as number) * 3)
         });
       }
     });
@@ -498,19 +514,19 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Blocks:</span>
-                    <span>{graphData.blocks.length}</span>
+                    <span>{graphData.blocks?.length ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Context Items:</span>
-                    <span>{graphData.context_items.length}</span>
+                    <span>{graphData.context_items?.length ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dumps:</span>
-                    <span>{graphData.dumps.length}</span>
+                    <span>{graphData.dumps?.length ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Relationships:</span>
-                    <span>{graphData.relationships.length}</span>
+                    <span>{graphData.relationships?.length ?? 0}</span>
                   </div>
                 </CardContent>
               </Card>
