@@ -11,6 +11,7 @@
  */
 
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
+import crypto from 'crypto';
 import { PipelineBoundaryGuard } from "@/lib/canon/PipelineBoundaryGuard";
 import { routeChange } from "@/lib/governance/decisionGateway";
 import type { ChangeDescriptor } from "@/lib/governance/changeDescriptor";
@@ -107,29 +108,53 @@ export class DocumentComposer {
         .map(s => s.content)
         .join('\n\n');
 
-      // Create document artifact (P4-only)
-      // Prefer direct insert to ensure workspace_id is set and avoid function signature drift
-      const { data: createdDocs, error: createErr } = await supabase
+      // Compute composition signature (required)
+      const normalized = {
+        basket_id: composition.basket_id,
+        document_type: composition.document_type || 'narrative',
+        intent: (composition.composition_context as any)?.intent?.toString().trim().toLowerCase() || '',
+        window: (composition.composition_context as any)?.window || null,
+        pinned: (composition.composition_context as any)?.pinned || null,
+      };
+      const signatureInput = JSON.stringify(normalized);
+      const computedSig = 'cmp_' + crypto.createHash('sha256').update(signatureInput).digest('hex').slice(0, 40);
+      const signature = composition.composition_signature || computedSig;
+
+      // Dedup gate: if a document with same signature exists in basket, use it and create new version
+      let documentId: string | null = null;
+      const { data: existingDocs } = await supabase
         .from('documents')
-        .insert({
-          basket_id: composition.basket_id,
-          workspace_id: composition.workspace_id,
-          title: composition.title,
-          content_raw: prose,
-          document_type: composition.document_type || 'narrative',
-          metadata: {
-            composition_context: composition.composition_context || {},
-            composition_signature: composition.composition_signature || null,
-            composition_type: 'substrate_plus_narrative'
-          }
-        })
         .select('id')
+        .eq('basket_id', composition.basket_id)
+        .contains('metadata', { composition_signature: signature })
         .limit(1);
 
-      if (createErr || !createdDocs || createdDocs.length === 0) {
-        return { success: false, error: `Failed to create document: ${createErr?.message || 'unknown error'}` };
+      if (existingDocs && existingDocs.length > 0) {
+        documentId = existingDocs[0].id;
+      } else {
+        // Create document artifact (P4-only)
+        const { data: createdDocs, error: createErr } = await supabase
+          .from('documents')
+          .insert({
+            basket_id: composition.basket_id,
+            workspace_id: composition.workspace_id,
+            title: composition.title,
+            content_raw: prose,
+            document_type: composition.document_type || 'narrative',
+            metadata: {
+              composition_context: composition.composition_context || {},
+              composition_signature: signature,
+              composition_type: 'substrate_plus_narrative'
+            }
+          })
+          .select('id')
+          .limit(1);
+
+        if (createErr || !createdDocs || createdDocs.length === 0) {
+          return { success: false, error: `Failed to create document: ${createErr?.message || 'unknown error'}` };
+        }
+        documentId = createdDocs[0].id;
       }
-      const documentId = createdDocs[0].id;
 
       // Attach substrate references (generic)
       for (const ref of [...composition.substrate_references].sort((a, b) => a.order - b.order)) {
@@ -149,32 +174,55 @@ export class DocumentComposer {
       }
 
       // Create initial version snapshot (idempotent by content hash)
-      const versionMessage = 'Initial composition';
-      const { data: versionHash, error: versionErr } = await supabase.rpc('fn_document_create_version', {
-        p_document_id: documentId,
-        p_content: prose,
-        p_version_message: versionMessage
-      });
-      if (versionErr) {
-        console.warn('Version creation failed:', versionErr.message);
+      // Create version with composition contract and signature
+      const versionMessage = existingDocs && existingDocs.length > 0 ? 'Recomposition' : 'Initial composition';
+      // Load snapshots
+      const { data: docRow } = await supabase.from('documents').select('*').eq('id', documentId).single();
+      const { data: refsSnapshot } = await supabase
+        .from('substrate_references')
+        .select('*')
+        .eq('document_id', documentId);
+
+      const versionHash = 'doc_v' + crypto.createHash('sha256').update(prose).digest('hex').slice(0, 58);
+      const composition_contract = {
+        intent: normalized.intent,
+        window: normalized.window,
+        pinned: normalized.pinned,
+        document_type: normalized.document_type,
+        title: composition.title,
+        tier: 'core'
+      };
+
+      // Insert version directly
+      const { error: versionInsErr } = await supabase
+        .from('document_versions')
+        .insert({
+          version_hash: versionHash,
+          document_id: documentId,
+          content: prose,
+          metadata_snapshot: docRow?.metadata || {},
+          substrate_refs_snapshot: refsSnapshot ? JSON.parse(JSON.stringify(refsSnapshot)) : [],
+          version_message: versionMessage,
+          parent_version_hash: docRow?.current_version_hash || null,
+          composition_contract,
+          composition_signature: signature
+        });
+      if (versionInsErr) {
+        console.warn('Version insert failed:', versionInsErr.message);
+      } else {
+        await supabase
+          .from('documents')
+          .update({ current_version_hash: versionHash, updated_at: new Date().toISOString() })
+          .eq('id', documentId);
       }
 
       // Fetch composed document for return
-      const { data: docRow, error: docErr } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('id', documentId)
-        .single();
-      if (docErr || !docRow) {
-        return { success: false, error: 'Document created but not retrievable' };
-      }
-
       const composed: ComposedDocument = {
-        id: docRow.id,
-        title: docRow.title,
+        id: documentId,
+        title: composition.title,
         composition,
-        created_at: docRow.created_at,
-        created_by: docRow.created_by || composition.author_id
+        created_at: new Date().toISOString(),
+        created_by: composition.author_id
       };
 
       return { success: true, document: composed };
