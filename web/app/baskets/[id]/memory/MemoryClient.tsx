@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ReflectionCards } from "@/components/basket";
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -20,9 +21,10 @@ interface Props {
 
 export default function MemoryClient({ basketId, pattern, tension, question, needsOnboarding }: Props) {
   const [showAddMemory, setShowAddMemory] = useState(false);
+  const router = useRouter();
   const refreshDocuments = () => {
-    // This will trigger DocumentsList to refresh
-    window.location.reload();
+    // Prefer soft refresh to avoid jarring redirects
+    try { router.refresh(); } catch {}
   };
 
   return (

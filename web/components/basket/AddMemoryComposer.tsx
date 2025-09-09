@@ -23,10 +23,8 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!basketId) {
-      router.replace("/memory");
-      return;
-    }
+    // If basketId is missing, disable interactions instead of redirecting.
+    if (!basketId) return;
     const focusComposer = () => textareaRef.current?.focus();
     if (window.location.hash === "#add") {
       focusComposer();
@@ -201,15 +199,15 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="border rounded-lg bg-white">
         {/* Main input area */}
-        <div className="p-3">
+        <div className="p-3 md:p-4">
           <Textarea
             ref={textareaRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Add a memory, thoughts, or observations..."
-            rows={3}
+            rows={8}
             disabled={disabled || loading}
-            className="border-0 focus:ring-0 resize-none"
+            className="border-0 focus:ring-0 resize-none text-base min-h-[180px] md:min-h-[260px]"
           />
           
           {/* Attachment preview */}
@@ -240,7 +238,7 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
         </div>
         
         {/* Action bar */}
-        <div className="border-t px-3 py-2 flex items-center justify-between bg-gray-50 rounded-b-lg">
+        <div className="border-t px-3 md:px-4 py-2 flex items-center justify-between bg-gray-50 rounded-b-lg">
           <div className="flex items-center gap-3">
             <input
               ref={fileInputRef}
@@ -277,4 +275,3 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
     </form>
   );
 }
-
