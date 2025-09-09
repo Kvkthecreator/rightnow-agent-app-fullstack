@@ -30,3 +30,42 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// GET /api/documents?basketId=uuid&limit=20
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = createServerSupabaseClient() as any;
+    const { userId, isTest } = await getTestAwareAuth(supabase);
+    const workspace = isTest ? { id: '00000000-0000-0000-0000-000000000002' } : await ensureWorkspaceForUser(userId, supabase);
+
+    const { searchParams } = new URL(req.url);
+    const basketId = searchParams.get('basketId');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10) || 20, 100);
+
+    let query = supabase
+      .from('documents')
+      .select('id, basket_id, title, created_at, updated_at, metadata, workspace_id')
+      .eq('workspace_id', workspace.id)
+      .order('updated_at', { ascending: false })
+      .limit(limit);
+
+    if (basketId) {
+      query = query.eq('basket_id', basketId);
+    }
+
+    const { data, error } = await query;
+    if (error) return NextResponse.json({ error: 'failed to fetch documents' }, { status: 400 });
+
+    const documents = (data || []).map((d: any) => ({
+      id: d.id,
+      basket_id: d.basket_id,
+      title: d.title,
+      created_at: d.created_at,
+      updated_at: d.updated_at,
+      metadata: d.metadata || {},
+    }));
+
+    return NextResponse.json({ documents }, { status: 200 });
+  } catch (e) {
+    return NextResponse.json({ error: 'internal server error' }, { status: 500 });
+  }
+}
