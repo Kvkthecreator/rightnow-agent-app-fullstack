@@ -156,9 +156,26 @@ class GovernanceDumpProcessorV2:
             # Convert substrate results into governance proposals
             proposals = []
             proposal_ids = []
-            
+
             # Prefer non-persisted ingredients in strict mode; fall back to persisted blocks
             blocks_source = substrate_result.get("block_ingredients") or substrate_result.get("blocks_created", [])
+
+            # Sort by confidence desc and cap to max_blocks for signal density
+            def _conf(b: Dict[str, Any]) -> float:
+                try:
+                    return float(b.get("confidence") if b.get("confidence") is not None else b.get("confidence_score", 0.7))
+                except Exception:
+                    return 0.7
+            try:
+                blocks_source = sorted(blocks_source, key=_conf, reverse=True)[: max(1, int(max_blocks))]
+            except Exception:
+                blocks_source = blocks_source[: max(1, int(max_blocks))]
+
+            # Sparse, high-confidence context items only
+            allowed_entity_types = {"project", "goal", "task", "endpoint", "concept", "person"}
+            created_ci_labels: set[str] = set()
+            max_context_items_total = max(4, min(12, len(blocks_source)))
+            context_items_added = 0
 
             # Create proposals for each block ingredient
             for block_data in blocks_source:
@@ -180,23 +197,36 @@ class GovernanceDumpProcessorV2:
                     }
                 }]
 
-                # Derive a couple of context items from entities
+                # Derive at most one high-confidence, allowed-type context item per block
                 try:
-                    entities = metadata.get("knowledge_ingredients", {}).get("entities", [])
-                    for ent in entities[:2]:  # limit for safety
-                        label = ent.get("name") or ent.get("title")
-                        if not label:
-                            continue
-                        ops_list.append({
-                            "type": "CreateContextItem",
-                            "data": {
-                                "label": label,
-                                "content": ent.get("description") or label,
-                                "kind": ent.get("type", "concept"),
-                                "confidence": ent.get("confidence", confidence or 0.7)
-                            }
-                        })
+                    if context_items_added < max_context_items_total:
+                        entities = metadata.get("knowledge_ingredients", {}).get("entities", [])
+                        def _econf(e: Dict[str, Any]) -> float:
+                            try:
+                                return float(e.get("confidence", 0.0))
+                            except Exception:
+                                return 0.0
+                        entities = sorted(entities, key=_econf, reverse=True)
+                        for ent in entities:
+                            label = (ent.get("name") or ent.get("title") or "").strip()
+                            etype = (ent.get("type") or "").lower()
+                            econf = _econf(ent)
+                            if not label or econf < 0.8 or etype not in allowed_entity_types or label.lower() in created_ci_labels:
+                                continue
+                            ops_list.append({
+                                "type": "CreateContextItem",
+                                "data": {
+                                    "label": label,
+                                    "content": ent.get("description") or label,
+                                    "kind": etype or "concept",
+                                    "confidence": econf
+                                }
+                            })
+                            created_ci_labels.add(label.lower())
+                            context_items_added += 1
+                            break
                 except Exception:
+                    # ignore CI derivation errors
                     pass
 
                 proposal_data = {
