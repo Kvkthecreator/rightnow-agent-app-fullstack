@@ -167,6 +167,20 @@ export async function POST(
           p_actor_id: user.id
         });
 
+        // Trigger P3 Reflection computation if delta warrants and cadence allows
+        try {
+          const createdBlocks = executionLog.filter((e: any) => e.success && e.operation_type === 'CreateBlock').length;
+          const createdContextItems = executionLog.filter((e: any) => e.success && e.operation_type === 'CreateContextItem').length;
+          if (createdBlocks >= 2 || createdContextItems >= 3) {
+            const { ReflectionEngine } = await import('@/lib/server/ReflectionEngine');
+            const engine = new ReflectionEngine();
+            // Fire-and-forget; engine has its own rate limit and low-signal mode
+            engine.computeReflection(basketId, workspace.id).catch(() => {});
+          }
+        } catch (e) {
+          console.warn('P3 reflection trigger skipped:', e);
+        }
+
         // Canon v2.0: Trigger artifact impact detection after substrate commit
         try {
           const { handleSubstrateCommit } = await import('@/lib/artifacts/substrateCommitHandler');

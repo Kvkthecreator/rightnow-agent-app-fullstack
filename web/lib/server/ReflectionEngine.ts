@@ -16,6 +16,7 @@ export interface SubstrateWindow {
   end_timestamp: string;
   dump_count: number;
   total_tokens: number;
+  block_count: number;
   substrate_content: string;
 }
 
@@ -50,7 +51,7 @@ export class ReflectionEngine {
       }
     }
 
-    // Rate limit check (60s between computes)
+    // Rate limit check (10 minutes between computes)
     const rateLimitOk = await this.checkRateLimit(basket_id);
     if (!rateLimitOk && !force_refresh) {
       // Return existing cache if rate limited
@@ -65,8 +66,12 @@ export class ReflectionEngine {
     }
 
     try {
-      // Compute reflection
-      const reflection_text = await this.generateReflection(window.substrate_content);
+      // Compute reflection with low-signal encouragement mode
+      const MIN_TOKENS = 1000;
+      const MIN_BLOCKS = 3;
+      const reflection_text = (window.total_tokens < MIN_TOKENS || window.block_count < MIN_BLOCKS)
+        ? this.generateEncouragement(window)
+        : await this.generateReflection(window.substrate_content);
       
       // Use new artifact creation function
       const { data: reflection_id, error } = await this.supabase
@@ -195,11 +200,26 @@ export class ReflectionEngine {
 
     const total_tokens = this.estimateTokens(substrate_content);
 
+    // Count blocks in same window for signal gating
+    let block_count = 0;
+    try {
+      let bq = this.supabase
+        .from('blocks')
+        .select('id, created_at')
+        .eq('basket_id', basket_id)
+        .gte('created_at', start_timestamp)
+        .lte('created_at', end_timestamp);
+      if (workspace_id) bq = bq.eq('workspace_id', workspace_id);
+      const { data: blocks } = await bq;
+      block_count = Array.isArray(blocks) ? blocks.length : 0;
+    } catch {}
+
     return {
       start_timestamp,
       end_timestamp,
       dump_count: dumps.length,
       total_tokens,
+      block_count,
       substrate_content,
     };
   }
@@ -311,7 +331,7 @@ export class ReflectionEngine {
 
   private async checkRateLimit(basket_id: string): Promise<boolean> {
     const { data } = await this.supabase
-      .from('reflection_cache')
+      .from('reflections_artifact')
       .select('computation_timestamp')
       .eq('basket_id', basket_id)
       .order('computation_timestamp', { ascending: false })
@@ -322,29 +342,23 @@ export class ReflectionEngine {
 
     const lastCompute = new Date(data.computation_timestamp).getTime();
     const now = Date.now();
-    const sixtySecondsAgo = now - 60000;
+    const tenMinutesAgo = now - 10 * 60 * 1000;
 
-    return lastCompute < sixtySecondsAgo;
+    return lastCompute < tenMinutesAgo;
   }
 
-  private async tryAcquireLock(basket_id: string): Promise<boolean> {
-    // Simplified lock mechanism - check if another computation is in progress
-    const { data } = await this.supabase
-      .from('reflection_cache')
-      .select('computation_timestamp')
-      .eq('basket_id', basket_id)
-      .order('computation_timestamp', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  private async tryAcquireLock(_basket_id: string): Promise<boolean> {
+    // Best-effort: rely on rate limit; no separate lock table
+    return true;
+  }
 
-    if (!data) return true; // No previous computation
-
-    const lastCompute = new Date(data.computation_timestamp).getTime();
-    const now = Date.now();
-    const twoMinutesAgo = now - 120000; // 2 minutes
-
-    // Allow if last computation was more than 2 minutes ago
-    return lastCompute < twoMinutesAgo;
+  private generateEncouragement(window: SubstrateWindow): string {
+    const tips: string[] = [];
+    if (window.dump_count < 2) tips.push('Add another note or upload a file to unlock insights.');
+    if (window.total_tokens < 1000) tips.push('Include more detail or paste longer context to reach critical mass.');
+    if (window.block_count < 3) tips.push('Capture a couple of concrete goals or entities; we will distill them.');
+    const advice = tips.length ? `Next steps: ${tips.join(' ')}` : 'Keep capturing — insights will appear as your memory grows.';
+    return `Not enough signal for a full reflection yet.\n\n${advice}`;
   }
 
   private async releaseLock(basket_id: string): Promise<void> {
