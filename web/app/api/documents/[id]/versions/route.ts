@@ -28,10 +28,10 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     let query = supabase.from('document_versions').select('version_hash, created_at, version_message, content').eq('document_id', id).order('created_at', { ascending: false }).limit(20);
     if (version_hash) query = query.eq('version_hash', version_hash).limit(1);
     const { data: items, error: verErr } = await query;
-    if (verErr) return NextResponse.json({ error: 'failed to fetch versions' }, { status: 500 });
+    // If RLS blocks or table absent, gracefully return empty list
+    if (verErr) return NextResponse.json({ items: [] }, { status: 200 });
     return NextResponse.json({ items: items || [] }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: 'internal server error' }, { status: 500 });
   }
 }
-
