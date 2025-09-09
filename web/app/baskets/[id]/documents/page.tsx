@@ -4,6 +4,7 @@ import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 import { notFound } from 'next/navigation';
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import BasketSubpageLayout from '@/components/layouts/BasketSubpageLayout';
+import { DocumentCreateButton } from '@/components/documents/DocumentCreateButton';
 import { SectionCard } from '@/components/ui/SectionCard';
 
 interface PageProps {
@@ -35,6 +36,7 @@ export default async function DocumentsPage({ params }: PageProps) {
       basketId={id}
       title="Documents"
       description="Compose and organize your documents"
+      rightContent={<DocumentCreateButton basketId={id} />}
     >
       <SectionCard>
         <DocumentsList basketId={id} />
