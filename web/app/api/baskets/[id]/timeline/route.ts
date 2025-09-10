@@ -30,12 +30,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .limit(limit);
     if (error) return NextResponse.json({ items: [] }, { status: 200 });
 
-    const items = (events || []).map(e => ({
-      ts: e.ts,
-      type: e.kind,
-      summary: e.preview || e.kind,
-      ref_id: e.ref_id,
-      payload: e.payload
+    type Ev = { ts: string; kind: string; ref_id: string | null; preview: string | null; payload: any };
+    const items = ((events || []) as Ev[]).map((ev: Ev) => ({
+      ts: ev.ts,
+      type: ev.kind,
+      summary: ev.preview || ev.kind,
+      ref_id: ev.ref_id,
+      payload: ev.payload,
     }));
 
     return NextResponse.json({ items }, { status: 200 });
@@ -43,4 +44,3 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ items: [] }, { status: 200 });
   }
 }
-
