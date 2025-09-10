@@ -7,8 +7,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
-import { toast } from 'react-hot-toast'; // LEGACY - migrating to unified notifications
-import { legacyNotify } from '@/lib/notifications/service';
+import { notificationService } from '@/lib/notifications/service';
 import { Database } from 'lucide-react';
 
 interface CreateBlockModalProps {
@@ -26,12 +25,22 @@ export default function CreateBlockModal({ basketId, open, onClose, onSuccess }:
 
   const handleSubmit = async () => {
     if (!content.trim()) {
-      toast.error('Content is required');
+      notificationService.notify({
+        type: 'substrate.block.rejected',
+        title: 'Validation Error',
+        message: 'Content is required',
+        severity: 'error'
+      });
       return;
     }
     
     if (!semanticType.trim()) {
-      toast.error('Semantic type is required');
+      notificationService.notify({
+        type: 'substrate.block.rejected',
+        title: 'Validation Error',
+        message: 'Semantic type is required',
+        severity: 'error'
+      });
       return;
     }
 
@@ -66,11 +75,18 @@ export default function CreateBlockModal({ basketId, open, onClose, onSuccess }:
       const result = await response.json();
       
       if (result.route === 'direct') {
-        toast.success('Block created ✓');
+        notificationService.substrateApproved(
+          'Block Created',
+          'New block added to your basket',
+          result.created_ids,
+          basketId
+        );
       } else {
-        toast.success('Block creation proposed for review ⏳');
-        // Show governance link in console for now
-        console.log(`View proposal at: /baskets/${basketId}/governance?highlight=${result.proposal_id}`);
+        notificationService.approvalRequired(
+          'Block Pending Review',
+          'Your block creation is awaiting approval',
+          basketId
+        );
       }
 
       // Reset form
@@ -82,7 +98,12 @@ export default function CreateBlockModal({ basketId, open, onClose, onSuccess }:
 
     } catch (error) {
       console.error('Block creation failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create block');
+      notificationService.substrateRejected(
+        'Block Creation Failed',
+        error instanceof Error ? error.message : 'Failed to create block',
+        [],
+        basketId
+      );
     } finally {
       setLoading(false);
     }

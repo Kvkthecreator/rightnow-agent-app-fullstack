@@ -209,84 +209,6 @@ class UnifiedNotificationService {
     });
   }
   
-  /**
-   * Legacy migration helpers - gradually replace these calls
-   */
-  
-  // Migrate from react-hot-toast
-  migrateToast(type: 'success' | 'error' | 'info', message: string, context?: any) {
-    let notificationType: NotificationType;
-    let severity: 'success' | 'error' | 'info' = type;
-    
-    // Smart mapping based on message content
-    if (type === 'success') {
-      if (message.includes('Block') || message.includes('Context')) {
-        notificationType = 'substrate.block.approved';
-      } else if (message.includes('Document') || message.includes('composed')) {
-        notificationType = 'presentation.document.composed';
-      } else {
-        notificationType = 'work.completed';
-      }
-    } else if (type === 'error') {
-      if (message.includes('Block') || message.includes('Context')) {
-        notificationType = 'substrate.block.rejected';
-      } else if (message.includes('Document') || message.includes('composition')) {
-        notificationType = 'presentation.document.composition_failed';
-      } else {
-        notificationType = 'work.failed';
-      }
-    } else {
-      notificationType = 'governance.approval.required';
-    }
-    
-    return this.notify({
-      type: notificationType,
-      title: type.charAt(0).toUpperCase() + type.slice(1),
-      message,
-      severity,
-      channels: ['toast'],
-      persistence: { auto_dismiss: type === 'error' ? false : 5, cross_page: false }
-    });
-  }
-  
-  // Migrate from RealTimeNotifications custom events
-  migrateRealTimeEvent(eventType: string, data: any) {
-    let notificationType: NotificationType;
-    let title: string;
-    let message: string;
-    
-    switch (eventType) {
-      case 'change_applied':
-        notificationType = 'substrate.block.approved';
-        title = 'Change Applied';
-        message = data.message || 'Your change was applied successfully';
-        break;
-      case 'change_failed':
-        notificationType = 'substrate.block.rejected';
-        title = 'Change Failed';
-        message = data.message || 'Your change could not be applied';
-        break;
-      case 'conflict_detected':
-        notificationType = 'system.conflict.detected';
-        title = 'Conflict Detected';
-        message = data.message || 'Multiple users are editing the same content';
-        break;
-      case 'user_joined':
-        notificationType = 'system.user.joined_workspace';
-        title = 'User Joined';
-        message = data.message || 'Someone joined the workspace';
-        break;
-      default:
-        return '';
-    }
-    
-    return this.notify({
-      type: notificationType,
-      title,
-      message,
-      channels: ['toast']
-    });
-  }
   
   /**
    * Broadcast notification to all clients in workspace
@@ -326,10 +248,3 @@ export const notificationService = UnifiedNotificationService.getInstance();
 
 // Convenience hooks for React components
 export { useNotificationStore };
-
-// Legacy compatibility exports
-export const legacyNotify = {
-  success: (message: string) => notificationService.migrateToast('success', message),
-  error: (message: string) => notificationService.migrateToast('error', message),
-  info: (message: string) => notificationService.migrateToast('info', message)
-};

@@ -5,7 +5,6 @@ import "../styles/diff.css";
 
 import { BasketProvider } from "@/lib/context/BasketContext";
 import DumpModalWrapper from "@/components/DumpModalWrapper";
-import { Toaster } from "react-hot-toast"; // LEGACY - will be replaced by unified notifications
 import ClientLayoutShell from "@/components/shell/ClientLayoutShell";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
@@ -66,7 +65,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <NotificationCenter />
               </BasketProvider>
             </SupabaseProvider>
-            <Toaster position="top-right" /> {/* LEGACY - will be phased out */}
           </Providers>
         </GlobalErrorBoundary>
       </body>

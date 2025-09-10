@@ -8,7 +8,7 @@ import {
   saveMockPreferences,
 } from "@/lib/mocks/settings";
 import type { Preferences } from "@/lib/mocks/settings";
-import toast from "react-hot-toast";
+import { notificationService } from '@/lib/notifications/service';
 
 export default function PreferencesTab() {
   const [prefs, setPrefs] = useState<Preferences | null>(null);
@@ -35,10 +35,20 @@ export default function PreferencesTab() {
     setSaving(true);
     try {
       await saveMockPreferences(prefs);
-      toast.success("Saved (mock)");
+      notificationService.notify({
+        type: 'governance.settings.changed',
+        title: 'Preferences Saved',
+        message: 'Your preferences have been updated (mock)',
+        severity: 'success'
+      });
     } catch (err) {
       console.error("Failed to save preferences", err);
-      toast.error("Failed to save");
+      notificationService.notify({
+        type: 'governance.settings.changed',
+        title: 'Save Failed',
+        message: 'Failed to save preferences',
+        severity: 'error'
+      });
     } finally {
       setSaving(false);
     }

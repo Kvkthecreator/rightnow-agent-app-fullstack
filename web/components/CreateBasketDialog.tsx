@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/Input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/Button";
 import { useCreateBasket } from "@/hooks/useCreateBasket";
-import { toast } from "react-hot-toast";
+import { notificationService } from '@/lib/notifications/service';
 
 export interface CreateBasketDialogProps {
   open: boolean;
@@ -41,7 +41,12 @@ export default function CreateBasketDialog({
       onOpenChange(false);
     } catch (err: any) {
       console.error(err);
-      toast.error("Failed to create basket");
+      notificationService.notify({
+        type: 'work.failed',
+        title: 'Failed to Create Basket',
+        message: 'Failed to create basket',
+        severity: 'error'
+      });
     } finally {
       setLoading(false);
     }

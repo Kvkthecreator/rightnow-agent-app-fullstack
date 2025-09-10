@@ -13,6 +13,8 @@ export type NotificationType =
   | 'substrate.context_item.created'
   | 'substrate.context_item.approved'
   | 'substrate.dump.processed'
+  | 'substrate.dump.processing'
+  | 'substrate.dump.rejected'
   | 'substrate.relationships.mapped'
   
   // ── Presentation Layer (P4) - User Experience ──
@@ -39,6 +41,7 @@ export type NotificationType =
   | 'system.user.joined_workspace'
   | 'system.user.left_workspace' 
   | 'system.user.editing_document'
+  | 'system.user.action_required'
   | 'system.conflict.detected'
   | 'system.performance.alert';
 
@@ -165,18 +168,3 @@ export interface NotificationGovernance {
   };
 }
 
-// Legacy type mappings for migration
-export interface LegacyNotificationMapping {
-  // react-hot-toast migration
-  'toast.success': 'substrate.block.approved' | 'presentation.document.composed' | 'work.completed';
-  'toast.error': 'substrate.block.rejected' | 'presentation.document.composition_failed' | 'work.failed';
-  'toast.info': 'governance.approval.required' | 'system.user.joined_workspace';
-  
-  // RealTimeNotifications migration  
-  'change_applied': 'substrate.block.approved' | 'presentation.document.composed';
-  'change_failed': 'substrate.block.rejected' | 'presentation.document.composition_failed';
-  'conflict_detected': 'system.conflict.detected';
-  'user_joined': 'system.user.joined_workspace';
-  'user_left': 'system.user.left_workspace';
-  'user_editing': 'system.user.editing_document';
-}

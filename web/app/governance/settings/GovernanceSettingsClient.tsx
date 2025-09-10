@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
+import { notificationService } from '@/lib/notifications/service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Label';
@@ -126,7 +126,12 @@ export default function GovernanceSettingsClient({
         throw new Error(error.error || 'Failed to update settings');
       }
 
-      toast.success('Governance settings updated ✓');
+      notificationService.notify({
+        type: 'governance.settings.changed',
+        title: 'Settings Updated',
+        message: 'Governance settings have been updated successfully',
+        severity: 'success'
+      });
       setHasChanges(false);
       
       // Refresh the page to get updated settings
@@ -134,7 +139,13 @@ export default function GovernanceSettingsClient({
       
     } catch (error) {
       console.error('Settings update failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update settings');
+      notificationService.notify({
+        type: 'governance.settings.changed',
+        title: 'Settings Update Failed',
+        message: error instanceof Error ? error.message : 'Failed to update settings',
+        severity: 'error',
+        channels: ['toast', 'persistent']
+      });
     } finally {
       setLoading(false);
     }

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { FileText } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { notificationService } from '@/lib/notifications/service';
 
 interface CreateContextItemModalProps {
   basketId: string;
@@ -28,7 +28,12 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
 
   const handleSubmit = async () => {
     if (!label.trim()) {
-      toast.error('Please describe the meaning you want to add');
+      notificationService.notify({
+        type: 'substrate.context_item.rejected',
+        title: 'Validation Error',
+        message: 'Please describe the meaning you want to add',
+        severity: 'error'
+      });
       return;
     }
 
@@ -63,9 +68,18 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
       const result = await response.json();
       
       if (result.route === 'direct') {
-        toast.success('Meaning added ✓');
+        notificationService.substrateApproved(
+          'Meaning Added',
+          'New context item created successfully',
+          result.created_ids,
+          basketId
+        );
       } else {
-        toast.success('Meaning addition proposed for review ⏳');
+        notificationService.approvalRequired(
+          'Meaning Pending Review',
+          'Your context item is awaiting approval',
+          basketId
+        );
         console.log(`View proposal at: /baskets/${basketId}/governance?highlight=${result.proposal_id}`);
       }
 
@@ -79,7 +93,12 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
 
     } catch (error) {
       console.error('Meaning addition failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to add meaning');
+      notificationService.substrateRejected(
+        'Failed to Add Meaning',
+        error instanceof Error ? error.message : 'Failed to add meaning',
+        [],
+        basketId
+      );
     } finally {
       setLoading(false);
     }

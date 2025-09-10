@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { useBasket } from "@/lib/context/BasketContext";
 import { openDumpModal } from "@/components/DumpModal";
-import { toast } from "react-hot-toast";
+import { notificationService } from '@/lib/notifications/service';
 
 export default function useDumpHotkey() {
   const { currentBasketId } = useBasket();
@@ -16,7 +16,12 @@ export default function useDumpHotkey() {
       }
       e.preventDefault();
       if (!currentBasketId) {
-        toast("Open a basket first to dump");
+        notificationService.notify({
+          type: 'system.user.action_required',
+          title: 'Basket Required',
+          message: 'Open a basket first to dump',
+          severity: 'info'
+        });
       } else {
         openDumpModal();
       }

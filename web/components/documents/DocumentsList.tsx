@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from 'react-hot-toast';
+import { notificationService } from '@/lib/notifications/service';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -81,14 +81,28 @@ export function DocumentsList({ basketId }: DocumentsListProps) {
       const result = await response.json();
       
       if (result.route === 'direct') {
-        toast.success('Document breakdown started ✓');
+        notificationService.notify({
+          type: 'work.processing',
+          title: 'Document Breakdown Started',
+          message: 'Your document is being analyzed and broken down',
+          severity: 'success'
+        });
       } else {
-        toast.success('Document breakdown proposed for review ⏳');
+        notificationService.approvalRequired(
+          'Breakdown Pending Review',
+          'Document breakdown is awaiting approval',
+          basketId
+        );
       }
       
     } catch (error) {
       console.error('Breakdown proposal error:', error);
-      toast.error('Failed to propose breakdown');
+      notificationService.notify({
+        type: 'work.failed',
+        title: 'Breakdown Failed',
+        message: 'Failed to propose document breakdown',
+        severity: 'error'
+      });
     }
   };
 

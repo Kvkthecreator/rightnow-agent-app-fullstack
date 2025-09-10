@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
+import { notificationService } from '@/lib/notifications/service';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Label';
@@ -105,16 +105,30 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
       const result = await response.json();
       
       if (result.route === 'direct') {
-        toast.success(`${substrate.type === 'block' ? 'Block' : 'Context item'} updated ✓`);
+        notificationService.substrateApproved(
+          `${substrate.type === 'block' ? 'Block' : 'Context Item'} Updated`,
+          'Your changes have been saved',
+          [substrate.id],
+          basketId
+        );
       } else {
-        toast.success(`${substrate.type === 'block' ? 'Block' : 'Context item'} edit proposed for review ⏳`);
+        notificationService.approvalRequired(
+          `${substrate.type === 'block' ? 'Block' : 'Context Item'} Edit Pending`,
+          'Your changes are awaiting approval',
+          basketId
+        );
       }
       
       setMode('view');
       onClose();
       onSuccess?.();
     } catch (error) {
-      toast.error('Failed to save changes');
+      notificationService.substrateRejected(
+        'Failed to Save Changes',
+        'Unable to update substrate item',
+        [substrate.id],
+        basketId
+      );
     } finally {
       setLoading(false);
     }
@@ -145,15 +159,29 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
       const result = await response.json();
       
       if (result.route === 'direct') {
-        toast.success(`${substrate.type === 'block' ? 'Block' : 'Context item'} deleted ✓`);
+        notificationService.substrateApproved(
+          `${substrate.type === 'block' ? 'Block' : 'Context Item'} Deleted`,
+          'Item has been removed from your basket',
+          [substrate.id],
+          basketId
+        );
       } else {
-        toast.success(`${substrate.type === 'block' ? 'Block' : 'Context item'} deletion proposed for review ⏳`);
+        notificationService.approvalRequired(
+          `${substrate.type === 'block' ? 'Block' : 'Context Item'} Deletion Pending`,
+          'Deletion request is awaiting approval',
+          basketId
+        );
       }
       
       onClose();
       onSuccess?.();
     } catch (error) {
-      toast.error('Failed to delete');
+      notificationService.substrateRejected(
+        'Failed to Delete',
+        'Unable to delete substrate item',
+        [substrate.id],
+        basketId
+      );
     } finally {
       setLoading(false);
     }

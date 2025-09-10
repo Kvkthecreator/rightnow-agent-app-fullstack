@@ -13,7 +13,7 @@ import SmartDropZone from "@/components/SmartDropZone";
 import ThumbnailStrip from "@/components/ThumbnailStrip";
 import { Button } from "@/components/ui/Button";
 import { createDump } from "@/lib/api/dumps";
-import { toast } from "react-hot-toast";
+import { notificationService } from '@/lib/notifications/service';
 import { InlineWorkStatus } from "@/components/work/InlineWorkStatus";
 
 export interface DumpModalProps {
@@ -42,7 +42,12 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
 
   const handleSubmit = async () => {
     if (!text.trim() && images.length === 0) {
-      toast.error("Please provide some content for the dump");
+      notificationService.notify({
+        type: 'substrate.dump.rejected',
+        title: 'Validation Error',
+        message: 'Please provide some content for the dump',
+        severity: 'error'
+      });
       return;
     }
     setLoading(true);
@@ -57,9 +62,19 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
         // Canon v2.1: Show universal work status
         setWorkId(result.work_id);
         setShowStatus(true);
-        toast.success("Dump queued for processing ✓");
+        notificationService.notify({
+          type: 'substrate.dump.processing',
+          title: 'Dump Queued',
+          message: 'Your memory has been queued for processing',
+          severity: 'success'
+        });
       } else {
-        toast.success("Dump saved ✓");
+        notificationService.notify({
+          type: 'substrate.dump.processed',
+          title: 'Memory Saved',
+          message: 'Your memory has been saved successfully',
+          severity: 'success'
+        });
         setOpen(false);
       }
       
@@ -67,7 +82,12 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
       setImages([]);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save dump");
+      notificationService.notify({
+        type: 'substrate.dump.rejected',
+        title: 'Failed to Save',
+        message: 'Unable to save your memory. Please try again.',
+        severity: 'error'
+      });
     } finally {
       setLoading(false);
     }
