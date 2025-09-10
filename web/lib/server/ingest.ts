@@ -23,26 +23,59 @@ export async function ingestBasketAndDumps(
   args: IngestArgs
 ): Promise<{ raw: unknown; data: IngestRes }> {
   const supabase = createUserClient(args.token);
-  // Add batch metadata to dumps for comprehensive review
-  const enrichedDumps = args.dumps.map(dump => ({
-    ...dump,
-    meta: {
-      ...dump.meta,
-      ...(args.batch_id && { batch_id: args.batch_id }),
-      ...(args.comprehensive_review && { comprehensive_review: true })
-    }
-  }));
-  
-  const payload = {
-    p_workspace_id: args.workspaceId,
-    p_idempotency_key: args.idempotency_key,
-    p_basket_name: args.basket?.name ?? null,
-    p_dumps: JSON.stringify(enrichedDumps),
-  };
-  const { data, error } = await supabase.rpc('ingest_basket_and_dumps', payload);
-  if (error) {
-    throw new Error(error.message);
+
+  // 1) Create-or-retrieve basket idempotently within workspace
+  const basketName = args.basket?.name ?? null;
+  const { data: basketRow, error: basketErr } = await supabase
+    .from('baskets')
+    .insert({
+      workspace_id: args.workspaceId,
+      idempotency_key: args.idempotency_key,
+      name: basketName,
+    })
+    .select('id')
+    .single();
+
+  let basketId: string;
+  if (basketRow?.id) {
+    basketId = basketRow.id as string;
+  } else {
+    // If conflict or already exists, fetch by idempotency
+    const { data: existing, error: fetchErr } = await supabase
+      .from('baskets')
+      .select('id')
+      .eq('workspace_id', args.workspaceId)
+      .eq('idempotency_key', args.idempotency_key)
+      .maybeSingle();
+    if (fetchErr || !existing) throw new Error(basketErr?.message || 'Failed to resolve basket');
+    basketId = existing.id as string;
   }
-  const parsed = IngestResSchema.parse(data);
+
+  // 2) Enrich dumps with batch metadata and call fn_ingest_dumps in one shot
+  const enrichedDumps = args.dumps.map((dump) => ({
+    dump_request_id: dump.dump_request_id,
+    text_dump: dump.text_dump,
+    file_url: dump.file_url,
+    source_meta: {
+      ...(dump.meta || {}),
+      ...(args.batch_id && { batch_id: args.batch_id }),
+      ...(args.comprehensive_review && { comprehensive_review: true }),
+    },
+  }));
+
+  const { data, error } = await supabase.rpc('fn_ingest_dumps', {
+    p_workspace_id: args.workspaceId,
+    p_basket_id: basketId,
+    p_dumps: enrichedDumps,
+  });
+  if (error) throw new Error(error.message);
+
+  // 3) Shape response to IngestRes
+  const parsed = IngestResSchema.parse({
+    basket_id: basketId,
+    id: basketId,
+    name: basketName || '',
+    dumps: (data as any[])?.map((r: any) => ({ dump_id: r.dump_id })) ?? [],
+  });
   return { raw: data, data: parsed };
 }
