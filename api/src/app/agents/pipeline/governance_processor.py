@@ -493,14 +493,41 @@ class GovernanceDumpProcessor:
     ) -> UUID:
         """Create governance proposal from validated operations."""
         
-        # Convert operations to JSON-serializable format
-        ops_data = [op.dict() for op in operations]
+        # Convert operations to JSON-serializable format and apply fairness filters
+        # 1) Deduplicate context items by (kind,label) with highest confidence
+        dedup: Dict[str, Any] = {}
+        filtered_ops: List[ProposalOperation] = []
+        stopwords = set(["goal", "task", "endpoint", "policy", "concept", "channels", "data", "kpis", "surveys", "dashboards"])  # generic tokens often over-extracted
+        for op in operations:
+            if op.type == 'CreateContextItem':
+                label = (op.data.get('label') or '').strip()
+                kind = (op.data.get('kind') or '').strip()
+                norm = f"{kind}|{label.lower()}"
+                # basic hygiene: skip very short or stopword-only labels
+                if len(label) < 3 or label.lower() in stopwords:
+                    continue
+                prev = dedup.get(norm)
+                if not prev or (op.data.get('confidence', 0) > prev.data.get('confidence', 0)):
+                    dedup[norm] = op
+            else:
+                filtered_ops.append(op)
+
+        # Keep up to 30 highest-confidence context items
+        context_items = sorted(dedup.values(), key=lambda o: o.data.get('confidence', 0), reverse=True)[:30]
+        filtered_ops.extend(context_items)
+
+        ops_data = [op.dict() for op in filtered_ops]
         
         # Determine auto-approval eligibility based on canon
         confidence = validation_report.confidence if hasattr(validation_report, 'confidence') else 0.5
-        auto_approve = (confidence > 0.7 and 
-                       hasattr(validation_report, 'warnings') and 
-                       len(validation_report.warnings) == 0)
+        # Stricter auto-approval: low blast, no warnings, limited operation count, and modest context item volume
+        op_count = len(filtered_ops)
+        ctx_count = sum(1 for o in filtered_ops if o.type == 'CreateContextItem')
+        auto_approve = (
+            confidence > 0.7 and
+            hasattr(validation_report, 'warnings') and len(validation_report.warnings) == 0 and
+            op_count <= 25 and ctx_count <= 20
+        )
         
         initial_status = 'APPROVED' if auto_approve else 'PROPOSED'
         
@@ -548,7 +575,7 @@ class GovernanceDumpProcessor:
                 'proposal_id': proposal_id,
                 'proposal_kind': 'Extraction',
                 'origin': 'agent',
-                'operations_count': len(operations),
+                'operations_count': len(filtered_ops),
                 'auto_approved': auto_approve,
                 'confidence': confidence
             },
@@ -627,10 +654,10 @@ class GovernanceDumpProcessor:
             )
             
         except Exception as e:
-            # Mark proposal execution as failed
+            # Do not hard-reject on auto-exec failure; fall back to human review
             supabase.table("proposals").update({
-                'status': 'REJECTED',
-                'review_notes': f'Auto-execution failed: {str(e)}'
+                'status': 'PROPOSED',
+                'review_notes': f'Auto-execution failed: {str(e)} — reverting to PROPOSED for review'
             }).eq('id', proposal_id).execute()
             raise
     
