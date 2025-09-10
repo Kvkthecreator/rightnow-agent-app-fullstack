@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
-import { Settings, Shield, AlertTriangle, CheckCircle2, Circle } from 'lucide-react';
+import { Settings, Shield, AlertTriangle, CheckCircle2, Circle, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface GovernanceSettings {
   governance_enabled: boolean;
@@ -37,6 +38,7 @@ export default function GovernanceSettingsClient({
   initialSettings,
   userRole 
 }: GovernanceSettingsClientProps) {
+  const router = useRouter();
   const [settings, setSettings] = useState<GovernanceSettings>(() => {
     if (initialSettings) {
       return {
@@ -172,12 +174,7 @@ export default function GovernanceSettingsClient({
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <StatusIcon className="h-5 w-5" />
-              <Badge className={governanceStatus.color}>
-                {governanceStatus.status}
-              </Badge>
-            </div>
+            {/* Status badge removed to reduce cognitive load */}
           </div>
         </div>
 
@@ -217,24 +214,10 @@ export default function GovernanceSettingsClient({
             </div>
 
             <div className="text-xs text-gray-600">
-              P0 capture is always immediate. Timeline restore always requires review.
+              In Smart review, simple changes are approved automatically. You can switch to Review everything anytime. Timeline restores always ask for review.
             </div>
 
-            {/* Default Change Scope */}
-            <div className="space-y-3 pt-2">
-              <Label className="font-medium">Default Change Scope</Label>
-              <select
-                value={settings.default_blast_radius === 'Global' ? 'Scoped' : settings.default_blast_radius}
-                onChange={(e) => setSettings(prev => ({ 
-                  ...prev, 
-                  default_blast_radius: e.target.value 
-                }))}
-                className="w-full md:w-64 border border-gray-300 rounded-lg px-4 py-2 text-sm"
-              >
-                <option value="Local">Local (single basket)</option>
-                <option value="Scoped">Scoped (workspace-wide)</option>
-              </select>
-            </div>
+            {/* Default Change Scope moved under Advanced */}
 
             {/* Advanced Policies (optional) */}
             <details className="mt-4">
@@ -242,18 +225,34 @@ export default function GovernanceSettingsClient({
               <div className="mt-3 p-3 bg-gray-50 rounded border text-xs text-gray-600">
                 Entry‑point policies are managed automatically by Review Mode. Manual overrides are disabled to reduce complexity.
               </div>
+              <div className="space-y-2 pt-3">
+                <Label className="font-medium">Default Change Scope</Label>
+                <select
+                  value={settings.default_blast_radius === 'Global' ? 'Scoped' : settings.default_blast_radius}
+                  onChange={(e) => setSettings(prev => ({ 
+                    ...prev, 
+                    default_blast_radius: e.target.value 
+                  }))}
+                  className="w-full md:w-64 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="Local">Local (this basket)</option>
+                  <option value="Scoped">Scoped (your workspace)</option>
+                </select>
+              </div>
             </details>
           </CardContent>
         </Card>
 
         {/* Save Controls */}
         <div className="flex items-center justify-between p-6 bg-white rounded-lg border border-gray-200">
-          <div className="text-sm text-gray-600">
-            {hasChanges ? (
-              <span className="text-orange-600">You have unsaved changes</span>
-            ) : (
-              <span>All changes saved</span>
-            )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { try { router.back(); } catch { router.push('/baskets'); } }}
+              className="inline-flex items-center gap-1 text-sm text-gray-700 hover:text-gray-900"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
           </div>
           
           <div className="flex items-center gap-3">
@@ -266,7 +265,7 @@ export default function GovernanceSettingsClient({
             </Button>
             <Button 
               onClick={handleSave}
-              disabled={loading || !hasChanges}
+              disabled={loading}
             >
               {loading ? 'Saving...' : 'Save Settings'}
             </Button>
