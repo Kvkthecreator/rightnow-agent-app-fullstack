@@ -1,185 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@/lib/supabase/clients";
-import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
+import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 
-// GET single basket
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+interface RouteContext { params: Promise<{ id: string }> }
+
+// GET /api/baskets/[id] — fetch basket details within the user's workspace
+export async function GET(req: NextRequest, ctx: RouteContext) {
   try {
-    const { id } = await params;
-    const supabase = createRouteHandlerClient({ cookies });
-    
-    // Use getUser() for secure authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { id } = await ctx.params;
+    const supabase = createServerSupabaseClient() as any;
+    const { userId } = await getAuthenticatedUser(supabase);
+    const workspace = await ensureWorkspaceForUser(userId, supabase);
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    const { data: basket, error } = await supabase
+      .from('baskets')
+      .select('id,name,workspace_id,status,created_at')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (!basket) return NextResponse.json({ error: 'not found' }, { status: 404 });
+    if (basket.workspace_id !== workspace.id) {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
     }
 
-    // Ensure user has a workspace
-    const workspace = await ensureWorkspaceServer(supabase);
-    if (!workspace) {
-      return NextResponse.json(
-        { error: "Failed to get workspace" },
-        { status: 500 }
-      );
-    }
-
-    // Get basket
-    console.log(`🔍 Fetching basket ${id} for workspace ${workspace.id}`);
-    
-    const { data: basket, error: fetchError } = await supabase
-      .from("baskets")
-      .select("id, name, status, created_at, workspace_id, raw_dump_id, origin_template, tags")
-      .eq("id", id)
-      .eq("workspace_id", workspace.id)
-      .single();
-
-    if (fetchError) {
-      console.error(`❌ Basket fetch error:`, fetchError);
-      
-      // Try to fetch without workspace filter to debug
-      const { data: anyBasket } = await supabase
-        .from("baskets")
-        .select("id, workspace_id")
-        .eq("id", id)
-        .single();
-        
-      if (anyBasket) {
-        console.log(`⚠️ Basket exists but in different workspace: ${anyBasket.workspace_id} vs ${workspace.id}`);
-      }
-      
-      return NextResponse.json(
-        { error: "Basket not found", details: fetchError.message },
-        { status: 404 }
-      );
-    }
-    
-    if (!basket) {
-      console.log(`❌ No basket found with id ${id}`);
-      return NextResponse.json(
-        { error: "Basket not found" },
-        { status: 404 }
-      );
-    }
-
-    // Map fields for API compatibility
-    const mappedBasket = {
-      ...basket,
-      description: basket.origin_template || "", // Map origin_template to description
-      metadata: {}, // Provide empty metadata object
-      origin_template: undefined // Remove internal field from response
-    };
-
-    // Add CORS headers
-    const response = NextResponse.json(mappedBasket);
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    return response;
-
-  } catch (error) {
-    console.error("❌ Basket GET API error:", error);
-    const errorResponse = NextResponse.json(
-      { 
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error"
-      },
-      { status: 500 }
-    );
-    
-    // Add CORS headers even for errors
-    errorResponse.headers.set('Access-Control-Allow-Origin', '*');
-    errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    
-    return errorResponse;
+    return NextResponse.json({ id: basket.id, name: basket.name, status: basket.status, created_at: basket.created_at }, { status: 200 });
+  } catch (e) {
+    return NextResponse.json({ error: 'internal server error' }, { status: 500 });
   }
 }
 
-// PATCH method DELETED - All basket updates now go through Universal Change System
-// Previous PATCH functionality has been migrated to /api/changes endpoint
-// Use useUniversalChanges.updateBasket() instead of direct PATCH calls
-
-// Handle preflight requests
-export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400',
-    },
-  });
-}
-
-// DELETE basket
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const supabase = createRouteHandlerClient({ cookies });
-    
-    // Use getUser() for secure authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    // Ensure user has a workspace
-    const workspace = await ensureWorkspaceServer(supabase);
-    if (!workspace) {
-      return NextResponse.json(
-        { error: "Failed to get workspace" },
-        { status: 500 }
-      );
-    }
-
-    // Delete basket (this will cascade to delete related data)
-    const { error: deleteError } = await supabase
-      .from("baskets")
-      .delete()
-      .eq("id", id)
-      .eq("workspace_id", workspace.id);
-
-    if (deleteError) {
-      console.error("Basket delete error:", deleteError);
-      return NextResponse.json(
-        { error: "Failed to delete basket" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ success: true });
-
-  } catch (error) {
-    console.error("Basket DELETE API error:", error);
-    return NextResponse.json(
-      { 
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error"
-      },
-      { status: 500 }
-    );
-  }
-}
