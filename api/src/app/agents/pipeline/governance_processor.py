@@ -541,14 +541,10 @@ class GovernanceDumpProcessor:
             except Exception:
                 return False
 
-        auto_approve = False
-        if _is_auto_approve_allowed(workspace_id):
-            # Stricter confidence-based gate, applied only when workspace policy allows Hybrid
-            auto_approve = (
-                confidence > 0.7 and
-                hasattr(validation_report, 'warnings') and len(validation_report.warnings) == 0 and
-                op_count <= 25 and ctx_count <= 20
-            )
+        # Default to auto-approve when workspace policy allows Hybrid.
+        # We intentionally remove op-count and confidence gates per product decision
+        # to make Smart review the default experience.
+        auto_approve = _is_auto_approve_allowed(workspace_id)
         
         initial_status = 'APPROVED' if auto_approve else 'PROPOSED'
         
