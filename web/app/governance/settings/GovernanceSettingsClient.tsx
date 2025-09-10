@@ -181,103 +181,7 @@ export default function GovernanceSettingsClient({
           </div>
         </div>
 
-        {/* Global Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-blue-600" />
-              Content Review Controls
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-8 p-8">
-            
-            {/* Main toggles */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="governance-enabled"
-                    checked={settings.governance_enabled}
-                    onChange={(e) => setSettings(prev => ({ 
-                      ...prev, 
-                      governance_enabled: e.target.checked 
-                    }))}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="governance-enabled" className="font-medium">
-                    Enable Content Review
-                  </Label>
-                </div>
-                <p className="text-sm text-gray-600 ml-7">
-                  Require approval for content changes
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="governance-ui"
-                    checked={settings.governance_ui_enabled}
-                    onChange={(e) => setSettings(prev => ({ 
-                      ...prev, 
-                      governance_ui_enabled: e.target.checked 
-                    }))}
-                    disabled={!settings.governance_enabled}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="governance-ui" className="font-medium">
-                    Show Review Interface
-                  </Label>
-                </div>
-                <p className="text-sm text-gray-600 ml-7">
-                  Display pending approvals and review tools
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="validator-required"
-                    checked={settings.validator_required}
-                    onChange={(e) => setSettings(prev => ({ 
-                      ...prev, 
-                      validator_required: e.target.checked 
-                    }))}
-                    disabled={!settings.governance_enabled}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="validator-required" className="font-medium">
-                    Require Validator (disables auto‑approve)
-                  </Label>
-                </div>
-                <p className="text-sm text-gray-600 ml-7">
-                  When enabled, all proposals require validation and cannot be auto‑approved.
-                </p>
-              </div>
-
-              {/* Canon: direct_substrate_writes is enforced server-side (always false). Removed from UI. */}
-            </div>
-
-            {/* Blast Radius */}
-            <div className="space-y-3">
-              <Label className="font-medium">Default Change Scope</Label>
-              <select
-                value={settings.default_blast_radius === 'Global' ? 'Scoped' : settings.default_blast_radius}
-                onChange={(e) => setSettings(prev => ({ 
-                  ...prev, 
-                  default_blast_radius: e.target.value 
-                }))}
-                className="w-full md:w-64 border border-gray-300 rounded-lg px-4 py-3 text-sm"
-              >
-                <option value="Local">Local (single basket)</option>
-                <option value="Scoped">Scoped (workspace-wide)</option>
-              </select>
-            </div>
-          </CardContent>
-        </Card>
+        {/* (Removed) Content Review Controls — consolidated into Review Mode */}
 
         {/* Simplified Mode Controls */}
         <Card>
@@ -314,6 +218,22 @@ export default function GovernanceSettingsClient({
 
             <div className="text-xs text-gray-600">
               P0 capture is always immediate. Timeline restore always requires review.
+            </div>
+
+            {/* Default Change Scope */}
+            <div className="space-y-3 pt-2">
+              <Label className="font-medium">Default Change Scope</Label>
+              <select
+                value={settings.default_blast_radius === 'Global' ? 'Scoped' : settings.default_blast_radius}
+                onChange={(e) => setSettings(prev => ({ 
+                  ...prev, 
+                  default_blast_radius: e.target.value 
+                }))}
+                className="w-full md:w-64 border border-gray-300 rounded-lg px-4 py-2 text-sm"
+              >
+                <option value="Local">Local (single basket)</option>
+                <option value="Scoped">Scoped (workspace-wide)</option>
+              </select>
             </div>
 
             {/* Advanced Policies (optional) */}
