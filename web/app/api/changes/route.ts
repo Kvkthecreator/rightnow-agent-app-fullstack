@@ -246,6 +246,7 @@ export async function GET(request: NextRequest) {
       ],
       supported_operations: [
         'CreateDump',
+        'BreakdownDocument',
         'CreateBlock',
         'ReviseBlock', 
         'CreateContextItem',

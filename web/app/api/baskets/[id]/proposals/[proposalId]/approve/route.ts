@@ -262,6 +262,8 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
   const op = operation;
   const data = (operation && operation.data) ? operation.data : operation;
   switch (operation.type) {
+    case 'BreakdownDocument':
+      return await breakdownDocument(supabase, data, basketId, workspaceId);
     case 'CreateBlock':
       return await createBlock(supabase, data, basketId, workspaceId);
     
@@ -438,4 +440,56 @@ async function updateContextItem(supabase: any, op: any, basketId: string, works
   }
 
   return { updated_id: data.id, type: 'update' };
+}
+
+// Execute a BreakdownDocument operation by creating a raw_dump from the document's content
+async function breakdownDocument(supabase: any, op: any, basketId: string, workspaceId: string) {
+  const documentId = op.document_id || op.doc_id;
+  if (!documentId) throw new Error('BreakdownDocument requires document_id');
+
+  // Load the document artifact
+  const { data: doc, error: docErr } = await supabase
+    .from('documents')
+    .select('id, title, content_raw, workspace_id, basket_id')
+    .eq('id', documentId)
+    .maybeSingle();
+
+  if (docErr) throw new Error(`Failed to load document: ${docErr.message}`);
+  if (!doc) throw new Error('Document not found');
+  if (doc.workspace_id !== workspaceId) throw new Error('Forbidden: document not in workspace');
+  if (doc.basket_id !== basketId) throw new Error('Forbidden: document not in basket');
+
+  const text = [doc.title, doc.content_raw].filter(Boolean).join('\n\n').trim();
+  if (!text) throw new Error('Document is empty; nothing to breakdown');
+
+  // Create a raw_dump to trigger P1 asynchronously (P0 capture)
+  const { data: dump, error: dumpErr } = await supabase
+    .from('raw_dumps')
+    .insert({
+      id: crypto.randomUUID(),
+      basket_id: basketId,
+      workspace_id: workspaceId,
+      text_dump: text,
+      source_meta: {
+        source: 'document_breakdown',
+        document_id: documentId
+      }
+    })
+    .select('id')
+    .single();
+
+  if (dumpErr) throw new Error(`Failed to create raw_dump: ${dumpErr.message}`);
+
+  // Emit timeline event (optional; P0 triggers may also emit)
+  try {
+    await supabase.rpc('emit_timeline_event', {
+      p_basket_id: basketId,
+      p_event_type: 'dump.created',
+      p_event_data: { dump_id: dump.id, origin: 'document_breakdown', document_id: documentId },
+      p_workspace_id: workspaceId,
+      p_actor_id: null
+    });
+  } catch {}
+
+  return { created_id: dump.id, type: 'dump' };
 }
