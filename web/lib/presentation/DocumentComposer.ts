@@ -157,19 +157,53 @@ export class DocumentComposer {
       }
 
       // Attach substrate references (generic)
-      for (const ref of [...composition.substrate_references].sort((a, b) => a.order - b.order)) {
-        const { error: attachErr } = await supabase.rpc('fn_document_attach_substrate', {
-          p_document_id: documentId,
-          p_substrate_type: ref.type,
-          p_substrate_id: ref.id,
-          p_role: 'reference',
-          p_weight: 0.5,
-          p_snippets: ref.excerpt ? [ref.excerpt] : [],
-          p_metadata: { order: ref.order }
-        });
-        if (attachErr) {
-          // Continue attaching others; collect errors if needed
-          console.warn(`Failed to attach reference ${ref.type}:${ref.id} →`, attachErr.message);
+      const explicitRefs = [...composition.substrate_references];
+      if (explicitRefs.length > 0) {
+        for (const ref of explicitRefs.sort((a, b) => a.order - b.order)) {
+          const { error: attachErr } = await supabase.rpc('fn_document_attach_substrate', {
+            p_document_id: documentId,
+            p_substrate_type: ref.type,
+            p_substrate_id: ref.id,
+            p_role: 'reference',
+            p_weight: 0.5,
+            p_snippets: ref.excerpt ? [ref.excerpt] : [],
+            p_metadata: { order: ref.order }
+          });
+          if (attachErr) {
+            console.warn(`Failed to attach reference ${ref.type}:${ref.id} →`, attachErr.message);
+          }
+        }
+      } else {
+        // Auto-select recent high-confidence blocks in this basket as initial composition
+        try {
+          const { data: blocks } = await supabase
+            .from('blocks')
+            .select('id, title, created_at, confidence_score, state')
+            .eq('basket_id', composition.basket_id)
+            .order('confidence_score', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+          if (blocks && blocks.length) {
+            let order = 0;
+            for (const b of blocks) {
+              if (b.state === 'REJECTED') continue;
+              const { error: attachErr } = await supabase.rpc('fn_document_attach_substrate', {
+                p_document_id: documentId,
+                p_substrate_type: 'block',
+                p_substrate_id: b.id,
+                p_role: 'primary',
+                p_weight: typeof (b as any).confidence_score === 'number' ? (b as any).confidence_score : 0.7,
+                p_snippets: [],
+                p_metadata: { order: order++ }
+              });
+              if (attachErr) {
+                console.warn(`Auto-attach block failed ${b.id} →`, attachErr.message);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Auto-select substrate references failed:', e);
         }
       }
 
