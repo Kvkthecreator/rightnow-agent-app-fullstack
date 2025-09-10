@@ -13,6 +13,8 @@ interface GovernanceSettings {
   validator_required: boolean;
   // Removed from UI: direct_substrate_writes is canon-enforced server-side (always false)
   governance_ui_enabled: boolean;
+  // Simplified top-level mode: 'proposal' | 'hybrid'
+  mode: 'proposal' | 'hybrid';
   entry_point_policies: {
     onboarding_dump: string;
     manual_edit: string;
@@ -41,6 +43,7 @@ export default function GovernanceSettingsClient({
         governance_enabled: initialSettings.governance_enabled,
         validator_required: initialSettings.validator_required,
         governance_ui_enabled: initialSettings.governance_ui_enabled,
+        mode: (initialSettings.ep_manual_edit === 'hybrid' || initialSettings.ep_graph_action === 'hybrid') ? 'hybrid' : 'proposal',
         entry_point_policies: {
           onboarding_dump: 'direct', // Canon: P0 capture must be direct
           manual_edit: initialSettings.ep_manual_edit,
@@ -56,6 +59,7 @@ export default function GovernanceSettingsClient({
       governance_enabled: true,
       validator_required: false,
       governance_ui_enabled: true,
+      mode: 'proposal',
       entry_point_policies: {
         onboarding_dump: 'direct',
         manual_edit: 'proposal',
@@ -95,6 +99,14 @@ export default function GovernanceSettingsClient({
     setLoading(true);
     
     try {
+      // Derive entry point policies from simplified mode
+      const derivedPolicies = {
+        onboarding_dump: 'direct',
+        manual_edit: settings.mode,
+        graph_action: settings.mode,
+        timeline_restore: 'proposal'
+      };
+
       const response = await fetch('/api/governance/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -102,7 +114,7 @@ export default function GovernanceSettingsClient({
           governance_enabled: settings.governance_enabled,
           validator_required: settings.validator_required,
           governance_ui_enabled: settings.governance_ui_enabled,
-          entry_point_policies: settings.entry_point_policies,
+          entry_point_policies: derivedPolicies,
           default_blast_radius: settings.default_blast_radius
         })
       });
@@ -267,76 +279,50 @@ export default function GovernanceSettingsClient({
           </CardContent>
         </Card>
 
-        {/* Entry Point Policies */}
+        {/* Simplified Mode Controls */}
         <Card>
           <CardHeader className="p-6">
-            <CardTitle>Action Review Policies</CardTitle>
+            <CardTitle>Review Mode</CardTitle>
             <p className="text-sm text-gray-600 mt-2">
-              Choose when different types of content changes need approval
+              Choose how changes get reviewed
             </p>
           </CardHeader>
-          <CardContent className="p-8">
-            <div className="space-y-6">
-              {Object.entries(settings.entry_point_policies)
-                .filter(([entryPoint]) => ['onboarding_dump','manual_edit','graph_action','timeline_restore'].includes(entryPoint))
-                .map(([entryPoint, policy]) => (
-                <div key={entryPoint} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-medium text-sm">
-                      {entryPoint.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">
-                      {getEntryPointDescription(entryPoint)}
-                    </div>
-                  </div>
-                  
-                  {entryPoint === 'onboarding_dump' ? (
-                    <select
-                      value={'direct'}
-                      disabled
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-28 bg-gray-100 text-gray-600"
-                    >
-                      <option value="direct">Direct</option>
-                    </select>
-                  ) : entryPoint === 'timeline_restore' ? (
-                    <select
-                      value={'proposal'}
-                      disabled={!settings.governance_enabled}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-28"
-                    >
-                      <option value="proposal">Proposal</option>
-                    </select>
-                  ) : (
-                    <select
-                      value={policy === 'direct' ? 'proposal' : policy}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        entry_point_policies: {
-                          ...prev.entry_point_policies,
-                          [entryPoint]: e.target.value
-                        }
-                      }))}
-                      disabled={!settings.governance_enabled}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-28"
-                    >
-                      <option value="proposal">Proposal</option>
-                      <option value="hybrid">Hybrid</option>
-                    </select>
-                  )}
-                </div>
-              ))}
+          <CardContent className="p-8 space-y-4">
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="mode"
+                  checked={settings.mode === 'proposal'}
+                  onChange={() => setSettings(prev => ({ ...prev, mode: 'proposal' }))}
+                  className="h-4 w-4"
+                />
+                <span>Review everything</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="mode"
+                  checked={settings.mode === 'hybrid'}
+                  onChange={() => setSettings(prev => ({ ...prev, mode: 'hybrid' }))}
+                  disabled={!settings.governance_enabled}
+                  className="h-4 w-4"
+                />
+                <span>Smart review (auto‑approve safe changes)</span>
+              </label>
             </div>
-            
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="text-sm text-blue-800">
-                <strong>Policy Types:</strong>
-                <ul className="mt-2 space-y-1 text-xs">
-                  <li><strong>Proposal:</strong> All changes require approval</li>
-                  <li><strong>Direct:</strong> P0 capture only (always direct). Other entry points do not allow Direct.</li>
-                  <li><strong>Hybrid:</strong> Risk-based routing. If enabled, agents may auto‑approve small, clean proposals; otherwise they go to review.</li>
-                </ul>
+
+            <div className="text-xs text-gray-600">
+              P0 capture is always immediate. Timeline restore always requires review.
+            </div>
+
+            {/* Advanced Policies (optional) */}
+            <details className="mt-4">
+              <summary className="text-sm cursor-pointer">Advanced policies (optional)</summary>
+              <div className="mt-3 p-3 bg-gray-50 rounded border text-xs text-gray-600">
+                Entry‑point policies are managed automatically by Review Mode. Manual overrides are disabled to reduce complexity.
               </div>
-            </div>
+            </details>
           </CardContent>
         </Card>
 

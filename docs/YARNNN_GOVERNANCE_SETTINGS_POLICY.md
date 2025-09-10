@@ -10,34 +10,36 @@ Prevent configuration drift and UX ambiguity by documenting the canon‑safe sub
 - Substrate mutations (P1/P2) are governed via proposals (CreateBlock, CreateContextItem, Revise/Merge, relationships).
 - Artifacts (P3/P4) are separate from substrate; no governance flags apply to artifacts.
 
-## Product Controls (Distilled)
+## Product Controls (Simplified)
 
-Allowed (visible):
-- `governance_enabled`: toggle governance framework (default: true).
-- `validator_required`: strict vs lenient validator mode for proposals.
-- Entry-point policies (substrate only):
-  - `onboarding_dump`: fixed to `direct` (non‑editable). Rationale: P0 capture must persist `raw_dumps` and trigger P1.
-  - `manual_edit`: `proposal` or `hybrid` (no `direct`).
-  - `graph_action`: `proposal` or `hybrid` (no `direct`).
-  - `timeline_restore`: fixed to `proposal`.
-- `default_blast_radius`: `Local` or `Scoped` only (no `Global`).
+Visible (plain language):
+- Governance: on/off (default: on)
+- Review Mode: 
+  - Review everything (Proposal)
+  - Smart review (Hybrid) — lets Yarnnn auto‑approve small, safe changes
+- Always run validator: on/off 
+  - When on, proposals cannot be auto‑approved
+- Change scope (default reach): Local (basket) or Scoped (workspace)
 
-Hidden/forced (not user‑configurable):
-- `direct_substrate_writes`: always `false`.
-- Artifact entry points: `document_edit`, `reflection_suggestion` — removed from UI and API.
+Fixed (canon):
+- Capture (P0) is always immediate (Direct)
+- Timeline Restore always requires review (Proposal)
+- Direct substrate writes are disabled globally
+- Artifact entry points (documents/reflections) are out of scope
 
 ## Server Enforcement
 - Role: owner/admin may update. (Owners are canonical admins.)
 - Coercions:
-  - `ep_onboarding_dump` → `direct` unconditionally.
-  - `manual_edit`/`graph_action`: reject or coerce `direct` → `proposal`.
-  - `timeline_restore` → `proposal`.
+  - `ep_onboarding_dump` = `direct`.
+  - `timeline_restore` = `proposal`.
+  - Review Mode controls `manual_edit` + `graph_action` together: `proposal` or `hybrid`.
+  - `direct` is not allowed for `manual_edit`/`graph_action`.
   - `default_blast_radius`: coerce `Global` → `Scoped`.
   - `direct_substrate_writes` → `false`.
 
 ## Defaults
 - When settings are absent:
-  - `onboarding_dump='direct'`, others = `proposal`, `default_blast_radius='Scoped'`.
+  - `onboarding_dump='direct'`, `manual_edit='proposal'`, `graph_action='proposal'`, `timeline_restore='proposal'`, `default_blast_radius='Scoped'`.
   - Matches `public.get_workspace_governance_flags()` fallback.
 
 ## Rationale
@@ -46,6 +48,12 @@ Hidden/forced (not user‑configurable):
 - Prevents artifact/substrate conflation and dangerous bypasses.
 
 ## Acceptance
-- UI: settings page hides artifacts, locks P0 to `direct`, prevents `direct` on risky entry points, and hides global blast radius.
-- API: ignores/forces restricted fields; accepts owner/admin; returns canon‑safe values.
+- UI: minimal controls; Action policies hidden under Advanced and read-only; copy uses plain language.
+- API: enforces canon (P0 direct, timeline restore proposal, no artifact toggles, no direct substrate writes).
 
+## Auto‑Approve Policy (Agents)
+- Agents may auto‑approve only when:
+  - Governance is enabled, and Review Mode is Smart (Hybrid)
+  - Validator is not required
+  - Proposal is small/clean (confidence high, no warnings, bounded ops)
+- Otherwise proposals are created in PROPOSED state for human review.
