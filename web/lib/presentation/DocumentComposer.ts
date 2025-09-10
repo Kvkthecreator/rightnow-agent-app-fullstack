@@ -50,6 +50,15 @@ export interface ComposedDocument {
   created_by: string;
 }
 
+export interface DocumentShellOptions {
+  title: string;
+  workspace_id: string;
+  basket_id: string;
+  author_id: string;
+  composition_context?: Record<string, any>;
+  initial_prose?: string;
+}
+
 /**
  * P4 Presentation Pipeline Implementation
  * 
@@ -294,6 +303,114 @@ export class DocumentComposer {
       basket_id,
       author_id
     }, supabase);
+  }
+
+  /**
+   * Create document shell for async composition
+   * 
+   * Canon v2.1: Creates document immediately with pending composition status
+   * for async P4_COMPOSE processing
+   */
+  static async createDocumentShell(
+    options: DocumentShellOptions,
+    supabase: any
+  ): Promise<{ success: boolean; document?: ComposedDocument; error?: string }> {
+    
+    try {
+      // P4 Boundary Guard: Document creation only
+      PipelineBoundaryGuard.enforceP4Presentation({
+        type: 'create_document_shell',
+        data: options,
+        emitsEvents: ['document.created']
+      });
+
+      // Compute composition signature for deduplication
+      const normalized = {
+        basket_id: options.basket_id,
+        intent: options.composition_context?.intent?.toString().trim().toLowerCase() || '',
+        window: options.composition_context?.window || null,
+        pinned: options.composition_context?.pinned || null,
+      };
+      const signatureInput = JSON.stringify(normalized);
+      const signature = 'cmp_' + crypto.createHash('sha256').update(signatureInput).digest('hex').slice(0, 40);
+
+      // Create document with pending composition status
+      const { data: createdDocs, error: createErr } = await supabase
+        .from('documents')
+        .insert({
+          basket_id: options.basket_id,
+          workspace_id: options.workspace_id,
+          title: options.title,
+          content_raw: options.initial_prose || '',
+          document_type: 'narrative',
+          metadata: {
+            composition_context: options.composition_context || {},
+            composition_signature: signature,
+            composition_type: 'async_pending',
+            composition_status: 'pending',
+            composition_started_at: new Date().toISOString()
+          }
+        })
+        .select('id, title, created_at, metadata')
+        .limit(1);
+
+      if (createErr || !createdDocs || createdDocs.length === 0) {
+        return { success: false, error: `Failed to create document shell: ${createErr?.message || 'unknown error'}` };
+      }
+
+      const documentId = createdDocs[0].id;
+
+      // Create initial version (empty composition)
+      const versionHash = 'doc_v' + crypto.createHash('sha256').update(options.initial_prose || '').digest('hex').slice(0, 58);
+      
+      await supabase
+        .from('document_versions')
+        .insert({
+          version_hash: versionHash,
+          document_id: documentId,
+          content: options.initial_prose || '',
+          metadata_snapshot: createdDocs[0].metadata,
+          substrate_refs_snapshot: [],
+          version_message: 'Document shell - composition pending',
+          composition_contract: options.composition_context,
+          composition_signature: signature
+        });
+
+      // Update document with version
+      await supabase
+        .from('documents')
+        .update({ current_version_hash: versionHash })
+        .eq('id', documentId);
+
+      const composed: ComposedDocument = {
+        id: documentId,
+        title: options.title,
+        composition: {
+          title: options.title,
+          substrate_references: [],
+          narrative_sections: options.initial_prose ? [{
+            id: 'initial',
+            content: options.initial_prose,
+            order: 0
+          }] : [],
+          workspace_id: options.workspace_id,
+          basket_id: options.basket_id,
+          author_id: options.author_id,
+          document_type: 'narrative',
+          composition_context: options.composition_context
+        },
+        created_at: new Date().toISOString(),
+        created_by: options.author_id
+      };
+
+      return { success: true, document: composed };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error creating document shell'
+      };
+    }
   }
 
   /**

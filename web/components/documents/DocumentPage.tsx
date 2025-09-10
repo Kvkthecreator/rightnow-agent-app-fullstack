@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/Card';
 import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon } from 'lucide-react';
+import { DocumentCompositionStatus } from './DocumentCompositionStatus';
 
 type Mode = 'read' | 'edit' | 'compare' | 'analyze';
 
@@ -35,6 +36,11 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
   const [analyze, setAnalyze] = useState<any | null>(null);
   const [versions, setVersions] = useState<any[]>([]);
   const [compareTarget, setCompareTarget] = useState<string | null>(null);
+
+  // Check for async composition status
+  const workId = typeof window !== 'undefined' ? sessionStorage.getItem(`doc_${document.id}_work_id`) : null;
+  const statusUrl = typeof window !== 'undefined' ? sessionStorage.getItem(`doc_${document.id}_status_url`) : null;
+  const isAsyncComposition = document.metadata?.composition_status === 'pending' || document.metadata?.composition_status === 'processing';
 
   // Load composition (read view)
   useEffect(() => {
@@ -152,6 +158,24 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
         {/* Read */}
         {mode === 'read' && (
           <div className="space-y-6">
+            {/* Composition Status */}
+            {isAsyncComposition && workId && (
+              <DocumentCompositionStatus
+                documentId={document.id}
+                workId={workId}
+                statusUrl={statusUrl || undefined}
+                onCompositionComplete={() => {
+                  // Refresh composition and clear session storage
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.removeItem(`doc_${document.id}_work_id`);
+                    sessionStorage.removeItem(`doc_${document.id}_status_url`);
+                  }
+                  // Reload page to get updated document
+                  window.location.reload();
+                }}
+              />
+            )}
+
             <Card>
               <div className="p-4">
                 {composition?.document?.content_raw ? (

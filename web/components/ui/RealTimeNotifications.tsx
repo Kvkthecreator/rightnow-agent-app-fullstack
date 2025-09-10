@@ -40,6 +40,28 @@ export function RealTimeNotifications({
 }: RealTimeNotificationsProps) {
   const [notifications, setNotifications] = useState<RealTimeNotification[]>([]);
 
+  // Listen for custom notification events (e.g., from composition status)
+  useEffect(() => {
+    const handleCustomNotification = (event: CustomEvent) => {
+      const detail = event.detail;
+      addNotification({
+        type: detail.type,
+        title: detail.title,
+        message: detail.message,
+        timestamp: detail.timestamp,
+        autoHide: detail.autoHide,
+        action: detail.action
+      });
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('yarnnn-notification', handleCustomNotification as EventListener);
+      return () => {
+        window.removeEventListener('yarnnn-notification', handleCustomNotification as EventListener);
+      };
+    }
+  }, []);
+
   // Add notification
   const addNotification = (notification: Omit<RealTimeNotification, 'id'>) => {
     const newNotification: RealTimeNotification = {

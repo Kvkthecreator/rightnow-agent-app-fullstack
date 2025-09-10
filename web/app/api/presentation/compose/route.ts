@@ -24,6 +24,8 @@ export const dynamic = 'force-dynamic';
  * 
  * Canonical P4 Presentation endpoint for document composition
  * Implements Sacred Principle #3: Documents = substrate references + authored prose
+ * 
+ * Canon v2.1 Enhancement: Async composition via Universal Work Orchestration
  */
 export async function POST(req: NextRequest) {
   try {
@@ -53,31 +55,107 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    if (!composition.narrative_sections || composition.narrative_sections.length === 0) {
-      return NextResponse.json({ 
-        error: "At least one narrative section required (authored prose)" 
-      }, { status: 400 });
-    }
-
     // Ensure workspace alignment
     composition.workspace_id = workspace.id;
     composition.author_id = user.id;
 
-    // Compose document through canonical P4 pipeline
-    const result = await DocumentComposer.composeDocument(composition, supabase);
+    // Determine if this needs async processing
+    const needsAsyncComposition = !composition.substrate_references || composition.substrate_references.length === 0;
+    
+    if (needsAsyncComposition && composition.composition_context?.intent) {
+      // Create document shell immediately
+      const documentShell = await DocumentComposer.createDocumentShell({
+        title: composition.title,
+        workspace_id: workspace.id,
+        basket_id: composition.basket_id!,
+        author_id: user.id,
+        composition_context: composition.composition_context,
+        initial_prose: composition.narrative_sections?.[0]?.content || ''
+      }, supabase);
 
-    if (!result.success) {
-      return NextResponse.json({ 
-        error: result.error || "Failed to compose document" 
-      }, { status: 400 });
+      if (!documentShell.success || !documentShell.document) {
+        return NextResponse.json({ 
+          error: documentShell.error || "Failed to create document" 
+        }, { status: 400 });
+      }
+
+      // Queue P4_COMPOSE work for async processing
+      const workResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/work`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': req.headers.get('cookie') || ''
+        },
+        body: JSON.stringify({
+          work_type: 'P4_COMPOSE',
+          work_payload: {
+            operations: [{
+              type: 'compose_from_memory',
+              data: {
+                document_id: documentShell.document.id,
+                intent: composition.composition_context.intent,
+                window: composition.composition_context.window,
+                pinned_ids: composition.composition_context.pinned_ids
+              }
+            }],
+            basket_id: composition.basket_id!,
+            confidence_score: 0.0, // Will be determined by agent
+            trace_id: composition.composition_context.trace_id
+          },
+          priority: 'normal'
+        })
+      });
+
+      if (!workResponse.ok) {
+        // Still return document but warn about composition
+        console.error('Failed to queue composition work:', await workResponse.text());
+        return NextResponse.json({
+          success: true,
+          document: documentShell.document,
+          composition_type: 'async_pending',
+          pipeline: 'P4_PRESENTATION',
+          warning: 'Document created but composition queuing failed'
+        });
+      }
+
+      const workData = await workResponse.json();
+
+      return NextResponse.json({
+        success: true,
+        document: documentShell.document,
+        composition_type: 'async_processing',
+        pipeline: 'P4_PRESENTATION',
+        work_id: workData.work_id,
+        status_url: workData.status_url,
+        message: 'Document created. Intelligent composition in progress...'
+      }, { status: 202 }); // 202 Accepted for async processing
+
+    } else {
+      // Synchronous composition (has substrate refs or no intent)
+      // Ensure we have narrative sections for backward compatibility
+      if (!composition.narrative_sections || composition.narrative_sections.length === 0) {
+        composition.narrative_sections = [{
+          id: 'default',
+          content: composition.composition_context?.intent || 'Document content',
+          order: 0
+        }];
+      }
+
+      const result = await DocumentComposer.composeDocument(composition, supabase);
+
+      if (!result.success) {
+        return NextResponse.json({ 
+          error: result.error || "Failed to compose document" 
+        }, { status: 400 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        document: result.document,
+        composition_type: 'substrate_plus_narrative',
+        pipeline: 'P4_PRESENTATION'
+      });
     }
-
-    return NextResponse.json({
-      success: true,
-      document: result.document,
-      composition_type: 'substrate_plus_narrative',
-      pipeline: 'P4_PRESENTATION'
-    });
 
   } catch (error) {
     console.error('P4 Presentation composition error:', error);

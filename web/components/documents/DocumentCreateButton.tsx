@@ -43,11 +43,23 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
           basket_id: basketId,
           narrative_sections: [{ id: 'intro', content: intent || 'Draft', order: 0 }],
           substrate_references: [],
-          composition_context: { intent }
+          composition_context: { 
+            intent,
+            trace_id: crypto.randomUUID(),
+            window: { days: 30 } // Default to last 30 days
+          }
         })
       });
       const data = await res.json();
       if (!res.ok || !data?.document?.id) throw new Error(data?.error || 'Compose failed');
+      
+      // Handle async composition
+      if (data.composition_type === 'async_processing') {
+        // Store work_id in sessionStorage for status tracking
+        sessionStorage.setItem(`doc_${data.document.id}_work_id`, data.work_id);
+        sessionStorage.setItem(`doc_${data.document.id}_status_url`, data.status_url);
+      }
+      
       router.push(`/baskets/${basketId}/documents/${data.document.id}`);
     } catch (e) {
       alert('Failed to compose document');

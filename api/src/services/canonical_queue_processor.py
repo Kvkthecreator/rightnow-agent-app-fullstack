@@ -26,6 +26,7 @@ from app.agents.pipeline import (
     P2GraphAgent,
     P3ReflectionAgent
 )
+from app.agents.pipeline.composition_agent import P4CompositionAgent, CompositionRequest
 from app.agents.pipeline.capture_agent import DumpIngestionRequest
 from app.agents.pipeline.substrate_agent_v2 import P1SubstrateAgentV2
 from app.agents.pipeline.graph_agent import RelationshipMappingRequest
@@ -63,6 +64,7 @@ class CanonicalQueueProcessor:
         self.p1_governance_v2 = GovernanceDumpProcessorV2()  # Structured ingredients
         self.p2_graph = P2GraphAgent()
         self.p3_reflection = P3ReflectionAgent()
+        self.p4_composition = P4CompositionAgent()  # Document composition
         
         # Feature flag for v2 agent rollout
         self.use_structured_ingredients = os.getenv("YARNNN_STRUCTURED_INGREDIENTS", "false").lower() == "true"
@@ -76,18 +78,28 @@ class CanonicalQueueProcessor:
         
         while self.running:
             try:
-                # Claim work from queue
-                queue_entries = await self._claim_dumps()
+                # Claim work from queue (handles all work types now)
+                queue_entries = await self._claim_work()
                 
                 if queue_entries:
-                    logger.info(f"Claimed {len(queue_entries)} dumps for canonical processing")
+                    logger.info(f"Claimed {len(queue_entries)} work items for canonical processing")
                     
-                    # Process each claimed dump through canonical pipeline
+                    # Process each claimed work item based on work_type
                     for entry in queue_entries:
                         try:
-                            await self._process_dump_canonically(entry)
+                            work_type = entry.get('work_type', 'P1_SUBSTRATE')  # Default for legacy entries
+                            
+                            if work_type in ['P0_CAPTURE', 'P1_SUBSTRATE']:
+                                # Traditional dump-based processing
+                                await self._process_dump_canonically(entry)
+                            elif work_type == 'P4_COMPOSE':
+                                # Document composition processing
+                                await self._process_composition_work(entry)
+                            else:
+                                logger.warning(f"Unsupported work type: {work_type}")
+                                await self._mark_failed(entry['id'], f"Unsupported work type: {work_type}")
                         except Exception as e:
-                            logger.exception(f"Canonical processing failed for dump {entry['dump_id']}: {e}")
+                            logger.exception(f"Work processing failed for {entry.get('work_id', entry['id'])}: {e}")
                             await self._mark_failed(entry['id'], str(e))
                 else:
                     # No work available, wait before next poll
@@ -136,8 +148,8 @@ class CanonicalQueueProcessor:
             created_at=now_iso(),
         )
     
-    async def _claim_dumps(self, limit: int = 5) -> List[Dict[str, Any]]:
-        """Atomically claim dumps from the queue."""
+    async def _claim_work(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """Atomically claim work from the queue (all work types)."""
         try:
             response = supabase.rpc(
                 'fn_claim_next_dumps',
@@ -149,13 +161,13 @@ class CanonicalQueueProcessor:
             ).execute()
             
             if response.data:
-                logger.info(f"Successfully claimed {len(response.data)} dumps")
+                logger.info(f"Successfully claimed {len(response.data)} work items")
                 return response.data
             else:
                 return []
             
         except Exception as e:
-            logger.error(f"Failed to claim dumps: {e}")
+            logger.error(f"Failed to claim work: {e}")
             return []
     
     async def _process_dump_canonically(self, queue_entry: Dict[str, Any]):
@@ -251,6 +263,88 @@ class CanonicalQueueProcessor:
             
         except Exception as e:
             logger.exception(f"Canonical processing failed for dump {dump_id}: {e}")
+            
+            # Update universal work tracker for failure
+            if queue_entry.get('work_id'):
+                await universal_work_tracker.fail_work(
+                    queue_entry['work_id'],
+                    str(e)
+                )
+            
+            await self._mark_failed(queue_id, str(e))
+            raise
+    
+    async def _process_composition_work(self, queue_entry: Dict[str, Any]):
+        """
+        Process P4_COMPOSE work for intelligent document composition.
+        
+        Canon Compliance:
+        - P4 consumes substrate, never creates it
+        - Implements Sacred Principle #3: Narrative is Deliberate
+        - Only creates document artifacts
+        """
+        work_id = queue_entry.get('work_id', queue_entry['id'])
+        queue_id = queue_entry['id']
+        work_payload = queue_entry.get('work_payload', {})
+        
+        logger.info(f"Starting P4 composition work: work_id={work_id}")
+        
+        try:
+            # Mark as processing
+            await self._update_queue_state(queue_id, 'processing')
+            
+            # Extract composition operation data
+            operations = work_payload.get('operations', [])
+            if not operations:
+                raise ValueError("P4 composition work missing operations")
+            
+            compose_op = next((op for op in operations if op['type'] == 'compose_from_memory'), None)
+            if not compose_op:
+                raise ValueError("P4 composition work missing compose_from_memory operation")
+            
+            op_data = compose_op['data']
+            
+            # Create composition request
+            composition_request = CompositionRequest(
+                document_id=op_data['document_id'],
+                basket_id=work_payload['basket_id'],
+                workspace_id=queue_entry['workspace_id'],
+                intent=op_data['intent'],
+                window=op_data.get('window'),
+                pinned_ids=op_data.get('pinned_ids')
+            )
+            
+            # Process through P4 composition agent
+            composition_result = await self.p4_composition.process(composition_request)
+            
+            if not composition_result.success:
+                raise RuntimeError(f"P4 composition failed: {composition_result.message}")
+            
+            logger.info(f"P4 composition completed: {composition_result.message}")
+            
+            # Prepare work result
+            work_result = {
+                'composition_completed': True,
+                'document_id': composition_request.document_id,
+                'substrate_count': composition_result.data.get('substrate_count', 0),
+                'confidence': composition_result.data.get('confidence', 0.8),
+                'summary': composition_result.data.get('composition_summary', 'Document composed')
+            }
+            
+            # Update universal work tracker if work_id exists
+            if queue_entry.get('work_id'):
+                await universal_work_tracker.complete_work(
+                    queue_entry['work_id'],
+                    work_result,
+                    'P4_composition_completed'
+                )
+            
+            await self._update_queue_state(queue_id, 'completed')
+            
+            logger.info(f"P4 composition work completed successfully: {work_id}")
+            
+        except Exception as e:
+            logger.exception(f"P4 composition work failed: {work_id}: {e}")
             
             # Update universal work tracker for failure
             if queue_entry.get('work_id'):
