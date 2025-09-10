@@ -47,9 +47,9 @@ const SAFE_DEFAULTS: WorkspaceFlags = {
   ep: {
     // Canon: P0 capture is always direct (no interpretation)
     onboarding_dump: 'direct',
-    // Conservative defaults for all other entry points
-    manual_edit: 'proposal',
-    graph_action: 'proposal',
+    // Default to Smart Review (Hybrid) for substrate edits
+    manual_edit: 'hybrid',
+    graph_action: 'hybrid',
     timeline_restore: 'proposal'
     // REMOVED: document_edit - documents are artifacts, not substrates
   },

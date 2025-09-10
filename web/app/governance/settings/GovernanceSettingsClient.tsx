@@ -40,9 +40,9 @@ export default function GovernanceSettingsClient({
   const [settings, setSettings] = useState<GovernanceSettings>(() => {
     if (initialSettings) {
       return {
-        governance_enabled: initialSettings.governance_enabled,
-        validator_required: initialSettings.validator_required,
-        governance_ui_enabled: initialSettings.governance_ui_enabled,
+        governance_enabled: true,
+        validator_required: false,
+        governance_ui_enabled: true,
         mode: (initialSettings.ep_manual_edit === 'hybrid' || initialSettings.ep_graph_action === 'hybrid') ? 'hybrid' : 'proposal',
         entry_point_policies: {
           onboarding_dump: 'direct', // Canon: P0 capture must be direct
@@ -74,7 +74,7 @@ export default function GovernanceSettingsClient({
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
-    setHasChanges(JSON.stringify(settings) !== JSON.stringify(getInitialSettings()));
+    setHasChanges(true);
   }, [settings]);
 
   const getInitialSettings = () => {
@@ -111,9 +111,9 @@ export default function GovernanceSettingsClient({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          governance_enabled: settings.governance_enabled,
-          validator_required: settings.validator_required,
-          governance_ui_enabled: settings.governance_ui_enabled,
+          governance_enabled: true,
+          validator_required: false,
+          governance_ui_enabled: true,
           entry_point_policies: derivedPolicies,
           default_blast_radius: settings.default_blast_radius
         })
