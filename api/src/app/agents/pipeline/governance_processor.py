@@ -518,16 +518,37 @@ class GovernanceDumpProcessor:
 
         ops_data = [op.dict() for op in filtered_ops]
         
-        # Determine auto-approval eligibility based on canon
+        # Determine auto-approval eligibility: strictly governed by workspace flags
         confidence = validation_report.confidence if hasattr(validation_report, 'confidence') else 0.5
-        # Stricter auto-approval: low blast, no warnings, limited operation count, and modest context item volume
         op_count = len(filtered_ops)
         ctx_count = sum(1 for o in filtered_ops if o.type == 'CreateContextItem')
-        auto_approve = (
-            confidence > 0.7 and
-            hasattr(validation_report, 'warnings') and len(validation_report.warnings) == 0 and
-            op_count <= 25 and ctx_count <= 20
-        )
+
+        def _is_auto_approve_allowed(ws_id: UUID) -> bool:
+            try:
+                flags_resp = supabase.rpc('get_workspace_governance_flags', {
+                    'p_workspace_id': str(ws_id)
+                }).execute()
+                flags = flags_resp.data or {}
+                if not flags.get('governance_enabled', True):
+                    return False
+                # Only allow agent-driven auto-approval when workspace explicitly opts into risk-based routing
+                # via 'hybrid' on at least one relevant entry point and validator is not required.
+                if flags.get('validator_required', False):
+                    return False
+                ep_manual = flags.get('ep_manual_edit', 'proposal')
+                ep_graph = flags.get('ep_graph_action', 'proposal')
+                return ep_manual == 'hybrid' or ep_graph == 'hybrid'
+            except Exception:
+                return False
+
+        auto_approve = False
+        if _is_auto_approve_allowed(workspace_id):
+            # Stricter confidence-based gate, applied only when workspace policy allows Hybrid
+            auto_approve = (
+                confidence > 0.7 and
+                hasattr(validation_report, 'warnings') and len(validation_report.warnings) == 0 and
+                op_count <= 25 and ctx_count <= 20
+            )
         
         initial_status = 'APPROVED' if auto_approve else 'PROPOSED'
         

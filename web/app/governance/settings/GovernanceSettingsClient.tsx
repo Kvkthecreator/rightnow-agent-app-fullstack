@@ -238,11 +238,11 @@ export default function GovernanceSettingsClient({
                     className="h-4 w-4"
                   />
                   <Label htmlFor="validator-required" className="font-medium">
-                    Require AI Quality Check
+                    Require Validator (disables auto‑approve)
                   </Label>
                 </div>
                 <p className="text-sm text-gray-600 ml-7">
-                  AI validates all content before human review
+                  When enabled, all proposals require validation and cannot be auto‑approved.
                 </p>
               </div>
 
@@ -332,8 +332,8 @@ export default function GovernanceSettingsClient({
                 <strong>Policy Types:</strong>
                 <ul className="mt-2 space-y-1 text-xs">
                   <li><strong>Proposal:</strong> All changes require approval</li>
-                  <li><strong>Direct:</strong> Changes applied immediately</li>
-                  <li><strong>Hybrid:</strong> Risk-based routing (low risk = direct, high risk = proposal)</li>
+                  <li><strong>Direct:</strong> P0 capture only (always direct). Other entry points do not allow Direct.</li>
+                  <li><strong>Hybrid:</strong> Risk-based routing. If enabled, agents may auto‑approve small, clean proposals; otherwise they go to review.</li>
                 </ul>
               </div>
             </div>
