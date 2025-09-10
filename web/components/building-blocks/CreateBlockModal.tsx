@@ -7,7 +7,8 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
-import { toast } from 'react-hot-toast';
+import { toast } from 'react-hot-toast'; // LEGACY - migrating to unified notifications
+import { legacyNotify } from '@/lib/notifications/service';
 import { Database } from 'lucide-react';
 
 interface CreateBlockModalProps {

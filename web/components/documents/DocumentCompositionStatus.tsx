@@ -68,34 +68,29 @@ export function DocumentCompositionStatus({
           if (newStatus.status === 'completed') {
             setPolling(false);
             
-            // Show global notification
+            // Show unified notification
             if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('yarnnn-notification', {
-                detail: {
-                  type: 'change_applied',
-                  title: 'Document Composed',
-                  message: `${newStatus.substrate_count ? `Successfully composed with ${newStatus.substrate_count} substrate items` : 'Document composition complete'}`,
-                  timestamp: new Date().toISOString(),
-                  autoHide: true
-                }
-              }));
+              const { notificationService } = await import('@/lib/notifications/service');
+              notificationService.documentComposed(
+                'Document Composed',
+                `${newStatus.substrate_count ? `Successfully composed with ${newStatus.substrate_count} substrate items` : 'Document composition complete'}`,
+                documentId,
+                newStatus.substrate_count
+              );
             }
             
             onCompositionComplete?.();
           } else if (newStatus.status === 'failed') {
             setPolling(false);
             
-            // Show error notification
+            // Show unified error notification
             if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('yarnnn-notification', {
-                detail: {
-                  type: 'change_failed',
-                  title: 'Composition Failed',
-                  message: newStatus.error || 'Document composition encountered an error',
-                  timestamp: new Date().toISOString(),
-                  autoHide: false
-                }
-              }));
+              const { notificationService } = await import('@/lib/notifications/service');
+              notificationService.documentCompositionFailed(
+                'Composition Failed',
+                newStatus.error || 'Document composition encountered an error',
+                documentId
+              );
             }
           }
         }
