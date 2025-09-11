@@ -80,7 +80,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Queue P4_COMPOSE work for async processing
-      const workResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/work`, {
+      // Use same-origin API for work orchestration to avoid env coupling
+      const origin = new URL(req.url).origin;
+      const workResponse = await fetch(`${origin}/api/work`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
