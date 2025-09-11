@@ -16,6 +16,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.utils.supabase_client import supabase_admin_client as supabase
+from services.llm import get_llm
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -78,6 +79,7 @@ class P3ReflectionAgent:
     
     def __init__(self):
         self.logger = logger
+        self.llm = get_llm()
         
     async def compute_reflections(self, request: ReflectionComputationRequest) -> ReflectionResult:
         """
@@ -155,6 +157,47 @@ class P3ReflectionAgent:
             
             # Optionally cache reflection results (P3 caching allowed)
             await self._cache_reflections_if_enabled(request, result)
+
+            # NEW: LLM-powered narrative reflection (structured) when enough signal
+            try:
+                if len(substrate_data) >= 5:  # minimal signal threshold
+                    digest = self._build_digest(substrate_data)
+                    llm_res = await self.llm.get_json_response(
+                        f"Generate a structured reflection JSON for this substrate digest:
+
+{digest}
+
+Return JSON only.",
+                        temperature=0.3,
+                        schema_name="p3_reflection",
+                    )
+                    summary = None
+                    if llm_res.success and llm_res.parsed:
+                        summary = llm_res.parsed.get("summary")
+                    # Persist artifact via RPC
+                    try:
+                        payload_text = summary or "Automated reflection computed from recent substrate."
+                        resp = supabase.rpc(
+                            'fn_reflection_create_from_substrate',
+                            {
+                                'p_basket_id': str(request.basket_id) if request.basket_id else self._infer_any_basket(substrate_data),
+                                'p_reflection_text': payload_text,
+                            }
+                        ).execute()
+                        # Update meta with structured JSON (post-insert update)
+                        if resp.data:
+                            ref_id = resp.data
+                            supabase.table('reflections_artifact').update({
+                                'meta': {
+                                    'engine': 'p3_llm',
+                                    'structured': llm_res.parsed or {},
+                                    'substrate_analyzed': len(substrate_data)
+                                }
+                            }).eq('id', ref_id).execute()
+                    except Exception as ie:
+                        self.logger.warning(f"Failed to persist LLM reflection: {ie}")
+            except Exception as le:
+                self.logger.warning(f"LLM reflection generation failed (non-critical): {le}")
             
             return result
             
@@ -589,7 +632,23 @@ class P3ReflectionAgent:
             }
             
             # Try to cache (optional - don't fail if caching fails)
-            supabase.table("reflections").insert(cache_data).execute()
+            # Store lightweight artifact meta (optional)
+            if request.basket_id:
+                supabase.table('reflections_artifact').insert({
+                    'basket_id': str(request.basket_id),
+                    'workspace_id': str(request.workspace_id),
+                    'reflection_text': 'Automated analysis available (patterns/insights/gaps).',
+                    'reflection_target_type': 'substrate',
+                    'meta': {
+                        'generated_by': self.agent_name,
+                        'pipeline': self.pipeline,
+                        'computation_timestamp': result.computation_timestamp,
+                        'patterns_count': len(result.patterns_found),
+                        'insights_count': len(result.insights_derived),
+                        'gaps_count': len(result.gaps_identified),
+                        'agent_id': request.agent_id
+                    }
+                }).execute()
             
         except Exception as e:
             # Caching failure is non-critical for P3 operations

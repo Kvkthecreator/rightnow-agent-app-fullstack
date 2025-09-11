@@ -57,6 +57,87 @@ class LLMProvider:
         raise NotImplementedError
 
 
+def _p3_schema(name: str) -> Optional[Dict[str, Any]]:
+    """JSON Schemas for P3 reflection outputs."""
+    if name == "p3_reflection":
+        return {
+            "type": "object",
+            "properties": {
+                "summary": {"type": "string"},
+                "patterns": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {"type": "string"},
+                            "description": {"type": "string"},
+                            "evidence_ids": {"type": "array", "items": {"type": "string"}},
+                            "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+                        },
+                        "required": ["type", "description"],
+                        "additionalProperties": true
+                    }
+                },
+                "tensions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "description": {"type": "string"},
+                            "evidence_ids": {"type": "array", "items": {"type": "string"}},
+                            "severity": {"type": "string"}
+                        },
+                        "required": ["description"],
+                        "additionalProperties": true
+                    }
+                },
+                "opportunities": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "description": {"type": "string"},
+                            "suggested_action": {"type": "string"}
+                        },
+                        "required": ["description"],
+                        "additionalProperties": true
+                    }
+                },
+                "questions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "description": {"type": "string"},
+                            "priority": {"type": "string"}
+                        },
+                        "required": ["description"],
+                        "additionalProperties": true
+                    }
+                },
+                "recommendations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "description": {"type": "string"},
+                            "rationale": {"type": "string"}
+                        },
+                        "required": ["description"],
+                        "additionalProperties": true
+                    }
+                },
+                "confidence_overall": {"type": "number", "minimum": 0, "maximum": 1},
+                "window_start": {"type": "string"},
+                "window_end": {"type": "string"},
+                "substrate_hash": {"type": "string"}
+            },
+            "required": ["summary"],
+            "additionalProperties": true
+        }
+    return None
+
+
 def _p4_schema(name: str) -> Optional[Dict[str, Any]]:
     """Built-in JSON Schemas used by P4 planning steps.
 
