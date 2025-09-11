@@ -40,7 +40,12 @@ export async function GET(
 
     const { getApiBaseUrl } = await import('@/lib/config/api');
     const backend = getApiBaseUrl();
-    const resp = await fetch(`${backend}/api/reflections/documents/${document_id}?workspace_id=${doc.workspace_id}&limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
+    const authHeader = req.headers.get('authorization') || undefined;
+    const resp = await fetch(`${backend}/api/reflections/documents/${document_id}?workspace_id=${doc.workspace_id}&limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}` , {
+      headers: {
+        ...(authHeader ? { authorization: authHeader } : {}),
+      },
+    });
     const contentType = resp.headers.get('content-type') || '';
     let payload: any;
     if (contentType.includes('application/json')) {

@@ -68,7 +68,12 @@ export async function GET(
     if (cursor) backendUrl.searchParams.set('cursor', cursor);
     if (shouldRefresh) backendUrl.searchParams.set('refresh', 'true');
 
-    const resp = await fetch(backendUrl.toString());
+    const authHeader = req.headers.get('authorization') || undefined;
+    const resp = await fetch(backendUrl.toString(), {
+      headers: {
+        ...(authHeader ? { authorization: authHeader } : {}),
+      },
+    });
     const contentType = resp.headers.get('content-type') || '';
     let payload: any;
     if (contentType.includes('application/json')) {
