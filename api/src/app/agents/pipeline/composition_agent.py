@@ -175,7 +175,7 @@ Example response:
         
         # Query blocks if prioritized
         if strategy["substrate_priorities"].get("blocks", True):
-            blocks_query = supabase.table("context_blocks").select("*").eq("basket_id", request.basket_id)
+            blocks_query = supabase.table("blocks").select("*").eq("basket_id", request.basket_id)
             
             # Apply window filter if specified
             if request.window.get("start_date"):
@@ -192,7 +192,7 @@ Example response:
                 candidates.append({
                     "type": "block",
                     "id": block["id"],
-                    "content": block.get("body_md", ""),
+                    "content": block.get("content", ""),
                     "title": block.get("title", ""),
                     "semantic_type": block.get("semantic_type"),
                     "confidence_score": block.get("confidence_score", 0.7),
@@ -436,13 +436,13 @@ Example:
             doc_update = {
                 "content_raw": final_content,
                 "content_rendered": final_content,  # For now, same as raw
-                "metadata": supabase.build_update({
+                "metadata": {
                     "composition_status": "completed",
                     "composition_completed_at": datetime.now(timezone.utc).isoformat(),
                     "composition_summary": narrative.get("summary", ""),
                     "composition_substrate_count": len(selected_substrate),
                     "composition_narrative": narrative
-                })
+                }
             }
             
             update_response = supabase.table("documents")\
@@ -467,12 +467,17 @@ Example:
                         "p_substrate_id": substrate["id"],
                         "p_role": role,
                         "p_weight": weight,
-                        "p_snippets": json.dumps([substrate.get("content", "")[:200]]),
-                        "p_metadata": json.dumps({
+                        "p_snippets": [substrate.get("content", "")[:200]],
+                        "p_metadata": {
                             "order": idx,
                             "selection_reason": substrate.get("selection_reason", "")
-                        })
+                        }
                     }).execute()
+                    
+                    if attach_response.data:
+                        logger.info(f"✅ Successfully attached substrate {substrate['type']}:{substrate['id']}")
+                    else:
+                        logger.warning(f"⚠️  No data returned for substrate attachment {substrate['id']}")
                     
                 except Exception as e:
                     logger.warning(f"Failed to attach substrate {substrate['id']}: {e}")
@@ -514,11 +519,11 @@ Example:
         """
         try:
             update_response = supabase.table("documents").update({
-                "metadata": supabase.build_update({
+                "metadata": {
                     "composition_status": "failed",
                     "composition_error": error,
                     "composition_failed_at": datetime.now(timezone.utc).isoformat()
-                })
+                }
             }).eq("id", document_id).execute()
             
         except Exception as e:
