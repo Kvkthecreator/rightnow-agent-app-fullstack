@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/Card';
-import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon, Brain, ChevronDown, ChevronRight, Database, FileText, MessageSquare, Clock } from 'lucide-react';
+import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon, Brain, ChevronDown, ChevronRight, Database, FileText, MessageSquare, Clock, History } from 'lucide-react';
 import { DocumentCompositionStatus } from './DocumentCompositionStatus';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
 
-type Mode = 'read' | 'edit' | 'compare' | 'analyze';
+type Mode = 'read' | 'edit';
 
 interface DocumentRow {
   id: string;
@@ -41,70 +41,58 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
   const [reflections, setReflections] = useState<ReflectionDTO[]>([]);
   const [reflectionsLoading, setReflectionsLoading] = useState(false);
   const [showSubstrateDetails, setShowSubstrateDetails] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   // Check for async composition status
   const workId = typeof window !== 'undefined' ? sessionStorage.getItem(`doc_${document.id}_work_id`) : null;
   const statusUrl = typeof window !== 'undefined' ? sessionStorage.getItem(`doc_${document.id}_status_url`) : null;
   const isAsyncComposition = document.metadata?.composition_status === 'pending' || document.metadata?.composition_status === 'processing';
 
-  // Load composition (read view)
-  useEffect(() => {
-    if (mode !== 'read') return;
-    (async () => {
-      const res = await fetch(`/api/documents/${document.id}/composition`);
-      if (res.ok) setComposition(await res.json());
-    })();
-  }, [document.id, mode]);
-
-  // Load analyze (analyze view)
-  useEffect(() => {
-    if (mode !== 'analyze') return;
-    (async () => {
-      const res = await fetch(`/api/documents/${document.id}/analyze-lite`);
-      if (res.ok) {
-        const data = await res.json();
-        setAnalyze(data.analyze);
-      }
-    })();
-  }, [document.id, mode]);
-
-  // Load versions (compare view)
-  useEffect(() => {
-    if (mode !== 'compare') return;
-    (async () => {
-      const res = await fetch(`/api/documents/${document.id}/versions`);
-      if (res.ok) {
-        const data = await res.json();
-        setVersions(data.items || []);
-      }
-    })();
-  }, [document.id, mode]);
-
-  // Load reflections (read view)
+  // Load all read mode data
   useEffect(() => {
     if (mode !== 'read') return;
     (async () => {
       try {
         setReflectionsLoading(true);
         
-        const url = new URL(`/api/baskets/${basketId}/reflections`, window.location.origin);
-        url.searchParams.set("limit", "5"); // Show recent 5 reflections for context
-        
-        const response = await fetchWithToken(url.toString());
-        if (!response.ok) {
-          throw new Error("Failed to load reflections");
+        // Load composition
+        const compositionResponse = await fetch(`/api/documents/${document.id}/composition`);
+        if (compositionResponse.ok) {
+          setComposition(await compositionResponse.json());
         }
-
-        const data: GetReflectionsResponse = await response.json();
-        setReflections(data.reflections);
+        
+        // Load reflections
+        const reflectionsUrl = new URL(`/api/baskets/${basketId}/reflections`, window.location.origin);
+        reflectionsUrl.searchParams.set("limit", "5");
+        
+        const reflectionsResponse = await fetchWithToken(reflectionsUrl.toString());
+        if (reflectionsResponse.ok) {
+          const reflectionsData: GetReflectionsResponse = await reflectionsResponse.json();
+          setReflections(reflectionsData.reflections);
+        }
+        
+        // Load analyze data
+        const analyzeResponse = await fetch(`/api/documents/${document.id}/analyze-lite`);
+        if (analyzeResponse.ok) {
+          const analyzeData = await analyzeResponse.json();
+          setAnalyze(analyzeData.analyze);
+        }
+        
+        // Load version history
+        const versionsResponse = await fetch(`/api/documents/${document.id}/versions`);
+        if (versionsResponse.ok) {
+          const versionsData = await versionsResponse.json();
+          setVersions(versionsData.items || []);
+        }
+        
       } catch (err) {
-        console.error('Failed to fetch reflections:', err);
+        console.error('Failed to fetch read mode data:', err);
         setReflections([]);
       } finally {
         setReflectionsLoading(false);
       }
     })();
-  }, [basketId, mode]);
+  }, [basketId, mode, document.id]);
 
   const backToList = () => router.push(`/baskets/${basketId}/documents`);
 
@@ -201,10 +189,8 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
           </div>
           <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
             <TabsList>
-              <TabsTrigger value="read">Read</TabsTrigger>
-              <TabsTrigger value="edit">Edit</TabsTrigger>
-              <TabsTrigger value="compare">Compare</TabsTrigger>
-              <TabsTrigger value="analyze">Analyze</TabsTrigger>
+              <TabsTrigger value="read">📖 Read</TabsTrigger>
+              <TabsTrigger value="edit">✏️ Edit</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -264,39 +250,161 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                   </button>
                 </div>
 
-                {/* Document Health Indicators */}
+                {/* Document Health & Analytics */}
                 <div className="bg-white rounded-lg border border-gray-100">
-                  <div className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-4">
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${analyze?.is_stale ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                          <span className="text-sm font-medium text-gray-700">
+                            {analyze?.is_stale ? 'Needs Update' : 'Active Document'}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {composition.composition_stats.total_substrate_references || 0} substrate references
+                        </div>
+                        {analyze && (
+                          <div className="text-sm text-gray-600">
+                            Weight: {analyze.avg_reference_weight || 'N/A'}
+                          </div>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                        <span className="text-sm font-medium text-gray-700">Active Document</span>
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {composition.composition_stats.total_substrate_references || 0} substrate references
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowSubstrateDetails(!showSubstrateDetails)}
+                          className="text-xs"
+                        >
+                          {showSubstrateDetails ? 
+                            <><ChevronDown className="h-3 w-3 mr-1" />Hide Details</> :
+                            <><ChevronRight className="h-3 w-3 mr-1" />View Substrate</>
+                          }
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowVersionHistory(!showVersionHistory)}
+                          className="text-xs"
+                        >
+                          <History className="h-3 w-3 mr-1" />
+                          History ({versions.length})
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/baskets/${basketId}/memory`)}
+                          className="text-xs"
+                        >
+                          Explore Memory
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowSubstrateDetails(!showSubstrateDetails)}
-                        className="text-xs"
-                      >
-                        {showSubstrateDetails ? 
-                          <><ChevronDown className="h-3 w-3 mr-1" />Hide Details</> :
-                          <><ChevronRight className="h-3 w-3 mr-1" />View Substrate</>
-                        }
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/baskets/${basketId}/memory`)}
-                        className="text-xs"
-                      >
-                        Explore Memory
-                      </Button>
-                    </div>
+                    
+                    {/* Document Analytics Row */}
+                    {analyze && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 rounded-lg p-3">
+                        <div className="text-center">
+                          <div className="text-sm font-semibold text-gray-900">
+                            {new Date(analyze.version_created_at || document.created_at).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-500">Version Created</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-sm font-semibold text-gray-900">
+                            {analyze.last_substrate_updated_at ? new Date(analyze.last_substrate_updated_at).toLocaleDateString() : '—'}
+                          </div>
+                          <div className="text-xs text-gray-500">Last Substrate Update</div>
+                        </div>
+                        <div className="text-center">
+                          <div className={`text-sm font-semibold ${analyze.is_stale ? 'text-yellow-600' : 'text-green-600'}`}>
+                            {analyze.is_stale ? 'Stale' : 'Fresh'}
+                          </div>
+                          <div className="text-xs text-gray-500">Document Status</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-sm font-semibold text-blue-600">
+                            {analyze.avg_reference_weight ? Number(analyze.avg_reference_weight).toFixed(1) : '0'}
+                          </div>
+                          <div className="text-xs text-gray-500">Avg Reference Weight</div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Version History Expandable Section */}
+                    {showVersionHistory && (
+                      <div className="border-t border-gray-100 mt-4 p-4">
+                        <div className="mb-3">
+                          <h4 className="text-sm font-medium text-gray-700 mb-1">Document History</h4>
+                          <p className="text-xs text-gray-500">Previous versions and changes</p>
+                        </div>
+                        
+                        {versions.length > 0 ? (
+                          <div className="space-y-3 max-h-60 overflow-y-auto">
+                            {versions.slice(0, 10).map((version: any, index: number) => (
+                              <div key={version.version_hash} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <span className="text-xs font-semibold text-blue-600">v{versions.length - index}</span>
+                                  </div>
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {version.version_hash.slice(0, 12)}...
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {new Date(version.created_at).toLocaleDateString()} at {new Date(version.created_at).toLocaleTimeString()}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                  <select 
+                                    className="text-xs border border-gray-200 rounded px-2 py-1"
+                                    value={compareTarget || ''}
+                                    onChange={(e) => setCompareTarget(e.target.value || null)}
+                                  >
+                                    <option value="">Compare to current</option>
+                                    <option value={version.version_hash}>View this version</option>
+                                  </select>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-gray-500">
+                            <History className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                            <div className="text-sm">No version history</div>
+                            <div className="text-xs text-gray-400 mt-1">Versions will appear as you make edits</div>
+                          </div>
+                        )}
+                        
+                        {/* Version Comparison Display */}
+                        {compareTarget && (
+                          <div className="mt-4 border-t border-gray-200 pt-4">
+                            <div className="mb-3">
+                              <h5 className="text-sm font-medium text-gray-700">Version Comparison</h5>
+                              <p className="text-xs text-gray-500">Current vs {compareTarget.slice(0, 12)}...</p>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="bg-white border border-gray-200 rounded-lg p-3">
+                                <div className="text-xs font-medium text-gray-700 mb-2">Current Version</div>
+                                <div className="text-xs text-gray-600 max-h-32 overflow-y-auto">
+                                  {document.content_raw || '(empty)'}
+                                </div>
+                              </div>
+                              <div className="bg-white border border-gray-200 rounded-lg p-3">
+                                <div className="text-xs font-medium text-gray-700 mb-2">Selected Version</div>
+                                <div className="text-xs text-gray-600 max-h-32 overflow-y-auto">
+                                  <VersionContent documentId={document.id} versionHash={compareTarget} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
                   {/* Substrate Details Expandable Section */}
@@ -488,51 +596,6 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
           </div>
         )}
 
-        {/* Compare */}
-        {mode === 'compare' && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600"><GitCompare className="h-4 w-4"/>Select a version to compare against current</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="border rounded p-3">
-                <div className="text-xs text-gray-500 mb-2">Current</div>
-                <pre className="text-xs whitespace-pre-wrap">{document.content_raw || ''}</pre>
-              </div>
-              <div className="border rounded p-3">
-                <div className="text-xs text-gray-500 mb-2">Version</div>
-                <select className="w-full border p-2 text-sm mb-2" value={compareTarget || ''} onChange={(e) => setCompareTarget(e.target.value || null)}>
-                  <option value="">Select a version</option>
-                  {versions.map(v => (
-                    <option key={v.version_hash} value={v.version_hash}>{v.version_hash.slice(0,12)} — {new Date(v.created_at).toLocaleString()}</option>
-                  ))}
-                </select>
-                {compareTarget && (
-                  <VersionContent documentId={document.id} versionHash={compareTarget} />
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Analyze */}
-        {mode === 'analyze' && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600"><Activity className="h-4 w-4"/>Analyze Lite</div>
-            {analyze ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center text-xs">
-                <Metric label="Blocks" value={analyze.blocks_count} color="text-blue-600" />
-                <Metric label="Dumps" value={analyze.dumps_count} color="text-green-600" />
-                <Metric label="Context" value={analyze.context_items_count} color="text-purple-600" />
-                <Metric label="Timeline" value={analyze.timeline_events_count} color="text-red-600" />
-                <Metric label="Avg Weight" value={analyze.avg_reference_weight} />
-                <Metric label="Stale" value={analyze.is_stale ? 'Yes' : 'No'} />
-                <Metric label="Ver. Created" value={new Date(analyze.version_created_at || document.created_at).toLocaleString()} />
-                <Metric label="Last Substrate" value={analyze.last_substrate_updated_at ? new Date(analyze.last_substrate_updated_at).toLocaleString() : '—'} />
-              </div>
-            ) : (
-              <div className="text-sm text-gray-500">No analyze data</div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
