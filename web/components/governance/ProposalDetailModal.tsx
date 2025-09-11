@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { createBrowserClient } from '@/lib/supabase/clients';
 import { previewDocumentImpacts, getConfidenceLevel, getConfidenceColor, getImpactTypeIcon } from '@/lib/artifacts/documentImpactPreview';
 import type { DocumentImpactPreview } from '@/lib/artifacts/documentImpactPreview';
+import { fetchWithToken } from '@/lib/fetchWithToken';
+import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
 
 interface ProposalOperation {
   type: string;
@@ -68,9 +70,12 @@ export function ProposalDetailModal({
     changes: true,
     context: false,
     impact: false,
+    reflections: false,
     documents: false
   });
   const [documentImpactPreviews, setDocumentImpactPreviews] = useState<DocumentImpactPreview[]>([]);
+  const [reflections, setReflections] = useState<ReflectionDTO[]>([]);
+  const [reflectionsLoading, setReflectionsLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen && proposalId) {
@@ -94,6 +99,9 @@ export function ProposalDetailModal({
       
       // Fetch document impact preview (read-only)
       await fetchDocumentImpactPreview(data);
+      
+      // Fetch reflections for context
+      await fetchReflectionsContext();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load proposal');
     } finally {
@@ -135,6 +143,28 @@ export function ProposalDetailModal({
     } catch (err) {
       console.error('Failed to fetch document impact preview:', err);
       setDocumentImpactPreviews([]);
+    }
+  };
+
+  const fetchReflectionsContext = async () => {
+    try {
+      setReflectionsLoading(true);
+      
+      const url = new URL(`/api/baskets/${basketId}/reflections`, window.location.origin);
+      url.searchParams.set("limit", "5"); // Get recent 5 reflections for context
+      
+      const response = await fetchWithToken(url.toString());
+      if (!response.ok) {
+        throw new Error("Failed to load reflections");
+      }
+
+      const data: GetReflectionsResponse = await response.json();
+      setReflections(data.reflections);
+    } catch (err) {
+      console.error('Failed to fetch reflections context:', err);
+      setReflections([]);
+    } finally {
+      setReflectionsLoading(false);
     }
   };
 
@@ -269,6 +299,22 @@ export function ProposalDetailModal({
   const hasBlockingWarnings = (proposal: ProposalDetail) => {
     return proposal.validator_report.confidence < 0.3 || 
            proposal.validator_report.warnings.some(w => w.includes('CRITICAL'));
+  };
+
+  const formatReflectionAge = (timestamp: string): string => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffHours < 1) {
+      const diffMinutes = Math.round(diffHours * 60);
+      return `${diffMinutes}m ago`;
+    } else if (diffHours < 24) {
+      return `${Math.round(diffHours)}h ago`;
+    } else {
+      const diffDays = Math.round(diffHours / 24);
+      return `${diffDays}d ago`;
+    }
   };
 
   if (!isOpen) return null;
@@ -493,6 +539,78 @@ export function ProposalDetailModal({
                       </div>
                     )}
                   </div>
+
+                  {/* Memory Insights Context Section */}
+                  {reflections.length > 0 && (
+                    <div className="border border-purple-200 rounded-lg bg-purple-50/30">
+                      <button
+                        onClick={() => toggleSection('reflections')}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-purple-50"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Brain className="h-4 w-4 text-purple-600" />
+                          <span className="font-medium text-purple-900">Memory Insights Context</span>
+                          <Badge variant="outline" className="text-xs bg-white">
+                            {reflections.length} insight{reflections.length === 1 ? '' : 's'}
+                          </Badge>
+                        </div>
+                        {expandedSections.reflections ? 
+                          <ChevronDown className="h-4 w-4 text-purple-400" /> : 
+                          <ChevronRight className="h-4 w-4 text-purple-400" />
+                        }
+                      </button>
+                      
+                      {expandedSections.reflections && (
+                        <div className="border-t border-purple-200 p-4 bg-white">
+                          <div className="mb-3 p-3 bg-purple-50 border border-purple-200 rounded">
+                            <p className="text-xs text-purple-700 font-medium mb-1">🧠 AI Insights Context</p>
+                            <p className="text-xs text-purple-600">
+                              Recent patterns and connections discovered in your knowledge that may be relevant to this proposal.
+                            </p>
+                          </div>
+                          
+                          {reflectionsLoading ? (
+                            <div className="space-y-2">
+                              <div className="animate-pulse bg-purple-100 h-16 rounded"></div>
+                              <div className="animate-pulse bg-purple-100 h-12 rounded"></div>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {reflections.slice(0, 3).map((reflection, index) => (
+                                <div key={reflection.id} className="border border-gray-100 rounded p-3 bg-gray-50">
+                                  <div className="flex items-start gap-2 mb-2">
+                                    <span className="text-sm">💡</span>
+                                    <div className="flex-1">
+                                      <div className="flex items-center justify-between">
+                                        <h5 className="font-medium text-gray-900 text-sm">
+                                          Insight #{reflections.length - index}
+                                        </h5>
+                                        <span className="text-xs text-gray-500">
+                                          {formatReflectionAge(reflection.computation_timestamp)}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-gray-600 mt-1">
+                                        {reflection.reflection_text.length > 200 
+                                          ? reflection.reflection_text.substring(0, 200) + "..."
+                                          : reflection.reflection_text
+                                        }
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
+                            <p className="text-xs text-blue-800">
+                              💡 <strong>Consider:</strong> How does this substrate change align with or contradict these discovered patterns in your knowledge?
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Document Impact Preview Section (Read-Only) */}
                   {documentImpactPreviews.length > 0 && (

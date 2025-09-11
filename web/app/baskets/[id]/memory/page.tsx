@@ -1,25 +1,15 @@
 /**
- * Page: /baskets/[id]/memory - Primary Operating Surface (Canon v1.3)
- * Data sources:
- *  - GET /api/baskets/:id/projection -> ProjectionDTO
- * @contract renders: ProjectionDTO (Left: Capture, Center: History, Right: Projection)
+ * Page: /baskets/[id]/memory - Primary Operating Surface (Canon v2.0)
+ * 
+ * Now uses real P3 reflections instead of projection-based data.
+ * MemoryClient directly fetches P3 reflection artifacts for insights display.
  */
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 import { checkBasketAccess } from "@/lib/baskets/access";
 import MemoryClient from "./MemoryClient";
-import { fetchProjection } from "@/lib/api/projection";
 import { hasIdentityGenesis, isBlankBasket } from "@/lib/server/onboarding";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
-
-async function fetchProjectionSafe(basketId: string) {
-  try {
-    return await fetchProjection(basketId);
-  } catch (err) {
-    console.error("Projection fetch failed", err);
-    return null;
-  }
-}
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -44,24 +34,6 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
   ]);
   const needsOnboarding = blank && !hasGenesis;
 
-  // Fetch server-computed projection (authority)
-  const projection = await fetchProjectionSafe(id);
-  
-  if (!projection) {
-    // Fallback for API errors
-    return (
-      <MemoryClient
-        basketId={id}
-        pattern={undefined}
-        tension={undefined}
-        question={undefined}
-        needsOnboarding={needsOnboarding}
-      />
-    );
-  }
-
-  const { reflections } = projection;
-
   return (
     <div className="space-y-6 pb-8">
       {onboarded && (
@@ -80,9 +52,6 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
 
       <MemoryClient
         basketId={id}
-        pattern={reflections.pattern ?? undefined}
-        tension={reflections.tension ?? undefined}
-        question={reflections.question ?? undefined}
         needsOnboarding={needsOnboarding}
       />
     </div>

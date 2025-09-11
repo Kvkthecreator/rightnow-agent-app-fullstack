@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/Card';
-import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon } from 'lucide-react';
+import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon, Brain } from 'lucide-react';
 import { DocumentCompositionStatus } from './DocumentCompositionStatus';
+import { fetchWithToken } from '@/lib/fetchWithToken';
+import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
 
 type Mode = 'read' | 'edit' | 'compare' | 'analyze';
 
@@ -36,6 +38,8 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
   const [analyze, setAnalyze] = useState<any | null>(null);
   const [versions, setVersions] = useState<any[]>([]);
   const [compareTarget, setCompareTarget] = useState<string | null>(null);
+  const [reflections, setReflections] = useState<ReflectionDTO[]>([]);
+  const [reflectionsLoading, setReflectionsLoading] = useState(false);
 
   // Check for async composition status
   const workId = typeof window !== 'undefined' ? sessionStorage.getItem(`doc_${document.id}_work_id`) : null;
@@ -74,6 +78,32 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
       }
     })();
   }, [document.id, mode]);
+
+  // Load reflections (read view)
+  useEffect(() => {
+    if (mode !== 'read') return;
+    (async () => {
+      try {
+        setReflectionsLoading(true);
+        
+        const url = new URL(`/api/baskets/${basketId}/reflections`, window.location.origin);
+        url.searchParams.set("limit", "5"); // Show recent 5 reflections for context
+        
+        const response = await fetchWithToken(url.toString());
+        if (!response.ok) {
+          throw new Error("Failed to load reflections");
+        }
+
+        const data: GetReflectionsResponse = await response.json();
+        setReflections(data.reflections);
+      } catch (err) {
+        console.error('Failed to fetch reflections:', err);
+        setReflections([]);
+      } finally {
+        setReflectionsLoading(false);
+      }
+    })();
+  }, [basketId, mode]);
 
   const backToList = () => router.push(`/baskets/${basketId}/documents`);
 
@@ -129,6 +159,22 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
       alert('Attached');
     } catch (e) {
       alert('Failed to attach reference');
+    }
+  };
+
+  const formatReflectionAge = (timestamp: string): string => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffHours < 1) {
+      const diffMinutes = Math.round(diffHours * 60);
+      return `${diffMinutes}m ago`;
+    } else if (diffHours < 24) {
+      return `${Math.round(diffHours)}h ago`;
+    } else {
+      const diffDays = Math.round(diffHours / 24);
+      return `${diffDays}d ago`;
     }
   };
 
@@ -203,6 +249,67 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                     <div><div className="font-semibold text-purple-600">{composition.composition_stats.context_items_count}</div><div className="text-gray-500">Context</div></div>
                     <div><div className="font-semibold text-red-600">{composition.composition_stats.timeline_events_count}</div><div className="text-gray-500">Timeline</div></div>
                   </div>
+                </div>
+              </Card>
+            )}
+            
+            {/* Related Insights Section */}
+            {reflections.length > 0 && (
+              <Card>
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <Brain className="h-4 w-4 text-purple-600" />
+                      Related Insights
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push(`/baskets/${basketId}/reflections`)}
+                      className="text-xs"
+                    >
+                      View All
+                    </Button>
+                  </div>
+                  
+                  {reflectionsLoading ? (
+                    <div className="space-y-3">
+                      <div className="animate-pulse bg-purple-100 h-16 rounded"></div>
+                      <div className="animate-pulse bg-purple-100 h-12 rounded"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {reflections.slice(0, 2).map((reflection, index) => (
+                        <div key={reflection.id} className="bg-purple-50 border border-purple-200 rounded p-3">
+                          <div className="flex items-start gap-2">
+                            <span className="text-sm mt-0.5">💡</span>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <h5 className="font-medium text-gray-900 text-sm">
+                                  Insight #{reflections.length - index}
+                                </h5>
+                                <span className="text-xs text-gray-500">
+                                  {formatReflectionAge(reflection.computation_timestamp)}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-600 leading-relaxed">
+                                {reflection.reflection_text.length > 150 
+                                  ? reflection.reflection_text.substring(0, 150) + "..."
+                                  : reflection.reflection_text
+                                }
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {reflections.length === 0 && (
+                        <div className="text-center py-4 text-gray-500 text-sm">
+                          No insights discovered yet. Add more content to your knowledge base.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </Card>
             )}

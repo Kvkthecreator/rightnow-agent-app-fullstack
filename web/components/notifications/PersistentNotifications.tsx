@@ -172,15 +172,13 @@ function PersistentNotificationCard({
               </div>
             </div>
             
-            {!notification.persistence.requires_acknowledgment && (
-              <button
-                onClick={onDismiss}
-                className={`${style.iconColor} hover:opacity-70 transition-opacity flex-shrink-0`}
-                title="Dismiss"
-              >
-                <X size={20} />
-              </button>
-            )}
+            <button
+              onClick={onDismiss}
+              className={`${style.iconColor} hover:opacity-70 transition-opacity flex-shrink-0`}
+              title="Dismiss"
+            >
+              <X size={20} />
+            </button>
           </div>
           
           {/* Actions */}

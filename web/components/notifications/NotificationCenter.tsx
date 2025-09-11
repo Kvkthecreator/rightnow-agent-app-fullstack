@@ -50,6 +50,16 @@ export function NotificationCenter({
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Listen for drawer toggle events from TopBar
+  useEffect(() => {
+    const handleToggleDrawer = () => {
+      setDrawerOpen(prev => !prev);
+    };
+
+    window.addEventListener('notification:toggle-drawer', handleToggleDrawer);
+    return () => window.removeEventListener('notification:toggle-drawer', handleToggleDrawer);
+  }, []);
+
   // Auto-detect workspace and user context
   useEffect(() => {
     const initializeContext = async () => {
