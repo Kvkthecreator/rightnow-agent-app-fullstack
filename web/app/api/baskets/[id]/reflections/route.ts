@@ -60,8 +60,8 @@ export async function GET(
     const forceRecompute = req.headers.get('X-Force-Recompute') === '1';
     const shouldRefresh = refresh || forceRecompute;
 
-    const backend = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
-    if (!backend) return Response.json({ error: 'backend_url_missing' }, { status: 500 });
+    const { getApiBaseUrl } = await import('@/lib/config/api');
+    const backend = getApiBaseUrl();
     const url = new URL(`${backend}/api/reflections/baskets/${basket_id}`);
     url.searchParams.set('workspace_id', basket.workspace_id);
     url.searchParams.set('limit', String(limit));
