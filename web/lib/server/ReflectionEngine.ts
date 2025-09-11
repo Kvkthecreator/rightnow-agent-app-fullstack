@@ -481,3 +481,63 @@ export class ReflectionEngine {
       next_cursor,
     };
   }
+
+  /** Compute an event-scoped reflection (micro reflection) */
+  async computeEventReflection(
+    event_id: string,
+    workspace_id: string
+  ): Promise<ReflectionDTO | null> {
+    // Load the event to derive basket and context
+    const { data: ev, error: eErr } = await this.supabase
+      .from('events')
+      .select('*')
+      .eq('id', event_id)
+      .single();
+
+    if (eErr || !ev) {
+      throw new Error(`Event not found: ${event_id}`);
+    }
+
+    const basket_id = ev.basket_id as string;
+    const kind = ev.kind as string;
+    const payload = ev.payload || {};
+
+    // Minimal micro commentary (placeholder)
+    const subject = payload.block_id || payload.document_id || payload.relationship_id || 'this update';
+    const reflection_text = `Insight: Event '${kind}' occurred for ${subject}. This reflection summarizes its potential impact and suggests next steps.`;
+
+    // Persist via substrate-targeted reflection RPC
+    const { data: reflection_id, error } = await this.supabase
+      .rpc('fn_reflection_create_from_substrate', {
+        p_basket_id: basket_id,
+        p_reflection_text: reflection_text,
+      });
+
+    if (error) {
+      throw new Error(`Failed to store event reflection: ${error.message}`);
+    }
+
+    const { data: reflection, error: fetchError } = await this.supabase
+      .from('reflections_artifact')
+      .select('*')
+      .eq('id', reflection_id)
+      .single();
+
+    if (fetchError || !reflection) {
+      throw new Error('Failed to fetch created event reflection');
+    }
+
+    return {
+      id: reflection.id,
+      basket_id: reflection.basket_id,
+      workspace_id: reflection.workspace_id,
+      reflection_text: reflection.reflection_text,
+      reflection_target_type: reflection.reflection_target_type || 'substrate',
+      reflection_target_id: reflection.reflection_target_id,
+      reflection_target_version: reflection.reflection_target_version,
+      substrate_window_start: reflection.substrate_window_start,
+      substrate_window_end: reflection.substrate_window_end,
+      computation_timestamp: reflection.computation_timestamp,
+      meta: reflection.meta,
+    };
+  }

@@ -11,6 +11,7 @@ import { DocumentCreateButton } from '@/components/documents/DocumentCreateButto
 import { PenTool } from 'lucide-react';
 import AddMemoryModal from '@/components/memory/AddMemoryModal';
 import OnboardingPanel from '@/components/memory/OnboardingPanel';
+import { useReflectionNotifications } from '@/lib/hooks/useReflectionNotifications';
 
 interface Props {
   basketId: string;
@@ -27,6 +28,9 @@ export default function MemoryClient({ basketId, pattern, tension, question, nee
     // Prefer soft refresh to avoid jarring redirects
     try { router.refresh(); } catch {}
   };
+
+  // Micro-reflection notifications for this basket
+  useReflectionNotifications(basketId);
 
   return (
     <div className="space-y-6">

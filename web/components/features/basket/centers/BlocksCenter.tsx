@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useFocus } from '../FocusContext';
 import { useBasketEvents } from '@/lib/hooks/useBasketEvents';
+import { useReflectionNotifications } from '@/lib/hooks/useReflectionNotifications';
 import { LoadingSkeleton, EmptyState } from '@/components/ui/states';
 
 interface Block {
@@ -31,6 +32,8 @@ export default function BlocksCenter({ basketId }: { basketId: string }) {
   
   // Subscribe to real-time events
   useBasketEvents(basketId);
+  // Surface micro-reflection notifications
+  useReflectionNotifications(basketId);
   
   if (isLoading) return <LoadingSkeleton type="grid" />;
   if (!blocks?.length) return <EmptyState type="blocks" />;

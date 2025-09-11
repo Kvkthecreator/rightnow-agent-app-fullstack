@@ -14,12 +14,30 @@ export async function POST(req: NextRequest) {
     const basket_id = body?.basket_id as string | undefined;
     const force_refresh = Boolean(body?.force_refresh);
     const substrate_window_hours = typeof body?.substrate_window_hours === 'number' ? body.substrate_window_hours : undefined;
+    const scope = (body?.scope as string | undefined) || 'window';
+    const event_id = body?.event_id as string | undefined;
 
-    if (!basket_id) {
-      return NextResponse.json({ error: 'basket_id required' }, { status: 422 });
+    if (scope === 'event') {
+      if (!event_id) return NextResponse.json({ error: 'event_id required for scope=event' }, { status: 422 });
+      const supabase = createServerSupabaseClient();
+      const { userId } = await getAuthenticatedUser(supabase);
+      const workspace = await ensureWorkspaceForUser(userId, supabase);
+
+      const { data: ev, error: eErr } = await supabase
+        .from('events')
+        .select('id, basket_id, workspace_id')
+        .eq('id', event_id)
+        .single();
+      if (eErr || !ev) return NextResponse.json({ error: 'event_not_found' }, { status: 404 });
+      if (ev.workspace_id !== workspace.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+      const engine = new ReflectionEngine();
+      const result = await engine.computeEventReflection(event_id, ev.workspace_id);
+      return NextResponse.json({ success: true, reflection: result }, { status: 200 });
     }
 
-    const supabase = createServerSupabaseClient();
+    if (!basket_id) return NextResponse.json({ error: 'basket_id required' }, { status: 422 });
+const supabase = createServerSupabaseClient();
     const { userId } = await getAuthenticatedUser(supabase);
     const workspace = await ensureWorkspaceForUser(userId, supabase);
 

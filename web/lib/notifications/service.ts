@@ -209,6 +209,29 @@ class UnifiedNotificationService {
     });
   }
   
+
+  // Reflection notifications
+  reflectionComputed(title: string, message: string, params?: { basket_id?: string; reflection_id?: string; document_id?: string }) {
+    return this.notify({
+      type: 'reflection.computed',
+      title,
+      message,
+      severity: 'info',
+      channels: ['toast', 'badge'],
+      persistence: { auto_dismiss: 6, cross_page: false },
+      related_entities: {
+        basket_id: params?.basket_id,
+        reflection_id: params?.reflection_id,
+        document_id: params?.document_id,
+      },
+      actions: params?.document_id ? [{
+        label: 'Open Document',
+        variant: 'secondary',
+        handler: () => { window.location.href = `/documents/${params!.document_id}`; }
+      }] : undefined
+    });
+  }
+
   
   /**
    * Broadcast notification to all clients in workspace
