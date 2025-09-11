@@ -16,8 +16,8 @@ export interface ReflectionDTO {
 
 export class ReflectionEngine {
   private backendUrl(): string {
-    const url = process.env.BACKEND_URL;
-    if (!url) throw new Error('BACKEND_URL missing');
+    const url = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
+    
     return url;
   }
 

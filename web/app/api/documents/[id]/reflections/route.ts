@@ -38,7 +38,7 @@ export async function GET(
     const cursor = url.searchParams.get('cursor') || undefined;
     const limit = Number(url.searchParams.get('limit') || 10);
 
-    const backend = process.env.BACKEND_URL;
+    const backend = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
     if (!backend) return NextResponse.json({ error: 'backend_url_missing' }, { status: 500 });
     const resp = await fetch(`${backend}/api/reflections/documents/${document_id}?workspace_id=${doc.workspace_id}&limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
     const data = await resp.json();
@@ -75,7 +75,7 @@ export async function POST(
     if (mErr) return NextResponse.json({ error: mErr.message }, { status: 400 });
     if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const backend = process.env.BACKEND_URL;
+    const backend = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
     if (!backend) return NextResponse.json({ error: 'backend_url_missing' }, { status: 500 });
     const resp = await fetch(`${backend}/api/reflections/documents/${document_id}/compute?workspace_id=${doc.workspace_id}`, { method: 'POST' });
     const data = await resp.json();

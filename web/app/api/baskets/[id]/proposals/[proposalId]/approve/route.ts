@@ -172,7 +172,7 @@ export async function POST(
           const createdBlocks = executionLog.filter((e: any) => e.success && e.operation_type === 'CreateBlock').length;
           const createdContextItems = executionLog.filter((e: any) => e.success && e.operation_type === 'CreateContextItem').length;
           if (createdBlocks >= 2 || createdContextItems >= 3) {
-            const backend = process.env.BACKEND_URL;
+            const backend = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
             if (backend) {
               // Fire-and-forget to backend
               fetch(`${backend}/api/reflections/compute_window`, {

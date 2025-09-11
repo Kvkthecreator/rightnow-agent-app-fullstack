@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       if (eErr || !ev) return NextResponse.json({ error: 'event_not_found' }, { status: 404 });
       if (ev.workspace_id !== workspace.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-      const backend = process.env.BACKEND_URL;
+      const backend = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
       if (!backend) return NextResponse.json({ error: 'backend_url_missing' }, { status: 500 });
       const resp = await fetch(`${backend}/api/reflections/compute_event`, {
         method: 'POST',
@@ -56,7 +56,7 @@ const supabase = createServerSupabaseClient();
     if (bErr) return NextResponse.json({ error: bErr.message }, { status: 400 });
     if (!basket) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
-    const backend = process.env.BACKEND_URL;
+    const backend = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
     if (!backend) return NextResponse.json({ error: 'backend_url_missing' }, { status: 500 });
     const resp = await fetch(`${backend}/api/reflections/compute_window`, {
       method: 'POST',
