@@ -44,7 +44,7 @@ export function useBasketPolling(basketId: string) {
           .from('timeline_events')
           .select('*')
           .eq('basket_id', basketId)
-          .order('timestamp', { ascending: false })
+          .order('ts', { ascending: false })
           .limit(10);
 
         if (error) {
