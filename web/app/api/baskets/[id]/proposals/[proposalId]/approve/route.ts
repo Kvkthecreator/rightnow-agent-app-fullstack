@@ -175,7 +175,7 @@ export async function POST(
             const { getApiBaseUrl } = await import('@/lib/config/api');
             const backend = getApiBaseUrl();
             if (backend) {
-              const authHeader = request.headers.get('authorization') || undefined;
+              const authHeader = req.headers.get('authorization') || undefined;
               // Fire-and-forget to backend
               fetch(`${backend}/api/reflections/compute_window`, {
                 method: 'POST',
