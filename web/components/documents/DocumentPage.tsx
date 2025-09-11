@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/Card';
-import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon, Brain } from 'lucide-react';
+import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon, Brain, ChevronDown, ChevronRight, Database, FileText, MessageSquare, Clock } from 'lucide-react';
 import { DocumentCompositionStatus } from './DocumentCompositionStatus';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
@@ -40,6 +40,7 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
   const [compareTarget, setCompareTarget] = useState<string | null>(null);
   const [reflections, setReflections] = useState<ReflectionDTO[]>([]);
   const [reflectionsLoading, setReflectionsLoading] = useState(false);
+  const [showSubstrateDetails, setShowSubstrateDetails] = useState(false);
 
   // Check for async composition status
   const workId = typeof window !== 'undefined' ? sessionStorage.getItem(`doc_${document.id}_work_id`) : null;
@@ -178,6 +179,16 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
     }
   };
 
+  const getSubstrateIcon = (type: string) => {
+    switch (type) {
+      case 'block': return <Database className="h-4 w-4 text-blue-600" />;
+      case 'dump': return <FileText className="h-4 w-4 text-green-600" />;
+      case 'context_item': return <MessageSquare className="h-4 w-4 text-purple-600" />;
+      case 'timeline_event': return <Clock className="h-4 w-4 text-red-600" />;
+      default: return <Database className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -204,7 +215,141 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
         {/* Read */}
         {mode === 'read' && (
           <div className="space-y-6">
-            {/* Composition Status */}
+            {/* Document Dashboard */}
+            {composition && (
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Layers className="h-5 w-5 text-blue-600" />
+                    <h2 className="text-lg font-semibold text-gray-900">Document Overview</h2>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Last updated {new Date(document.updated_at).toLocaleDateString()}
+                  </div>
+                </div>
+                
+                {/* Substrate Composition Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <button
+                    onClick={() => setShowSubstrateDetails(true)}
+                    className="bg-white rounded-lg p-4 text-center border border-blue-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all duration-200 group"
+                  >
+                    <div className="text-2xl font-bold text-blue-600 mb-1 group-hover:text-blue-700">{composition.composition_stats.blocks_count}</div>
+                    <div className="text-sm text-gray-600 group-hover:text-gray-700">Knowledge Blocks</div>
+                    <div className="text-xs text-gray-500 mt-1">Structured insights</div>
+                  </button>
+                  <button
+                    onClick={() => setShowSubstrateDetails(true)}
+                    className="bg-white rounded-lg p-4 text-center border border-green-100 hover:border-green-200 hover:bg-green-50/50 transition-all duration-200 group"
+                  >
+                    <div className="text-2xl font-bold text-green-600 mb-1 group-hover:text-green-700">{composition.composition_stats.dumps_count}</div>
+                    <div className="text-sm text-gray-600 group-hover:text-gray-700">Raw Content</div>
+                    <div className="text-xs text-gray-500 mt-1">Unprocessed material</div>
+                  </button>
+                  <button
+                    onClick={() => setShowSubstrateDetails(true)}
+                    className="bg-white rounded-lg p-4 text-center border border-purple-100 hover:border-purple-200 hover:bg-purple-50/50 transition-all duration-200 group"
+                  >
+                    <div className="text-2xl font-bold text-purple-600 mb-1 group-hover:text-purple-700">{composition.composition_stats.context_items_count}</div>
+                    <div className="text-sm text-gray-600 group-hover:text-gray-700">Context Items</div>
+                    <div className="text-xs text-gray-500 mt-1">Situational data</div>
+                  </button>
+                  <button
+                    onClick={() => setShowSubstrateDetails(true)}
+                    className="bg-white rounded-lg p-4 text-center border border-red-100 hover:border-red-200 hover:bg-red-50/50 transition-all duration-200 group"
+                  >
+                    <div className="text-2xl font-bold text-red-600 mb-1 group-hover:text-red-700">{composition.composition_stats.timeline_events_count}</div>
+                    <div className="text-sm text-gray-600 group-hover:text-gray-700">Timeline Events</div>
+                    <div className="text-xs text-gray-500 mt-1">Temporal markers</div>
+                  </button>
+                </div>
+
+                {/* Document Health Indicators */}
+                <div className="bg-white rounded-lg border border-gray-100">
+                  <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="text-sm font-medium text-gray-700">Active Document</span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {composition.composition_stats.total_substrate_references || 0} substrate references
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowSubstrateDetails(!showSubstrateDetails)}
+                        className="text-xs"
+                      >
+                        {showSubstrateDetails ? 
+                          <><ChevronDown className="h-3 w-3 mr-1" />Hide Details</> :
+                          <><ChevronRight className="h-3 w-3 mr-1" />View Substrate</>
+                        }
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/baskets/${basketId}/memory`)}
+                        className="text-xs"
+                      >
+                        Explore Memory
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Substrate Details Expandable Section */}
+                  {showSubstrateDetails && composition.references && composition.references.length > 0 && (
+                    <div className="border-t border-gray-100 p-4">
+                      <div className="mb-3">
+                        <h4 className="text-sm font-medium text-gray-700 mb-1">Connected Substrate</h4>
+                        <p className="text-xs text-gray-500">Knowledge sources that inform this document</p>
+                      </div>
+                      
+                      <div className="space-y-3 max-h-60 overflow-y-auto">
+                        {composition.references.map((ref: any, index: number) => (
+                          <div key={ref.reference?.id || index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <div className="flex-shrink-0 mt-0.5">
+                              {getSubstrateIcon(ref.substrate?.substrate_type || '')}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {ref.substrate?.preview || ref.substrate?.title || `${ref.substrate?.substrate_type} reference`}
+                                </div>
+                                <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded ml-2">
+                                  {ref.reference?.role || 'reference'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-gray-500">
+                                <span className="capitalize">{ref.substrate?.substrate_type?.replace('_', ' ')}</span>
+                                {ref.substrate?.created_at && (
+                                  <span>Added {new Date(ref.substrate.created_at).toLocaleDateString()}</span>
+                                )}
+                                {ref.reference?.weight && (
+                                  <span>Weight: {ref.reference.weight}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {composition.references.length === 0 && (
+                        <div className="text-center py-6 text-gray-500">
+                          <Database className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                          <div className="text-sm">No substrate references yet</div>
+                          <div className="text-xs text-gray-400 mt-1">Switch to Edit mode to attach knowledge sources</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Async Composition Status */}
             {isAsyncComposition && workId && (
               <DocumentCompositionStatus
                 documentId={document.id}
@@ -222,45 +367,46 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
               />
             )}
 
+            {/* Document Content */}
             <Card>
-              <div className="p-4">
+              <div className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-1 h-6 bg-blue-500 rounded"></div>
+                  <h3 className="text-lg font-medium text-gray-900">Document Content</h3>
+                </div>
                 {composition?.document?.content_raw ? (
-                  <div className="prose max-w-none">
-                    <div className="bg-white border border-gray-100 rounded p-4">
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-900">
+                  <div className="prose prose-gray max-w-none">
+                    <div className="bg-gray-50 border border-gray-100 rounded-lg p-6">
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-900 font-[system-ui]">
                         {composition.document.content_raw}
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-sm text-gray-500">No authored content yet</div>
+                  <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg p-8 text-center">
+                    <div className="text-gray-400 mb-2">📝</div>
+                    <div className="text-sm text-gray-500 mb-4">No authored content yet</div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMode('edit')}
+                    >
+                      Start Writing
+                    </Button>
+                  </div>
                 )}
               </div>
             </Card>
-            {composition && (
-              <Card>
-                <div className="p-4">
-                  <div className="flex items-center gap-2 text-xs text-gray-600 mb-3">
-                    <Layers className="h-3 w-3" /> Composition
-                  </div>
-                  <div className="grid grid-cols-4 gap-3 text-center text-xs">
-                    <div><div className="font-semibold text-blue-600">{composition.composition_stats.blocks_count}</div><div className="text-gray-500">Blocks</div></div>
-                    <div><div className="font-semibold text-green-600">{composition.composition_stats.dumps_count}</div><div className="text-gray-500">Dumps</div></div>
-                    <div><div className="font-semibold text-purple-600">{composition.composition_stats.context_items_count}</div><div className="text-gray-500">Context</div></div>
-                    <div><div className="font-semibold text-red-600">{composition.composition_stats.timeline_events_count}</div><div className="text-gray-500">Timeline</div></div>
-                  </div>
-                </div>
-              </Card>
-            )}
             
             {/* Related Insights Section */}
             {reflections.length > 0 && (
               <Card>
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <Brain className="h-4 w-4 text-purple-600" />
-                      Related Insights
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-5 w-5 text-purple-600" />
+                      <h3 className="text-lg font-medium text-gray-900">Related Insights</h3>
+                      <span className="text-sm text-gray-500">({reflections.length})</span>
                     </div>
                     <Button
                       variant="ghost"
@@ -268,7 +414,7 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                       onClick={() => router.push(`/baskets/${basketId}/reflections`)}
                       className="text-xs"
                     >
-                      View All
+                      View All Insights
                     </Button>
                   </div>
                   
@@ -278,23 +424,25 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                       <div className="animate-pulse bg-purple-100 h-12 rounded"></div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {reflections.slice(0, 2).map((reflection, index) => (
-                        <div key={reflection.id} className="bg-purple-50 border border-purple-200 rounded p-3">
-                          <div className="flex items-start gap-2">
-                            <span className="text-sm mt-0.5">💡</span>
+                    <div className="space-y-4">
+                      {reflections.slice(0, 3).map((reflection, index) => (
+                        <div key={reflection.id} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-sm">💡</span>
+                            </div>
                             <div className="flex-1">
-                              <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center justify-between mb-2">
                                 <h5 className="font-medium text-gray-900 text-sm">
-                                  Insight #{reflections.length - index}
+                                  Discovery #{reflections.length - index}
                                 </h5>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
                                   {formatReflectionAge(reflection.computation_timestamp)}
                                 </span>
                               </div>
-                              <p className="text-xs text-gray-600 leading-relaxed">
-                                {reflection.reflection_text.length > 150 
-                                  ? reflection.reflection_text.substring(0, 150) + "..."
+                              <p className="text-sm text-gray-700 leading-relaxed">
+                                {reflection.reflection_text.length > 200 
+                                  ? reflection.reflection_text.substring(0, 200) + "..."
                                   : reflection.reflection_text
                                 }
                               </p>
@@ -304,8 +452,10 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                       ))}
                       
                       {reflections.length === 0 && (
-                        <div className="text-center py-4 text-gray-500 text-sm">
-                          No insights discovered yet. Add more content to your knowledge base.
+                        <div className="text-center py-8 text-gray-500">
+                          <div className="text-2xl mb-2">🤔</div>
+                          <div className="text-sm mb-4">No insights discovered yet</div>
+                          <div className="text-xs text-gray-400">Add more content to discover patterns and connections</div>
                         </div>
                       )}
                     </div>
