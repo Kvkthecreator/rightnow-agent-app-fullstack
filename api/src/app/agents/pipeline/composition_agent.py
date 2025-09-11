@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from app.utils.supabase_client import supabase_admin_client as supabase
-from services.llm import Claude
+from services.llm import get_llm
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
@@ -66,7 +66,7 @@ class P4CompositionAgent:
     """
     
     def __init__(self):
-        self.llm = Claude()
+        self.llm = get_llm()
         logger.info("P4 Composition Agent initialized")
     
     async def process(self, request: CompositionRequest) -> AgentResponse:
@@ -158,7 +158,7 @@ Example response:
         response = await self.llm.get_json_response(
             prompt,
             temperature=0.3,
-            model="claude-3-5-sonnet-20241022"
+            schema_name="p4_intent_strategy",
         )
         
         strategy = response.parsed
@@ -297,7 +297,7 @@ Example:
         response = await self.llm.get_json_response(
             scoring_prompt,
             temperature=0.4,
-            model="claude-3-5-sonnet-20241022"
+            schema_name="p4_scoring_selection",
         )
         
         selection_result = response.parsed
@@ -387,7 +387,7 @@ Example:
         response = await self.llm.get_json_response(
             narrative_prompt,
             temperature=0.6,
-            model="claude-3-5-sonnet-20241022"
+            schema_name="p4_narrative_structure",
         )
         
         narrative = response.parsed
