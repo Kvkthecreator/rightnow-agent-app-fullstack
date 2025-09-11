@@ -175,10 +175,11 @@ export async function POST(
             const { getApiBaseUrl } = await import('@/lib/config/api');
             const backend = getApiBaseUrl();
             if (backend) {
+              const authHeader = request.headers.get('authorization') || undefined;
               // Fire-and-forget to backend
               fetch(`${backend}/api/reflections/compute_window`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(authHeader ? { authorization: authHeader } : {}) },
                 body: JSON.stringify({ workspace_id: workspace.id, basket_id: basketId, agent_id: 'p3_reflection_agent' })
               }).catch(() => {});
             }
