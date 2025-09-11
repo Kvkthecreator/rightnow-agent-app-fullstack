@@ -165,25 +165,23 @@ export class DocumentComposer {
         documentId = createdDocs[0].id;
       }
 
-      // Attach substrate references (generic)
+      // Canon Compliance: Store substrate references in document metadata (artifact)
+      // P4 creates artifacts only, never substrate mutations
       const explicitRefs = [...composition.substrate_references];
-      if (explicitRefs.length > 0) {
-        for (const ref of explicitRefs.sort((a, b) => a.order - b.order)) {
-          const { error: attachErr } = await supabase.rpc('fn_document_attach_substrate', {
-            p_document_id: documentId,
-            p_substrate_type: ref.type,
-            p_substrate_id: ref.id,
-            p_role: 'reference',
-            p_weight: 0.5,
-            p_snippets: ref.excerpt ? [ref.excerpt] : [],
-            p_metadata: { order: ref.order }
-          });
-          if (attachErr) {
-            console.warn(`Failed to attach reference ${ref.type}:${ref.id} →`, attachErr.message);
-          }
-        }
-      } else {
-        // Auto-select recent high-confidence blocks in this basket as initial composition
+      const substrateReferencesMetadata = explicitRefs.length > 0 
+        ? explicitRefs.sort((a, b) => a.order - b.order).map(ref => ({
+            substrate_type: ref.type,
+            substrate_id: ref.id,
+            role: 'reference',
+            weight: 0.5,
+            content_snippet: ref.excerpt || '',
+            order: ref.order,
+            attached_at: new Date().toISOString()
+          }))
+        : [];
+
+      if (explicitRefs.length === 0) {
+        // Canon Compliance: Auto-select blocks and store as artifact metadata
         try {
           const { data: blocks } = await supabase
             .from('blocks')
@@ -197,23 +195,36 @@ export class DocumentComposer {
             let order = 0;
             for (const b of blocks) {
               if (b.state === 'REJECTED') continue;
-              const { error: attachErr } = await supabase.rpc('fn_document_attach_substrate', {
-                p_document_id: documentId,
-                p_substrate_type: 'block',
-                p_substrate_id: b.id,
-                p_role: 'primary',
-                p_weight: typeof (b as any).confidence_score === 'number' ? (b as any).confidence_score : 0.7,
-                p_snippets: [],
-                p_metadata: { order: order++ }
+              substrateReferencesMetadata.push({
+                substrate_type: 'block',
+                substrate_id: b.id,
+                role: 'primary',
+                weight: typeof (b as any).confidence_score === 'number' ? (b as any).confidence_score : 0.7,
+                content_snippet: b.title || '',
+                order: order++,
+                attached_at: new Date().toISOString()
               });
-              if (attachErr) {
-                console.warn(`Auto-attach block failed ${b.id} →`, attachErr.message);
-              }
             }
           }
         } catch (e) {
           console.warn('Auto-select substrate references failed:', e);
         }
+      }
+
+      // Canon Compliance: Update document metadata with substrate references (artifact-only)
+      if (substrateReferencesMetadata.length > 0) {
+        await supabase
+          .from('documents')
+          .update({
+            metadata: {
+              composition_context: composition.composition_context || {},
+              composition_signature: signature,
+              composition_type: 'substrate_plus_narrative',
+              // Canon: Substrate references stored as document metadata (not substrate mutations)
+              substrate_references: substrateReferencesMetadata
+            }
+          })
+          .eq('id', documentId);
       }
 
       // Create initial version snapshot (idempotent by content hash)
@@ -570,22 +581,33 @@ export class DocumentComposer {
         };
       }
 
-      // Load substrate references for this document (P4 consumption, not creation)
-      const { data: refs, error: refsErr } = await supabase
-        .from('substrate_references')
-        .select('substrate_id, substrate_type, metadata, snippets, role, weight, created_at')
-        .eq('document_id', document_id)
-        .order('created_at', { ascending: true });
-      if (refsErr) {
-        return { success: false, error: 'Failed to load document references' };
-      }
-
-      const references: SubstrateReference[] = (refs || []).map((r: any, idx: number) => ({
+      // Canon Compliance: Load substrate references from document metadata (artifact)
+      // P4 documents store substrate references as metadata, not in substrate_references table
+      const metadataRefs = document.metadata?.substrate_references || [];
+      const references: SubstrateReference[] = metadataRefs.map((r: any) => ({
         id: r.substrate_id,
         type: r.substrate_type,
-        order: r.metadata?.order ?? idx,
-        excerpt: Array.isArray(r.snippets) && r.snippets.length > 0 ? r.snippets[0] : undefined
+        order: r.order || 0,
+        excerpt: r.content_snippet || undefined
       }));
+
+      // Legacy fallback: Check substrate_references table for older documents
+      if (references.length === 0) {
+        const { data: refs } = await supabase
+          .from('substrate_references')
+          .select('substrate_id, substrate_type, metadata, snippets, role, weight, created_at')
+          .eq('document_id', document_id)
+          .order('created_at', { ascending: true });
+        
+        if (refs && refs.length > 0) {
+          references.push(...refs.map((r: any, idx: number) => ({
+            id: r.substrate_id,
+            type: r.substrate_type,
+            order: r.metadata?.order ?? idx,
+            excerpt: Array.isArray(r.snippets) && r.snippets.length > 0 ? r.snippets[0] : undefined
+          })));
+        }
+      }
 
       const resolvedRefs = await this.resolveSubstrateReferences(references, workspace_id, supabase);
 

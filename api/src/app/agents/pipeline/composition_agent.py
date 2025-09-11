@@ -432,7 +432,7 @@ Example:
             # Join content
             final_content = "\n".join(content_parts)
             
-            # Update document with composed content
+            # Update document with composed content (Canon: P4 = Pure Artifact Creation)
             doc_update = {
                 "content_raw": final_content,
                 "content_rendered": final_content,  # For now, same as raw
@@ -441,7 +441,21 @@ Example:
                     "composition_completed_at": datetime.now(timezone.utc).isoformat(),
                     "composition_summary": narrative.get("summary", ""),
                     "composition_substrate_count": len(selected_substrate),
-                    "composition_narrative": narrative
+                    "composition_narrative": narrative,
+                    # Canon: Store substrate references as artifact metadata (not substrate mutations)
+                    "substrate_references": [
+                        {
+                            "substrate_type": substrate["type"],
+                            "substrate_id": substrate["id"],
+                            "role": "primary" if idx < 5 else "supporting",
+                            "weight": substrate.get("confidence_score", 0.7),
+                            "content_snippet": substrate.get("content", "")[:200],
+                            "order": idx,
+                            "selection_reason": substrate.get("selection_reason", ""),
+                            "attached_at": datetime.now(timezone.utc).isoformat()
+                        }
+                        for idx, substrate in enumerate(selected_substrate)
+                    ]
                 }
             }
             
@@ -453,34 +467,14 @@ Example:
             if not update_response.data:
                 raise RuntimeError("Failed to update document with composition")
             
-            # Attach substrate references
-            for idx, substrate in enumerate(selected_substrate):
-                try:
-                    # Determine role based on section references
-                    role = "primary" if idx < 5 else "supporting"
-                    weight = substrate.get("confidence_score", 0.7)
-                    
-                    # Call substrate attachment function
-                    attach_response = supabase.rpc("fn_document_attach_substrate", {
-                        "p_document_id": document_id,
-                        "p_substrate_type": substrate["type"],
-                        "p_substrate_id": substrate["id"],
-                        "p_role": role,
-                        "p_weight": weight,
-                        "p_snippets": [substrate.get("content", "")[:200]],
-                        "p_metadata": {
-                            "order": idx,
-                            "selection_reason": substrate.get("selection_reason", "")
-                        }
-                    }).execute()
-                    
-                    if attach_response.data:
-                        logger.info(f"✅ Successfully attached substrate {substrate['type']}:{substrate['id']}")
-                    else:
-                        logger.warning(f"⚠️  No data returned for substrate attachment {substrate['id']}")
-                    
-                except Exception as e:
-                    logger.warning(f"Failed to attach substrate {substrate['id']}: {e}")
+            # Canon Compliance: P4 only creates artifacts, no substrate mutations
+            # Substrate references now stored in document metadata (artifact)
+            logger.info(f"✅ Canon-pure P4 composition: {len(selected_substrate)} substrate references stored as document metadata")
+            
+            if selected_substrate:
+                logger.info("📚 Substrate references (stored as artifact metadata):")
+                for idx, substrate in enumerate(selected_substrate):
+                    logger.info(f"   [{idx}] {substrate['type']}:{substrate['id']} - {substrate.get('title', 'No title')}")
             
             # Create new document version
             version_response = supabase.rpc("fn_document_create_version", {
