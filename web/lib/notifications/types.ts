@@ -18,6 +18,9 @@ export type NotificationType =
   | 'substrate.dump.rejected'
   | 'substrate.relationships.mapped'
   
+  // ── Artifact: Reflections (P3) ──
+  | 'reflection.computed'
+  
   // ── Presentation Layer (P4) - User Experience ──
   | 'presentation.document.composed'
   | 'presentation.document.impact_ready'
@@ -75,6 +78,7 @@ export interface NotificationPersistence {
 export interface NotificationRelatedEntities {
   basket_id?: string;
   document_id?: string;
+  reflection_id?: string;
   substrate_ids?: string[];
   work_id?: string;
 }
