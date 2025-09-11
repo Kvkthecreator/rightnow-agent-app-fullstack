@@ -1,6 +1,7 @@
 import { SubpageHeader } from "@/components/basket/SubpageHeader";
 import { RequestBoundary } from "@/components/RequestBoundary";
 import dynamic from 'next/dynamic';
+import ComputeReflectionsControl from './ComputeReflectionsControl';
 
 const ReflectionsClient = dynamic(() => import('./ReflectionsClient'), {
   loading: () => (
@@ -26,6 +27,7 @@ export default async function ReflectionsPage({ params }: PageProps) {
             title="Insights" 
             basketId={id}
             description="Patterns, themes, and discoveries found in your knowledge"
+            rightContent={<ComputeReflectionsControl basketId={id} />}
           />
         </div>
         <div className="flex-1 overflow-y-auto bg-gray-50">

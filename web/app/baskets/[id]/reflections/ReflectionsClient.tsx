@@ -123,6 +123,13 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
   // Load initial data
   useEffect(() => {
     loadReflections();
+
+    const onRefresh = () => {
+      // Force a fresh load (trigger compute likely queued)
+      refreshReflections();
+    };
+    window.addEventListener('reflections:refresh', onRefresh);
+    return () => window.removeEventListener('reflections:refresh', onRefresh);
   }, [basketId]);
 
   if (loading) {
