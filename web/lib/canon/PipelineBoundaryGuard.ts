@@ -254,7 +254,9 @@ export class PipelineBoundaryGuard {
     // Allow only document operations
     const allowed = [
       'compose_document', 'update_document', 'attach_reference',
-      'format_presentation', 'render_narrative'
+      'format_presentation', 'render_narrative',
+      // Async composition support: creating a document artifact shell is a P4 operation
+      'create_document_shell'
     ];
     
     if (!allowed.some(op => operation.type.toLowerCase().includes(op.toLowerCase()))) {
