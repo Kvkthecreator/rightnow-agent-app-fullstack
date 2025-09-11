@@ -366,3 +366,118 @@ export class ReflectionEngine {
     // This is a no-op but kept for clarity
   }
 }
+
+
+  /**
+   * Compute a reflection targeting a specific document (document-scoped)
+   * Persist as artifact via fn_reflection_create_from_document
+   */
+  async computeDocumentReflection(
+    document_id: string,
+    workspace_id: string,
+    options: { force_refresh?: boolean } = {}
+  ): Promise<ReflectionDTO | null> {
+    // Load document and basket
+    const { data: doc, error: docErr } = await this.supabase
+      .from('documents')
+      .select('id, basket_id, workspace_id, content_raw, current_version_hash')
+      .eq('id', document_id)
+      .single();
+
+    if (docErr || !doc) {
+      throw new Error(`Document not found: ${document_id}`);
+    }
+
+    // Minimal signal check
+    const text = (doc.content_raw || '').trim();
+    const reflection_text = text.length < 200
+      ? 'Not enough content in this document to compute a detailed reflection yet. Consider adding more structured sections or references.'
+      : `Document reflection for ${document_id}. Summary based on ${text.length} characters of current content.`;
+
+    // Persist via RPC (document-targeted reflection)
+    const { data: reflection_id, error } = await this.supabase
+      .rpc('fn_reflection_create_from_document', {
+        p_basket_id: doc.basket_id,
+        p_document_id: document_id,
+        p_reflection_text: reflection_text,
+      });
+
+    if (error) {
+      throw new Error(`Failed to store document reflection: ${error.message}`);
+    }
+
+    // Fetch the created reflection
+    const { data: reflection, error: fetchError } = await this.supabase
+      .from('reflections_artifact')
+      .select('*')
+      .eq('id', reflection_id)
+      .single();
+
+    if (fetchError || !reflection) {
+      throw new Error('Failed to fetch created document reflection');
+    }
+
+    return {
+      id: reflection.id,
+      basket_id: reflection.basket_id,
+      workspace_id: reflection.workspace_id,
+      reflection_text: reflection.reflection_text,
+      reflection_target_type: reflection.reflection_target_type || 'document',
+      reflection_target_id: reflection.reflection_target_id,
+      reflection_target_version: reflection.reflection_target_version,
+      substrate_window_start: reflection.substrate_window_start,
+      substrate_window_end: reflection.substrate_window_end,
+      computation_timestamp: reflection.computation_timestamp,
+      meta: reflection.meta,
+    };
+  }
+
+  /**
+   * List reflections for a specific document
+   */
+  async getDocumentReflections(
+    document_id: string,
+    workspace_id: string,
+    cursor?: string,
+    limit: number = 10
+  ): Promise<{ reflections: ReflectionDTO[]; has_more: boolean; next_cursor?: string }> {
+    let query = this.supabase
+      .from('reflections_artifact')
+      .select('*')
+      .eq('workspace_id', workspace_id)
+      .eq('reflection_target_type', 'document')
+      .eq('reflection_target_id', document_id)
+      .order('computation_timestamp', { ascending: false })
+      .limit(limit + 1);
+
+    if (cursor) {
+      query = query.lt('computation_timestamp', cursor);
+    }
+
+    const { data: reflections, error } = await query;
+    if (error) {
+      throw new Error(`Failed to fetch document reflections: ${error.message}`);
+    }
+
+    const has_more = reflections.length > limit;
+    const results = has_more ? reflections.slice(0, limit) : reflections;
+    const next_cursor = has_more ? results[results.length - 1].computation_timestamp : undefined;
+
+    return {
+      reflections: results.map(r => ({
+        id: r.id,
+        basket_id: r.basket_id,
+        workspace_id: r.workspace_id,
+        reflection_text: r.reflection_text,
+        reflection_target_type: r.reflection_target_type || 'document',
+        reflection_target_id: r.reflection_target_id,
+        reflection_target_version: r.reflection_target_version,
+        substrate_window_start: r.substrate_window_start,
+        substrate_window_end: r.substrate_window_end,
+        computation_timestamp: r.computation_timestamp,
+        meta: r.meta,
+      })),
+      has_more,
+      next_cursor,
+    };
+  }
