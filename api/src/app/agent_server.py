@@ -27,6 +27,7 @@ except ImportError:
 from middleware.auth import AuthMiddleware
 
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
+from .routes.reflections import router as reflections_router
 from services.canonical_queue_processor import start_canonical_queue_processor, stop_canonical_queue_processor, get_canonical_queue_health
 from .routes.agent_memory import router as agent_memory_router
 from .routes.agent_run import router as agent_run_router
@@ -123,6 +124,7 @@ for r in routers:
     app.include_router(r, prefix="/api")
 
 app.include_router(basket_router)
+app.include_router(reflections_router)
 app.include_router(narrative_jobs_router)
 app.include_router(projection_router)
 

@@ -172,10 +172,15 @@ export async function POST(
           const createdBlocks = executionLog.filter((e: any) => e.success && e.operation_type === 'CreateBlock').length;
           const createdContextItems = executionLog.filter((e: any) => e.success && e.operation_type === 'CreateContextItem').length;
           if (createdBlocks >= 2 || createdContextItems >= 3) {
-            const { ReflectionEngine } = await import('@/lib/server/ReflectionEngine');
-            const engine = new ReflectionEngine();
-            // Fire-and-forget; engine has its own rate limit and low-signal mode
-            engine.computeReflection(basketId, workspace.id).catch(() => {});
+            const backend = process.env.BACKEND_URL;
+            if (backend) {
+              // Fire-and-forget to backend
+              fetch(`${backend}/api/reflections/compute_window`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workspace_id: workspace.id, basket_id: basketId, agent_id: 'p3_reflection_agent' })
+              }).catch(() => {});
+            }
           }
         } catch (e) {
           console.warn('P3 reflection trigger skipped:', e);

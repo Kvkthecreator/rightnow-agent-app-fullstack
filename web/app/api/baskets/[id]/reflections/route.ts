@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
-import { ReflectionEngine } from "@/lib/server/ReflectionEngine";
+import { NextResponse } from 'next/server';
 import { withSchema } from "@/lib/api/withSchema";
 import { GetReflectionsResponseSchema } from "@/shared/contracts/reflections";
 import { z } from "zod";
@@ -60,10 +60,17 @@ export async function GET(
     const forceRecompute = req.headers.get('X-Force-Recompute') === '1';
     const shouldRefresh = refresh || forceRecompute;
 
-    const engine = new ReflectionEngine();
-    const result = await engine.getReflections(basket_id, basket.workspace_id, cursor, limit, shouldRefresh);
+    const backend = process.env.BACKEND_URL;
+    if (!backend) return Response.json({ error: 'backend_url_missing' }, { status: 500 });
+    const url = new URL(`${backend}/api/reflections/baskets/${basket_id}`);
+    url.searchParams.set('workspace_id', basket.workspace_id);
+    url.searchParams.set('limit', String(limit));
+    if (cursor) url.searchParams.set('cursor', cursor);
+    if (shouldRefresh) url.searchParams.set('refresh', 'true');
 
-    return withSchema(GetReflectionsResponseSchema, result, { status: 200 });
+    const resp = await fetch(url.toString());
+    const data = await resp.json();
+    return withSchema(GetReflectionsResponseSchema, data, { status: resp.status });
   } catch (e: any) {
     return Response.json({ error: "Unexpected error", details: String(e?.message ?? e) }, { status: 500 });
   }

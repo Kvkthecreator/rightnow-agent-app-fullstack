@@ -75,7 +75,7 @@ def _p3_schema(name: str) -> Optional[Dict[str, Any]]:
                             "confidence": {"type": "number", "minimum": 0, "maximum": 1}
                         },
                         "required": ["type", "description"],
-                        "additionalProperties": true
+                        "additionalProperties": True
                     }
                 },
                 "tensions": {
@@ -88,7 +88,7 @@ def _p3_schema(name: str) -> Optional[Dict[str, Any]]:
                             "severity": {"type": "string"}
                         },
                         "required": ["description"],
-                        "additionalProperties": true
+                        "additionalProperties": True
                     }
                 },
                 "opportunities": {
@@ -100,7 +100,7 @@ def _p3_schema(name: str) -> Optional[Dict[str, Any]]:
                             "suggested_action": {"type": "string"}
                         },
                         "required": ["description"],
-                        "additionalProperties": true
+                        "additionalProperties": True
                     }
                 },
                 "questions": {
@@ -112,7 +112,7 @@ def _p3_schema(name: str) -> Optional[Dict[str, Any]]:
                             "priority": {"type": "string"}
                         },
                         "required": ["description"],
-                        "additionalProperties": true
+                        "additionalProperties": True
                     }
                 },
                 "recommendations": {
@@ -124,7 +124,7 @@ def _p3_schema(name: str) -> Optional[Dict[str, Any]]:
                             "rationale": {"type": "string"}
                         },
                         "required": ["description"],
-                        "additionalProperties": true
+                        "additionalProperties": True
                     }
                 },
                 "confidence_overall": {"type": "number", "minimum": 0, "maximum": 1},
@@ -133,7 +133,7 @@ def _p3_schema(name: str) -> Optional[Dict[str, Any]]:
                 "substrate_hash": {"type": "string"}
             },
             "required": ["summary"],
-            "additionalProperties": true
+            "additionalProperties": True
         }
     return None
 
@@ -296,6 +296,8 @@ class OpenAIProvider(LLMProvider):
             response_format = None
             if schema_name:
                 schema = _p4_schema(schema_name)
+                if schema is None:
+                    schema = _p3_schema(schema_name)
                 if schema is not None:
                     response_format = self._schema_wrapper(schema_name, schema)
 

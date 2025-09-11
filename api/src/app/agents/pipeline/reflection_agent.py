@@ -163,11 +163,11 @@ class P3ReflectionAgent:
                 if len(substrate_data) >= 5:  # minimal signal threshold
                     digest = self._build_digest(substrate_data)
                     llm_res = await self.llm.get_json_response(
-                        f"Generate a structured reflection JSON for this substrate digest:
+                        f"""Generate a structured reflection JSON for this substrate digest:
 
 {digest}
 
-Return JSON only.",
+Return JSON only.""",
                         temperature=0.3,
                         schema_name="p3_reflection",
                     )
@@ -663,3 +663,28 @@ Return JSON only.",
             "status": "active",
             "sacred_rule": "Read-only computation, optionally cached"
         }
+
+    def _build_digest(self, substrate_data: List[Dict[str, Any]]) -> str:
+        """Build a compact digest from substrate data for LLM input (size-capped)."""
+        lines: List[str] = []
+        for item in substrate_data[:50]:  # cap
+            t = item.get('type')
+            if t == 'block':
+                title = (item.get('title') or '')[:80]
+                content = (item.get('content') or '')[:200]
+                st = item.get('semantic_type')
+                lines.append(f"BLOCK[{st}]: {title}\n{content}")
+            elif t == 'context_item':
+                content = (item.get('content') or '')[:120]
+                st = item.get('semantic_type') or item.get('type')
+                lines.append(f"CONTEXT[{st}]: {content}")
+            elif t == 'relationship':
+                rtype = item.get('relationship_type')
+                lines.append(f"REL[{rtype}]: {item.get('from_id')} -> {item.get('to_id')}")
+        return '\n\n'.join(lines)
+
+    def _infer_any_basket(self, substrate_data: List[Dict[str, Any]]) -> str:
+        for it in substrate_data:
+            if it.get('basket_id'):
+                return str(it['basket_id'])
+        return ''

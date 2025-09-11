@@ -5,7 +5,6 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
-import { ReflectionEngine } from '@/lib/server/ReflectionEngine';
 import { withSchema } from '@/lib/api/withSchema';
 import { GetReflectionsResponseSchema } from '@/shared/contracts/reflections';
 
@@ -39,9 +38,11 @@ export async function GET(
     const cursor = url.searchParams.get('cursor') || undefined;
     const limit = Number(url.searchParams.get('limit') || 10);
 
-    const engine = new ReflectionEngine();
-    const result = await engine.getDocumentReflections(document_id, doc.workspace_id, cursor || undefined, limit);
-    return withSchema(GetReflectionsResponseSchema, result, { status: 200 });
+    const backend = process.env.BACKEND_URL;
+    if (!backend) return NextResponse.json({ error: 'backend_url_missing' }, { status: 500 });
+    const resp = await fetch(`${backend}/api/reflections/documents/${document_id}?workspace_id=${doc.workspace_id}&limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
+    const data = await resp.json();
+    return withSchema(GetReflectionsResponseSchema, data, { status: resp.status });
   } catch (error) {
     console.error('Document reflections GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -74,9 +75,11 @@ export async function POST(
     if (mErr) return NextResponse.json({ error: mErr.message }, { status: 400 });
     if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const engine = new ReflectionEngine();
-    const reflection = await engine.computeDocumentReflection(document_id, doc.workspace_id, {});
-    return NextResponse.json({ success: true, reflection }, { status: 200 });
+    const backend = process.env.BACKEND_URL;
+    if (!backend) return NextResponse.json({ error: 'backend_url_missing' }, { status: 500 });
+    const resp = await fetch(`${backend}/api/reflections/documents/${document_id}/compute?workspace_id=${doc.workspace_id}`, { method: 'POST' });
+    const data = await resp.json();
+    return NextResponse.json(data, { status: resp.status });
   } catch (error) {
     console.error('Document reflections POST error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
