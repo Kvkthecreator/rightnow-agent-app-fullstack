@@ -18,7 +18,7 @@ import {
   Settings,
   RefreshCw
 } from 'lucide-react';
-import { UnifiedNotification, NotificationGovernance, NotificationCategory } from '@/lib/notifications/types';
+import type { UnifiedNotification, NotificationGovernance, NotificationCategory } from '@/lib/notifications/types';
 import { Button } from '@/components/ui/Button';
 import { CategoryNotificationBadge } from './NotificationBadge';
 

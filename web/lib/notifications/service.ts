@@ -6,7 +6,7 @@
  */
 
 import { useNotificationStore } from './store';
-import { CreateNotificationRequest, NotificationType } from './types';
+import type { CreateNotificationRequest } from './types';
 
 class UnifiedNotificationService {
   private static instance: UnifiedNotificationService;

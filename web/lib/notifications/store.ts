@@ -9,7 +9,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createBrowserClient } from '@/lib/supabase/clients';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import {
+import type {
   UnifiedNotification,
   CreateNotificationRequest,
   NotificationGovernance,

@@ -9,7 +9,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNotificationStore } from '@/lib/notifications/store';
-import { UnifiedNotification, NotificationChannel } from '@/lib/notifications/types';
+import type { UnifiedNotification, NotificationChannel } from '@/lib/notifications/types';
 import { NotificationToast } from './NotificationToast';
 import { NotificationBadge } from './NotificationBadge';
 import { NotificationDrawer } from './NotificationDrawer';

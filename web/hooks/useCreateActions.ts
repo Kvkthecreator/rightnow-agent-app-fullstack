@@ -7,7 +7,7 @@ import { createDocumentWithPrompt } from "@/lib/documents/createDocument";
 import { createDump } from "@/lib/api/dumps";
 import { uploadFile } from "@/lib/storage/upload";
 import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
-import { useToast } from "@/components/ui/Toast";
+import { notificationService } from "@/lib/notifications/service";
 
 /**
  * Encapsulates creation actions for the basket sidebar popover.
@@ -17,7 +17,6 @@ export function useCreateActions() {
   const router = useRouter();
   const { basket } = useBasket();
   const { user } = useAuth();
-  const { showSuccess, showWarning } = useToast();
 
   const basketId = basket?.id;
 
@@ -32,7 +31,7 @@ export function useCreateActions() {
         el.scrollIntoView({ block: "center", behavior: "smooth" });
       }
       console.debug("quickDump invoked", { basketId });
-      showSuccess("Quick dump ready");
+      notificationService.substrateCreated("Quick dump ready", "Ready to capture your thoughts");
     },
 
     newBlankDocument: async () => {
@@ -42,7 +41,7 @@ export function useCreateActions() {
         router.push(`/baskets/${basketId}/documents/${doc.id}`);
       } catch (e) {
         console.warn("newBlankDocument failed", e);
-        showWarning("Couldn't create document");
+        notificationService.documentCompositionFailed("Creation failed", "Couldn't create document");
       }
     },
 
@@ -69,10 +68,10 @@ export function useCreateActions() {
             file_url: url,
           });
         }
-        showSuccess(`Captured ${files.length} file(s) as raw dumps`);
+        notificationService.substrateCreated(`Files captured`, `Captured ${files.length} file(s) as raw dumps`, undefined, basketId);
       } catch (e) {
         console.warn("uploadFiles failed", e);
-        showWarning("Upload failed");
+        notificationService.substrateRejected("Upload failed", "Failed to upload files", undefined, basketId);
       }
     },
   };

@@ -20,7 +20,7 @@ import {
   Settings,
   AlertCircle
 } from 'lucide-react';
-import { UnifiedNotification } from '@/lib/notifications/types';
+import type { UnifiedNotification } from '@/lib/notifications/types';
 import { Button } from '@/components/ui/Button';
 
 interface NotificationToastProps {

@@ -12,6 +12,7 @@ export type NotificationType =
   | 'substrate.block.rejected'
   | 'substrate.context_item.created'
   | 'substrate.context_item.approved'
+  | 'substrate.context_item.rejected'
   | 'substrate.dump.processed'
   | 'substrate.dump.processing'
   | 'substrate.dump.rejected'
