@@ -83,7 +83,16 @@ async def compute_document_reflection(document_id: str, workspace_id: str):
 @router.get("/documents/{document_id}")
 async def list_document_reflections(document_id: str, workspace_id: str, cursor: Optional[str] = None, limit: int = 10):
     try:
-        query = supabase.table('reflections_artifact').select('*')             .eq('workspace_id', workspace_id)             .eq('reflection_target_type', 'document')             .eq('reflection_target_id', document_id)             .order('computation_timestamp', {'ascending': False})             .limit(limit + 1)
+        query = (
+            supabase
+            .table('reflections_artifact')
+            .select('*')
+            .eq('workspace_id', workspace_id)
+            .eq('reflection_target_type', 'document')
+            .eq('reflection_target_id', document_id)
+            .order('computation_timestamp', desc=True)
+            .limit(limit + 1)
+        )
         if cursor:
             query = query.lt('computation_timestamp', cursor)
         res = query.execute()
@@ -108,7 +117,15 @@ async def list_basket_reflections(basket_id: str, workspace_id: str, cursor: Opt
             except Exception:
                 # Non-fatal
                 pass
-        query = supabase.table('reflections_artifact').select('*')             .eq('workspace_id', workspace_id)             .eq('basket_id', basket_id)             .order('computation_timestamp', {'ascending': False})             .limit(limit + 1)
+        query = (
+            supabase
+            .table('reflections_artifact')
+            .select('*')
+            .eq('workspace_id', workspace_id)
+            .eq('basket_id', basket_id)
+            .order('computation_timestamp', desc=True)
+            .limit(limit + 1)
+        )
         if cursor:
             query = query.lt('computation_timestamp', cursor)
         res = query.execute()
