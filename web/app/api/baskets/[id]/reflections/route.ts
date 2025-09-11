@@ -87,7 +87,37 @@ export async function GET(
       return Response.json(payload, { status: resp.status });
     }
 
-    return withSchema(GetReflectionsResponseSchema, payload, { status: resp.status });
+    // Sanitize upstream payload to match our DTO (strip extra fields, normalize cursor)
+    const sanitized = (() => {
+      try {
+        const reflections = Array.isArray((payload as any)?.reflections)
+          ? (payload as any).reflections.map((r: any) => ({
+              id: r.id,
+              basket_id: r.basket_id,
+              workspace_id: r.workspace_id,
+              reflection_text: r.reflection_text,
+              substrate_hash: r.substrate_hash,
+              computation_timestamp: r.computation_timestamp,
+              reflection_target_type: r.reflection_target_type,
+              reflection_target_id: r.reflection_target_id,
+              reflection_target_version: r.reflection_target_version,
+              substrate_window_start: r.substrate_window_start,
+              substrate_window_end: r.substrate_window_end,
+              meta: r.meta,
+            }))
+          : [];
+        const next_cursor = (payload as any)?.next_cursor ?? undefined;
+        return {
+          reflections,
+          has_more: Boolean((payload as any)?.has_more),
+          ...(next_cursor ? { next_cursor } : {}),
+        };
+      } catch {
+        return payload as any;
+      }
+    })();
+
+    return withSchema(GetReflectionsResponseSchema, sanitized, { status: resp.status });
   } catch (e: any) {
     return Response.json({ error: "Unexpected error", details: String(e?.message ?? e) }, { status: 500 });
   }
