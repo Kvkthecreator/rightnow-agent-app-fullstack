@@ -16,9 +16,14 @@ export interface ReflectionDTO {
 
 export class ReflectionEngine {
   private backendUrl(): string {
-    const url = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
-    
-    return url;
+    try {
+      // Use shared config helper for consistency with canon
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { getApiBaseUrl } = require('@/lib/config/api');
+      return getApiBaseUrl();
+    } catch {
+      return process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.yarnnn.com';
+    }
   }
 
   async computeReflection(
