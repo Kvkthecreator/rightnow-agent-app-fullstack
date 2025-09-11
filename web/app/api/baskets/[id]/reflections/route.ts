@@ -69,8 +69,20 @@ export async function GET(
     if (shouldRefresh) backendUrl.searchParams.set('refresh', 'true');
 
     const resp = await fetch(backendUrl.toString());
-    const data = await resp.json();
-    return withSchema(GetReflectionsResponseSchema, data, { status: resp.status });
+    const contentType = resp.headers.get('content-type') || '';
+    let payload: any;
+    if (contentType.includes('application/json')) {
+      payload = await resp.json();
+    } else {
+      const text = await resp.text();
+      try { payload = JSON.parse(text); } catch { payload = { error: 'Upstream error', details: text }; }
+    }
+
+    if (!resp.ok) {
+      return Response.json(payload, { status: resp.status });
+    }
+
+    return withSchema(GetReflectionsResponseSchema, payload, { status: resp.status });
   } catch (e: any) {
     return Response.json({ error: "Unexpected error", details: String(e?.message ?? e) }, { status: 500 });
   }

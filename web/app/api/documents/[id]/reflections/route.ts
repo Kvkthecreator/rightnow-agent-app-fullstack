@@ -41,8 +41,20 @@ export async function GET(
     const { getApiBaseUrl } = await import('@/lib/config/api');
     const backend = getApiBaseUrl();
     const resp = await fetch(`${backend}/api/reflections/documents/${document_id}?workspace_id=${doc.workspace_id}&limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
-    const data = await resp.json();
-    return withSchema(GetReflectionsResponseSchema, data, { status: resp.status });
+    const contentType = resp.headers.get('content-type') || '';
+    let payload: any;
+    if (contentType.includes('application/json')) {
+      payload = await resp.json();
+    } else {
+      const text = await resp.text();
+      try { payload = JSON.parse(text); } catch { payload = { error: 'Upstream error', details: text }; }
+    }
+
+    if (!resp.ok) {
+      return NextResponse.json(payload, { status: resp.status });
+    }
+
+    return withSchema(GetReflectionsResponseSchema, payload, { status: resp.status });
   } catch (error) {
     console.error('Document reflections GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
