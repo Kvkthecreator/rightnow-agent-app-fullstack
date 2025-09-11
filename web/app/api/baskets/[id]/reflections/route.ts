@@ -22,10 +22,10 @@ export async function GET(
 ) {
   try {
     const { id: basket_id } = await params;
-    const url = new URL(req.url);
+    const requestUrl = new URL(req.url);
     const queryParams = GetParamsSchema.safeParse({
-      cursor: url.searchParams.get('cursor') || undefined,
-      limit: url.searchParams.get('limit') || undefined,
+      cursor: requestUrl.searchParams.get('cursor') || undefined,
+      limit: requestUrl.searchParams.get('limit') || undefined,
     });
 
     if (!queryParams.success) {
@@ -62,13 +62,13 @@ export async function GET(
 
     const { getApiBaseUrl } = await import('@/lib/config/api');
     const backend = getApiBaseUrl();
-    const url = new URL(`${backend}/api/reflections/baskets/${basket_id}`);
-    url.searchParams.set('workspace_id', basket.workspace_id);
-    url.searchParams.set('limit', String(limit));
-    if (cursor) url.searchParams.set('cursor', cursor);
-    if (shouldRefresh) url.searchParams.set('refresh', 'true');
+    const backendUrl = new URL(`${backend}/api/reflections/baskets/${basket_id}`);
+    backendUrl.searchParams.set('workspace_id', basket.workspace_id);
+    backendUrl.searchParams.set('limit', String(limit));
+    if (cursor) backendUrl.searchParams.set('cursor', cursor);
+    if (shouldRefresh) backendUrl.searchParams.set('refresh', 'true');
 
-    const resp = await fetch(url.toString());
+    const resp = await fetch(backendUrl.toString());
     const data = await resp.json();
     return withSchema(GetReflectionsResponseSchema, data, { status: resp.status });
   } catch (e: any) {
