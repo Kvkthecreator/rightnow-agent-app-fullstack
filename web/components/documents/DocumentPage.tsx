@@ -667,9 +667,43 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                           variant="outline" 
                           onClick={async () => {
                             // Save current content first
-                            await saveDocument();
-                            // Navigate to compose with document context
-                            router.push(`/baskets/${basketId}/documents/${document.id}/compose`);
+                            const saveSuccess = await saveDocument();
+                            if (!saveSuccess) return;
+                            
+                            try {
+                              // Use the same compose API as DocumentCreateButton but with document context
+                              const res = await fetch('/api/presentation/compose', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  title: title || 'Untitled Document',
+                                  basket_id: basketId,
+                                  narrative_sections: [{ id: 'intro', content: prose || 'Draft', order: 0 }],
+                                  substrate_references: [],
+                                  composition_context: { 
+                                    intent: `Enhance and expand the existing document: "${title}"`,
+                                    trace_id: crypto.randomUUID(),
+                                    window: { days: 30 },
+                                    source_document_id: document.id,
+                                    existing_content: prose
+                                  }
+                                })
+                              });
+                              const data = await res.json();
+                              if (!res.ok || !data?.document?.id) throw new Error(data?.error || 'Compose failed');
+                              
+                              // Handle async composition
+                              if (data.composition_type === 'async_processing') {
+                                sessionStorage.setItem(`doc_${data.document.id}_work_id`, data.work_id);
+                                sessionStorage.setItem(`doc_${data.document.id}_status_url`, data.status_url);
+                              }
+                              
+                              // Navigate to the newly composed document
+                              router.push(`/baskets/${basketId}/documents/${data.document.id}`);
+                            } catch (e) {
+                              console.error('Failed to compose document:', e);
+                              alert('Failed to compose document');
+                            }
                           }}
                           className="border-purple-300 text-purple-700 hover:bg-purple-50"
                         >

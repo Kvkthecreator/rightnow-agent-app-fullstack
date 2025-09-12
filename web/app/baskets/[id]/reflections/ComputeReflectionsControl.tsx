@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 
 interface Props {
@@ -10,6 +9,7 @@ interface Props {
 }
 
 export default function ComputeReflectionsControl({ basketId }: Props) {
+  const [showModal, setShowModal] = useState(false);
   const [scope, setScope] = useState<'window' | 'event'>('window');
   const [eventId, setEventId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,8 +23,6 @@ export default function ComputeReflectionsControl({ basketId }: Props) {
         ? { scope: 'event', event_id: eventId }
         : { basket_id: basketId, force_refresh: true };
 
-      // For window scope, the API expects basket_id (and derives workspace)
-      // For event scope, it only needs event_id
       if (scope === 'window') {
         body.scope = 'window';
         body.basket_id = basketId;
@@ -46,8 +44,8 @@ export default function ComputeReflectionsControl({ basketId }: Props) {
         throw new Error((data && (data.error || data.detail)) || `Request failed (${resp.status})`);
       }
 
-      // Notify the list to refresh
       window.dispatchEvent(new CustomEvent('reflections:refresh'));
+      setShowModal(false);
     } catch (e: any) {
       setError(e?.message || 'Failed to request reflections');
     } finally {
@@ -56,35 +54,58 @@ export default function ComputeReflectionsControl({ basketId }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="hidden sm:flex items-center gap-2">
-        <Select value={scope} onValueChange={(v) => setScope(v as 'window' | 'event')}>
-          <SelectTrigger className="w-40 h-9 text-sm">
-            <SelectValue placeholder="Select type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="window">From recent activity</SelectItem>
-            <SelectItem value="event">From specific event…</SelectItem>
-          </SelectContent>
-        </Select>
-        {scope === 'event' && (
-          <input
-            type="text"
-            value={eventId}
-            onChange={(e) => setEventId(e.target.value)}
-            placeholder="Event ID"
-            className="h-9 w-52 rounded-md border border-gray-300 px-2 text-sm"
-          />
-        )}
-      </div>
-      <Button size="sm" onClick={handleCompute} disabled={loading}>
-        {loading ? 'Requesting…' : 'Find New Insights'}
+    <>
+      <Button size="sm" onClick={() => setShowModal(true)}>
+        Find New Insights
       </Button>
-      {error && (
-        <span className="ml-2 text-xs text-red-600 max-w-xs truncate" title={error}>
-          {error}
-        </span>
+      
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-lg font-medium mb-4">Find Insights</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Source</label>
+                <select 
+                  value={scope} 
+                  onChange={(e) => setScope(e.target.value as 'window' | 'event')}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                >
+                  <option value="window">Recent activity</option>
+                  <option value="event">Specific event</option>
+                </select>
+              </div>
+              
+              {scope === 'event' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Event ID</label>
+                  <input
+                    type="text"
+                    value={eventId}
+                    onChange={(e) => setEventId(e.target.value)}
+                    placeholder="Enter event ID"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                  />
+                </div>
+              )}
+              
+              {error && (
+                <div className="text-red-600 text-sm">{error}</div>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCompute} disabled={loading}>
+                {loading ? 'Processing...' : 'Find Insights'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }

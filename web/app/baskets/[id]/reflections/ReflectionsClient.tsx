@@ -16,6 +16,7 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
   const [cursor, setCursor] = useState<string | undefined>();
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedInsight, setSelectedInsight] = useState<ReflectionDTO | null>(null);
 
   // Load reflections from API
   async function loadReflections(useCursor?: string) {
@@ -216,7 +217,11 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
       {/* Insights List */}
       <div className="space-y-4">
         {filteredReflections.map((reflection, index) => (
-          <div key={reflection.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div 
+            key={reflection.id} 
+            className="bg-white rounded-lg border border-gray-200 overflow-hidden cursor-pointer hover:border-gray-300 transition-colors"
+            onClick={() => setSelectedInsight(reflection)}
+          >
             {/* Insight Header */}
             <div className="border-b border-gray-100 px-6 py-4">
               <div className="flex items-center justify-between">
@@ -239,12 +244,13 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
               </div>
             </div>
 
-            {/* Insight Content */}
-            <div className="px-6 py-6">
-              <div className="prose prose-gray max-w-none">
-                <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                  {reflection.reflection_text}
-                </div>
+            {/* Insight Preview */}
+            <div className="px-6 py-4">
+              <div className="text-gray-700 text-sm leading-relaxed">
+                {reflection.reflection_text.length > 200 
+                  ? reflection.reflection_text.substring(0, 200) + '...'
+                  : reflection.reflection_text
+                }
               </div>
             </div>
           </div>
@@ -268,6 +274,54 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
           >
             {loadingMore ? "Finding more..." : "Find More Insights"}
           </button>
+        </div>
+      )}
+
+      {/* Insight Detail Modal */}
+      {selectedInsight && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">💡</span>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Insight Details
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setSelectedInsight(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="text-sm text-gray-500">
+                  Found {formatComputationTime(selectedInsight.computation_timestamp)}
+                  {selectedInsight.meta?.substrate_dump_count && (
+                    <span className="ml-2">• From {selectedInsight.meta.substrate_dump_count} sources</span>
+                  )}
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                    {selectedInsight.reflection_text}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-6">
+                <button 
+                  onClick={() => setSelectedInsight(null)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
