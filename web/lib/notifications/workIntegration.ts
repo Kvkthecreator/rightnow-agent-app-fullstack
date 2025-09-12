@@ -49,13 +49,13 @@ export function useWorkNotificationIntegration(basketId?: string) {
     try {
       // Fetch current work activity using canon-compliant auth
       const [workRes, propRes] = await Promise.all([
-        fetchWithToken(`/api/baskets/${basketId}/work`),
-        fetchWithToken(`/api/baskets/${basketId}/proposals?status=PROPOSED`),
+        fetchWithToken(`/api/baskets/${basketId}/work`).catch(err => ({ ok: false, error: err })),
+        fetchWithToken(`/api/baskets/${basketId}/proposals?status=PROPOSED`).catch(err => ({ ok: false, error: err })),
       ]);
 
       // Process active work
-      if (workRes.ok) {
-        const workData = await workRes.json();
+      if (workRes.ok && typeof workRes === 'object' && 'json' in workRes) {
+        const workData = await (workRes as Response).json();
         const activeWork = (workData.items || []).filter((w: WorkActivity) => 
           ['pending', 'claimed', 'processing', 'cascading'].includes(w.status)
         );
@@ -93,11 +93,14 @@ export function useWorkNotificationIntegration(basketId?: string) {
             addNotification(notificationRequest);
           }
         });
+      } else if (!workRes.ok && 'error' in workRes) {
+        // Log work fetch error but don't crash
+        console.warn('Work API unavailable, skipping work notifications:', workRes.error?.message || 'Unknown error');
       }
 
-      // Process governance proposals
-      if (propRes.ok) {
-        const propData = await propRes.json();
+      // Process governance proposals - only if API is working
+      if (propRes.ok && typeof propRes === 'object' && 'json' in propRes) {
+        const propData = await (propRes as Response).json();
         (propData.items || []).forEach((proposal: ProposalActivity) => {
           // Check if notification already exists
           const exists = existingWorkNotifications.some(n => 
@@ -132,6 +135,9 @@ export function useWorkNotificationIntegration(basketId?: string) {
             addNotification(notificationRequest);
           }
         });
+      } else if (!propRes.ok && 'error' in propRes) {
+        // Log proposals fetch error but don't crash
+        console.warn('Proposals API unavailable, skipping governance notifications:', propRes.error?.message || 'Unknown error');
       }
 
     } catch (error) {
@@ -139,16 +145,36 @@ export function useWorkNotificationIntegration(basketId?: string) {
     }
   }, [basketId, addNotification, existingWorkNotifications]);
 
-  // Refresh work notifications periodically
+  // Refresh work notifications periodically with exponential backoff on errors
   useEffect(() => {
     if (!basketId) return;
 
-    createWorkNotifications();
+    let errorCount = 0;
+    let intervalId: NodeJS.Timeout;
 
-    // Set up periodic refresh for active work
-    const interval = setInterval(createWorkNotifications, 30000); // 30 seconds
+    const createWorkNotificationsWithBackoff = async () => {
+      try {
+        await createWorkNotifications();
+        // Reset error count on success
+        errorCount = 0;
+        // Set normal interval (2 minutes for less network noise)
+        clearInterval(intervalId);
+        intervalId = setInterval(createWorkNotificationsWithBackoff, 120000);
+      } catch (error) {
+        errorCount++;
+        console.warn(`Work notifications failed (attempt ${errorCount}), backing off...`);
+        
+        // Exponential backoff: 2^errorCount minutes, max 10 minutes
+        const backoffMs = Math.min(Math.pow(2, errorCount) * 60000, 600000);
+        clearInterval(intervalId);
+        intervalId = setInterval(createWorkNotificationsWithBackoff, backoffMs);
+      }
+    };
+
+    // Initial load
+    createWorkNotificationsWithBackoff();
     
-    return () => clearInterval(interval);
+    return () => clearInterval(intervalId);
   }, [basketId, createWorkNotifications]);
 
   return {
