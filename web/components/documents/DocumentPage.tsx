@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/Card';
-import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon, Brain, ChevronDown, ChevronRight, Database, FileText, MessageSquare, Clock, History, Target, TrendingUp } from 'lucide-react';
+import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Brain, ChevronDown, ChevronRight, Database, FileText, MessageSquare, Clock, History, Target, TrendingUp } from 'lucide-react';
 import { DocumentCompositionStatus } from './DocumentCompositionStatus';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { useBasket } from '@/contexts/BasketContext';
@@ -102,15 +102,32 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
         body: JSON.stringify({ title: title.trim(), content_raw: prose })
       });
       if (!res.ok) throw new Error('Save failed');
+      
+      // Update local document state to reflect saved content
+      document.title = title.trim();
+      document.content_raw = prose;
+      
+      return true; // Return success status
     } catch (e) {
+      console.error('Failed to save document:', e);
       alert('Failed to save document');
+      return false; // Return failure status
     } finally {
       setSaving(false);
     }
   };
 
   const extractToMemory = async () => {
+    if (!prose.trim()) {
+      alert('Please add some content before extracting to memory');
+      return;
+    }
+
     try {
+      // Save document first to ensure latest content is persisted
+      await saveDocument();
+      
+      // Create memory dump with document context
       const dump_request_id = crypto.randomUUID();
       const res = await fetch('/api/dumps/new', {
         method: 'POST',
@@ -118,35 +135,26 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
         body: JSON.stringify({
           basket_id: basketId,
           dump_request_id,
-          text_dump: prose,
-          meta: { source: 'document_extract', document_id: document.id }
+          text_dump: `${title}\n\n${prose}`,
+          meta: { 
+            source: 'document_extract', 
+            document_id: document.id,
+            document_title: title,
+            extraction_timestamp: new Date().toISOString()
+          }
         })
       });
+      
       if (!res.ok) throw new Error('Extract failed');
-      alert('Extracted to memory. Substrate proposals will arrive shortly.');
+      
+      // Redirect to memory page to see the processing
+      router.push(`/baskets/${basketId}/memory`);
     } catch (e) {
+      console.error('Failed to extract to memory:', e);
       alert('Failed to extract to memory');
     }
   };
 
-  const attachReference = async (type: string, id: string, role?: string) => {
-    try {
-      const res = await fetch(`/api/documents/${document.id}/references`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ substrate_type: type, substrate_id: id, role: role || null })
-      });
-      if (!res.ok) throw new Error('Attach failed');
-      if (mode === 'read') {
-        // Refresh composition
-        const r = await fetch(`/api/documents/${document.id}/composition`);
-        if (r.ok) setComposition(await r.json());
-      }
-      alert('Attached');
-    } catch (e) {
-      alert('Failed to attach reference');
-    }
-  };
 
   const formatReflectionAge = (timestamp: string): string => {
     const date = new Date(timestamp);
@@ -536,107 +544,182 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
           </div>
         )}
 
-        {/* Edit */}
+        {/* Edit Mode */}
         {mode === 'edit' && (
           <div className="space-y-6">
             
             {/* Maturity-Based Edit Guidance */}
             {maturity && maturityGuidance && (
-              <Card>
-                <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Target className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-900">
-                      Authoring Guidance - Level {maturity.level}
-                    </span>
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Target className="h-5 w-5 text-blue-600" />
+                    <h2 className="text-lg font-semibold text-gray-900">Authoring Guidance</h2>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                       maturity.level === 1 ? 'bg-orange-100 text-orange-700' :
                       maturity.level === 2 ? 'bg-yellow-100 text-yellow-700' :
                       maturity.level === 3 ? 'bg-green-100 text-green-700' :
                       'bg-purple-100 text-purple-700'
                     }`}>
-                      {maturity.phase}
+                      Level {maturity.level} - {maturity.phase}
                     </span>
                   </div>
-                  <p className="text-sm text-blue-800 mb-3">{maturityGuidance.documentEditGuidance}</p>
-                  
-                  {/* Feature availability based on maturity */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                    <div className={`flex items-center gap-2 p-2 rounded ${
-                      maturity.level >= 1 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>
+                </div>
+                
+                <p className="text-sm text-gray-700 mb-4">{maturityGuidance.documentEditGuidance}</p>
+                
+                {/* Progressive Feature Unlocks */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className={`p-3 rounded-lg border ${
+                    maturity.level >= 1 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1">
                       <div className={`w-2 h-2 rounded-full ${maturity.level >= 1 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                      Basic authoring & substrate linking
+                      <span className={`text-sm font-medium ${
+                        maturity.level >= 1 ? 'text-green-700' : 'text-gray-500'
+                      }`}>Basic Authoring</span>
                     </div>
-                    <div className={`flex items-center gap-2 p-2 rounded ${
-                      maturity.level >= 2 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>
+                    <p className="text-xs text-gray-600">Write and save documents</p>
+                  </div>
+                  
+                  <div className={`p-3 rounded-lg border ${
+                    maturity.level >= 2 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1">
                       <div className={`w-2 h-2 rounded-full ${maturity.level >= 2 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                      Enhanced memory extraction
+                      <span className={`text-sm font-medium ${
+                        maturity.level >= 2 ? 'text-green-700' : 'text-gray-500'
+                      }`}>Memory Extraction</span>
                     </div>
-                    <div className={`flex items-center gap-2 p-2 rounded ${
-                      maturity.level >= 3 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>
+                    <p className="text-xs text-gray-600">Convert to substrate for insights</p>
+                  </div>
+                  
+                  <div className={`p-3 rounded-lg border ${
+                    maturity.level >= 3 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1">
                       <div className={`w-2 h-2 rounded-full ${maturity.level >= 3 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                      AI-assisted composition
+                      <span className={`text-sm font-medium ${
+                        maturity.level >= 3 ? 'text-green-700' : 'text-gray-500'
+                      }`}>AI Composition</span>
                     </div>
+                    <p className="text-xs text-gray-600">Enhance with AI insights</p>
                   </div>
                 </div>
-              </Card>
+              </div>
             )}
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-              <input className="w-full p-3 border border-gray-200 rounded text-sm" value={title} onChange={(e) => setTitle(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Authored Prose</label>
-              <textarea className="w-full min-h-[260px] p-3 border border-gray-200 rounded text-sm" value={prose} onChange={(e) => setProse(e.target.value)} />
-              <div className="flex gap-2 mt-3">
-                <Button onClick={saveDocument} disabled={saving}>
-                  <Save className="h-4 w-4 mr-1" />
-                  {saving ? 'Saving...' : 'Save'}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={extractToMemory}
-                  disabled={maturity?.level === 1 && prose.trim().length < 100}
-                  title={maturity?.level === 1 && prose.trim().length < 100 ? "Add more content to extract meaningful insights" : ""}
-                >
-                  <Upload className="h-4 w-4 mr-1" />
-                  Extract to Memory
-                </Button>
-                {maturity && maturity.level >= 3 && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => router.push(`/baskets/${basketId}/compose`)}
-                    className="text-purple-700 border-purple-200 hover:bg-purple-50"
-                  >
-                    <Brain className="h-4 w-4 mr-1" />
-                    AI Compose
-                  </Button>
-                )}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                <LinkIcon className="h-4 w-4"/>
-                Attach Substrate
-                {maturity && maturity.level === 1 && (
-                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                    Start building connections!
-                  </span>
-                )}
-              </label>
-              <AttachRefForm onAttach={attachReference} />
-              
-              {/* Substrate attachment suggestions based on maturity */}
-              {maturity && maturity.level <= 2 && (
-                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                  💡 Tip: Linking related memories helps discover patterns and improves insights quality
+            {/* Document Editor */}
+            <Card>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {/* Title Field */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Document Title
+                    </label>
+                    <input 
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                      value={title} 
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Give your document a meaningful title..."
+                    />
+                  </div>
+                  
+                  {/* Content Field */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Document Content
+                    </label>
+                    <textarea 
+                      className="w-full min-h-[300px] px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                      value={prose} 
+                      onChange={(e) => setProse(e.target.value)}
+                      placeholder="Write your document content here..."
+                    />
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={saveDocument} 
+                        disabled={saving}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? 'Saving...' : 'Save Document'}
+                      </Button>
+                      
+                      <Button 
+                        variant="outline" 
+                        onClick={extractToMemory}
+                        disabled={!prose.trim() || (maturity?.level === 1 && prose.trim().length < 100)}
+                        title={maturity?.level === 1 && prose.trim().length < 100 ? "Add more content to extract meaningful insights" : ""}
+                        className="border-green-300 text-green-700 hover:bg-green-50"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Extract to Memory
+                      </Button>
+                      
+                      {maturity && maturity.level >= 3 && (
+                        <Button 
+                          variant="outline" 
+                          onClick={async () => {
+                            // Save current content first
+                            await saveDocument();
+                            // Navigate to compose with document context
+                            router.push(`/baskets/${basketId}/documents/${document.id}/compose`);
+                          }}
+                          className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                        >
+                          <Brain className="h-4 w-4 mr-2" />
+                          AI Compose
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <Button
+                      variant="ghost"
+                      onClick={() => setMode('read')}
+                      className="text-gray-600"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            </Card>
+            
+            {/* Helpful Tips */}
+            {maturity && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-2">
+                  <span className="text-lg">💡</span>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-blue-900 mb-1">Tips for your current level</h4>
+                    {maturity.level === 1 && (
+                      <p className="text-sm text-blue-800">
+                        Focus on capturing your thoughts clearly. Once you have more content (100+ characters), 
+                        you can extract it to memory to start building substrate connections.
+                      </p>
+                    )}
+                    {maturity.level === 2 && (
+                      <p className="text-sm text-blue-800">
+                        Your basket is growing! Extract key sections to memory to build richer substrate connections. 
+                        The more you extract, the better the insights become.
+                      </p>
+                    )}
+                    {maturity.level >= 3 && (
+                      <p className="text-sm text-blue-800">
+                        You've unlocked AI composition! Use it to enhance your documents with AI-generated insights 
+                        based on your substrate connections. The AI will help you discover patterns and relationships.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -654,24 +737,6 @@ function Metric({ label, value, color }: { label: string; value: any; color?: st
   );
 }
 
-function AttachRefForm({ onAttach }: { onAttach: (type: string, id: string, role?: string) => void }) {
-  const [type, setType] = useState('block');
-  const [id, setId] = useState('');
-  const [role, setRole] = useState('');
-  return (
-    <div className="flex flex-col md:flex-row gap-2">
-      <select className="border p-2 text-sm" value={type} onChange={(e) => setType(e.target.value)}>
-        <option value="block">block</option>
-        <option value="dump">dump</option>
-        <option value="context_item">context_item</option>
-        <option value="timeline_event">timeline_event</option>
-      </select>
-      <input className="border p-2 flex-1 text-sm" placeholder="substrate_id (UUID)" value={id} onChange={(e) => setId(e.target.value)} />
-      <input className="border p-2 flex-1 text-sm" placeholder="role (optional)" value={role} onChange={(e) => setRole(e.target.value)} />
-      <Button onClick={() => onAttach(type, id, role)} size="sm">Attach</Button>
-    </div>
-  );
-}
 
 function VersionContent({ documentId, versionHash }: { documentId: string; versionHash: string }) {
   const [content, setContent] = useState<string>('');
