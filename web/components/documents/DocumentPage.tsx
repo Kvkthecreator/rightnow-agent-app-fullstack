@@ -671,44 +671,46 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                             if (!saveSuccess) return;
                             
                             try {
-                              // Use the same compose API as DocumentCreateButton but with document context
-                              const res = await fetch('/api/presentation/compose', {
+                              // Simple in-place enhancement approach
+                              const res = await fetch(`/api/documents/${document.id}/enhance`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                  title: title || 'Untitled Document',
-                                  basket_id: basketId,
-                                  narrative_sections: [{ id: 'intro', content: prose || 'Draft', order: 0 }],
-                                  substrate_references: [],
-                                  composition_context: { 
-                                    intent: `Enhance and expand the existing document: "${title}"`,
-                                    trace_id: crypto.randomUUID(),
-                                    window: { days: 30 },
-                                    source_document_id: document.id,
-                                    existing_content: prose
+                                  current_content: prose,
+                                  enhancement_intent: 'Improve and expand this document with insights from the knowledge base',
+                                  context: {
+                                    basket_id: basketId,
+                                    window_days: 30
                                   }
                                 })
                               });
-                              const data = await res.json();
-                              if (!res.ok || !data?.document?.id) throw new Error(data?.error || 'Compose failed');
                               
-                              // Handle async composition
-                              if (data.composition_type === 'async_processing') {
-                                sessionStorage.setItem(`doc_${data.document.id}_work_id`, data.work_id);
-                                sessionStorage.setItem(`doc_${data.document.id}_status_url`, data.status_url);
+                              if (!res.ok) {
+                                const errorData = await res.json();
+                                throw new Error(errorData.error || 'Enhancement failed');
                               }
                               
-                              // Navigate to the newly composed document
-                              router.push(`/baskets/${basketId}/documents/${data.document.id}`);
+                              const data = await res.json();
+                              
+                              // Update the document content with enhanced version
+                              setProse(data.enhanced_content);
+                              
+                              // Auto-save the enhanced content
+                              await fetch(`/api/documents/${document.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ content_raw: data.enhanced_content })
+                              });
+                              
                             } catch (e) {
-                              console.error('Failed to compose document:', e);
-                              alert('Failed to compose document');
+                              console.error('Failed to enhance document:', e);
+                              alert(e instanceof Error ? e.message : 'Failed to enhance document');
                             }
                           }}
                           className="border-purple-300 text-purple-700 hover:bg-purple-50"
                         >
                           <Brain className="h-4 w-4 mr-2" />
-                          AI Compose
+                          AI Enhance
                         </Button>
                       )}
                     </div>
