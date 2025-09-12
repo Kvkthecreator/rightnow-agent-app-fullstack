@@ -7,7 +7,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNotificationStore } from '@/lib/notifications/store';
 import type { UnifiedNotification, NotificationChannel } from '@/lib/notifications/types';
 import { NotificationToast } from './NotificationToast';
@@ -16,6 +16,7 @@ import { NotificationDrawer } from './NotificationDrawer';
 import { PersistentNotifications } from './PersistentNotifications';
 import { usePathname } from 'next/navigation';
 import { createBrowserClient } from '@/lib/supabase/clients';
+import { useWorkNotificationIntegration } from '@/lib/notifications/workIntegration';
 
 interface NotificationCenterProps {
   workspace_id?: string;
@@ -49,6 +50,16 @@ export function NotificationCenter({
   } = useNotificationStore();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Extract current basket ID for work integration
+  const basketId = useMemo(() => {
+    if (!pathname) return undefined;
+    const basketMatch = pathname.match(/^\/baskets\/([^/]+)/);
+    return basketMatch ? basketMatch[1] : undefined;
+  }, [pathname]);
+
+  // Integrate work notifications
+  useWorkNotificationIntegration(basketId);
 
   // Listen for drawer toggle events from TopBar
   useEffect(() => {
