@@ -153,47 +153,7 @@ export function NotificationCenter({
 
   return (
     <>
-      {/* Toast Notifications */}
-      <div className={`fixed z-50 pointer-events-none ${
-        governance?.ui_preferences?.position === 'top-left' ? 'top-4 left-4' :
-        governance?.ui_preferences?.position === 'bottom-right' ? 'bottom-4 right-4' :
-        governance?.ui_preferences?.position === 'bottom-left' ? 'bottom-4 left-4' :
-        'top-4 right-4' // default top-right
-      }`}>
-        <div className="space-y-2 pointer-events-auto">
-          {toastNotifications
-            .slice(0, governance?.ui_preferences?.max_visible || 5)
-            .map(notification => (
-              <NotificationToast
-                key={notification.id}
-                notification={notification}
-                onDismiss={() => dismissNotification(notification.id)}
-                onRead={() => markAsRead(notification.id)}
-              />
-            ))}
-        </div>
-      </div>
-
-      {/* Badge Indicator */}
-      {badgeCount > 0 && (
-        <NotificationBadge
-          count={badgeCount}
-          onClick={() => setDrawerOpen(true)}
-          className={className}
-        />
-      )}
-
-      {/* Persistent Notifications */}
-      {persistentNotifications.length > 0 && (
-        <PersistentNotifications
-          notifications={persistentNotifications}
-          onDismiss={dismissNotification}
-          onRead={markAsRead}
-          onAcknowledge={acknowledgeNotification}
-        />
-      )}
-
-      {/* Notification Drawer */}
+      {/* Notification Drawer - Only show drawer, no intrusive popups */}
       <NotificationDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}

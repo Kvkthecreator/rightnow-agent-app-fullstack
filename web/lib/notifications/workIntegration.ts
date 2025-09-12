@@ -7,6 +7,7 @@
 
 import { useNotificationStore } from './store';
 import { useEffect, useCallback } from 'react';
+import { fetchWithToken } from '@/lib/fetchWithToken';
 import type { CreateNotificationRequest } from './types';
 
 interface WorkActivity {
@@ -46,10 +47,10 @@ export function useWorkNotificationIntegration(basketId?: string) {
     if (!basketId) return;
 
     try {
-      // Fetch current work activity
+      // Fetch current work activity using canon-compliant auth
       const [workRes, propRes] = await Promise.all([
-        fetch(`/api/baskets/${basketId}/work`),
-        fetch(`/api/baskets/${basketId}/proposals?status=PROPOSED`),
+        fetchWithToken(`/api/baskets/${basketId}/work`),
+        fetchWithToken(`/api/baskets/${basketId}/proposals?status=PROPOSED`),
       ]);
 
       // Process active work
@@ -72,10 +73,10 @@ export function useWorkNotificationIntegration(basketId?: string) {
               title: formatWorkTitle(work.work_type),
               message: getWorkMessage(work),
               severity: getWorkSeverity(work.status),
-              channels: ['badge', 'drawer'],
+              channels: ['badge'], // Only show in badge count, no popups
               persistence: {
-                cross_page: true,
-                auto_dismiss: work.status === 'processing' ? false : true, // Keep processing notifications visible
+                cross_page: false, // Don't persist across pages to reduce noise
+                auto_dismiss: true, // Auto-dismiss to keep it quiet
                 requires_acknowledgment: false
               },
               related_entities: {
@@ -110,11 +111,11 @@ export function useWorkNotificationIntegration(basketId?: string) {
               title: 'Governance Review Required',
               message: `${proposal.proposal_kind}: ${proposal.impact_summary || 'Review needed'}`,
               severity: 'warning',
-              channels: ['badge', 'persistent', 'drawer'],
+              channels: ['badge'], // Only show in badge, no persistent popups
               persistence: {
-                cross_page: true,
-                auto_dismiss: false,
-                requires_acknowledgment: true
+                cross_page: false, // Don't persist to reduce noise
+                auto_dismiss: false, // Don't auto-dismiss governance items
+                requires_acknowledgment: false // Don't require acknowledgment
               },
               related_entities: {
                 basket_id: basketId
@@ -214,20 +215,25 @@ function formatTimeAgo(timestamp: string): string {
 
 async function retryWork(workId: string): Promise<void> {
   try {
-    const response = await fetch('/api/work', {
+    const response = await fetchWithToken('/api/work', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ retry_work_id: workId })
     });
     
     if (response.ok) {
-      // Show success notification
+      // Show quiet success notification - only in badge count
       useNotificationStore.getState().addNotification({
         type: 'work.queued',
         title: 'Work Retried',
         message: 'Task has been queued for retry',
         severity: 'success',
-        channels: ['toast']
+        channels: ['badge'], // Quiet notification in badge only
+        persistence: {
+          cross_page: false,
+          auto_dismiss: true,
+          requires_acknowledgment: false
+        }
       });
     }
   } catch (error) {
