@@ -64,7 +64,8 @@ export async function POST(
     const enhanced_content = await enhanceDocumentContent(
       body.current_content,
       body.enhancement_intent,
-      document.basket_id
+      document.basket_id,
+      accessToken
     );
     
     return NextResponse.json({
@@ -86,7 +87,8 @@ export async function POST(
 async function enhanceDocumentContent(
   currentContent: string,
   intent: string,
-  basketId: string
+  basketId: string,
+  accessToken: string
 ): Promise<string> {
   // Use backend presentation agent for actual AI enhancement
   try {
