@@ -6,7 +6,7 @@
  */
 
 import { useNotificationStore } from './store';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import type { CreateNotificationRequest } from './types';
 
@@ -39,12 +39,15 @@ interface TimelineEvent {
  */
 export function useWorkNotificationIntegration(basketId?: string) {
   const { addNotification, getNotificationsByCategory } = useNotificationStore();
-
-  // Get existing work notifications to avoid duplicates
-  const existingWorkNotifications = getNotificationsByCategory('work');
+  
+  // Use ref to access current function within useEffect
+  const createWorkNotificationsRef = useRef<(() => Promise<void>) | null>(null);
 
   const createWorkNotifications = useCallback(async () => {
     if (!basketId) return;
+
+    // Get existing work notifications to avoid duplicates (moved inside callback)
+    const existingWorkNotifications = getNotificationsByCategory('work');
 
     try {
       // Fetch current work activity using canon-compliant auth
@@ -143,7 +146,10 @@ export function useWorkNotificationIntegration(basketId?: string) {
     } catch (error) {
       console.error('Failed to create work notifications:', error);
     }
-  }, [basketId, addNotification, existingWorkNotifications]);
+  }, [basketId, addNotification, getNotificationsByCategory]);
+
+  // Update ref whenever callback changes
+  createWorkNotificationsRef.current = createWorkNotifications;
 
   // Refresh work notifications periodically with exponential backoff on errors
   useEffect(() => {
@@ -151,16 +157,23 @@ export function useWorkNotificationIntegration(basketId?: string) {
 
     let errorCount = 0;
     let intervalId: NodeJS.Timeout;
+    let isActive = true; // Prevent race conditions
 
     const createWorkNotificationsWithBackoff = async () => {
+      if (!isActive || !createWorkNotificationsRef.current) return;
+      
       try {
-        await createWorkNotifications();
+        await createWorkNotificationsRef.current();
+        if (!isActive) return;
+        
         // Reset error count on success
         errorCount = 0;
         // Set normal interval (2 minutes for less network noise)
         clearInterval(intervalId);
         intervalId = setInterval(createWorkNotificationsWithBackoff, 120000);
       } catch (error) {
+        if (!isActive) return;
+        
         errorCount++;
         console.warn(`Work notifications failed (attempt ${errorCount}), backing off...`);
         
@@ -174,8 +187,11 @@ export function useWorkNotificationIntegration(basketId?: string) {
     // Initial load
     createWorkNotificationsWithBackoff();
     
-    return () => clearInterval(intervalId);
-  }, [basketId, createWorkNotifications]);
+    return () => {
+      isActive = false;
+      clearInterval(intervalId);
+    };
+  }, [basketId]); // Remove createWorkNotifications from dependencies
 
   return {
     refreshWorkNotifications: createWorkNotifications
