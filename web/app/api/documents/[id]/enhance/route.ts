@@ -23,6 +23,17 @@ export async function POST(
     const { id: documentId } = await params;
     const body: EnhanceRequest = await req.json();
     
+    // Get auth token from request headers
+    const accessToken = 
+      req.headers.get("sb-access-token") || req.headers.get("authorization")?.replace("Bearer ", "");
+      
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'Missing authentication token' },
+        { status: 401 }
+      );
+    }
+    
     const supabase = createServerSupabaseClient();
     const { userId } = await getAuthenticatedUser(supabase);
     
@@ -89,7 +100,11 @@ async function enhanceDocumentContent(
     // Call backend composition service for document enhancement
     const response = await fetch(`${backend}/api/documents/enhance-existing`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'sb-access-token': accessToken
+      },
       body: JSON.stringify({
         current_content: currentContent,
         enhancement_intent: intent,
