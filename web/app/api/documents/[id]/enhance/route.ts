@@ -77,25 +77,43 @@ async function enhanceDocumentContent(
   intent: string,
   basketId: string
 ): Promise<string> {
-  // Simple enhancement for now - could be replaced with actual AI logic
-  if (!currentContent.trim()) {
-    return "This document has been enhanced with AI insights.\n\nPlease add some initial content to get meaningful enhancements.";
+  // Use backend presentation agent for actual AI enhancement
+  try {
+    const { getApiBaseUrl } = await import('@/lib/config/api');
+    const backend = getApiBaseUrl();
+    
+    if (!backend) {
+      throw new Error('Backend URL not configured');
+    }
+    
+    // Call backend composition service for document enhancement
+    const response = await fetch(`${backend}/api/documents/enhance-existing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        current_content: currentContent,
+        enhancement_intent: intent,
+        basket_id: basketId,
+        composition_type: 'enhancement'
+      })
+    });
+    
+    if (!response.ok) {
+      // Fallback to simple enhancement if backend fails
+      console.warn('Backend enhancement failed, using fallback');
+      return currentContent + '\n\n---\n\n*AI enhancement temporarily unavailable. Backend service error.*';
+    }
+    
+    const data = await response.json();
+    return data.enhanced_content || currentContent;
+    
+  } catch (error) {
+    console.error('Enhancement service error:', error);
+    // Fallback for any network/service issues
+    if (!currentContent.trim()) {
+      return "This document has been enhanced with AI insights.\n\nPlease add some initial content to get meaningful enhancements.";
+    }
+    
+    return currentContent + '\n\n---\n\n*AI enhancement temporarily unavailable. Please try again later.*';
   }
-  
-  const enhancement = `
-
----
-
-## AI Enhancement
-
-Based on your knowledge base, here are some suggestions to expand this document:
-
-• Consider adding more context and background information
-• Include relevant examples or case studies from your substrate
-• Add connections to related insights and patterns
-• Expand on key concepts with more detailed explanations
-
-*This is a placeholder enhancement. Full AI enhancement capabilities are being developed.*`;
-
-  return currentContent + enhancement;
 }

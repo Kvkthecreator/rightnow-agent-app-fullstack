@@ -228,27 +228,32 @@ Return JSON only.""",
             else:
                 # Get all blocks in workspace
                 baskets_response = supabase.table("baskets").select("id").eq("workspace_id", workspace_filter).execute()
-                if baskets_response.data:
-                    basket_ids = [b["id"] for b in baskets_response.data]
-                    blocks_query = blocks_query.in_("basket_id", basket_ids)
+                if baskets_response.data and len(baskets_response.data) > 0:
+                    basket_ids = [b["id"] for b in baskets_response.data if b and "id" in b]
+                    if basket_ids:
+                        blocks_query = blocks_query.in_("basket_id", basket_ids)
+                    else:
+                        # No valid basket IDs found
+                        return substrate_data
             
             blocks_response = blocks_query.execute()
             
-            if blocks_response.data:
+            if blocks_response.data and len(blocks_response.data) > 0:
                 for block in blocks_response.data:
-                    substrate_data.append({
-                        "id": block["id"],
-                        "type": "block",
-                        "basket_id": block["basket_id"],
-                        "title": block.get("title", ""),
-                        "content": block.get("body_md", ""),
-                        "semantic_type": block.get("semantic_type", "concept"),
-                        "status": block.get("status", "proposed"),
-                        "confidence": block.get("confidence_score", 0.5),
-                        "metadata": block.get("metadata", {}),
-                        "created_at": block.get("created_at"),
-                        "updated_at": block.get("updated_at")
-                    })
+                    if block and isinstance(block, dict) and "id" in block:
+                        substrate_data.append({
+                            "id": block["id"],
+                            "type": "block", 
+                            "basket_id": block.get("basket_id"),
+                            "title": block.get("title", ""),
+                            "content": block.get("body_md", ""),
+                            "semantic_type": block.get("semantic_type", "concept"),
+                            "status": block.get("status", "proposed"),
+                            "confidence": block.get("confidence_score", 0.5),
+                            "metadata": block.get("metadata", {}),
+                            "created_at": block.get("created_at"),
+                            "updated_at": block.get("updated_at")
+                        })
             
             # Get context items
             context_query = supabase.table("context_items").select(
@@ -259,23 +264,24 @@ Return JSON only.""",
                 context_query = context_query.eq("basket_id", basket_filter)
             else:
                 # Get all context items in workspace
-                if 'basket_ids' in locals():
+                if 'basket_ids' in locals() and basket_ids:
                     context_query = context_query.in_("basket_id", basket_ids)
             
             context_response = context_query.execute()
             
-            if context_response.data:
+            if context_response.data and len(context_response.data) > 0:
                 for item in context_response.data:
-                    substrate_data.append({
-                        "id": item["id"],
-                        "type": "context_item",
-                        "basket_id": item["basket_id"],
-                        "title": item.get("content", "")[:50],
-                        "content": item.get("content", ""),
-                        "semantic_type": item.get("type", "concept"),
-                        "metadata": item.get("metadata", {}),
-                        "created_at": item.get("created_at")
-                    })
+                    if item and isinstance(item, dict) and "id" in item:
+                        substrate_data.append({
+                            "id": item["id"],
+                            "type": "context_item",
+                            "basket_id": item.get("basket_id"),
+                            "title": item.get("content", "")[:50] if item.get("content") else "",
+                            "content": item.get("content", ""),
+                            "semantic_type": item.get("type", "concept"),
+                            "metadata": item.get("metadata", {}),
+                            "created_at": item.get("created_at")
+                        })
             
             # Get relationships for pattern analysis
             relationships_query = supabase.table("substrate_relationships").select(
@@ -285,27 +291,28 @@ Return JSON only.""",
             if basket_filter:
                 relationships_query = relationships_query.eq("basket_id", basket_filter)
             else:
-                if 'basket_ids' in locals():
+                if 'basket_ids' in locals() and basket_ids:
                     relationships_query = relationships_query.in_("basket_id", basket_ids)
             
             relationships_response = relationships_query.execute()
             
-            if relationships_response.data:
+            if relationships_response.data and len(relationships_response.data) > 0:
                 for rel in relationships_response.data:
-                    substrate_data.append({
-                        "id": rel["id"],
-                        "type": "relationship",
-                        "basket_id": rel["basket_id"],
-                        "from_type": rel["from_type"],
-                        "from_id": rel["from_id"],
-                        "to_type": rel["to_type"],
-                        "to_id": rel["to_id"],
-                        "relationship_type": rel["relationship_type"],
-                        "strength": rel.get("strength", 0.5),
-                        "description": rel.get("description", ""),
-                        "metadata": rel.get("metadata", {}),
-                        "created_at": rel.get("created_at")
-                    })
+                    if rel and isinstance(rel, dict) and "id" in rel:
+                        substrate_data.append({
+                            "id": rel["id"],
+                            "type": "relationship",
+                            "basket_id": rel.get("basket_id"),
+                            "from_type": rel.get("from_type"),
+                            "from_id": rel.get("from_id"),
+                            "to_type": rel.get("to_type"),
+                            "to_id": rel.get("to_id"),
+                            "relationship_type": rel.get("relationship_type"),
+                            "strength": rel.get("strength", 0.5),
+                            "description": rel.get("description", ""),
+                            "metadata": rel.get("metadata", {}),
+                            "created_at": rel.get("created_at")
+                        })
             
             return substrate_data
             

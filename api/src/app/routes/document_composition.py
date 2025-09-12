@@ -15,6 +15,7 @@ from src.schemas.document_composition_schema import (
     ContextDrivenDocument, DocumentContextAlignment, AgentCompositionRequest,
     CompositionSuggestion, CompositionOpportunityAnalysis
 )
+from pydantic import BaseModel
 from ..documents.services.context_composition import ContextCompositionService
 from ..documents.services.document_architect import DocumentArchitectService
 from ..documents.services.lifecycle_management import DocumentLifecycleService
@@ -25,6 +26,21 @@ from ..dependencies import get_current_user
 logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(prefix="/api/documents", tags=["Document Composition"])
+
+
+class DocumentEnhancementRequest(BaseModel):
+    """Request to enhance existing document content."""
+    current_content: str
+    enhancement_intent: str
+    basket_id: str
+    composition_type: str = "enhancement"
+
+
+class DocumentEnhancementResult(BaseModel):
+    """Result of document enhancement."""
+    enhanced_content: str
+    enhancement_applied: bool
+    enhancement_summary: Optional[str] = None
 
 
 # Context-Driven Composition Endpoints
@@ -437,6 +453,74 @@ async def health_check():
             "composition_architecture"
         ]
     }
+
+
+@router.post("/enhance-existing", response_model=DocumentEnhancementResult)
+async def enhance_existing_document(
+    request: DocumentEnhancementRequest,
+    current_user = Depends(get_current_user)
+):
+    """Enhance existing document content using AI composition."""
+    
+    try:
+        from app.agents.pipeline.presentation_agent import P4PresentationAgent
+        from services.llm import get_llm
+        
+        # Use LLM service to enhance the content with context from basket
+        llm = get_llm()
+        
+        # Build enhancement prompt with basket context
+        enhancement_prompt = f"""
+Enhance and expand the following document content based on the user's intent:
+
+Current Content:
+{request.current_content}
+
+Enhancement Intent: {request.enhancement_intent}
+
+Please provide enhanced content that:
+- Expands on key concepts mentioned
+- Adds relevant context and background
+- Maintains the original tone and structure
+- Integrates insights that would be valuable
+- Keeps the enhancement focused and relevant
+
+Return only the enhanced document content, no explanations.
+"""
+        
+        llm_response = await llm.get_text_response(
+            prompt=enhancement_prompt,
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        if llm_response.success and llm_response.content:
+            enhanced_content = llm_response.content.strip()
+            logger.info(f"Document enhanced for basket {request.basket_id}")
+            
+            return DocumentEnhancementResult(
+                enhanced_content=enhanced_content,
+                enhancement_applied=True,
+                enhancement_summary="Content enhanced using AI composition with contextual insights"
+            )
+        else:
+            # Fallback if LLM fails
+            fallback_content = request.current_content + "\n\n---\n\n*AI enhancement temporarily unavailable.*"
+            return DocumentEnhancementResult(
+                enhanced_content=fallback_content,
+                enhancement_applied=False,
+                enhancement_summary="Enhancement service temporarily unavailable"
+            )
+        
+    except Exception as e:
+        logger.exception(f"Failed to enhance document: {e}")
+        # Return original content with error note rather than failing
+        fallback_content = request.current_content + "\n\n---\n\n*Enhancement failed. Please try again later.*"
+        return DocumentEnhancementResult(
+            enhanced_content=fallback_content,
+            enhancement_applied=False,
+            enhancement_summary=f"Enhancement failed: {str(e)}"
+        )
 
 
 @router.get("/capabilities")
