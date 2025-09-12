@@ -49,7 +49,7 @@ export async function GET(
       proposal_kind: proposal.proposal_kind,
       origin: proposal.origin,
       status: proposal.status,
-      ops_summary: generateOpsSummary(proposal.ops),
+      ops_summary: proposal.validator_report?.ops_summary || generateOpsSummary(proposal.ops),
       confidence: proposal.validator_report?.confidence || 0.5,
       impact_summary: proposal.validator_report?.impact_summary || "Impact unknown",
       created_at: proposal.created_at,
@@ -216,6 +216,13 @@ function generateOpsSummary(ops: any[]): string {
   }, {} as Record<string, number>);
   
   return Object.entries(opCounts)
-    .map(([type, count]) => `${count as number} ${type}${(count as number) > 1 ? 's' : ''}`)
+    .map(([type, count]) => {
+      // Use plural forms that match backend format
+      const pluralType = type === 'CreateBlock' ? 'CreateBlocks' :
+                        type === 'CreateContextItem' ? 'CreateContextItems' :
+                        type === 'CreateDump' ? 'CreateDumps' :
+                        type + 's';
+      return `${count as number} ${count === 1 ? type : pluralType}`;
+    })
     .join(', ');
 }
