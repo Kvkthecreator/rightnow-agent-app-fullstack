@@ -36,7 +36,6 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
   const [prose, setProse] = useState(document.content_raw || '');
   const [saving, setSaving] = useState(false);
   const [composition, setComposition] = useState<any | null>(null);
-  const [analyze, setAnalyze] = useState<any | null>(null);
   const [versions, setVersions] = useState<any[]>([]);
   const [compareTarget, setCompareTarget] = useState<string | null>(null);
   const [reflections, setReflections] = useState<ReflectionDTO[]>([]);
@@ -75,12 +74,6 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
           setReflections(reflectionsData.reflections);
         }
         
-        // Load analyze data
-        const analyzeResponse = await fetch(`/api/documents/${document.id}/analyze-lite`);
-        if (analyzeResponse.ok) {
-          const analyzeData = await analyzeResponse.json();
-          setAnalyze(analyzeData.analyze);
-        }
         
         // Load version history
         const versionsResponse = await fetch(`/api/documents/${document.id}/versions`);
@@ -260,19 +253,14 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded-full ${analyze?.is_stale ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                          <div className="w-3 h-3 rounded-full bg-green-500"></div>
                           <span className="text-sm font-medium text-gray-700">
-                            {analyze?.is_stale ? 'Needs Update' : 'Active Document'}
+                            Active Document
                           </span>
                         </div>
                         <div className="text-sm text-gray-600">
                           {composition.composition_stats.total_substrate_references || 0} substrate references
                         </div>
-                        {analyze && (
-                          <div className="text-sm text-gray-600">
-                            Weight: {analyze.avg_reference_weight || 'N/A'}
-                          </div>
-                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -305,36 +293,6 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                         </Button>
                       </div>
                     </div>
-                    
-                    {/* Document Analytics Row */}
-                    {analyze && (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50 rounded-lg p-3">
-                        <div className="text-center">
-                          <div className="text-sm font-semibold text-gray-900">
-                            {new Date(analyze.version_created_at || document.created_at).toLocaleDateString()}
-                          </div>
-                          <div className="text-xs text-gray-500">Version Created</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-sm font-semibold text-gray-900">
-                            {analyze.last_substrate_updated_at ? new Date(analyze.last_substrate_updated_at).toLocaleDateString() : '—'}
-                          </div>
-                          <div className="text-xs text-gray-500">Last Substrate Update</div>
-                        </div>
-                        <div className="text-center">
-                          <div className={`text-sm font-semibold ${analyze.is_stale ? 'text-yellow-600' : 'text-green-600'}`}>
-                            {analyze.is_stale ? 'Stale' : 'Fresh'}
-                          </div>
-                          <div className="text-xs text-gray-500">Document Status</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-sm font-semibold text-blue-600">
-                            {analyze.avg_reference_weight ? Number(analyze.avg_reference_weight).toFixed(1) : '0'}
-                          </div>
-                          <div className="text-xs text-gray-500">Avg Reference Weight</div>
-                        </div>
-                      </div>
-                    )}
                     
                     {/* Version History Expandable Section */}
                     {showVersionHistory && (
