@@ -27,16 +27,25 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
   // Consolidated authorization and basket access check
   const { basket: basketAccess } = await checkBasketAccess(supabase, id);
 
-  // Fetch full basket data for context
-  const { data: basket, error: basketError } = await supabase
+  // Fetch full basket data for context (extending the access check data)
+  const { data: basketDetails } = await supabase
     .from('baskets')
-    .select('id, name, description, status, created_at, last_activity_ts, workspace_id, tags, origin_template')
+    .select('description, status, created_at, last_activity_ts, tags, origin_template')
     .eq('id', id)
     .maybeSingle();
 
-  if (basketError || !basket) {
-    throw new Error('Failed to load basket data');
-  }
+  // Combine access data with details, using safe defaults for optional fields
+  const basket = {
+    id: basketAccess.id,
+    name: basketAccess.name,
+    workspace_id: basketAccess.workspace_id,
+    description: basketDetails?.description || null,
+    status: basketDetails?.status || null,
+    created_at: basketDetails?.created_at || new Date().toISOString(),
+    last_activity_ts: basketDetails?.last_activity_ts || null,
+    tags: basketDetails?.tags || null,
+    origin_template: basketDetails?.origin_template || null
+  };
 
   // Check if user needs onboarding (only if basket blank AND no identity genesis)
   const { userId } = await getAuthenticatedUser(supabase);

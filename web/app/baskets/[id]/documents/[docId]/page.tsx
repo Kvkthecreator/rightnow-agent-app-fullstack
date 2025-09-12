@@ -33,16 +33,25 @@ export default async function DocumentDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  // Fetch basket data for context
-  const { data: basket, error: basketError } = await supabase
+  // Fetch additional basket data for context
+  const { data: basketDetails } = await supabase
     .from('baskets')
-    .select('id, name, description, status, created_at, last_activity_ts, workspace_id, tags, origin_template')
+    .select('description, status, created_at, last_activity_ts, tags, origin_template')
     .eq('id', basketId)
     .maybeSingle();
 
-  if (basketError || !basket) {
-    notFound();
-  }
+  // Create basket object with safe defaults
+  const basket = {
+    id: basketId,
+    name: 'Basket', // Default name if not available
+    workspace_id: workspace.id,
+    description: basketDetails?.description || null,
+    status: basketDetails?.status || null,
+    created_at: basketDetails?.created_at || new Date().toISOString(),
+    last_activity_ts: basketDetails?.last_activity_ts || null,
+    tags: basketDetails?.tags || null,
+    origin_template: basketDetails?.origin_template || null
+  };
 
   return (
     <BasketWrapper basket={basket}>
