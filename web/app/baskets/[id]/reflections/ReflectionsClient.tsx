@@ -126,8 +126,8 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
     loadReflections();
 
     const onRefresh = () => {
-      // Force a fresh load (trigger compute likely queued)
-      refreshReflections();
+      // Reflection computation is async, so just reload existing reflections
+      loadReflections();
     };
     window.addEventListener('reflections:refresh', onRefresh);
     return () => window.removeEventListener('reflections:refresh', onRefresh);
@@ -279,7 +279,7 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
 
       {/* Insight Detail Modal */}
       {selectedInsight && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -298,10 +298,19 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
               </div>
               
               <div className="space-y-4">
-                <div className="text-sm text-gray-500">
-                  Found {formatComputationTime(selectedInsight.computation_timestamp)}
+                <div className="text-sm text-gray-500 space-y-1">
+                  <div>Found {formatComputationTime(selectedInsight.computation_timestamp)}</div>
                   {selectedInsight.meta?.substrate_dump_count && (
-                    <span className="ml-2">• From {selectedInsight.meta.substrate_dump_count} sources</span>
+                    <div>From {selectedInsight.meta.substrate_dump_count} sources</div>
+                  )}
+                  {selectedInsight.meta?.substrate_tokens && (
+                    <div>{selectedInsight.meta.substrate_tokens.toLocaleString()} tokens analyzed</div>
+                  )}
+                  {selectedInsight.substrate_window_start && selectedInsight.substrate_window_end && (
+                    <div>Time window: {formatTimeWindow(selectedInsight.substrate_window_start, selectedInsight.substrate_window_end)}</div>
+                  )}
+                  {selectedInsight.reflection_target_type !== 'legacy' && (
+                    <div>Target: {selectedInsight.reflection_target_type}</div>
                   )}
                 </div>
                 
@@ -310,6 +319,12 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
                     {selectedInsight.reflection_text}
                   </div>
                 </div>
+                
+                {selectedInsight.meta?.computation_trace_id && (
+                  <div className="text-xs text-gray-400 font-mono">
+                    Trace ID: {selectedInsight.meta.computation_trace_id}
+                  </div>
+                )}
               </div>
               
               <div className="flex justify-end mt-6">
