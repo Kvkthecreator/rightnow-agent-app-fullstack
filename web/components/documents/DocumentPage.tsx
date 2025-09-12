@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/Card';
-import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon, Brain, ChevronDown, ChevronRight, Database, FileText, MessageSquare, Clock, History } from 'lucide-react';
+import { Layers, Save, Upload, GitCompare, Activity, ArrowLeft, Link as LinkIcon, Brain, ChevronDown, ChevronRight, Database, FileText, MessageSquare, Clock, History, Target, TrendingUp } from 'lucide-react';
 import { DocumentCompositionStatus } from './DocumentCompositionStatus';
 import { fetchWithToken } from '@/lib/fetchWithToken';
+import { useBasket } from '@/contexts/BasketContext';
 import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
 
 type Mode = 'read' | 'edit';
@@ -42,6 +43,9 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
   const [reflectionsLoading, setReflectionsLoading] = useState(false);
   const [showSubstrateDetails, setShowSubstrateDetails] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  
+  // Get basket maturity for adaptive edit guidance
+  const { maturity, maturityGuidance } = useBasket();
 
   // Check for async composition status
   const workId = typeof window !== 'undefined' ? sessionStorage.getItem(`doc_${document.id}_work_id`) : null;
@@ -577,6 +581,52 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
         {/* Edit */}
         {mode === 'edit' && (
           <div className="space-y-6">
+            
+            {/* Maturity-Based Edit Guidance */}
+            {maturity && maturityGuidance && (
+              <Card>
+                <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">
+                      Authoring Guidance - Level {maturity.level}
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      maturity.level === 1 ? 'bg-orange-100 text-orange-700' :
+                      maturity.level === 2 ? 'bg-yellow-100 text-yellow-700' :
+                      maturity.level === 3 ? 'bg-green-100 text-green-700' :
+                      'bg-purple-100 text-purple-700'
+                    }`}>
+                      {maturity.phase}
+                    </span>
+                  </div>
+                  <p className="text-sm text-blue-800 mb-3">{maturityGuidance.documentEditGuidance}</p>
+                  
+                  {/* Feature availability based on maturity */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div className={`flex items-center gap-2 p-2 rounded ${
+                      maturity.level >= 1 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full ${maturity.level >= 1 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                      Basic authoring & substrate linking
+                    </div>
+                    <div className={`flex items-center gap-2 p-2 rounded ${
+                      maturity.level >= 2 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full ${maturity.level >= 2 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                      Enhanced memory extraction
+                    </div>
+                    <div className={`flex items-center gap-2 p-2 rounded ${
+                      maturity.level >= 3 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full ${maturity.level >= 3 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                      AI-assisted composition
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
               <input className="w-full p-3 border border-gray-200 rounded text-sm" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -585,13 +635,49 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
               <label className="block text-sm font-medium text-gray-700 mb-2">Authored Prose</label>
               <textarea className="w-full min-h-[260px] p-3 border border-gray-200 rounded text-sm" value={prose} onChange={(e) => setProse(e.target.value)} />
               <div className="flex gap-2 mt-3">
-                <Button onClick={saveDocument} disabled={saving}><Save className="h-4 w-4 mr-1" />{saving ? 'Saving...' : 'Save'}</Button>
-                <Button variant="outline" onClick={extractToMemory}><Upload className="h-4 w-4 mr-1" />Extract to Memory</Button>
+                <Button onClick={saveDocument} disabled={saving}>
+                  <Save className="h-4 w-4 mr-1" />
+                  {saving ? 'Saving...' : 'Save'}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={extractToMemory}
+                  disabled={maturity?.level === 1 && prose.trim().length < 100}
+                  title={maturity?.level === 1 && prose.trim().length < 100 ? "Add more content to extract meaningful insights" : ""}
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  Extract to Memory
+                </Button>
+                {maturity && maturity.level >= 3 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => router.push(`/baskets/${basketId}/compose`)}
+                    className="text-purple-700 border-purple-200 hover:bg-purple-50"
+                  >
+                    <Brain className="h-4 w-4 mr-1" />
+                    AI Compose
+                  </Button>
+                )}
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2"><LinkIcon className="h-4 w-4"/>Attach Substrate</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <LinkIcon className="h-4 w-4"/>
+                Attach Substrate
+                {maturity && maturity.level === 1 && (
+                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    Start building connections!
+                  </span>
+                )}
+              </label>
               <AttachRefForm onAttach={attachReference} />
+              
+              {/* Substrate attachment suggestions based on maturity */}
+              {maturity && maturity.level <= 2 && (
+                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                  💡 Tip: Linking related memories helps discover patterns and improves insights quality
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -8,10 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SubpageHeader } from '@/components/basket/SubpageHeader';
 import { DocumentCreateButton } from '@/components/documents/DocumentCreateButton';
-import { PenTool } from 'lucide-react';
+import { PenTool, TrendingUp, Target } from 'lucide-react';
 import AddMemoryModal from '@/components/memory/AddMemoryModal';
 import OnboardingPanel from '@/components/memory/OnboardingPanel';
 import { useReflectionNotifications } from '@/lib/hooks/useReflectionNotifications';
+import { useBasket } from '@/contexts/BasketContext';
 import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
 
 interface Props {
@@ -25,6 +26,9 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
   const [reflectionsLoading, setReflectionsLoading] = useState(true);
   const [reflectionsError, setReflectionsError] = useState<string | null>(null);
   const router = useRouter();
+  
+  // Get basket maturity data for adaptive content
+  const { maturity, maturityGuidance, stats } = useBasket();
   const refreshDocuments = () => {
     // Prefer soft refresh to avoid jarring redirects
     try { router.refresh(); } catch {}
@@ -133,6 +137,71 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
       )}
       
       <div className="space-y-6">
+        
+        {/* Basket Maturity Dashboard */}
+        {maturity && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
+                Knowledge Maturity
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  maturity.level === 1 ? 'bg-orange-100 text-orange-700' :
+                  maturity.level === 2 ? 'bg-yellow-100 text-yellow-700' :
+                  maturity.level === 3 ? 'bg-green-100 text-green-700' :
+                  'bg-purple-100 text-purple-700'
+                }`}>
+                  Level {maturity.level} • {maturity.phase}
+                </span>
+              </CardTitle>
+              <p className="text-sm text-gray-600">
+                {stats && `${maturity.substrateDensity} memories across ${Object.values(stats).filter(count => count > 0).length} categories`}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Progress Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Progress to next level</span>
+                    <span className="font-medium">{Math.round(maturity.progressPercent)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${maturity.progressPercent}%` }}
+                    ></div>
+                  </div>
+                  {maturity.nextLevelAt && (
+                    <div className="text-xs text-gray-500">
+                      {maturity.nextLevelAt - maturity.score} more memories to reach Level {maturity.level + 1}
+                      {maturity.varietyBonus && ' • Variety bonus active!'}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Next Steps */}
+                {maturityGuidance && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-900">Recommended next steps</span>
+                    </div>
+                    <ul className="text-sm text-blue-800 space-y-1">
+                      {maturityGuidance.nextSteps.map((step, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-blue-500 mt-0.5">•</span>
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
         <Card>
           <CardHeader>
             <CardTitle>Documents</CardTitle>
@@ -150,7 +219,9 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                 {reflections.length} {reflections.length === 1 ? 'insight' : 'insights'}
               </span>
             </CardTitle>
-            <p className="text-sm text-gray-600">AI-discovered patterns and connections in your knowledge</p>
+            <p className="text-sm text-gray-600">
+              {maturityGuidance?.memoryInsightsMessage || "AI-discovered patterns and connections in your knowledge"}
+            </p>
           </CardHeader>
           <CardContent>
             {reflectionsLoading ? (

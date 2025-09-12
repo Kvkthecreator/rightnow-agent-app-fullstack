@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import { notFound } from 'next/navigation';
+import { BasketWrapper } from '@/components/basket/BasketWrapper';
 import { DocumentPage } from '@/components/documents/DocumentPage';
 
 interface PageProps {
@@ -32,5 +33,20 @@ export default async function DocumentDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  return <DocumentPage document={document} basketId={basketId} />;
+  // Fetch basket data for context
+  const { data: basket, error: basketError } = await supabase
+    .from('baskets')
+    .select('id, name, description, status, created_at, last_activity_ts, workspace_id, tags, origin_template')
+    .eq('id', basketId)
+    .maybeSingle();
+
+  if (basketError || !basket) {
+    notFound();
+  }
+
+  return (
+    <BasketWrapper basket={basket}>
+      <DocumentPage document={document} basketId={basketId} />
+    </BasketWrapper>
+  );
 }
