@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 from uuid import UUID, uuid4
 
-from app.agents.pipeline.substrate_agent_v2 import P1SubstrateAgentV2
+from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
 from app.utils.supabase_client import supabase_admin_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
@@ -24,9 +24,9 @@ class GovernanceDumpProcessorV2:
     def __init__(self):
         self.logger = logger
         try:
-            self.p1_agent = P1SubstrateAgentV2()
+            self.p1_agent = ImprovedP1SubstrateAgent()
         except RuntimeError as e:
-            self.logger.error(f"Failed to initialize P1SubstrateAgentV2: {e}")
+            self.logger.error(f"Failed to initialize ImprovedP1SubstrateAgent: {e}")
             # Fall back to None - governance processor will handle gracefully
             self.p1_agent = None
         
@@ -41,7 +41,7 @@ class GovernanceDumpProcessorV2:
         try:
             # Validate P1 agent is available
             if not self.p1_agent:
-                raise RuntimeError("P1SubstrateAgentV2 not initialized - likely missing OPENAI_API_KEY")
+                raise RuntimeError("ImprovedP1SubstrateAgent not initialized - likely missing OPENAI_API_KEY")
             
             # Canon purity: governance is mandatory; no direct substrate writes here.
             
@@ -86,7 +86,7 @@ class GovernanceDumpProcessorV2:
         try:
             # Validate P1 agent is available
             if not self.p1_agent:
-                raise RuntimeError("P1SubstrateAgentV2 not initialized - likely missing OPENAI_API_KEY")
+                raise RuntimeError("ImprovedP1SubstrateAgent not initialized - likely missing OPENAI_API_KEY")
             
             # Canon purity: governance is mandatory; no direct substrate writes here.
             

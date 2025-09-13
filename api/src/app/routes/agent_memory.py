@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 # Legacy services replaced with canonical pipeline agents
-from ..agents.pipeline.substrate_agent_v2 import P1SubstrateAgentV2
+from ..agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
 from ..agents.pipeline.graph_agent import P2GraphAgent
 from ..agents.pipeline.reflection_agent import P3ReflectionAgent
 
@@ -30,7 +30,7 @@ async def get_substrate_status():
     
     # Check if canonical agents are available
     try:
-        p1_agent = P1SubstrateAgentV2()
+        p1_agent = ImprovedP1SubstrateAgent()
         p2_agent = P2GraphAgent()
         p3_agent = P3ReflectionAgent()
         
