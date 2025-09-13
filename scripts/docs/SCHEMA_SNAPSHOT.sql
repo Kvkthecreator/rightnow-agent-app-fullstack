@@ -32,7 +32,8 @@ CREATE TYPE public.processing_state AS ENUM (
     'claimed',
     'processing',
     'completed',
-    'failed'
+    'failed',
+    'cascading'
 );
 CREATE TYPE public.proposal_kind AS ENUM (
     'Extraction',
@@ -205,8 +206,8 @@ BEGIN
 END; $$;
 CREATE TABLE public.agent_processing_queue (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
-    dump_id uuid NOT NULL,
-    basket_id uuid NOT NULL,
+    dump_id uuid,
+    basket_id uuid,
     workspace_id uuid NOT NULL,
     processing_state public.processing_state DEFAULT 'pending'::public.processing_state,
     claimed_at timestamp without time zone,
@@ -214,7 +215,17 @@ CREATE TABLE public.agent_processing_queue (
     completed_at timestamp without time zone,
     attempts integer DEFAULT 0,
     error_message text,
-    created_at timestamp without time zone DEFAULT now()
+    created_at timestamp without time zone DEFAULT now(),
+    processing_stage text,
+    work_payload jsonb DEFAULT '{}'::jsonb,
+    work_result jsonb DEFAULT '{}'::jsonb,
+    cascade_metadata jsonb DEFAULT '{}'::jsonb,
+    parent_work_id uuid,
+    user_id uuid,
+    work_id text,
+    work_type text DEFAULT 'P1_SUBSTRATE'::text,
+    priority integer DEFAULT 5,
+    CONSTRAINT valid_work_type_v21 CHECK ((work_type = ANY (ARRAY['P0_CAPTURE'::text, 'P1_SUBSTRATE'::text, 'P2_GRAPH'::text, 'P3_REFLECTION'::text, 'P4_COMPOSE'::text, 'MANUAL_EDIT'::text, 'PROPOSAL_REVIEW'::text, 'TIMELINE_RESTORE'::text])))
 );
 CREATE FUNCTION public.fn_claim_next_dumps(p_worker_id text, p_limit integer DEFAULT 10, p_stale_after_minutes integer DEFAULT 5) RETURNS SETOF public.agent_processing_queue
     LANGUAGE plpgsql SECURITY DEFINER
@@ -929,39 +940,33 @@ DECLARE
   result jsonb;
   settings_row public.workspace_governance_settings%ROWTYPE;
 BEGIN
-  -- Try to get workspace-specific settings
   SELECT * INTO settings_row 
   FROM public.workspace_governance_settings 
   WHERE workspace_id = p_workspace_id;
   
   IF FOUND THEN
-    -- Return workspace-specific flags
     result := jsonb_build_object(
       'governance_enabled', settings_row.governance_enabled,
       'validator_required', settings_row.validator_required,
-      'direct_substrate_writes', settings_row.direct_substrate_writes,
+      'direct_substrate_writes', FALSE, -- Canon: Always FALSE for P1 proposals
       'governance_ui_enabled', settings_row.governance_ui_enabled,
-      'ep_onboarding_dump', settings_row.ep_onboarding_dump,
+      'ep_onboarding_dump', 'direct',   -- Canon: P0 always direct
       'ep_manual_edit', settings_row.ep_manual_edit,
-      'ep_document_edit', settings_row.ep_document_edit,
-      'ep_reflection_suggestion', settings_row.ep_reflection_suggestion,
       'ep_graph_action', settings_row.ep_graph_action,
-      'ep_timeline_restore', settings_row.ep_timeline_restore,
-      'default_blast_radius', settings_row.default_blast_radius,
+      'ep_timeline_restore', 'proposal', -- Canon: timeline restore requires review
+      'default_blast_radius', COALESCE(settings_row.default_blast_radius, 'Scoped'),
       'source', 'workspace_database'
     );
   ELSE
-    -- Return Canon-compliant defaults (governance enabled by default)
+    -- Canonical fallback: Governance enabled, proposals for P1, direct for P0
     result := jsonb_build_object(
-      'governance_enabled', true,
-      'validator_required', false,
-      'direct_substrate_writes', false,
-      'governance_ui_enabled', true,
-      'ep_onboarding_dump', 'proposal',
-      'ep_manual_edit', 'proposal',
-      'ep_document_edit', 'proposal',
-      'ep_reflection_suggestion', 'proposal',
-      'ep_graph_action', 'proposal',
+      'governance_enabled', TRUE,
+      'validator_required', FALSE,
+      'direct_substrate_writes', FALSE, -- Canon: P1 requires proposals
+      'governance_ui_enabled', TRUE,
+      'ep_onboarding_dump', 'direct',   -- Canon: P0 always direct
+      'ep_manual_edit', 'hybrid',
+      'ep_graph_action', 'hybrid',
       'ep_timeline_restore', 'proposal',
       'default_blast_radius', 'Scoped',
       'source', 'canon_compliant_defaults'
@@ -1044,6 +1049,9 @@ begin
   end if;
   return new;
 end $$;
+CREATE FUNCTION public.sql(query text) RETURNS json
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$ BEGIN RETURN to_json(query); END; $$;
 CREATE FUNCTION public.sync_raw_dump_text_columns() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -1223,6 +1231,8 @@ CREATE TABLE public.blocks (
     extraction_method text DEFAULT 'legacy_text_chunks'::text,
     provenance_validated boolean DEFAULT false,
     ingredient_version text DEFAULT '1.0'::text,
+    normalized_label text,
+    updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state))),
     CONSTRAINT check_structured_ingredient_metadata CHECK (public.validate_structured_ingredient_metadata(metadata))
 )
@@ -1292,6 +1302,8 @@ CREATE TABLE public.document_versions (
     created_by uuid,
     version_message text,
     parent_version_hash character varying(64),
+    composition_contract jsonb DEFAULT '{}'::jsonb,
+    composition_signature character varying(64),
     CONSTRAINT non_empty_content CHECK ((length(content) > 0)),
     CONSTRAINT valid_version_hash CHECK (((version_hash)::text ~ '^doc_v[a-f0-9]{58}$'::text))
 );
@@ -1310,6 +1322,55 @@ CREATE TABLE public.documents (
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     current_version_hash character varying(64)
 );
+CREATE TABLE public.raw_dumps (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid NOT NULL,
+    body_md text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    workspace_id uuid NOT NULL,
+    file_url text,
+    document_id uuid,
+    fragments jsonb DEFAULT '[]'::jsonb,
+    processing_status text DEFAULT 'unprocessed'::text,
+    processed_at timestamp with time zone,
+    source_meta jsonb DEFAULT '{}'::jsonb,
+    ingest_trace_id text,
+    dump_request_id uuid,
+    text_dump text
+);
+ALTER TABLE ONLY public.raw_dumps REPLICA IDENTITY FULL;
+CREATE VIEW public.document_staleness AS
+ WITH latest_times AS (
+         SELECT d.id AS document_id,
+            dv.version_hash,
+            dv.created_at AS version_created_at,
+            GREATEST(COALESCE(max(
+                CASE
+                    WHEN (sr.substrate_type = 'dump'::public.substrate_type) THEN rd.created_at
+                    ELSE NULL::timestamp with time zone
+                END), '1970-01-01 00:00:00+00'::timestamp with time zone), COALESCE(max(
+                CASE
+                    WHEN (sr.substrate_type = 'block'::public.substrate_type) THEN cb.created_at
+                    ELSE NULL::timestamp with time zone
+                END), '1970-01-01 00:00:00+00'::timestamp with time zone), COALESCE(max(
+                CASE
+                    WHEN (sr.substrate_type = 'context_item'::public.substrate_type) THEN ci.updated_at
+                    ELSE NULL::timestamp with time zone
+                END), '1970-01-01 00:00:00+00'::timestamp with time zone)) AS last_substrate_updated_at
+           FROM (((((public.documents d
+             LEFT JOIN public.document_versions dv ON (((dv.version_hash)::text = (d.current_version_hash)::text)))
+             LEFT JOIN public.substrate_references sr ON ((sr.document_id = d.id)))
+             LEFT JOIN public.raw_dumps rd ON (((rd.id = sr.substrate_id) AND (sr.substrate_type = 'dump'::public.substrate_type))))
+             LEFT JOIN public.blocks cb ON (((cb.id = sr.substrate_id) AND (sr.substrate_type = 'block'::public.substrate_type))))
+             LEFT JOIN public.context_items ci ON (((ci.id = sr.substrate_id) AND (sr.substrate_type = 'context_item'::public.substrate_type))))
+          GROUP BY d.id, dv.version_hash, dv.created_at
+        )
+ SELECT latest_times.document_id,
+    latest_times.version_hash,
+    latest_times.version_created_at,
+    latest_times.last_substrate_updated_at,
+    (latest_times.last_substrate_updated_at > latest_times.version_created_at) AS is_stale
+   FROM latest_times;
 CREATE TABLE public.events (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
@@ -1405,23 +1466,6 @@ CREATE TABLE public.proposals (
     bypass_reason text,
     CONSTRAINT proposals_origin_check CHECK ((origin = ANY (ARRAY['agent'::text, 'human'::text])))
 );
-CREATE TABLE public.raw_dumps (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    basket_id uuid NOT NULL,
-    body_md text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    workspace_id uuid NOT NULL,
-    file_url text,
-    document_id uuid,
-    fragments jsonb DEFAULT '[]'::jsonb,
-    processing_status text DEFAULT 'unprocessed'::text,
-    processed_at timestamp with time zone,
-    source_meta jsonb DEFAULT '{}'::jsonb,
-    ingest_trace_id text,
-    dump_request_id uuid,
-    text_dump text
-);
-ALTER TABLE ONLY public.raw_dumps REPLICA IDENTITY FULL;
 CREATE TABLE public.reflections_artifact (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid NOT NULL,
@@ -1569,13 +1613,34 @@ CREATE VIEW public.v_user_workspaces AS
  SELECT wm.user_id,
     wm.workspace_id
    FROM public.workspace_memberships wm;
+CREATE VIEW public.vw_document_analyze_lite AS
+ SELECT d.id AS document_id,
+    d.title,
+    d.basket_id,
+    d.workspace_id,
+    d.current_version_hash,
+    d.updated_at AS document_updated_at,
+    stats.blocks_count,
+    stats.dumps_count,
+    stats.context_items_count,
+    stats.timeline_events_count,
+    stats.total_substrate_references,
+    round(COALESCE(avg(sr.weight), (0)::numeric), 2) AS avg_reference_weight,
+    st.version_created_at,
+    st.last_substrate_updated_at,
+    st.is_stale
+   FROM (((public.documents d
+     LEFT JOIN public.document_composition_stats stats ON ((stats.document_id = d.id)))
+     LEFT JOIN public.substrate_references sr ON ((sr.document_id = d.id)))
+     LEFT JOIN public.document_staleness st ON ((st.document_id = d.id)))
+  GROUP BY d.id, d.title, d.basket_id, d.workspace_id, d.current_version_hash, d.updated_at, stats.blocks_count, stats.dumps_count, stats.context_items_count, stats.timeline_events_count, stats.total_substrate_references, st.version_created_at, st.last_substrate_updated_at, st.is_stale;
 CREATE TABLE public.workspace_governance_settings (
     workspace_id uuid NOT NULL,
     governance_enabled boolean DEFAULT false NOT NULL,
     validator_required boolean DEFAULT false NOT NULL,
-    direct_substrate_writes boolean DEFAULT true NOT NULL,
+    direct_substrate_writes boolean DEFAULT false NOT NULL,
     governance_ui_enabled boolean DEFAULT false NOT NULL,
-    ep_onboarding_dump text DEFAULT 'proposal'::text NOT NULL,
+    ep_onboarding_dump text DEFAULT 'direct'::text NOT NULL,
     ep_manual_edit text DEFAULT 'proposal'::text NOT NULL,
     ep_document_edit text DEFAULT 'proposal'::text NOT NULL,
     ep_graph_action text DEFAULT 'proposal'::text NOT NULL,
@@ -1610,8 +1675,6 @@ ALTER TABLE ONLY public.basket_events ALTER COLUMN id SET DEFAULT nextval('publi
 ALTER TABLE ONLY public.pipeline_metrics ALTER COLUMN id SET DEFAULT nextval('public.pipeline_metrics_id_seq'::regclass);
 ALTER TABLE ONLY public.timeline_events ALTER COLUMN id SET DEFAULT nextval('public.timeline_events_id_seq'::regclass);
 ALTER TABLE ONLY public.workspace_memberships ALTER COLUMN id SET DEFAULT nextval('public.workspace_memberships_id_seq'::regclass);
-ALTER TABLE ONLY public.agent_processing_queue
-    ADD CONSTRAINT agent_processing_queue_dump_id_key UNIQUE (dump_id);
 ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.artifact_generation_settings
@@ -1681,6 +1744,12 @@ ALTER TABLE ONLY public.workspaces
 CREATE INDEX baskets_user_idx ON public.baskets USING btree (user_id);
 CREATE INDEX blk_doc_idx ON public.block_links USING btree (block_id, document_id);
 CREATE UNIQUE INDEX docs_basket_title_idx ON public.documents USING btree (basket_id, title);
+CREATE INDEX idx_agent_queue_cascade ON public.agent_processing_queue USING gin (cascade_metadata);
+CREATE UNIQUE INDEX idx_agent_queue_dump_id_unique ON public.agent_processing_queue USING btree (dump_id) WHERE (dump_id IS NOT NULL);
+CREATE INDEX idx_agent_queue_priority ON public.agent_processing_queue USING btree (priority DESC, created_at);
+CREATE INDEX idx_agent_queue_user_workspace ON public.agent_processing_queue USING btree (user_id, workspace_id);
+CREATE INDEX idx_agent_queue_work_id ON public.agent_processing_queue USING btree (work_id);
+CREATE INDEX idx_agent_queue_work_type ON public.agent_processing_queue USING btree (work_type, processing_state);
 CREATE INDEX idx_basket_deltas_applied_at ON public.basket_deltas USING btree (applied_at);
 CREATE INDEX idx_basket_deltas_basket ON public.basket_deltas USING btree (basket_id, created_at DESC);
 CREATE INDEX idx_basket_deltas_basket_id ON public.basket_deltas USING btree (basket_id);
@@ -1696,17 +1765,20 @@ CREATE INDEX idx_blocks_basket ON public.blocks USING btree (basket_id);
 CREATE INDEX idx_blocks_extraction_method ON public.blocks USING btree (extraction_method);
 CREATE INDEX idx_blocks_provenance_validated ON public.blocks USING btree (provenance_validated);
 CREATE INDEX idx_blocks_raw_dump ON public.blocks USING btree (raw_dump_id);
+CREATE INDEX idx_blocks_updated_at ON public.blocks USING btree (updated_at);
 CREATE INDEX idx_blocks_workspace ON public.blocks USING btree (workspace_id);
 CREATE INDEX idx_context_basket ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_doc ON public.context_items USING btree (document_id);
 CREATE INDEX idx_context_items_basket ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_items_basket_id ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_items_state ON public.context_items USING btree (state);
+CREATE INDEX idx_doc_versions_signature ON public.document_versions USING btree (composition_signature) WHERE (composition_signature IS NOT NULL);
 CREATE INDEX idx_document_versions_created ON public.document_versions USING btree (created_at DESC);
 CREATE INDEX idx_document_versions_document ON public.document_versions USING btree (document_id);
 CREATE INDEX idx_document_versions_hash ON public.document_versions USING btree (version_hash);
 CREATE INDEX idx_documents_basket ON public.documents USING btree (basket_id);
 CREATE INDEX idx_documents_current_version ON public.documents USING btree (current_version_hash) WHERE (current_version_hash IS NOT NULL);
+CREATE INDEX idx_documents_meta_comp_sig ON public.documents USING btree (((metadata ->> 'composition_signature'::text)));
 CREATE INDEX idx_documents_workspace ON public.documents USING btree (workspace_id);
 CREATE INDEX idx_events_agent_type ON public.events USING btree (agent_type);
 CREATE INDEX idx_events_basket_kind_ts ON public.events USING btree (basket_id, kind, ts);
@@ -1758,6 +1830,7 @@ CREATE INDEX timeline_events_basket_ts_idx ON public.timeline_events USING btree
 CREATE UNIQUE INDEX uq_baskets_user_idem ON public.baskets USING btree (user_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
 CREATE UNIQUE INDEX uq_ctx_items_norm_label_by_type ON public.context_items USING btree (basket_id, type, normalized_label) WHERE (normalized_label IS NOT NULL);
 CREATE UNIQUE INDEX uq_doc_ctx_item ON public.document_context_items USING btree (document_id, context_item_id);
+CREATE UNIQUE INDEX uq_doc_version_signature ON public.document_versions USING btree (document_id, composition_signature) WHERE (composition_signature IS NOT NULL);
 CREATE UNIQUE INDEX uq_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
 CREATE UNIQUE INDEX uq_raw_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
 CREATE UNIQUE INDEX uq_relationship_identity ON public.substrate_relationships USING btree (basket_id, from_type, from_id, to_type, to_id, relationship_type);
@@ -1773,9 +1846,9 @@ CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EA
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
 CREATE TRIGGER trg_timeline_after_raw_dump AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.fn_timeline_after_raw_dump();
 ALTER TABLE ONLY public.agent_processing_queue
-    ADD CONSTRAINT agent_processing_queue_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
+    ADD CONSTRAINT agent_processing_queue_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE ONLY public.agent_processing_queue
-    ADD CONSTRAINT agent_processing_queue_dump_id_fkey FOREIGN KEY (dump_id) REFERENCES public.raw_dumps(id);
+    ADD CONSTRAINT agent_processing_queue_dump_id_fkey FOREIGN KEY (dump_id) REFERENCES public.raw_dumps(id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.artifact_generation_settings
@@ -2251,13 +2324,13 @@ CREATE POLICY "update reflections by service role" ON public.reflections_artifac
 ALTER TABLE public.workspace_governance_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY workspace_governance_settings_insert ON public.workspace_governance_settings FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
-  WHERE ((workspace_memberships.user_id = auth.uid()) AND (workspace_memberships.role = 'admin'::text)))));
+  WHERE ((workspace_memberships.user_id = auth.uid()) AND (workspace_memberships.role = ANY (ARRAY['admin'::text, 'owner'::text]))))));
 CREATE POLICY workspace_governance_settings_select ON public.workspace_governance_settings FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY workspace_governance_settings_update ON public.workspace_governance_settings FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
-  WHERE ((workspace_memberships.user_id = auth.uid()) AND (workspace_memberships.role = 'admin'::text)))));
+  WHERE ((workspace_memberships.user_id = auth.uid()) AND (workspace_memberships.role = ANY (ARRAY['admin'::text, 'owner'::text]))))));
 ALTER TABLE public.workspace_memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "write history by service role" ON public.timeline_events FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
