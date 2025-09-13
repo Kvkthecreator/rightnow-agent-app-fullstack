@@ -2,7 +2,8 @@
 """
 P1 Extraction Quality Comparison Test
 
-Compares the old complex substrate_agent_v2 with the new focused approach.
+Compares the old complex extraction approach with the new focused approach.
+Validates the quality improvements achieved with domain-aware extraction.
 """
 
 import asyncio
@@ -30,7 +31,7 @@ mandatory for all administrative accounts going forward. The attack was stopped 
 
 
 async def simulate_old_p1_extraction(content: str, content_type: str) -> Dict[str, Any]:
-    """Simulate what the old P1 agent would extract (based on code analysis)"""
+    """Simulate what the old complex P1 agent would extract (based on analysis)"""
     
     # Old P1 produces complex schema with poor actual extraction
     return {
@@ -289,7 +290,7 @@ async def run_comparison_test():
     print("  • Low confidence and poor provenance")
     print("  • Data dumps instead of intelligence")
     
-    print("\n🔧 RECOMMENDATION: Replace P1 substrate_agent_v2 with focused approach")
+    print("\n🔧 RECOMMENDATION: Use focused domain-aware approach for quality extraction")
     print("    Expected quality improvement: 60-80% based on comparison")
 
 

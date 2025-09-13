@@ -1,7 +1,7 @@
 """
 Improved P1 Substrate Agent - Focused on Quality Over Complexity
 
-Replaces substrate_agent_v2.py with a practical approach that actually works.
+Implements a practical, domain-aware approach that delivers quality extraction.
 """
 
 import logging

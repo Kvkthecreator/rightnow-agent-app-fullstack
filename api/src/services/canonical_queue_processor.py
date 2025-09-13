@@ -32,7 +32,6 @@ from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgen
 from app.agents.pipeline.graph_agent import RelationshipMappingRequest
 from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
 from app.agents.pipeline.governance_processor import GovernanceDumpProcessor
-from app.agents.pipeline.governance_processor_v2 import GovernanceDumpProcessorV2
 from app.utils.supabase_client import supabase_admin_client as supabase
 from contracts.basket import BasketDelta, BasketChangeRequest
 from services.clock import now_iso
@@ -60,14 +59,12 @@ class CanonicalQueueProcessor:
         
         # Initialize canonical pipeline agents
         self.p0_capture = P0CaptureAgent()
-        self.p1_governance = GovernanceDumpProcessor()  # Legacy governance
-        self.p1_governance_v2 = GovernanceDumpProcessorV2()  # Structured ingredients
+        self.p1_governance = GovernanceDumpProcessor()  # Canonical governance with quality extraction
         self.p2_graph = P2GraphAgent()
         self.p3_reflection = P3ReflectionAgent()
         self.p4_composition = P4CompositionAgent()  # Document composition
         
-        # Feature flag for v2 agent rollout
-        self.use_structured_ingredients = os.getenv("YARNNN_STRUCTURED_INGREDIENTS", "false").lower() == "true"
+        # Note: Always use improved extraction (no feature flag needed)
         
         logger.info(f"Canonical Queue Processor initialized: {self.worker_id}")
         
@@ -200,31 +197,23 @@ class CanonicalQueueProcessor:
             # Sacred Rule: All substrate mutations flow through governed proposals
             batch_dumps = await self._get_batch_group(dump_id)
             
-            if self.use_structured_ingredients:
-                if len(batch_dumps) > 1:
-                    # Comprehensive batch processing for Share Updates
-                    governance_result = await self.p1_governance_v2.process_batch_dumps(
-                        dump_ids=[UUID(did) for did in batch_dumps],
-                        basket_id=UUID(basket_id),
-                        workspace_id=UUID(workspace_id)
-                    )
-                    logger.info(f"Using P1 Governance v2 batch mode ({len(batch_dumps)} dumps)")
-                else:
-                    # Single dump structured processing
-                    governance_result = await self.p1_governance_v2.process_dump(
-                        dump_id=dump_id,
-                        basket_id=basket_id,
-                        workspace_id=workspace_id
-                    )
-                    logger.info(f"Using P1 Governance v2 (structured ingredients) for dump {dump_id}")
+            # Use canonical governance processor with quality extraction
+            if len(batch_dumps) > 1:
+                # Comprehensive batch processing for Share Updates
+                governance_result = await self.p1_governance.process_batch_dumps(
+                    dump_ids=[UUID(did) for did in batch_dumps],
+                    basket_id=UUID(basket_id),
+                    workspace_id=UUID(workspace_id)
+                )
+                logger.info(f"Using canonical governance batch mode ({len(batch_dumps)} dumps)")
             else:
-                # Legacy single dump processing only
+                # Single dump quality processing
                 governance_result = await self.p1_governance.process_dump(
                     dump_id=dump_id,
                     basket_id=basket_id,
                     workspace_id=workspace_id
                 )
-                logger.info(f"Using P1 Governance v1 (legacy text chunks) for dump {dump_id}")
+                logger.info(f"Using canonical governance (quality extraction) for dump {dump_id}")
             
             logger.info(
                 f"P1 Governance completed: {governance_result['proposals_created']} proposals created, "

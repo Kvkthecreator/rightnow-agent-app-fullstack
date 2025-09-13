@@ -14,22 +14,16 @@ Pipeline Agents:
 
 from .capture_agent import P0CaptureAgent
 from .improved_substrate_agent import ImprovedP1SubstrateAgent
-from .substrate_agent_v2 import P1SubstrateAgentV2  # Legacy support
 from .graph_agent import P2GraphAgent
 from .reflection_agent import P3ReflectionAgent
 from .presentation_agent import P4PresentationAgent
 
-# Primary P1 agent (improved quality)
+# Canonical P1 agent (quality-focused)
 P1SubstrateAgent = ImprovedP1SubstrateAgent
-
-# Legacy compatibility
-P1SubstrateAgentV2_Legacy = P1SubstrateAgentV2
 
 __all__ = [
     "P0CaptureAgent",
     "P1SubstrateAgent",
-    "ImprovedP1SubstrateAgent", 
-    "P1SubstrateAgentV2",
     "P2GraphAgent", 
     "P3ReflectionAgent",
     "P4PresentationAgent"
