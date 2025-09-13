@@ -945,20 +945,29 @@ BEGIN
   WHERE workspace_id = p_workspace_id;
   
   IF FOUND THEN
+    -- Use workspace-specific settings but enforce canon requirements
     result := jsonb_build_object(
       'governance_enabled', settings_row.governance_enabled,
       'validator_required', settings_row.validator_required,
-      'direct_substrate_writes', FALSE, -- Canon: Always FALSE for P1 proposals
+      
+      -- Canon enforcement: P1 must use proposals (override workspace setting)
+      'direct_substrate_writes', FALSE,
+      
       'governance_ui_enabled', settings_row.governance_ui_enabled,
-      'ep_onboarding_dump', 'direct',   -- Canon: P0 always direct
+      
+      -- Canon enforcement: P0 is always direct (override workspace setting)
+      'ep_onboarding_dump', 'direct',
+      
+      -- Respect workspace preferences for other entry points
       'ep_manual_edit', settings_row.ep_manual_edit,
       'ep_graph_action', settings_row.ep_graph_action,
-      'ep_timeline_restore', 'proposal', -- Canon: timeline restore requires review
+      'ep_timeline_restore', settings_row.ep_timeline_restore,
+      
       'default_blast_radius', COALESCE(settings_row.default_blast_radius, 'Scoped'),
       'source', 'workspace_database'
     );
   ELSE
-    -- Canonical fallback: Governance enabled, proposals for P1, direct for P0
+    -- Fallback defaults when no workspace settings exist
     result := jsonb_build_object(
       'governance_enabled', TRUE,
       'validator_required', FALSE,
