@@ -312,10 +312,10 @@ export default function UnifiedTimeline({
     );
   }
 
-  // Filter events based on pipeline filter
+  // Filter events based on pipeline filter (with null safety)
   const filteredEvents = pipelineFilter === "all" 
-    ? events 
-    : events.filter(event => {
+    ? (events || [])
+    : (events || []).filter(event => {
         const config = getEventConfig(event.event_type);
         return (config as any).pipeline === pipelineFilter;
       });
