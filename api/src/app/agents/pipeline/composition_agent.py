@@ -238,6 +238,24 @@ Example response:
                     "metadata": dump
                 })
         
+        # Query relationships if prioritized (MISSING INTEGRATION!)
+        if strategy["substrate_priorities"].get("relationships", True):
+            relationships_response = supabase.table("substrate_relationships").select("*")\
+                .eq("basket_id", request.basket_id)\
+                .eq("state", "ACTIVE")\
+                .execute()
+            
+            for relationship in relationships_response.data:
+                candidates.append({
+                    "type": "relationship",
+                    "id": relationship["id"],
+                    "content": f"Relationship: {relationship.get('from_element_id')} → {relationship.get('relationship_type')} → {relationship.get('to_element_id')}",
+                    "relationship_type": relationship.get("relationship_type"),
+                    "confidence_score": relationship.get("confidence_score", 0.7),
+                    "created_at": relationship["created_at"],
+                    "metadata": relationship
+                })
+        
         # Add pinned items if specified
         if request.pinned_ids:
             # TODO: Query pinned items across all substrate types
@@ -343,45 +361,49 @@ Example:
                 "summary": "Insufficient substrate for composition"
             }
         
-        # Prepare substrate summary for narrative generation
-        substrate_summary = "\n\n".join([
-            f"[{s['type'].upper()}] {s.get('title', s.get('content', '')[:100])}..."
-            for s in selected_substrate
-        ])
+        # Prepare substrate summary with relationship context
+        substrate_summary, relationship_map = self._prepare_substrate_with_relationships(selected_substrate)
         
-        narrative_prompt = f"""Generate a narrative structure for this document.
+        narrative_prompt = f"""Generate a narrative structure for this document using CONNECTED INTELLIGENCE.
 
 Intent: {request.intent}
 Document Type: {strategy['document_type']}
 Tone: {strategy['tone']}
 Organization: {strategy['organization']}
 
-Selected Substrate:
+Selected Substrate with Relationships:
 {substrate_summary}
+
+IMPORTANT: Use the relationship information to create connected insights, not isolated facts.
+Focus on causal chains, temporal sequences, and how concepts build on each other.
 
 Create a JSON structure with:
 1. sections: Array of sections, each with:
    - title: Section title
-   - content: Brief description of what this section will cover
+   - content: Brief description emphasizing CONNECTIONS and SYNTHESIS
    - substrate_refs: List of substrate types to reference
+   - relationship_focus: How this section uses relationships between concepts
    - order: Section order (0-based)
-2. introduction: Opening paragraph that explains the document's purpose
-3. summary: One-line summary of the document
-4. composition_notes: Notes about what was included/excluded and why
+2. introduction: Opening that explains connections and relationships
+3. summary: One-line summary emphasizing insights derived from relationships
+4. composition_notes: Notes about what relationships were leveraged and why
+5. synthesis_approach: How relationships inform the narrative flow
 
 Example:
 {{
   "sections": [
     {{
-      "title": "Overview",
-      "content": "High-level summary of the project architecture",
-      "substrate_refs": ["block", "context_item"],
+      "title": "Causal Analysis",
+      "content": "How technical decisions led to performance outcomes, based on causal relationships",
+      "substrate_refs": ["block", "relationship"],
+      "relationship_focus": "causal_relationship chains showing decision → implementation → result",
       "order": 0
     }}
   ],
-  "introduction": "This document synthesizes recent thoughts on...",
-  "summary": "Comprehensive analysis of project architecture decisions",
-  "composition_notes": "Focused on technical blocks, excluded preliminary dumps"
+  "introduction": "This document reveals connected patterns across technical decisions and their cascading effects...",
+  "summary": "Analysis revealing causal chains between architecture choices and system performance",
+  "composition_notes": "Leveraged 5 causal relationships to show decision impact pathways",
+  "synthesis_approach": "Follow causal chains from decisions through implementation to outcomes"
 }}"""
 
         response = await self.llm.get_json_response(
@@ -395,6 +417,147 @@ Example:
         
         return narrative
     
+    def _prepare_substrate_with_relationships(self, selected_substrate: List[Dict[str, Any]]) -> Tuple[str, Dict[str, Any]]:
+        """
+        Analyze substrate relationships and prepare enhanced context for narrative generation
+        """
+        # Separate substrate by type
+        blocks = [s for s in selected_substrate if s['type'] == 'block']
+        context_items = [s for s in selected_substrate if s['type'] == 'context_item']
+        dumps = [s for s in selected_substrate if s['type'] == 'dump']
+        relationships = [s for s in selected_substrate if s['type'] == 'relationship']
+        
+        # Build relationship map
+        relationship_map = {}
+        for rel in relationships:
+            rel_type = rel.get('relationship_type', 'related')
+            from_id = rel.get('metadata', {}).get('from_element_id')
+            to_id = rel.get('metadata', {}).get('to_element_id')
+            
+            if from_id and to_id:
+                if from_id not in relationship_map:
+                    relationship_map[from_id] = []
+                relationship_map[from_id].append({
+                    'to': to_id,
+                    'type': rel_type,
+                    'confidence': rel.get('confidence_score', 0.7)
+                })
+        
+        # Generate enhanced substrate summary
+        summary_parts = []
+        
+        # Add blocks with their relationships
+        if blocks:
+            summary_parts.append("=== KNOWLEDGE BLOCKS ===")
+            for block in blocks:
+                block_id = block['id']
+                block_content = f"[BLOCK] {block.get('title', block.get('content', '')[:100])}..."
+                
+                # Add relationships for this block
+                if block_id in relationship_map:
+                    relations = relationship_map[block_id]
+                    rel_text = "; ".join([f"{r['type']} → {r['to']}" for r in relations[:3]])
+                    block_content += f" (Connected: {rel_text})"
+                
+                summary_parts.append(block_content)
+        
+        # Add context items
+        if context_items:
+            summary_parts.append("\n=== CONTEXT ENTITIES ===")
+            for item in context_items:
+                summary_parts.append(f"[ENTITY] {item.get('content', '')} ({item.get('kind', 'unknown')})")
+        
+        # Add relationships summary
+        if relationships:
+            summary_parts.append("\n=== KEY RELATIONSHIPS ===")
+            unique_rels = {}
+            for rel in relationships:
+                rel_type = rel.get('relationship_type', 'related')
+                if rel_type not in unique_rels:
+                    unique_rels[rel_type] = 0
+                unique_rels[rel_type] += 1
+            
+            for rel_type, count in unique_rels.items():
+                summary_parts.append(f"- {count} {rel_type} relationship(s)")
+        
+        # Add raw dumps if selected
+        if dumps:
+            summary_parts.append("\n=== RAW MEMORIES ===")
+            for dump in dumps[:3]:  # Limit to prevent overwhelming
+                summary_parts.append(f"[MEMORY] {dump.get('content', '')[:150]}...")
+        
+        enhanced_summary = "\n".join(summary_parts)
+        
+        return enhanced_summary, relationship_map
+    
+    async def _generate_section_content(
+        self,
+        section: Dict[str, Any],
+        selected_substrate: List[Dict[str, Any]],
+        narrative: Dict[str, Any]
+    ) -> str:
+        """
+        Generate detailed content for a section using relationship-aware substrate
+        """
+        # Get substrate relevant to this section
+        relevant_substrate = []
+        section_refs = section.get('substrate_refs', [])
+        
+        for substrate in selected_substrate:
+            if substrate['type'] in section_refs:
+                relevant_substrate.append(substrate)
+        
+        # If no specific refs, use all substrate
+        if not relevant_substrate:
+            relevant_substrate = selected_substrate
+        
+        # Prepare substrate for content generation
+        substrate_context = []
+        for sub in relevant_substrate[:8]:  # Limit to prevent context overflow
+            sub_info = f"[{sub['type'].upper()}] {sub.get('content', '')[:300]}"
+            
+            # Add relationship context if available
+            if sub['type'] == 'relationship':
+                rel_meta = sub.get('metadata', {})
+                sub_info += f" (Connects: {rel_meta.get('from_element_id')} → {rel_meta.get('to_element_id')})"
+            
+            substrate_context.append(sub_info)
+        
+        substrate_text = "\n\n".join(substrate_context)
+        
+        # Generate content using relationship focus
+        content_prompt = f"""Generate detailed content for this document section using CONNECTED INTELLIGENCE.
+
+Section Title: {section['title']}
+Section Purpose: {section['content']}
+Relationship Focus: {section.get('relationship_focus', 'Identify connections between concepts')}
+Document Intent: {narrative.get('summary', 'Document composition')}
+Synthesis Approach: {narrative.get('synthesis_approach', 'Connect related information')}
+
+Relevant Substrate:
+{substrate_text}
+
+CRITICAL: Generate 2-4 paragraphs that:
+1. Show HOW concepts connect and influence each other
+2. Identify CAUSAL relationships (A led to B)
+3. Reveal PATTERNS across the information
+4. Provide INSIGHTS that emerge from connections, not just facts
+5. Use transition phrases like "This led to...", "As a result...", "Building on this..."
+
+Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not summarization."""
+
+        try:
+            response = await self.llm.get_text_response(
+                content_prompt,
+                temperature=0.7,
+                max_tokens=800
+            )
+            return response.strip()
+        except Exception as e:
+            logger.warning(f"Failed to generate section content: {e}")
+            # Fallback to basic content
+            return section.get('content', 'Content generation failed.')
+    
     async def _compose_document(
         self,
         document_id: str,
@@ -403,7 +566,7 @@ Example:
         workspace_id: str
     ) -> Dict[str, Any]:
         """
-        Compose final document with substrate references and narrative
+        Compose final document with relationship-aware content and substrate references
         """
         try:
             # Build document content
@@ -422,11 +585,19 @@ Example:
                 content_parts.append(f"*Composition Notes: {narrative['composition_notes']}*")
                 content_parts.append("")
             
-            # Add sections
+            # Get relationship map for metadata
+            _, relationship_map = self._prepare_substrate_with_relationships(selected_substrate)
+            
+            # Generate relationship-aware section content
             for section in narrative.get("sections", []):
                 content_parts.append(f"## {section['title']}")
                 content_parts.append("")
-                content_parts.append(section['content'])
+                
+                # Generate detailed content using relationships
+                section_content = await self._generate_section_content(
+                    section, selected_substrate, narrative
+                )
+                content_parts.append(section_content)
                 content_parts.append("")
             
             # Join content
@@ -442,6 +613,8 @@ Example:
                     "composition_summary": narrative.get("summary", ""),
                     "composition_substrate_count": len(selected_substrate),
                     "composition_narrative": narrative,
+                    "relationship_map": relationship_map,  # NEW: Relationship data for future operations
+                    "synthesis_approach": narrative.get("synthesis_approach", "Connected intelligence"),
                     # Canon: Store substrate references as artifact metadata (not substrate mutations)
                     "substrate_references": [
                         {
