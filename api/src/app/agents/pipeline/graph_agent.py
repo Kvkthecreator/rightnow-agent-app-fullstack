@@ -35,7 +35,7 @@ class RelationshipProposal(BaseModel):
     from_id: UUID
     to_type: str
     to_id: UUID
-    relationship_type: str  # related_content, semantic_similarity, temporal_sequence
+    relationship_type: str  # related_content, semantic_similarity, temporal_sequence, causal_relationship, enablement_chain, impact_relationship, conditional_logic
     strength: float = Field(ge=0.0, le=1.0)
     description: str
 
@@ -248,6 +248,11 @@ class P2GraphAgent:
                         description=f"Thematic connection in {elem1['semantic_type']}-{elem2['semantic_type']} relationship"
                     ))
                 
+                # CAUSAL RELATIONSHIP ANALYSIS (NEW - CRITICAL FOR INTELLIGENCE)
+                causal_analysis = self._analyze_causal_relationships(elem1, elem2)
+                for causal_rel in causal_analysis:
+                    relationships.append(causal_rel)
+                
                 # Limit relationships to prevent explosion
                 if len(relationships) >= 50:
                     break
@@ -337,6 +342,130 @@ class P2GraphAgent:
             return 0.5
         else:
             return 0.0
+    
+    def _analyze_causal_relationships(self, elem1: Dict[str, Any], elem2: Dict[str, Any]) -> List[RelationshipProposal]:
+        """
+        CRITICAL: Analyze causal relationships between substrate elements.
+        This enables real intelligence by detecting HOW concepts connect and influence each other.
+        """
+        causal_relationships = []
+        
+        content1 = (elem1.get("content", "") + " " + elem1.get("title", "")).lower()
+        content2 = (elem2.get("content", "") + " " + elem2.get("title", "")).lower()
+        
+        # CAUSAL RELATIONSHIP DETECTION
+        causal_patterns = {
+            "causal_relationship": [
+                # Direct causation
+                ("caused", "resulted in", "led to", "triggered", "enabled", "produced"),
+                ("because of", "due to", "as a result of", "thanks to"),
+                ("therefore", "thus", "consequently", "hence"),
+                # Negative causation
+                ("prevented", "stopped", "blocked", "hindered", "disrupted")
+            ],
+            "temporal_sequence": [
+                # Time ordering
+                ("before", "after", "then", "next", "following", "subsequently"),
+                ("first", "second", "finally", "initially", "eventually"),
+                ("earlier", "later", "meanwhile", "during", "while")
+            ],
+            "enablement_chain": [
+                # Enabling relationships
+                ("enabled", "allowed", "facilitated", "made possible"),
+                ("required for", "prerequisite", "depends on", "needs"),
+                ("supports", "provides", "supplies", "powers")
+            ],
+            "impact_relationship": [
+                # Impact and consequences
+                ("affected", "influenced", "changed", "modified", "improved"),
+                ("degraded", "enhanced", "reduced", "increased", "amplified"),
+                ("resulting in", "outcome", "consequence", "effect", "impact")
+            ],
+            "conditional_logic": [
+                # If-then relationships
+                ("if", "when", "whenever", "provided that", "assuming"),
+                ("unless", "except", "only if", "given that"),
+                ("depends on", "contingent on", "subject to")
+            ]
+        }
+        
+        # Check each relationship type
+        for rel_type, pattern_groups in causal_patterns.items():
+            # Check if elem1 contains causal triggers and elem2 contains effects
+            for patterns in pattern_groups:
+                elem1_has_pattern = any(pattern in content1 for pattern in patterns)
+                elem2_has_pattern = any(pattern in content2 for pattern in patterns)
+                
+                # Check for cross-element causal relationships
+                if elem1_has_pattern or elem2_has_pattern:
+                    # Determine direction and strength
+                    if elem1_has_pattern and elem2_has_pattern:
+                        strength = 0.8  # Both have causal language
+                    elif elem1_has_pattern:
+                        strength = 0.7  # elem1 is likely the cause
+                    else:
+                        strength = 0.6  # elem2 is likely the cause
+                    
+                    # Add additional strength for semantic compatibility
+                    if self._are_causally_compatible(elem1, elem2, rel_type):
+                        strength += 0.1
+                    
+                    if strength >= 0.6:  # Threshold for causal relationships
+                        causal_relationships.append(RelationshipProposal(
+                            from_type=elem1["type"],
+                            from_id=UUID(elem1["id"]),
+                            to_type=elem2["type"],
+                            to_id=UUID(elem2["id"]),
+                            relationship_type=rel_type,
+                            strength=min(0.95, strength),  # Cap at 0.95
+                            description=f"{rel_type.replace('_', ' ').title()}: {elem1.get('title', 'Unknown')[:30]} → {elem2.get('title', 'Unknown')[:30]}"
+                        ))
+                        
+                        # Limit causal relationships per pair
+                        if len(causal_relationships) >= 3:
+                            break
+                
+                if len(causal_relationships) >= 3:
+                    break
+        
+        return causal_relationships
+    
+    def _are_causally_compatible(self, elem1: Dict[str, Any], elem2: Dict[str, Any], rel_type: str) -> bool:
+        """Check if two elements are semantically compatible for causal relationships."""
+        type1 = elem1.get("semantic_type", "").lower()
+        type2 = elem2.get("semantic_type", "").lower()
+        
+        # Define causal compatibility patterns
+        causal_compatible = {
+            "causal_relationship": [
+                ("action", "outcome"), ("event", "consequence"), ("decision", "result"),
+                ("problem", "solution"), ("cause", "effect"), ("trigger", "response")
+            ],
+            "temporal_sequence": [
+                ("event", "event"), ("action", "action"), ("milestone", "milestone"),
+                ("step", "step"), ("phase", "phase")
+            ],
+            "enablement_chain": [
+                ("resource", "action"), ("tool", "outcome"), ("capability", "achievement"),
+                ("permission", "action"), ("requirement", "fulfillment")
+            ],
+            "impact_relationship": [
+                ("action", "metric"), ("decision", "performance"), ("change", "outcome"),
+                ("intervention", "result"), ("input", "output")
+            ],
+            "conditional_logic": [
+                ("condition", "action"), ("requirement", "capability"), ("constraint", "solution"),
+                ("rule", "behavior"), ("policy", "outcome")
+            ]
+        }
+        
+        compatible_pairs = causal_compatible.get(rel_type, [])
+        
+        for type_a, type_b in compatible_pairs:
+            if (type_a in type1 and type_b in type2) or (type_b in type1 and type_a in type2):
+                return True
+        
+        return False
     
     def _validate_relationships(self, proposals: List[RelationshipProposal]) -> List[RelationshipProposal]:
         """Validate and filter relationship proposals to prevent duplicates and low-quality connections."""
