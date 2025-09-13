@@ -672,7 +672,7 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                             
                             try {
                               // Simple in-place enhancement approach
-                              const res = await fetch(`/api/documents/${document.id}/enhance`, {
+                              const res = await fetchWithToken(`/api/documents/${document.id}/enhance`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
