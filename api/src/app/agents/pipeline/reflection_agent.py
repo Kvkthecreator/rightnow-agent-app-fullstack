@@ -217,6 +217,7 @@ Return JSON only.""",
             # Build query filters
             workspace_filter = str(workspace_id)
             basket_filter = str(basket_id) if basket_id else None
+            basket_ids = None  # Initialize basket_ids
             
             # Get blocks
             blocks_query = supabase.table("blocks").select(
@@ -264,7 +265,7 @@ Return JSON only.""",
                 context_query = context_query.eq("basket_id", basket_filter)
             else:
                 # Get all context items in workspace
-                if 'basket_ids' in locals() and basket_ids:
+                if basket_ids:
                     context_query = context_query.in_("basket_id", basket_ids)
             
             context_response = context_query.execute()
@@ -291,7 +292,7 @@ Return JSON only.""",
             if basket_filter:
                 relationships_query = relationships_query.eq("basket_id", basket_filter)
             else:
-                if 'basket_ids' in locals() and basket_ids:
+                if basket_ids:
                     relationships_query = relationships_query.in_("basket_id", basket_ids)
             
             relationships_response = relationships_query.execute()
