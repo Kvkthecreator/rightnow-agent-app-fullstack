@@ -53,7 +53,7 @@ class CanonP3ReflectionAgent:
             
         try:
             # CANON STEP 1: Get text window (raw_dumps in basket)
-            text_window = await self._get_text_window(request.basket_id)
+            text_window = self._get_text_window(request.basket_id)
             
             if not text_window:
                 self.logger.info(f"P3 Reflection: No raw_dumps found in basket {request.basket_id}")
@@ -66,13 +66,13 @@ class CanonP3ReflectionAgent:
                 )
             
             # CANON STEP 2: Get graph window (context_items + relationships touching text window)
-            graph_window = await self._get_graph_window(request.basket_id, text_window)
+            graph_window = self._get_graph_window(request.basket_id, text_window)
             
             # CANON STEP 3: Compute reflection artifact from windows
-            reflection_artifact = await self._compute_reflection_artifact(text_window, graph_window)
+            reflection_artifact = self._compute_reflection_artifact(text_window, graph_window)
             
             # CANON STEP 4: Store artifact (not substrate mutation)
-            await self._store_reflection_artifact(request, reflection_artifact)
+            self._store_reflection_artifact(request, reflection_artifact)
             
             return ReflectionComputationResult(
                 workspace_id=request.workspace_id,
@@ -91,7 +91,7 @@ class CanonP3ReflectionAgent:
             self.logger.error(f"Canon P3 Reflection failed for basket {request.basket_id}: {e}")
             raise
     
-    async def _get_text_window(self, basket_id: UUID, limit: int = 50) -> List[Dict[str, Any]]:
+    def _get_text_window(self, basket_id: UUID, limit: int = 50) -> List[Dict[str, Any]]:
         """Canon: Text window = last N raw_dumps in basket"""
         try:
             response = supabase.table("raw_dumps").select(
@@ -106,7 +106,7 @@ class CanonP3ReflectionAgent:
             self.logger.error(f"Failed to get text window: {e}")
             return []
     
-    async def _get_graph_window(self, basket_id: UUID, text_window: List[Dict]) -> List[Dict[str, Any]]:
+    def _get_graph_window(self, basket_id: UUID, text_window: List[Dict]) -> List[Dict[str, Any]]:
         """Canon: Graph window = context_items + relationships touching text window"""
         try:
             graph_elements = []
@@ -133,7 +133,7 @@ class CanonP3ReflectionAgent:
             self.logger.error(f"Failed to get graph window: {e}")
             return []
     
-    async def _compute_reflection_artifact(self, text_window: List[Dict], graph_window: List[Dict]) -> Dict[str, Any]:
+    def _compute_reflection_artifact(self, text_window: List[Dict], graph_window: List[Dict]) -> Dict[str, Any]:
         """Canon: Pure computation - no substrate mutations"""
         
         # Simple pattern analysis following canon output format
@@ -178,7 +178,7 @@ class CanonP3ReflectionAgent:
             "computation_method": "canon_window_analysis"
         }
     
-    async def _store_reflection_artifact(self, request: ReflectionComputationRequest, reflection: Dict[str, Any]):
+    def _store_reflection_artifact(self, request: ReflectionComputationRequest, reflection: Dict[str, Any]):
         """Canon: Store as artifact, never mutate substrate"""
         try:
             artifact_data = {
