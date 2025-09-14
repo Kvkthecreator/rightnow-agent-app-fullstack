@@ -95,7 +95,7 @@ class CanonP3ReflectionAgent:
         """Canon: Text window = last N raw_dumps in basket"""
         try:
             response = supabase.table("raw_dumps").select(
-                "id,basket_id,text_dump,file_dump_key,created_at"
+                "id,basket_id,text_dump,file_url,created_at"
             ).eq("basket_id", str(basket_id)).order(
                 "created_at", desc=True
             ).limit(limit).execute()
