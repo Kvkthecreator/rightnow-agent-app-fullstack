@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.utils.supabase_client import supabase_admin_client as supabase
-from app.agents.pipeline.reflection_agent import P3ReflectionAgent, ReflectionComputationRequest
+from app.agents.pipeline.reflection_agent_canon_v2 import CanonP3ReflectionAgent
+from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
 
 router = APIRouter(prefix="/api/reflections", tags=["reflections"])
 
@@ -15,7 +16,7 @@ class ComputeWindowBody(BaseModel):
 @router.post("/compute_window")
 async def compute_window(body: ComputeWindowBody):
     try:
-        agent = P3ReflectionAgent()
+        agent = CanonP3ReflectionAgent()
         req = ReflectionComputationRequest(
             workspace_id=body.workspace_id,
             basket_id=body.basket_id,
@@ -110,7 +111,7 @@ async def list_basket_reflections(basket_id: str, workspace_id: str, cursor: Opt
     try:
         if refresh:
             # Optionally trigger compute on refresh signal
-            agent = P3ReflectionAgent()
+            agent = CanonP3ReflectionAgent()
             req = ReflectionComputationRequest(workspace_id=workspace_id, basket_id=basket_id, agent_id="p3_reflection_agent")
             try:
                 await agent.compute_reflections(req)
