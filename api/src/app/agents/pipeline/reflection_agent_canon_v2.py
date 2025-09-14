@@ -14,16 +14,31 @@ from typing import Optional, List, Dict, Any
 from uuid import UUID
 import logging
 from datetime import datetime, timedelta
+from pydantic import BaseModel, Field
 
-from ..base import BaseAgent
-from ...schemas.reflection_schema import ReflectionComputationRequest, ReflectionComputationResult
-from ...lib.supabase_client import get_supabase_client
+from app.utils.supabase_client import supabase_admin_client as supabase
 
-class CanonP3ReflectionAgent(BaseAgent):
+
+class ReflectionComputationRequest(BaseModel):
+    """Request to compute reflections from workspace substrate."""
+    workspace_id: UUID
+    basket_id: Optional[UUID] = None
+    reflection_types: List[str] = Field(default=["patterns", "insights", "gaps"])
+    agent_id: str
+
+
+class ReflectionComputationResult(BaseModel):
+    """Result of reflection computation."""
+    workspace_id: UUID
+    basket_id: Optional[UUID]
+    reflection_text: str
+    computation_timestamp: str
+    meta: Dict[str, Any] = Field(default_factory=dict)
+
+class CanonP3ReflectionAgent:
     """Canon-compliant P3 Reflection Agent following YARNNN_REFLECTION_READMODEL.md"""
     
     def __init__(self):
-        super().__init__()
         self.logger = logging.getLogger(__name__)
         
     async def compute_reflections(self, request: ReflectionComputationRequest) -> ReflectionComputationResult:
@@ -37,10 +52,8 @@ class CanonP3ReflectionAgent(BaseAgent):
             raise ValueError("P3 Reflection requires basket_id - canon mandates basket-scoped analysis")
             
         try:
-            supabase = get_supabase_client()
-            
             # CANON STEP 1: Get text window (raw_dumps in basket)
-            text_window = await self._get_text_window(supabase, request.basket_id)
+            text_window = await self._get_text_window(request.basket_id)
             
             if not text_window:
                 self.logger.info(f"P3 Reflection: No raw_dumps found in basket {request.basket_id}")
@@ -53,13 +66,13 @@ class CanonP3ReflectionAgent(BaseAgent):
                 )
             
             # CANON STEP 2: Get graph window (context_items + relationships touching text window)
-            graph_window = await self._get_graph_window(supabase, request.basket_id, text_window)
+            graph_window = await self._get_graph_window(request.basket_id, text_window)
             
             # CANON STEP 3: Compute reflection artifact from windows
             reflection_artifact = await self._compute_reflection_artifact(text_window, graph_window)
             
             # CANON STEP 4: Store artifact (not substrate mutation)
-            await self._store_reflection_artifact(supabase, request, reflection_artifact)
+            await self._store_reflection_artifact(request, reflection_artifact)
             
             return ReflectionComputationResult(
                 workspace_id=request.workspace_id,
@@ -78,7 +91,7 @@ class CanonP3ReflectionAgent(BaseAgent):
             self.logger.error(f"Canon P3 Reflection failed for basket {request.basket_id}: {e}")
             raise
     
-    async def _get_text_window(self, supabase, basket_id: UUID, limit: int = 50) -> List[Dict[str, Any]]:
+    async def _get_text_window(self, basket_id: UUID, limit: int = 50) -> List[Dict[str, Any]]:
         """Canon: Text window = last N raw_dumps in basket"""
         try:
             response = supabase.table("raw_dumps").select(
@@ -93,7 +106,7 @@ class CanonP3ReflectionAgent(BaseAgent):
             self.logger.error(f"Failed to get text window: {e}")
             return []
     
-    async def _get_graph_window(self, supabase, basket_id: UUID, text_window: List[Dict]) -> List[Dict[str, Any]]:
+    async def _get_graph_window(self, basket_id: UUID, text_window: List[Dict]) -> List[Dict[str, Any]]:
         """Canon: Graph window = context_items + relationships touching text window"""
         try:
             graph_elements = []
@@ -165,7 +178,7 @@ class CanonP3ReflectionAgent(BaseAgent):
             "computation_method": "canon_window_analysis"
         }
     
-    async def _store_reflection_artifact(self, supabase, request: ReflectionComputationRequest, reflection: Dict[str, Any]):
+    async def _store_reflection_artifact(self, request: ReflectionComputationRequest, reflection: Dict[str, Any]):
         """Canon: Store as artifact, never mutate substrate"""
         try:
             artifact_data = {
