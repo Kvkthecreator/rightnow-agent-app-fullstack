@@ -29,8 +29,8 @@ class ReflectionComputationRequest(BaseModel):
 
 class ReflectionComputationResult(BaseModel):
     """Result of reflection computation."""
-    workspace_id: UUID
-    basket_id: Optional[UUID]
+    workspace_id: str  # JSON serializable
+    basket_id: Optional[str] = None  # JSON serializable
     reflection_text: str
     computation_timestamp: str
     meta: Dict[str, Any] = Field(default_factory=dict)
@@ -58,8 +58,8 @@ class CanonP3ReflectionAgent:
             if not text_window:
                 self.logger.info(f"P3 Reflection: No raw_dumps found in basket {request.basket_id}")
                 return ReflectionComputationResult(
-                    workspace_id=request.workspace_id,
-                    basket_id=request.basket_id,
+                    workspace_id=str(request.workspace_id),
+                    basket_id=str(request.basket_id),
                     reflection_text="No memory substrate available for reflection",
                     computation_timestamp=datetime.utcnow().isoformat(),
                     meta={"substrate_dump_count": 0, "canon_compliant": True}
@@ -75,8 +75,8 @@ class CanonP3ReflectionAgent:
             self._store_reflection_artifact(request, reflection_artifact)
             
             return ReflectionComputationResult(
-                workspace_id=request.workspace_id,
-                basket_id=request.basket_id,
+                workspace_id=str(request.workspace_id),
+                basket_id=str(request.basket_id),
                 reflection_text=reflection_artifact["text"],
                 computation_timestamp=datetime.utcnow().isoformat(),
                 meta={
@@ -182,8 +182,8 @@ class CanonP3ReflectionAgent:
         """Canon: Store as artifact, never mutate substrate"""
         try:
             artifact_data = {
-                "workspace_id": request.workspace_id,
-                "basket_id": request.basket_id,
+                "workspace_id": str(request.workspace_id),
+                "basket_id": str(request.basket_id),
                 "reflection_text": reflection["text"],
                 "reflection_target_type": "substrate",
                 "reflection_target_id": str(request.basket_id),
