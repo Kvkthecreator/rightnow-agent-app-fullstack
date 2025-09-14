@@ -285,7 +285,7 @@ Return JSON only.""",
             
             # Get relationships for pattern analysis
             relationships_query = supabase.table("substrate_relationships").select(
-                "id,basket_id,from_type,from_id,to_type,to_id,relationship_type,strength,description,metadata,created_at"
+                "id,basket_id,from_type,from_id,to_type,to_id,relationship_type,strength,description,created_at"
             )
             
             if basket_filter:
@@ -310,7 +310,6 @@ Return JSON only.""",
                             "relationship_type": rel.get("relationship_type"),
                             "strength": rel.get("strength", 0.5),
                             "description": rel.get("description", ""),
-                            "metadata": rel.get("metadata", {}),
                             "created_at": rel.get("created_at")
                         })
             

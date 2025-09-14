@@ -56,19 +56,38 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
     await loadReflections(cursor);
   }
 
-  // Force refresh reflections
+  // Force refresh reflections - trigger new computation
   async function refreshReflections() {
     setLoading(true);
     setError(null);
     
     try {
+      // First trigger new reflection computation
+      const triggerUrl = new URL('/api/reflections/trigger', window.location.origin);
+      const triggerResponse = await fetchWithToken(triggerUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          basket_id: basketId,
+        }),
+      });
+
+      if (!triggerResponse.ok) {
+        throw new Error("Failed to trigger reflection computation");
+      }
+
+      // Wait a moment for async processing to start
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Then load the latest reflections
       const url = new URL(`/api/baskets/${basketId}/reflections`, window.location.origin);
-      url.searchParams.set("refresh", "true");
       url.searchParams.set("limit", "10");
 
       const response = await fetchWithToken(url.toString());
       if (!response.ok) {
-        throw new Error("Failed to refresh reflections");
+        throw new Error("Failed to load reflections");
       }
 
       const data: GetReflectionsResponse = await response.json();
