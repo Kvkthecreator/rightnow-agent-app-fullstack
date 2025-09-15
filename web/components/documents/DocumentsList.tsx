@@ -2,11 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { notificationService } from '@/lib/notifications/service';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { FileText, Sparkles, Eye, Clock } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
+import { FileText, Clock, Layers } from 'lucide-react';
 import type { DocumentDTO } from '@/shared/contracts/documents';
 
 interface DocumentsListProps {
@@ -45,81 +42,53 @@ export function DocumentsList({ basketId }: DocumentsListProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffHours = Math.abs(now.getTime() - date.getTime()) / (1000 * 60 * 60);
     
-    if (diffDays === 1) return 'Today';
-    if (diffDays === 2) return 'Yesterday';
-    if (diffDays <= 7) return `${diffDays} days ago`;
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return 'Today';
+    if (diffHours < 48) return 'Yesterday';
+    if (diffHours < 168) return `${Math.floor(diffHours / 24)} days ago`;
     return date.toLocaleDateString();
+  };
+
+  const getContentPreview = (document: DocumentDTO): string => {
+    // Extract meaningful preview from document
+    if (document.body_md) {
+      // Strip markdown formatting for cleaner preview
+      const plainText = document.body_md
+        .replace(/#{1,6}\s/g, '')  // Remove headers
+        .replace(/[*_~`]/g, '')     // Remove formatting
+        .replace(/\n+/g, ' ')       // Replace newlines with spaces
+        .trim();
+      
+      // Return first 150 chars
+      return plainText.length > 150 
+        ? plainText.substring(0, 150) + '...'
+        : plainText;
+    }
+    
+    // Fallback to metadata description if available
+    if (document.metadata?.description) {
+      return document.metadata.description;
+    }
+    
+    return 'No preview available';
   };
 
   const handleDocumentClick = (document: DocumentDTO) => {
     router.push(`/baskets/${basketId}/documents/${document.id}`);
   };
 
-  const handleProposeBreakdown = async (document: DocumentDTO, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    try {
-      const response = await fetch('/api/work', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          work_type: 'P4_COMPOSE',
-          work_payload: {
-            basket_id: basketId,
-            operations: [{
-              type: 'BreakdownDocument',
-              data: {
-                document_id: document.id,
-                breakdown_reason: 'User requested document breakdown into substrate'
-              }
-            }]
-          },
-          priority: 'normal'
-        })
-      });
-
-      const result = await response.json();
-      
-      if (result.execution_mode === 'auto_execute') {
-        notificationService.notify({
-          type: 'work.processing',
-          title: 'Document Breakdown Started',
-          message: 'Your document is being analyzed and broken down',
-          severity: 'success'
-        });
-      } else {
-        notificationService.approvalRequired(
-          'Breakdown Pending Review',
-          'Document breakdown is awaiting approval',
-          basketId
-        );
-      }
-      
-    } catch (error) {
-      console.error('Breakdown proposal error:', error);
-      notificationService.notify({
-        type: 'work.failed',
-        title: 'Breakdown Failed',
-        message: 'Failed to propose document breakdown',
-        severity: 'error'
-      });
-    }
-  };
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         {[...Array(3)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
-              <div className="h-5 bg-gray-200 rounded mb-3 w-3/4"></div>
-              <div className="h-4 bg-gray-100 rounded mb-2 w-full"></div>
-              <div className="h-4 bg-gray-100 rounded w-1/2"></div>
-            </CardContent>
-          </Card>
+          <div key={i} className="animate-pulse bg-gray-50 rounded-lg p-4">
+            <div className="h-5 bg-gray-200 rounded mb-2 w-2/3"></div>
+            <div className="h-3 bg-gray-100 rounded mb-2 w-full"></div>
+            <div className="h-3 bg-gray-100 rounded w-3/4"></div>
+          </div>
         ))}
       </div>
     );
@@ -127,87 +96,61 @@ export function DocumentsList({ basketId }: DocumentsListProps) {
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600 mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()}>
-          Try Again
-        </Button>
+      <div className="text-center py-8 text-red-600 text-sm">
+        {error}
       </div>
     );
   }
 
   if (documents.length === 0) {
     return (
-      <Card className="border-2 border-dashed border-gray-200">
-        <CardContent className="p-12 text-center">
-          <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900">No documents yet</h3>
-        </CardContent>
-      </Card>
+      <div className="text-center py-12 text-gray-500 text-sm">
+        No documents yet
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {documents.map((document: any) => (
         <Card
           key={document.id}
-          className="hover:shadow-md transition-shadow group border-blue-100"
+          className="p-4 hover:shadow-sm transition-shadow cursor-pointer border-gray-100"
+          onClick={() => handleDocumentClick(document)}
         >
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 cursor-pointer" onClick={() => handleDocumentClick(document)}>
-                <div className="flex items-center gap-3 mb-3">
-                  <FileText className="h-6 w-6 text-blue-600" />
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                      {document.title}
-                    </h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <Clock className="h-3 w-3" />
-                      <span>Updated {formatDate(document.updated_at)}</span>
-                    </div>
-                  </div>
-                </div>
+          <div className="flex items-start gap-3">
+            <FileText className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
+            
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-gray-900 text-base mb-1 truncate">
+                {document.title}
+              </h3>
+              
+              <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                {getContentPreview(document)}
+              </p>
+              
+              <div className="flex items-center gap-4 text-xs text-gray-500">
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {formatDate(document.updated_at)}
+                </span>
                 
-                {document.metadata && (
-                  <div className="text-xs text-gray-600 mb-3">
-                    {document.metadata.original_filename && (
-                      <span className="inline-block bg-gray-100 px-2 py-1 rounded mr-2">
-                        {document.metadata.original_filename}
-                      </span>
-                    )}
-                    {document.metadata.file_size && (
-                      <span className="text-gray-500">
-                        {(document.metadata.file_size / 1024 / 1024).toFixed(2)} MB
-                      </span>
-                    )}
-                  </div>
+                {document.metadata?.substrate_count && (
+                  <span className="flex items-center gap-1">
+                    <Layers className="h-3 w-3" />
+                    {document.metadata.substrate_count} memory blocks
+                  </span>
+                )}
+                
+                {document.metadata?.original_filename && (
+                  <span className="truncate max-w-[150px]">
+                    {document.metadata.original_filename}
+                  </span>
                 )}
               </div>
-              
-              <div className="flex items-center gap-2 ml-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDocumentClick(document)}
-                  className="flex items-center gap-2"
-                >
-                  <Eye className="h-4 w-4" />
-                  View
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => handleProposeBreakdown(document, e)}
-                  className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Propose Breakdown
-                </Button>
-              </div>
             </div>
-          </CardContent>
+          </div>
         </Card>
       ))}
     </div>

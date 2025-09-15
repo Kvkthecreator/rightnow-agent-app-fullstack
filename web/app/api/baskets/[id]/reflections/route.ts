@@ -90,22 +90,34 @@ export async function GET(
     // Sanitize upstream payload to match our DTO (strip extra fields, normalize cursor)
     const sanitized = (() => {
       try {
-        const reflections = Array.isArray((payload as any)?.reflections)
-          ? (payload as any).reflections.map((r: any) => ({
+        const asString = (v: any) => (typeof v === 'string' ? v : undefined);
+        const asStringOrNull = (v: any) => (typeof v === 'string' ? v : null);
+
+        const reflectionsRaw = Array.isArray((payload as any)?.reflections)
+          ? (payload as any).reflections
+          : [];
+
+        const reflections = reflectionsRaw
+          .map((r: any) => {
+            const reflection_text = asString(r.reflection_text);
+            const computation_timestamp = asString(r.computation_timestamp) ?? new Date().toISOString();
+            return {
               id: r.id,
               basket_id: r.basket_id,
               workspace_id: r.workspace_id,
-              reflection_text: r.reflection_text,
-              substrate_hash: r.substrate_hash,
-              computation_timestamp: r.computation_timestamp,
-              reflection_target_type: r.reflection_target_type,
-              reflection_target_id: r.reflection_target_id,
-              reflection_target_version: r.reflection_target_version,
-              substrate_window_start: r.substrate_window_start,
-              substrate_window_end: r.substrate_window_end,
+              reflection_text,
+              substrate_hash: asString(r.substrate_hash),
+              computation_timestamp,
+              reflection_target_type: (typeof r.reflection_target_type === 'string' ? r.reflection_target_type : 'legacy'),
+              reflection_target_id: asStringOrNull(r.reflection_target_id),
+              reflection_target_version: asStringOrNull(r.reflection_target_version),
+              substrate_window_start: asString(r.substrate_window_start),
+              substrate_window_end: asString(r.substrate_window_end),
               meta: r.meta,
-            }))
-          : [];
+            };
+          })
+          .filter((row: any) => typeof row.reflection_text === 'string' && row.reflection_text.length > 0);
+
         const next_cursor = (payload as any)?.next_cursor ?? undefined;
         return {
           reflections,
