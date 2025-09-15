@@ -6,19 +6,8 @@ export async function runP3ComputeReflections(basketId: string, opts?: { days?: 
   const projection = await loadProjection({ basketId, days: opts?.days, maxDumps: opts?.maxDumps });
   const result = computeReflections(projection);
 
-  let cached = false;
-  if (opts?.cache) {
-    const res = await sql/* sql */`
-      select public.fn_reflection_cache_upsert(
-        ${basketId}::uuid,
-        ${result.pattern},
-        ${result.tension},
-        ${result.question},
-        ${result.meta_derived_from}
-      ) as changed
-    `;
-    cached = !!res.rows?.[0]?.changed;
-  }
+  // Canon: reflections are artifacts; caching layer is optional and removed.
+  const cached = false;
 
   // Emit metrics
   await sql/* sql */`

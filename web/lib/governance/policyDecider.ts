@@ -288,6 +288,7 @@ export function getDecisionMetrics(decision: Decision): Record<string, any> {
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import { getWorkspaceFlags } from './flagsServer';
 
 export interface WorkTypePolicy {
   mode: 'auto' | 'proposal' | 'confidence';
@@ -304,70 +305,36 @@ export const policyDecider = {
     workspace_id: string,
     work_type: string
   ): Promise<WorkTypePolicy> {
-    
-    // Fetch workspace governance settings
-    const { data: settings, error } = await supabase
-      .from('workspace_governance')
-      .select('*')
-      .eq('workspace_id', workspace_id)
-      .single();
+    // Canon: governance is workspace-scoped; confidence routing is allowed only if workspace policy says so.
+    const flags = await getWorkspaceFlags(supabase, workspace_id);
 
-    if (error || !settings) {
-      // Default to proposal mode for safety
-      return {
-        mode: 'proposal',
-        confidence_threshold: 0.8,
-        require_validation: false
-      };
-    }
+    // Defaults: safe proposal unless policy explicitly allows otherwise.
+    const safe: WorkTypePolicy = { mode: 'proposal', confidence_threshold: 0.8, require_validation: !!flags.validator_required };
 
-    // Map work types to governance policies
     switch (work_type) {
       case 'P0_CAPTURE':
-        return {
-          mode: settings.ep_onboarding_dump || 'proposal',
-          confidence_threshold: settings.confidence_threshold_onboarding || 0.8,
-          require_validation: settings.validator_required || false
-        };
-        
+        // P0 is always direct (capture only) per canon; flags.ep.onboarding_dump should be 'direct'.
+        return { mode: flags.ep.onboarding_dump ?? 'direct', confidence_threshold: 1.0, require_validation: false };
+
       case 'P1_SUBSTRATE':
-        return {
-          mode: settings.ep_onboarding_dump || 'proposal',
-          confidence_threshold: settings.confidence_threshold_onboarding || 0.8,
-          require_validation: settings.validator_required || false
-        };
-        
-      case 'MANUAL_EDIT':
-        return {
-          mode: settings.ep_manual_edit || 'proposal',
-          confidence_threshold: settings.confidence_threshold_manual || 0.6,
-          require_validation: settings.validator_required || false
-        };
-        
+        // Substrate evolution flows through proposals; use manual_edit policy as closest analogue for human/agent intents.
+        return { mode: flags.ep.manual_edit ?? 'proposal', confidence_threshold: 0.8, require_validation: !!flags.validator_required };
+
       case 'P2_GRAPH':
+        // Graph actions governed by ep_graph_action policy.
+        return { mode: flags.ep.graph_action ?? 'proposal', confidence_threshold: 0.7, require_validation: false };
+
       case 'P3_REFLECTION':
       case 'P4_COMPOSE':
-        return {
-          mode: 'confidence', // AI operations benefit from confidence routing
-          confidence_threshold: 0.7,
-          require_validation: false
-        };
-        
+        // Artifacts are not substrate; do not force confidence routing unless a future workspace flag allows it.
+        return safe;
+
       case 'PROPOSAL_REVIEW':
       case 'TIMELINE_RESTORE':
-        return {
-          mode: 'proposal', // These are always review operations
-          confidence_threshold: 1.0,
-          require_validation: true
-        };
-        
+        return { mode: 'proposal', confidence_threshold: 1.0, require_validation: true };
+
       default:
-        // Unknown work types default to strict governance
-        return {
-          mode: 'proposal',
-          confidence_threshold: 0.9,
-          require_validation: true
-        };
+        return safe;
     }
   }
 };
