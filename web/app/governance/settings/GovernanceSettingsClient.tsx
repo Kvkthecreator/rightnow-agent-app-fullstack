@@ -309,9 +309,9 @@ export default function GovernanceSettingsClient({
                     const res = await fetch('/api/vacuum/run', { method: 'POST' });
                     const json = await res.json();
                     if (res.ok) {
-                      notificationService.notify({ type: 'vacuum.run', title: 'Vacuum Run', message: JSON.stringify(json.result || json), severity: 'info' });
+                      notificationService.notify({ type: 'system.performance.alert', title: 'Vacuum Run', message: JSON.stringify(json.result || json), severity: 'info' });
                     } else {
-                      notificationService.notify({ type: 'vacuum.run', title: 'Vacuum Failed', message: json.error || 'Failed to run vacuum', severity: 'error' });
+                      notificationService.notify({ type: 'system.performance.alert', title: 'Vacuum Failed', message: json.error || 'Failed to run vacuum', severity: 'error' });
                     }
                   } catch (e) {
                     notificationService.notify({ type: 'vacuum.run', title: 'Vacuum Failed', message: 'Network or server error', severity: 'error' });

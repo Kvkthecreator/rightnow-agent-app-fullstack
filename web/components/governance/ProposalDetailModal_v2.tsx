@@ -65,6 +65,8 @@ export function ProposalDetailModal({
   const [reviewNotes, setReviewNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [deletionImpact, setDeletionImpact] = useState<{ refs: number; rels: number; docs: number } | null>(null);
+  const [deletionImpactLoading, setDeletionImpactLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen && proposalId) {
@@ -85,6 +87,39 @@ export function ProposalDetailModal({
       }
       const data = await response.json();
       setProposal(data);
+      // If proposal contains deletion ops, compute cascade preview
+      try {
+        if (data && Array.isArray(data.ops)) {
+          const deletionOps = data.ops.filter((op: any) => op?.type === 'ArchiveBlock' || op?.type === 'RedactDump');
+          if (deletionOps.length > 0) {
+            setDeletionImpactLoading(true);
+            let refs = 0, rels = 0, docs = 0;
+            for (const op of deletionOps) {
+              const substrate_type = op.type === 'ArchiveBlock' ? 'block' : 'dump';
+              const substrate_id = op.type === 'ArchiveBlock' ? (op.data?.block_id || op.data?.target_id) : (op.data?.dump_id || op.data?.target_id);
+              if (!substrate_id) continue;
+              const res = await fetch(`/api/cascade/preview`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ basket_id: basketId, substrate_type, substrate_id })
+              });
+              if (res.ok) {
+                const json = await res.json();
+                refs += Number(json?.preview?.refs_detached_count || 0);
+                rels += Number(json?.preview?.relationships_pruned_count || 0);
+                docs += Number(json?.preview?.affected_documents_count || 0);
+              }
+            }
+            setDeletionImpact({ refs, rels, docs });
+          } else {
+            setDeletionImpact(null);
+          }
+        }
+      } catch {
+        setDeletionImpact(null);
+      } finally {
+        setDeletionImpactLoading(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load proposal');
     } finally {
@@ -269,6 +304,27 @@ export function ProposalDetailModal({
                     </div>
                   )}
                 </div>
+
+                {/* Deletion Impact (if applicable) */}
+                {deletionImpact && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-gray-700">Deletion Impact</h4>
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="bg-gray-50 rounded p-3 text-center">
+                        <div className="text-gray-500">References</div>
+                        <div className="font-semibold">{deletionImpact.refs}</div>
+                      </div>
+                      <div className="bg-gray-50 rounded p-3 text-center">
+                        <div className="text-gray-500">Relationships</div>
+                        <div className="font-semibold">{deletionImpact.rels}</div>
+                      </div>
+                      <div className="bg-gray-50 rounded p-3 text-center">
+                        <div className="text-gray-500">Documents</div>
+                        <div className="font-semibold">{deletionImpact.docs}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* SECONDARY: Expandable Details */}
                 <div className="border-t pt-4">
