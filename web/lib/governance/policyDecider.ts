@@ -311,18 +311,31 @@ export const policyDecider = {
     // Defaults: safe proposal unless policy explicitly allows otherwise.
     const safe: WorkTypePolicy = { mode: 'proposal', confidence_threshold: 0.8, require_validation: !!flags.validator_required };
 
+    // Map entry-point policy to universal work mode
+    const toMode = (policy: 'proposal' | 'direct' | 'hybrid' | undefined): WorkTypePolicy['mode'] => {
+      switch (policy) {
+        case 'direct':
+          return 'auto';
+        case 'hybrid':
+          return 'confidence';
+        case 'proposal':
+        default:
+          return 'proposal';
+      }
+    };
+
     switch (work_type) {
       case 'P0_CAPTURE':
-        // P0 is always direct (capture only) per canon; flags.ep.onboarding_dump should be 'direct'.
-        return { mode: flags.ep.onboarding_dump ?? 'direct', confidence_threshold: 1.0, require_validation: false };
+        // P0 is capture-only; map entry policy to work mode (direct => auto)
+        return { mode: toMode(flags.ep.onboarding_dump), confidence_threshold: 1.0, require_validation: false };
 
       case 'P1_SUBSTRATE':
         // Substrate evolution flows through proposals; use manual_edit policy as closest analogue for human/agent intents.
-        return { mode: flags.ep.manual_edit ?? 'proposal', confidence_threshold: 0.8, require_validation: !!flags.validator_required };
+        return { mode: toMode(flags.ep.manual_edit), confidence_threshold: 0.8, require_validation: !!flags.validator_required };
 
       case 'P2_GRAPH':
         // Graph actions governed by ep_graph_action policy.
-        return { mode: flags.ep.graph_action ?? 'proposal', confidence_threshold: 0.7, require_validation: false };
+        return { mode: toMode(flags.ep.graph_action), confidence_threshold: 0.7, require_validation: false };
 
       case 'P3_REFLECTION':
       case 'P4_COMPOSE':
