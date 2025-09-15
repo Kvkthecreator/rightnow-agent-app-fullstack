@@ -815,29 +815,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
         )}
       </div>
 
-      {/* Confirm Dialog */}
-      {confirming && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
-            <h4 className="text-sm font-medium text-gray-900 mb-2">{confirming === 'archive' ? 'Archive Block' : 'Redact Dump'}</h4>
-            {preview ? (
-              <div className="text-xs text-gray-700 space-y-1 mb-3">
-                <div>References to detach: <span className="font-semibold">{preview.refs_detached_count}</span></div>
-                <div>Relationships to prune: <span className="font-semibold">{preview.relationships_pruned_count}</span></div>
-                <div>Affected documents: <span className="font-semibold">{preview.affected_documents_count}</span></div>
-              </div>
-            ) : (
-              <div className="text-xs text-gray-500 mb-3">Loading preview…</div>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => { setConfirming(null); setPreview(null); }} disabled={loading}>Cancel</Button>
-              <Button size="sm" onClick={confirming === 'archive' ? confirmArchive : confirmRedact} disabled={loading || !preview}>
-                {loading ? 'Working…' : 'Confirm'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Confirm Dialog handled inside DetailModal for Archive/Redact */}
 
       {/* Detail Modal */}
       <DetailModal 
