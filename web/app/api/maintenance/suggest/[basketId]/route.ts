@@ -26,57 +26,87 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: 'not_found_or_forbidden' }, { status: 404 });
     }
 
-    // Unreferenced blocks (not archived)
-    const { data: unrefBlocks, error: ubErr } = await supabase
-      .rpc('sql', { // use postgrest query; fallback to left join via JS if rpc not available
-        // no-op
-      } as any);
-    // Fallback query with left join semantics
-    const { data: blocks } = await supabase
+    // Load retention policy (for optional stale-by-age rule)
+    const { data: wsSettings } = await supabase
+      .from('workspace_governance_settings')
+      .select('retention_enabled, retention_policy')
+      .eq('workspace_id', workspace.id)
+      .maybeSingle();
+
+    const retentionEnabled = Boolean(wsSettings?.retention_enabled);
+    const retentionPolicy = (wsSettings?.retention_policy as any) || {};
+    const blockDays: number | null = Number(retentionPolicy?.block?.days ?? null) || null;
+    const contextItemDays: number | null = Number(retentionPolicy?.context_item?.days ?? null) || null;
+
+    // Compute cutoff timestamps if enabled and days provided (>0)
+    const now = new Date();
+    const cutoffBlock = retentionEnabled && blockDays && blockDays > 0
+      ? new Date(now.getTime() - blockDays * 24 * 60 * 60 * 1000)
+      : null;
+    const cutoffContextItem = retentionEnabled && contextItemDays && contextItemDays > 0
+      ? new Date(now.getTime() - contextItemDays * 24 * 60 * 60 * 1000)
+      : null;
+
+    // Load basket documents to scope reference checks
+    const { data: docs } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('basket_id', basketId)
+      .limit(1000);
+    const docIds = (docs || []).map((d: any) => d.id);
+
+    // Preload referenced block ids using anti-join pattern
+    let referencedBlockIds = new Set<string>();
+    if (docIds.length > 0) {
+      const { data: refBlocks } = await supabase
+        .from('substrate_references')
+        .select('substrate_id')
+        .in('document_id', docIds)
+        .eq('substrate_type', 'block')
+        .limit(5000);
+      (refBlocks || []).forEach((r: any) => referencedBlockIds.add(r.substrate_id));
+    }
+
+    // Candidate blocks (not archived), optionally older than cutoff
+    let blockQuery = supabase
       .from('blocks')
       .select('id, title, created_at, confidence_score, status')
       .eq('basket_id', basketId)
       .neq('status', 'archived')
       .limit(200);
+    if (cutoffBlock) blockQuery = blockQuery.lte('created_at', cutoffBlock.toISOString());
+    const { data: blocks } = await blockQuery;
+
     const unrefBlockIds: string[] = [];
-    if (blocks && blocks.length > 0) {
-      for (const b of blocks) {
-        const { count } = await supabase
-          .from('substrate_references')
-          .select('*', { count: 'exact', head: true })
-          .eq('document_id', null as unknown as string) // trick to avoid selection
-          .eq('substrate_type', 'block')
-          .eq('substrate_id', b.id);
-        // If count is undefined, do a second approach
-        const { data: refs } = await supabase
-          .from('substrate_references')
-          .select('id')
-          .eq('substrate_type', 'block')
-          .eq('substrate_id', b.id)
-          .limit(1);
-        if (!refs || refs.length === 0) unrefBlockIds.push(b.id);
-      }
+    (blocks || []).forEach((b: any) => {
+      if (!referencedBlockIds.has(b.id)) unrefBlockIds.push(b.id);
+    });
+
+    // Preload referenced context_item ids
+    let referencedItemIds = new Set<string>();
+    if (docIds.length > 0) {
+      const { data: refItems } = await supabase
+        .from('substrate_references')
+        .select('substrate_id')
+        .in('document_id', docIds)
+        .eq('substrate_type', 'context_item')
+        .limit(5000);
+      (refItems || []).forEach((r: any) => referencedItemIds.add(r.substrate_id));
     }
 
-    // Unreferenced context_items (not archived)
-    const { data: items } = await supabase
+    // Candidate context items (not archived), optionally older than cutoff
+    let itemQuery = supabase
       .from('context_items')
       .select('id, title, created_at, status')
       .eq('basket_id', basketId)
       .neq('status', 'archived')
       .limit(200);
+    if (cutoffContextItem) itemQuery = itemQuery.lte('created_at', cutoffContextItem.toISOString());
+    const { data: items } = await itemQuery;
     const unrefItemIds: string[] = [];
-    if (items && items.length > 0) {
-      for (const ci of items) {
-        const { data: refs } = await supabase
-          .from('substrate_references')
-          .select('id')
-          .eq('substrate_type', 'context_item')
-          .eq('substrate_id', ci.id)
-          .limit(1);
-        if (!refs || refs.length === 0) unrefItemIds.push(ci.id);
-      }
-    }
+    (items || []).forEach((ci: any) => {
+      if (!referencedItemIds.has(ci.id)) unrefItemIds.push(ci.id);
+    });
 
     // Dumps eligible for redaction (not already redacted)
     const { data: dumps } = await supabase
@@ -108,11 +138,39 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
       dumpsPreview.push({ id, preview: await preview('dump', id) });
     }
 
+    // Duplicate detection for context_items by normalized_label (simple heuristic)
+    const { data: allItems } = await supabase
+      .from('context_items')
+      .select('id, title, normalized_label, status')
+      .eq('basket_id', basketId)
+      .neq('status', 'archived')
+      .limit(500);
+
+    const dupGroups: Array<{ label: string; ids: string[] }> = [];
+    if (allItems && allItems.length > 0) {
+      const groups: Record<string, string[]> = {};
+      for (const it of allItems) {
+        const key = String((it as any).normalized_label || (it as any).title || '').trim().toLowerCase();
+        if (!key) continue;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push((it as any).id);
+      }
+      for (const [label, ids] of Object.entries(groups)) {
+        if (ids.length > 1) dupGroups.push({ label, ids });
+      }
+    }
+
     return NextResponse.json({
       candidates: {
         blocks_to_archive: blocksPreview,
         context_items_to_deprecate: unrefItemIds.slice(0, limitN),
-        dumps_to_redact: dumpsPreview
+        dumps_to_redact: dumpsPreview,
+        context_item_duplicates: dupGroups.slice(0, limitN)
+      },
+      policy: {
+        retention_enabled: retentionEnabled,
+        block_days: blockDays,
+        context_item_days: contextItemDays
       }
     }, { status: 200 });
   } catch (e) {
@@ -120,4 +178,3 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: 'internal_error' }, { status: 500 });
   }
 }
-

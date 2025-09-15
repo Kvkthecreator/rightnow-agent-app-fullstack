@@ -40,23 +40,26 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
     setLoading(true);
     
     try {
-      // Route through governance-aware changes API
-      const response = await fetch('/api/changes', {
+      // Route through universal work (governance-aware)
+      const response = await fetch('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entry_point: 'manual_edit',
-          basket_id: basketId,
-          ops: [{
-            type: 'CreateContextItem',
-            data: {
-              label: label.trim(),
-              content: content.trim() || undefined,
-              synonyms: synonyms.trim() ? synonyms.split(',').map(s => s.trim()).filter(Boolean) : [],
-              kind,
-              confidence: 0.9 // High confidence for manual creation
-            }
-          }]
+          work_type: 'MANUAL_EDIT',
+          work_payload: {
+            basket_id: basketId,
+            operations: [{
+              type: 'CreateContextItem',
+              data: {
+                label: label.trim(),
+                content: content.trim() || undefined,
+                synonyms: synonyms.trim() ? synonyms.split(',').map(s => s.trim()).filter(Boolean) : [],
+                kind,
+                confidence: 0.9
+              }
+            }]
+          },
+          priority: 'normal'
         })
       });
 
@@ -67,7 +70,7 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
 
       const result = await response.json();
       
-      if (result.route === 'direct') {
+      if (result.execution_mode === 'auto_execute') {
         notificationService.substrateApproved(
           'Meaning Added',
           'New context item created successfully',

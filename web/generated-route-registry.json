@@ -34,7 +34,7 @@
   "/api/baskets/resolve",
   "/api/canon/violations",
   "/api/canonical/queue/health",
-  "/api/changes",
+  "/api/work",
   "/api/debug/baskets",
   "/api/debug/create-basket",
   "/api/documents",

@@ -47,23 +47,26 @@ export default function CreateBlockModal({ basketId, open, onClose, onSuccess }:
     setLoading(true);
     
     try {
-      // Route through governance-aware changes API
-      const response = await fetch('/api/changes', {
+      // Route through universal work (governance-aware)
+      const response = await fetch('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entry_point: 'manual_edit',
-          basket_id: basketId,
-          ops: [{
-            type: 'CreateBlock',
-            data: {
-              content: content.trim(),
-              semantic_type: semanticType.trim(),
-              canonical_value: canonicalValue.trim() || undefined,
-              confidence: 0.9, // High confidence for manual creation
-              scope: 'LOCAL'
-            }
-          }]
+          work_type: 'MANUAL_EDIT',
+          work_payload: {
+            basket_id: basketId,
+            operations: [{
+              type: 'CreateBlock',
+              data: {
+                content: content.trim(),
+                semantic_type: semanticType.trim(),
+                canonical_value: canonicalValue.trim() || undefined,
+                confidence: 0.9,
+                scope: 'LOCAL'
+              }
+            }]
+          },
+          priority: 'normal'
         })
       });
 
@@ -74,7 +77,7 @@ export default function CreateBlockModal({ basketId, open, onClose, onSuccess }:
 
       const result = await response.json();
       
-      if (result.route === 'direct') {
+      if (result.execution_mode === 'auto_execute') {
         notificationService.substrateApproved(
           'Block Created',
           'New block added to your basket',

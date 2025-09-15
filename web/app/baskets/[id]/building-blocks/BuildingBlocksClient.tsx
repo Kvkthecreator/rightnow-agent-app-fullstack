@@ -106,20 +106,20 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
   const confirmArchive = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/changes', {
+      const response = await fetch('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entry_point: 'manual_edit',
-          basket_id: basketId,
-          ops: [{
-            type: 'ArchiveBlock',
-            data: { block_id: substrate.id }
-          }]
+          work_type: 'MANUAL_EDIT',
+          work_payload: {
+            basket_id: basketId,
+            operations: [{ type: 'ArchiveBlock', data: { block_id: substrate.id } }]
+          },
+          priority: 'normal'
         })
       });
       const result = await response.json();
-      if (result.route === 'direct') {
+      if (result.execution_mode === 'auto_execute') {
         notificationService.substrateApproved('Block Archived', 'Block has been archived', [substrate.id], basketId);
       } else {
         notificationService.approvalRequired('Archive Pending', 'Awaiting approval', basketId);
@@ -136,20 +136,20 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
   const confirmRedact = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/changes', {
+      const response = await fetch('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entry_point: 'manual_edit',
-          basket_id: basketId,
-          ops: [{
-            type: 'RedactDump',
-            data: { dump_id: substrate.id, scope: 'full', reason: 'user_requested' }
-          }]
+          work_type: 'MANUAL_EDIT',
+          work_payload: {
+            basket_id: basketId,
+            operations: [{ type: 'RedactDump', data: { dump_id: substrate.id, scope: 'full', reason: 'user_requested' } }]
+          },
+          priority: 'normal'
         })
       });
       const result = await response.json();
-      if (result.route === 'direct') {
+      if (result.execution_mode === 'auto_execute') {
         notificationService.substrateApproved('Dump Redacted', 'Original content redacted', [substrate.id], basketId);
       } else {
         notificationService.approvalRequired('Redaction Pending', 'Awaiting approval', basketId);
@@ -168,31 +168,34 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
     
     setLoading(true);
     try {
-      const response = await fetch('/api/changes', {
+      const response = await fetch('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entry_point: 'manual_edit',
-          basket_id: basketId,
-          ops: [{
-            type: substrate.type === 'block' ? 'ReviseBlock' : 'EditContextItem',
-            data: substrate.type === 'block' ? {
-              block_id: substrate.id,
-              content: editContent,
-              semantic_type: editSemanticType,
-              revision_reason: 'Manual edit from building blocks'
-            } : {
-              context_item_id: substrate.id,
-              label: editLabel,
-              content: editContent
-            }
-          }]
+          work_type: 'MANUAL_EDIT',
+          work_payload: {
+            basket_id: basketId,
+            operations: [{
+              type: substrate.type === 'block' ? 'ReviseBlock' : 'EditContextItem',
+              data: substrate.type === 'block' ? {
+                block_id: substrate.id,
+                content: editContent,
+                semantic_type: editSemanticType,
+                revision_reason: 'Manual edit from building blocks'
+              } : {
+                context_item_id: substrate.id,
+                label: editLabel,
+                content: editContent
+              }
+            }]
+          },
+          priority: 'normal'
         })
       });
 
       const result = await response.json();
       
-      if (result.route === 'direct') {
+      if (result.execution_mode === 'auto_execute') {
         notificationService.substrateApproved(
           `${substrate.type === 'block' ? 'Block' : 'Context Item'} Updated`,
           'Your changes have been saved',
@@ -227,26 +230,29 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
     
     setLoading(true);
     try {
-      const response = await fetch('/api/changes', {
+      const response = await fetch('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entry_point: 'manual_edit',
-          basket_id: basketId,
-          ops: [{
-            type: 'Delete',
-            data: {
-              target_id: substrate.id,
-              target_type: substrate.type,
-              delete_reason: 'Manual deletion from building blocks'
-            }
-          }]
+          work_type: 'MANUAL_EDIT',
+          work_payload: {
+            basket_id: basketId,
+            operations: [{
+              type: 'Delete',
+              data: {
+                target_id: substrate.id,
+                target_type: substrate.type,
+                delete_reason: 'Manual deletion from building blocks'
+              }
+            }]
+          },
+          priority: 'normal'
         })
       });
 
       const result = await response.json();
       
-      if (result.route === 'direct') {
+      if (result.execution_mode === 'auto_execute') {
         notificationService.substrateApproved(
           `${substrate.type === 'block' ? 'Block' : 'Context Item'} Deleted`,
           'Item has been removed from your basket',

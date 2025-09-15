@@ -57,6 +57,22 @@ export default async function DashboardPage({ params, searchParams }: PageProps)
     dashboardQueries.getRecentTimelineEvents(id, 5),
   ]);
 
+  // Fetch maintenance suggestions count (for badge)
+  let suggestionsCount = 0;
+  try {
+    const res = await fetch(`/api/maintenance/suggest/${id}`, { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      const c = json?.candidates || {};
+      const blocks = Array.isArray(c.blocks_to_archive) ? c.blocks_to_archive.length : 0;
+      const dumps = Array.isArray(c.dumps_to_redact) ? c.dumps_to_redact.length : 0;
+      const items = Array.isArray(c.context_items_to_deprecate) ? c.context_items_to_deprecate.length : 0;
+      suggestionsCount = blocks + dumps + items;
+    }
+  } catch (_) {
+    // Non-fatal: badge just won't show
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto py-6 space-y-6 max-w-4xl px-4">
@@ -75,6 +91,20 @@ export default async function DashboardPage({ params, searchParams }: PageProps)
           basketName={basket.name || 'Untitled Basket'} 
           health={health} 
         />
+
+        {/* Maintenance suggestions badge */}
+        <div className="-mt-3">
+          <a
+            href={`/baskets/${id}/maintenance`}
+            className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+              suggestionsCount > 0
+                ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+            }`}
+          >
+            🧹 Maintenance {suggestionsCount > 0 ? `• ${suggestionsCount}` : ''}
+          </a>
+        </div>
 
         {/* Dashboard Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

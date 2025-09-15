@@ -12,32 +12,35 @@ async function testContextItemCreation() {
   console.log('\n🧪 Testing Context Item Creation...');
   
   try {
-    const response = await fetch(`${API_BASE}/api/changes`, {
+    const response = await fetch(`${API_BASE}/api/work`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         // Add authentication headers as needed
       },
       body: JSON.stringify({
-        entry_point: 'manual_edit',
-        basket_id: BASKET_ID,
-        ops: [{
-          type: 'CreateContextItem',
-          data: {
-            label: 'Test Context Item',
-            content: 'This is a test context item created by the test script',
-            synonyms: ['test', 'testing', 'verification'],
-            kind: 'concept',
-            confidence: 0.9
-          }
-        }]
+        work_type: 'MANUAL_EDIT',
+        work_payload: {
+          basket_id: BASKET_ID,
+          operations: [{
+            type: 'CreateContextItem',
+            data: {
+              label: 'Test Context Item',
+              content: 'This is a test context item created by the test script',
+              synonyms: ['test', 'testing', 'verification'],
+              kind: 'concept',
+              confidence: 0.9
+            }
+          }]
+        },
+        priority: 'normal'
       })
     });
 
     const result = await response.json();
     
     if (response.ok) {
-      console.log('✅ Context Item Creation:', result.route, result.proposal_id ? `(Proposal: ${result.proposal_id})` : '(Direct)');
+      console.log('✅ Context Item Creation:', result.execution_mode);
       return { success: true, result };
     } else {
       console.log('❌ Context Item Creation failed:', result);
@@ -53,32 +56,35 @@ async function testBlockCreation() {
   console.log('\n🧪 Testing Block Creation...');
   
   try {
-    const response = await fetch(`${API_BASE}/api/changes`, {
+    const response = await fetch(`${API_BASE}/api/work`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         // Add authentication headers as needed
       },
       body: JSON.stringify({
-        entry_point: 'manual_edit',
-        basket_id: BASKET_ID,
-        ops: [{
-          type: 'CreateBlock',
-          data: {
-            content: 'This is a test block created by the test script for CRUD verification',
-            semantic_type: 'test_insight',
-            canonical_value: 'Test insight for CRUD verification',
-            confidence: 0.9,
-            scope: 'LOCAL'
-          }
-        }]
+        work_type: 'MANUAL_EDIT',
+        work_payload: {
+          basket_id: BASKET_ID,
+          operations: [{
+            type: 'CreateBlock',
+            data: {
+              content: 'This is a test block created by the test script for CRUD verification',
+              semantic_type: 'test_insight',
+              canonical_value: 'Test insight for CRUD verification',
+              confidence: 0.9,
+              scope: 'LOCAL'
+            }
+          }]
+        },
+        priority: 'normal'
       })
     });
 
     const result = await response.json();
     
     if (response.ok) {
-      console.log('✅ Block Creation:', result.route, result.proposal_id ? `(Proposal: ${result.proposal_id})` : '(Direct)');
+      console.log('✅ Block Creation:', result.execution_mode);
       return { success: true, result };
     } else {
       console.log('❌ Block Creation failed:', result);

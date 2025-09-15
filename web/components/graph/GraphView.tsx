@@ -81,6 +81,9 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selected, setSelected] = useState<Record<string, GraphNode>>({});
+  const [bulkPreview, setBulkPreview] = useState<{ refs: number; rels: number; docs: number } | null>(null);
   const [visibleTypes, setVisibleTypes] = useState({
     block: true,
     dump: true,
@@ -322,7 +325,24 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
       return distance <= node.size;
     });
 
-    setSelectedNode(clickedNode || null);
+    if (!clickedNode) {
+      if (!selectionMode) setSelectedNode(null);
+      return;
+    }
+
+    if (selectionMode) {
+      setSelected(prev => {
+        const next = { ...prev };
+        if (next[clickedNode.id]) {
+          delete next[clickedNode.id];
+        } else {
+          next[clickedNode.id] = clickedNode;
+        }
+        return next;
+      });
+    } else {
+      setSelectedNode(clickedNode);
+    }
   };
 
   const handleNodeNavigation = (node: GraphNode) => {
@@ -342,11 +362,74 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const resetGraph = () => {
     setZoom(1);
     setSelectedNode(null);
+    setSelected({});
+    setBulkPreview(null);
     buildGraph();
   };
 
   const toggleNodeType = (type: keyof typeof visibleTypes) => {
     setVisibleTypes(prev => ({ ...prev, [type]: !prev[type] }));
+  };
+
+  const selectedBlocks = Object.values(selected).filter(n => n.type === 'block');
+  const selectedDumps = Object.values(selected).filter(n => n.type === 'dump');
+
+  const computeBulkPreview = async () => {
+    setBulkPreview(null);
+    let refs = 0, rels = 0, docs = 0;
+    const toPreview = [...selectedBlocks, ...selectedDumps];
+    for (const node of toPreview) {
+      try {
+        const res = await fetch('/api/cascade/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            basket_id: basketId,
+            substrate_type: node.type,
+            substrate_id: node.id
+          })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const p = json?.preview || { refs_detached_count: 0, relationships_pruned_count: 0, affected_documents_count: 0 };
+          refs += p.refs_detached_count || 0;
+          rels += p.relationships_pruned_count || 0;
+          docs += p.affected_documents_count || 0;
+        }
+      } catch {}
+    }
+    setBulkPreview({ refs, rels, docs });
+  };
+
+  const proposeBulk = async () => {
+    const ops: any[] = [];
+    selectedBlocks.forEach(n => ops.push({ type: 'ArchiveBlock', data: { block_id: n.id } }));
+    selectedDumps.forEach(n => ops.push({ type: 'RedactDump', data: { dump_id: n.id, scope: 'full', reason: 'graph_bulk' } }));
+    if (ops.length === 0) return;
+    setBusy(true);
+    try {
+      const res = await fetch('/api/work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          work_type: 'MANUAL_EDIT',
+          work_payload: {
+            operations: ops,
+            basket_id: basketId
+          },
+          priority: 'normal'
+        })
+      });
+      const json = await res.json();
+      // No notifications here to keep component decoupled; page can listen to events
+      if (!res.ok) throw new Error(json.error || 'Failed to propose bulk changes');
+      setSelected({});
+      setBulkPreview(null);
+    } catch (e) {
+      // noop: integrations can handle via notifications
+    } finally {
+      setBusy(false);
+    }
   };
 
   const getNodeTypeIcon = (type: string) => {
@@ -398,6 +481,10 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                       >
                         <RotateCcw className="h-4 w-4" />
                       </Button>
+                      <label className="ml-2 text-xs flex items-center gap-2">
+                        <input type="checkbox" checked={selectionMode} onChange={(e) => { setSelectionMode(e.target.checked); setSelected({}); setBulkPreview(null); }} />
+                        Multi‑select
+                      </label>
                     </div>
                   </div>
                 </CardHeader>
@@ -488,6 +575,41 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                 </CardContent>
               </Card>
 
+              {/* Bulk Actions */}
+              {selectionMode && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Settings className="h-4 w-4" />
+                      Bulk Maintenance
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3 text-sm">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-gray-600">Selected:</span>
+                      <span className="rounded border px-2 py-0.5">Blocks {selectedBlocks.length}</span>
+                      <span className="rounded border px-2 py-0.5">Dumps {selectedDumps.length}</span>
+                      <Button size="sm" variant="ghost" onClick={() => { setSelected({}); setBulkPreview(null); }}>Clear</Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={computeBulkPreview} disabled={busy || (selectedBlocks.length + selectedDumps.length) === 0}>
+                        Preview Impact
+                      </Button>
+                      <Button size="sm" onClick={proposeBulk} disabled={busy || (selectedBlocks.length + selectedDumps.length) === 0}>
+                        Propose Selected
+                      </Button>
+                    </div>
+                    {bulkPreview && (
+                      <div className="text-xs text-gray-700">
+                        <div>Refs to detach: <span className="font-semibold">{bulkPreview.refs}</span></div>
+                        <div>Relationships to prune: <span className="font-semibold">{bulkPreview.rels}</span></div>
+                        <div>Affected documents: <span className="font-semibold">{bulkPreview.docs}</span></div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Node Type Filters */}
               <Card>
                 <CardHeader>
@@ -576,7 +698,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
             )}
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => { setConfirming(null); setPreview(null); }} disabled={busy}>Cancel</Button>
-              <Button size="sm" onClick={confirming === 'archive' ? async () => { setBusy(true); await fetch('/api/changes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entry_point: 'manual_edit', basket_id: basketId, ops: [{ type: 'ArchiveBlock', data: { block_id: selectedNode.id } }] }) }); setBusy(false); setConfirming(null); setPreview(null);} : async () => { setBusy(true); await fetch('/api/changes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entry_point: 'manual_edit', basket_id: basketId, ops: [{ type: 'RedactDump', data: { dump_id: selectedNode.id, scope: 'full', reason: 'user_requested' } }] }) }); setBusy(false); setConfirming(null); setPreview(null);} } disabled={busy || !preview}>
+              <Button size="sm" onClick={confirming === 'archive' ? async () => { setBusy(true); await fetch('/api/work', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ work_type: 'MANUAL_EDIT', work_payload: { operations: [{ type: 'ArchiveBlock', data: { block_id: selectedNode.id } }], basket_id: basketId }, priority: 'normal' }) }); setBusy(false); setConfirming(null); setPreview(null);} : async () => { setBusy(true); await fetch('/api/work', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ work_type: 'MANUAL_EDIT', work_payload: { operations: [{ type: 'RedactDump', data: { dump_id: selectedNode.id, scope: 'full', reason: 'user_requested' } }], basket_id: basketId }, priority: 'normal' }) }); setBusy(false); setConfirming(null); setPreview(null);} } disabled={busy || !preview}>
                 {busy ? 'Working…' : 'Confirm'}
               </Button>
             </div>

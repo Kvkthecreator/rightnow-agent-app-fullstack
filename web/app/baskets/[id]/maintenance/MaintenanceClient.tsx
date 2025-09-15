@@ -16,6 +16,7 @@ interface SuggestResponse {
     blocks_to_archive: CandidatePreview[];
     context_items_to_deprecate: string[];
     dumps_to_redact: CandidatePreview[];
+    context_item_duplicates?: { label: string; ids: string[] }[];
   }
 }
 
@@ -26,6 +27,8 @@ export function MaintenanceClient({ basketId, canEdit }: { basketId: string; can
   const [selectedBlocks, setSelectedBlocks] = useState<Record<string, boolean>>({});
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
   const [selectedDumps, setSelectedDumps] = useState<Record<string, boolean>>({});
+  const [selectedDupGroups, setSelectedDupGroups] = useState<Record<string, boolean>>({});
+  const [dupCanonical, setDupCanonical] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -59,6 +62,16 @@ export function MaintenanceClient({ basketId, canEdit }: { basketId: string; can
       Object.entries(selectedBlocks).forEach(([id, sel]) => { if (sel) ops.push({ type: 'ArchiveBlock', data: { block_id: id } }); });
       Object.entries(selectedDumps).forEach(([id, sel]) => { if (sel) ops.push({ type: 'RedactDump', data: { dump_id: id, scope: 'full', reason: 'maintenance_suggestion' } }); });
       Object.entries(selectedItems).forEach(([id, sel]) => { if (sel) ops.push({ type: 'Delete', data: { target_id: id, target_type: 'context_item', delete_reason: 'maintenance_suggestion' } }); });
+      // For duplicates: merge extra ids into the first id as canonical
+      (data.candidates.context_item_duplicates || []).forEach(g => {
+        if (selectedDupGroups[g.label]) {
+          if (g.ids.length > 1) {
+            const canonical = dupCanonical[g.label] || g.ids[0];
+            const from_ids = g.ids.slice(1);
+            ops.push({ type: 'MergeContextItems', data: { from_ids, canonical_id: canonical } });
+          }
+        }
+      });
 
       if (ops.length === 0) {
         notificationService.notify({ type: 'system.user.action_required', title: 'Select Items', message: 'No items selected to propose', severity: 'warning' });
@@ -66,19 +79,24 @@ export function MaintenanceClient({ basketId, canEdit }: { basketId: string; can
         return;
       }
 
-      const res = await fetch('/api/maintenance/propose', {
+      const res = await fetch('/api/work', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ basket_id: basketId, ops })
+        body: JSON.stringify({
+          work_type: 'MANUAL_EDIT',
+          work_payload: { operations: ops, basket_id: basketId },
+          priority: 'normal'
+        })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to propose');
-      if (json.committed) {
+      if (json.execution_mode === 'auto_execute') {
         notificationService.notify({ type: 'work.completed', title: 'Maintenance Executed', message: `${ops.length} change(s) applied`, severity: 'success' });
       } else {
         notificationService.notify({ type: 'governance.approval.required', title: 'Maintenance Proposed', message: `${ops.length} change(s) awaiting approval`, severity: 'warning' });
       }
       // reset selections
       setSelectedBlocks({}); setSelectedItems({}); setSelectedDumps({});
+      setSelectedDupGroups({});
       refresh();
     } catch (e) {
       notificationService.notify({ type: 'system.conflict.detected', title: 'Proposal Failed', message: e instanceof Error ? e.message : 'Failed to propose', severity: 'error' });
@@ -161,6 +179,44 @@ export function MaintenanceClient({ basketId, canEdit }: { basketId: string; can
               ))}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Context Item Duplicates</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {(!data.candidates.context_item_duplicates || data.candidates.context_item_duplicates.length === 0) && <div className="text-gray-500">None</div>}
+              {(data.candidates.context_item_duplicates || []).map(g => (
+                <div key={g.label} className="border rounded p-2 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={!!selectedDupGroups[g.label]} onChange={() => toggle(selectedDupGroups, setSelectedDupGroups, g.label)} />
+                      <span className="truncate max-w-[220px]" title={g.label}>{g.label}</span>
+                    </label>
+                    <Badge variant="outline">{g.ids.length} items</Badge>
+                  </div>
+                  {selectedDupGroups[g.label] && (
+                    <div className="pl-6 space-y-1">
+                      <div className="text-xs text-gray-600">Choose canonical item</div>
+                      <div className="grid grid-cols-1 gap-1">
+                        {g.ids.map(id => (
+                          <label key={id} className="flex items-center gap-2 text-xs">
+                            <input
+                              type="radio"
+                              name={`canon:${g.label}`}
+                              checked={(dupCanonical[g.label] || g.ids[0]) === id}
+                              onChange={() => setDupCanonical(prev => ({ ...prev, [g.label]: id }))}
+                            />
+                            <span className="font-mono">{id.slice(0,8)}…</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
@@ -168,4 +224,3 @@ export function MaintenanceClient({ basketId, canEdit }: { basketId: string; can
 }
 
 export default MaintenanceClient;
-

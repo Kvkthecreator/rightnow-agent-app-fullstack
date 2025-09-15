@@ -7,7 +7,7 @@ import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 import { notFound } from 'next/navigation';
 import BasketSubpageLayout from '@/components/layouts/BasketSubpageLayout';
 import { SectionCard } from '@/components/ui/SectionCard';
-import dynamic from 'next/dynamic';
+import NextDynamic from 'next/dynamic';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-const MaintenanceClient = dynamic(() => import('./MaintenanceClient').then(m => m.MaintenanceClient), {
+const MaintenanceClient = NextDynamic(() => import('./MaintenanceClient').then(m => m.MaintenanceClient), {
   loading: () => <div className="h-64 animate-pulse" />,
 });
 
@@ -53,4 +53,3 @@ export default async function MaintenancePage({ params }: { params: Promise<{ id
     notFound();
   }
 }
-

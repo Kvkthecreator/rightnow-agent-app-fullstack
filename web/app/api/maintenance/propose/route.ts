@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { routeChange } from '@/lib/governance/decisionGateway';
+import { routeWork } from '@/lib/governance/universalWorkRouter';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,19 +19,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'basket_id and ops[] required' }, { status: 422 });
     }
 
-    // Route through governance Decision Gateway
-    const changeDescriptor = {
-      entry_point: 'manual_edit',
-      actor_id: userId,
+    // Route through Universal Work (Canon v2.2)
+    const work = await routeWork(supabase as any, {
+      work_type: 'MANUAL_EDIT',
+      work_payload: {
+        operations: body.ops,
+        basket_id: body.basket_id,
+        provenance: body.provenance || []
+      },
       workspace_id: workspace.id,
-      basket_id: body.basket_id,
-      blast_radius: 'Scoped',
-      ops: body.ops,
-      provenance: body.provenance || []
-    };
-
-    const result = await routeChange(supabase, changeDescriptor as any);
-    return NextResponse.json(result, { status: 200 });
+      user_id: userId,
+      priority: 'normal'
+    });
+    return NextResponse.json(work, { status: 200 });
   } catch (e) {
     console.error('Maintenance proposal error:', e);
     return NextResponse.json({ error: 'internal_error' }, { status: 500 });
@@ -41,4 +41,3 @@ export async function POST(req: NextRequest) {
 export async function OPTIONS() {
   return new Response(null, { status: 204 });
 }
-

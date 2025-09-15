@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       const authHeader = req.headers.get('authorization') || undefined;
       const resp = await fetch(`${backend}/api/reflections/compute_event`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(authHeader ? { authorization: authHeader } : {}) },
+        headers: { 'Content-Type': 'application/json', ...(authHeader ? { Authorization: authHeader } : {}) },
         body: JSON.stringify({ workspace_id: workspace.id, event_id })
       });
       const data = await resp.json();
@@ -64,7 +64,7 @@ const supabase = createServerSupabaseClient();
     const authHeader2 = req.headers.get('authorization') || undefined;
     const resp = await fetch(`${backend}/api/reflections/compute_window`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(authHeader2 ? { authorization: authHeader2 } : {}) },
+      headers: { 'Content-Type': 'application/json', ...(authHeader2 ? { Authorization: authHeader2 } : {}) },
       body: JSON.stringify({ workspace_id: basket.workspace_id, basket_id, agent_id: 'p3_reflection_agent' })
     });
     const data = await resp.json();

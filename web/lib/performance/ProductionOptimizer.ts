@@ -213,7 +213,7 @@ export class ProductionOptimizer {
 
   private preloadCriticalResources(): void {
     const criticalResources = [
-      '/api/changes',
+      '/api/work',
       '/api/baskets',
       'critical-components.js'
     ];

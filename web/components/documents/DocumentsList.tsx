@@ -62,25 +62,28 @@ export function DocumentsList({ basketId }: DocumentsListProps) {
     e.stopPropagation();
     
     try {
-      const response = await fetch('/api/changes', {
+      const response = await fetch('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entry_point: 'document_edit',
-          basket_id: basketId,
-          ops: [{
-            type: 'BreakdownDocument',
-            data: {
-              document_id: document.id,
-              breakdown_reason: 'User requested document breakdown into substrate'
-            }
-          }]
+          work_type: 'P4_COMPOSE',
+          work_payload: {
+            basket_id: basketId,
+            operations: [{
+              type: 'BreakdownDocument',
+              data: {
+                document_id: document.id,
+                breakdown_reason: 'User requested document breakdown into substrate'
+              }
+            }]
+          },
+          priority: 'normal'
         })
       });
 
       const result = await response.json();
       
-      if (result.route === 'direct') {
+      if (result.execution_mode === 'auto_execute') {
         notificationService.notify({
           type: 'work.processing',
           title: 'Document Breakdown Started',
