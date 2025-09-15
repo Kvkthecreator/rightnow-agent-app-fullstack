@@ -279,12 +279,22 @@ export const useNotificationStore = create<NotificationStore>()(
           
           // Upsert to Supabase (batch operation)
           if (persistentNotifications.length > 0) {
-            await supabase
-              .from('user_notifications')
-              .upsert(
-                persistentNotifications.map(mapToDatabase),
-                { onConflict: 'id' }
-              );
+            try {
+              await supabase
+                .from('user_notifications')
+                .upsert(
+                  persistentNotifications.map(mapToDatabase),
+                  { onConflict: 'id' }
+                );
+            } catch (err: any) {
+              const msg = typeof err?.message === 'string' ? err.message : '';
+              if (/user_notifications|404|Not Found/i.test(msg)) {
+                // Graceful degrade if persistence table not present in this environment
+                console.warn('Notification persistence disabled (table missing).');
+              } else {
+                throw err;
+              }
+            }
           }
           
         } catch (error) {

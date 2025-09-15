@@ -72,28 +72,54 @@ export async function routeWork(
     execution_mode = 'create_proposal';
   }
 
-  // Create work entry in canonical queue
-  const { data: workEntry, error } = await supabase
-    .from('agent_processing_queue')
-    .insert({
-      work_type: request.work_type,
-      work_payload: request.work_payload,
-      workspace_id: request.workspace_id,
-      user_id: request.user_id,
-      priority: request.priority,
-      processing_state: execution_mode === 'auto_execute' ? 'claimed' : 'pending',
-      execution_mode,
-      governance_policy: policy,
-      created_at: new Date().toISOString()
-    })
-    .select('id')
-    .single();
+  // Create work entry in canonical queue (with backward‑compat fallbacks)
+  let work_id: string | null = null;
+  {
+    const { data, error } = await supabase
+      .from('agent_processing_queue')
+      .insert({
+        work_type: request.work_type,
+        work_payload: request.work_payload,
+        workspace_id: request.workspace_id,
+        user_id: request.user_id,
+        priority: request.priority,
+        processing_state: execution_mode === 'auto_execute' ? 'claimed' : 'pending',
+        execution_mode, // may not exist on older schemas
+        governance_policy: policy, // may not exist on older schemas
+        created_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
 
-  if (error || !workEntry) {
-    throw new Error(`Failed to create work entry: ${error?.message || 'Unknown error'}`);
+    if (data && (data as any).id) {
+      work_id = (data as any).id;
+    } else if (error && /execution_mode|governance_policy|column/i.test(error.message || '')) {
+      // Retry without newer columns
+      const retry = await supabase
+        .from('agent_processing_queue')
+        .insert({
+          work_type: request.work_type,
+          work_payload: request.work_payload,
+          workspace_id: request.workspace_id,
+          user_id: request.user_id,
+          priority: request.priority,
+          processing_state: execution_mode === 'auto_execute' ? 'claimed' : 'pending',
+          created_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+      if (retry.data && (retry.data as any).id) {
+        work_id = (retry.data as any).id;
+      } else {
+        throw new Error(`Failed to create work entry: ${retry.error?.message || error.message}`);
+      }
+    } else if (error) {
+      throw new Error(`Failed to create work entry: ${error.message}`);
+    }
   }
 
-  const work_id = workEntry.id;
+  // Non-null by here
+  const workEntryId = work_id!;
   let proposal_id: string | undefined;
 
   // Handle execution based on mode
@@ -102,13 +128,13 @@ export async function routeWork(
     await supabase
       .from('agent_processing_queue')
       .update({ processing_state: 'claimed', claimed_at: new Date().toISOString() })
-      .eq('id', work_id);
+      .eq('id', workEntryId);
   } else {
     // Create proposal for review
     const { data: proposal, error: proposalError } = await supabase
       .from('proposals')
       .insert({
-        work_id,
+        work_id: workEntryId,
         work_type: request.work_type,
         workspace_id: request.workspace_id,
         user_id: request.user_id,
@@ -128,7 +154,7 @@ export async function routeWork(
   }
 
   return {
-    work_id,
+    work_id: workEntryId,
     routing_decision: execution_mode as any,
     execution_mode: execution_mode as any,
     proposal_id
