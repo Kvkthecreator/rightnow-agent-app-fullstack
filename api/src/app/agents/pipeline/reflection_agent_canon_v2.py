@@ -179,34 +179,64 @@ class CanonP3ReflectionAgent:
         }
     
     def _store_reflection_artifact(self, request: ReflectionComputationRequest, reflection: Dict[str, Any]):
-        """Canon: Store as artifact, never mutate substrate"""
+        """Canon: Store as artifact, never mutate substrate
+
+        Tries in order (first that succeeds wins):
+        1) RPC fn_reflection_create_from_substrate with newer signature
+        2) RPC with legacy 2‑arg signature
+        3) Direct minimal INSERT into reflections_artifact
+        """
+        payload_text = reflection["text"]
+        ws_id = str(request.workspace_id)
+        b_id = str(request.basket_id)
+
+        # Try newer RPC (basket_id, substrate_ids, text, method)
         try:
-            artifact_data = {
-                "workspace_id": str(request.workspace_id),
-                "basket_id": str(request.basket_id),
-                "reflection_text": reflection["text"],
-                "reflection_target_type": "substrate",
-                "reflection_target_id": str(request.basket_id),
-                "computation_timestamp": datetime.utcnow().isoformat(),
-                "substrate_window_start": datetime.utcnow().isoformat(),
-                "substrate_window_end": datetime.utcnow().isoformat(),
-                "meta": {
-                    "patterns": reflection["patterns"],
-                    "substrate_elements": reflection["substrate_elements"],
-                    "graph_elements": reflection["graph_elements"],
-                    "canon_compliant": True,
-                    "computation_method": reflection["computation_method"]
-                }
-            }
-            
-            # UPSERT by stable key (canon requirement)
-            result = supabase.table("reflections_artifact").upsert(
-                artifact_data,
-                on_conflict="workspace_id,basket_id,reflection_target_type,reflection_target_id"
+            # Minimal substrate ids window: not mandatory for smoke
+            resp = supabase.rpc(
+                'fn_reflection_create_from_substrate',
+                { 'p_basket_id': b_id, 'p_substrate_ids': [], 'p_reflection_text': payload_text, 'p_computation_method': 'canon_window_analysis' }
             ).execute()
-            
-            self.logger.info(f"Canon P3: Stored reflection artifact for basket {request.basket_id}")
-            
+            if getattr(resp, 'data', None):
+                self.logger.info("Canon P3: stored via RPC (new signature)")
+                return
         except Exception as e:
-            self.logger.error(f"Failed to store reflection artifact: {e}")
+            self.logger.debug(f"RPC (new signature) failed: {e}")
+
+        # Try legacy RPC (basket_id, text)
+        try:
+            resp2 = supabase.rpc(
+                'fn_reflection_create_from_substrate',
+                { 'p_basket_id': b_id, 'p_reflection_text': payload_text }
+            ).execute()
+            if getattr(resp2, 'data', None):
+                self.logger.info("Canon P3: stored via RPC (legacy signature)")
+                return
+        except Exception as e:
+            self.logger.debug(f"RPC (legacy signature) failed: {e}")
+
+        # Fallback: direct minimal insert (no ON CONFLICT)
+        try:
+            minimal = {
+                "workspace_id": ws_id,
+                "basket_id": b_id,
+                "reflection_text": payload_text,
+                "reflection_target_type": "substrate",
+                "computation_timestamp": datetime.utcnow().isoformat(),
+                "substrate_hash": f"substrate_{b_id}",
+                "meta": {
+                    "substrate_elements": reflection.get("substrate_elements", 0),
+                    "graph_elements": reflection.get("graph_elements", 0),
+                    "computation_method": reflection.get("computation_method", "canon_window_analysis"),
+                },
+            }
+            supabase.table('reflections_artifact').insert(minimal).execute()
+            self.logger.info("Canon P3: stored via direct minimal insert")
+        except Exception as e:
+            msg = str(e)
+            if '23505' in msg or 'duplicate key value violates unique constraint' in msg:
+                # Treat duplicate as success (idempotent write)
+                self.logger.info("Canon P3: reflection already exists (idempotent)")
+                return
+            self.logger.error(f"Failed to store reflection artifact (fallback): {e}")
             raise
