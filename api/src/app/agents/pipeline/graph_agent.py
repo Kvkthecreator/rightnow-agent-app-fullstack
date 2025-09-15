@@ -150,10 +150,10 @@ class P2GraphAgent:
         try:
             substrate_elements = []
             
-            # Get blocks
+            # Get blocks (exclude archived)
             blocks_response = supabase.table("blocks").select(
-                "id,title,body_md,semantic_type,metadata,confidence_score"
-            ).eq("basket_id", str(basket_id)).execute()
+                "id,title,body_md,semantic_type,metadata,confidence_score,status"
+            ).eq("basket_id", str(basket_id)).neq("status", "archived").execute()
             
             if blocks_response.data:
                 for block in blocks_response.data:
@@ -167,10 +167,10 @@ class P2GraphAgent:
                         "confidence": block.get("confidence_score", 0.5)
                     })
             
-            # Get context items
+            # Get context items (exclude archived)
             context_response = supabase.table("context_items").select(
-                "id,type,content,metadata"
-            ).eq("basket_id", str(basket_id)).execute()
+                "id,type,content,metadata,status"
+            ).eq("basket_id", str(basket_id)).neq("status", "archived").execute()
             
             if context_response.data:
                 for item in context_response.data:

@@ -100,7 +100,16 @@ class CanonP3ReflectionAgent:
                 "created_at", desc=True
             ).limit(limit).execute()
             
-            return response.data or []
+            dumps = response.data or []
+            # Exclude tombstoned (archived/redacted/deleted)
+            try:
+                t = supabase.table("substrate_tombstones").select("substrate_id").eq("basket_id", str(basket_id)).eq("substrate_type", "dump").execute()
+                if t.data:
+                    excluded = {row["substrate_id"] for row in t.data}
+                    dumps = [d for d in dumps if d.get("id") not in excluded]
+            except Exception:
+                pass
+            return dumps
             
         except Exception as e:
             self.logger.error(f"Failed to get text window: {e}")

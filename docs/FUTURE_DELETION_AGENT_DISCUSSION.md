@@ -123,3 +123,98 @@ As baskets mature and accumulate substrate over months/years, the signal-to-nois
 ---
 
 **Note**: This is a conceptual proposal for discussion purposes. Actual implementation should be data-driven based on real usage patterns observed over time.
+
+---
+
+## Canon‑Pure Substrate Deletion: Decisions, Flows, and Plan
+
+This section formalizes a canon‑aligned approach to deletion. It reconciles substrate permanence with practical needs for archiving, redaction, and—in exceptional cases—physical deletion. All destructive actions are governance‑first with cascade previews and auditable events.
+
+### 1) Canon Decisions (Final)
+
+- S1 Substrate Immutability: No in‑place edits. Substrates evolve via governance: `ACTIVE → ARCHIVED | REDACTED → PHYSICALLY_DELETED`.
+- S2 Artifacts Free To Delete: Documents/reflections are artifacts; delete is allowed without substrate mutation (P4/P3 scope).
+- S3 Event Truth: `timeline_events` is append‑only. Redactions are logged as events; no silent deletion.
+- S4 No Ghost Deletion: No background deletion without an approved proposal. Every destructive action has a cascade preview and emits events.
+- S5 Physical Delete Is Exceptional: Only when workspace policy explicitly allows and retention + health checks pass.
+- S6 Workspace‑Scoped Governance: Routing is policy‑driven; confidence informs routing only if policy mode permits (hybrid/confidence).
+
+#### Minimum Tombstone Fields (for ARCHIVED/REDACTED)
+- identity: `id`, `substrate_type`, `workspace_id`, `basket_id`
+- lifecycle: `created_at`, `archived_or_redacted_at`, `proposed_by`, `approved_by`, `proposal_id`
+- mode: `deletion_mode` ('archived'|'redacted'), `redaction_scope` ('full'|'partial'), `redaction_reason`, `legal_hold` (bool)
+- cascade_snapshot: `refs_detached_count`, `relationships_pruned_count`, `affected_documents_count`
+- retention: `retention_policy_id` (nullable), `earliest_physical_delete_at` (nullable)
+- audit: `event_ids` (list of timeline events emitted during the operation)
+- privacy: `content_fingerprint` (optional non‑reversible hash)
+> Tombstones never include original content; physical delete removes the row when eligible.
+
+#### Default Retention Policy (No Hard Numbers)
+- No global defaults; physical delete only under an explicit workspace policy OR a specific “Delete” proposal.
+- Archive is the recommended first step; Redact is the privacy fast‑path; Physical Delete is opt‑in and policy‑bound.
+- Never auto‑archive or auto‑delete without governance approval.
+
+#### Basket Purge Preconditions (Simple, Git‑like)
+- Danger‑zone “Delete All” requires: cascade preview, typed confirmation, Global blast radius in proposal.
+- Optional doc version snapshots (recommended), no built‑in export step.
+
+### 2) Operation Taxonomy (Governance Ops)
+
+- Substrate (P1 lifecycle): `ArchiveBlock`, `DeprecateContextItem`, `RedactDump`, `DeleteBlock`, `DeleteContextItem`, `DeleteDump`.
+- Artifacts (P3/P4): `DeleteDocument`, `DeleteReflection`.
+- Cascade Maintenance (auto‑generated): `DetachReference`, `PruneRelationships`, `VersionDocument` (pre‑detach snapshot).
+- Basket‑level: `PurgeBasket { mode: 'archive_all'|'redact_sensitive'|'purge' }`.
+
+### 3) Governance Flow (All Paths)
+
+Selection (user/agent) → Health Check & Cascade Preview → Proposal → Approval → Execution
+
+Execution order:
+1. Optional document version snapshots (artifact layer)
+2. Detach document references
+3. Prune relationships
+4. Apply substrate state change (archive/redact/delete)
+5. Emit events
+
+Events emitted: `reference.detached`, `rel.pruned`, `doc.versioned` (if used), `substrate.archived|redacted|deleted`, `basket.purged`.
+
+### 4) UI Flows
+
+- Building Blocks: Select → “Archive / Redact / Delete” → preview → governance. Archive is default; Delete requires policy + double confirmation.
+- Graph: Node/multi‑select → preview (edges + docs) → governance.
+- Basket Settings → Danger Zone: “Delete All” with typed confirmation + cascade preview (no export).
+
+### 5) Retention & Vacuum
+
+- Archive/Redact: immediate on approval; tombstones persisted.
+- Physical delete: by explicit proposal OR scheduled vacuum only when a workspace retention policy exists and `earliest_physical_delete_at` has passed, and no hard references remain; emits `substrate.physically_deleted`.
+- Compliance fast‑path: Redact now; physical delete later per policy.
+
+### 6) Risks & Mitigations
+
+- Ghost deletion: disallowed (governance + events required).
+- Orphaned artifacts: references detach + doc version snapshots before substrate ops.
+- Provenance loss: Archive/Redact default; physical delete only with explicit policy/proposal; tombstones preserve provenance.
+
+### 7) Incremental Plan (Refined)
+
+- Phase 0 — Spec Finalization (this doc)
+  - Decisions, ops, events, UI flows, retention stance. No numeric defaults in canon.
+- Phase 1 — Archive/Redact + Cascade Preview
+  - Op schemas; cascade preview generator; FE flows (Blocks/Graph); events; exclude archived/redacted from P2/P3/UI defaults; tombstones persisted.
+  - Acceptance: ArchiveBlock/RedactDump proposals run end‑to‑end; correct event emission; hidden from intelligence and default views; tombstones present.
+- Phase 2 — Retention & Vacuum
+  - Workspace retention toggles; `earliest_physical_delete_at`; vacuum job; compliance fast‑path.
+  - Acceptance: Physical delete only by policy or explicit Delete proposal; vacuum respects eligibility; emits `substrate.physically_deleted`.
+- Phase 3 — Agent‑Assisted Cleanup
+  - P1 Maintenance Agent proposes archive/redact/delete for stale/duplicate/low‑quality items; governance‑first.
+- Phase 4 — Basket Purge
+  - Danger‑zone flow; typed confirmation; Global blast; optional snapshots; event emission.
+
+### 8) Acceptance (Global)
+
+- Governance‑first: All destructive actions via proposals.
+- Immutable audit: Events emitted for each step; tombstones for non‑physical deletes.
+- Substrate/artifact separation preserved.
+- Cascade preview always shown; execution order prevents orphans.
+- Workspace policies are sole authority for routing, validation, and retention.

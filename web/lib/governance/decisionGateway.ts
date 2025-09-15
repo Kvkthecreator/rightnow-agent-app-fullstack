@@ -332,6 +332,10 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
       return await editContextItem(supabase, operation, basketId, workspaceId);
     case 'Delete':
       return await deleteSubstrate(supabase, operation, basketId, workspaceId);
+    case 'ArchiveBlock':
+      return await archiveBlock(supabase, operation, basketId, workspaceId);
+    case 'RedactDump':
+      return await redactDump(supabase, operation, basketId, workspaceId);
     default:
       throw new Error(`Unsupported operation type: ${operation.type}`);
   }
@@ -546,6 +550,29 @@ async function deleteSubstrate(supabase: any, op: any, basketId: string, workspa
   });
   
   return { deleted_id: data.id, type: `${op.data.target_type}_delete` };
+}
+
+// Phase 1 Deletion Ops
+async function archiveBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
+  const { data, error } = await supabase.rpc('fn_archive_block', {
+    p_basket_id: basketId,
+    p_block_id: op.data.block_id,
+    p_actor_id: op.data.actor_id || null,
+  });
+  if (error) throw new Error(`ArchiveBlock failed: ${error.message}`);
+  return { tombstone_id: data, type: 'archive_block' };
+}
+
+async function redactDump(supabase: any, op: any, basketId: string, workspaceId: string) {
+  const { data, error } = await supabase.rpc('fn_redact_dump', {
+    p_basket_id: basketId,
+    p_dump_id: op.data.dump_id,
+    p_scope: op.data.scope || 'full',
+    p_reason: op.data.reason || null,
+    p_actor_id: op.data.actor_id || null,
+  });
+  if (error) throw new Error(`RedactDump failed: ${error.message}`);
+  return { tombstone_id: data, type: 'redact_dump' };
 }
 
 // (Removed duplicate createGovernanceProposal definition; single implementation remains above)
