@@ -305,6 +305,9 @@ export const useNotificationStore = create<NotificationStore>()(
       // Initialize real-time subscriptions
       initializeRealtime: async () => {
         const { workspace_id, user_id, realtime_channel } = get();
+        // Gate realtime behind env flag to preserve polling‑only canon
+        const realtimeEnabled = process.env.NEXT_PUBLIC_ENABLE_NOTIFICATIONS_REALTIME === 'true';
+        if (!realtimeEnabled) return;
         if (!workspace_id || realtime_channel) return;
         
         try {

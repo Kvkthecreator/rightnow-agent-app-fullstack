@@ -137,28 +137,17 @@ export class SupabaseAuthHelper {
     // Get current session to check auth state
     const session = await this.getCurrentSession()
     
-    console.log('[DEBUG] Getting authenticated client')
-    console.log('[DEBUG] Current session:', session ? 'exists' : 'null')
+    // Minimal debug only (no secrets)
     
     if (session) {
-      console.log('[DEBUG] Session user:', session.user?.id)
-      console.log('[DEBUG] Session token expires at:', new Date((session.expires_at || 0) * 1000))
-      console.log('[DEBUG] Access token (first 50 chars):', session.access_token?.substring(0, 50))
+      // Avoid logging tokens or PII to comply with guardrails
       
       // Log the JWT payload to see what role we have
       try {
         const tokenPayload = JSON.parse(atob(session.access_token.split('.')[1]))
-        console.log('[DEBUG] JWT role:', tokenPayload.role)
-        console.log('[DEBUG] JWT aud:', tokenPayload.aud)
-        console.log('[DEBUG] JWT exp:', new Date(tokenPayload.exp * 1000))
         
         if (tokenPayload.role === 'authenticated') {
-          console.log('[DEBUG] ✅ Using authenticated session for Realtime')
-          
-          // CRITICAL FIX: The main fix is in the channel creation with explicit config
-          // The realtime client properties are read-only, so we handle auth in channel config
-          console.log('[DEBUG] 🔧 Authenticated session available for Realtime channels')
-          console.log('[DEBUG] ✅ Channels will be created with explicit access token')
+          // Authenticated session is available
           
           return this.client
         } else {
@@ -168,12 +157,11 @@ export class SupabaseAuthHelper {
         console.warn('[DEBUG] Could not parse JWT token:', e)
       }
     } else {
-      console.warn('[DEBUG] ⚠️ No authenticated session available')
-      console.log('[DEBUG] Proceeding with anon client - WebSocket will use anon key')
+      // Proceed with anon client (polling will still function)
     }
     
     // Return the client - if no session, it will use anon key
-    console.log('[DEBUG] Returning client (authenticated token set if available)')
+    // Return client; polling remains the default transport
     return this.client
   }
 }
