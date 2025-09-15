@@ -1,11 +1,11 @@
 /**
- * Focused Governance Client - First Principles Refactor
+ * Canon-Compliant Governance Client
  * 
- * Eliminates redundancy and information overload:
- * - Clean, scannable proposal cards
- * - Risk-based visual priorities  
- * - Quick actions for high-confidence proposals
- * - Focused detail modal
+ * User-focused change management:
+ * - Clear language about what's changing in their knowledge
+ * - Trust-based filtering (not technical thresholds)
+ * - Meaningful categories based on user action needed
+ * - Visual cues that guide decision urgency
  */
 "use client";
 
@@ -19,12 +19,13 @@ import { Badge } from "@/components/ui/Badge";
 interface Proposal {
   id: string;
   proposal_kind: string;
-  origin: string;
+  origin: 'agent' | 'human';
   status: string;
   ops_summary: string;
+  ops?: Array<{ type: string; data: any }>;
   validator_report: {
     confidence: number;
-    warnings: string[];
+    warnings: Array<string | { severity: 'critical' | 'warning' | 'info'; message: string }>;
     impact_summary: string;
   };
   blast_radius: 'Local' | 'Scoped' | 'Global';
@@ -40,7 +41,7 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'ready' | 'critical'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'needs-review' | 'ready' | 'additions'>('all');
   const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
@@ -131,7 +132,7 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
     }
   };
 
-  // Filter proposals by priority/status
+  // Filter proposals by user action needed
   const getFilteredProposals = () => {
     const activeProposals = proposals.filter(p => p.status === 'PROPOSED');
     
@@ -139,18 +140,26 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
     
     return activeProposals.filter(proposal => {
       const confidence = proposal.validator_report.confidence;
-      const hasWarnings = proposal.validator_report.warnings.length > 0;
-      const hasCriticalWarnings = proposal.validator_report.warnings.some(w => 
-        w.includes('CRITICAL') || w.includes('CONFLICT')
-      );
+      const warnings = proposal.validator_report.warnings || [];
+      const hasIssues = warnings.some(w => {
+        if (typeof w === 'string') {
+          return w.includes('CRITICAL') || w.includes('CONFLICT');
+        }
+        return w.severity === 'critical';
+      });
+      
+      // Check if it's primarily adding new content
+      const ops = proposal.ops || [];
+      const isMainlyAdditions = ops.length > 0 && 
+        ops.filter(op => op.type.includes('Create')).length > ops.length * 0.6;
 
       switch (statusFilter) {
-        case 'critical':
-          return hasCriticalWarnings || confidence < 0.3;
+        case 'needs-review':
+          return hasIssues || confidence < 0.7;
         case 'ready':
-          return confidence > 0.8 && !hasWarnings;
-        case 'pending':
-          return (confidence <= 0.8 && confidence >= 0.3) || (hasWarnings && !hasCriticalWarnings);
+          return confidence > 0.7 && !hasIssues;
+        case 'additions':
+          return isMainlyAdditions;
         default:
           return true;
       }
@@ -162,24 +171,33 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
     
     const counts = {
       all: activeProposals.length,
-      critical: 0,
+      'needs-review': 0,
       ready: 0,
-      pending: 0
+      additions: 0
     };
 
     activeProposals.forEach(proposal => {
       const confidence = proposal.validator_report.confidence;
-      const hasWarnings = proposal.validator_report.warnings.length > 0;
-      const hasCriticalWarnings = proposal.validator_report.warnings.some(w => 
-        w.includes('CRITICAL') || w.includes('CONFLICT')
-      );
+      const warnings = proposal.validator_report.warnings || [];
+      const hasIssues = warnings.some(w => {
+        if (typeof w === 'string') {
+          return w.includes('CRITICAL') || w.includes('CONFLICT');
+        }
+        return w.severity === 'critical';
+      });
+      
+      const ops = proposal.ops || [];
+      const isMainlyAdditions = ops.length > 0 && 
+        ops.filter(op => op.type.includes('Create')).length > ops.length * 0.6;
 
-      if (hasCriticalWarnings || confidence < 0.3) {
-        counts.critical++;
-      } else if (confidence > 0.8 && !hasWarnings) {
+      if (hasIssues || confidence < 0.7) {
+        counts['needs-review']++;
+      }
+      if (confidence > 0.7 && !hasIssues) {
         counts.ready++;
-      } else {
-        counts.pending++;
+      }
+      if (isMainlyAdditions) {
+        counts.additions++;
       }
     });
 
@@ -211,35 +229,38 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
 
   const filterComponent = (
     <div className="flex items-center gap-2">
-      <span className="text-sm font-medium text-gray-700">Filter:</span>
+      <span className="text-sm font-medium text-gray-700">Show:</span>
       <div className="flex gap-1">
         {[
-          { key: 'all', label: 'All', count: filterCounts.all },
-          { key: 'critical', label: 'Critical', count: filterCounts.critical },
-          { key: 'ready', label: 'Ready', count: filterCounts.ready },
-          { key: 'pending', label: 'Review', count: filterCounts.pending },
+          { key: 'all', label: 'All changes', count: filterCounts.all, color: 'gray' },
+          { key: 'needs-review', label: 'Needs review', count: filterCounts['needs-review'], color: 'yellow' },
+          { key: 'ready', label: 'Ready to accept', count: filterCounts.ready, color: 'green' },
+          { key: 'additions', label: 'New content', count: filterCounts.additions, color: 'blue' },
         ].map(filter => (
           <button
             key={filter.key}
             onClick={() => setStatusFilter(filter.key as any)}
             className={`px-3 py-1 text-sm rounded transition-colors ${
               statusFilter === filter.key
-                ? 'bg-blue-100 text-blue-800 font-medium'
+                ? filter.key === 'needs-review' ? 'bg-yellow-100 text-yellow-800 font-medium' :
+                  filter.key === 'ready' ? 'bg-green-100 text-green-800 font-medium' :
+                  filter.key === 'additions' ? 'bg-blue-100 text-blue-800 font-medium' :
+                  'bg-gray-100 text-gray-800 font-medium'
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
             {filter.label}
             {filter.count > 0 && (
-              <Badge 
-                variant="outline" 
-                className={`ml-1 text-xs ${
-                  filter.key === 'critical' ? 'border-red-500 text-red-600' :
-                  filter.key === 'ready' ? 'border-green-500 text-green-600' :
-                  'border-gray-400 text-gray-600'
-                }`}
-              >
-                {filter.count}
-              </Badge>
+              <span className={`ml-1.5 text-xs ${
+                statusFilter === filter.key ? 
+                  filter.key === 'needs-review' ? 'text-yellow-700' :
+                  filter.key === 'ready' ? 'text-green-700' :
+                  filter.key === 'additions' ? 'text-blue-700' :
+                  'text-gray-700'
+                : 'text-gray-500'
+              }`}>
+                ({filter.count})
+              </span>
             )}
           </button>
         ))}
@@ -251,9 +272,9 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
     <div className="space-y-6">
       <div className="border-b p-4">
         <SubpageHeader 
-          title="Change Requests" 
+          title="Suggested Changes" 
           basketId={basketId}
-          description="Review and approve substrate changes"
+          description="Review AI and manual updates to your knowledge base"
           rightContent={filterComponent}
         />
       </div>
@@ -263,12 +284,12 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
         {filteredProposals.length === 0 ? (
           <div className="text-center py-12">
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {filterCounts.all === 0 ? 'No Active Proposals' : 'No Matching Proposals'}
+              {filterCounts.all === 0 ? 'No pending changes' : 'No matching changes'}
             </h3>
             <p className="text-gray-600">
               {filterCounts.all === 0 
-                ? 'All substrate changes have been reviewed.'
-                : `No proposals match the "${statusFilter}" filter.`
+                ? 'All suggested changes have been reviewed.'
+                : `No changes match "${statusFilter.replace('-', ' ')}" filter.`
               }
             </p>
           </div>

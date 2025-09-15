@@ -1,31 +1,33 @@
 /**
- * Distilled Proposal Card - First Principles Refactor
+ * Canon-Compliant Proposal Card
  * 
- * Focuses on decision-critical information only:
- * - What's changing (single clear summary)
- * - Risk assessment (confidence + critical issues)
- * - Action urgency (based on confidence + warnings)
- * - Primary action (approve/investigate)
+ * Shows what users need to know:
+ * - WHAT is changing in their knowledge base
+ * - WHY this change is being suggested
+ * - WHETHER they should trust this change
+ * - HOW urgently they need to act
  */
 "use client";
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { AlertTriangle, CheckCircle, Clock, Eye, GitBranch } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Eye, Plus, Edit, Link2, Archive } from 'lucide-react';
 
 interface ProposalCardProps {
   proposal: {
     id: string;
     proposal_kind: string;
     ops_summary: string;
+    ops?: Array<{ type: string; data: any }>;
     validator_report: {
       confidence: number;
-      warnings: string[];
+      warnings: Array<string | { severity: 'critical' | 'warning' | 'info'; message: string }>;
       impact_summary: string;
     };
     blast_radius: 'Local' | 'Scoped' | 'Global';
     created_at: string;
     status: string;
+    origin: 'agent' | 'human';
   };
   onReview: (proposalId: string) => void;
   onQuickApprove?: (proposalId: string) => void;
@@ -33,83 +35,159 @@ interface ProposalCardProps {
 
 export function ProposalCard({ proposal, onReview, onQuickApprove }: ProposalCardProps) {
   const confidence = proposal.validator_report.confidence;
-  const hasWarnings = proposal.validator_report.warnings.length > 0;
-  const hasCriticalWarnings = proposal.validator_report.warnings.some(w => 
-    w.includes('CRITICAL') || w.includes('CONFLICT')
-  );
-
-  // Determine action priority based on confidence and warnings
-  const getActionPriority = () => {
-    if (hasCriticalWarnings) return 'critical'; // Red - needs investigation
-    if (confidence < 0.6 || hasWarnings) return 'caution'; // Yellow - review needed
-    if (confidence > 0.8) return 'ready'; // Green - can quick approve
-    return 'normal'; // Blue - standard review
+  const warnings = proposal.validator_report.warnings;
+  
+  const criticalWarnings = warnings.filter(w => {
+    if (typeof w === 'string') {
+      return w.includes('CRITICAL') || w.includes('CONFLICT');
+    }
+    return w.severity === 'critical' || 
+           (w.message.includes('CRITICAL') || w.message.includes('CONFLICT'));
+  });
+  
+  // Determine risk level for visual priority
+  const getRiskLevel = (): 'critical' | 'review' | 'ready' => {
+    if (criticalWarnings.length > 0) return 'critical';
+    if (confidence < 0.7 || warnings.length > 0) return 'review';
+    return 'ready';
   };
 
-  const priority = getActionPriority();
+  const riskLevel = getRiskLevel();
 
-  const getBorderColor = () => {
-    switch (priority) {
+  const getCardStyle = () => {
+    switch (riskLevel) {
       case 'critical': return 'border-red-200 bg-red-50/30';
-      case 'caution': return 'border-yellow-200 bg-yellow-50/30';  
+      case 'review': return 'border-yellow-200 bg-yellow-50/30';  
       case 'ready': return 'border-green-200 bg-green-50/30';
-      default: return 'border-gray-200 bg-white';
     }
   };
 
-  const getConfidenceDisplay = () => {
-    const percent = Math.round(confidence * 100);
-    if (confidence > 0.8) return { text: `${percent}%`, color: 'text-green-600' };
-    if (confidence > 0.6) return { text: `${percent}%`, color: 'text-yellow-600' };
-    return { text: `${percent}%`, color: 'text-red-600' };
+  // Get human-readable action type and icon
+  const getActionInfo = () => {
+    const ops = proposal.ops || [];
+    const primaryOp = ops[0];
+    
+    if (!primaryOp) {
+      return { icon: <Eye className="h-4 w-4 text-gray-500" />, action: 'Review changes' };
+    }
+    
+    // Count operation types
+    const opCounts = ops.reduce((acc, op) => {
+      const category = op.type.includes('Create') ? 'new' : 
+                      op.type.includes('Revise') || op.type.includes('Edit') ? 'update' :
+                      op.type.includes('Merge') || op.type.includes('Attach') ? 'connect' :
+                      op.type.includes('Archive') || op.type.includes('Delete') ? 'remove' : 'change';
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Determine primary action type
+    const primaryAction = Object.entries(opCounts)
+      .sort(([,a], [,b]) => b - a)[0]?.[0] || 'change';
+    
+    switch (primaryAction) {
+      case 'new':
+        return { 
+          icon: <Plus className="h-4 w-4 text-green-600" />, 
+          action: `Adding ${opCounts.new} new ${opCounts.new === 1 ? 'item' : 'items'}` 
+        };
+      case 'update':
+        return { 
+          icon: <Edit className="h-4 w-4 text-blue-600" />, 
+          action: `Updating ${opCounts.update} ${opCounts.update === 1 ? 'item' : 'items'}` 
+        };
+      case 'connect':
+        return { 
+          icon: <Link2 className="h-4 w-4 text-purple-600" />, 
+          action: `Connecting ${opCounts.connect} ${opCounts.connect === 1 ? 'item' : 'items'}` 
+        };
+      case 'remove':
+        return { 
+          icon: <Archive className="h-4 w-4 text-red-600" />, 
+          action: `Removing ${opCounts.remove} ${opCounts.remove === 1 ? 'item' : 'items'}` 
+        };
+      default:
+        return { 
+          icon: <Eye className="h-4 w-4 text-gray-500" />, 
+          action: 'Review changes' 
+        };
+    }
   };
 
-  const confidenceDisplay = getConfidenceDisplay();
+  const actionInfo = getActionInfo();
+  
+  // Get trust indicator text
+  const getTrustText = () => {
+    if (confidence > 0.8) return 'High confidence';
+    if (confidence > 0.6) return 'Moderate confidence';
+    return 'Needs review';
+  };
+
+  // Format age in human terms
+  const formatAge = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const minutes = Math.floor((now.getTime() - date.getTime()) / 60000);
+    
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
 
   return (
-    <div className={`border rounded-lg ${getBorderColor()} hover:shadow-sm transition-shadow`}>
+    <div className={`border rounded-lg ${getCardStyle()} hover:shadow-sm transition-shadow`}>
       <div className="p-4">
-        {/* Header: Change Summary + Risk Indicator */}
-        <div className="flex items-start justify-between mb-3">
+        {/* Primary: What's Changing */}
+        <div className="flex items-start gap-3 mb-3">
+          {actionInfo.icon}
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <GitBranch className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-900">
-                {proposal.ops_summary}
-              </span>
-            </div>
-            <p className="text-xs text-gray-600">
-              {proposal.validator_report.impact_summary}
+            <h3 className="text-sm font-medium text-gray-900 mb-1">
+              {actionInfo.action} to your knowledge base
+            </h3>
+            <p className="text-xs text-gray-600 line-clamp-2">
+              {proposal.validator_report.impact_summary || proposal.ops_summary}
             </p>
           </div>
           
-          {/* Risk Indicator */}
-          <div className="flex items-center gap-2 ml-3">
-            <Badge variant="outline" className="text-xs">
-              {proposal.blast_radius}
-            </Badge>
-            <div className={`text-xs font-medium ${confidenceDisplay.color}`}>
-              {confidenceDisplay.text}
-            </div>
-            {hasCriticalWarnings && (
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-            )}
-          </div>
+          {/* Source Badge */}
+          <Badge variant="outline" className="text-xs">
+            {proposal.origin === 'agent' ? '🤖 AI' : '👤 Manual'}
+          </Badge>
         </div>
 
-        {/* Warning Summary (Critical Only) */}
-        {hasCriticalWarnings && (
+        {/* Critical Warning (if any) */}
+        {criticalWarnings.length > 0 && (
           <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
             <AlertTriangle className="h-3 w-3 inline mr-1" />
-            Critical issues detected - review required
+            {typeof criticalWarnings[0] === 'string' 
+              ? criticalWarnings[0] 
+              : criticalWarnings[0].message || 'Review required - potential issues detected'}
           </div>
         )}
 
-        {/* Action Bar */}
+        {/* Decision Bar */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <Clock className="h-3 w-3" />
-            {new Date(proposal.created_at).toLocaleDateString()}
+          <div className="flex items-center gap-3 text-xs">
+            {/* Trust Indicator */}
+            <span className={`font-medium ${
+              confidence > 0.8 ? 'text-green-600' : 
+              confidence > 0.6 ? 'text-yellow-600' : 'text-red-600'
+            }`}>
+              {getTrustText()}
+            </span>
+            
+            {/* Scope */}
+            <span className="text-gray-500">
+              Affects: {proposal.blast_radius === 'Local' ? 'This topic' : 
+                       proposal.blast_radius === 'Scoped' ? 'Related topics' : 'Entire workspace'}
+            </span>
+            
+            {/* Age */}
+            <span className="text-gray-400">
+              {formatAge(proposal.created_at)}
+            </span>
           </div>
           
           <div className="flex items-center gap-2">
@@ -120,17 +198,17 @@ export function ProposalCard({ proposal, onReview, onQuickApprove }: ProposalCar
               className="text-xs px-3 py-1"
             >
               <Eye className="h-3 w-3 mr-1" />
-              Review
+              Details
             </Button>
             
-            {priority === 'ready' && onQuickApprove && (
+            {riskLevel === 'ready' && onQuickApprove && (
               <Button
                 onClick={() => onQuickApprove(proposal.id)}
                 size="sm"
                 className="text-xs px-3 py-1 bg-green-600 hover:bg-green-700"
               >
                 <CheckCircle className="h-3 w-3 mr-1" />
-                Approve
+                Accept
               </Button>
             )}
           </div>

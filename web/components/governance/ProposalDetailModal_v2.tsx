@@ -272,19 +272,26 @@ export function ProposalDetailModal({
                         <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />
                         <div>
                           <h5 className="text-sm font-medium text-red-800 mb-1">
-                            Critical Issues Detected
+                            Issues found:
                           </h5>
                           <ul className="space-y-1">
                             {proposal.validator_report.warnings
                               .filter(w => w.includes('CRITICAL') || w.includes('CONFLICT'))
                               .slice(0, 3)
-                              .map((warning, i) => (
-                                <li key={i} className="text-sm text-red-700">• {warning}</li>
-                              ))}
+                              .map((warning, i) => {
+                                // Translate technical warnings to human language
+                                const humanWarning = warning
+                                  .replace('CRITICAL:', '')
+                                  .replace('CONFLICT:', 'Conflicts with:')
+                                  .replace('substrate', 'existing content')
+                                  .replace('ontology', 'topic structure')
+                                  .trim();
+                                return <li key={i} className="text-sm text-red-700">• {humanWarning}</li>;
+                              })}
                           </ul>
                           {proposal.validator_report.confidence < 0.3 && (
                             <p className="text-sm text-red-700 mt-2">
-                              • Very low confidence score - manual review strongly recommended
+                              • AI is very uncertain about this change
                             </p>
                           )}
                         </div>
