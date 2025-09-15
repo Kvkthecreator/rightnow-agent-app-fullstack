@@ -52,23 +52,26 @@ export async function GET(
         .select('id, body_md, processing_status, created_at, source_meta, file_url')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
+        .neq('processing_status', 'redacted')
         .order('created_at', { ascending: false })
         .limit(100),
       
       // Foundational substrate - Context items  
       supabase
         .from('context_items')
-        .select('id, type, content, created_at, metadata')
+        .select('id, type, content, created_at, metadata, status')
         .eq('basket_id', basketId)
+        .neq('status', 'archived')
         .order('created_at', { ascending: false })
         .limit(100),
       
       // P1 Substrate Agent - Processed blocks with structured ingredients
       supabase
         .from('blocks')
-        .select('id, semantic_type, content, confidence_score, title, body_md, created_at, meta_agent_notes, metadata')
+        .select('id, semantic_type, content, confidence_score, title, body_md, created_at, meta_agent_notes, metadata, status')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
+        .neq('status', 'archived')
         .order('created_at', { ascending: false })
         .limit(100)
     ]);

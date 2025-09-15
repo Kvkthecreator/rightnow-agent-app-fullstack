@@ -90,6 +90,9 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const [zoom, setZoom] = useState(1);
   const [showLabels, setShowLabels] = useState(true);
   const [showEdgeWeights, setShowEdgeWeights] = useState(false);
+  const [confirming, setConfirming] = useState<null | 'archive' | 'redact'>(null);
+  const [preview, setPreview] = useState<{refs_detached_count:number;relationships_pruned_count:number;affected_documents_count:number} | null>(null);
+  const [busy, setBusy] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const router = useRouter();
@@ -424,6 +427,14 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                       >
                         View Details
                       </Button>
+                      <div className="flex gap-2 mt-2">
+                        {selectedNode.type === 'block' && (
+                          <Button size="sm" variant="outline" onClick={() => { setPreview(null); setConfirming('archive'); fetch('/api/cascade/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ basket_id: basketId, substrate_type: 'block', substrate_id: selectedNode.id }) }).then(r=>r.json()).then(d=>setPreview(d.preview)).catch(()=>{}); }}>Archive</Button>
+                        )}
+                        {selectedNode.type === 'dump' && (
+                          <Button size="sm" variant="outline" onClick={() => { setPreview(null); setConfirming('redact'); fetch('/api/cascade/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ basket_id: basketId, substrate_type: 'dump', substrate_id: selectedNode.id }) }).then(r=>r.json()).then(d=>setPreview(d.preview)).catch(()=>{}); }}>Redact</Button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -549,6 +560,29 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
             </CardContent>
           </Card>
         )}
+      {/* Confirm Dialog for Archive/Redact */}
+      {confirming && selectedNode && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">{confirming === 'archive' ? 'Archive Block' : 'Redact Dump'}</h4>
+            {preview ? (
+              <div className="text-xs text-gray-700 space-y-1 mb-3">
+                <div>References to detach: <span className="font-semibold">{preview.refs_detached_count}</span></div>
+                <div>Relationships to prune: <span className="font-semibold">{preview.relationships_pruned_count}</span></div>
+                <div>Affected documents: <span className="font-semibold">{preview.affected_documents_count}</span></div>
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500 mb-3">Loading preview…</div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => { setConfirming(null); setPreview(null); }} disabled={busy}>Cancel</Button>
+              <Button size="sm" onClick={confirming === 'archive' ? async () => { setBusy(true); await fetch('/api/changes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entry_point: 'manual_edit', basket_id: basketId, ops: [{ type: 'ArchiveBlock', data: { block_id: selectedNode.id } }] }) }); setBusy(false); setConfirming(null); setPreview(null);} : async () => { setBusy(true); await fetch('/api/changes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entry_point: 'manual_edit', basket_id: basketId, ops: [{ type: 'RedactDump', data: { dump_id: selectedNode.id, scope: 'full', reason: 'user_requested' } }] }) }); setBusy(false); setConfirming(null); setPreview(null);} } disabled={busy || !preview}>
+                {busy ? 'Working…' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
