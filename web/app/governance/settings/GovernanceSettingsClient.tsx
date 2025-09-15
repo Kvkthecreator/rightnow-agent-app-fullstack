@@ -14,6 +14,9 @@ interface GovernanceSettings {
   validator_required: boolean;
   // Removed from UI: direct_substrate_writes is canon-enforced server-side (always false)
   governance_ui_enabled: boolean;
+  // Phase 2: retention controls
+  retention_enabled: boolean;
+  retention_policy_text: string; // JSON text for flexible policy; parsed on save
   // Simplified top-level mode: 'proposal' | 'hybrid'
   mode: 'proposal' | 'hybrid';
   entry_point_policies: {
@@ -45,6 +48,8 @@ export default function GovernanceSettingsClient({
         governance_enabled: true,
         validator_required: false,
         governance_ui_enabled: true,
+        retention_enabled: Boolean(initialSettings.retention_enabled),
+        retention_policy_text: JSON.stringify(initialSettings.retention_policy || {}, null, 2),
         mode: (initialSettings.ep_manual_edit === 'hybrid' || initialSettings.ep_graph_action === 'hybrid') ? 'hybrid' : 'proposal',
         entry_point_policies: {
           onboarding_dump: 'direct', // Canon: P0 capture must be direct
@@ -61,6 +66,8 @@ export default function GovernanceSettingsClient({
       governance_enabled: true,
       validator_required: false,
       governance_ui_enabled: true,
+      retention_enabled: false,
+      retention_policy_text: '{\n  "dump": { "days": null },\n  "block": { "days": null },\n  "context_item": { "days": null }\n}',
       mode: 'proposal',
       entry_point_policies: {
         onboarding_dump: 'direct',
@@ -101,6 +108,14 @@ export default function GovernanceSettingsClient({
     setLoading(true);
     
     try {
+      // Validate retention policy JSON
+      let retentionPolicy: any = {};
+      try {
+        retentionPolicy = settings.retention_policy_text ? JSON.parse(settings.retention_policy_text) : {};
+      } catch (e) {
+        throw new Error('Retention policy JSON is invalid');
+      }
+
       // Derive entry point policies from simplified mode
       const derivedPolicies = {
         onboarding_dump: 'direct',
@@ -116,6 +131,8 @@ export default function GovernanceSettingsClient({
           governance_enabled: true,
           validator_required: false,
           governance_ui_enabled: true,
+          retention_enabled: settings.retention_enabled,
+          retention_policy: retentionPolicy,
           entry_point_policies: derivedPolicies,
           default_blast_radius: settings.default_blast_radius
         })
@@ -251,6 +268,59 @@ export default function GovernanceSettingsClient({
                 </select>
               </div>
             </details>
+          </CardContent>
+        </Card>
+
+        {/* Retention Policy */}
+        <Card>
+          <CardHeader className="p-6">
+            <CardTitle>Retention Policy</CardTitle>
+            <p className="text-sm text-gray-600 mt-2">
+              Control if and when archived/redacted items become eligible for physical deletion. Leave days as null to never delete that type.
+            </p>
+          </CardHeader>
+          <CardContent className="p-8 space-y-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={settings.retention_enabled}
+                onChange={(e) => setSettings(prev => ({ ...prev, retention_enabled: e.target.checked }))}
+                className="h-4 w-4"
+              />
+              <span>Enable retention policy</span>
+            </label>
+            <div>
+              <Label className="font-medium text-sm">Policy JSON</Label>
+              <textarea
+                value={settings.retention_policy_text}
+                onChange={(e) => setSettings(prev => ({ ...prev, retention_policy_text: e.target.value }))}
+                className="w-full mt-2 h-40 border border-gray-300 rounded p-2 font-mono text-xs"
+                spellCheck={false}
+              />
+              <div className="text-xs text-gray-500 mt-2">
+                Example: {'{ "dump": { "days": 180 }, "block": { "days": 365 }, "context_item": { "days": null } }'}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/vacuum/run', { method: 'POST' });
+                    const json = await res.json();
+                    if (res.ok) {
+                      notificationService.notify({ type: 'vacuum.run', title: 'Vacuum Run', message: JSON.stringify(json.result || json), severity: 'info' });
+                    } else {
+                      notificationService.notify({ type: 'vacuum.run', title: 'Vacuum Failed', message: json.error || 'Failed to run vacuum', severity: 'error' });
+                    }
+                  } catch (e) {
+                    notificationService.notify({ type: 'vacuum.run', title: 'Vacuum Failed', message: 'Network or server error', severity: 'error' });
+                  }
+                }}
+              >
+                Run Vacuum Now (Admin)
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
