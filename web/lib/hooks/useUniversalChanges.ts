@@ -429,64 +429,100 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
         } 
       });
 
-      // Submit change to API
-      console.log('🎯 Step 6: Sending POST /api/changes with:', { id: changeId, type, basketId, data, metadata });
-      
-      const result: ChangeResult = await apiClient.request('/api/changes', {
-        method: 'POST',
-        body: JSON.stringify({
-          id: changeId,
-          type,
-          basketId,
-          data,
-          metadata,
-          origin: 'user'
-        }),
-      });
+      // Map legacy change types to Universal Work (artifact-only fence)
+      let work_type: 'P4_COMPOSE';
+      let operations: Array<{ type: string; data: Record<string, any> }> = [];
 
-      console.log('🎯 Step 7: API response result:', result);
-      console.log('🎯 Step 8: API response data:', result);
-
-      if ((result as any).success) {
-        console.log(`✅ Change submitted successfully: ${type}`);
-        
-        // Add to pending changes for optimistic UI
-        if (type !== 'intelligence_approve' && type !== 'intelligence_reject') {
+      switch (type) {
+        case 'document_create': {
+          work_type = 'P4_COMPOSE';
+          const d = data as any;
+          operations = [{
+            type: 'CreateDocument',
+            data: { title: d.title, content: d.content, document_type: d.documentType || 'general' }
+          }];
+          break;
+        }
+        case 'document_update': {
+          work_type = 'P4_COMPOSE';
+          const d = data as any;
+          operations = [{
+            type: 'UpdateDocument',
+            data: { document_id: d.documentId, title: d.title, content: d.content }
+          }];
+          break;
+        }
+        case 'document_delete': {
+          work_type = 'P4_COMPOSE';
+          const d = data as any;
+          operations = [{ type: 'DeleteDocument', data: { document_id: d.documentId } }];
+          break;
+        }
+        default: {
+          // Fence: legacy non‑artifact flows are not supported via this hook anymore
+          const errorMessage = 'Legacy change type not supported here. Use Maintenance/Graph UI or /api/work directly.';
           dispatch({
-            type: 'ADD_PENDING_CHANGE',
+            type: 'ADD_ERROR',
             payload: {
-              id: changeId,
-              type,
-              status: 'completed',
-              data,
+              id: crypto.randomUUID(),
+              changeId,
+              message: errorMessage,
+              code: 'LEGACY_UNSUPPORTED',
               timestamp: new Date().toISOString(),
-              actorId: 'current_user' // Will be filled by server
+              dismissible: true
             }
           });
+          return { success: false, changeId, status: 'failed', errors: [errorMessage] } as ChangeResult;
         }
-      } else {
-        console.error(`❌ Change submission failed: ${type}`, (result as any).errors);
-        
-        // Add error to state
+      }
+
+      console.log('🎯 Step 6: Sending POST /api/work with:', { work_type, basketId, operations });
+      const workRes: any = await apiClient.request('/api/work', {
+        method: 'POST',
+        body: JSON.stringify({
+          work_type,
+          work_payload: { operations, basket_id: basketId },
+          priority: 'normal'
+        })
+      });
+
+      const success = !!(workRes && workRes.success !== false);
+      const execution_mode = workRes?.execution_mode as string | undefined;
+      const mapped: ChangeResult = {
+        success,
+        changeId: workRes?.work_id || changeId,
+        status: execution_mode === 'auto_execute' ? 'completed' : 'pending',
+        appliedData: workRes,
+      };
+
+      if (!success) {
         dispatch({
           type: 'ADD_ERROR',
           payload: {
             id: crypto.randomUUID(),
-            changeId,
-            message: (result as any).errors?.[0] || 'Change failed',
+            changeId: mapped.changeId,
+            message: workRes?.error || 'Change failed',
             code: 'CHANGE_FAILED',
             timestamp: new Date().toISOString(),
             dismissible: true
           }
         });
-
-        // Handle conflicts
-        if ((result as any).conflicts && (result as any).conflicts.length > 0) {
-          dispatch({ type: 'SET_CONFLICTS', payload: (result as any).conflicts });
-        }
+      } else {
+        // Optimistic completion for artifact edits
+        dispatch({
+          type: 'ADD_PENDING_CHANGE',
+          payload: {
+            id: mapped.changeId,
+            type,
+            status: mapped.status,
+            data,
+            timestamp: new Date().toISOString(),
+            actorId: 'current_user'
+          }
+        });
       }
 
-      return result;
+      return mapped;
 
     } catch (error) {
       console.error('💥 Change submission error:', error);
@@ -594,29 +630,20 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
         } 
       });
 
-      console.log('🧠 Generating intelligence via Universal Change System:', { basketId, origin });
+      console.log('🧠 Generating intelligence (fenced: using dedicated endpoint):', { basketId, origin });
 
-      // Submit intelligence generation request through unified API
-      const result = await apiClient.request('/api/changes', {
+      // Fence: use dedicated intelligence endpoint rather than legacy universal changes
+      const result = await apiClient.request(`/api/intelligence/generate/${basketId}`, {
         method: 'POST',
-        body: JSON.stringify({
-          id: changeId,
-          type: 'intelligence_generate',
-          basketId,
-          data: {
-            origin,
-            conversationContext,
-            checkPending: true
-          },
-          metadata: {
-            timestamp: new Date().toISOString()
-          },
-          origin: 'user'
-        }),
+        body: JSON.stringify({ origin, conversationContext })
       });
 
-      if ((result as any).success) {
-        console.log('✅ Intelligence generation successful via Universal Changes');
+      if (!result || (result as any)?.error) {
+        throw new Error((result as any)?.error || 'Failed to generate intelligence');
+      }
+
+      if ((result as any).requiresReview || (result as any).changesDetected > 0) {
+        console.log('🔔 Intelligence generated insights that may require approval');
         
         // Check if intelligence was generated and create pending changes for approval
         if ((result as any).data?.requiresReview || (result as any).data?.changesDetected > 0) {
@@ -651,12 +678,10 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
           } catch (fetchError) {
             console.error('❌ Failed to fetch intelligence for approval:', fetchError);
           }
-        } else {
-          console.log('📡 Intelligence generation completed - no new insights to review');
         }
       } else {
-        throw new Error((result as any).errors?.[0] || 'Failed to generate intelligence');
-      }
+          console.log('📡 Intelligence generation completed - no new insights to review');
+        }
 
     } catch (error) {
       console.error('❌ Intelligence generation failed via Universal Changes:', error);
