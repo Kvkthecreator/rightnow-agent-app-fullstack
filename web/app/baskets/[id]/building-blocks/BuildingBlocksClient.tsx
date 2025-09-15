@@ -61,6 +61,8 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
   const [editLabel, setEditLabel] = useState('');
   const [editSemanticType, setEditSemanticType] = useState('');
   const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState<{refs_detached_count:number;relationships_pruned_count:number;affected_documents_count:number} | null>(null);
+  const [confirming, setConfirming] = useState<null | 'archive' | 'redact'>(null);
 
   // Initialize edit fields when substrate changes
   useEffect(() => {
@@ -74,6 +76,92 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
   if (!substrate) return null;
 
   const canEdit = substrate.type !== 'dump'; // Original notes are read-only
+  const canArchive = substrate.type === 'block';
+  const canRedact = substrate.type === 'dump';
+
+  const doPreview = async (action: 'archive'|'redact') => {
+    try {
+      setPreview(null);
+      setConfirming(action);
+      const res = await fetch('/api/cascade/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          basket_id: basketId,
+          substrate_type: action === 'archive' ? 'block' : 'dump',
+          substrate_id: substrate.id,
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPreview(data.preview);
+      } else {
+        notificationService.substrateRejected('Preview failed', data.error || 'Unable to preview cascade', [substrate.id], basketId);
+      }
+    } catch (e) {
+      notificationService.substrateRejected('Preview failed', 'Unable to preview cascade', [substrate.id], basketId);
+    }
+  };
+
+  const confirmArchive = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/changes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entry_point: 'manual_edit',
+          basket_id: basketId,
+          ops: [{
+            type: 'ArchiveBlock',
+            data: { block_id: substrate.id }
+          }]
+        })
+      });
+      const result = await response.json();
+      if (result.route === 'direct') {
+        notificationService.substrateApproved('Block Archived', 'Block has been archived', [substrate.id], basketId);
+      } else {
+        notificationService.approvalRequired('Archive Pending', 'Awaiting approval', basketId);
+      }
+      onClose();
+      onSuccess?.();
+    } catch (e) {
+      notificationService.substrateRejected('Archive failed', 'Unable to archive block', [substrate.id], basketId);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmRedact = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/changes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entry_point: 'manual_edit',
+          basket_id: basketId,
+          ops: [{
+            type: 'RedactDump',
+            data: { dump_id: substrate.id, scope: 'full', reason: 'user_requested' }
+          }]
+        })
+      });
+      const result = await response.json();
+      if (result.route === 'direct') {
+        notificationService.substrateApproved('Dump Redacted', 'Original content redacted', [substrate.id], basketId);
+      } else {
+        notificationService.approvalRequired('Redaction Pending', 'Awaiting approval', basketId);
+      }
+      onClose();
+      onSuccess?.();
+    } catch (e) {
+      notificationService.substrateRejected('Redaction failed', 'Unable to redact dump', [substrate.id], basketId);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const handleEdit = async () => {
     if (!canEdit) return;
@@ -227,6 +315,16 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
                   </Button>
                 )}
               </>
+            )}
+            {canArchive && mode === 'view' && (
+              <Button variant="outline" size="sm" onClick={() => doPreview('archive')} disabled={loading}>
+                Archive
+              </Button>
+            )}
+            {canRedact && mode === 'view' && (
+              <Button variant="outline" size="sm" onClick={() => doPreview('redact')} disabled={loading}>
+                Redact
+              </Button>
             )}
             <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
           </div>
@@ -716,6 +814,30 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
           </div>
         )}
       </div>
+
+      {/* Confirm Dialog */}
+      {confirming && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">{confirming === 'archive' ? 'Archive Block' : 'Redact Dump'}</h4>
+            {preview ? (
+              <div className="text-xs text-gray-700 space-y-1 mb-3">
+                <div>References to detach: <span className="font-semibold">{preview.refs_detached_count}</span></div>
+                <div>Relationships to prune: <span className="font-semibold">{preview.relationships_pruned_count}</span></div>
+                <div>Affected documents: <span className="font-semibold">{preview.affected_documents_count}</span></div>
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500 mb-3">Loading preview…</div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => { setConfirming(null); setPreview(null); }} disabled={loading}>Cancel</Button>
+              <Button size="sm" onClick={confirming === 'archive' ? confirmArchive : confirmRedact} disabled={loading || !preview}>
+                {loading ? 'Working…' : 'Confirm'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       <DetailModal 
