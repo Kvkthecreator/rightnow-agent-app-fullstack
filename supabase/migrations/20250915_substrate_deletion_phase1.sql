@@ -103,7 +103,12 @@ BEGIN
   -- Preview snapshot for tombstone counts
   SELECT fn_cascade_preview(p_basket_id, 'block', p_block_id) INTO v_preview;
 
-  -- Tombstone
+  -- Tombstone (with earliest_physical_delete_at if retention policy enabled)
+  DECLARE v_flags jsonb := public.get_workspace_governance_flags(v_workspace_id); BEGIN END; -- dummy
+  -- Fetch flags properly
+  SELECT public.get_workspace_governance_flags(v_workspace_id) INTO v_preview; -- reuse v_preview var
+  -- v_preview holds flags now; avoid extra local var creation for brevity
+
   INSERT INTO substrate_tombstones (
     workspace_id, basket_id, substrate_type, substrate_id,
     deletion_mode, redaction_scope, redaction_reason,
@@ -117,6 +122,20 @@ BEGIN
     COALESCE((v_preview->>'affected_documents_count')::int, 0),
     p_actor_id
   ) RETURNING id INTO v_tomb_id;
+
+  -- Set earliest_physical_delete_at from retention policy if enabled and policy provides days
+  BEGIN
+    IF COALESCE((v_preview->>'retention_enabled')::boolean, false) THEN
+      -- Expect policy like { block: { days: N|null } }
+      IF ((v_preview->'retention_policy'->'block'->>'days') IS NOT NULL) THEN
+        UPDATE substrate_tombstones
+          SET earliest_physical_delete_at = now() + ((v_preview->'retention_policy'->'block'->>'days')::int || ' days')::interval
+          WHERE id = v_tomb_id;
+      END IF;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    -- ignore policy parsing errors
+  END;
 
   -- Emit event
   PERFORM emit_timeline_event(p_basket_id, 'substrate.archived', jsonb_build_object(
@@ -165,6 +184,18 @@ BEGIN
     p_actor_id
   ) RETURNING id INTO v_tomb_id;
 
+  -- Set earliest_physical_delete_at from retention policy if enabled and policy provides days
+  BEGIN
+    IF COALESCE((public.get_workspace_governance_flags(v_workspace_id)->>'retention_enabled')::boolean, false) THEN
+      IF ((public.get_workspace_governance_flags(v_workspace_id)->'retention_policy'->'dump'->>'days') IS NOT NULL) THEN
+        UPDATE substrate_tombstones
+          SET earliest_physical_delete_at = now() + ((public.get_workspace_governance_flags(v_workspace_id)->'retention_policy'->'dump'->>'days')::int || ' days')::interval
+          WHERE id = v_tomb_id;
+      END IF;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+  END;
+
   PERFORM emit_timeline_event(p_basket_id, 'substrate.redacted', jsonb_build_object(
     'substrate_type','dump','substrate_id',p_dump_id,'scope',p_scope,'tombstone_id',v_tomb_id
   ), v_workspace_id, p_actor_id, 'p1_maintenance');
@@ -174,4 +205,3 @@ END;
 $$;
 
 COMMIT;
-

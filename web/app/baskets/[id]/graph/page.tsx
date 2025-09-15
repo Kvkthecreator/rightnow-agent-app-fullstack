@@ -51,10 +51,11 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
     const [blocksResult, dumpsResult, contextItemsResult, relationshipsResult] = await Promise.all([
       supabase
         .from('blocks')
-        .select('id, semantic_type, content, title, body_md, confidence_score, created_at, meta_agent_notes, state')
+        .select('id, semantic_type, content, title, body_md, confidence_score, created_at, meta_agent_notes, state, status')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .in('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']) // Only approved substrate
+        .neq('status', 'archived')
         .limit(100),
       
       supabase
@@ -62,13 +63,15 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
         .select('id, basket_id, body_md, created_at, processing_status, file_url, source_meta')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
+        .neq('processing_status', 'redacted')
         .limit(50),
         
       supabase
         .from('context_items')
-        .select('id, title, description, type, metadata, created_at, state')
+        .select('id, title, description, type, metadata, created_at, state, status')
         .eq('basket_id', basketId)
         .in('state', ['ACTIVE']) // Only approved context items
+        .neq('status', 'archived')
         .limit(100),
         
       // Canon-aligned relationships table
