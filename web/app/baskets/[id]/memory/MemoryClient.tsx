@@ -90,6 +90,63 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
     }
   }
 
+  // Human-readable knowledge growth helpers
+  const getGrowthStage = (level: number, phase: string): string => {
+    switch (level) {
+      case 1: return 'Building foundation';
+      case 2: return 'Growing connections';
+      case 3: return 'Rich knowledge base';
+      case 4: return 'Comprehensive understanding';
+      default: return phase;
+    }
+  };
+
+  const getKnowledgeDescription = (maturity: any, stats: any): string => {
+    if (!stats) return 'Building your knowledge base';
+    
+    const totalMemories = maturity.substrateDensity || 0;
+    const categories = Object.values(stats).filter(count => (count as number) > 0).length;
+    
+    if (totalMemories === 0) return 'Ready to capture your first thoughts';
+    if (totalMemories < 10) return `${totalMemories} memories captured so far`;
+    if (categories <= 1) return `${totalMemories} memories in ${categories} area`;
+    
+    return `${totalMemories} memories spanning ${categories} different areas`;
+  };
+
+  const getProgressLabel = (level: number): string => {
+    switch (level) {
+      case 1: return 'Building your foundation';
+      case 2: return 'Growing your knowledge';
+      case 3: return 'Enriching connections';
+      default: return 'Expanding understanding';
+    }
+  };
+
+  const getGrowthMessage = (maturity: any): string => {
+    const remaining = maturity.nextLevelAt - maturity.score;
+    const nextStage = getGrowthStage(maturity.level + 1, '');
+    
+    if (remaining <= 5) {
+      return `Almost ready for ${nextStage.toLowerCase()} stage!`;
+    }
+    if (remaining <= 15) {
+      return `Getting closer to ${nextStage.toLowerCase()} stage`;
+    }
+    return `Add ${remaining} more thoughts to reach ${nextStage.toLowerCase()} stage`;
+  };
+
+  const humanizeGuidanceStep = (step: string): string => {
+    return step
+      .replace(/substrate/gi, 'content')
+      .replace(/dump/gi, 'memory')
+      .replace(/context item/gi, 'note')
+      .replace(/building block/gi, 'knowledge piece')
+      .replace(/ontology/gi, 'topic structure')
+      .replace(/vector/gi, 'similarity')
+      .replace(/embedding/gi, 'connection');
+  };
+
   // Load reflections on mount
   useEffect(() => {
     loadReflections();
@@ -114,7 +171,7 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
               size="sm"
               className="text-sm"
             >
-              Refresh insights
+              Find new patterns
             </Button>
             <Button
               onClick={() => setShowAddMemory(true)}
@@ -138,32 +195,32 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
       
       <div className="space-y-6">
         
-        {/* Basket Maturity Dashboard */}
+        {/* Knowledge Base Growth */}
         {maturity && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-blue-600" />
-                Knowledge Maturity
+                Your Knowledge Growth
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                   maturity.level === 1 ? 'bg-orange-100 text-orange-700' :
                   maturity.level === 2 ? 'bg-yellow-100 text-yellow-700' :
                   maturity.level === 3 ? 'bg-green-100 text-green-700' :
                   'bg-purple-100 text-purple-700'
                 }`}>
-                  Level {maturity.level} • {maturity.phase}
+                  {getGrowthStage(maturity.level, maturity.phase)}
                 </span>
               </CardTitle>
               <p className="text-sm text-gray-600">
-                {stats && `${maturity.substrateDensity} memories across ${Object.values(stats).filter(count => count > 0).length} categories`}
+                {getKnowledgeDescription(maturity, stats)}
               </p>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Progress Bar */}
+                {/* Growth Progress */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Progress to next level</span>
+                    <span className="text-gray-600">{getProgressLabel(maturity.level)}</span>
                     <span className="font-medium">{Math.round(maturity.progressPercent)}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -174,24 +231,24 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                   </div>
                   {maturity.nextLevelAt && (
                     <div className="text-xs text-gray-500">
-                      {maturity.nextLevelAt - maturity.score} more memories to reach Level {maturity.level + 1}
-                      {maturity.varietyBonus && ' • Variety bonus active!'}
+                      {getGrowthMessage(maturity)}
+                      {maturity.varietyBonus && ' 🌟 Great variety in your knowledge!'}
                     </div>
                   )}
                 </div>
                 
-                {/* Next Steps */}
+                {/* What's Next */}
                 {maturityGuidance && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Target className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-900">Recommended next steps</span>
+                      <span className="text-sm font-medium text-blue-900">What to focus on next</span>
                     </div>
                     <ul className="text-sm text-blue-800 space-y-1">
                       {maturityGuidance.nextSteps.map((step, index) => (
                         <li key={index} className="flex items-start gap-2">
                           <span className="text-blue-500 mt-0.5">•</span>
-                          <span>{step}</span>
+                          <span>{humanizeGuidanceStep(step)}</span>
                         </li>
                       ))}
                     </ul>
@@ -214,13 +271,13 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              Memory Insights
+              Patterns I've Found
               <span className="text-sm font-normal text-gray-500">
-                {reflections.length} {reflections.length === 1 ? 'insight' : 'insights'}
+                {reflections.length} {reflections.length === 1 ? 'discovery' : 'discoveries'}
               </span>
             </CardTitle>
             <p className="text-sm text-gray-600">
-              {maturityGuidance?.memoryInsightsMessage || "AI-discovered patterns and connections in your knowledge"}
+              {maturityGuidance?.memoryInsightsMessage || "Interesting connections I've discovered in your thoughts"}
             </p>
           </CardHeader>
           <CardContent>
@@ -249,9 +306,9 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl">🤔</span>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Insights Yet</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Patterns Yet</h3>
                 <p className="text-gray-600 text-sm mb-4">
-                  Add some content to your knowledge base and insights will automatically be discovered.
+                  As you add more thoughts and ideas, I'll start finding interesting connections for you.
                 </p>
                 <Button
                   onClick={refreshReflections}
@@ -259,7 +316,7 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                   size="sm"
                   className="mx-auto"
                 >
-                  🔄 Check for Insights
+                  🔍 Look for Patterns
                 </Button>
               </div>
             ) : (
@@ -271,16 +328,16 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                         <span className="text-xl">💡</span>
                         <div>
                           <h4 className="text-sm font-medium text-gray-900">
-                            Insight #{reflections.length - index}
+                            Pattern #{reflections.length - index}
                           </h4>
                           <p className="text-xs text-gray-500">
-                            Found {formatComputationTime(reflection.computation_timestamp)}
+                            Discovered {formatComputationTime(reflection.computation_timestamp)}
                           </p>
                         </div>
                       </div>
                       {reflection.meta?.substrate_dump_count && (
                         <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
-                          From {reflection.meta.substrate_dump_count} sources
+                          From {reflection.meta.substrate_dump_count} of your thoughts
                         </span>
                       )}
                     </div>
@@ -301,7 +358,7 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                       variant="outline"
                       size="sm"
                     >
-                      View All {reflections.length} Insights
+                      View All {reflections.length} Patterns
                     </Button>
                   </div>
                 )}
