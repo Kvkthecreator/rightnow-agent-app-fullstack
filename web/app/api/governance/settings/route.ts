@@ -54,6 +54,8 @@ export async function GET(req: NextRequest) {
           validator_required: settings.validator_required,
           direct_substrate_writes: false, // Canon: never exposed/true
           governance_ui_enabled: settings.governance_ui_enabled,
+          retention_enabled: settings.retention_enabled,
+          retention_policy: settings.retention_policy || {},
           
           entry_point_policies: {
             onboarding_dump: 'direct',
@@ -77,6 +79,8 @@ export async function GET(req: NextRequest) {
           validator_required: false,
           direct_substrate_writes: false,
           governance_ui_enabled: true,
+          retention_enabled: false,
+          retention_policy: {},
           
           entry_point_policies: {
             onboarding_dump: 'direct',
@@ -137,6 +141,8 @@ export async function PUT(req: NextRequest) {
     const governance_enabled = Boolean(body.governance_enabled);
     const validator_required = Boolean(body.validator_required);
     const governance_ui_enabled = Boolean(body.governance_ui_enabled);
+    const retention_enabled = Boolean(body.retention_enabled);
+    const retention_policy = body.retention_policy && typeof body.retention_policy === 'object' ? body.retention_policy : {};
     const entry_point_policies = body.entry_point_policies || {};
     const default_blast_radius_in = body.default_blast_radius;
 
@@ -179,6 +185,8 @@ export async function PUT(req: NextRequest) {
         validator_required: validator_required,
         direct_substrate_writes: false, // Canon: never allow direct substrate writes
         governance_ui_enabled: governance_ui_enabled,
+        retention_enabled: retention_enabled,
+        retention_policy: retention_policy,
         
         // Entry point policies (with defaults)
         ep_onboarding_dump: sanitized.ep_onboarding_dump,
@@ -221,6 +229,8 @@ export async function PUT(req: NextRequest) {
         validator_required: settings.validator_required,
         direct_substrate_writes: false,
         governance_ui_enabled: settings.governance_ui_enabled,
+        retention_enabled: settings.retention_enabled,
+        retention_policy: settings.retention_policy || {},
         
         entry_point_policies: {
           onboarding_dump: 'direct',
