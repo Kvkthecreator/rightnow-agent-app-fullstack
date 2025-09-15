@@ -53,9 +53,11 @@ export function DocumentsList({ basketId }: DocumentsListProps) {
 
   const getContentPreview = (document: DocumentDTO): string => {
     // Extract meaningful preview from document
-    if (document.body_md) {
+    // body_md is not guaranteed in DocumentDTO; use metadata fallback
+    const body = (document as any)?.body_md as string | undefined;
+    if (typeof body === 'string' && body.length > 0) {
       // Strip markdown formatting for cleaner preview
-      const plainText = document.body_md
+      const plainText = body
         .replace(/#{1,6}\s/g, '')  // Remove headers
         .replace(/[*_~`]/g, '')     // Remove formatting
         .replace(/\n+/g, ' ')       // Replace newlines with spaces
