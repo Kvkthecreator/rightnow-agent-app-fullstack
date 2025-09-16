@@ -189,21 +189,26 @@ export default function GovernanceSettingsClient({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto py-8 space-y-8 max-w-4xl px-6">
-        
         {/* Header */}
-        <div className="bg-white rounded-lg border border-gray-200 p-8">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Settings className="h-6 w-6 text-blue-600" />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { try { router.back(); } catch { router.push('/dashboard/home'); } }}
+                className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </button>
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Settings className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Review Settings</h1>
-                <p className="text-gray-600 mt-1">Configure when content needs approval • {workspaceName}</p>
+                <h1 className="text-xl font-semibold text-gray-900">Governance Settings</h1>
+                <p className="text-gray-600 text-sm">Workspace: {workspaceName}</p>
               </div>
             </div>
-            
-            {/* Status badge removed to reduce cognitive load */}
           </div>
         </div>
 
@@ -272,59 +277,7 @@ export default function GovernanceSettingsClient({
           </CardContent>
         </Card>
 
-        {/* Retention Policy */}
-        <Card>
-          <CardHeader className="p-6">
-            <CardTitle>Retention Policy</CardTitle>
-            <p className="text-sm text-gray-600 mt-2">
-              Control if and when archived/redacted items become eligible for physical deletion. Leave days as null to never delete that type.
-            </p>
-          </CardHeader>
-          <CardContent className="p-8 space-y-4">
-            {/* Retention is a developer‑level policy. UI kept minimal per canon. */}
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={settings.retention_enabled}
-                onChange={(e) => setSettings(prev => ({ ...prev, retention_enabled: e.target.checked }))}
-                className="h-4 w-4"
-              />
-              <span>Enable retention policy</span>
-            </label>
-            <div>
-              <Label className="font-medium text-sm">Policy JSON</Label>
-              <textarea
-                value={settings.retention_policy_text}
-                onChange={(e) => setSettings(prev => ({ ...prev, retention_policy_text: e.target.value }))}
-                className="w-full mt-2 h-40 border border-gray-300 rounded p-2 font-mono text-xs"
-                spellCheck={false}
-              />
-              <div className="text-xs text-gray-500 mt-2">
-                Example: {'{ "dump": { "days": 180 }, "block": { "days": 365 }, "context_item": { "days": null } }'}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    const res = await fetch('/api/vacuum/run', { method: 'POST' });
-                    const json = await res.json();
-                    if (res.ok) {
-                      notificationService.notify({ type: 'system.performance.alert', title: 'Vacuum Run', message: JSON.stringify(json.result || json), severity: 'info' });
-                    } else {
-                      notificationService.notify({ type: 'system.performance.alert', title: 'Vacuum Failed', message: json.error || 'Failed to run vacuum', severity: 'error' });
-                    }
-                  } catch (e) {
-                    notificationService.notify({ type: 'system.performance.alert', title: 'Vacuum Failed', message: 'Network or server error', severity: 'error' });
-                  }
-                }}
-              >
-                Run Vacuum Now (Admin)
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Retention Policy (removed from user UI per canon; developer‑level) */}
 
         {/* Save Controls */}
         <div className="flex items-center justify-between p-6 bg-white rounded-lg border border-gray-200">
