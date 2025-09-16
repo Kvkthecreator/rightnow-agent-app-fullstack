@@ -89,6 +89,9 @@ class CanonicalQueueProcessor:
                             if work_type in ['P0_CAPTURE', 'P1_SUBSTRATE']:
                                 # Traditional dump-based processing
                                 await self._process_dump_canonically(entry)
+                            elif work_type == 'P2_GRAPH':
+                                # Graph relationship mapping
+                                await self._process_graph_work(entry)
                             elif work_type == 'P4_COMPOSE':
                                 # Document composition processing
                                 await self._process_composition_work(entry)
@@ -334,6 +337,109 @@ class CanonicalQueueProcessor:
             
         except Exception as e:
             logger.exception(f"P4 composition work failed: {work_id}: {e}")
+            
+            # Update universal work tracker for failure
+            if queue_entry.get('work_id'):
+                await universal_work_tracker.fail_work(
+                    queue_entry['work_id'],
+                    str(e)
+                )
+            
+            await self._mark_failed(queue_id, str(e))
+            raise
+    
+    async def _process_graph_work(self, queue_entry: Dict[str, Any]):
+        """
+        Process P2_GRAPH work for relationship mapping.
+        
+        Canon Compliance:
+        - P2 creates relationships, never modifies substrate content
+        - Implements Sacred Principle #2: All Substrates are Peers (through semantic connections)
+        - Only creates substrate_relationships
+        """
+        work_id = queue_entry.get('work_id', queue_entry['id'])
+        queue_id = queue_entry['id']
+        work_payload = queue_entry.get('work_payload', {})
+        
+        logger.info(f"Starting P2 graph work: work_id={work_id}")
+        
+        try:
+            # Mark as processing
+            await self._update_queue_state(queue_id, 'processing')
+            
+            # Extract operation data
+            operations = work_payload.get('operations', [])
+            if not operations:
+                raise ValueError("P2 graph work missing operations")
+            
+            map_op = next((op for op in operations if op['type'] == 'MapRelationships'), None)
+            if not map_op:
+                raise ValueError("P2 graph work missing MapRelationships operation")
+            
+            op_data = map_op['data']
+            basket_id = work_payload['basket_id']
+            
+            # Get all substrate IDs for this basket for relationship analysis
+            substrate_ids = []
+            
+            # Get blocks
+            blocks_response = supabase.table("blocks").select("id").eq(
+                "basket_id", basket_id
+            ).in_("state", ["ACCEPTED", "LOCKED", "CONSTANT"]).execute()
+            substrate_ids.extend([UUID(b['id']) for b in (blocks_response.data or [])])
+            
+            # Get context items  
+            context_response = supabase.table("context_items").select("id").eq(
+                "basket_id", basket_id
+            ).eq("state", "ACTIVE").execute()
+            substrate_ids.extend([UUID(c['id']) for c in (context_response.data or [])])
+            
+            # Get raw dumps
+            dumps_response = supabase.table("raw_dumps").select("id").eq(
+                "basket_id", basket_id
+            ).neq("processing_status", "redacted").execute()
+            substrate_ids.extend([UUID(d['id']) for d in (dumps_response.data or [])])
+            
+            if len(substrate_ids) < 2:
+                logger.info(f"P2 Graph: Insufficient substrate ({len(substrate_ids)}) for relationship mapping")
+                await self._update_queue_state(queue_id, 'completed')
+                return
+            
+            # Create relationship mapping request
+            from app.agents.pipeline.graph_agent import RelationshipMappingRequest
+            
+            relationship_request = RelationshipMappingRequest(
+                workspace_id=UUID(queue_entry['workspace_id']),
+                basket_id=UUID(basket_id),
+                substrate_ids=substrate_ids,
+                agent_id='p2_graph_agent'
+            )
+            
+            # Execute P2 Graph Agent
+            graph_result = await self.p2_graph.map_relationships(relationship_request)
+            
+            # Mark as completed with work result
+            work_result = {
+                'relationships_created': len(graph_result.relationships_created),
+                'substrate_analyzed': graph_result.substrate_analyzed,
+                'connection_strength_avg': graph_result.connection_strength_avg,
+                'processing_time_ms': graph_result.processing_time_ms
+            }
+            
+            # Update universal work tracker if work_id exists
+            if queue_entry.get('work_id'):
+                await universal_work_tracker.complete_work(
+                    queue_entry['work_id'], 
+                    work_result,
+                    'P2_graph_completed'
+                )
+            
+            await self._update_queue_state(queue_id, 'completed')
+            
+            logger.info(f"P2 Graph completed successfully: work_id={work_id}, relationships={len(graph_result.relationships_created)}")
+            
+        except Exception as e:
+            logger.exception(f"P2 Graph processing failed for work_id {work_id}: {e}")
             
             # Update universal work tracker for failure
             if queue_entry.get('work_id'):
