@@ -378,7 +378,10 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
     setMappingConnections(true);
     
     try {
-      const response = await fetch('/api/work', {
+      // Use fetchWithToken for proper authentication
+      const { fetchWithToken } = await import('@/lib/fetchWithToken');
+      
+      const response = await fetchWithToken('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
