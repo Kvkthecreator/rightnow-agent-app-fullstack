@@ -96,6 +96,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const [confirming, setConfirming] = useState<null | 'archive' | 'redact'>(null);
   const [preview, setPreview] = useState<{refs_detached_count:number;relationships_pruned_count:number;affected_documents_count:number} | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mappingConnections, setMappingConnections] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const router = useRouter();
@@ -371,6 +372,55 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
     setVisibleTypes(prev => ({ ...prev, [type]: !prev[type] }));
   };
 
+  const triggerConnectionMapping = async () => {
+    if (mappingConnections) return;
+    
+    setMappingConnections(true);
+    
+    try {
+      const response = await fetch('/api/work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          work_type: 'P2_GRAPH',
+          work_payload: {
+            operations: [{ 
+              type: 'MapRelationships', 
+              data: { 
+                basket_id: basketId,
+                trigger: 'user_manual_mapping',
+                substrate_count: nodes.length 
+              } 
+            }],
+            basket_id: basketId,
+            confidence_score: 0.9, // High confidence for manual user trigger
+            user_override: 'allow_auto'
+          },
+          priority: 'high'
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('P2 Graph mapping initiated:', result);
+        
+        // Show success message and suggest refresh
+        setTimeout(() => {
+          alert('Connection mapping started! Refresh this page in a few moments to see the results.');
+        }, 1000);
+      } else {
+        const error = await response.json();
+        console.error('P2 Graph mapping failed:', error);
+        alert('Failed to start connection mapping. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error triggering P2 mapping:', error);
+      alert('Error starting connection mapping. Please try again.');
+    } finally {
+      setMappingConnections(false);
+    }
+  };
+
   const selectedBlocks = Object.values(selected).filter(n => n.type === 'block');
   const selectedDumps = Object.values(selected).filter(n => n.type === 'dump');
 
@@ -453,6 +503,8 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
 
   const totalNodes = Object.values(visibleTypes).filter(Boolean).length;
   const hasData = nodes.length > 0;
+  const hasRelationships = edges.length > 0;
+  const canMapConnections = nodes.length >= 5 && !hasRelationships; // Mature basket with no relationships
 
   return (
     <>
@@ -670,6 +722,30 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                     <span>Relationships:</span>
                     <span>{graphData.relationships?.length ?? 0}</span>
                   </div>
+                  
+                  {/* Manual connection mapping for mature baskets */}
+                  {nodes.length >= 5 && (
+                    <div className="pt-2 border-t border-gray-100">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={triggerConnectionMapping}
+                        disabled={mappingConnections}
+                        className="w-full text-xs"
+                      >
+                        {mappingConnections ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
+                            Mapping...
+                          </>
+                        ) : (
+                          <>
+                            🔗 {hasRelationships ? 'Refresh' : 'Map'} Connections
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -680,12 +756,37 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
             <CardContent className="py-12">
               <EmptyState
                 icon={<Network className="h-8 w-8 text-gray-400" />}
-                title="No connections yet"
+                title={canMapConnections ? "Ready to map connections" : "No connections yet"}
                 action={
-                  <p className="text-sm text-gray-500 mt-2 max-w-md text-center">
-                    Your knowledge network will appear as you add content and create connections. 
-                    Add meanings and knowledge blocks to see how your ideas relate.
-                  </p>
+                  canMapConnections ? (
+                    <div className="text-center max-w-md mx-auto">
+                      <p className="text-sm text-gray-500 mb-4">
+                        You have {nodes.length} knowledge items ready for connection mapping.
+                        Discover relationships between your knowledge blocks and meanings.
+                      </p>
+                      <Button 
+                        onClick={triggerConnectionMapping}
+                        disabled={mappingConnections}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {mappingConnections ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Mapping Connections...
+                          </>
+                        ) : (
+                          <>
+                            🔗 Map Knowledge Connections
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 mt-2 max-w-md text-center">
+                      Your knowledge network will appear as you add content and create connections. 
+                      Add meanings and knowledge blocks to see how your ideas relate.
+                    </p>
+                  )
                 }
               />
             </CardContent>
