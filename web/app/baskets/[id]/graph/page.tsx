@@ -10,8 +10,8 @@ import { SectionCard } from '@/components/ui/SectionCard';
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: `Graph - Basket ${id}`,
-    description: 'Interactive graph visualization of memory relationships',
+    title: `Knowledge Connections - Basket ${id}`,
+    description: 'Visual exploration of connections between your knowledge',
   };
 }
 
@@ -116,8 +116,8 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
     return (
       <BasketSubpageLayout
         basketId={basketId}
-        title="Graph"
-        description="Interactive relationships between your notes, meanings, and documents"
+        title="Knowledge Connections"
+        description="Visual exploration of connections between your knowledge blocks and meanings"
       >
         <SectionCard>
           <GraphView 

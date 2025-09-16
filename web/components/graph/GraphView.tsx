@@ -112,10 +112,10 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
     const nodeMap = new Map<string, GraphNode>();
     const edgeList: GraphEdge[] = [];
 
-    // Create context-item nodes (semantic bridges)
+    // Create meaning nodes (semantic connections)
     if (visibleTypes.context_item) {
       (graphData.context_items || []).forEach(item => {
-        const title = toStringSafe(item?.title, toStringSafe(item?.normalized_label, toStringSafe(item?.type, 'context item')));
+        const title = toStringSafe(item?.title, toStringSafe(item?.normalized_label, toStringSafe(item?.type, 'meaning')));
         nodeMap.set(item.id, {
           id: item.id,
           type: 'context_item',
@@ -128,10 +128,10 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
       });
     }
 
-    // Create block nodes (Canon compliant - using semantic_type)
+    // Create knowledge block nodes
     if (visibleTypes.block) {
       (graphData.blocks || []).forEach(block => {
-        const semantic = toStringSafe(block?.semantic_type, toStringSafe(block?.title, 'block'));
+        const semantic = toStringSafe(block?.semantic_type, toStringSafe(block?.title, 'knowledge block'));
         nodeMap.set(block.id, {
           id: block.id,
           type: 'block',
@@ -144,14 +144,14 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
       });
     }
 
-    // Create dump nodes
+    // Create source note nodes
     if (visibleTypes.dump) {
       (graphData.dumps || []).forEach(dump => {
-        const sourceType = toStringSafe(dump?.source_meta?.source_type, 'capture');
+        const sourceType = toStringSafe(dump?.source_meta?.source_type, 'note');
         nodeMap.set(dump.id, {
           id: dump.id,
           type: 'dump',
-          title: `${sourceType} capture`,
+          title: `${sourceType} note`,
           label: sourceType,
           color: '#10b981', // green
           size: 14,
@@ -437,7 +437,17 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
       case 'document': return <FileText className="h-4 w-4" />;
       case 'block': return <Database className="h-4 w-4" />;
       case 'dump': return <FolderOpen className="h-4 w-4" />;
+      case 'context_item': return <Lightbulb className="h-4 w-4" />;
       default: return <Network className="h-4 w-4" />;
+    }
+  };
+
+  const getNodeTypeDisplayName = (type: string) => {
+    switch (type) {
+      case 'block': return 'Knowledge Block';
+      case 'context_item': return 'Meaning';
+      case 'dump': return 'Source Note';
+      default: return type;
     }
   };
 
@@ -456,7 +466,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <Network className="h-5 w-5" />
-                      Substrate Graph ({nodes.length} nodes, {edges.length} connections)
+                      Knowledge Network ({nodes.length} items, {edges.length} connections)
                     </CardTitle>
                     
                     <div className="flex items-center gap-2">
@@ -500,7 +510,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                     <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-xs">
                       <div className="flex items-center gap-2 mb-2">
                         {getNodeTypeIcon(selectedNode.type)}
-                        <span className="font-medium capitalize">{selectedNode.type}</span>
+                        <span className="font-medium">{getNodeTypeDisplayName(selectedNode.type)}</span>
                       </div>
                       <h4 className="font-semibold mb-1">{selectedNode.title}</h4>
                       <p className="text-sm text-gray-600 mb-3">
@@ -548,7 +558,6 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                       className="w-full mt-1 text-sm border border-gray-300 rounded px-2 py-1"
                     >
                       <option value="force">Force Directed</option>
-                      <option value="hierarchy">Hierarchical</option>
                       <option value="circular">Circular</option>
                     </select>
                   </div>
@@ -629,7 +638,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                       />
                       <label htmlFor={type} className="text-sm flex items-center gap-2">
                         {getNodeTypeIcon(type)}
-                        {type.replace('_', ' ')}
+                        {getNodeTypeDisplayName(type)}
                       </label>
                     </div>
                   ))}
@@ -646,15 +655,15 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>Blocks:</span>
+                    <span>Knowledge Blocks:</span>
                     <span>{graphData.blocks?.length ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Context Items:</span>
+                    <span>Meanings:</span>
                     <span>{graphData.context_items?.length ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Dumps:</span>
+                    <span>Source Notes:</span>
                     <span>{graphData.dumps?.length ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
@@ -671,11 +680,11 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
             <CardContent className="py-12">
               <EmptyState
                 icon={<Network className="h-8 w-8 text-gray-400" />}
-                title="No graph data yet"
+                title="No connections yet"
                 action={
                   <p className="text-sm text-gray-500 mt-2 max-w-md text-center">
-                    The knowledge graph will appear as you add content to your basket. 
-                    Create documents, blocks, and connect them to see the relationships visualized.
+                    Your knowledge network will appear as you add content and create connections. 
+                    Add meanings and knowledge blocks to see how your ideas relate.
                   </p>
                 }
               />
@@ -686,7 +695,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
       {confirming && selectedNode && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
-            <h4 className="text-sm font-medium text-gray-900 mb-2">{confirming === 'archive' ? 'Archive Block' : 'Redact Dump'}</h4>
+            <h4 className="text-sm font-medium text-gray-900 mb-2">{confirming === 'archive' ? 'Archive Knowledge Block' : 'Redact Source Note'}</h4>
             {preview ? (
               <div className="text-xs text-gray-700 space-y-1 mb-3">
                 <div>References to detach: <span className="font-semibold">{preview.refs_detached_count}</span></div>

@@ -120,7 +120,7 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
       });
       const result = await response.json();
       if (result.execution_mode === 'auto_execute') {
-        notificationService.substrateApproved('Block Archived', 'Block has been archived', [substrate.id], basketId);
+        notificationService.substrateApproved('Knowledge Block Archived', 'Knowledge block has been archived', [substrate.id], basketId);
       } else {
         notificationService.approvalRequired('Archive Pending', 'Awaiting approval', basketId);
       }
@@ -150,7 +150,7 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
       });
       const result = await response.json();
       if (result.execution_mode === 'auto_execute') {
-        notificationService.substrateApproved('Dump Redacted', 'Original content redacted', [substrate.id], basketId);
+        notificationService.substrateApproved('Source Note Redacted', 'Original content redacted', [substrate.id], basketId);
       } else {
         notificationService.approvalRequired('Redaction Pending', 'Awaiting approval', basketId);
       }
@@ -197,14 +197,14 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
       
       if (result.execution_mode === 'auto_execute') {
         notificationService.substrateApproved(
-          `${substrate.type === 'block' ? 'Block' : 'Context Item'} Updated`,
+          `${substrate.type === 'block' ? 'Knowledge Block' : 'Meaning'} Updated`,
           'Your changes have been saved',
           [substrate.id],
           basketId
         );
       } else {
         notificationService.approvalRequired(
-          `${substrate.type === 'block' ? 'Block' : 'Context Item'} Edit Pending`,
+          `${substrate.type === 'block' ? 'Knowledge Block' : 'Meaning'} Edit Pending`,
           'Your changes are awaiting approval',
           basketId
         );
@@ -254,14 +254,14 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
       
       if (result.execution_mode === 'auto_execute') {
         notificationService.substrateApproved(
-          `${substrate.type === 'block' ? 'Block' : 'Context Item'} Deleted`,
+          `${substrate.type === 'block' ? 'Knowledge Block' : 'Meaning'} Deleted`,
           'Item has been removed from your basket',
           [substrate.id],
           basketId
         );
       } else {
         notificationService.approvalRequired(
-          `${substrate.type === 'block' ? 'Block' : 'Context Item'} Deletion Pending`,
+          `${substrate.type === 'block' ? 'Knowledge Block' : 'Meaning'} Deletion Pending`,
           'Deletion request is awaiting approval',
           basketId
         );
@@ -294,7 +294,7 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
             </span>
             {substrate.type === 'dump' && (
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                Read-only
+                Source Material
               </span>
             )}
           </div>
@@ -412,7 +412,7 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
             {/* Structured Ingredients */}
             {substrate.type === 'block' && substrate.structured_ingredients && (
               <div>
-                <h4 className="text-sm font-medium text-gray-900 mb-2">Knowledge Ingredients</h4>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Knowledge Components</h4>
                 <div className="bg-gray-50 rounded p-3 space-y-3">
                   {substrate.structured_ingredients.goals && substrate.structured_ingredients.goals.length > 0 && (
                     <div>
@@ -567,10 +567,10 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <span className="text-2xl">🏷️</span>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Add Meaning to Your Memory</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Add Meaning to Your Knowledge</h3>
         <p className="text-gray-600 text-sm mb-4">
-          Start adding tags and labels to organize your captured thoughts.
-          This helps you find and connect related ideas later.
+          Create meaning layers and organize your knowledge blocks.
+          Connect related concepts and make your insights discoverable.
         </p>
         <Button onClick={() => setShowCreateContextItem(true)} className="mt-4">
           Add Your First Meaning
@@ -616,9 +616,9 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <span className="text-lg">🏷️</span>
               </div>
-              <h3 className="text-sm font-medium text-gray-900 mb-2">Add Meaning to Your Memory</h3>
+              <h3 className="text-sm font-medium text-gray-900 mb-2">Add Meaning to Your Knowledge</h3>
               <p className="text-xs text-gray-600 mb-3 max-w-md mx-auto">
-                Create tags and labels to organize your thoughts. Connect related ideas and make your memory searchable.
+                Create semantic connections between your knowledge blocks. Organize and link related concepts.
               </p>
               <Button 
                 onClick={() => setShowCreateContextItem(true)}
@@ -634,7 +634,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
             {data.counts.context_items > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-gray-700">Your Tags & Labels</h3>
+                  <h3 className="text-sm font-medium text-gray-700">Your Meanings</h3>
                   <div className="text-xs text-gray-500">{data.counts.context_items} meanings</div>
                 </div>
                 
@@ -695,7 +695,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                   <Search className="h-3 w-3 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search knowledge..."
+                    placeholder="Search your knowledge..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded text-xs"
@@ -710,9 +710,9 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                     className="border border-gray-200 rounded px-2 py-1 text-xs"
                   >
                     <option value="all">All Types</option>
-                    <option value="dump">Original Notes</option>
-                    <option value="context_item">Tags & Labels</option>
-                    <option value="block">Organized Blocks</option>
+                    <option value="dump">Source Notes</option>
+                    <option value="context_item">Meanings</option>
+                    <option value="block">Knowledge Blocks</option>
                   </select>
                 </div>
                 
@@ -734,7 +734,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                     className="text-xs"
                   >
                     <Plus className="h-3 w-3 mr-1" />
-                    New Block
+                    New Knowledge Block
                   </Button>
                 </div>
               </div>
@@ -745,28 +745,28 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
               <div className="bg-white border border-gray-100 rounded p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <FolderOpen className="h-3 w-3 text-green-600" />
-                  <span className="text-xs font-medium text-gray-600">Original Notes</span>
+                  <span className="text-xs font-medium text-gray-600">Source Notes</span>
                 </div>
                 <div className="text-lg font-bold text-green-600">{data.counts.dumps}</div>
-                <div className="text-xs text-gray-500">As you wrote them</div>
+                <div className="text-xs text-gray-500">Your original input</div>
               </div>
 
               <div className="bg-white border border-gray-100 rounded p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="h-3 w-3 text-blue-600" />
-                  <span className="text-xs font-medium text-gray-600">Tags & Labels</span>
+                  <span className="text-xs font-medium text-gray-600">Meanings</span>
                 </div>
                 <div className="text-lg font-bold text-blue-600">{data.counts.context_items}</div>
-                <div className="text-xs text-gray-500">Your organization</div>
+                <div className="text-xs text-gray-500">Semantic connections</div>
               </div>
 
               <div className="bg-white border border-gray-100 rounded p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <Database className="h-3 w-3 text-orange-600" />
-                  <span className="text-xs font-medium text-gray-600">Organized Blocks</span>
+                  <span className="text-xs font-medium text-gray-600">Knowledge Blocks</span>
                 </div>
                 <div className="text-lg font-bold text-orange-600">{data.counts.blocks}</div>
-                <div className="text-xs text-gray-500">AI organized</div>
+                <div className="text-xs text-gray-500">Structured insights</div>
               </div>
 
               <div className="bg-white border border-gray-100 rounded p-3">
@@ -873,9 +873,9 @@ function getTypeColor(type: string): string {
 
 function getTypeLabel(type: string): string {
   switch (type) {
-    case 'dump': return 'Original';
-    case 'context_item': return 'Tag';
-    case 'block': return 'Block';
+    case 'dump': return 'Source Note';
+    case 'context_item': return 'Meaning';
+    case 'block': return 'Knowledge Block';
     case 'timeline_event': return 'Event';
     default: return 'Item';
   }

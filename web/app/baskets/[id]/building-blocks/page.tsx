@@ -19,8 +19,8 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: `Building Blocks - Basket ${id}`,
-    description: 'Your knowledge organized into searchable, editable building blocks',
+    title: `Knowledge & Meaning - Basket ${id}`,
+    description: 'Your active knowledge organized into blocks and meanings',
   };
 }
 
@@ -32,9 +32,9 @@ export default async function BuildingBlocksPage({ params }: PageProps) {
       <div className="flex h-full flex-col">
         <div className="border-b border-gray-100 p-3">
           <SubpageHeader 
-            title="Building Blocks" 
+            title="Knowledge & Meaning" 
             basketId={basketId}
-            description="Your knowledge organized into searchable, editable pieces"
+            description="Your active knowledge organized into blocks and meanings"
           />
         </div>
         <div className="flex-1 overflow-y-auto bg-gray-50">
