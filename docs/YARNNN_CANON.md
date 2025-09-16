@@ -209,7 +209,7 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 - **Growing Stage (10-50 dumps)**: 60% Create, 40% Update - filling out knowledge gaps  
 - **Mature Stage (50+ dumps)**: 30% Create, 70% Update - refining existing knowledge
 
-**Future Consideration**: Deletion operations (Archive, Expire, Deprecate) are intentionally deferred until we collect real-world substrate lifecycle data. We need empirical evidence about obsolescence patterns, usage metrics, and user behavior before implementing intelligent substrate pruning. See `/docs/FUTURE_DELETION_AGENT_DISCUSSION.md` for conceptual framework.
+**Deletion & Retention**: User operations are Archive/Redact (governance‑first) with cascade preview and audit tombstones; physical deletion is policy‑driven via scheduled vacuum (developer‑level). See `docs/YARNNN_DELETION_RETENTION_CANON_v1.0.md`.
 
 ### Document Composition (Artifact Layer)
 - Documents = independent artifacts composed from substrate ingredients + authored prose
