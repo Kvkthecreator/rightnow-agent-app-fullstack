@@ -81,21 +81,11 @@ export default function GovernanceSettingsClient({
 
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [vacuumSummary, setVacuumSummary] = useState<{ window: string; total_deleted: number; by_type: Record<string, number>; last_event_at: string | null } | null>(null);
 
   useEffect(() => {
     setHasChanges(true);
   }, [settings]);
 
-  useEffect(() => {
-    const fetchSummary = async () => {
-      try {
-        const res = await fetch('/api/vacuum/summary', { cache: 'no-store' });
-        if (res.ok) setVacuumSummary(await res.json());
-      } catch {}
-    };
-    fetchSummary();
-  }, []);
 
   const getInitialSettings = () => {
     if (initialSettings) {
@@ -291,24 +281,7 @@ export default function GovernanceSettingsClient({
             </p>
           </CardHeader>
           <CardContent className="p-8 space-y-4">
-            {vacuumSummary && (
-              <div className="rounded-lg border bg-gray-50 p-3 text-xs text-gray-700">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <strong>Last 24h physical deletes:</strong> {vacuumSummary.total_deleted}
-                    {vacuumSummary.last_event_at && (
-                      <span className="ml-2 text-gray-500">(latest {new Date(vacuumSummary.last_event_at).toLocaleString()})</span>
-                    )}
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={async () => {
-                    try {
-                      const res = await fetch('/api/vacuum/summary', { cache: 'no-store' });
-                      if (res.ok) setVacuumSummary(await res.json());
-                    } catch {}
-                  }}>Refresh</Button>
-                </div>
-              </div>
-            )}
+            {/* Retention is a developer‑level policy. UI kept minimal per canon. */}
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
