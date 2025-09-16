@@ -140,7 +140,8 @@ export default function Sidebar({ className }: SidebarProps) {
     reflections: Brain,
     graph: Network,
     "building-blocks": Layers,
-    documents: FileText
+    documents: FileText,
+    settings: Settings2
   };
 
   return (
