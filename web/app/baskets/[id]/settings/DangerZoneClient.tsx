@@ -10,7 +10,7 @@ interface Props {
   basketName: string;
 }
 
-type Mode = 'archive_all' | 'redact_dumps' | 'hard_purge';
+type Mode = 'archive_all' | 'redact_dumps';
 
 export default function DangerZoneClient({ basketId, basketName }: Props) {
   const [loading, setLoading] = useState(true);
@@ -39,10 +39,7 @@ export default function DangerZoneClient({ basketId, basketName }: Props) {
     load();
   }, [basketId]);
 
-  const disabled = useMemo(() => {
-    if (mode === 'hard_purge') return true; // hidden admin only in future; disabled for now
-    return confirm !== basketName;
-  }, [mode, confirm, basketName]);
+  const disabled = useMemo(() => confirm !== basketName, [confirm, basketName]);
 
   const run = async () => {
     setSubmitting(true);
@@ -81,9 +78,6 @@ export default function DangerZoneClient({ basketId, basketName }: Props) {
               <Badge variant="outline">Blocks {counts.blocks}</Badge>
               <Badge variant="outline">Context Items {counts.context_items}</Badge>
               <Badge variant="outline">Dumps {counts.dumps}</Badge>
-              <div className="text-muted-foreground">
-                Retention: blocks/context items 30 days; dumps 90 days (developer‑managed)
-              </div>
             </div>
           ) : (
             <div className="text-red-600">Failed to load counts</div>
@@ -99,21 +93,15 @@ export default function DangerZoneClient({ basketId, basketName }: Props) {
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm">
               <input type="radio" name="mode" checked={mode==='archive_all'} onChange={() => setMode('archive_all')} />
-              <span>Archive + Redact All</span>
+              <span>Delete All — Archive + Redact All</span>
             </label>
-            <div className="pl-6 text-xs text-muted-foreground">Archives meaning (blocks/context) and redacts original notes. Safest, reversible (except redaction content).</div>
+            <div className="pl-6 text-xs text-muted-foreground">Archives meaning (blocks & context) and redacts raw dumps. Archived items may be auto‑deleted later by retention policy.</div>
 
             <label className="flex items-center gap-2 text-sm mt-2">
               <input type="radio" name="mode" checked={mode==='redact_dumps'} onChange={() => setMode('redact_dumps')} />
               <span>Redact Dumps Only</span>
             </label>
-            <div className="pl-6 text-xs text-muted-foreground">Removes original note content only. Leaves meaning intact.</div>
-
-            <label className="flex items-center gap-2 text-sm mt-2 opacity-50">
-              <input type="radio" name="mode" disabled checked={mode==='hard_purge'} onChange={() => setMode('hard_purge')} />
-              <span>Hard Purge (Admin)</span>
-            </label>
-            <div className="pl-6 text-xs text-muted-foreground">Requires retention policy and admin approval; deletes later via scheduled vacuum.</div>
+            <div className="pl-6 text-xs text-muted-foreground">Deletes raw dumps (original notes) only. Leaves meaning intact.</div>
           </div>
 
           <div className="pt-2">
@@ -128,7 +116,7 @@ export default function DangerZoneClient({ basketId, basketName }: Props) {
 
           <div className="flex items-center gap-3">
             <Button onClick={run} disabled={disabled || submitting} className="bg-red-600 hover:bg-red-700 text-white">
-              {submitting ? 'Working…' : mode==='redact_dumps' ? 'Redact Dumps' : 'Archive + Redact All'}
+              {submitting ? 'Working…' : mode==='redact_dumps' ? 'Delete Dumps' : 'Delete All'}
             </Button>
             {result && (
               <div className="text-xs text-muted-foreground">
@@ -145,4 +133,3 @@ export default function DangerZoneClient({ basketId, basketName }: Props) {
     </div>
   );
 }
-
