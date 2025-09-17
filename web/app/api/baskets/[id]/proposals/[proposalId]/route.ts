@@ -59,7 +59,15 @@ export async function GET(
       }, { status: 404 });
     }
 
-    return NextResponse.json(proposal);
+    const normalized = {
+      ...proposal,
+      ops: Array.isArray((proposal as any).ops) ? (proposal as any).ops : [],
+      validator_report: normalizeValidatorReport((proposal as any).validator_report),
+      provenance: Array.isArray((proposal as any).provenance) ? (proposal as any).provenance : [],
+      blast_radius: (proposal as any).blast_radius || 'Local',
+    };
+
+    return NextResponse.json(normalized);
 
   } catch (error) {
     console.error('Proposal detail API error:', error);
@@ -71,4 +79,17 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+
+function normalizeValidatorReport(report: any) {
+  const vr = report && typeof report === 'object' ? report : {};
+  return {
+    confidence: typeof vr.confidence === 'number' ? vr.confidence : 0.5,
+    warnings: Array.isArray(vr.warnings) ? vr.warnings : [],
+    impact_summary: typeof vr.impact_summary === 'string' ? vr.impact_summary : '',
+    ops_summary: typeof vr.ops_summary === 'string' ? vr.ops_summary : '',
+    dupes: Array.isArray(vr.dupes) ? vr.dupes : [],
+    suggested_merges: Array.isArray(vr.suggested_merges) ? vr.suggested_merges : [],
+    ontology_hits: Array.isArray(vr.ontology_hits) ? vr.ontology_hits : [],
+  };
 }

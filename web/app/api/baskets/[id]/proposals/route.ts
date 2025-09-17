@@ -44,18 +44,24 @@ export async function GET(
     }
 
     // Transform proposals to match canon contract format
-    const items = proposals?.map(proposal => ({
-      id: proposal.id,
-      proposal_kind: proposal.proposal_kind,
-      origin: proposal.origin,
-      status: proposal.status,
-      ops_summary: proposal.validator_report?.ops_summary || generateOpsSummary(proposal.ops),
-      confidence: proposal.validator_report?.confidence || 0.5,
-      impact_summary: proposal.validator_report?.impact_summary || "Impact unknown",
-      created_at: proposal.created_at,
-      validator_report: proposal.validator_report,
-      provenance: proposal.provenance
-    })) || [];
+    const items = proposals?.map((proposal: any) => {
+      const ops = Array.isArray(proposal.ops) ? proposal.ops : [];
+      const validator_report = normalizeValidatorReport(proposal.validator_report);
+      return {
+        id: proposal.id,
+        proposal_kind: proposal.proposal_kind,
+        origin: proposal.origin,
+        status: proposal.status,
+        ops_summary: validator_report.ops_summary || generateOpsSummary(ops),
+        confidence: typeof validator_report.confidence === 'number' ? validator_report.confidence : 0.5,
+        impact_summary: validator_report.impact_summary || 'Impact unknown',
+        created_at: proposal.created_at,
+        validator_report,
+        provenance: Array.isArray(proposal.provenance) ? proposal.provenance : [],
+        ops,
+        blast_radius: proposal.blast_radius || 'Local'
+      };
+    }) || [];
 
     return NextResponse.json({ items });
 
@@ -225,4 +231,17 @@ function generateOpsSummary(ops: any[]): string {
       return `${count as number} ${count === 1 ? type : pluralType}`;
     })
     .join(', ');
+}
+
+function normalizeValidatorReport(report: any) {
+  const vr = report && typeof report === 'object' ? report : {};
+  return {
+    confidence: typeof vr.confidence === 'number' ? vr.confidence : 0.5,
+    warnings: Array.isArray(vr.warnings) ? vr.warnings : [],
+    impact_summary: typeof vr.impact_summary === 'string' ? vr.impact_summary : '',
+    ops_summary: typeof vr.ops_summary === 'string' ? vr.ops_summary : '',
+    dupes: Array.isArray(vr.dupes) ? vr.dupes : [],
+    suggested_merges: Array.isArray(vr.suggested_merges) ? vr.suggested_merges : [],
+    ontology_hits: Array.isArray(vr.ontology_hits) ? vr.ontology_hits : [],
+  };
 }

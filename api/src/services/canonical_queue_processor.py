@@ -96,8 +96,14 @@ class CanonicalQueueProcessor:
                                 # Document composition processing
                                 await self._process_composition_work(entry)
                             else:
-                                logger.warning(f"Unsupported work type: {work_type}")
-                                await self._mark_failed(entry['id'], f"Unsupported work type: {work_type}")
+                                # Governance-only items like MANUAL_EDIT are not processed here.
+                                # Return the entry to pending to be handled by governance/proposal executors.
+                                logger.info(f"Skipping non-pipeline work type: {work_type} (queue_id={entry.get('id')})")
+                                try:
+                                    await self._update_queue_state(entry['id'], 'pending')
+                                except Exception:
+                                    pass
+                                continue
                         except Exception as e:
                             logger.exception(f"Work processing failed for {entry.get('work_id', entry['id'])}: {e}")
                             await self._mark_failed(entry['id'], str(e))
