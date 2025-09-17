@@ -85,6 +85,24 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE FUNCTION public.check_single_workspace_per_user() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.role = 'owner' THEN
+    -- Check if user already owns a workspace
+    IF EXISTS (
+      SELECT 1 FROM workspace_memberships 
+      WHERE user_id = NEW.user_id 
+        AND role = 'owner' 
+        AND workspace_id != NEW.workspace_id
+    ) THEN
+      RAISE EXCEPTION 'CANON VIOLATION: User % already owns a workspace. Each user can only own one workspace.', NEW.user_id;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
 CREATE FUNCTION public.create_basket_with_dump(dump_body text, file_urls jsonb, user_id uuid, workspace_id uuid) RETURNS TABLE(basket_id uuid)
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
@@ -169,6 +187,70 @@ CREATE FUNCTION public.ensure_raw_dump_text_columns() RETURNS trigger
     RETURN NEW;
   END;
   $$;
+CREATE FUNCTION public.fn_archive_block(p_basket_id uuid, p_block_id uuid, p_actor_id uuid DEFAULT NULL::uuid) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  v_workspace_id uuid;
+  v_preview jsonb;
+  v_event_ids uuid[] := '{}';
+  v_tomb_id uuid;
+BEGIN
+  SELECT workspace_id INTO v_workspace_id FROM baskets WHERE id = p_basket_id;
+  -- Detach references
+  DELETE FROM substrate_references
+  USING documents d
+  WHERE substrate_references.document_id = d.id
+    AND d.basket_id = p_basket_id
+    AND substrate_references.substrate_type = 'block'
+    AND substrate_references.substrate_id = p_block_id;
+  -- Prune relationships
+  DELETE FROM substrate_relationships
+  WHERE basket_id = p_basket_id
+    AND ((from_id = p_block_id AND from_type = 'block') OR (to_id = p_block_id AND to_type = 'block'));
+  -- Mark block archived via status (non-breaking minimal change)
+  UPDATE blocks SET status = 'archived', updated_at = now()
+  WHERE id = p_block_id AND basket_id = p_basket_id;
+  -- Preview snapshot for tombstone counts
+  SELECT fn_cascade_preview(p_basket_id, 'block', p_block_id) INTO v_preview;
+  -- Tombstone (with earliest_physical_delete_at if retention policy enabled)
+  DECLARE v_flags jsonb := public.get_workspace_governance_flags(v_workspace_id); BEGIN END; -- dummy
+  -- Fetch flags properly
+  SELECT public.get_workspace_governance_flags(v_workspace_id) INTO v_preview; -- reuse v_preview var
+  -- v_preview holds flags now; avoid extra local var creation for brevity
+  INSERT INTO substrate_tombstones (
+    workspace_id, basket_id, substrate_type, substrate_id,
+    deletion_mode, redaction_scope, redaction_reason,
+    refs_detached_count, relationships_pruned_count, affected_documents_count,
+    created_by
+  ) VALUES (
+    v_workspace_id, p_basket_id, 'block', p_block_id,
+    'archived', NULL, NULL,
+    COALESCE((v_preview->>'refs_detached_count')::int, 0),
+    COALESCE((v_preview->>'relationships_pruned_count')::int, 0),
+    COALESCE((v_preview->>'affected_documents_count')::int, 0),
+    p_actor_id
+  ) RETURNING id INTO v_tomb_id;
+  -- Set earliest_physical_delete_at from retention policy if enabled and policy provides days
+  BEGIN
+    IF COALESCE((v_preview->>'retention_enabled')::boolean, false) THEN
+      -- Expect policy like { block: { days: N|null } }
+      IF ((v_preview->'retention_policy'->'block'->>'days') IS NOT NULL) THEN
+        UPDATE substrate_tombstones
+          SET earliest_physical_delete_at = now() + ((v_preview->'retention_policy'->'block'->>'days')::int || ' days')::interval
+          WHERE id = v_tomb_id;
+      END IF;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    -- ignore policy parsing errors
+  END;
+  -- Emit event
+  PERFORM emit_timeline_event(p_basket_id, 'substrate.archived', jsonb_build_object(
+    'substrate_type','block','substrate_id',p_block_id,'tombstone_id',v_tomb_id
+  ), v_workspace_id, p_actor_id, 'p1_maintenance');
+  RETURN v_tomb_id;
+END;
+$$;
 CREATE FUNCTION public.fn_block_create(p_basket_id uuid, p_workspace_id uuid, p_title text, p_body_md text DEFAULT NULL::text) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
@@ -204,6 +286,39 @@ BEGIN
   );
   RETURN v_rev_id;
 END; $$;
+CREATE FUNCTION public.fn_cascade_preview(p_basket_id uuid, p_substrate_type text, p_substrate_id uuid) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  v_refs int := 0;
+  v_rels int := 0;
+  v_docs int := 0;
+BEGIN
+  -- References in documents
+  SELECT count(*) INTO v_refs
+  FROM substrate_references
+  WHERE document_id IN (SELECT id FROM documents WHERE basket_id = p_basket_id)
+    AND substrate_type = p_substrate_type::substrate_type
+    AND substrate_id = p_substrate_id;
+  -- Relationships touching the node
+  SELECT count(*) INTO v_rels
+  FROM substrate_relationships
+  WHERE basket_id = p_basket_id
+    AND ((from_id = p_substrate_id AND from_type = p_substrate_type)
+      OR (to_id = p_substrate_id AND to_type = p_substrate_type));
+  -- Distinct documents affected
+  SELECT count(DISTINCT document_id) INTO v_docs
+  FROM substrate_references
+  WHERE document_id IN (SELECT id FROM documents WHERE basket_id = p_basket_id)
+    AND substrate_type = p_substrate_type::substrate_type
+    AND substrate_id = p_substrate_id;
+  RETURN jsonb_build_object(
+    'refs_detached_count', v_refs,
+    'relationships_pruned_count', v_rels,
+    'affected_documents_count', v_docs
+  );
+END;
+$$;
 CREATE TABLE public.agent_processing_queue (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
     dump_id uuid,
@@ -663,6 +778,51 @@ BEGIN
   ORDER BY q.processing_state;
 END;
 $$;
+CREATE FUNCTION public.fn_redact_dump(p_basket_id uuid, p_dump_id uuid, p_scope text DEFAULT 'full'::text, p_reason text DEFAULT NULL::text, p_actor_id uuid DEFAULT NULL::uuid) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  v_workspace_id uuid;
+  v_preview jsonb;
+  v_tomb_id uuid;
+BEGIN
+  SELECT workspace_id INTO v_workspace_id FROM baskets WHERE id = p_basket_id;
+  -- Redact content (do not drop row)
+  UPDATE raw_dumps
+    SET body_md = NULL, text_dump = NULL, file_url = NULL, processing_status = 'redacted'
+  WHERE id = p_dump_id AND basket_id = p_basket_id;
+  -- Preview snapshot for tombstone counts (post‑detach not required for dumps by default)
+  SELECT fn_cascade_preview(p_basket_id, 'dump', p_dump_id) INTO v_preview;
+  INSERT INTO substrate_tombstones (
+    workspace_id, basket_id, substrate_type, substrate_id,
+    deletion_mode, redaction_scope, redaction_reason,
+    refs_detached_count, relationships_pruned_count, affected_documents_count,
+    created_by
+  ) VALUES (
+    v_workspace_id, p_basket_id, 'dump', p_dump_id,
+    'redacted', p_scope, p_reason,
+    COALESCE((v_preview->>'refs_detached_count')::int, 0),
+    COALESCE((v_preview->>'relationships_pruned_count')::int, 0),
+    COALESCE((v_preview->>'affected_documents_count')::int, 0),
+    p_actor_id
+  ) RETURNING id INTO v_tomb_id;
+  -- Set earliest_physical_delete_at from retention policy if enabled and policy provides days
+  BEGIN
+    IF COALESCE((public.get_workspace_governance_flags(v_workspace_id)->>'retention_enabled')::boolean, false) THEN
+      IF ((public.get_workspace_governance_flags(v_workspace_id)->'retention_policy'->'dump'->>'days') IS NOT NULL) THEN
+        UPDATE substrate_tombstones
+          SET earliest_physical_delete_at = now() + ((public.get_workspace_governance_flags(v_workspace_id)->'retention_policy'->'dump'->>'days')::int || ' days')::interval
+          WHERE id = v_tomb_id;
+      END IF;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+  END;
+  PERFORM emit_timeline_event(p_basket_id, 'substrate.redacted', jsonb_build_object(
+    'substrate_type','dump','substrate_id',p_dump_id,'scope',p_scope,'tombstone_id',v_tomb_id
+  ), v_workspace_id, p_actor_id, 'p1_maintenance');
+  RETURN v_tomb_id;
+END;
+$$;
 CREATE FUNCTION public.fn_reflection_cache_upsert(p_basket_id uuid, p_pattern text, p_tension text, p_question text, p_meta_hash text) RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
@@ -933,6 +1093,83 @@ BEGIN
   WHERE id = p_id;
 END;
 $$;
+CREATE FUNCTION public.fn_vacuum_substrates(p_workspace_id uuid, p_limit integer DEFAULT 50) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  v_deleted_blocks int := 0;
+  v_deleted_dumps int := 0;
+  v_deleted_items int := 0;
+  v_row record;
+  v_settings jsonb;
+  v_retention_enabled boolean := false;
+BEGIN
+  -- Check retention policy flag
+  SELECT public.get_workspace_governance_flags(p_workspace_id) INTO v_settings;
+  v_retention_enabled := COALESCE((v_settings->>'retention_enabled')::boolean, false);
+  IF NOT v_retention_enabled THEN
+    RETURN jsonb_build_object('deleted_blocks',0,'deleted_dumps',0,'deleted_context_items',0,'note','retention disabled');
+  END IF;
+  FOR v_row IN
+    SELECT * FROM public.substrate_tombstones
+    WHERE workspace_id = p_workspace_id
+      AND deletion_mode IN ('archived','redacted','deleted')
+      AND earliest_physical_delete_at IS NOT NULL
+      AND now() >= earliest_physical_delete_at
+      AND physically_deleted_at IS NULL
+    LIMIT p_limit
+  LOOP
+    -- Ensure no remaining hard references
+    IF EXISTS (
+      SELECT 1 FROM public.substrate_references sr
+      JOIN public.documents d ON d.id = sr.document_id
+      WHERE d.workspace_id = p_workspace_id
+        AND sr.substrate_type = v_row.substrate_type::substrate_type
+        AND sr.substrate_id = v_row.substrate_id
+    ) THEN
+      CONTINUE;
+    END IF;
+    -- Ensure no remaining relationships (for block/context_item)
+    IF v_row.substrate_type IN ('block','context_item') THEN
+      IF EXISTS (
+        SELECT 1 FROM public.substrate_relationships
+        WHERE basket_id = v_row.basket_id
+          AND ((from_id = v_row.substrate_id AND from_type = v_row.substrate_type)
+            OR (to_id = v_row.substrate_id AND to_type = v_row.substrate_type))
+      ) THEN
+        CONTINUE;
+      END IF;
+    END IF;
+    -- Perform physical deletion per substrate type
+    IF v_row.substrate_type = 'block' THEN
+      DELETE FROM public.blocks WHERE id = v_row.substrate_id AND workspace_id = p_workspace_id;
+      v_deleted_blocks := v_deleted_blocks + 1;
+    ELSIF v_row.substrate_type = 'dump' THEN
+      DELETE FROM public.raw_dumps WHERE id = v_row.substrate_id AND workspace_id = p_workspace_id;
+      v_deleted_dumps := v_deleted_dumps + 1;
+    ELSIF v_row.substrate_type = 'context_item' THEN
+      DELETE FROM public.context_items WHERE id = v_row.substrate_id AND basket_id = v_row.basket_id;
+      v_deleted_items := v_deleted_items + 1;
+    ELSE
+      CONTINUE;
+    END IF;
+    -- Mark tombstone as physically deleted and emit event
+    UPDATE public.substrate_tombstones
+      SET deletion_mode = 'deleted', physically_deleted_at = now()
+      WHERE id = v_row.id;
+    PERFORM emit_timeline_event(v_row.basket_id, 'substrate.physically_deleted', jsonb_build_object(
+      'substrate_type', v_row.substrate_type,
+      'substrate_id', v_row.substrate_id,
+      'tombstone_id', v_row.id
+    ), p_workspace_id, NULL, 'vacuum');
+  END LOOP;
+  RETURN jsonb_build_object(
+    'deleted_blocks', v_deleted_blocks,
+    'deleted_dumps', v_deleted_dumps,
+    'deleted_context_items', v_deleted_items
+  );
+END;
+$$;
 CREATE FUNCTION public.get_workspace_governance_flags(p_workspace_id uuid) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
@@ -948,31 +1185,37 @@ BEGIN
     result := jsonb_build_object(
       'governance_enabled', settings_row.governance_enabled,
       'validator_required', settings_row.validator_required,
-      'direct_substrate_writes', FALSE,
+      'direct_substrate_writes', settings_row.direct_substrate_writes,
       'governance_ui_enabled', settings_row.governance_ui_enabled,
-      'ep_onboarding_dump', 'direct',
+      'ep_onboarding_dump', settings_row.ep_onboarding_dump,
       'ep_manual_edit', settings_row.ep_manual_edit,
+      'ep_document_edit', settings_row.ep_document_edit,
+      'ep_reflection_suggestion', settings_row.ep_reflection_suggestion,
       'ep_graph_action', settings_row.ep_graph_action,
-      'ep_timeline_restore', 'proposal',
-      'default_blast_radius', CASE WHEN settings_row.default_blast_radius = 'Global' THEN 'Scoped' ELSE settings_row.default_blast_radius END,
+      'ep_timeline_restore', settings_row.ep_timeline_restore,
+      'default_blast_radius', settings_row.default_blast_radius,
+      'retention_enabled', settings_row.retention_enabled,
+      'retention_policy', COALESCE(settings_row.retention_policy, '{}'::jsonb),
       'source', 'workspace_database'
     );
   ELSE
-    -- Fallback defaults: Governance on, Smart Review (Hybrid), Validator off
     result := jsonb_build_object(
-      'governance_enabled', TRUE,
-      'validator_required', FALSE,
-      'direct_substrate_writes', FALSE,
-      'governance_ui_enabled', TRUE,
-      'ep_onboarding_dump', 'direct',
-      'ep_manual_edit', 'hybrid',
-      'ep_graph_action', 'hybrid',
+      'governance_enabled', true,
+      'validator_required', false,
+      'direct_substrate_writes', false,
+      'governance_ui_enabled', true,
+      'ep_onboarding_dump', 'proposal',
+      'ep_manual_edit', 'proposal',
+      'ep_document_edit', 'proposal',
+      'ep_reflection_suggestion', 'proposal',
+      'ep_graph_action', 'proposal',
       'ep_timeline_restore', 'proposal',
       'default_blast_radius', 'Scoped',
+      'retention_enabled', false,
+      'retention_policy', '{}'::jsonb,
       'source', 'canon_compliant_defaults'
     );
   END IF;
-  
   RETURN result;
 END;
 $$;
@@ -1519,6 +1762,30 @@ CREATE TABLE public.substrate_relationships (
     created_at timestamp with time zone DEFAULT now()
 );
 ALTER TABLE ONLY public.substrate_relationships REPLICA IDENTITY FULL;
+CREATE TABLE public.substrate_tombstones (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    workspace_id uuid NOT NULL,
+    basket_id uuid NOT NULL,
+    substrate_type text NOT NULL,
+    substrate_id uuid NOT NULL,
+    deletion_mode text NOT NULL,
+    redaction_scope text,
+    redaction_reason text,
+    legal_hold boolean DEFAULT false,
+    refs_detached_count integer DEFAULT 0,
+    relationships_pruned_count integer DEFAULT 0,
+    affected_documents_count integer DEFAULT 0,
+    retention_policy_id uuid,
+    earliest_physical_delete_at timestamp with time zone,
+    event_ids uuid[] DEFAULT '{}'::uuid[],
+    content_fingerprint text,
+    created_at timestamp with time zone DEFAULT now(),
+    created_by uuid,
+    physically_deleted_at timestamp with time zone,
+    CONSTRAINT substrate_tombstones_deletion_mode_check CHECK ((deletion_mode = ANY (ARRAY['archived'::text, 'redacted'::text, 'deleted'::text]))),
+    CONSTRAINT substrate_tombstones_redaction_scope_check CHECK ((redaction_scope = ANY (ARRAY['full'::text, 'partial'::text]))),
+    CONSTRAINT substrate_tombstones_substrate_type_check CHECK ((substrate_type = ANY (ARRAY['block'::text, 'context_item'::text, 'dump'::text, 'timeline_event'::text])))
+);
 CREATE TABLE public.timeline_events (
     id bigint NOT NULL,
     basket_id uuid NOT NULL,
@@ -1537,6 +1804,27 @@ CREATE SEQUENCE public.timeline_events_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.timeline_events_id_seq OWNED BY public.timeline_events.id;
+CREATE TABLE public.user_notifications (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    workspace_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    type text NOT NULL,
+    category text NOT NULL,
+    severity text DEFAULT 'info'::text NOT NULL,
+    title text NOT NULL,
+    message text NOT NULL,
+    channels jsonb DEFAULT '[]'::jsonb NOT NULL,
+    persistence_settings jsonb DEFAULT '{}'::jsonb NOT NULL,
+    actions jsonb DEFAULT '[]'::jsonb NOT NULL,
+    related_entities jsonb DEFAULT '{}'::jsonb NOT NULL,
+    governance_context jsonb DEFAULT '{}'::jsonb NOT NULL,
+    status text DEFAULT 'unread'::text NOT NULL,
+    cross_page_persist boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    read_at timestamp with time zone,
+    dismissed_at timestamp with time zone,
+    acknowledged_at timestamp with time zone
+);
 CREATE VIEW public.v_events_rel_bulk AS
  SELECT events.id,
     events.basket_id,
@@ -1651,10 +1939,14 @@ CREATE TABLE public.workspace_governance_settings (
     artifact_generation_enabled boolean DEFAULT true,
     auto_reflection_compute boolean DEFAULT true,
     document_versioning_enabled boolean DEFAULT true,
+    retention_enabled boolean DEFAULT false NOT NULL,
+    retention_policy jsonb DEFAULT '{}'::jsonb NOT NULL,
+    ep_reflection_suggestion text DEFAULT 'proposal'::text NOT NULL,
     CONSTRAINT workspace_governance_settings_ep_document_edit_check CHECK ((ep_document_edit = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text]))),
     CONSTRAINT workspace_governance_settings_ep_graph_action_check CHECK ((ep_graph_action = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text]))),
     CONSTRAINT workspace_governance_settings_ep_manual_edit_check CHECK ((ep_manual_edit = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text]))),
     CONSTRAINT workspace_governance_settings_ep_onboarding_dump_check CHECK ((ep_onboarding_dump = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text]))),
+    CONSTRAINT workspace_governance_settings_ep_reflection_suggestion_check CHECK ((ep_reflection_suggestion = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text]))),
     CONSTRAINT workspace_governance_settings_ep_timeline_restore_check CHECK ((ep_timeline_restore = ANY (ARRAY['proposal'::text, 'direct'::text, 'hybrid'::text])))
 );
 CREATE SEQUENCE public.workspace_memberships_id_seq
@@ -1664,6 +1956,12 @@ CREATE SEQUENCE public.workspace_memberships_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.workspace_memberships_id_seq OWNED BY public.workspace_memberships.id;
+CREATE TABLE public.workspace_notification_settings (
+    workspace_id uuid NOT NULL,
+    settings jsonb DEFAULT '{}'::jsonb NOT NULL,
+    updated_by uuid,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
 CREATE TABLE public.workspaces (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
     owner_id uuid,
@@ -1729,16 +2027,22 @@ ALTER TABLE ONLY public.substrate_references
     ADD CONSTRAINT substrate_references_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.substrate_relationships
     ADD CONSTRAINT substrate_relationships_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.substrate_tombstones
+    ADD CONSTRAINT substrate_tombstones_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT uq_raw_dumps_basket_dump_req UNIQUE (basket_id, dump_request_id);
+ALTER TABLE ONLY public.user_notifications
+    ADD CONSTRAINT user_notifications_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_governance_settings
     ADD CONSTRAINT workspace_governance_settings_pkey PRIMARY KEY (workspace_id);
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_workspace_id_user_id_key UNIQUE (workspace_id, user_id);
+ALTER TABLE ONLY public.workspace_notification_settings
+    ADD CONSTRAINT workspace_notification_settings_pkey PRIMARY KEY (workspace_id);
 ALTER TABLE ONLY public.workspaces
     ADD CONSTRAINT workspaces_pkey PRIMARY KEY (id);
 CREATE INDEX baskets_user_idx ON public.baskets USING btree (user_id);
@@ -1819,6 +2123,10 @@ CREATE INDEX idx_substrate_references_type ON public.substrate_references USING 
 CREATE INDEX idx_timeline_events_basket_timestamp_id ON public.timeline_events USING btree (basket_id, ts DESC, id DESC);
 CREATE INDEX idx_timeline_events_kind_ref_id ON public.timeline_events USING btree (kind, ref_id) WHERE (ref_id IS NOT NULL);
 CREATE INDEX idx_timeline_workspace_ts ON public.timeline_events USING btree (workspace_id, ts DESC, id DESC);
+CREATE INDEX idx_tombstones_lookup ON public.substrate_tombstones USING btree (workspace_id, basket_id, substrate_type, substrate_id);
+CREATE INDEX idx_un_cross ON public.user_notifications USING btree (cross_page_persist) WHERE cross_page_persist;
+CREATE INDEX idx_un_status ON public.user_notifications USING btree (status);
+CREATE INDEX idx_un_ws_user ON public.user_notifications USING btree (workspace_id, user_id, created_at DESC);
 CREATE INDEX idx_workspace_governance_settings_workspace_id ON public.workspace_governance_settings USING btree (workspace_id);
 CREATE INDEX ix_block_links_doc_block ON public.block_links USING btree (document_id, block_id);
 CREATE INDEX ix_events_kind_ts ON public.events USING btree (kind, ts);
@@ -1837,6 +2145,7 @@ CREATE UNIQUE INDEX uq_relationship_identity ON public.substrate_relationships U
 CREATE UNIQUE INDEX uq_substrate_rel_directed ON public.substrate_relationships USING btree (basket_id, from_type, from_id, relationship_type, to_type, to_id);
 CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (basket_id, ingest_trace_id) WHERE (ingest_trace_id IS NOT NULL);
 CREATE TRIGGER after_dump_insert AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.queue_agent_processing();
+CREATE TRIGGER enforce_single_workspace_per_user BEFORE INSERT OR UPDATE ON public.workspace_memberships FOR EACH ROW EXECUTE FUNCTION public.check_single_workspace_per_user();
 CREATE TRIGGER ensure_text_dump_columns BEFORE INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.ensure_raw_dump_text_columns();
 CREATE TRIGGER proposals_validation_gate BEFORE UPDATE ON public.proposals FOR EACH ROW EXECUTE FUNCTION public.proposal_validation_check();
 CREATE TRIGGER reflection_cache_updated_at_trigger BEFORE UPDATE ON public.reflections_artifact FOR EACH ROW EXECUTE FUNCTION public.update_reflection_cache_updated_at();
@@ -1937,12 +2246,16 @@ ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.user_notifications
+    ADD CONSTRAINT user_notifications_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.workspace_governance_settings
     ADD CONSTRAINT workspace_governance_settings_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.workspace_notification_settings
+    ADD CONSTRAINT workspace_notification_settings_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.workspaces
     ADD CONSTRAINT workspaces_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 CREATE POLICY "Allow anon read events" ON public.events FOR SELECT USING (true);
@@ -1962,6 +2275,16 @@ CREATE POLICY "Allow workspace members to read baskets" ON public.baskets FOR SE
   WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Anon can view events temporarily" ON public.basket_events FOR SELECT TO anon USING (true);
 CREATE POLICY "Authenticated users can view events" ON public.basket_events FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Members can read settings" ON public.workspace_notification_settings FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY "Members can update settings" ON public.workspace_notification_settings FOR UPDATE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid())))) WITH CHECK (true);
+CREATE POLICY "Members can upsert settings" ON public.workspace_notification_settings FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY "Service role can manage notifications" ON public.user_notifications TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role can manage queue" ON public.agent_processing_queue TO service_role USING (true);
 CREATE POLICY "Service role full access" ON public.baskets TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Users can create proposals in their workspace" ON public.proposals FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
@@ -1970,6 +2293,9 @@ CREATE POLICY "Users can create proposals in their workspace" ON public.proposal
 CREATE POLICY "Users can insert events for their workspaces" ON public.events FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY "Users can insert their notifications" ON public.user_notifications FOR INSERT TO authenticated WITH CHECK (((user_id = auth.uid()) AND (workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY "Users can modify block revisions in their workspaces" ON public.block_revisions USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
@@ -1979,6 +2305,9 @@ CREATE POLICY "Users can modify blocks in their workspaces" ON public.blocks USI
 CREATE POLICY "Users can modify documents in their workspaces" ON public.documents USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = documents.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+CREATE POLICY "Users can queue processing in their workspace" ON public.agent_processing_queue FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can read block revisions in their workspaces" ON public.block_revisions FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
@@ -1989,6 +2318,14 @@ CREATE POLICY "Users can read documents in their workspaces" ON public.documents
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = documents.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY "Users can update proposals in their workspace" ON public.proposals FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY "Users can update their notifications" ON public.user_notifications FOR UPDATE TO authenticated USING (((user_id = auth.uid()) AND (workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))))) WITH CHECK ((user_id = auth.uid()));
+CREATE POLICY "Users can update their queued items" ON public.agent_processing_queue FOR UPDATE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid())))) WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can view blocks in their workspace" ON public.blocks FOR SELECT USING ((EXISTS ( SELECT 1
@@ -2027,6 +2364,9 @@ CREATE POLICY "Users can view relationships in their workspace" ON public.substr
   WHERE ((baskets.id = substrate_relationships.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view their notifications" ON public.user_notifications FOR SELECT TO authenticated USING (((user_id = auth.uid()) AND (workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY "Workspace members can read events" ON public.events FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -2321,6 +2661,7 @@ CREATE POLICY "timeline read: workspace member" ON public.timeline_events FOR SE
 ALTER TABLE public.timeline_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "update history by service role" ON public.timeline_events FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
 CREATE POLICY "update reflections by service role" ON public.reflections_artifact FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
+ALTER TABLE public.user_notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspace_governance_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY workspace_governance_settings_insert ON public.workspace_governance_settings FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -2332,6 +2673,7 @@ CREATE POLICY workspace_governance_settings_update ON public.workspace_governanc
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.user_id = auth.uid()) AND (workspace_memberships.role = ANY (ARRAY['admin'::text, 'owner'::text]))))));
 ALTER TABLE public.workspace_memberships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workspace_notification_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "write history by service role" ON public.timeline_events FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
 CREATE POLICY "write reflections by service role" ON public.reflections_artifact FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
