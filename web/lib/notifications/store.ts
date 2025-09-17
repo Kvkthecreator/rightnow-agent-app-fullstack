@@ -72,7 +72,12 @@ export const useNotificationStore = create<NotificationStore>()(
       
       // Set workspace context
       setWorkspace: (workspace_id: string, user_id: string) => {
-        set({ workspace_id, user_id });
+        // Set context and prune any legacy notifications from other workspaces
+        set(state => ({ 
+          workspace_id, 
+          user_id,
+          notifications: state.notifications.filter(n => !n.workspace_id || n.workspace_id === workspace_id)
+        }));
         if (PERSIST_ENABLED) {
           get().hydrate(workspace_id, user_id);
         }
