@@ -406,11 +406,8 @@ class CanonicalQueueProcessor:
             ).eq("state", "ACTIVE").execute()
             substrate_ids.extend([UUID(c['id']) for c in (context_response.data or [])])
             
-            # Get raw dumps
-            dumps_response = supabase.table("raw_dumps").select("id").eq(
-                "basket_id", basket_id
-            ).neq("processing_status", "redacted").execute()
-            substrate_ids.extend([UUID(d['id']) for d in (dumps_response.data or [])])
+            # CANON COMPLIANCE: P2 connects substrate only (blocks + context_items)
+            # Raw dumps are NOT part of relationship mapping per Sacred Principles
             
             if len(substrate_ids) < 2:
                 logger.info(f"P2 Graph: Insufficient substrate ({len(substrate_ids)}) for relationship mapping")
