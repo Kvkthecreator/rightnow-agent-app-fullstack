@@ -226,7 +226,8 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
   };
 
   const handleDelete = async () => {
-    if (!canEdit || !confirm(`Delete this ${substrate.type}?`)) return;
+    const action = substrate.type === 'block' ? 'archive' : 'delete';
+    if (!canEdit || !confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} this ${substrate.type}?`)) return;
     
     setLoading(true);
     try {
@@ -238,12 +239,10 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
           work_payload: {
             basket_id: basketId,
             operations: [{
-              type: 'Delete',
-              data: {
-                target_id: substrate.id,
-                target_type: substrate.type,
-                delete_reason: 'Manual deletion from building blocks'
-              }
+              type: substrate.type === 'block' ? 'ArchiveBlock' : 'Delete',
+              data: substrate.type === 'block' 
+                ? { block_id: substrate.id }
+                : { target_id: substrate.id, target_type: substrate.type, delete_reason: 'Manual deletion from building blocks' }
             }]
           },
           priority: 'normal'
@@ -254,15 +253,17 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
       
       if (result.execution_mode === 'auto_execute') {
         notificationService.substrateApproved(
-          `${substrate.type === 'block' ? 'Knowledge Block' : 'Meaning'} Deleted`,
-          'Item has been removed from your basket',
+          `${substrate.type === 'block' ? 'Knowledge Block Archived' : 'Meaning Deleted'}`,
+          substrate.type === 'block' 
+            ? 'Block has been archived and removed from your basket'
+            : 'Item has been removed from your basket',
           [substrate.id],
           basketId
         );
       } else {
         notificationService.approvalRequired(
-          `${substrate.type === 'block' ? 'Knowledge Block' : 'Meaning'} Deletion Pending`,
-          'Deletion request is awaiting approval',
+          `${substrate.type === 'block' ? 'Knowledge Block Archive' : 'Meaning Deletion'} Pending`,
+          `${substrate.type === 'block' ? 'Archive' : 'Deletion'} request is awaiting approval`,
           basketId
         );
       }
