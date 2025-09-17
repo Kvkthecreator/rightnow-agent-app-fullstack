@@ -18,6 +18,9 @@ import type {
   NotificationType
 } from './types';
 
+// Feature flags
+const PERSIST_ENABLED = process.env.NEXT_PUBLIC_NOTIFICATIONS_PERSIST_ENABLED === 'true';
+
 interface NotificationStore {
   // Core state
   notifications: UnifiedNotification[];
@@ -70,7 +73,9 @@ export const useNotificationStore = create<NotificationStore>()(
       // Set workspace context
       setWorkspace: (workspace_id: string, user_id: string) => {
         set({ workspace_id, user_id });
-        get().hydrate(workspace_id, user_id);
+        if (PERSIST_ENABLED) {
+          get().hydrate(workspace_id, user_id);
+        }
         get().initializeRealtime();
       },
       
@@ -220,6 +225,7 @@ export const useNotificationStore = create<NotificationStore>()(
       
       // Hydrate from Supabase
       hydrate: async (workspace_id: string, user_id: string) => {
+        if (!PERSIST_ENABLED) return; // Skip DB hydration when persistence disabled
         try {
           const supabase = createBrowserClient();
           
@@ -268,6 +274,7 @@ export const useNotificationStore = create<NotificationStore>()(
       
       // Sync to Supabase
       sync: async () => {
+        if (!PERSIST_ENABLED) return; // Skip DB sync when persistence disabled
         const { workspace_id, user_id, notifications } = get();
         if (!workspace_id || !user_id) return;
         
