@@ -500,7 +500,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
   const [data, setData] = useState<BuildingBlocksResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'meaning' | 'all'>('meaning');
+  const [viewMode, setViewMode] = useState<'all' | 'source'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedSubstrate, setSelectedSubstrate] = useState<UnifiedSubstrate | null>(null);
@@ -536,6 +536,16 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
     
     return matchesSearch && matchesType;
   }) || [];
+
+  // Restrict to meanings and knowledge blocks for the All Types view
+  const filteredKnowledgeSubstrates = (data?.substrates || []).filter(substrate => {
+    if (substrate.type === 'dump') return false; // exclude Source Notes from All Types
+    const matchesSearch = !searchQuery ||
+      substrate.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      substrate.content.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = typeFilter === 'all' || substrate.type === typeFilter;
+    return matchesSearch && matchesType;
+  });
 
   if (loading) {
     return (
@@ -587,16 +597,6 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
           <div className="inline-flex bg-gray-100 rounded-lg p-1">
             <button
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'meaning' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              onClick={() => setViewMode('meaning')}
-            >
-              Add Meaning
-            </button>
-            <button
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'all' 
                   ? 'bg-white text-blue-600 shadow-sm' 
                   : 'text-gray-600 hover:text-gray-900'
@@ -605,83 +605,67 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
             >
               All Types
             </button>
+            <button
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'source' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              onClick={() => setViewMode('source')}
+            >
+              Source Notes
+            </button>
           </div>
         </div>
 
-        {viewMode === 'meaning' ? (
-          /* Primary View: Add Meaning */
+        {viewMode === 'source' ? (
+          /* Source Notes: list raw source notes only */
           <div className="space-y-4">
-            {/* Hero Action */}
-            <div className="border border-blue-200 bg-blue-50 rounded p-4 text-center">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-lg">🏷️</span>
+            <div className="bg-white border border-gray-100 rounded p-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-900">Source Notes</h3>
+                <div className="text-xs text-gray-500">{data.counts.dumps} notes</div>
               </div>
-              <h3 className="text-sm font-medium text-gray-900 mb-2">Add Meaning to Your Knowledge</h3>
-              <p className="text-xs text-gray-600 mb-3 max-w-md mx-auto">
-                Create semantic connections between your knowledge blocks. Organize and link related concepts.
-              </p>
-              <Button 
-                onClick={() => setShowCreateContextItem(true)}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Meaning
-              </Button>
+              <div className="relative max-w-md">
+                <Search className="h-3 w-3 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search source notes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded text-xs"
+                />
+              </div>
             </div>
 
-            {/* Existing Context Items */}
-            {data.counts.context_items > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-gray-700">Your Meanings</h3>
-                  <div className="text-xs text-gray-500">{data.counts.context_items} meanings</div>
-                </div>
-                
-                {/* Simple search for context items */}
-                <div className="relative max-w-md">
-                  <Search className="h-3 w-3 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search meanings..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded text-xs"
-                  />
-                </div>
-                
-                {/* Context Items List */}
-                <div className="space-y-2">
-                  {filteredSubstrates
-                    .filter(s => s.type === 'context_item')
-                    .map((substrate) => (
-                      <div
-                        key={substrate.id} 
-                        className="bg-white border border-gray-100 rounded p-3 hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => setSelectedSubstrate(substrate)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 flex-1">
-                            <FileText className="h-4 w-4 text-blue-600" />
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-gray-900 truncate text-sm">{substrate.title}</h4>
-                              <p className="text-xs text-gray-600 truncate">{substrate.content}</p>
-                            </div>
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {formatDate(substrate.created_at)}
-                          </div>
+            <div className="space-y-2">
+              {filteredSubstrates
+                .filter(s => s.type === 'dump')
+                .map((substrate) => (
+                  <div
+                    key={substrate.id}
+                    className="bg-white border border-gray-100 rounded p-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => setSelectedSubstrate(substrate)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 flex-1">
+                        <FolderOpen className="h-4 w-4 text-green-600" />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 truncate text-sm">{substrate.title}</h4>
+                          <p className="text-xs text-gray-600 truncate">{substrate.content}</p>
                         </div>
                       </div>
-                    ))
-                  }
-                </div>
-                
-                {filteredSubstrates.filter(s => s.type === 'context_item').length === 0 && searchQuery && (
-                  <div className="text-center py-6 text-gray-500 text-xs">
-                    No meanings match your search.
+                      <div className="text-xs text-gray-400">
+                        {formatDate(substrate.created_at)}
+                      </div>
+                    </div>
                   </div>
-                )}
+                ))}
+            </div>
+
+            {filteredSubstrates.filter(s => s.type === 'dump').length === 0 && (
+              <div className="text-center py-6 text-gray-500 text-xs">
+                {searchQuery ? 'No source notes match your search.' : 'No source notes captured yet.'}
               </div>
             )}
           </div>
@@ -710,7 +694,6 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                     className="border border-gray-200 rounded px-2 py-1 text-xs"
                   >
                     <option value="all">All Types</option>
-                    <option value="dump">Source Notes</option>
                     <option value="context_item">Meanings</option>
                     <option value="block">Knowledge Blocks</option>
                   </select>
@@ -776,9 +759,9 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
               </div>
             </div>
 
-            {/* Your Knowledge Items */}
+            {/* Your Knowledge Items (Meanings + Knowledge Blocks only) */}
             <div className="space-y-2">
-              {filteredSubstrates.map((substrate) => (
+              {filteredKnowledgeSubstrates.map((substrate) => (
                 <div
                   key={substrate.id} 
                   className="bg-white border border-gray-100 rounded p-3 hover:bg-gray-50 transition-colors cursor-pointer"
@@ -812,7 +795,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
               ))}
             </div>
 
-            {filteredSubstrates.length === 0 && data.counts.total > 0 && (
+            {filteredKnowledgeSubstrates.length === 0 && (data.counts.context_items + data.counts.blocks) > 0 && (
               <div className="text-center py-8 text-gray-500">
                 No items match your search or filter.
               </div>

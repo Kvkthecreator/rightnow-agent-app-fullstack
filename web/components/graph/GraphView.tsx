@@ -86,8 +86,8 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const [bulkPreview, setBulkPreview] = useState<{ refs: number; rels: number; docs: number } | null>(null);
   const [visibleTypes, setVisibleTypes] = useState({
     block: true,
-    dump: true,
-    context_item: true
+    context_item: true,
+    dump: false, // Default to focusing on used substrate; hide dumps by default
   });
   const [graphLayout, setGraphLayout] = useState<'force' | 'hierarchy' | 'circular'>('force');
   const [zoom, setZoom] = useState(1);
