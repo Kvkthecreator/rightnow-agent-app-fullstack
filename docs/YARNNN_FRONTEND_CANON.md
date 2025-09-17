@@ -1,4 +1,4 @@
-# Frontend Canon v2.0: Substrate/Artifact Interface
+# YARNNN Frontend Canon v2.0: Unified Frontend Architecture
 
 ## Overview
 
@@ -805,3 +805,181 @@ The system is ready for production deployment and provides a solid foundation fo
 **Last Updated**: 2025-01-25  
 **Canon Version**: v1.4.0  
 **Implementation Status**: ✅ Complete
+
+---
+
+## 🏗️ Frontend-Service Architecture Mapping
+
+### Core Architectural Principle
+
+**Frontend = Pure View Layer of Canonical Services**
+
+The frontend must be a pure rendering layer that mirrors durable server state, with zero client-side intelligence synthesis. All cognitive processing happens in the canonical agent pipeline (P0→P1→P2→P3).
+
+### The Canonical Pipeline Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    CANONICAL SERVICE ARCHITECTURE                │
+├─────────────────────────────────────────────────────────────────┤
+│  P0: Capture    │ P1: Substrate  │ P2: Graph     │ P3: Reflection│
+│  Agent          │ Agent          │ Agent         │ Agent         │
+│  ============   │ ============   │ ============  │ ============  │
+│  • raw_dumps    │ • blocks       │ • context     │ • reflections │
+│                 │ • context_items│   _relationships│   (artifacts)  │
+│                 │                │               │               │
+└─────────────────────────────────────────────────────────────────┘
+                                    │
+                          ┌─────────▼─────────┐
+                          │   SUPABASE DB     │
+                          │   (Context Graph  │
+                          │    Service)       │
+                          └─────────┬─────────┘
+                                    │
+┌─────────────────────────────────────────────────────────────────┐
+│                       FRONTEND VIEW LAYER                      │
+├─────────────────────────────────────────────────────────────────┤
+│  Timeline View  │ Reflections   │ Blocks View   │ Memory View   │
+│  =============  │ View          │ ============  │ ============  │
+│  • Event stream │ ============  │ • Block list  │ • Projection  │
+│  • Agent traces │ • P3 insights │ • Confidence  │ • Composition │
+│                 │ • Metadata    │ • Semantic    │               │
+│                 │               │   types       │               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Governance Integration Architecture
+
+The frontend integrates with the canonical governance framework through standardized patterns:
+
+- **Workspace-Scoped Operations**: All UI operations respect workspace boundaries via RLS
+- **User-Controlled Execution**: Frontend surfaces workspace governance policy controls
+- **Confidence-Informed UI**: Display AI confidence scores and routing decisions
+- **Proposal Workflow**: Frontend handles governance proposal creation and approval flows
+
+### Frontend-Service Mapping Table
+
+| Frontend Page | Service Pipeline | Data Source | Operations Allowed |
+|---------------|------------------|-------------|-------------------|
+| `/memory` | P0 Capture | `raw_dumps` | Create dumps only |
+| `/building-blocks` | P1 Substrate | `context_blocks`, `context_items` | View substrate, governance proposals |
+| `/graph` | P2 Graph | `context_relationships` | View connections only |
+| `/reflections` | P3 Reflection | `reflections_artifact` | View insights only |
+| `/documents` | P4 Presentation | `documents`, `substrate_references` | Compose from substrate |
+| `/timeline` | All Pipelines | `timeline_events` | View processing events |
+| `/governance` | Universal | `proposals`, `governance_settings` | Manage proposals, configure policies |
+
+### Service Communication Patterns
+
+**Read Operations (Frontend → Service)**:
+- Direct Supabase queries with RLS enforcement
+- No client-side data synthesis or transformation
+- Real-time subscriptions for live updates
+
+**Write Operations (Frontend → Service)**:
+- All mutations flow through Universal Work API (`/api/work`)
+- Governance-mediated execution based on workspace policies
+- Timeline event emission for all operations
+
+---
+
+## 🎯 Adapter Layer Strategy: Swappable Presentation Lenses
+
+### Strategic Vision: "Stable Core, Swappable Lenses"
+
+Build presentation adapters on top of the hardened canonical service architecture, enabling multiple user experiences (B2C consumer vs B2B enterprise) while maintaining a single, battle-tested backend.
+
+### Backend as Context Graph Service
+
+The Supabase backend serves as a **Context Graph Service** - a durable, agent-processed substrate that different presentation layers can adapt for their specific user needs.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PRESENTATION ADAPTERS                        │
+├─────────────────────────────────────────────────────────────────┤
+│  B2C Consumer   │ B2B Enterprise  │ API/SDK       │ Future       │
+│  Lens           │ Lens            │ Lens          │ Lens         │
+│  =============  │ =============== │ ============  │ ============ │
+│  • Personal     │ • Team collab   │ • Developer   │ • Mobile     │
+│    memory       │ • Admin panels  │   tools       │ • Voice      │
+│  • Simple UI    │ • Analytics     │ • Webhooks    │ • AR/VR      │
+│  • Consumer     │ • Compliance    │ • Bulk ops    │ • IoT        │
+│    workflows    │ • Enterprise    │               │              │
+│                 │   workflows     │               │              │
+└─────────────────────────────────────────────────────────────────┘
+                                    │
+                          ┌─────────▼─────────┐
+                          │   ADAPTER LAYER   │
+                          │   (Translation &  │
+                          │   Orchestration)  │
+                          └─────────┬─────────┘
+                                    │
+┌─────────────────────────────────────────────────────────────────┐
+│                 CANONICAL SERVICE CORE                          │
+├─────────────────────────────────────────────────────────────────┤
+│                    Context Graph Service                        │
+│                    ==================                          │
+│ P0 Agent        │ P1 Agent       │ P2 Agent      │ P3 Agent      │
+│ ========        │ ========       │ ========      │ ========      │  
+│ • raw_dumps     │ • blocks       │ • context     │ • document     │
+│   (immutable)   │ • context_items│   _relations  │   versions     │
+│                 │                │               │ • reflections  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Adapter Implementation Patterns
+
+**Consumer Lens (Current Implementation)**:
+- Single-user workspace model
+- Simplified navigation and terminology
+- Personal memory management focus
+- Minimal governance complexity
+
+**Enterprise Lens (Future)**:
+- Multi-user workspace collaboration
+- Admin dashboards and analytics
+- Compliance and audit trails
+- Advanced governance controls
+
+**API/SDK Lens (Future)**:
+- Developer-focused interfaces
+- Bulk operations and automation
+- Webhook integrations
+- Programmatic access patterns
+
+### Adapter Layer Architecture
+
+**Translation Layer**:
+- Maps presentation concepts to canonical service operations
+- Handles lens-specific terminology and workflows
+- Maintains lens-specific state and preferences
+
+**Orchestration Layer**:
+- Coordinates multi-service operations for complex workflows
+- Manages lens-specific business logic
+- Handles lens-specific error handling and recovery
+
+**Configuration Layer**:
+- Lens-specific UI themes and layouts
+- Feature flag management per lens
+- Lens-specific default settings and behaviors
+
+### Benefits of Adapter Strategy
+
+1. **Single Backend Maintenance**: One canonical service architecture supports all experiences
+2. **Rapid Feature Development**: New lenses can be built quickly on proven infrastructure
+3. **Consistent Data Model**: All lenses operate on the same substrate/artifact model
+4. **Battle-Tested Core**: Service layer hardened through production use across lenses
+5. **Future-Proof Architecture**: New interaction paradigms (voice, AR/VR) easily supported
+
+---
+
+## 📊 Frontend Architecture Consolidation Summary
+
+This unified Frontend Canon consolidates:
+
+1. **Core Interface Architecture**: Substrate/artifact composition patterns and component hierarchy
+2. **Service Integration**: Frontend-service mapping and communication patterns  
+3. **Adapter Strategy**: Multi-lens presentation architecture for different user experiences
+
+The result is a comprehensive frontend architecture that maintains canonical compliance while supporting flexible presentation layers and future extensibility.

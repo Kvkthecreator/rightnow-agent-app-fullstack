@@ -1,9 +1,8 @@
-# Canon v1.4.0 — docs clarification (no code change)
-Aligns reflections (derived + optional cache), sacred write path endpoints, DTO wording (file_url), schema term context_blocks, basket lifecycle, and event tokens.
+# YARNNN Auth Canon v1.4.0 — Unified Authentication & Workspace Architecture
 
-# Yarnnn Frontend Auth
+**The Single Source of Truth for Authentication, Authorization, and Workspace Management**
 
-This document tracks how the web client attaches the user's session token to every API request.
+This document defines the canonical authentication and workspace architecture for YARNNN, consolidating frontend token handling and backend auth workflows.
 
 ## Token requirement
 
@@ -78,3 +77,211 @@ Service role keys are used ONLY for:
 - Standard pattern: users read via workspace membership, system writes via service_role
 
 Reflections are derived from substrate. If persisted, they live in reflection_cache as a non-authoritative cache; readers may recompute on demand.
+
+---
+
+## 🏛️ Canonical Authentication & Workspace Architecture
+
+### Core Principles
+
+#### 1. Single Workspace per User
+- On first authenticated touch, the system SHALL create a workspace and membership (owner) if none exists
+- Every request is evaluated against the user's single authoritative workspace_id
+- Strong guarantee: Every authenticated user belongs to exactly one workspace
+
+#### 2. Pure Supabase Architecture
+- Service-role keys are used for backend agent processing operations requiring elevated permissions
+- Anon keys are used for user-scoped operations with RLS enforcement
+- No DATABASE_URL dependency - single Supabase connection type for cleaner architecture
+- Strong Auth: All backend requests are authenticated with verified Supabase JWTs
+
+#### 3. RLS-First Security
+- Sensitive access control is enforced by Postgres RLS tied to workspace_memberships
+- Data Isolation: All workspace-scoped tables enforce access exclusively via RLS policies
+- Even if an API route is misconfigured, Postgres still denies cross-workspace access
+
+### Data Model (Authoritative Schema)
+
+**workspaces**
+- Columns: id (uuid PK), owner_id (uuid), name (text), is_demo (bool default false), timestamps
+
+**workspace_memberships** 
+- Columns: workspace_id (uuid), user_id (uuid), role (enum: owner|member), timestamps
+- Constraint: (workspace_id, user_id) is UNIQUE
+
+**Workspace-scoped tables**: baskets, raw_dumps, context_blocks, documents, context_items
+- Each SHALL include workspace_id (uuid NOT NULL) and be protected by RLS referencing workspace_memberships
+
+**Baskets timestamp semantics**
+- `baskets` does NOT have `updated_at`
+- "Last activity" MUST be derived from `timeline_events.max(ts)`; fallback to `baskets.created_at`
+
+### Authentication & Token Handling
+
+**Frontend Requirements**
+- SHALL use `supabase.auth.getUser()` in the client for UI state only
+- Server actions/route handlers SHALL obtain verified user via helper (e.g., `getAuthenticatedUser()`)
+- All data mutations go through server actions or API routes with proper auth
+
+**Backend Requirements**
+- SHALL verify Supabase JWTs by validating signature, issuer, audience, and exp using Supabase JWKS
+- user_id is taken from the token's sub claim after verification
+- Transport: Authorization: Bearer <jwt> (preferred) or sb-access-token header
+
+### Workspace Resolution Contract
+
+**Single authoritative function SHALL exist server-side:**
+
+```python
+# Python implementation in api/src/app/utils/workspace.py
+def get_or_create_workspace(user_id: str) -> str:
+    """Returns workspace_id, creating if necessary using admin client"""
+```
+
+**Rules:**
+- Uses `supabase_admin()` client (service role) to bypass RLS for bootstrap operations
+- If workspace exists with owner_id=user_id → return its id
+- If none exists → create workspace row (owner = user), name = "{user_id[:6]}'s workspace" → return id
+- Returns only the single authoritative workspace_id
+- This function is the only place allowed to create default workspaces
+- MUST validate user_id is a valid UUID before proceeding
+
+### RBAC (Role-Based Access Control)
+
+**Roles:** owner, member
+
+**Privileges:**
+- Owner: all member actions plus elevated actions (delete workspace, transfer ownership)
+- Member: standard operations excluding destructive global actions
+
+**Enforcement:**
+- API layer: route-level guards call shared requireRole(workspaceId, userId, roleOrHigher) utility
+- DB layer: RLS policies consider membership and role for reads/writes where applicable
+
+### RLS (Row-Level Security) Policy Canon
+
+**Read Policy:** 
+```sql
+EXISTS (SELECT 1 FROM workspace_memberships m 
+        WHERE m.user_id = auth.uid() AND m.workspace_id = row.workspace_id)
+```
+
+**Write/Update/Delete Policy:**
+- Same membership predicate
+- Additional role predicates where applicable (destructive ops require role = 'owner')
+- All workspace-scoped tables SHALL implement these predicates
+
+### Backend (FastAPI) Workflow
+
+1. **JWT Verification**
+   - `AuthMiddleware` extracts token from headers (Authorization or sb-access-token)
+   - `verify_jwt()` validates with raw JWT secret from env
+   - Derives user_id from token's sub claim
+
+2. **Workspace Resolution**
+   - Call `get_or_create_workspace(user_id)` → workspace_id
+   - Uses admin client for bootstrap operations only
+
+3. **Database Operations**
+   - Workspace bootstrap: Use `supabase_admin()` (service role)
+   - User data operations: Use `supabase_admin()` for now (until user-scoped client implemented)
+   - All inserts MUST include workspace_id
+   - Generate UUIDs client-side when needed (e.g., basket_id)
+
+4. **Error Handling**
+   - Return debug info when `x-yarnnn-debug-auth: 1` header present
+   - Wrap exceptions in try/catch with proper logging
+   - Use HTTPException for standard error responses
+
+### Next.js (App Router) Implementation
+
+**Server Components**
+- SHALL use `createServerComponentClient({ cookies })` for database operations
+- SHALL call server helper: `getAuthenticatedUser()` → verified `userId`
+- SHALL resolve active workspace via RLS or `ensureWorkspaceForUser(userId)`
+
+**API Route Handlers**
+```typescript
+import { createRouteHandlerClient } from '@/lib/supabase/clients'
+import { cookies } from 'next/headers'
+
+export async function POST(req: Request) {
+  const supabase = createRouteHandlerClient({ cookies })
+  
+  // Auth check
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data?.user) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  
+  // Workspace resolution  
+  const { id: workspaceId } = await ensureWorkspaceForUser(data.user.id, supabase)
+  // ... rest of implementation
+}
+```
+
+**Middleware**
+- SHALL NOT perform authentication or RBAC decisions
+- MAY normalize host names and canonicalize `/baskets/:id/*` paths
+
+**Client Components**
+- Access session via supabase.auth.getUser() for UI state only
+- All data mutations go through server actions or API routes
+
+### API Contract Examples
+
+**Create Basket**
+```
+POST /api/baskets/new
+Authorization: Bearer <jwt>
+Body: { "idempotency_key": "<uuid>", "intent": "optional", "raw_dump": "optional", "notes": "optional" }
+```
+
+**Resolve Basket (single-basket world)**
+```
+GET /api/baskets/resolve
+Authorization: Bearer <jwt>
+Returns: { "id": "<uuid>" }
+```
+
+**Create Raw Dump**
+```
+POST /api/dumps/new
+Authorization: Bearer <jwt>
+Body: { "dump_request_id": "<uuid>", "text_dump": "...", "file_url": "..." }
+```
+
+### Error Semantics
+
+- **401**: Missing/invalid JWT
+- **403**: Authenticated but not authorized (membership/role)
+- **409**: Idempotency/workspace uniqueness conflicts
+- **422**: Schema/validation failures
+
+Error format: `{ "error": { "code": "FORBIDDEN", "message": "Owner role required." } }`
+
+### Capture Policy (P0) — Canon Defaults
+
+P0 capture (raw dumps) is always direct insert. Governance applies to substrate evolution (P1+), not to raw dump creation.
+
+- Default route for `entry_point=onboarding_dump`: `direct`
+- Side-effects: database triggers enqueue work for P1/P2/P3, but API success is not gated by downstream processing
+- Rationale: users need immediate acknowledgement of capture; intelligence arrives asynchronously
+
+### Threat Model
+
+- **Token forgery**: mitigated by JWKS signature verification
+- **Cross-tenant data leakage**: mitigated by RLS + workspace_id checks  
+- **Privilege escalation**: mitigated by RBAC checks at API + RLS role predicates
+
+### Compliance Checklist (MUST pass)
+
+- [ ] JWT signature verified on every protected route
+- [ ] Single authoritative workspace resolver in server code
+- [ ] User-scoped DB client used for all user CRUD
+- [ ] RLS enabled on all workspace tables
+- [ ] RBAC enforced at API layer for elevated actions
+- [ ] All rows carry correct workspace_id
+- [ ] Logs include user_id + workspace_id
+- [ ] Middleware does not perform authentication decisions
+- [ ] No code selects or orders by `baskets.updated_at`

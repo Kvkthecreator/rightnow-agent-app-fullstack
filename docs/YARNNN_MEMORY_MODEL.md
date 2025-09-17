@@ -1,7 +1,8 @@
-# Canon v2.0 — Substrate/Artifact Model
-Pure substrate memory layer with separate artifact expressions. Reflections are artifacts, not substrates.
+# YARNNN Memory Model — Unified Data & Substrate Architecture
 
-# Yarnnn Memory Model — Canonical Substrate Contract (v2.0)
+**The Single Source of Truth for Memory Layer, Substrate Relationships, and Data Flow**
+
+This document consolidates the canonical substrate contract, relational model, and semantic flows into a comprehensive memory architecture reference.
 
 Aligned with Context OS substrate v1.2
 Blocks (**context_blocks**) are structured knowledge ingredients extracted from raw_dumps. Each block contains goals, constraints, metrics, entities, relationships, and provenance.
@@ -101,3 +102,91 @@ Blocks (**context_blocks**) are structured knowledge ingredients with transforma
 Documents are synthesized artifacts, not manual compositions.
 Narrative text is generated from ingredient data, not manually authored.
 Events ensure full auditability and immutability.
+
+---
+
+## 🔗 Unified Relational Model
+
+### Substrate Role Definitions
+
+| Role              | Layer    | Type(s)           | Description |
+| ----------------- | -------- | ----------------- | ----------- |
+| Capture           | Substrate| `dump`            | Immutable input stream (raw_dumps) |
+| Interpretation    | Substrate| `block`           | Structured units (context_blocks) |
+| Threading         | Substrate| `context_item`    | Semantic connectors |
+| Activity Log      | Substrate| `timeline_event`  | System audit trail |
+| Compositions      | Artifact | `document`        | Versioned narrative expressions |
+| Insights          | Artifact | `reflection`      | Computed patterns/tensions |
+| Scope Container   | Meta     | `basket`          | Workspace boundary |
+
+### Memory Plane Components (Substrate Only)
+
+| Component | Purpose | Storage |
+|-----------|---------|---------|
+| substrate_references | Links substrate to documents | substrate_type, substrate_id |
+| timeline_events | Append-only memory stream | kind, ts, ref_id, preview, payload |
+| substrate_relationships | Links between substrate entities | source_id, target_id, relationship_type |
+
+### Artifact Plane Components (Separate)
+
+| Component | Purpose | Storage |
+|-----------|---------|---------|
+| document_versions | Git-like versioning | version_hash, content, metadata |
+| reflections_artifact | Computed insights | target_type, target_id, reflection_text |
+| Change Tracker | `event`, `revision` | Logs of evolution across types |
+| Composer | `agent`, `user` | Actor that creates/edits content |
+
+### Substrate Lifecycle Management
+
+**Basket Lifecycle**: `INIT → ACTIVE → ARCHIVED`
+- Empty INIT baskets older than **48h** are **eligible for cleanup** (policy-guarded; disabled by default)
+
+**Block Lifecycle**: `PROPOSED → ACCEPTED → LOCKED → CONSTANT`
+- Blocks evolve through governance states with agent and human review
+
+**Context Item Lifecycle**: `PROVISIONAL → PROPOSED → ACTIVE → [DEPRECATED | MERGED]`
+- Semantic connectors follow governance flow for quality control
+
+### Semantic Flow Patterns
+
+**Core Relationships:**
+- `raw_dump` → may be interpreted into `context_blocks`, annotated with `context_items`, or referenced directly
+- `context_block` → reusable unit, may be included in `documents`
+- `document` → composed from selected `context_blocks`, `narrative`, and `context_items`
+- `context_item` → can label or connect dumps, context_blocks, or documents
+- `events`/`revisions` → record changes without mutating originals
+- `basket` → contains all activity, but imposes no linear flow
+
+### Data Flow Architecture
+
+```
+Raw Input → Capture → Interpretation → Composition → Expression
+    ↓         ↓           ↓             ↓           ↓
+raw_dumps → blocks → context_items → documents → reflections
+    │         │           │             │           │
+    └─────────┼───────────┼─────────────┼───────────┘
+              │           │             │
+          timeline_events (audit log for all)
+```
+
+### Integration Patterns
+
+**Pure Substrate Memory → Computed Artifacts → User Interface**
+1. Substrate layer provides the authoritative memory foundation
+2. Artifacts derive insights and compositions from substrate
+3. User interface presents both substrate and artifacts with clear separation
+4. No artifact recursion - artifacts don't become substrate for other artifacts
+
+### Memory Guarantees Matrix
+
+| Type | Mutability | Evolves | Source of Truth |
+|------|------------|---------|-----------------|
+| raw_dump | Immutable | No | Yes (verbatim) |
+| block | Revisable | Yes | Derived |
+| document | Versioned | Yes | Composed |
+| context_item | Governed | Yes | Derived (via proposals) |
+| basket | Static ID | No | No |
+| event | Immutable | No | Log only |
+| reflection | Computed | Yes | Derived |
+
+This unified memory model ensures substrate equality, clear artifact separation, and robust data flow patterns that support the full YARNNN cognitive architecture.
