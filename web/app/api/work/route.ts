@@ -102,7 +102,8 @@ export async function POST(req: NextRequest) {
       work_type,
       workspace_id: workspace.id,
       user_id: userId,
-      routing_decision: routingResult.routing_decision
+      routing_decision: routingResult.routing_decision,
+      basket_id: work_payload.basket_id
     });
 
     return NextResponse.json({

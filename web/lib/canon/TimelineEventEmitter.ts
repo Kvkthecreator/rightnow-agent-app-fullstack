@@ -347,10 +347,14 @@ export class TimelineEventEmitter {
     workspace_id: string;
     user_id: string;
     routing_decision: string;
+    basket_id?: string;
   }): Promise<void> {
+    // For system-level work without a basket, use a special UUID
+    const SYSTEM_BASKET_ID = '00000000-0000-0000-0000-000000000000';
+    
     await this.emit({
       kind: 'work.initiated',
-      basket_id: 'system', // Universal work is system-level, not basket-specific
+      basket_id: params.basket_id || SYSTEM_BASKET_ID,
       workspace_id: params.workspace_id,
       payload: {
         work_id: params.work_id,
