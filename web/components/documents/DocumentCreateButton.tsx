@@ -35,32 +35,48 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
   const composeFromMemory = async () => {
     setCreating(true);
     try {
-      const res = await fetch('/api/presentation/compose', {
+      // Use canonical /api/work endpoint with P4_COMPOSE work type
+      const res = await fetch('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title,
-          basket_id: basketId,
-          narrative_sections: [{ id: 'intro', content: intent || 'Draft', order: 0 }],
-          substrate_references: [],
-          composition_context: { 
-            intent,
-            trace_id: crypto.randomUUID(),
-            window: { days: 30 } // Default to last 30 days
-          }
+          work_type: 'P4_COMPOSE',
+          work_payload: {
+            operations: [{
+              type: 'compose_from_memory',
+              data: {
+                title,
+                intent,
+                narrative_sections: [{ id: 'intro', content: intent || 'Draft', order: 0 }],
+                substrate_references: [],
+                composition_context: { 
+                  intent,
+                  trace_id: crypto.randomUUID(),
+                  window: { days: 30 } // Default to last 30 days
+                }
+              }
+            }],
+            basket_id: basketId,
+            confidence_score: 0.9, // High confidence for user-initiated composition
+            user_override: 'allow_auto'
+          },
+          priority: 'normal'
         })
       });
       const data = await res.json();
-      if (!res.ok || !data?.document?.id) throw new Error(data?.error || 'Compose failed');
+      if (!res.ok || !data?.work_id) throw new Error(data?.error || 'Compose failed');
       
-      // Handle async composition
-      if (data.composition_type === 'async_processing') {
-        // Store work_id in sessionStorage for status tracking
-        sessionStorage.setItem(`doc_${data.document.id}_work_id`, data.work_id);
-        sessionStorage.setItem(`doc_${data.document.id}_status_url`, data.status_url);
-      }
+      // Store work status for tracking (universal work orchestration)
+      sessionStorage.setItem(`compose_work_${data.work_id}`, JSON.stringify({
+        work_id: data.work_id,
+        status_url: data.status_url,
+        work_type: 'P4_COMPOSE',
+        title,
+        basket_id: basketId
+      }));
       
-      router.push(`/baskets/${basketId}/documents/${data.document.id}`);
+      // Navigate to basket with work status (document will be created async)
+      router.push(`/baskets/${basketId}?work_id=${data.work_id}&work_type=P4_COMPOSE`);
     } catch (e) {
       alert('Failed to compose document');
     } finally {

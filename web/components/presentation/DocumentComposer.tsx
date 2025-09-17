@@ -135,26 +135,38 @@ export function DocumentComposer({ basketId, workspaceId, onDocumentCreated }: D
     setError(null);
 
     try {
-      // Call canonical P4 composition endpoint
-      const response = await apiClient.request('/api/presentation/compose', {
+      // Call canonical /api/work endpoint with P4_COMPOSE work type
+      const response = await apiClient.request('/api/work', {
         method: 'POST',
         body: JSON.stringify({
-          title,
-          substrate_references: substrateReferences,
-          narrative_sections: narrativeSections,
-          workspace_id: workspaceId,
-          basket_id: basketId
+          work_type: 'P4_COMPOSE',
+          work_payload: {
+            operations: [{
+              type: 'compose_document',
+              data: {
+                title,
+                substrate_references: substrateReferences,
+                narrative_sections: narrativeSections,
+                workspace_id: workspaceId
+              }
+            }],
+            basket_id: basketId,
+            confidence_score: 0.95, // High confidence for manual composition
+            user_override: 'allow_auto'
+          },
+          priority: 'normal'
         })
       }) as any;
 
-      if (response.success) {
-        onDocumentCreated?.(response.document.id);
+      if (response.success && response.work_id) {
+        // Document composition is now async via universal work orchestration
+        onDocumentCreated?.(response.work_id); // Pass work_id for tracking
         // Reset form
         setTitle('');
         setNarrativeSections([{ id: 'main', content: '', order: 1, title: 'Main Section' }]);
         setSubstrateReferences([]);
       } else {
-        setError(response.error || 'Failed to compose document');
+        setError(response.error || 'Failed to initiate document composition');
       }
 
     } catch (error) {
