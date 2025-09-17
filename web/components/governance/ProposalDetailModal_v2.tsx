@@ -171,9 +171,9 @@ export function ProposalDetailModal({
   };
 
   const hasCriticalWarnings = (proposal: ProposalDetail) => {
-    return proposal.validator_report.warnings.some(w => 
-      w.includes('CRITICAL') || w.includes('CONFLICT') || proposal.validator_report.confidence < 0.3
-    );
+    const warnings = Array.isArray(proposal?.validator_report?.warnings) ? proposal.validator_report.warnings : [];
+    const confidence = typeof proposal?.validator_report?.confidence === 'number' ? proposal.validator_report.confidence : 0.5;
+    return warnings.some((w: any) => typeof w === 'string' && (w.includes('CRITICAL') || w.includes('CONFLICT'))) || confidence < 0.3;
   };
 
   const summarizeChanges = (ops: ProposalOperation[]) => {
@@ -238,14 +238,14 @@ export function ProposalDetailModal({
                 {/* PRIMARY: What's Changing */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-gray-900">
-                    {proposal.validator_report.impact_summary}
+                    {proposal?.validator_report?.impact_summary || proposal?.ops?.[0]?.type || 'Proposed change'}
                   </h3>
                   
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <GitBranch className="h-4 w-4 text-gray-600" />
                       <span className="text-sm font-medium text-gray-700">
-                        Changes: {summarizeChanges(proposal.ops)}
+                        Changes: {summarizeChanges(Array.isArray(proposal.ops) ? proposal.ops : [])}
                       </span>
                     </div>
                     <div className="text-sm text-gray-600">
@@ -260,8 +260,8 @@ export function ProposalDetailModal({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium text-gray-700">Risk Assessment</h4>
-                    <Badge className={getConfidenceColor(proposal.validator_report.confidence)}>
-                      {Math.round(proposal.validator_report.confidence * 100)}% Confidence
+                    <Badge className={getConfidenceColor(typeof proposal?.validator_report?.confidence === 'number' ? proposal.validator_report.confidence : 0.5)}>
+                      {Math.round((typeof proposal?.validator_report?.confidence === 'number' ? proposal.validator_report.confidence : 0.5) * 100)}% Confidence
                     </Badge>
                   </div>
 
@@ -275,7 +275,7 @@ export function ProposalDetailModal({
                             Issues found:
                           </h5>
                           <ul className="space-y-1">
-                            {proposal.validator_report.warnings
+                            {(Array.isArray(proposal?.validator_report?.warnings) ? proposal.validator_report.warnings : [])
                               .filter(w => w.includes('CRITICAL') || w.includes('CONFLICT'))
                               .slice(0, 3)
                               .map((warning, i) => {
@@ -289,7 +289,7 @@ export function ProposalDetailModal({
                                 return <li key={i} className="text-sm text-red-700">• {humanWarning}</li>;
                               })}
                           </ul>
-                          {proposal.validator_report.confidence < 0.3 && (
+                          {(typeof proposal?.validator_report?.confidence === 'number' ? proposal.validator_report.confidence : 1) < 0.3 && (
                             <p className="text-sm text-red-700 mt-2">
                               • AI is very uncertain about this change
                             </p>
@@ -300,12 +300,12 @@ export function ProposalDetailModal({
                   )}
 
                   {/* All Other Warnings - Collapsible */}
-                  {proposal.validator_report.warnings.length > 0 && !hasCriticalWarnings(proposal) && (
+                  {(Array.isArray(proposal?.validator_report?.warnings) ? proposal.validator_report.warnings.length : 0) > 0 && !hasCriticalWarnings(proposal) && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4 text-yellow-600" />
                         <span className="text-sm font-medium text-yellow-800">
-                          {proposal.validator_report.warnings.length} warnings detected
+                          {(Array.isArray(proposal?.validator_report?.warnings) ? proposal.validator_report.warnings.length : 0)} warnings detected
                         </span>
                       </div>
                     </div>
@@ -360,7 +360,7 @@ export function ProposalDetailModal({
                         <div>
                           <span className="font-medium text-gray-700">Triggered by:</span>
                           <div className="mt-1 space-y-1">
-                            {proposal.provenance.slice(0, 2).map((entry, i) => (
+                            {(Array.isArray(proposal?.provenance) ? proposal.provenance : []).slice(0, 2).map((entry, i) => (
                               <div key={i} className="text-gray-600">
                                 • {entry.type}: {entry.id.slice(0, 8)}...
                               </div>
@@ -370,11 +370,11 @@ export function ProposalDetailModal({
                       </div>
 
                       {/* All Warnings in Detail View */}
-                      {proposal.validator_report.warnings.length > 0 && (
+                      {(Array.isArray(proposal?.validator_report?.warnings) ? proposal.validator_report.warnings.length : 0) > 0 && (
                         <div>
                           <span className="font-medium text-gray-700">All Warnings:</span>
                           <ul className="mt-1 space-y-1">
-                            {proposal.validator_report.warnings.map((warning, i) => (
+                            {(Array.isArray(proposal?.validator_report?.warnings) ? proposal.validator_report.warnings : []).map((warning, i) => (
                               <li key={i} className="text-gray-600 text-xs">• {warning}</li>
                             ))}
                           </ul>

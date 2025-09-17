@@ -34,8 +34,12 @@ interface ProposalCardProps {
 }
 
 export function ProposalCard({ proposal, onReview, onQuickApprove }: ProposalCardProps) {
-  const confidence = proposal.validator_report.confidence;
-  const warnings = proposal.validator_report.warnings;
+  const confidence = typeof proposal?.validator_report?.confidence === 'number'
+    ? proposal.validator_report.confidence
+    : 0.5;
+  const warnings = Array.isArray(proposal?.validator_report?.warnings)
+    ? proposal.validator_report.warnings
+    : [] as Array<string | { severity: 'critical' | 'warning' | 'info'; message: string }>;
   
   const criticalWarnings = warnings.filter(w => {
     if (typeof w === 'string') {
@@ -64,7 +68,7 @@ export function ProposalCard({ proposal, onReview, onQuickApprove }: ProposalCar
 
   // Get human-readable action type and icon
   const getActionInfo = () => {
-    const ops = proposal.ops || [];
+    const ops = Array.isArray(proposal.ops) ? proposal.ops : [];
     const primaryOp = ops[0];
     
     if (!primaryOp) {
