@@ -280,7 +280,10 @@ export const useNotificationStore = create<NotificationStore>()(
 
         try {
           // Only persist cross-page notifications
-          const persistentNotifications = notifications.filter(n => n.persistence.cross_page);
+          const persistentNotifications = notifications
+            .filter(n => n.persistence.cross_page)
+            // Guard against legacy/mismatched workspace entries
+            .filter(n => n.workspace_id === workspace_id);
 
           if (persistentNotifications.length === 0) return;
 
@@ -288,7 +291,14 @@ export const useNotificationStore = create<NotificationStore>()(
           await fetch('/api/notifications/upsert', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notifications: persistentNotifications.map(mapToDatabase) })
+            body: JSON.stringify({ 
+              notifications: persistentNotifications.map(n => ({
+                ...mapToDatabase(n),
+                // Enforce correct user/workspace on server even if local cache stale
+                user_id: user_id,
+                workspace_id: workspace_id,
+              }))
+            })
           });
         } catch (error) {
           // Silent failure: persistence is best-effort
