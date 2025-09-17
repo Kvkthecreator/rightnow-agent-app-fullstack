@@ -60,10 +60,10 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
   // Force refresh reflections (when user clicks refresh)
   async function refreshReflections() {
     try {
-      await fetch('/api/reflections/trigger', {
+      await fetchWithToken('/api/reflections/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ basket_id: basketId }),
+        body: JSON.stringify({ basket_id: basketId, force_refresh: true, scope: 'window' }),
       });
     } catch (err) {
       console.error('Failed to trigger reflection refresh:', err);
