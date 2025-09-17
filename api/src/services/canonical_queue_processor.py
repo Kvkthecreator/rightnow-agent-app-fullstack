@@ -158,7 +158,7 @@ class CanonicalQueueProcessor:
         """Atomically claim work from the queue (all work types)."""
         try:
             response = supabase.rpc(
-                'fn_claim_next_dumps',
+                'fn_claim_pipeline_work',
                 {
                     'p_worker_id': self.worker_id,
                     'p_limit': limit,
