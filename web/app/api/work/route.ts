@@ -5,6 +5,7 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createTestAwareClient, getTestAwareAuth } from "@/lib/auth/testHelpers";
+import { createServiceRoleClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceForUser } from "@/lib/workspaces/ensureWorkspaceForUser";
 import { z } from "zod";
 import { routeWork } from "@/lib/governance/universalWorkRouter";
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
 
     const { work_type, work_payload, priority } = parsed.data;
     const supabase = createTestAwareClient({ cookies });
+    const serviceSupabase = createServiceRoleClient();
     const { userId, isTest } = await getTestAwareAuth(supabase);
 
     // Get workspace (required for all work)
@@ -83,7 +85,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Route through universal governance system
-    const routingResult = await routeWork(supabase, {
+    // Use service role client for queue/proposals writes (bypass RLS),
+    // after access is validated with user-scoped client above.
+    const routingResult = await routeWork(serviceSupabase, {
       work_type,
       work_payload,
       workspace_id: workspace.id,
@@ -92,7 +96,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Emit timeline event for work initiation
-    const timelineEmitter = createTimelineEmitter(supabase);
+    const timelineEmitter = createTimelineEmitter(serviceSupabase);
     await timelineEmitter.emitWorkInitiated({
       work_id: routingResult.work_id,
       work_type,
