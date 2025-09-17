@@ -277,35 +277,21 @@ export const useNotificationStore = create<NotificationStore>()(
         if (!PERSIST_ENABLED) return; // Skip DB sync when persistence disabled
         const { workspace_id, user_id, notifications } = get();
         if (!workspace_id || !user_id) return;
-        
+
         try {
-          const supabase = createBrowserClient();
-          
           // Only persist cross-page notifications
           const persistentNotifications = notifications.filter(n => n.persistence.cross_page);
-          
-          // Upsert to Supabase (batch operation)
-          if (persistentNotifications.length > 0) {
-            try {
-              await supabase
-                .from('user_notifications')
-                .upsert(
-                  persistentNotifications.map(mapToDatabase),
-                  { onConflict: 'id' }
-                );
-            } catch (err: any) {
-              const msg = typeof err?.message === 'string' ? err.message : '';
-              if (/user_notifications|404|Not Found/i.test(msg)) {
-                // Graceful degrade if persistence table not present in this environment
-                console.warn('Notification persistence disabled (table missing).');
-              } else {
-                throw err;
-              }
-            }
-          }
-          
+
+          if (persistentNotifications.length === 0) return;
+
+          // Route writes through server API (service-role) to avoid client RLS issues
+          await fetch('/api/notifications/upsert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notifications: persistentNotifications.map(mapToDatabase) })
+          });
         } catch (error) {
-          console.error('Failed to sync notifications:', error);
+          // Silent failure: persistence is best-effort
         }
       },
       
