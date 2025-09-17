@@ -149,7 +149,7 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
       });
       
       // Check if it's primarily adding new content
-      const ops = proposal.ops || [];
+      const ops = Array.isArray(proposal.ops) ? proposal.ops : [];
       const isMainlyAdditions = ops.length > 0 && 
         ops.filter(op => op.type.includes('Create')).length > ops.length * 0.6;
 
@@ -186,7 +186,7 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
         return w.severity === 'critical';
       });
       
-      const ops = proposal.ops || [];
+      const ops = Array.isArray(proposal.ops) ? proposal.ops : [];
       const isMainlyAdditions = ops.length > 0 && 
         ops.filter(op => op.type.includes('Create')).length > ops.length * 0.6;
 

@@ -180,9 +180,15 @@ class CanonicalQueueProcessor:
         3. Narrative is Deliberate: P4 not triggered in queue processing
         4. Agent Intelligence is Mandatory: All pipeline processing required
         """
-        dump_id = UUID(queue_entry['dump_id'])
-        basket_id = UUID(queue_entry['basket_id'])
-        workspace_id = UUID(queue_entry['workspace_id'])
+        # Normalize IDs: queue entries may already contain UUID objects depending on client/driver
+        def _to_uuid(val):
+            if isinstance(val, UUID):
+                return val
+            return UUID(str(val))
+
+        dump_id = _to_uuid(queue_entry['dump_id'])
+        basket_id = _to_uuid(queue_entry['basket_id'])
+        workspace_id = _to_uuid(queue_entry['workspace_id'])
         queue_id = queue_entry['id']
         
         logger.info(f"Starting canonical processing: dump_id={dump_id}")
@@ -204,9 +210,9 @@ class CanonicalQueueProcessor:
             if len(batch_dumps) > 1:
                 # Comprehensive batch processing for Share Updates
                 governance_result = await self.p1_governance.process_batch_dumps(
-                    dump_ids=[UUID(did) for did in batch_dumps],
-                    basket_id=UUID(basket_id),
-                    workspace_id=UUID(workspace_id)
+                    dump_ids=[_to_uuid(did) for did in batch_dumps],
+                    basket_id=basket_id,
+                    workspace_id=workspace_id
                 )
                 logger.info(f"Using canonical governance batch mode ({len(batch_dumps)} dumps)")
             else:
