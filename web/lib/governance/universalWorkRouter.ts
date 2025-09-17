@@ -141,8 +141,22 @@ export async function routeWork(
       .update({ processing_state: 'claimed', claimed_at: new Date().toISOString() })
       .eq('id', workEntryId);
   } else {
-    // Create proposal for review
-    const { data: proposal, error: proposalError } = await supabase
+    // Create proposal for review (schema-compatible)
+    // Prefer canonical v2.2 schema; fallback to legacy (ops/proposal_kind/origin) if needed.
+    const nowIso = new Date().toISOString();
+
+    // Helper to infer proposal_kind and origin
+    const inferProposalKind = (): 'Extraction' | 'Edit' | 'Merge' | 'Attachment' => {
+      const types = (request.work_payload.operations || []).map(o => o?.type);
+      if (types.some(t => /Merge/i.test(t))) return 'Merge';
+      if (types.some(t => /Attach|Relationship|Map/i.test(t))) return 'Attachment';
+      if (types.some(t => /Create|Extract/i.test(t))) return 'Extraction';
+      return 'Edit';
+    };
+    const origin = request.work_type === 'MANUAL_EDIT' ? 'human' : 'agent';
+
+    // Attempt new schema first
+    const tryNew = await supabase
       .from('proposals')
       .insert({
         work_id: workEntryId,
@@ -151,17 +165,40 @@ export async function routeWork(
         user_id: request.user_id,
         operations: request.work_payload.operations,
         confidence_score: request.work_payload.confidence_score,
-        status: 'pending',
-        created_at: new Date().toISOString()
+        status: 'PROPOSED',
+        created_at: nowIso,
       })
       .select('id')
       .single();
 
-    if (proposalError || !proposal) {
-      throw new Error(`Failed to create proposal: ${proposalError?.message || 'Unknown error'}`);
-    }
+    if (tryNew.data && (tryNew.data as any).id) {
+      proposal_id = (tryNew.data as any).id;
+    } else {
+      // Fallback to legacy schema with required fields
+      const fallback = await supabase
+        .from('proposals')
+        .insert({
+          basket_id: request.work_payload.basket_id,
+          workspace_id: request.workspace_id,
+          proposal_kind: inferProposalKind(),
+          origin,
+          ops: request.work_payload.operations,
+          provenance: request.work_payload.provenance || [],
+          status: 'PROPOSED',
+          created_at: nowIso,
+          created_by: request.user_id,
+        })
+        .select('id')
+        .single();
 
-    proposal_id = proposal.id;
+      if (fallback.error || !fallback.data) {
+        // Prefer specific error messages for common schema mismatch cases
+        const errMsg = fallback.error?.message || tryNew.error?.message || 'Unknown error';
+        throw new Error(`Failed to create proposal: ${errMsg}`);
+      }
+
+      proposal_id = (fallback.data as any).id;
+    }
   }
 
   return {
