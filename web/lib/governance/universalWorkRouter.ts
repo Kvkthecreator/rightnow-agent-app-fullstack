@@ -36,6 +36,17 @@ export interface WorkRoutingResult {
   proposal_id?: string;
 }
 
+// Convert string priority to integer for database storage
+function priorityToInteger(priority: string): number {
+  switch (priority) {
+    case 'low': return 1;
+    case 'normal': return 5;
+    case 'high': return 8;
+    case 'urgent': return 10;
+    default: return 5; // Default to normal
+  }
+}
+
 export async function routeWork(
   supabase: SupabaseClient,
   request: WorkRequest
@@ -82,7 +93,7 @@ export async function routeWork(
         work_payload: request.work_payload,
         workspace_id: request.workspace_id,
         user_id: request.user_id,
-        priority: request.priority,
+        priority: priorityToInteger(request.priority),
         processing_state: execution_mode === 'auto_execute' ? 'claimed' : 'pending',
         execution_mode, // may not exist on older schemas
         governance_policy: policy, // may not exist on older schemas
@@ -102,7 +113,7 @@ export async function routeWork(
           work_payload: request.work_payload,
           workspace_id: request.workspace_id,
           user_id: request.user_id,
-          priority: request.priority,
+          priority: priorityToInteger(request.priority),
           processing_state: execution_mode === 'auto_execute' ? 'claimed' : 'pending',
           created_at: new Date().toISOString()
         })
