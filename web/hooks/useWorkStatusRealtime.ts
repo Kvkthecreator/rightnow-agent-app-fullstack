@@ -84,7 +84,7 @@ export function useWorkStatusRealtime(
       setError(null);
       if (!loading) setLoading(true);
 
-      const response = await fetch(`/api/work/${workId}/status`);
+      const response = await fetch(`/api/work/status/${workId}`);
       
       if (!response.ok) {
         if (response.status === 404) {

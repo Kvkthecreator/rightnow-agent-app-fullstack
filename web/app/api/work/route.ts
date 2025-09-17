@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
       routing_decision: routingResult.routing_decision,
       execution_mode: routingResult.execution_mode,
       proposal_id: routingResult.proposal_id,
-      status_url: `/api/work/${routingResult.work_id}/status`,
+      status_url: `/api/work/status/${routingResult.work_id}`,
       message: getExecutionModeMessage(routingResult.execution_mode)
     }, { 
       status: routingResult.execution_mode === 'auto_execute' ? 201 : 202 

@@ -46,7 +46,7 @@ export function InlineWorkStatus({
   // Fetch work status from API
   const fetchStatus = async () => {
     try {
-      const response = await fetch(`/api/work/${workId}/status`);
+      const response = await fetch(`/api/work/status/${workId}`);
       
       if (!response.ok) {
         if (response.status === 404) {

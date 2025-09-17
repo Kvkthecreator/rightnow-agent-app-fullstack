@@ -35,6 +35,8 @@
   "/api/canon/violations",
   "/api/canonical/queue/health",
   "/api/work",
+  "/api/work/status/[workId]",
+  "/api/work/[workId]/status",
   "/api/debug/baskets",
   "/api/debug/create-basket",
   "/api/documents",

@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
         work_id: work_id,
         message: 'File uploaded and queued for processing',
         processing_method: fileContent ? 'immediate_text' : 'storage_extraction',
-        status_url: `/api/work/${work_id}/status`
+        status_url: `/api/work/status/${work_id}`
       }, { status: 201 });
 
     } catch (workError) {

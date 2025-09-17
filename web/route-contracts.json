@@ -27,6 +27,8 @@
   "/api/baskets/resolve",
   "/api/canonical/queue/health",
   "/api/work",
+  "/api/work/status/[workId]",
+  "/api/work/[workId]/status",
   "/api/documents",
   "/api/documents/[id]",
   "/api/documents/[id]/composition",
