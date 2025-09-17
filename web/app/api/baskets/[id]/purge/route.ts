@@ -3,7 +3,7 @@ export const revalidate = 0;
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@/lib/supabase/clients';
+import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase/clients';
 import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
 import { routeWork } from '@/lib/governance/universalWorkRouter';
 
@@ -55,11 +55,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // Chunk and execute via /api/work (routeWork)
     const BATCH_SIZE = 50;
+    const service = createServiceRoleClient();
+    const { data: authUser } = await supabase.auth.getUser();
+    const user_id = authUser?.user?.id || 'unknown';
     let executed_batches = 0;
     let total_ops = 0;
     for (let i=0; i<ops.length; i+=BATCH_SIZE) {
       const chunk = ops.slice(i, i+BATCH_SIZE);
-      await routeWork(supabase as any, {
+      // Use service role client for queue/proposal writes (bypass RLS) while
+      // keeping workspace/basket validation with user-scoped client above.
+      await routeWork(service as any, {
         work_type: 'MANUAL_EDIT',
         work_payload: {
           operations: chunk,
@@ -67,7 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           provenance: ['purge_basket']
         },
         workspace_id: workspace.id,
-        user_id: 'current',
+        user_id,
         priority: 'normal'
       });
       executed_batches++;
@@ -80,4 +85,3 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'internal_error' }, { status: 500 });
   }
 }
-
