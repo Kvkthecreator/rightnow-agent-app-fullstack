@@ -39,7 +39,6 @@ const PIPELINE_ROUTES: Record<string, string> = {
   '/api/documents': 'P4_PRESENTATION',
   '/api/documents/create': 'P4_PRESENTATION',
   '/api/documents/compose': 'P4_PRESENTATION',
-  '/api/presentation/compose': 'P4_PRESENTATION',
   '/api/narrative': 'P4_PRESENTATION',
   
   // Legacy AI substrate creation endpoints (TO BE CONVERTED)

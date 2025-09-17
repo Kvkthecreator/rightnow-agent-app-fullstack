@@ -57,7 +57,6 @@
   "/api/narrative-intelligence/project-health",
   "/api/narrative-intelligence/project-understanding",
   "/api/onboarding/complete",
-  "/api/presentation/compose",
   "/api/presentation/narrative/new",
   "/api/proposals/[id]/approve",
   "/api/proposals/[id]/reject",

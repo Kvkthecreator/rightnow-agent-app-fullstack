@@ -277,10 +277,10 @@ async function executeManualEditOps(supabase: SupabaseClient, request: WorkReque
         if (error) throw new Error(error.message);
         redactedDumps++;
       } else if (t === 'Delete' && (data.target_type === 'context_item') && data.target_id) {
-        // Soft-deprecate context items (canon soft delete)
+        // Archive context items for this environment (allowed statuses: 'active'|'archived')
         const { error } = await supabase
           .from('context_items')
-          .update({ status: 'DEPRECATED', updated_at: new Date().toISOString() as any })
+          .update({ status: 'archived', updated_at: new Date().toISOString() as any })
           .eq('id', data.target_id)
           .eq('basket_id', basket_id);
         if (error) throw new Error(error.message);
