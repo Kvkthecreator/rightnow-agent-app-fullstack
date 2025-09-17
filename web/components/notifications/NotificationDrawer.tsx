@@ -21,6 +21,8 @@ import {
 import type { UnifiedNotification, NotificationGovernance, NotificationCategory } from '@/lib/notifications/types';
 import { Button } from '@/components/ui/Button';
 import { CategoryNotificationBadge } from './NotificationBadge';
+import { useRouter } from 'next/navigation';
+import { routeNotification } from '@/lib/notifications/actionRouter';
 
 interface NotificationDrawerProps {
   isOpen: boolean;
@@ -285,6 +287,7 @@ function NotificationDrawerItem({
   onRead: () => void;
   onAcknowledge: () => void;
 }) {
+  const router = useRouter();
   const getSeverityColor = () => {
     switch (notification.severity) {
       case 'critical': return 'border-l-red-500 bg-red-50';
@@ -302,7 +305,15 @@ function NotificationDrawerItem({
         ${notification.status === 'unread' ? 'bg-opacity-50' : 'bg-opacity-20'}
         hover:bg-opacity-70 transition-colors cursor-pointer
       `}
-      onClick={() => notification.status === 'unread' && onRead()}
+      onClick={() => {
+        // Try to route based on notification type; then mark as read
+        const routed = routeNotification(notification, router);
+        if (notification.status === 'unread') onRead();
+        // If routed, optionally dismiss transient notifications
+        if (routed && !notification.persistence.requires_acknowledgment) {
+          onDismiss();
+        }
+      }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
@@ -340,8 +351,12 @@ function NotificationDrawerItem({
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation();
-                notification.actions![0].handler();
-                onDismiss();
+                // Prefer canonical route; fallback to provided handler
+                const routed = routeNotification(notification, router);
+                if (!routed) {
+                  notification.actions![0].handler();
+                }
+                if (!notification.persistence.requires_acknowledgment) onDismiss();
               }}
               className="text-xs h-6"
             >
