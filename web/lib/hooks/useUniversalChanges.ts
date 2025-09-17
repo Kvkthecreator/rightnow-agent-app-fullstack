@@ -430,7 +430,7 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
       });
 
       // Map legacy change types to Universal Work (artifact-only fence)
-      let work_type: 'P4_COMPOSE';
+      let work_type: 'P0_CAPTURE' | 'P1_SUBSTRATE' | 'P2_GRAPH' | 'P3_REFLECTION' | 'P4_COMPOSE' | 'MANUAL_EDIT' | 'PROPOSAL_REVIEW' | 'TIMELINE_RESTORE';
       let operations: Array<{ type: string; data: Record<string, any> }> = [];
 
       switch (type) {
@@ -456,6 +456,27 @@ export function useUniversalChanges(basketId: string): UseUniversalChangesReturn
           work_type = 'P4_COMPOSE';
           const d = data as any;
           operations = [{ type: 'DeleteDocument', data: { document_id: d.documentId } }];
+          break;
+        }
+        case 'block_create':
+        case 'block_update':
+        case 'context_add': {
+          work_type = 'MANUAL_EDIT';
+          const d = data as any;
+          operations = [{
+            type: type === 'block_create' ? 'CreateBlock' : 
+                  type === 'block_update' ? 'UpdateBlock' : 'AddContext',
+            data: d
+          }];
+          break;
+        }
+        case 'basket_update': {
+          work_type = 'MANUAL_EDIT';
+          const d = data as any;
+          operations = [{
+            type: 'UpdateBasket',
+            data: d
+          }];
           break;
         }
         default: {
