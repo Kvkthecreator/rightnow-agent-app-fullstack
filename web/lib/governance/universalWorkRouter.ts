@@ -34,6 +34,8 @@ export interface WorkRoutingResult {
   routing_decision: 'auto_execute' | 'create_proposal' | 'confidence_routing';
   execution_mode: 'auto_execute' | 'create_proposal' | 'confidence_routing';
   proposal_id?: string;
+  // When execution_mode is auto_execute, include executor summary
+  work_result?: any;
 }
 
 // Convert string priority to integer for database storage
@@ -135,11 +137,32 @@ export async function routeWork(
 
   // Handle execution based on mode
   if (execution_mode === 'auto_execute') {
-    // Execute immediately - trigger worker
+    // Execute immediately
     await supabase
       .from('agent_processing_queue')
       .update({ processing_state: 'claimed', claimed_at: new Date().toISOString() })
       .eq('id', workEntryId);
+
+    try {
+      const result = await autoExecuteWork(supabase, request);
+      await supabase
+        .from('agent_processing_queue')
+        .update({ processing_state: 'completed', completed_at: new Date().toISOString(), work_result: result })
+        .eq('id', workEntryId);
+      return {
+        work_id: workEntryId,
+        routing_decision: execution_mode as any,
+        execution_mode: execution_mode as any,
+        proposal_id,
+        work_result: result,
+      };
+    } catch (e: any) {
+      await supabase
+        .from('agent_processing_queue')
+        .update({ processing_state: 'failed', error_message: e?.message || String(e) })
+        .eq('id', workEntryId);
+      throw e;
+    }
   } else {
     // Create proposal for review (schema-compatible)
     // Prefer canonical v2.2 schema; fallback to legacy (ops/proposal_kind/origin) if needed.
@@ -210,3 +233,76 @@ export async function routeWork(
 }
 
 export default { routeWork };
+
+async function autoExecuteWork(supabase: SupabaseClient, request: WorkRequest): Promise<any> {
+  switch (request.work_type) {
+    case 'MANUAL_EDIT':
+      return executeManualEditOps(supabase, request);
+    default:
+      // For other types, we rely on workers; no-op here
+      return { executed: false, note: 'No auto-executor for work_type' };
+  }
+}
+
+async function executeManualEditOps(supabase: SupabaseClient, request: WorkRequest): Promise<any> {
+  const { basket_id, operations } = request.work_payload || ({} as any);
+  if (!basket_id || !operations || operations.length === 0) return { executed: true, counts: { total: 0 } };
+
+  let archivedBlocks = 0;
+  let redactedDumps = 0;
+  let deprecatedItems = 0;
+  let errors: Array<{ type: string; id?: string; error: string }> = [];
+
+  // Execute sequentially to keep load predictable
+  for (const op of operations) {
+    const t = (op?.type || '').toString();
+    const data = op?.data || {};
+    try {
+      if (t === 'ArchiveBlock' && data.block_id) {
+        const { error } = await supabase.rpc('fn_archive_block', {
+          p_basket_id: basket_id,
+          p_block_id: data.block_id,
+          p_actor_id: request.user_id,
+        });
+        if (error) throw new Error(error.message);
+        archivedBlocks++;
+      } else if (t === 'RedactDump' && data.dump_id) {
+        const { error } = await supabase.rpc('fn_redact_dump', {
+          p_basket_id: basket_id,
+          p_dump_id: data.dump_id,
+          p_scope: data.scope || 'full',
+          p_reason: data.reason || 'bulk_purge',
+          p_actor_id: request.user_id,
+        });
+        if (error) throw new Error(error.message);
+        redactedDumps++;
+      } else if (t === 'Delete' && (data.target_type === 'context_item') && data.target_id) {
+        // Soft-deprecate context items (canon soft delete)
+        const { error } = await supabase
+          .from('context_items')
+          .update({ status: 'DEPRECATED', updated_at: new Date().toISOString() as any })
+          .eq('id', data.target_id)
+          .eq('basket_id', basket_id);
+        if (error) throw new Error(error.message);
+        deprecatedItems++;
+      } else {
+        // Unsupported op in auto path; record and continue
+        errors.push({ type: t, id: data.block_id || data.dump_id || data.target_id, error: 'Unsupported operation for auto-exec' });
+      }
+    } catch (e: any) {
+      errors.push({ type: t, id: data.block_id || data.dump_id || data.target_id, error: e?.message || String(e) });
+    }
+  }
+
+  return {
+    executed: true,
+    counts: {
+      total: operations.length,
+      archivedBlocks,
+      redactedDumps,
+      deprecatedItems,
+      errors: errors.length,
+    },
+    errors,
+  };
+}

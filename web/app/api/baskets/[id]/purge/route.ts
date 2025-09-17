@@ -54,22 +54,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Chunk and execute via /api/work (routeWork)
-    const BATCH_SIZE = 50;
+    const BATCH_SIZE = 200;
     const service = createServiceRoleClient();
     const { data: authUser } = await supabase.auth.getUser();
     const user_id = authUser?.user?.id || 'unknown';
     let executed_batches = 0;
     let total_ops = 0;
+    const totals = { archivedBlocks: 0, redactedDumps: 0, deprecatedItems: 0, errors: 0 } as any;
+    const chunks: any[] = [];
     for (let i=0; i<ops.length; i+=BATCH_SIZE) {
       const chunk = ops.slice(i, i+BATCH_SIZE);
       // Use service role client for queue/proposal writes (bypass RLS) while
       // keeping workspace/basket validation with user-scoped client above.
-      await routeWork(service as any, {
+      const routed = await routeWork(service as any, {
         work_type: 'MANUAL_EDIT',
         work_payload: {
           operations: chunk,
           basket_id,
-          provenance: ['purge_basket']
+          provenance: ['purge_basket'],
+          // Danger Zone: guided auto-execution within governance
+          user_override: 'allow_auto',
+          confidence_score: 0.99
         },
         workspace_id: workspace.id,
         user_id,
@@ -77,9 +82,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
       executed_batches++;
       total_ops += chunk.length;
+      if (routed?.work_result) {
+        const r = routed.work_result;
+        totals.archivedBlocks += r?.counts?.archivedBlocks || 0;
+        totals.redactedDumps += r?.counts?.redactedDumps || 0;
+        totals.deprecatedItems += r?.counts?.deprecatedItems || 0;
+        totals.errors += r?.counts?.errors || 0;
+        chunks.push({ work_id: routed.work_id, counts: r?.counts || {}, errors: r?.errors || [] });
+      } else {
+        chunks.push({ work_id: routed?.work_id, counts: null, errors: [] });
+      }
     }
 
-    return NextResponse.json({ success: true, executed_batches, total_operations: total_ops });
+    return NextResponse.json({ success: true, executed_batches, total_operations: total_ops, totals, chunks });
   } catch (e) {
     console.error('Purge execute error:', e);
     return NextResponse.json({ error: 'internal_error' }, { status: 500 });
