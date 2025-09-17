@@ -71,28 +71,46 @@ export class TimelineEventEmitter {
       const entityId = this.extractEntityId(event);
       
       // Call the Supabase function to emit event (workspace-scoped)
-      const { error } = await this.supabase.rpc('emit_timeline_event', {
+      let rpcError: any | null = null;
+      const argsWithEntity = {
         p_basket_id: event.basket_id,
         p_event_type: event.kind,
         p_entity_id: entityId,
         p_event_data: {
           ...event.payload,
-          metadata: event.metadata
+          metadata: event.metadata,
         },
         p_workspace_id: event.workspace_id,
         p_actor_id: event.metadata?.user_id || null,
-        p_agent_type: event.metadata?.pipeline || null
-      });
-      
-      if (error) {
+        p_agent_type: event.metadata?.pipeline || null,
+      } as const;
+
+      const { error: firstErr } = await this.supabase.rpc('emit_timeline_event', argsWithEntity);
+      if (firstErr) {
+        rpcError = firstErr;
+        // Backward-compat fallback: older DBs expose emit_timeline_event without p_entity_id
+        if (
+          typeof firstErr?.message === 'string' &&
+          /Could not find the function public\.emit_timeline_event/i.test(firstErr.message)
+        ) {
+          const { p_entity_id, ...legacyArgs } = argsWithEntity as any;
+          const { error: legacyErr } = await this.supabase.rpc('emit_timeline_event', legacyArgs);
+          if (!legacyErr) {
+            rpcError = null; // succeeded on fallback
+          } else {
+            rpcError = legacyErr;
+          }
+        }
+      }
+
+      if (rpcError) {
         console.error('[Timeline Event Error]', {
           kind: event.kind,
-          error: error.message,
+          error: rpcError.message,
           basket_id: event.basket_id,
-          details: error
+          details: rpcError,
         });
         // Don't throw - timeline events should not break operations
-        // In production, send to monitoring
       }
     } catch (err) {
       console.error('[Timeline Event Exception]', err);
