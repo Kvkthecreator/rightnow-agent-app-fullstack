@@ -255,6 +255,10 @@ class GovernanceDumpProcessor:
                     if select_response.data:
                         proposals.extend(select_response.data)
                         proposal_ids.extend([p["id"] for p in select_response.data])
+                        
+                        # Auto-approval logic per Canon v2.2: Agent origin + confidence > 0.7 → Auto-approved
+                        for proposal in select_response.data:
+                            await self._check_auto_approval(proposal)
             
             return {
                 "proposals_created": len(proposals),
@@ -433,7 +437,137 @@ class GovernanceDumpProcessor:
         proposal_id = UUID(select_response.data["id"])
         self.logger.info(f"Created unified proposal {proposal_id} from {len(dump_ids)} dumps")
         
+        # Auto-approval logic per Canon v2.2: Agent origin + confidence > 0.7 → Auto-approved
+        await self._check_auto_approval(select_response.data)
+        
         return proposal_id
+    
+    async def _check_auto_approval(self, proposal: Dict[str, Any]) -> bool:
+        """
+        Check if proposal meets auto-approval criteria per Canon v2.2:
+        Agent origin + confidence > 0.7 → Auto-approved
+        """
+        try:
+            # Check auto-approval criteria
+            origin = proposal.get("origin")
+            validator_report = proposal.get("validator_report", {})
+            confidence = validator_report.get("confidence", 0.0) if isinstance(validator_report, dict) else 0.0
+            
+            should_auto_approve = (
+                origin == "agent" and 
+                confidence > 0.7
+            )
+            
+            if should_auto_approve:
+                proposal_id = proposal["id"]
+                self.logger.info(f"Auto-approving proposal {proposal_id} (origin={origin}, confidence={confidence})")
+                
+                # Update proposal status to APPROVED
+                supabase.table("proposals").update({
+                    "status": "APPROVED",
+                    "reviewed_at": datetime.utcnow().isoformat(),
+                    "review_notes": f"Auto-approved: agent origin with confidence {confidence:.3f} > 0.7"
+                }).eq("id", proposal_id).execute()
+                
+                # Execute the proposal operations
+                await self._execute_proposal_operations(proposal)
+                
+                # Update status to EXECUTED
+                supabase.table("proposals").update({
+                    "status": "EXECUTED"
+                }).eq("id", proposal_id).execute()
+                
+                self.logger.info(f"Auto-approved and executed proposal {proposal_id}")
+                return True
+            else:
+                self.logger.info(f"Proposal {proposal['id']} requires manual review (origin={origin}, confidence={confidence})")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Auto-approval check failed for proposal {proposal.get('id')}: {e}")
+            return False
+    
+    async def _execute_proposal_operations(self, proposal: Dict[str, Any]) -> None:
+        """Execute the operations in an approved proposal to create substrate."""
+        try:
+            proposal_id = proposal["id"]
+            ops = proposal.get("ops", [])
+            basket_id = proposal.get("basket_id")
+            workspace_id = proposal.get("workspace_id")
+            
+            self.logger.info(f"Executing {len(ops)} operations for proposal {proposal_id}")
+            
+            executed_operations = []
+            
+            for i, op in enumerate(ops):
+                try:
+                    if op.get("type") == "CreateBlock":
+                        # Create block in substrate
+                        block_data = {
+                            "basket_id": basket_id,
+                            "workspace_id": workspace_id,
+                            "content": op.get("content", ""),
+                            "semantic_type": op.get("semantic_type", "insight"),
+                            "confidence_score": op.get("confidence", 0.7),
+                            "state": "ACCEPTED"
+                        }
+                        
+                        response = supabase.table("blocks").insert(block_data).execute()
+                        if response.data:
+                            executed_operations.append({
+                                "type": "CreateBlock",
+                                "success": True,
+                                "created_id": response.data[0]["id"]
+                            })
+                        
+                    elif op.get("type") == "CreateContextItem":
+                        # Create context item in substrate
+                        item_data = {
+                            "basket_id": basket_id,
+                            "workspace_id": workspace_id,
+                            "title": op.get("label", ""),
+                            "type": op.get("kind", "concept"),
+                            "metadata": {
+                                "synonyms": op.get("synonyms", []),
+                                "confidence_score": op.get("confidence", 0.7)
+                            },
+                            "status": "active"
+                        }
+                        
+                        response = supabase.table("context_items").insert(item_data).execute()
+                        if response.data:
+                            executed_operations.append({
+                                "type": "CreateContextItem", 
+                                "success": True,
+                                "created_id": response.data[0]["id"]
+                            })
+                    
+                    else:
+                        self.logger.warning(f"Unsupported operation type: {op.get('type')}")
+                        
+                except Exception as op_error:
+                    self.logger.error(f"Failed to execute operation {i}: {op_error}")
+                    executed_operations.append({
+                        "type": op.get("type"),
+                        "success": False,
+                        "error": str(op_error)
+                    })
+            
+            # Record execution results
+            supabase.table("proposal_executions").insert({
+                "proposal_id": proposal_id,
+                "operations_count": len(ops),
+                "operations_summary": {
+                    "executed": executed_operations,
+                    "success_count": len([op for op in executed_operations if op.get("success")])
+                }
+            }).execute()
+            
+            self.logger.info(f"Completed execution of proposal {proposal_id}: {len(executed_operations)} operations")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to execute proposal operations: {e}")
+            raise
     
     def get_agent_info(self) -> Dict[str, str]:
         """Get processor information."""

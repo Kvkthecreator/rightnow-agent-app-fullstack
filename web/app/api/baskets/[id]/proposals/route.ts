@@ -20,9 +20,19 @@ export async function GET(
     
     const supabase = createTestAwareClient({ cookies });
     const { userId, isTest } = await getTestAwareAuth(supabase);
-    const workspace = isTest
-      ? { id: '00000000-0000-0000-0000-000000000002' }
-      : await ensureWorkspaceForUser(userId, supabase);
+    
+    let workspace;
+    try {
+      workspace = isTest
+        ? { id: '00000000-0000-0000-0000-000000000002' }
+        : await ensureWorkspaceForUser(userId, supabase);
+    } catch (workspaceError) {
+      console.error('Workspace resolution failed:', workspaceError);
+      return NextResponse.json({ 
+        error: "Workspace access denied", 
+        details: workspaceError instanceof Error ? workspaceError.message : String(workspaceError)
+      }, { status: 403 });
+    }
     
     let query = supabase
       .from('proposals')
@@ -40,7 +50,11 @@ export async function GET(
     const { data: proposals, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: "Failed to fetch proposals" }, { status: 500 });
+      console.error('Database query failed:', error);
+      return NextResponse.json({ 
+        error: "Failed to fetch proposals", 
+        details: error.message 
+      }, { status: 500 });
     }
 
     // Transform proposals to match canon contract format
@@ -67,7 +81,11 @@ export async function GET(
 
   } catch (error) {
     console.error('Proposals fetch error:', error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Internal server error", 
+      details: error instanceof Error ? error.message : String(error),
+      stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+    }, { status: 500 });
   }
 }
 
