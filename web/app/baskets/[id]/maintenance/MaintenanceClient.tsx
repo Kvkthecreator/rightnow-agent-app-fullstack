@@ -61,7 +61,7 @@ export function MaintenanceClient({ basketId, canEdit }: { basketId: string; can
       const ops: any[] = [];
       Object.entries(selectedBlocks).forEach(([id, sel]) => { if (sel) ops.push({ type: 'ArchiveBlock', data: { block_id: id } }); });
       Object.entries(selectedDumps).forEach(([id, sel]) => { if (sel) ops.push({ type: 'RedactDump', data: { dump_id: id, scope: 'full', reason: 'maintenance_suggestion' } }); });
-      Object.entries(selectedItems).forEach(([id, sel]) => { if (sel) ops.push({ type: 'Delete', data: { target_id: id, target_type: 'context_item', delete_reason: 'maintenance_suggestion' } }); });
+      Object.entries(selectedItems).forEach(([id, sel]) => { if (sel) ops.push({ type: 'ArchiveContextItem', data: { context_item_id: id } }); });
       // For duplicates: merge extra ids into the first id as canonical
       (data.candidates.context_item_duplicates || []).forEach(g => {
         if (selectedDupGroups[g.label]) {

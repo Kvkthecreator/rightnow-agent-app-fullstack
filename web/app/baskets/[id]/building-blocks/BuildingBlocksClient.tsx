@@ -239,10 +239,10 @@ function DetailModal({ substrate, basketId, onClose, onSuccess }: DetailModalPro
           work_payload: {
             basket_id: basketId,
             operations: [{
-              type: substrate.type === 'block' ? 'ArchiveBlock' : 'Delete',
+              type: substrate.type === 'block' ? 'ArchiveBlock' : 'ArchiveContextItem',
               data: substrate.type === 'block' 
                 ? { block_id: substrate.id }
-                : { target_id: substrate.id, target_type: substrate.type, delete_reason: 'Manual deletion from building blocks' }
+                : { context_item_id: substrate.id }
             }]
           },
           priority: 'normal'

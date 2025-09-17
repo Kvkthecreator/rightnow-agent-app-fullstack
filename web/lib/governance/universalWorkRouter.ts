@@ -276,13 +276,22 @@ async function executeManualEditOps(supabase: SupabaseClient, request: WorkReque
         });
         if (error) throw new Error(error.message);
         redactedDumps++;
+      } else if (t === 'ArchiveContextItem' && data.context_item_id) {
+        // Canon-compliant context item archival with tombstones and retention
+        const { error } = await supabase.rpc('fn_archive_context_item', {
+          p_basket_id: basket_id,
+          p_context_item_id: data.context_item_id,
+          p_actor_id: request.user_id,
+        });
+        if (error) throw new Error(error.message);
+        deprecatedItems++;
       } else if (t === 'Delete' && (data.target_type === 'context_item') && data.target_id) {
-        // Archive context items for this environment (allowed statuses: 'active'|'archived')
-        const { error } = await supabase
-          .from('context_items')
-          .update({ status: 'archived', updated_at: new Date().toISOString() as any })
-          .eq('id', data.target_id)
-          .eq('basket_id', basket_id);
+        // Legacy support: redirect to ArchiveContextItem
+        const { error } = await supabase.rpc('fn_archive_context_item', {
+          p_basket_id: basket_id,
+          p_context_item_id: data.target_id,
+          p_actor_id: request.user_id,
+        });
         if (error) throw new Error(error.message);
         deprecatedItems++;
       } else {
