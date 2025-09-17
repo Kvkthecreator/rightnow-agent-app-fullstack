@@ -24,9 +24,10 @@ This document provides comprehensive documentation for the Frontend Canon v2.0 i
 1. **Pure Substrate Equality**: Substrate types are peers - block, dump, context_item, timeline_event (reflections now artifacts)
 2. **Contracts-First**: All data flows through Zod-validated contracts in `shared/contracts/*`
 3. **Workspace Scoping**: All operations respect workspace boundaries via RLS
-4. **Timeline Consistency**: All mutations emit canonical timeline events
-5. **Component Composition**: UI atoms compose into dashboard experiences
-6. **Document Mode Separation**: Documents have distinct View and Edit modes that respect Sacred Principle #3
+4. **Governance Integration**: All substrate mutations flow through workspace governance policies
+5. **Timeline Consistency**: All mutations emit canonical timeline events
+6. **Component Composition**: UI atoms compose into dashboard experiences
+7. **Document Mode Separation**: Documents have distinct View and Edit modes that respect Sacred Principle #3
 
 ### Document Mode Architecture
 
@@ -162,6 +163,142 @@ export const DocumentCompositionSchema = z.object({
 | `SubstrateReferenceDTO` | `substrate_references` | `/api/documents/[id]/references` | `SubstrateReferenceCard` |
 | `DocumentComposition` | Multiple joins | `/api/documents/[id]/composition` | `DocumentCompositionView` |
 | `SubstrateSummary` | Substrate-specific tables | Server-side joins | Type-specific displays |
+
+## 🏛️ Governance UI Integration
+
+### Governance-Aware User Interface
+
+The frontend provides comprehensive governance integration across all substrate operations:
+
+#### Workspace Governance Controls
+- **Settings Panel**: `/baskets/[id]/governance/settings` - Configure workspace execution policies
+- **Review Mode Selection**: Users choose between 'Review Everything' (proposal) or 'Smart Review' (hybrid)
+- **Validator Configuration**: Toggle mandatory validation for substrate changes
+- **Scope Controls**: Set default blast radius (Local vs Scoped)
+
+#### Proposal Workflow UI
+- **Proposal Queue**: `/baskets/[id]/governance` - Review pending substrate changes
+- **Proposal Details**: Show operation breakdown, confidence scores, impact analysis
+- **Auto-Approval Indicators**: Visual feedback when proposals auto-execute via governance
+- **Approval Actions**: Approve, reject, or request modifications for proposals
+
+#### Governance Status Indicators
+- **Work Status Integration**: Real-time governance decision visibility in work queue
+- **Confidence Badges**: Display AI confidence scores for substrate operations
+- **Routing Indicators**: Show whether operations went direct, proposal, or auto-approved
+- **Timeline Integration**: Governance events visible in timeline with full audit trail
+
+#### Component Examples
+
+```typescript
+// Governance Settings Component
+export function GovernanceSettingsPanel({ workspaceId }: { workspaceId: string }) {
+  const { settings, updateSettings } = useGovernanceSettings(workspaceId);
+  
+  return (
+    <div className="governance-panel">
+      <GovernanceToggle 
+        enabled={settings.governance_enabled}
+        onChange={(enabled) => updateSettings({ governance_enabled: enabled })}
+      />
+      <ReviewModeSelector
+        mode={settings.review_mode}
+        onChange={(mode) => updateSettings({ review_mode: mode })}
+      />
+      <ValidatorRequiredToggle
+        required={settings.validator_required}
+        onChange={(required) => updateSettings({ validator_required: required })}
+      />
+    </div>
+  );
+}
+
+// Proposal Review Component
+export function ProposalReviewCard({ proposal }: { proposal: Proposal }) {
+  const { approveProposal, rejectProposal } = useProposalActions();
+  
+  return (
+    <Card className="proposal-card">
+      <ProposalHeader proposal={proposal} />
+      <OperationsList operations={proposal.ops} />
+      <ConfidenceBadge score={proposal.validator_report.confidence} />
+      <ImpactAnalysis analysis={proposal.validator_report.impact_summary} />
+      
+      <div className="proposal-actions">
+        <Button 
+          onClick={() => approveProposal(proposal.id)}
+          variant="success"
+        >
+          Approve
+        </Button>
+        <Button 
+          onClick={() => rejectProposal(proposal.id)}
+          variant="danger"
+        >
+          Reject
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// Work Status with Governance
+export function WorkStatusIndicator({ workId }: { workId: string }) {
+  const { work } = useWorkStatus(workId);
+  
+  return (
+    <div className="work-status">
+      <StatusBadge status={work.status} />
+      {work.governance_mode && (
+        <GovernanceBadge mode={work.governance_mode} />
+      )}
+      {work.confidence_score && (
+        <ConfidenceBadge score={work.confidence_score} />
+      )}
+    </div>
+  );
+}
+```
+
+### Governance State Management
+
+```typescript
+// Governance hooks for state management
+export function useGovernanceSettings(workspaceId: string) {
+  const [settings, setSettings] = useState<GovernanceSettings>();
+  
+  const updateSettings = async (updates: Partial<GovernanceSettings>) => {
+    const response = await apiClient.updateGovernanceSettings(workspaceId, updates);
+    setSettings(response.data);
+    // Emit timeline event for governance changes
+    notificationService.governanceSettingsChanged('Settings Updated', 'Governance policies updated');
+  };
+  
+  return { settings, updateSettings };
+}
+
+export function useProposalActions() {
+  const approveProposal = async (proposalId: string) => {
+    await apiClient.approveProposal(proposalId);
+    notificationService.proposalApproved('Proposal Approved', 'Substrate changes committed');
+  };
+  
+  const rejectProposal = async (proposalId: string, reason?: string) => {
+    await apiClient.rejectProposal(proposalId, reason);
+    notificationService.proposalRejected('Proposal Rejected', 'Changes not applied');
+  };
+  
+  return { approveProposal, rejectProposal };
+}
+```
+
+### Governance-First UI Patterns
+
+1. **No Direct Substrate Writes**: UI never bypasses governance for substrate operations
+2. **Policy Visibility**: Users always see current governance configuration
+3. **Confidence Integration**: AI confidence scores visible in all substrate operations
+4. **Audit Trail**: Complete governance decision history in timeline
+5. **Progressive Disclosure**: Governance complexity hidden until needed
 
 ## Component Architecture
 

@@ -90,24 +90,33 @@ New raw_dumps + Existing substrate → Agent Analysis → Governance Proposal �
 - **Artifact Layer**: Derived expressions (documents, reflections) that never become substrate
 - Unidirectional flow: Substrate → Artifacts
 
-### 2. Workspace-Scoped Security
+### 2. Governance-Mediated Evolution 🔥
+- **Sacred Principle**: ALL substrate mutations flow through governance framework
+- **Workspace Control**: Users configure execution policies (auto/proposal/confidence routing)
+- **Agent Intelligence Preservation**: Mandatory validation for all substrate changes
+- **Confidence-Informed Routing**: High-confidence operations auto-execute within governance bounds
+- **Cross-cutting Impact**: Governance affects every pipeline, workflow, and user interaction
+
+### 3. Workspace-Scoped Security
 - Single workspace per user (strong guarantee)
 - All access via RLS policies on workspace_memberships
+- Governance settings isolated per workspace
 - No client-side data synthesis allowed
 
-### 3. Event-Driven Consistency
+### 4. Event-Driven Consistency
 - Every mutation emits timeline events
 - Events flow: `timeline_events` → `events` → client subscriptions
+- Governance decisions audited in timeline
 - Single source of truth: the substrate tables
 
-### 4. Universal Work Orchestration (v2.2)
+### 5. Universal Work Orchestration (v2.2)
 - **Universal Endpoint**: `POST /api/work` - ALL substrate mutations flow through here
 - **Work Types**: P0_CAPTURE, P1_SUBSTRATE, P2_GRAPH, P3_REFLECTION, P4_COMPOSE, MANUAL_EDIT, PROPOSAL_REVIEW, TIMELINE_RESTORE
-- **Governance Integration**: Every work request is evaluated against workspace governance policies
+- **Governance Integration**: Every work request evaluated against workspace governance policies
 - **No Direct Substrate Writes** - All operations must flow through universal orchestration
-- **Confidence-Informed Routing** - High-confidence operations can auto-execute within governance framework
+- **Status Visibility**: Complete traceability from user action through governance to completion
 
-### 5. Governance-Mediated Substrate Creation
+### Governance Architecture Detail
 
 **Sacred Principle**: All substrate mutations flow through governed proposals
 

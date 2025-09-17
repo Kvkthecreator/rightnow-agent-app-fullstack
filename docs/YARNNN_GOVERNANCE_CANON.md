@@ -1,6 +1,8 @@
-# YARNNN Governance Canon v4.0.0
+# YARNNN Governance Canon v4.0.0 — Unified Governance Architecture
 
-**Substrate/Artifact Model - Pure Substrate Governance**
+**The Single Source of Truth for Governance Framework, Settings Policy, and Universal Work Orchestration**
+
+This document consolidates governance architecture, workspace settings policy, and universal work orchestration into a comprehensive governance reference.
 
 ## Sacred Principles
 
@@ -383,3 +385,150 @@ The new governance system maintains backward compatibility with existing change 
 ---
 
 *Governance ensures substrate quality while preserving the sacred capture → intelligence → make flow that defines YARNNN's value proposition.*
+
+---
+
+## 🎛️ Workspace Settings Policy (Canon-Safe Implementation)
+
+### Purpose
+Prevent configuration drift and UX ambiguity by documenting the canon-safe subset of governance controls exposed in the product.
+
+### Product Controls (Simplified User Interface)
+
+**Visible Controls (Plain Language):**
+- **Governance**: on/off (default: on)
+- **Review Mode**: 
+  - Review everything (Proposal)
+  - Smart review (Hybrid) — lets YARNNN auto-approve small, safe changes
+- **Always run validator**: on/off 
+  - When on, proposals cannot be auto-approved
+- **Change scope** (default reach): Local (basket) or Scoped (workspace)
+
+**Fixed Controls (Canon-Enforced):**
+- Capture (P0) is always immediate (Direct)
+- Timeline Restore always requires review (Proposal)
+- Direct substrate writes are disabled globally
+- Artifact entry points (documents/reflections) are out of scope
+
+### Server Enforcement & Coercions
+
+**Role Requirements:**
+- Role: owner/admin may update (Owners are canonical admins)
+
+**Automatic Coercions:**
+- `ep_onboarding_dump` = `direct` (P0 capture always immediate)
+- `timeline_restore` = `proposal` (always requires review)
+- Review Mode controls `manual_edit` + `graph_action` together: `proposal` or `hybrid`
+- `direct` is not allowed for `manual_edit`/`graph_action`
+- `default_blast_radius`: coerce `Global` → `Scoped`
+- `direct_substrate_writes` → `false` (globally disabled)
+
+### Default Settings
+When settings are absent:
+- `onboarding_dump='direct'`, `manual_edit='proposal'`, `graph_action='proposal'`, `timeline_restore='proposal'`, `default_blast_radius='Scoped'`
+- Matches `public.get_workspace_governance_flags()` fallback behavior
+
+### Rationale
+- Keeps capture immediate to preserve P0→P1 pipeline, eliminates 'Capture' proposals
+- Preserves governance for substrate evolution where it matters
+- Prevents artifact/substrate conflation and dangerous bypasses
+
+---
+
+## 🎵 Universal Work Orchestration Integration
+
+### Architectural Extension: Beyond Dump Processing
+
+YARNNN users initiate async operations through multiple entry points:
+- **P0→P1→P2→P3 Pipeline**: Raw dump ingestion and processing
+- **Governance Operations**: Manual proposal creation and approval
+- **Direct Substrate Edits**: Block/context item modifications
+- **Document Composition**: P4 artifact creation from substrate
+- **Graph Operations**: P2 relationship mapping
+- **Timeline Restoration**: Historical state recovery
+
+### Solution: Canonical Queue as Universal Orchestrator
+
+The `canonical_queue` table becomes the single source of truth for ALL async work in YARNNN, integrating seamlessly with governance.
+
+### Enhanced Canonical Queue Schema
+
+```sql
+-- Enhanced canonical_queue schema (Canon v2.1 + Governance Integration)
+CREATE TABLE canonical_queue (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    -- Work Identification
+    work_type text NOT NULL, -- P1_SUBSTRATE | P2_GRAPH | P3_REFLECTION | MANUAL_EDIT | DOCUMENT_COMPOSE | PROPOSAL_REVIEW
+    work_id text, -- Optional: dump_id, proposal_id, document_id, etc
+    
+    -- Context & Governance
+    basket_id uuid,
+    workspace_id uuid NOT NULL,
+    user_id uuid, -- Who initiated this work
+    governance_mode text, -- 'direct' | 'proposal' | 'auto_approved'
+    
+    -- Orchestration
+    status text NOT NULL DEFAULT 'pending', -- pending | claimed | processing | cascading | completed | failed
+    processing_stage text, -- Stage-specific status (validating | extracting | approving | etc)
+    worker_id text,
+    priority integer DEFAULT 5,
+    
+    -- Payload & Results
+    work_payload jsonb DEFAULT '{}', -- Input data for work
+    work_result jsonb DEFAULT '{}', -- Output data from completed work
+    cascade_metadata jsonb DEFAULT '{}', -- Cross-pipeline coordination
+    
+    -- Governance Integration
+    proposal_id uuid, -- Links to proposals table when applicable
+    confidence_score numeric, -- AI confidence for auto-approval decisions
+    
+    -- Timestamps
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    claimed_at timestamptz,
+    completed_at timestamptz
+);
+```
+
+### Governance-Work Integration Patterns
+
+**Direct Work (P0 Capture):**
+```
+User Input → canonical_queue(work_type='P0_CAPTURE', governance_mode='direct') → Immediate Processing
+```
+
+**Governed Work (P1 Substrate):**
+```
+Agent Analysis → canonical_queue(work_type='P1_SUBSTRATE', governance_mode='proposal') → Proposal Creation → Approval → Substrate Mutation
+```
+
+**Auto-Approved Work (High Confidence):**
+```
+Agent Analysis → canonical_queue(work_type='P1_SUBSTRATE', governance_mode='auto_approved') → Immediate Substrate Mutation + Audit Trail
+```
+
+### Universal Status Derivation
+
+All YARNNN operations now provide consistent status visibility through the canonical queue:
+
+**Frontend Status Integration:**
+- Work status indicators pull from `canonical_queue.status`
+- Cross-page status persistence via workspace context
+- Real-time updates via Supabase subscriptions
+- Governance decisions visible in work timeline
+
+**API Endpoints for Universal Status:**
+- `GET /api/work/{work_id}/status` — Canonical per-work status
+- `GET /api/work/workspace/{workspace_id}/summary` — Workspace-level work summary
+- Both endpoints enforce workspace isolation via RLS + server validation
+
+### Governance-Orchestration Benefits
+
+1. **Unified Status Model**: All async operations visible through single interface
+2. **Governance Compliance**: Every work item respects workspace governance settings
+3. **Audit Trail**: Complete traceability from user action through governance to completion
+4. **Performance Optimization**: Single queue enables intelligent work scheduling
+5. **Cross-Pipeline Coordination**: Cascade metadata enables P1→P2→P3 orchestration
+
+This unified governance-orchestration model ensures that governance is not an afterthought but an integral part of YARNNN's operational architecture, providing users with both control and visibility into their cognitive workspace operations.

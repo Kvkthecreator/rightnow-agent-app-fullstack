@@ -40,14 +40,24 @@ This document consolidates current implementation status, actual production arch
   - Prevents duplicate processing of basket work requests
   - Cached results for repeated requests
 
-### Data Flow
-1. **Frontend** → `useBasketOperations.processWork()`
+### Governance Architecture Integration ✅
+- **Universal Work Orchestration**: All substrate mutations flow through `/api/work` endpoint
+- **Workspace Governance Settings**: Per-workspace policy configuration with RLS isolation
+- **Proposal Workflow**: Complete proposal creation, validation, approval, and execution pipeline
+- **Auto-Approval Logic**: High-confidence agent proposals (>0.7) auto-execute within governance bounds
+- **Decision Gateway**: Single choke-point for all substrate mutations with policy-based routing
+- **Audit Trail**: Complete governance decision history in timeline_events
+
+### Data Flow (Governance-Integrated)
+1. **Frontend** → `useBasketOperations.processWork()` 
 2. **API Bridge** → `/api/baskets/[id]/work` (Next.js)
-3. **Backend** → FastAPI Manager Agent
-4. **Workers** → Real agent orchestration
-5. **Database** → `basket_deltas` table
-6. **Trigger** → Syncs to `baskets` table
-7. **Realtime** → Frontend updates automatically
+3. **Decision Gateway** → Evaluates workspace governance policies
+4. **Routing Decision** → Direct execution vs Proposal creation
+5. **Backend** → FastAPI Manager Agent (with governance context)
+6. **Workers** → Real agent orchestration (respecting governance mode)
+7. **Database** → `canonical_queue` → `proposals` (if needed) → substrate tables
+8. **Timeline Events** → Governance decisions audited
+9. **Realtime** → Frontend updates with governance status
 
 ## 🧹 Recent Cleanup (Completed)
 
