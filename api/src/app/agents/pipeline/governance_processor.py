@@ -168,10 +168,6 @@ class GovernanceDumpProcessor:
             })
             substrate_result = _sanitize_for_json(substrate_result)
             
-            # Convert substrate results into governance proposals
-            proposals = []
-            proposal_ids = []
-
             # Prefer non-persisted ingredients in strict mode; fall back to persisted blocks
             blocks_source = substrate_result.get("block_ingredients") or substrate_result.get("blocks_created", [])
 
@@ -192,19 +188,25 @@ class GovernanceDumpProcessor:
             max_context_items_total = max(4, min(12, len(blocks_source)))
             context_items_added = 0
 
-            # Create proposals for each block ingredient
+            ops_accum: List[Dict[str, Any]] = []
+            block_confidences: List[float] = []
+            ingredient_summary_bits: List[str] = []
+
             for block_data in blocks_source:
-                # Normalize fields between ingredient (confidence) and persisted (confidence_score)
                 confidence = block_data.get("confidence") if isinstance(block_data, dict) else None
                 if confidence is None:
                     confidence = block_data.get("confidence_score", 0.7)
+                try:
+                    block_confidences.append(float(confidence))
+                except Exception:
+                    block_confidences.append(0.7)
                 metadata = _sanitize_for_json(block_data.get("metadata", {}))
                 if isinstance(block_data, dict):
                     block_data["metadata"] = metadata
-                semantic_type = block_data.get("semantic_type")
-                title = block_data.get("title")
-                # Build ops: always include CreateBlock, optionally a few CreateContextItem
-                ops_list: List[Dict[str, Any]] = [{
+                semantic_type = block_data.get("semantic_type") or metadata.get("semantic_type") or metadata.get("fact_type") or "insight"
+                title = block_data.get("title") or metadata.get("title") or "Untitled insight"
+
+                ops_accum.append({
                     "type": "CreateBlock",
                     "data": {
                         "title": title,
@@ -212,17 +214,18 @@ class GovernanceDumpProcessor:
                         "metadata": metadata,
                         "confidence": confidence
                     }
-                }]
+                })
 
-                # Derive at most one high-confidence, allowed-type context item per block
                 try:
                     if context_items_added < max_context_items_total:
                         entities = metadata.get("knowledge_ingredients", {}).get("entities", [])
+
                         def _econf(e: Dict[str, Any]) -> float:
                             try:
                                 return float(e.get("confidence", 0.0))
                             except Exception:
                                 return 0.0
+
                         entities = sorted(entities, key=_econf, reverse=True)
                         for ent in entities:
                             label = (ent.get("name") or ent.get("title") or "").strip()
@@ -230,7 +233,7 @@ class GovernanceDumpProcessor:
                             econf = _econf(ent)
                             if not label or econf < 0.8 or etype not in allowed_entity_types or label.lower() in created_ci_labels:
                                 continue
-                            ops_list.append({
+                            ops_accum.append({
                                 "type": "CreateContextItem",
                                 "data": {
                                     "label": label,
@@ -243,57 +246,58 @@ class GovernanceDumpProcessor:
                             context_items_added += 1
                             break
                 except Exception:
-                    # ignore CI derivation errors
                     pass
 
-                # Build impact summary for validator report compliance
                 ingredient_counts = metadata.get("knowledge_ingredients", {})
-                impact_summary = (
-                    f"block + {len(ops_list) - 1} context items"  # -1 because first op is CreateBlock
-                )
                 if ingredient_counts:
-                    summary_bits: List[str] = []
                     for key in ("goals", "constraints", "metrics", "entities"):
                         items = ingredient_counts.get(key, [])
                         if isinstance(items, list) and items:
-                            summary_bits.append(f"{len(items)} {key}")
-                    if summary_bits:
-                        impact_summary = ", ".join(summary_bits)
+                            ingredient_summary_bits.append(f"{len(items)} {key}")
 
-                proposal_data = {
-                    "basket_id": str(basket_id),
-                    "workspace_id": str(workspace_id),
-                    "proposal_kind": "Extraction",
-                    "origin": "agent",
-                    "provenance": [{"dump_id": str(dump_id), "method": "structured_extraction_v2"}],
-                    "ops": ops_list,
-                    "blast_radius": "Local",
-                    "validator_report": {
-                        "confidence": confidence,
-                        "method": "structured_knowledge_extraction",
-                        "ingredients_count": len(metadata.get("knowledge_ingredients", {}).get("entities", [])),
-                        "extraction_quality": "high" if confidence and confidence > 0.7 else "medium",
-                        "impact_summary": impact_summary
-                    },
-                    "status": "PROPOSED"
+            if not ops_accum:
+                return {
+                    "proposals_created": 0,
+                    "proposal_ids": [],
+                    "avg_confidence": 0.0
                 }
-                
-                response = supabase.table("proposals").insert(_sanitize_for_json(proposal_data)).execute()
-                if response.data:
-                    inserted_records = [_sanitize_for_json(record) for record in response.data]
-                    proposals.extend(inserted_records)
-                    proposal_ids.extend([
-                        str(record["id"]) for record in inserted_records if record.get("id") is not None
-                    ])
 
-                    # Auto-approval logic per Canon v2.2: Agent origin + confidence > 0.7 → Auto-approved
-                    for proposal in inserted_records:
-                        await self._check_auto_approval(proposal)
-            
+            avg_confidence = sum(block_confidences) / len(block_confidences) if block_confidences else 0.0
+            impact_summary = ", ".join(ingredient_summary_bits) if ingredient_summary_bits else f"{len(ops_accum)} operations"
+
+            proposal_payload = {
+                "basket_id": str(basket_id),
+                "workspace_id": str(workspace_id),
+                "proposal_kind": "Extraction",
+                "origin": "agent",
+                "provenance": [{"dump_id": str(dump_id), "method": "structured_extraction_v2"}],
+                "ops": ops_accum,
+                "blast_radius": "Local",
+                "validator_report": {
+                    "confidence": avg_confidence,
+                    "method": "structured_knowledge_extraction",
+                    "ingredients_count": len(created_ci_labels),
+                    "extraction_quality": "high" if avg_confidence > 0.7 else "medium",
+                    "impact_summary": impact_summary
+                },
+                "status": "PROPOSED"
+            }
+
+            response = supabase.table("proposals").insert(_sanitize_for_json(proposal_payload)).execute()
+
+            proposal_ids: List[str] = []
+            inserted_records: List[Dict[str, Any]] = []
+            if response.data:
+                inserted_records = [_sanitize_for_json(record) for record in response.data]
+                proposal_ids = [str(record["id"]) for record in inserted_records if record.get("id") is not None]
+
+                for proposal in inserted_records:
+                    await self._check_auto_approval(proposal)
+
             return {
-                "proposals_created": len(proposals),
+                "proposals_created": len(inserted_records),
                 "proposal_ids": proposal_ids,
-                "avg_confidence": substrate_result.get("agent_confidence", 0.0)
+                "avg_confidence": avg_confidence
             }
             
         except Exception as e:
