@@ -555,7 +555,23 @@ class GovernanceDumpProcessor:
                     if op_type == "CreateBlock":
                         metadata = _sanitize_for_json(op_data.get("metadata") or {})
                         title = op_data.get("title") or metadata.get("title") or "Untitled insight"
-                        semantic_type = (op_data.get("semantic_type") or metadata.get("semantic_type") or "insight").strip() or "insight"
+                        semantic_type_raw = (
+                            op_data.get("semantic_type")
+                            or metadata.get("semantic_type")
+                            or metadata.get("fact_type")
+                            or metadata.get("semanticType")
+                        )
+                        if isinstance(semantic_type_raw, str):
+                            semantic_type = semantic_type_raw.strip() or "insight"
+                        else:
+                            semantic_type = "insight"
+                        if not semantic_type:
+                            semantic_type = "insight"
+                            self.logger.warning(
+                                "Proposal %s CreateBlock missing semantic_type; defaulting to insight. op_data=%s",
+                                proposal_id,
+                                op_data
+                            )
                         confidence = op_data.get("confidence") or metadata.get("confidence") or 0.7
                         try:
                             confidence_value = float(confidence)
