@@ -284,7 +284,7 @@ class GovernanceDumpProcessor:
             }
             
         except Exception as e:
-            self.logger.error(f"Failed to create ingredient proposals: {e}")
+            self.logger.exception("Failed to create ingredient proposals")
             return {
                 "proposals_created": 0,
                 "proposal_ids": [],
@@ -336,7 +336,7 @@ class GovernanceDumpProcessor:
             }
             
         except Exception as e:
-            self.logger.error(f"Failed to create batch ingredient proposals: {e}")
+            self.logger.exception("Failed to create batch ingredient proposals")
             return {
                 "proposals_created": 0,
                 "proposal_ids": [],
@@ -455,12 +455,20 @@ class GovernanceDumpProcessor:
         
         # Get the inserted record with all fields
         inserted_id = response.data[0]["id"]
-        select_response = supabase.table("proposals").select("*").eq("id", inserted_id).single().execute()
+        inserted_id_str = str(inserted_id)
+        select_response = (
+            supabase
+            .table("proposals")
+            .select("*")
+            .eq("id", inserted_id_str)
+            .single()
+            .execute()
+        )
         
         if not select_response.data:
             raise RuntimeError("Failed to retrieve created unified governance proposal")
             
-        proposal_id = UUID(select_response.data["id"])
+        proposal_id = UUID(str(select_response.data["id"]))
         self.logger.info(f"Created unified proposal {proposal_id} from {len(dump_ids)} dumps")
         
         # Auto-approval logic per Canon v2.2: Agent origin + confidence > 0.7 → Auto-approved
@@ -485,7 +493,7 @@ class GovernanceDumpProcessor:
             )
             
             if should_auto_approve:
-                proposal_id = proposal["id"]
+                proposal_id = str(proposal["id"])
                 self.logger.info(f"Auto-approving proposal {proposal_id} (origin={origin}, confidence={confidence})")
                 
                 # Update proposal status to APPROVED
@@ -562,7 +570,14 @@ class GovernanceDumpProcessor:
                             "state": "ACCEPTED"
                         })
 
-                        update_resp = supabase.table("blocks").update(update_payload).eq("id", block_id).select('*').execute()
+                        update_resp = (
+                            supabase
+                            .table("blocks")
+                            .update(update_payload)
+                            .eq("id", str(block_id))
+                            .select('*')
+                            .execute()
+                        )
                         if update_resp.error:
                             raise RuntimeError(f"Failed to finalize block {block_id}: {update_resp.error.message}")
 
@@ -608,13 +623,20 @@ class GovernanceDumpProcessor:
                         if not context_id:
                             raise RuntimeError("fn_context_item_upsert_bulk returned no id")
 
-                        update_resp = supabase.table("context_items").update(_sanitize_for_json({
+                        update_resp = (
+                            supabase
+                            .table("context_items")
+                            .update(_sanitize_for_json({
                             "normalized_label": normalized_label,
                             "confidence_score": confidence,
                             "metadata": metadata,
                             "content": summary_text,
                             "state": "ACTIVE"
-                        })).eq("id", context_id).select('*').execute()
+                        }))
+                            .eq("id", str(context_id))
+                            .select('*')
+                            .execute()
+                        )
 
                         if update_resp.error:
                             raise RuntimeError(f"Failed to finalize context item {context_id}: {update_resp.error.message}")
