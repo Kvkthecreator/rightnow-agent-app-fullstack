@@ -245,7 +245,7 @@ export async function updateContextItemCanonical(
     .from('context_items')
     .update({
       title: label || existing.title,
-      normalized_label,
+      normalized_label: normalizedLabel,
       content,
       description: op.description ?? existing.description ?? content,
       type: op.kind ?? existing['type'],
