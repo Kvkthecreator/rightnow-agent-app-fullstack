@@ -18,7 +18,8 @@ interface ProcessingChain {
   startTime: string;
   events: TimelineEventDTO[];
   outcomes: {
-    buildingBlocks: number;
+    meanings: number;
+    knowledgeBlocks: number;
     connections: number;
     reflections: number;
     documents: number;
@@ -63,7 +64,8 @@ export default function MemoryChainTimeline({ basketId, className = "" }: Memory
             startTime: event.created_at,
             events: [],
             outcomes: {
-              buildingBlocks: 0,
+              meanings: 0,
+              knowledgeBlocks: 0,
               connections: 0,
               reflections: 0,
               documents: 0
@@ -76,8 +78,8 @@ export default function MemoryChainTimeline({ basketId, className = "" }: Memory
         chain.events.push(event);
         
         // Update outcomes
-        if (event.event_type === 'block.created') chain.outcomes.buildingBlocks++;
-        if (event.event_type === 'context_item.created') chain.outcomes.buildingBlocks++;
+        if (event.event_type === 'block.created') chain.outcomes.knowledgeBlocks++;
+        if (event.event_type === 'context_item.created') chain.outcomes.meanings++;
         if (event.event_type === 'relationship.created') chain.outcomes.connections++;
         if (event.event_type === 'reflection.computed') chain.outcomes.reflections++;
         if (event.event_type === 'document.created') chain.outcomes.documents++;
@@ -163,7 +165,8 @@ export default function MemoryChainTimeline({ basketId, className = "" }: Memory
     if (total === 0) return "Processing memory...";
     
     const parts = [];
-    if (chain.outcomes.buildingBlocks > 0) parts.push(`${chain.outcomes.buildingBlocks} building blocks`);
+    if (chain.outcomes.meanings > 0) parts.push(`${chain.outcomes.meanings} meanings`);
+    if (chain.outcomes.knowledgeBlocks > 0) parts.push(`${chain.outcomes.knowledgeBlocks} knowledge blocks`);
     if (chain.outcomes.connections > 0) parts.push(`${chain.outcomes.connections} connections`);
     if (chain.outcomes.reflections > 0) parts.push(`${chain.outcomes.reflections} reflections`);
     if (chain.outcomes.documents > 0) parts.push(`${chain.outcomes.documents} documents`);
@@ -257,11 +260,17 @@ export default function MemoryChainTimeline({ basketId, className = "" }: Memory
                 <div className="p-4 space-y-3">
                   {/* Outcome Summary */}
                   {hasOutcomes && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-                      {chain.outcomes.buildingBlocks > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+                      {chain.outcomes.meanings > 0 && (
+                        <div className="text-center p-2 bg-blue-50 rounded">
+                          <div className="text-lg font-semibold text-blue-600">{chain.outcomes.meanings}</div>
+                          <div className="text-xs text-gray-600">Meanings</div>
+                        </div>
+                      )}
+                      {chain.outcomes.knowledgeBlocks > 0 && (
                         <div className="text-center p-2 bg-orange-50 rounded">
-                          <div className="text-lg font-semibold text-orange-600">{chain.outcomes.buildingBlocks}</div>
-                          <div className="text-xs text-gray-600">Building Blocks</div>
+                          <div className="text-lg font-semibold text-orange-600">{chain.outcomes.knowledgeBlocks}</div>
+                          <div className="text-xs text-gray-600">Knowledge Blocks</div>
                         </div>
                       )}
                       {chain.outcomes.connections > 0 && (
