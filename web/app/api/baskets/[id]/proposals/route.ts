@@ -61,11 +61,14 @@ export async function GET(
     const items = proposals?.map((proposal: any) => {
       const ops = Array.isArray(proposal.ops) ? proposal.ops : [];
       const validator_report = normalizeValidatorReport(proposal.validator_report);
+      const status = proposal.status || 'PROPOSED';
+      const review_notes = proposal.review_notes || '';
+      const auto_approved = status === 'EXECUTED' && typeof review_notes === 'string' && review_notes.toLowerCase().includes('auto-approved');
       return {
         id: proposal.id,
         proposal_kind: proposal.proposal_kind,
         origin: proposal.origin,
-        status: proposal.status,
+        status,
         ops_summary: validator_report.ops_summary || generateOpsSummary(ops),
         confidence: typeof validator_report.confidence === 'number' ? validator_report.confidence : 0.5,
         impact_summary: validator_report.impact_summary || 'Impact unknown',
@@ -73,7 +76,12 @@ export async function GET(
         validator_report,
         provenance: Array.isArray(proposal.provenance) ? proposal.provenance : [],
         ops,
-        blast_radius: proposal.blast_radius || 'Local'
+        blast_radius: proposal.blast_radius || 'Local',
+        auto_approved,
+        reviewed_at: proposal.reviewed_at || null,
+        executed_at: proposal.executed_at || null,
+        review_notes,
+        is_executed: proposal.is_executed === true || status === 'EXECUTED'
       };
     }) || [];
 

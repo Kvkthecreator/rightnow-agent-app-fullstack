@@ -216,11 +216,23 @@ export default function UnifiedTimeline({
       }
 
       const data: any = await response.json();
+      
+      // Map API response format to expected TimelineEventDTO format
+      const mappedItems = (data.items || []).map((item: any) => ({
+        id: item.id || crypto.randomUUID(),
+        basket_id: basketId,
+        event_type: item.type || item.event_type || 'unknown',
+        event_data: item.payload || {},
+        created_at: item.ts || item.created_at || new Date().toISOString(),
+        description: item.summary || item.description,
+        processing_agent: item.processing_agent,
+        agent_confidence: item.agent_confidence
+      }));
 
       if (useCursor) {
-        setEvents((prev) => [...prev, ...(data.items || [])]);
+        setEvents((prev) => [...prev, ...mappedItems]);
       } else {
-        setEvents(data.items || []);
+        setEvents(mappedItems);
       }
 
       setHasMore(data.has_more);
@@ -228,7 +240,7 @@ export default function UnifiedTimeline({
       
       // Calculate processing stats from events
       if (!useCursor) {
-        calculateProcessingStats(data.items || []);
+        calculateProcessingStats(mappedItems);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load timeline");
@@ -285,6 +297,9 @@ export default function UnifiedTimeline({
     }
     
     // Simple fallback without client-side intelligence
+    if (!event.event_type) {
+      return 'Processing event';
+    }
     return `${event.event_type.replace(/[._]/g, ' ')} event`;
   }
 
@@ -318,6 +333,7 @@ export default function UnifiedTimeline({
   const filteredEvents = pipelineFilter === "all" 
     ? (events || [])
     : (events || []).filter(event => {
+        if (!event || !event.event_type) return false;
         const config = getEventConfig(event.event_type);
         return (config as any).pipeline === pipelineFilter;
       });
@@ -363,6 +379,7 @@ export default function UnifiedTimeline({
 
       <div className="space-y-0">
         {filteredEvents.map((event, index) => {
+          if (!event || !event.event_type) return null;
           const config = getEventConfig(event.event_type);
           const description = getEventDescription(event);
           const isLast = index === filteredEvents.length - 1;

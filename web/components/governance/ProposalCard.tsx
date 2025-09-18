@@ -28,12 +28,21 @@ interface ProposalCardProps {
     created_at: string;
     status: string;
     origin: 'agent' | 'human';
+    auto_approved?: boolean;
+    executed_at?: string | null;
+    reviewed_at?: string | null;
+    review_notes?: string | null;
   };
   onReview: (proposalId: string) => void;
   onQuickApprove?: (proposalId: string) => void;
 }
 
 export function ProposalCard({ proposal, onReview, onQuickApprove }: ProposalCardProps) {
+  const isPending = proposal.status === 'PROPOSED';
+  const isExecuted = proposal.status === 'EXECUTED' || proposal.status === 'APPROVED';
+  const isRejected = proposal.status === 'REJECTED';
+  const isAutoApproved = !!proposal.auto_approved;
+
   const confidence = typeof proposal?.validator_report?.confidence === 'number'
     ? proposal.validator_report.confidence
     : 0.5;
@@ -156,9 +165,12 @@ export function ProposalCard({ proposal, onReview, onQuickApprove }: ProposalCar
           </div>
           
           {/* Source Badge */}
-          <Badge variant="outline" className="text-xs">
-            {proposal.origin === 'agent' ? '🤖 AI' : '👤 Manual'}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              {proposal.origin === 'agent' ? '🤖 AI' : '👤 Manual'}
+            </Badge>
+            {renderStatusBadge(proposal.status, isAutoApproved)}
+          </div>
         </div>
 
         {/* Critical Warning (if any) */}
@@ -190,7 +202,7 @@ export function ProposalCard({ proposal, onReview, onQuickApprove }: ProposalCar
             
             {/* Age */}
             <span className="text-gray-400">
-              {formatAge(proposal.created_at)}
+              {formatAge(isExecuted && proposal.executed_at ? proposal.executed_at : proposal.created_at)}
             </span>
           </div>
           
@@ -205,7 +217,7 @@ export function ProposalCard({ proposal, onReview, onQuickApprove }: ProposalCar
               Details
             </Button>
             
-            {riskLevel === 'ready' && onQuickApprove && (
+            {isPending && riskLevel === 'ready' && onQuickApprove && (
               <Button
                 onClick={() => onQuickApprove(proposal.id)}
                 size="sm"
@@ -220,4 +232,25 @@ export function ProposalCard({ proposal, onReview, onQuickApprove }: ProposalCar
       </div>
     </div>
   );
+}
+
+function renderStatusBadge(status?: string, autoApproved?: boolean) {
+  if (!status) return null;
+  const base = 'text-xs px-2 py-1 rounded-full border';
+  switch (status) {
+    case 'PROPOSED':
+      return <Badge variant="outline" className="text-xs">Pending</Badge>;
+    case 'EXECUTED':
+      return (
+        <Badge variant="outline" className={`${base} ${autoApproved ? 'border-green-400 text-green-700 bg-green-50' : 'border-blue-300 text-blue-700 bg-blue-50'}`}>
+          {autoApproved ? 'Auto-approved' : 'Executed'}
+        </Badge>
+      );
+    case 'APPROVED':
+      return <Badge variant="outline" className={`${base} border-blue-300 text-blue-700 bg-blue-50`}>Approved</Badge>;
+    case 'REJECTED':
+      return <Badge variant="outline" className={`${base} border-red-300 text-red-700 bg-red-50`}>Rejected</Badge>;
+    default:
+      return <Badge variant="outline" className="text-xs capitalize">{status.toLowerCase()}</Badge>;
+  }
 }
