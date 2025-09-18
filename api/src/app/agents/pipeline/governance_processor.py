@@ -14,6 +14,20 @@ from app.utils.supabase_client import supabase_admin_client as supabase
 logger = logging.getLogger("uvicorn.error")
 
 
+def _sanitize_for_json(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _sanitize_for_json(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_for_json(v) for v in value]
+    if isinstance(value, tuple):
+        return [_sanitize_for_json(v) for v in value]
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
 class GovernanceDumpProcessor:
     """
     Canonical governance processor using ImprovedP1SubstrateAgent for quality extraction.
@@ -183,7 +197,9 @@ class GovernanceDumpProcessor:
                 confidence = block_data.get("confidence") if isinstance(block_data, dict) else None
                 if confidence is None:
                     confidence = block_data.get("confidence_score", 0.7)
-                metadata = block_data.get("metadata", {})
+                metadata = _sanitize_for_json(block_data.get("metadata", {}))
+                if isinstance(block_data, dict):
+                    block_data["metadata"] = metadata
                 semantic_type = block_data.get("semantic_type")
                 title = block_data.get("title")
                 # Build ops: always include CreateBlock, optionally a few CreateContextItem
@@ -247,7 +263,7 @@ class GovernanceDumpProcessor:
                 }
                 
                 # FIXED: Split insert and select calls for Supabase client compatibility
-                response = supabase.table("proposals").insert(proposal_data).execute()
+                response = supabase.table("proposals").insert(_sanitize_for_json(proposal_data)).execute()
                 if response.data:
                     # Get the inserted records with all fields
                     inserted_ids = [record["id"] for record in response.data]
@@ -368,12 +384,19 @@ class GovernanceDumpProcessor:
     ) -> UUID:
         """Create single unified proposal for comprehensive batch processing."""
         
+        sanitized_blocks: List[Dict[str, Any]] = []
+        for block in blocks_created:
+            sanitized_blocks.append({
+                **block,
+                "metadata": _sanitize_for_json(block.get("metadata", {})),
+            })
+
         # Generate comprehensive summary
         summary_parts = []
-        total_goals = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("goals", [])) for block in blocks_created)
-        total_constraints = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("constraints", [])) for block in blocks_created)
-        total_metrics = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("metrics", [])) for block in blocks_created)
-        total_entities = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("entities", [])) for block in blocks_created)
+        total_goals = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("goals", [])) for block in sanitized_blocks)
+        total_constraints = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("constraints", [])) for block in sanitized_blocks)
+        total_metrics = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("metrics", [])) for block in sanitized_blocks)
+        total_entities = sum(len(block.get("metadata", {}).get("knowledge_ingredients", {}).get("entities", [])) for block in sanitized_blocks)
         
         summary_parts.append(f"Comprehensive analysis of {len(dump_ids)} content sources")
         if total_goals > 0:
@@ -389,7 +412,7 @@ class GovernanceDumpProcessor:
         
         # Translate blocks into an array of CreateBlock operations
         ops: List[Dict[str, Any]] = []
-        for b in blocks_created:
+        for b in sanitized_blocks:
             conf = b.get("confidence") if isinstance(b, dict) else None
             if conf is None:
                 conf = b.get("confidence_score", 0.7)
@@ -398,7 +421,7 @@ class GovernanceDumpProcessor:
                 "data": {
                     "title": b.get("title"),
                     "semantic_type": b.get("semantic_type"),
-                    "metadata": b.get("metadata", {}),
+                    "metadata": _sanitize_for_json(b.get("metadata", {})),
                     "confidence": conf
                 }
             })
@@ -422,7 +445,7 @@ class GovernanceDumpProcessor:
         }
         
         # FIXED: Split insert and select calls for Supabase client compatibility
-        response = supabase.table("proposals").insert(proposal_data).execute()
+        response = supabase.table("proposals").insert(_sanitize_for_json(proposal_data)).execute()
         
         if not response.data:
             raise RuntimeError("Failed to create unified governance proposal")
