@@ -215,12 +215,12 @@ export default function UnifiedTimeline({
         throw new Error("Failed to load timeline");
       }
 
-      const data: TimelineResponse = await response.json();
+      const data: any = await response.json();
 
       if (useCursor) {
-        setEvents((prev) => [...prev, ...data.events]);
+        setEvents((prev) => [...prev, ...(data.items || [])]);
       } else {
-        setEvents(data.events);
+        setEvents(data.items || []);
       }
 
       setHasMore(data.has_more);
@@ -228,7 +228,7 @@ export default function UnifiedTimeline({
       
       // Calculate processing stats from events
       if (!useCursor) {
-        calculateProcessingStats(data.events);
+        calculateProcessingStats(data.items || []);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load timeline");
@@ -306,8 +306,10 @@ export default function UnifiedTimeline({
 
   if (events.length === 0) {
     return (
-      <div className={`p-4 text-sm text-muted-foreground ${className}`}>
-        No events yet
+      <div className={`p-6 text-center ${className}`}>
+        <div className="text-gray-400 mb-2">📋</div>
+        <p className="text-sm font-medium text-gray-600 mb-1">No memory processing yet</p>
+        <p className="text-xs text-gray-500">Add memories to see agent intelligence unfold</p>
       </div>
     );
   }
@@ -321,9 +323,21 @@ export default function UnifiedTimeline({
       });
 
   if (filteredEvents.length === 0 && pipelineFilter !== "all") {
+    const filterMessages = {
+      "P0_CAPTURE": "No memory captures yet",
+      "P1_SUBSTRATE": "No substrate processing yet", 
+      "P2_GRAPH": "No relationship mapping yet",
+      "P3_REFLECTION": "No insights generated yet",
+      "P4_PRESENTATION": "No documents composed yet",
+      "QUEUE": "No queue processing events"
+    };
+    
     return (
-      <div className={`p-4 text-sm text-muted-foreground ${className}`}>
-        No events found for the selected filter
+      <div className={`p-6 text-center ${className}`}>
+        <div className="text-gray-400 mb-2">🔍</div>
+        <p className="text-sm font-medium text-gray-600">
+          {filterMessages[pipelineFilter as keyof typeof filterMessages] || "No events found"}
+        </p>
       </div>
     );
   }
@@ -372,13 +386,13 @@ export default function UnifiedTimeline({
               {/* Event content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{config.label}</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-sm font-medium text-gray-900">{config.label}</span>
+                  <span className="text-xs text-gray-500">
                     {dayjsRef(event.created_at).fromNow()}
                   </span>
                 </div>
                 {description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                  <p className="text-xs text-gray-600 mt-0.5 truncate">
                     {description}
                   </p>
                 )}
