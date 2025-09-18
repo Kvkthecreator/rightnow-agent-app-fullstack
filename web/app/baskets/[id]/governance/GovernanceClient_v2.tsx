@@ -14,7 +14,6 @@ import { SubpageHeader } from "@/components/basket/SubpageHeader";
 import { ProposalCard } from "@/components/governance/ProposalCard";
 import { ProposalDetailModal } from "@/components/governance/ProposalDetailModal_v2";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 
 interface Proposal {
   id: string;
@@ -31,6 +30,11 @@ interface Proposal {
   blast_radius: 'Local' | 'Scoped' | 'Global';
   created_at: string;
   provenance: string[];
+  auto_approved?: boolean;
+  executed_at?: string | null;
+  reviewed_at?: string | null;
+  review_notes?: string | null;
+  is_executed?: boolean;
 }
 
 interface GovernanceClientProps {
