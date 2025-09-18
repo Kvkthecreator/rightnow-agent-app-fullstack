@@ -18,10 +18,9 @@ interface ProcessingChain {
   startTime: string;
   events: TimelineEventDTO[];
   outcomes: {
-    blocks: number;
-    contextItems: number;
-    relationships: number;
-    insights: number;
+    buildingBlocks: number;
+    connections: number;
+    reflections: number;
     documents: number;
   };
   status: 'processing' | 'completed' | 'failed';
@@ -64,10 +63,9 @@ export default function MemoryChainTimeline({ basketId, className = "" }: Memory
             startTime: event.created_at,
             events: [],
             outcomes: {
-              blocks: 0,
-              contextItems: 0,
-              relationships: 0,
-              insights: 0,
+              buildingBlocks: 0,
+              connections: 0,
+              reflections: 0,
               documents: 0
             },
             status: 'processing'
@@ -78,10 +76,10 @@ export default function MemoryChainTimeline({ basketId, className = "" }: Memory
         chain.events.push(event);
         
         // Update outcomes
-        if (event.event_type === 'block.created') chain.outcomes.blocks++;
-        if (event.event_type === 'context_item.created') chain.outcomes.contextItems++;
-        if (event.event_type === 'relationship.created') chain.outcomes.relationships++;
-        if (event.event_type === 'reflection.computed') chain.outcomes.insights++;
+        if (event.event_type === 'block.created') chain.outcomes.buildingBlocks++;
+        if (event.event_type === 'context_item.created') chain.outcomes.buildingBlocks++;
+        if (event.event_type === 'relationship.created') chain.outcomes.connections++;
+        if (event.event_type === 'reflection.computed') chain.outcomes.reflections++;
         if (event.event_type === 'document.created') chain.outcomes.documents++;
         
         // Update status
@@ -124,13 +122,16 @@ export default function MemoryChainTimeline({ basketId, className = "" }: Memory
     const queueId = event.event_data?.queue_id;
     const dumpId = event.event_data?.dump_id || event.event_data?.ref_id;
     
-    if (dumpId) return dumpId;
-    if (queueId) {
+    if (dumpId && typeof dumpId === 'string') return dumpId;
+    if (queueId && typeof queueId === 'string') {
       const relatedEvent = allEvents.find(e => 
         e.event_data?.queue_id === queueId && 
-        e.event_data?.dump_id
+        e.event_data?.dump_id && 
+        typeof e.event_data.dump_id === 'string'
       );
-      if (relatedEvent) return relatedEvent.event_data.dump_id;
+      if (relatedEvent && typeof relatedEvent.event_data.dump_id === 'string') {
+        return relatedEvent.event_data.dump_id;
+      }
     }
     
     return event.id; // Fallback to self
@@ -162,10 +163,10 @@ export default function MemoryChainTimeline({ basketId, className = "" }: Memory
     if (total === 0) return "Processing memory...";
     
     const parts = [];
-    if (chain.outcomes.blocks > 0) parts.push(`${chain.outcomes.blocks} blocks`);
-    if (chain.outcomes.contextItems > 0) parts.push(`${chain.outcomes.contextItems} contexts`);
-    if (chain.outcomes.relationships > 0) parts.push(`${chain.outcomes.relationships} connections`);
-    if (chain.outcomes.insights > 0) parts.push(`${chain.outcomes.insights} insights`);
+    if (chain.outcomes.buildingBlocks > 0) parts.push(`${chain.outcomes.buildingBlocks} building blocks`);
+    if (chain.outcomes.connections > 0) parts.push(`${chain.outcomes.connections} connections`);
+    if (chain.outcomes.reflections > 0) parts.push(`${chain.outcomes.reflections} reflections`);
+    if (chain.outcomes.documents > 0) parts.push(`${chain.outcomes.documents} documents`);
     
     return parts.join(', ') || "Memory captured";
   }
@@ -256,35 +257,29 @@ export default function MemoryChainTimeline({ basketId, className = "" }: Memory
                 <div className="p-4 space-y-3">
                   {/* Outcome Summary */}
                   {hasOutcomes && (
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
-                      {chain.outcomes.blocks > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                      {chain.outcomes.buildingBlocks > 0 && (
                         <div className="text-center p-2 bg-orange-50 rounded">
-                          <div className="text-lg font-semibold text-orange-600">{chain.outcomes.blocks}</div>
-                          <div className="text-xs text-gray-600">Blocks</div>
+                          <div className="text-lg font-semibold text-orange-600">{chain.outcomes.buildingBlocks}</div>
+                          <div className="text-xs text-gray-600">Building Blocks</div>
                         </div>
                       )}
-                      {chain.outcomes.contextItems > 0 && (
-                        <div className="text-center p-2 bg-emerald-50 rounded">
-                          <div className="text-lg font-semibold text-emerald-600">{chain.outcomes.contextItems}</div>
-                          <div className="text-xs text-gray-600">Contexts</div>
-                        </div>
-                      )}
-                      {chain.outcomes.relationships > 0 && (
+                      {chain.outcomes.connections > 0 && (
                         <div className="text-center p-2 bg-cyan-50 rounded">
-                          <div className="text-lg font-semibold text-cyan-600">{chain.outcomes.relationships}</div>
-                          <div className="text-xs text-gray-600">Links</div>
+                          <div className="text-lg font-semibold text-cyan-600">{chain.outcomes.connections}</div>
+                          <div className="text-xs text-gray-600">Connections</div>
                         </div>
                       )}
-                      {chain.outcomes.insights > 0 && (
+                      {chain.outcomes.reflections > 0 && (
                         <div className="text-center p-2 bg-purple-50 rounded">
-                          <div className="text-lg font-semibold text-purple-600">{chain.outcomes.insights}</div>
-                          <div className="text-xs text-gray-600">Insights</div>
+                          <div className="text-lg font-semibold text-purple-600">{chain.outcomes.reflections}</div>
+                          <div className="text-xs text-gray-600">Reflections</div>
                         </div>
                       )}
                       {chain.outcomes.documents > 0 && (
                         <div className="text-center p-2 bg-indigo-50 rounded">
                           <div className="text-lg font-semibold text-indigo-600">{chain.outcomes.documents}</div>
-                          <div className="text-xs text-gray-600">Docs</div>
+                          <div className="text-xs text-gray-600">Documents</div>
                         </div>
                       )}
                     </div>
