@@ -166,6 +166,7 @@ class GovernanceDumpProcessor:
                 "max_blocks": max_blocks,
                 "agent_id": "canonical_governance_processor"
             })
+            substrate_result = _sanitize_for_json(substrate_result)
             
             # Convert substrate results into governance proposals
             proposals = []
@@ -310,7 +311,9 @@ class GovernanceDumpProcessor:
             }
             
             substrate_result = await self.p1_agent.create_substrate(agent_request)
-            blocks_created = substrate_result.get("block_ingredients") or substrate_result.get("blocks_created", [])
+            blocks_created = _sanitize_for_json(
+                substrate_result.get("block_ingredients") or substrate_result.get("blocks_created", [])
+            )
             
             if not blocks_created:
                 return {
@@ -527,7 +530,7 @@ class GovernanceDumpProcessor:
                 op_data = op.get("data", op) if isinstance(op, dict) else op
                 try:
                     if op_type == "CreateBlock":
-                        metadata = op_data.get("metadata") or {}
+                        metadata = _sanitize_for_json(op_data.get("metadata") or {})
                         title = op_data.get("title") or metadata.get("title") or "Untitled insight"
                         semantic_type = op_data.get("semantic_type") or metadata.get("semantic_type") or "insight"
                         confidence = op_data.get("confidence") or metadata.get("confidence") or 0.7
@@ -552,12 +555,12 @@ class GovernanceDumpProcessor:
                         if not block_id:
                             raise RuntimeError("fn_block_create returned no id")
 
-                        update_payload = {
+                        update_payload = _sanitize_for_json({
                             "semantic_type": semantic_type,
                             "metadata": metadata,
                             "confidence_score": confidence,
                             "state": "ACCEPTED"
-                        }
+                        })
 
                         update_resp = supabase.table("blocks").update(update_payload).eq("id", block_id).select('*').execute()
                         if update_resp.error:
@@ -572,7 +575,7 @@ class GovernanceDumpProcessor:
                         })
 
                     elif op_type == "CreateContextItem":
-                        metadata = op_data.get("metadata") or {}
+                        metadata = _sanitize_for_json(op_data.get("metadata") or {})
                         synonyms = op_data.get("synonyms") or metadata.get("synonyms") or []
                         label = op_data.get("label") or op_data.get("title") or "Untitled context"
                         normalized_label = label.lower()
@@ -605,13 +608,13 @@ class GovernanceDumpProcessor:
                         if not context_id:
                             raise RuntimeError("fn_context_item_upsert_bulk returned no id")
 
-                        update_resp = supabase.table("context_items").update({
+                        update_resp = supabase.table("context_items").update(_sanitize_for_json({
                             "normalized_label": normalized_label,
                             "confidence_score": confidence,
                             "metadata": metadata,
                             "content": summary_text,
                             "state": "ACTIVE"
-                        }).eq("id", context_id).select('*').execute()
+                        })).eq("id", context_id).select('*').execute()
 
                         if update_resp.error:
                             raise RuntimeError(f"Failed to finalize context item {context_id}: {update_resp.error.message}")
