@@ -193,7 +193,6 @@ CREATE FUNCTION public.fn_archive_block(p_basket_id uuid, p_block_id uuid, p_act
 DECLARE
   v_workspace_id uuid;
   v_preview jsonb;
-  v_event_ids uuid[] := '{}';
   v_tomb_id uuid;
 BEGIN
   SELECT workspace_id INTO v_workspace_id FROM baskets WHERE id = p_basket_id;
@@ -208,16 +207,11 @@ BEGIN
   DELETE FROM substrate_relationships
   WHERE basket_id = p_basket_id
     AND ((from_id = p_block_id AND from_type = 'block') OR (to_id = p_block_id AND to_type = 'block'));
-  -- Mark block archived via status (non-breaking minimal change)
+  -- Mark block archived via status
   UPDATE blocks SET status = 'archived', updated_at = now()
   WHERE id = p_block_id AND basket_id = p_basket_id;
   -- Preview snapshot for tombstone counts
   SELECT fn_cascade_preview(p_basket_id, 'block', p_block_id) INTO v_preview;
-  -- Tombstone (with earliest_physical_delete_at if retention policy enabled)
-  DECLARE v_flags jsonb := public.get_workspace_governance_flags(v_workspace_id); BEGIN END; -- dummy
-  -- Fetch flags properly
-  SELECT public.get_workspace_governance_flags(v_workspace_id) INTO v_preview; -- reuse v_preview var
-  -- v_preview holds flags now; avoid extra local var creation for brevity
   INSERT INTO substrate_tombstones (
     workspace_id, basket_id, substrate_type, substrate_id,
     deletion_mode, redaction_scope, redaction_reason,
@@ -231,23 +225,7 @@ BEGIN
     COALESCE((v_preview->>'affected_documents_count')::int, 0),
     p_actor_id
   ) RETURNING id INTO v_tomb_id;
-  -- Set earliest_physical_delete_at from retention policy if enabled and policy provides days
-  BEGIN
-    IF COALESCE((v_preview->>'retention_enabled')::boolean, false) THEN
-      -- Expect policy like { block: { days: N|null } }
-      IF ((v_preview->'retention_policy'->'block'->>'days') IS NOT NULL) THEN
-        UPDATE substrate_tombstones
-          SET earliest_physical_delete_at = now() + ((v_preview->'retention_policy'->'block'->>'days')::int || ' days')::interval
-          WHERE id = v_tomb_id;
-      END IF;
-    END IF;
-  EXCEPTION WHEN OTHERS THEN
-    -- ignore policy parsing errors
-  END;
-  -- Emit event
-  PERFORM emit_timeline_event(p_basket_id, 'substrate.archived', jsonb_build_object(
-    'substrate_type','block','substrate_id',p_block_id,'tombstone_id',v_tomb_id
-  ), v_workspace_id, p_actor_id, 'p1_maintenance');
+  -- No timeline event emission to avoid kind constraint mismatch
   RETURN v_tomb_id;
 END;
 $$;
@@ -363,6 +341,33 @@ BEGIN
     ORDER BY created_at
     LIMIT p_limit
     FOR UPDATE SKIP LOCKED  -- Prevents race conditions between agents
+  )
+  RETURNING *;
+END;
+$$;
+CREATE FUNCTION public.fn_claim_pipeline_work(p_worker_id text, p_limit integer DEFAULT 10, p_stale_after_minutes integer DEFAULT 5) RETURNS SETOF public.agent_processing_queue
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  RETURN QUERY
+  UPDATE agent_processing_queue
+  SET 
+    processing_state = 'claimed',
+    claimed_at = now(),
+    claimed_by = p_worker_id
+  WHERE id IN (
+    SELECT id 
+    FROM agent_processing_queue
+    WHERE (
+      processing_state = 'pending' AND work_type IN ('P0_CAPTURE','P1_SUBSTRATE','P2_GRAPH','P4_COMPOSE')
+    ) OR (
+      processing_state = 'claimed' 
+      AND claimed_at < now() - interval '1 minute' * p_stale_after_minutes
+      AND work_type IN ('P0_CAPTURE','P1_SUBSTRATE','P2_GRAPH','P4_COMPOSE')
+    )
+    ORDER BY created_at
+    LIMIT p_limit
+    FOR UPDATE SKIP LOCKED
   )
   RETURNING *;
 END;
@@ -787,11 +792,11 @@ DECLARE
   v_tomb_id uuid;
 BEGIN
   SELECT workspace_id INTO v_workspace_id FROM baskets WHERE id = p_basket_id;
-  -- Redact content (do not drop row)
+  -- Redact content
   UPDATE raw_dumps
     SET body_md = NULL, text_dump = NULL, file_url = NULL, processing_status = 'redacted'
   WHERE id = p_dump_id AND basket_id = p_basket_id;
-  -- Preview snapshot for tombstone counts (post‑detach not required for dumps by default)
+  -- Preview snapshot for tombstone counts
   SELECT fn_cascade_preview(p_basket_id, 'dump', p_dump_id) INTO v_preview;
   INSERT INTO substrate_tombstones (
     workspace_id, basket_id, substrate_type, substrate_id,
@@ -806,20 +811,7 @@ BEGIN
     COALESCE((v_preview->>'affected_documents_count')::int, 0),
     p_actor_id
   ) RETURNING id INTO v_tomb_id;
-  -- Set earliest_physical_delete_at from retention policy if enabled and policy provides days
-  BEGIN
-    IF COALESCE((public.get_workspace_governance_flags(v_workspace_id)->>'retention_enabled')::boolean, false) THEN
-      IF ((public.get_workspace_governance_flags(v_workspace_id)->'retention_policy'->'dump'->>'days') IS NOT NULL) THEN
-        UPDATE substrate_tombstones
-          SET earliest_physical_delete_at = now() + ((public.get_workspace_governance_flags(v_workspace_id)->'retention_policy'->'dump'->>'days')::int || ' days')::interval
-          WHERE id = v_tomb_id;
-      END IF;
-    END IF;
-  EXCEPTION WHEN OTHERS THEN
-  END;
-  PERFORM emit_timeline_event(p_basket_id, 'substrate.redacted', jsonb_build_object(
-    'substrate_type','dump','substrate_id',p_dump_id,'scope',p_scope,'tombstone_id',v_tomb_id
-  ), v_workspace_id, p_actor_id, 'p1_maintenance');
+  -- No timeline event emission to avoid kind constraint mismatch
   RETURN v_tomb_id;
 END;
 $$;
@@ -1177,11 +1169,12 @@ DECLARE
   result jsonb;
   settings_row public.workspace_governance_settings%ROWTYPE;
 BEGIN
-  SELECT * INTO settings_row 
-  FROM public.workspace_governance_settings 
+  -- Try to get workspace-specific settings
+  SELECT * INTO settings_row
+  FROM public.workspace_governance_settings
   WHERE workspace_id = p_workspace_id;
-  
   IF FOUND THEN
+    -- Return workspace-specific flags
     result := jsonb_build_object(
       'governance_enabled', settings_row.governance_enabled,
       'validator_required', settings_row.validator_required,
@@ -1189,30 +1182,26 @@ BEGIN
       'governance_ui_enabled', settings_row.governance_ui_enabled,
       'ep_onboarding_dump', settings_row.ep_onboarding_dump,
       'ep_manual_edit', settings_row.ep_manual_edit,
-      'ep_document_edit', settings_row.ep_document_edit,
-      'ep_reflection_suggestion', settings_row.ep_reflection_suggestion,
       'ep_graph_action', settings_row.ep_graph_action,
       'ep_timeline_restore', settings_row.ep_timeline_restore,
       'default_blast_radius', settings_row.default_blast_radius,
-      'retention_enabled', settings_row.retention_enabled,
-      'retention_policy', COALESCE(settings_row.retention_policy, '{}'::jsonb),
       'source', 'workspace_database'
     );
   ELSE
+    -- Canon-compliant defaults when no row exists:
+    -- P0 capture must be direct; all other entry points conservative (proposal)
     result := jsonb_build_object(
       'governance_enabled', true,
       'validator_required', false,
       'direct_substrate_writes', false,
       'governance_ui_enabled', true,
-      'ep_onboarding_dump', 'proposal',
+      'ep_onboarding_dump', 'direct',
       'ep_manual_edit', 'proposal',
-      'ep_document_edit', 'proposal',
-      'ep_reflection_suggestion', 'proposal',
+      'ep_document_edit', 'proposal',            -- legacy field retained for compatibility
+      'ep_reflection_suggestion', 'proposal',    -- legacy field retained for compatibility
       'ep_graph_action', 'proposal',
       'ep_timeline_restore', 'proposal',
       'default_blast_radius', 'Scoped',
-      'retention_enabled', false,
-      'retention_policy', '{}'::jsonb,
       'source', 'canon_compliant_defaults'
     );
   END IF;
@@ -1679,7 +1668,9 @@ CREATE TABLE public.proposal_executions (
     error_message text,
     substrate_id uuid,
     rpc_called text,
-    execution_time_ms integer
+    execution_time_ms integer,
+    operations_count integer,
+    operations_summary jsonb DEFAULT '{}'::jsonb
 );
 CREATE TABLE public.proposals (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1795,7 +1786,7 @@ CREATE TABLE public.timeline_events (
     preview text,
     payload jsonb,
     workspace_id uuid NOT NULL,
-    CONSTRAINT timeline_events_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text, 'block'::text, 'dump.created'::text, 'reflection.computed'::text, 'delta.applied'::text, 'delta.rejected'::text, 'document.created'::text, 'document.updated'::text, 'document.block.attached'::text, 'document.block.detached'::text, 'document.dump.attached'::text, 'document.dump.detached'::text, 'document.context_item.attached'::text, 'document.context_item.detached'::text, 'document.reflection.attached'::text, 'document.reflection.detached'::text, 'document.timeline_event.attached'::text, 'document.timeline_event.detached'::text, 'block.created'::text, 'block.updated'::text, 'basket.created'::text, 'workspace.member_added'::text, 'proposal.submitted'::text, 'proposal.approved'::text, 'proposal.rejected'::text, 'substrate.committed'::text, 'cascade.completed'::text])))
+    CONSTRAINT timeline_events_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text, 'block'::text, 'dump.created'::text, 'dump.queued'::text, 'block.created'::text, 'block.updated'::text, 'block.state_changed'::text, 'context_item.created'::text, 'context_item.updated'::text, 'relationship.created'::text, 'relationship.deleted'::text, 'reflection.computed'::text, 'reflection.cached'::text, 'document.created'::text, 'document.updated'::text, 'document.composed'::text, 'narrative.authored'::text, 'document.block.attached'::text, 'document.block.detached'::text, 'document.dump.attached'::text, 'document.dump.detached'::text, 'document.context_item.attached'::text, 'document.context_item.detached'::text, 'document.reflection.attached'::text, 'document.reflection.detached'::text, 'document.timeline_event.attached'::text, 'document.timeline_event.detached'::text, 'proposal.submitted'::text, 'proposal.approved'::text, 'proposal.rejected'::text, 'substrate.committed'::text, 'basket.created'::text, 'workspace.member_added'::text, 'delta.applied'::text, 'delta.rejected'::text, 'cascade.completed'::text, 'work.initiated'::text, 'work.routed'::text, 'queue.entry_created'::text, 'queue.processing_started'::text, 'queue.processing_completed'::text, 'queue.processing_failed'::text])))
 );
 CREATE SEQUENCE public.timeline_events_id_seq
     START WITH 1
