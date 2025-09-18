@@ -131,6 +131,27 @@ export async function createContextItemCanonical(
   return { created_id: updateData.id, type: 'context_item' };
 }
 
+function sanitizeForJson<T>(value: T): T {
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.map(sanitizeForJson) as unknown as T;
+  if (typeof value === 'object') {
+    if (value instanceof Date) return value.toISOString() as unknown as T;
+    if (value instanceof Object && 'toString' in value && typeof value.toString === 'function' && value.toString() !== '[object Object]') {
+      try {
+        return (value as any).toString();
+      } catch (_) {
+        // fallthrough
+      }
+    }
+    const result: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) {
+      result[k] = sanitizeForJson(v);
+    }
+    return result as unknown as T;
+  }
+  return value;
+}
+
 export async function reviseBlockCanonical(
   supabase: AnySupabase,
   op: any,
@@ -157,7 +178,7 @@ export async function reviseBlockCanonical(
   const newContent = typeof newContentSource === 'string' ? newContentSource : JSON.stringify(newContentSource);
   const newSemanticType = op.semantic_type ?? existing.semantic_type;
   const newConfidence = op.confidence ?? existing.confidence_score ?? 0.7;
-  const newMetadata = { ...(existing.metadata || {}), ...(op.metadata || {}) };
+  const newMetadata = sanitizeForJson({ ...(existing.metadata || {}), ...(op.metadata || {}) });
 
   const diffJson = {
     before: {
@@ -176,7 +197,7 @@ export async function reviseBlockCanonical(
       p_block_id: blockId,
       p_workspace_id: workspaceId,
       p_summary: op.revision_reason || 'Governed block revision',
-      p_diff_json: diffJson,
+      p_diff_json: sanitizeForJson(diffJson),
     });
   } catch (e: any) {
     throw new Error(`fn_block_revision_create failed: ${e?.message || e}`);
@@ -235,11 +256,11 @@ export async function updateContextItemCanonical(
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
-  const metadata = {
+  const metadata = sanitizeForJson({
     ...(existing.metadata || {}),
     ...(op.metadata || {}),
     synonyms,
-  };
+  });
 
   const { data: updated, error: updateError } = await supabase
     .from('context_items')
