@@ -500,55 +500,114 @@ class GovernanceDumpProcessor:
             executed_operations = []
             
             for i, op in enumerate(ops):
+                op_type = (op.get("type") if isinstance(op, dict) else None) or (op.get("operation_type") if isinstance(op, dict) else None)
+                op_data = op.get("data", op) if isinstance(op, dict) else op
                 try:
-                    if op.get("type") == "CreateBlock":
-                        # Create block in substrate
-                        block_data = {
-                            "basket_id": basket_id,
-                            "workspace_id": workspace_id,
-                            "content": op.get("content", ""),
-                            "semantic_type": op.get("semantic_type", "insight"),
-                            "confidence_score": op.get("confidence", 0.7),
+                    if op_type == "CreateBlock":
+                        metadata = op_data.get("metadata") or {}
+                        title = op_data.get("title") or metadata.get("title") or "Untitled insight"
+                        semantic_type = op_data.get("semantic_type") or metadata.get("semantic_type") or "insight"
+                        confidence = op_data.get("confidence") or metadata.get("confidence") or 0.7
+                        body_source = op_data.get("body_md") or op_data.get("content") or metadata.get("summary") or ""
+                        body = body_source if isinstance(body_source, str) else str(body_source)
+
+                        rpc_response = supabase.rpc('fn_block_create', {
+                            "p_basket_id": str(basket_id),
+                            "p_workspace_id": str(workspace_id),
+                            "p_title": title,
+                            "p_body_md": body,
+                        }).execute()
+
+                        if rpc_response.error:
+                            raise RuntimeError(f"fn_block_create failed: {rpc_response.error.message}")
+
+                        block_id = rpc_response.data
+                        if isinstance(block_id, list):
+                            block_id = block_id[0]
+                        elif isinstance(block_id, dict):
+                            block_id = next(iter(block_id.values()), None)
+                        if not block_id:
+                            raise RuntimeError("fn_block_create returned no id")
+
+                        update_payload = {
+                            "semantic_type": semantic_type,
+                            "metadata": metadata,
+                            "confidence_score": confidence,
                             "state": "ACCEPTED"
                         }
-                        
-                        response = supabase.table("blocks").insert(block_data).execute()
-                        if response.data:
-                            executed_operations.append({
-                                "type": "CreateBlock",
-                                "success": True,
-                                "created_id": response.data[0]["id"]
-                            })
-                        
-                    elif op.get("type") == "CreateContextItem":
-                        # Create context item in substrate
-                        item_data = {
-                            "basket_id": basket_id,
-                            "workspace_id": workspace_id,
-                            "title": op.get("label", ""),
-                            "type": op.get("kind", "concept"),
-                            "metadata": {
-                                "synonyms": op.get("synonyms", []),
-                                "confidence_score": op.get("confidence", 0.7)
-                            },
-                            "status": "active"
-                        }
-                        
-                        response = supabase.table("context_items").insert(item_data).execute()
-                        if response.data:
-                            executed_operations.append({
-                                "type": "CreateContextItem", 
-                                "success": True,
-                                "created_id": response.data[0]["id"]
-                            })
+
+                        update_resp = supabase.table("blocks").update(update_payload).eq("id", block_id).select('*').execute()
+                        if update_resp.error:
+                            raise RuntimeError(f"Failed to finalize block {block_id}: {update_resp.error.message}")
+
+                        created_id = update_resp.data[0]["id"] if update_resp.data else block_id
+
+                        executed_operations.append({
+                            "type": "CreateBlock",
+                            "success": True,
+                            "created_id": created_id
+                        })
+
+                    elif op_type == "CreateContextItem":
+                        metadata = op_data.get("metadata") or {}
+                        synonyms = op_data.get("synonyms") or metadata.get("synonyms") or []
+                        label = op_data.get("label") or op_data.get("title") or "Untitled context"
+                        normalized_label = label.lower()
+                        confidence = op_data.get("confidence") or metadata.get("confidence") or 0.7
+                        summary = metadata.get("summary")
+                        summary_text = summary if isinstance(summary, str) or summary is None else str(summary)
+                        metadata["synonyms"] = synonyms
+
+                        rpc_response = supabase.rpc('fn_context_item_upsert_bulk', {
+                            "p_items": [
+                                {
+                                    "basket_id": str(basket_id),
+                                    "type": op_data.get("kind") or metadata.get("kind") or "concept",
+                                    "title": label,
+                                    "content": summary_text,
+                                    "description": metadata.get("description"),
+                                    "metadata": metadata,
+                                }
+                            ]
+                        }).execute()
+
+                        if rpc_response.error:
+                            raise RuntimeError(f"fn_context_item_upsert_bulk failed: {rpc_response.error.message}")
+
+                        context_id = rpc_response.data
+                        if isinstance(context_id, list):
+                            context_id = context_id[0]
+                        elif isinstance(context_id, dict):
+                            context_id = next(iter(context_id.values()), None)
+                        if not context_id:
+                            raise RuntimeError("fn_context_item_upsert_bulk returned no id")
+
+                        update_resp = supabase.table("context_items").update({
+                            "normalized_label": normalized_label,
+                            "confidence_score": confidence,
+                            "metadata": metadata,
+                            "content": summary_text,
+                            "state": "ACTIVE"
+                        }).eq("id", context_id).select('*').execute()
+
+                        if update_resp.error:
+                            raise RuntimeError(f"Failed to finalize context item {context_id}: {update_resp.error.message}")
+
+                        created_id = update_resp.data[0]["id"] if update_resp.data else context_id
+
+                        executed_operations.append({
+                            "type": "CreateContextItem", 
+                            "success": True,
+                            "created_id": created_id
+                        })
                     
                     else:
-                        self.logger.warning(f"Unsupported operation type: {op.get('type')}")
+                        self.logger.warning(f"Unsupported operation type: {op_type}")
                         
                 except Exception as op_error:
                     self.logger.error(f"Failed to execute operation {i}: {op_error}")
                     executed_operations.append({
-                        "type": op.get("type"),
+                        "type": op_type,
                         "success": False,
                         "error": str(op_error)
                     })

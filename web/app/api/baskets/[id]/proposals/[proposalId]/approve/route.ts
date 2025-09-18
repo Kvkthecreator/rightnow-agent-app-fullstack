@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import { createBlockCanonical, createContextItemCanonical } from "@/lib/governance/canonicalSubstrateOps";
 
 interface RouteContext {
   params: Promise<{ id: string; proposalId: string }>;
@@ -335,10 +336,10 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
     case 'BreakdownDocument':
       return await breakdownDocument(supabase, data, basketId, workspaceId);
     case 'CreateBlock':
-      return await createBlock(supabase, data, basketId, workspaceId);
+      return await createBlockCanonical(supabase, data, basketId, workspaceId);
     
     case 'CreateContextItem':
-      return await createContextItem(supabase, data, basketId, workspaceId);
+      return await createContextItemCanonical(supabase, data, basketId, workspaceId);
     
     case 'AttachBlockToDoc':
       return await attachBlockToDoc(supabase, data, basketId, workspaceId);
@@ -358,49 +359,6 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
     default:
       throw new Error(`Unsupported operation type: ${operation.type}`);
   }
-}
-
-async function createBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const { data, error } = await supabase
-    .from('blocks')
-    .insert({
-      basket_id: basketId,
-      workspace_id: workspaceId,
-      content: op.content,
-      body_md: op.content, // Store content in both fields for compatibility
-      semantic_type: op.semantic_type,
-      confidence_score: op.confidence || 0.7,
-      state: 'ACCEPTED'
-    })
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to create block: ${error.message}`);
-  }
-
-  return { created_id: data.id, type: 'block' };
-}
-
-async function createContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const { data, error } = await supabase
-    .from('context_items')
-    .insert({
-      basket_id: basketId,
-      normalized_label: op.label,
-      type: op.kind || 'concept', 
-      confidence_score: op.confidence || 0.7,
-      state: 'ACTIVE',
-      metadata: { synonyms: op.synonyms || [] }
-    })
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to create context item: ${error.message}`);
-  }
-
-  return { created_id: data.id, type: 'context_item' };
 }
 
 async function attachBlockToDoc(supabase: any, op: any, basketId: string, workspaceId: string) {

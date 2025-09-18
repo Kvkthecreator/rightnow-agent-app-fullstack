@@ -6,6 +6,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import { createBlockCanonical, createContextItemCanonical } from './canonicalSubstrateOps';
 import { getWorkspaceFlags } from './flagsServer';
 import type { ChangeDescriptor } from './changeDescriptor';
 import { validateChangeDescriptor, computeOperationRisk } from './changeDescriptor';
@@ -373,45 +374,11 @@ async function createDump(supabase: any, op: any, basketId: string, workspaceId:
 }
 
 async function createBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const res = await supabase
-    .from('blocks')
-    .insert({
-      basket_id: basketId,
-      workspace_id: workspaceId,
-      content: op.content,
-      semantic_type: op.semantic_type,
-      canonical_value: op.canonical_value,
-      confidence_score: op.confidence || 0.7,
-      scope: op.scope || 'LOCAL',
-      state: 'ACTIVE'
-    });
-
-  const data = res?.data?.[0] ?? res?.data;
-  const error = res?.error;
-  if (error) throw new Error(`Failed to create block: ${error.message}`);
-  const id = data?.id || (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `blk_${Math.random().toString(36).slice(2)}`);
-  return { created_id: id, type: 'block' };
+  return await createBlockCanonical(supabase, op, basketId, workspaceId);
 }
 
 async function createContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const res = await supabase
-    .from('context_items')
-    .insert({
-      basket_id: basketId,
-      type: op.kind || 'concept',
-      content: op.content,
-      metadata: { 
-        title: op.label,
-        synonyms: op.synonyms || [],
-        confidence_score: op.confidence || 0.7
-      },
-      status: 'active'
-    });
-  const data = res?.data?.[0] ?? res?.data;
-  const error = res?.error;
-  if (error) throw new Error(`Failed to create context item: ${error.message}`);
-  const id = data?.id || (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `ctx_${Math.random().toString(36).slice(2)}`);
-  return { created_id: id, type: 'context_item' };
+  return await createContextItemCanonical(supabase, op, basketId, workspaceId);
 }
 
 async function reviseBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
