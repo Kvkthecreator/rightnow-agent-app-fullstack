@@ -517,15 +517,15 @@ class GovernanceDumpProcessor:
                     "reviewed_at": datetime.utcnow().isoformat(),
                     "review_notes": f"Auto-approved: agent origin with confidence {confidence:.3f} > 0.7"
                 }).eq("id", proposal_id).execute()
-                
+
                 # Execute the proposal operations
                 await self._execute_proposal_operations(proposal)
-                
-                # Update status to EXECUTED
+
                 supabase.table("proposals").update({
-                    "status": "EXECUTED"
+                    "is_executed": True,
+                    "executed_at": datetime.utcnow().isoformat()
                 }).eq("id", proposal_id).execute()
-                
+
                 self.logger.info(f"Auto-approved and executed proposal {proposal_id}")
                 return True
             else:
@@ -555,48 +555,66 @@ class GovernanceDumpProcessor:
                     if op_type == "CreateBlock":
                         metadata = _sanitize_for_json(op_data.get("metadata") or {})
                         title = op_data.get("title") or metadata.get("title") or "Untitled insight"
-                        semantic_type = op_data.get("semantic_type") or metadata.get("semantic_type") or "insight"
+                        semantic_type = (op_data.get("semantic_type") or metadata.get("semantic_type") or "insight").strip() or "insight"
                         confidence = op_data.get("confidence") or metadata.get("confidence") or 0.7
+                        try:
+                            confidence_value = float(confidence)
+                        except Exception:
+                            confidence_value = 0.7
                         body_source = op_data.get("body_md") or op_data.get("content") or metadata.get("summary") or ""
                         body = body_source if isinstance(body_source, str) else str(body_source)
 
-                        rpc_response = supabase.rpc('fn_block_create', {
-                            "p_basket_id": str(basket_id),
-                            "p_workspace_id": str(workspace_id),
-                            "p_title": title,
-                            "p_body_md": body,
-                        }).execute()
-
-                        if rpc_response.error:
-                            raise RuntimeError(f"fn_block_create failed: {rpc_response.error.message}")
-
-                        block_id = rpc_response.data
-                        if isinstance(block_id, list):
-                            block_id = block_id[0]
-                        elif isinstance(block_id, dict):
-                            block_id = next(iter(block_id.values()), None)
-                        if not block_id:
-                            raise RuntimeError("fn_block_create returned no id")
-
-                        update_payload = _sanitize_for_json({
+                        block_payload = _sanitize_for_json({
+                            "basket_id": str(basket_id),
+                            "workspace_id": str(workspace_id),
+                            "title": title,
+                            "body_md": body,
                             "semantic_type": semantic_type,
+                            "confidence_score": confidence_value,
                             "metadata": metadata,
-                            "confidence_score": confidence,
-                            "state": "ACCEPTED"
+                            "state": "ACCEPTED",
+                            "status": "accepted",
+                            "extraction_method": metadata.get("extraction_method") or "structured_knowledge_ingredients"
                         })
 
-                        update_resp = (
+                        insert_resp = (
                             supabase
                             .table("blocks")
-                            .update(update_payload)
-                            .eq("id", str(block_id))
+                            .insert(block_payload)
                             .select('*')
                             .execute()
                         )
-                        if update_resp.error:
-                            raise RuntimeError(f"Failed to finalize block {block_id}: {update_resp.error.message}")
 
-                        created_id = update_resp.data[0]["id"] if update_resp.data else block_id
+                        if getattr(insert_resp, "error", None):
+                            raise RuntimeError(f"block insert failed: {insert_resp.error}")
+
+                        block_record = (insert_resp.data or [{}])[0]
+                        created_id = block_record.get("id")
+                        if not created_id:
+                            raise RuntimeError("block insert returned no id")
+
+                        try:
+                            supabase.rpc(
+                                'fn_timeline_emit',
+                                {
+                                    "p_basket_id": str(basket_id),
+                                    "p_kind": "block.created",
+                                    "p_ref_id": str(created_id),
+                                    "p_preview": (title or "")[:140],
+                                    "p_payload": _sanitize_for_json({
+                                        "source": "governance_auto_execute",
+                                        "proposal_id": proposal_id,
+                                        "semantic_type": semantic_type,
+                                        "confidence": confidence_value
+                                    })
+                                }
+                            ).execute()
+                        except Exception as timeline_error:
+                            self.logger.warning(
+                                "Failed to emit timeline event for block %s: %s",
+                                created_id,
+                                timeline_error
+                            )
 
                         executed_operations.append({
                             "type": "CreateBlock",
@@ -691,28 +709,11 @@ class GovernanceDumpProcessor:
                 if getattr(exec_resp, "error", None):
                     raise RuntimeError(exec_resp.error)
             except Exception as exec_error:
-                error_text = str(exec_error)
-                if "operations_count" in error_text:
-                    self.logger.warning(
-                        "proposal_executions table missing operations_count column; recording summary without count"
-                    )
-                    fallback_payload = _sanitize_for_json({
-                        "proposal_id": str(proposal_id),
-                        "operations_summary": execution_summary
-                    })
-                    try:
-                        supabase.table("proposal_executions").insert(fallback_payload).execute()
-                    except Exception as fallback_error:
-                        self.logger.warning(
-                            "Failed to persist proposal execution summary fallback: %s",
-                            fallback_error
-                        )
-                else:
-                    self.logger.warning(
-                        "Failed to persist proposal execution summary for proposal %s: %s",
-                        proposal_id,
-                        exec_error
-                    )
+                self.logger.warning(
+                    "Failed to persist proposal execution summary for proposal %s: %s",
+                    proposal_id,
+                    exec_error
+                )
             
             self.logger.info(f"Completed execution of proposal {proposal_id}: {len(executed_operations)} operations")
             
