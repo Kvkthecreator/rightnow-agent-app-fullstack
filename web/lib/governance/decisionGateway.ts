@@ -6,7 +6,12 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { createBlockCanonical, createContextItemCanonical } from './canonicalSubstrateOps';
+import {
+  createBlockCanonical,
+  createContextItemCanonical,
+  reviseBlockCanonical,
+  updateContextItemCanonical,
+} from './canonicalSubstrateOps';
 import { getWorkspaceFlags } from './flagsServer';
 import type { ChangeDescriptor } from './changeDescriptor';
 import { validateChangeDescriptor, computeOperationRisk } from './changeDescriptor';
@@ -316,11 +321,11 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
     case 'CreateDump':
       return await createDump(supabase, operation, basketId, workspaceId);
     case 'CreateBlock':
-      return await createBlock(supabase, operation.data ?? operation, basketId, workspaceId);
+      return await createBlockCanonical(supabase, operation.data ?? operation, basketId, workspaceId);
     case 'CreateContextItem':
-      return await createContextItem(supabase, operation.data ?? operation, basketId, workspaceId);
+      return await createContextItemCanonical(supabase, operation.data ?? operation, basketId, workspaceId);
     case 'ReviseBlock':
-      return await reviseBlock(supabase, operation.data ?? operation, basketId, workspaceId);
+      return await reviseBlockCanonical(supabase, operation.data ?? operation, basketId, workspaceId);
     case 'MergeContextItems':
       return await mergeContextItems(supabase, operation, basketId, workspaceId);
     case 'AttachContextItem':
@@ -329,8 +334,9 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
       return await promoteScope(supabase, operation, basketId, workspaceId);
     // REMOVED: Document operations are artifacts, not substrates
     // DocumentCompose and DocumentAddReference moved to P4 presentation pipeline
+    case 'UpdateContextItem':
     case 'EditContextItem':
-      return await editContextItem(supabase, operation, basketId, workspaceId);
+      return await updateContextItemCanonical(supabase, operation.data ?? operation, basketId, workspaceId);
     case 'Delete':
       return await deleteSubstrate(supabase, operation, basketId, workspaceId);
     case 'ArchiveBlock':
@@ -373,170 +379,104 @@ async function createDump(supabase: any, op: any, basketId: string, workspaceId:
   return { created_id: dump_id, type: 'dump' };
 }
 
-async function createBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
-  return await createBlockCanonical(supabase, op, basketId, workspaceId);
-}
-
-async function createContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
-  return await createContextItemCanonical(supabase, op, basketId, workspaceId);
-}
-
-async function reviseBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const res = await supabase
-    .from('blocks')
-    .update({
-      content: op.content,
-      canonical_value: op.canonical_value,
-      confidence_score: op.confidence || 0.7
-    })
-    .eq('id', op.block_id)
-    .eq('workspace_id', workspaceId);
-  const error = res?.error;
-  if (error) throw new Error(`Failed to revise block: ${error.message}`);
-  return { updated_id: op.block_id, type: 'revision' };
-}
-
 async function mergeContextItems(supabase: any, op: any, basketId: string, workspaceId: string) {
+  const payload = op.data ?? op;
   // Mark source items as MERGED
   const { error: mergeError } = await supabase
     .from('context_items')
     .update({ state: 'MERGED' })
-    .in('id', op.data.from_ids)
+    .in('id', payload.from_ids)
     .eq('workspace_id', workspaceId);
 
   if (mergeError) throw new Error(`Failed to merge context items: ${mergeError.message}`);
 
   return { 
-    merged_ids: op.data.from_ids,
-    canonical_id: op.data.canonical_id,
+    merged_ids: payload.from_ids,
+    canonical_id: payload.canonical_id,
     type: 'merge'
   };
 }
 
 async function attachContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
-  // Create relationship between context item and target
-  const { data, error } = await supabase
-    .from('context_relationships')
-    .insert({
-      workspace_id: workspaceId,
-      from_id: op.data.context_item_id,
-      to_id: op.data.target_id,
-      relationship_type: op.data.relationship_type || 'relates_to',
-      from_type: 'context_item',
-      to_type: op.data.target_type
-    })
-    .select()
-    .single();
+  const payload = op.data ?? op;
+  const { data, error } = await supabase.rpc('fn_relationship_upsert', {
+    p_basket_id: basketId,
+    p_from_type: 'context_item',
+    p_from_id: payload.context_item_id,
+    p_to_type: payload.target_type,
+    p_to_id: payload.target_id,
+    p_relationship_type: payload.relationship_type || 'relates_to',
+  });
 
   if (error) throw new Error(`Failed to attach context item: ${error.message}`);
-  return { attached_id: data.id, type: 'attachment' };
+
+  const relId = Array.isArray(data) ? data[0] : data;
+  return { attached_id: relId, type: 'attachment' };
 }
 
 async function promoteScope(supabase: any, op: any, basketId: string, workspaceId: string) {
+  const payload = op.data ?? op;
   const { data, error } = await supabase
-    .from('context_blocks')
-    .update({ scope: op.data.to_scope })
-    .eq('id', op.data.block_id)
+    .from('blocks')
+    .update({ scope: payload.to_scope })
+    .eq('id', payload.block_id)
     .eq('workspace_id', workspaceId)
     .select()
     .single();
 
   if (error) throw new Error(`Failed to promote scope: ${error.message}`);
-  return { promoted_id: data.id, new_scope: op.data.to_scope, type: 'promotion' };
+  return { promoted_id: data.id, new_scope: payload.to_scope, type: 'promotion' };
 }
 
 // REMOVED: Document operations moved to P4 presentation pipeline
 // composeDocument() and addDocumentReference() are artifact operations
 // These belong in /lib/presentation/ or /app/api/presentation/, NOT governance
 
-async function editContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const updateData: any = {};
-  
-  // Map to actual schema columns: context_items has title, description, metadata
-  if (op.data.label) updateData.title = op.data.label;
-  if (op.data.content) updateData.description = op.data.content;
-  if (op.data.synonyms) {
-    updateData.metadata = { synonyms: Array.isArray(op.data.synonyms) ? op.data.synonyms : op.data.synonyms.split(',').map((s: string) => s.trim()) };
-  }
-  
-  updateData.updated_at = new Date().toISOString();
-
-  const { data, error } = await supabase
-    .from('context_items')
-    .update(updateData)
-    .eq('id', op.data.context_item_id)
-    .eq('basket_id', basketId)
-    .select()
-    .single();
-
-  if (error) throw new Error(`Failed to edit context item: ${error.message}`);
-  
-  // Emit timeline event
-  await supabase.rpc('emit_timeline_event', {
-    p_basket_id: basketId,
-    p_event_type: 'context_item.updated',
-    p_event_data: {
-      context_item_id: data.id,
-      ref_id: data.id,
-      preview: `Updated: ${data.title || 'Context Item'}`
-    },
-    p_workspace_id: workspaceId
-  });
-  
-  return { updated_id: data.id, type: 'context_item_edit' };
-}
-
 async function deleteSubstrate(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const tableName = op.data.target_type === 'block' ? 'blocks' : 'context_items';
-  
-  // Soft delete: both tables use state enum with different valid values
-  const updateData = op.data.target_type === 'block' 
-    ? { state: 'SUPERSEDED' } // Valid block_state enum value
-    : { state: 'DEPRECATED' }; // Valid context_item_state enum value
-  
-  const { data, error } = await supabase
-    .from(tableName)
-    .update(updateData)
-    .eq('id', op.data.target_id)
-    .eq('basket_id', basketId)
-    .select()
-    .single();
+  const payload = op.data ?? op;
 
-  if (error) throw new Error(`Failed to delete ${op.data.target_type}: ${error.message}`);
-  
-  // Emit timeline event
-  await supabase.rpc('emit_timeline_event', {
-    p_basket_id: basketId,
-    p_event_type: `${op.data.target_type}.deleted`,
-    p_event_data: {
-      target_id: data.id,
-      ref_id: data.id,
-      preview: `Deleted: ${data.title || data.content || 'Substrate'}`
-    },
-    p_workspace_id: workspaceId
-  });
-  
-  return { deleted_id: data.id, type: `${op.data.target_type}_delete` };
+  if (payload.target_type === 'block') {
+    const { error } = await supabase.rpc('fn_archive_block', {
+      p_basket_id: basketId,
+      p_block_id: payload.target_id,
+      p_actor_id: payload.actor_id || null,
+    });
+    if (error) throw new Error(`Failed to archive block: ${error.message}`);
+    return { deleted_id: payload.target_id, type: 'block_delete' };
+  }
+
+  if (payload.target_type === 'context_item') {
+    const { error } = await supabase.rpc('fn_archive_context_item', {
+      p_basket_id: basketId,
+      p_context_item_id: payload.target_id,
+    });
+    if (error) throw new Error(`Failed to archive context item: ${error.message}`);
+    return { deleted_id: payload.target_id, type: 'context_item_delete' };
+  }
+
+  throw new Error(`Unsupported delete target type: ${payload.target_type}`);
 }
 
 // Phase 1 Deletion Ops
 async function archiveBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
+  const payload = op.data ?? op;
   const { data, error } = await supabase.rpc('fn_archive_block', {
     p_basket_id: basketId,
-    p_block_id: op.data.block_id,
-    p_actor_id: op.data.actor_id || null,
+    p_block_id: payload.block_id,
+    p_actor_id: payload.actor_id || null,
   });
   if (error) throw new Error(`ArchiveBlock failed: ${error.message}`);
   return { tombstone_id: data, type: 'archive_block' };
 }
 
 async function redactDump(supabase: any, op: any, basketId: string, workspaceId: string) {
+  const payload = op.data ?? op;
   const { data, error } = await supabase.rpc('fn_redact_dump', {
     p_basket_id: basketId,
-    p_dump_id: op.data.dump_id,
-    p_scope: op.data.scope || 'full',
-    p_reason: op.data.reason || null,
-    p_actor_id: op.data.actor_id || null,
+    p_dump_id: payload.dump_id,
+    p_scope: payload.scope || 'full',
+    p_reason: payload.reason || null,
+    p_actor_id: payload.actor_id || null,
   });
   if (error) throw new Error(`RedactDump failed: ${error.message}`);
   return { tombstone_id: data, type: 'redact_dump' };

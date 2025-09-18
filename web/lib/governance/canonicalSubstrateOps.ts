@@ -130,3 +130,137 @@ export async function createContextItemCanonical(
 
   return { created_id: updateData.id, type: 'context_item' };
 }
+
+export async function reviseBlockCanonical(
+  supabase: AnySupabase,
+  op: any,
+  basketId: string,
+  workspaceId: string
+): Promise<OperationResult> {
+  const blockId = op.block_id;
+  if (!blockId) {
+    throw new Error('reviseBlock requires block_id');
+  }
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('blocks')
+    .select('id, body_md, content, semantic_type, metadata, confidence_score, title')
+    .eq('id', blockId)
+    .eq('workspace_id', workspaceId)
+    .single();
+
+  if (fetchError || !existing) {
+    throw new Error(fetchError?.message || `Block ${blockId} not found`);
+  }
+
+  const newContentSource = op.content ?? op.body_md ?? existing.body_md ?? existing.content ?? '';
+  const newContent = typeof newContentSource === 'string' ? newContentSource : JSON.stringify(newContentSource);
+  const newSemanticType = op.semantic_type ?? existing.semantic_type;
+  const newConfidence = op.confidence ?? existing.confidence_score ?? 0.7;
+  const newMetadata = { ...(existing.metadata || {}), ...(op.metadata || {}) };
+
+  const diffJson = {
+    before: {
+      content: existing.body_md ?? existing.content,
+      semantic_type: existing.semantic_type,
+    },
+    after: {
+      content: newContent,
+      semantic_type: newSemanticType,
+    },
+  };
+
+  try {
+    await supabase.rpc('fn_block_revision_create', {
+      p_basket_id: basketId,
+      p_block_id: blockId,
+      p_workspace_id: workspaceId,
+      p_summary: op.revision_reason || 'Governed block revision',
+      p_diff_json: diffJson,
+    });
+  } catch (e: any) {
+    throw new Error(`fn_block_revision_create failed: ${e?.message || e}`);
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from('blocks')
+    .update({
+      body_md: newContent,
+      content: newContent,
+      semantic_type: newSemanticType,
+      confidence_score: newConfidence,
+      metadata: newMetadata,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', blockId)
+    .select('*')
+    .single();
+
+  if (updateError || !updated) {
+    throw new Error(updateError?.message || `Failed to update block ${blockId}`);
+  }
+
+  return { updated_id: updated.id, type: 'block' };
+}
+
+export async function updateContextItemCanonical(
+  supabase: AnySupabase,
+  op: any,
+  basketId: string,
+  workspaceId: string
+): Promise<OperationResult> {
+  const contextItemId = op.context_item_id;
+  if (!contextItemId) {
+    throw new Error('updateContextItem requires context_item_id');
+  }
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('context_items')
+    .select('id, title, content, description, metadata, confidence_score, type, normalized_label')
+    .eq('id', contextItemId)
+    .eq('basket_id', basketId)
+    .single();
+
+  if (fetchError || !existing) {
+    throw new Error(fetchError?.message || `Context item ${contextItemId} not found`);
+  }
+
+  const label = op.label ?? existing.title ?? '';
+  const normalizedLabel = label ? label.toLowerCase() : existing['normalized_label'] ?? existing.title?.toLowerCase() ?? null;
+  const content = op.content ?? existing.content ?? existing.description ?? null;
+  const synonymsInput = op.synonyms ?? op.additional_synonyms ?? existing.metadata?.synonyms ?? [];
+  const synonyms = Array.isArray(synonymsInput)
+    ? synonymsInput
+    : String(synonymsInput)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+  const metadata = {
+    ...(existing.metadata || {}),
+    ...(op.metadata || {}),
+    synonyms,
+  };
+
+  const { data: updated, error: updateError } = await supabase
+    .from('context_items')
+    .update({
+      title: label || existing.title,
+      normalized_label,
+      content,
+      description: op.description ?? existing.description ?? content,
+      type: op.kind ?? existing['type'],
+      confidence_score: op.confidence ?? existing.confidence_score ?? 0.7,
+      metadata,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', contextItemId)
+    .eq('basket_id', basketId)
+    .select('*')
+    .single();
+
+  if (updateError || !updated) {
+    throw new Error(updateError?.message || `Failed to update context item ${contextItemId}`);
+  }
+
+  return { updated_id: updated.id, type: 'context_item' };
+}

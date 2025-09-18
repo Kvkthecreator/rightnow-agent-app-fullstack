@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
-import { createBlockCanonical, createContextItemCanonical } from "@/lib/governance/canonicalSubstrateOps";
+import {
+  createBlockCanonical,
+  createContextItemCanonical,
+  reviseBlockCanonical,
+  updateContextItemCanonical,
+} from "@/lib/governance/canonicalSubstrateOps";
 
 interface RouteContext {
   params: Promise<{ id: string; proposalId: string }>;
@@ -348,10 +353,11 @@ async function executeOperation(supabase: any, operation: any, basketId: string,
       return await mergeContextItems(supabase, data, basketId, workspaceId);
     
     case 'ReviseBlock':
-      return await reviseBlock(supabase, data, basketId, workspaceId);
+      return await reviseBlockCanonical(supabase, data, basketId, workspaceId);
     
     case 'UpdateContextItem':
-      return await updateContextItem(supabase, data, basketId, workspaceId);
+    case 'EditContextItem':
+      return await updateContextItemCanonical(supabase, data, basketId, workspaceId);
     
     case 'PromoteScope':
       return await promoteScope(supabase, data, basketId, workspaceId);
@@ -390,26 +396,6 @@ async function mergeContextItems(supabase: any, op: any, basketId: string, works
   };
 }
 
-async function reviseBlock(supabase: any, op: any, basketId: string, workspaceId: string) {
-  const { data, error } = await supabase
-    .from('blocks')
-    .update({
-      content: op.content,
-      body_md: op.content, // Update both fields
-      confidence_score: op.confidence || 0.7
-    })
-    .eq('id', op.block_id)
-    .eq('workspace_id', workspaceId)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to revise block: ${error.message}`);
-  }
-
-  return { updated_id: data.id, type: 'revision' };
-}
-
 async function promoteScope(supabase: any, op: any, basketId: string, workspaceId: string) {
   // Update scope from LOCAL to WORKSPACE
   const { data, error } = await supabase
@@ -425,49 +411,6 @@ async function promoteScope(supabase: any, op: any, basketId: string, workspaceI
   }
 
   return { promoted_id: data.id, new_scope: op.to_scope, type: 'promotion' };
-}
-
-async function updateContextItem(supabase: any, op: any, basketId: string, workspaceId: string) {
-  // Build update object from operation
-  const updateData: any = {};
-  
-  if (op.label) updateData.normalized_label = op.label;
-  if (op.kind) updateData.type = op.kind;  
-  if (op.confidence !== undefined) updateData.confidence_score = op.confidence;
-  
-  // Handle synonyms - either replace or append
-  if (op.synonyms || op.additional_synonyms) {
-    // Get existing metadata to preserve other fields
-    const { data: existing } = await supabase
-      .from('context_items')
-      .select('metadata')
-      .eq('id', op.context_item_id)
-      .single();
-      
-    const existingMetadata = existing?.metadata || {};
-    const existingSynonyms = existingMetadata.synonyms || [];
-    
-    if (op.synonyms) {
-      updateData.metadata = { ...existingMetadata, synonyms: op.synonyms };
-    } else if (op.additional_synonyms) {
-      updateData.metadata = { ...existingMetadata, synonyms: [...existingSynonyms, ...op.additional_synonyms] };
-    }
-  }
-  
-  updateData.updated_at = new Date().toISOString();
-
-  const { data, error } = await supabase
-    .from('context_items')
-    .update(updateData)
-    .eq('id', op.context_item_id)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to update context item: ${error.message}`);
-  }
-
-  return { updated_id: data.id, type: 'update' };
 }
 
 // Execute a BreakdownDocument operation by creating a raw_dump from the document's content
