@@ -675,15 +675,44 @@ class GovernanceDumpProcessor:
                         "error": str(op_error)
                     })
             
-            # Record execution results
-            supabase.table("proposal_executions").insert({
-                "proposal_id": proposal_id,
+            # Record execution results; tolerate older schema variants
+            execution_summary = {
+                "executed": executed_operations,
+                "success_count": len([op for op in executed_operations if op.get("success")])
+            }
+            execution_payload = _sanitize_for_json({
+                "proposal_id": str(proposal_id),
                 "operations_count": len(ops),
-                "operations_summary": {
-                    "executed": executed_operations,
-                    "success_count": len([op for op in executed_operations if op.get("success")])
-                }
-            }).execute()
+                "operations_summary": execution_summary
+            })
+
+            try:
+                exec_resp = supabase.table("proposal_executions").insert(execution_payload).execute()
+                if getattr(exec_resp, "error", None):
+                    raise RuntimeError(exec_resp.error)
+            except Exception as exec_error:
+                error_text = str(exec_error)
+                if "operations_count" in error_text:
+                    self.logger.warning(
+                        "proposal_executions table missing operations_count column; recording summary without count"
+                    )
+                    fallback_payload = _sanitize_for_json({
+                        "proposal_id": str(proposal_id),
+                        "operations_summary": execution_summary
+                    })
+                    try:
+                        supabase.table("proposal_executions").insert(fallback_payload).execute()
+                    except Exception as fallback_error:
+                        self.logger.warning(
+                            "Failed to persist proposal execution summary fallback: %s",
+                            fallback_error
+                        )
+                else:
+                    self.logger.warning(
+                        "Failed to persist proposal execution summary for proposal %s: %s",
+                        proposal_id,
+                        exec_error
+                    )
             
             self.logger.info(f"Completed execution of proposal {proposal_id}: {len(executed_operations)} operations")
             
