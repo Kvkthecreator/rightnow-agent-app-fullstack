@@ -232,10 +232,22 @@ Extract the information above in the specified JSON format. Focus on quality ove
             }
         })
         
+        # Mapping for legacy fact types -> canonical semantic categories
+        fact_type_map = {
+            "metric": "metric",
+            "event": "event",
+            "status": "status",
+            "quote": "quote",
+            "finding": "finding",
+            "feature": "finding",
+            "milestone": "event"
+        }
+
         # Transform facts to blocks
         for i, fact in enumerate(extraction.facts[:10]):  # Limit to 10 best facts
+            semantic_type = fact_type_map.get(fact.type.lower() if isinstance(fact.type, str) else "", "finding")
             blocks.append({
-                "semantic_type": fact.type,
+                "semantic_type": semantic_type,
                 "title": f"{fact.type.title()}: {fact.text[:50]}...",
                 "content": fact.text,
                 "confidence_score": fact.confidence,

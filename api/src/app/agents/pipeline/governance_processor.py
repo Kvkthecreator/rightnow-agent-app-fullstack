@@ -275,6 +275,9 @@ class GovernanceDumpProcessor:
                 confidence = ctx.get("confidence") or metadata.get("confidence") or 0.8
                 summary_text = metadata.get("content") or metadata.get("summary") or ctx.get("description") or label
 
+                metadata.setdefault("kind", kind)
+                metadata.setdefault("source", "agent_context_ingredient")
+
                 ops_accum.append({
                     "type": "CreateContextItem",
                     "data": {
@@ -706,58 +709,65 @@ class GovernanceDumpProcessor:
                         label = op_data.get("label") or op_data.get("title") or "Untitled context"
                         normalized_label = label.lower()
                         confidence = op_data.get("confidence") or metadata.get("confidence") or 0.7
+                        try:
+                            confidence_value = float(confidence)
+                        except Exception:
+                            confidence_value = 0.7
                         summary = metadata.get("summary")
                         summary_text = summary if isinstance(summary, str) or summary is None else str(summary)
+                        kind_value = (op_data.get("kind") or metadata.get("kind") or "concept").lower()
+
                         metadata["synonyms"] = synonyms
+                        metadata.setdefault("kind", kind_value)
 
-                        rpc_response = supabase.rpc('fn_context_item_upsert_bulk', {
-                            "p_items": [
-                                {
-                                    "basket_id": str(basket_id),
-                                    "type": op_data.get("kind") or metadata.get("kind") or "concept",
-                                    "title": label,
-                                    "content": summary_text,
-                                    "description": metadata.get("description"),
-                                    "metadata": metadata,
-                                }
-                            ]
-                        }).execute()
+                        context_payload = _sanitize_for_json({
+                            "basket_id": str(basket_id),
+                            "type": kind_value,
+                            "title": label,
+                            "content": summary_text,
+                            "description": metadata.get("description") or summary_text,
+                            "confidence_score": confidence_value,
+                            "metadata": metadata,
+                            "normalized_label": normalized_label,
+                            "state": "ACTIVE",
+                            "status": "active"
+                        })
 
-                        if rpc_response.error:
-                            raise RuntimeError(f"fn_context_item_upsert_bulk failed: {rpc_response.error.message}")
-
-                        context_id = rpc_response.data
-                        if isinstance(context_id, list):
-                            context_id = context_id[0]
-                        elif isinstance(context_id, dict):
-                            context_id = next(iter(context_id.values()), None)
-                        if not context_id:
-                            raise RuntimeError("fn_context_item_upsert_bulk returned no id")
-
-                        update_resp = (
+                        insert_resp = (
                             supabase
                             .table("context_items")
-                            .update(_sanitize_for_json({
-                            "normalized_label": normalized_label,
-                            "confidence_score": confidence,
-                            "metadata": metadata,
-                            "content": summary_text,
-                            "state": "ACTIVE"
-                        }))
-                            .eq("id", str(context_id))
-                            .select('*')
+                            .insert(context_payload)
                             .execute()
                         )
 
-                        if update_resp.error:
-                            raise RuntimeError(f"Failed to finalize context item {context_id}: {update_resp.error.message}")
+                        if getattr(insert_resp, "error", None):
+                            raise RuntimeError(f"context item insert failed: {insert_resp.error}")
 
-                        created_id = update_resp.data[0]["id"] if update_resp.data else context_id
+                        context_id = None
+                        if insert_resp.data:
+                            context_id = insert_resp.data[0].get("id") if isinstance(insert_resp.data, list) else insert_resp.data.get("id")
+
+                        if not context_id:
+                            lookup_resp = (
+                                supabase
+                                .table("context_items")
+                                .select("id")
+                                .eq("basket_id", str(basket_id))
+                                .eq("normalized_label", normalized_label)
+                                .order("created_at", desc=True)
+                                .limit(1)
+                                .execute()
+                            )
+                            if lookup_resp.data:
+                                context_id = lookup_resp.data[0].get("id")
+
+                        if not context_id:
+                            raise RuntimeError("context item insert returned no id")
 
                         executed_operations.append({
                             "type": "CreateContextItem", 
                             "success": True,
-                            "created_id": created_id
+                            "created_id": context_id
                         })
                     
                     else:
