@@ -43,6 +43,10 @@ class GovernanceDumpProcessor:
             self.logger.error(f"Failed to initialize ImprovedP1SubstrateAgent: {e}")
             # Fall back to None - governance processor will handle gracefully
             self.p1_agent = None
+
+        # Feature flags for degraded environments
+        self._timeline_enabled = True
+        self._execution_logging_enabled = True
         
     async def process_batch_dumps(self, dump_ids: List[UUID], basket_id: UUID, workspace_id: UUID) -> Dict[str, Any]:
         """
@@ -255,6 +259,37 @@ class GovernanceDumpProcessor:
                         if isinstance(items, list) and items:
                             ingredient_summary_bits.append(f"{len(items)} {key}")
 
+            # Merge explicit context item ingredients from agent output
+            context_ingredients = substrate_result.get("context_item_ingredients") or []
+            for ctx in context_ingredients:
+                if context_items_added >= max_context_items_total:
+                    break
+                metadata = _sanitize_for_json(ctx.get("metadata", {}))
+                label = (ctx.get("label") or ctx.get("title") or "").strip()
+                if not label:
+                    continue
+                label_key = label.lower()
+                if label_key in created_ci_labels:
+                    continue
+                kind = (ctx.get("kind") or ctx.get("type") or metadata.get("kind") or "concept").lower()
+                confidence = ctx.get("confidence") or metadata.get("confidence") or 0.8
+                summary_text = metadata.get("content") or metadata.get("summary") or ctx.get("description") or label
+
+                ops_accum.append({
+                    "type": "CreateContextItem",
+                    "data": {
+                        "label": label,
+                        "content": summary_text,
+                        "kind": kind,
+                        "confidence": confidence,
+                        "metadata": metadata
+                    }
+                })
+                created_ci_labels.add(label_key)
+                context_items_added += 1
+
+            context_items_total = len(created_ci_labels)
+
             if not ops_accum:
                 return {
                     "proposals_created": 0,
@@ -264,6 +299,8 @@ class GovernanceDumpProcessor:
 
             avg_confidence = sum(block_confidences) / len(block_confidences) if block_confidences else 0.0
             impact_summary = ", ".join(ingredient_summary_bits) if ingredient_summary_bits else f"{len(ops_accum)} operations"
+            if context_items_total:
+                impact_summary = impact_summary + f"; {context_items_total} context items" if impact_summary else f"{context_items_total} context items"
 
             proposal_payload = {
                 "basket_id": str(basket_id),
@@ -276,7 +313,7 @@ class GovernanceDumpProcessor:
                 "validator_report": {
                     "confidence": avg_confidence,
                     "method": "structured_knowledge_extraction",
-                    "ingredients_count": len(created_ci_labels),
+                    "ingredients_count": context_items_total,
                     "extraction_quality": "high" if avg_confidence > 0.7 else "medium",
                     "impact_summary": impact_summary
                 },
@@ -630,28 +667,32 @@ class GovernanceDumpProcessor:
                         if not created_id:
                             raise RuntimeError("block insert returned no id")
 
-                        try:
-                            supabase.rpc(
-                                'fn_timeline_emit',
-                                {
-                                    "p_basket_id": str(basket_id),
-                                    "p_kind": "block.created",
-                                    "p_ref_id": str(created_id),
-                                    "p_preview": (title or "")[:140],
-                                    "p_payload": _sanitize_for_json({
-                                        "source": "governance_auto_execute",
-                                        "proposal_id": proposal_id,
-                                        "semantic_type": semantic_type,
-                                        "confidence": confidence_value
-                                    })
-                                }
-                            ).execute()
-                        except Exception as timeline_error:
-                            self.logger.warning(
-                                "Failed to emit timeline event for block %s: %s",
-                                created_id,
-                                timeline_error
-                            )
+                        if self._timeline_enabled:
+                            try:
+                                timeline_resp = supabase.rpc(
+                                    'fn_timeline_emit',
+                                    {
+                                        "p_basket_id": str(basket_id),
+                                        "p_kind": "block.created",
+                                        "p_ref_id": str(created_id),
+                                        "p_preview": (title or "")[:140],
+                                        "p_payload": _sanitize_for_json({
+                                            "source": "governance_auto_execute",
+                                            "proposal_id": proposal_id,
+                                            "semantic_type": semantic_type,
+                                            "confidence": confidence_value
+                                        })
+                                    }
+                                ).execute()
+                                if getattr(timeline_resp, "error", None):
+                                    raise RuntimeError(timeline_resp.error)
+                            except Exception as timeline_error:
+                                self._timeline_enabled = False
+                                self.logger.warning(
+                                    "Failed to emit timeline event for block %s: %s",
+                                    created_id,
+                                    timeline_error
+                                )
 
                         executed_operations.append({
                             "type": "CreateBlock",
@@ -741,16 +782,20 @@ class GovernanceDumpProcessor:
                 "operations_summary": execution_summary
             })
 
-            try:
-                exec_resp = supabase.table("proposal_executions").insert(execution_payload).execute()
-                if getattr(exec_resp, "error", None):
-                    raise RuntimeError(exec_resp.error)
-            except Exception as exec_error:
-                self.logger.warning(
-                    "Failed to persist proposal execution summary for proposal %s: %s",
-                    proposal_id,
-                    exec_error
-                )
+            if self._execution_logging_enabled:
+                try:
+                    exec_resp = supabase.table("proposal_executions").insert(execution_payload).execute()
+                    if getattr(exec_resp, "error", None):
+                        raise RuntimeError(exec_resp.error)
+                except Exception as exec_error:
+                    error_text = str(exec_error)
+                    if "operations_count" in error_text or "operations_summary" in error_text:
+                        self._execution_logging_enabled = False
+                    self.logger.warning(
+                        "Failed to persist proposal execution summary for proposal %s: %s",
+                        proposal_id,
+                        exec_error
+                    )
             
             self.logger.info(f"Completed execution of proposal {proposal_id}: {len(executed_operations)} operations")
             
