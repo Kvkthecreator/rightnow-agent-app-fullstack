@@ -13,30 +13,53 @@ const ConsumerTimeline = dynamic(() => import('@/components/timeline/ConsumerTim
   loading: () => <div className="h-48 animate-pulse" />,
 });
 
+const MemoryChainTimeline = dynamic(() => import('@/components/timeline/MemoryChainTimeline'), {
+  loading: () => <div className="h-48 animate-pulse" />,
+});
+
 export default function TimelinePage({ params }: { params: { id: string } }) {
   const { id } = params;
   const [pipelineFilter, setPipelineFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<'chains' | 'events'>('chains');
   
   // Phase 2: Adapter Layer Feature Flag
   const useAdapterTimeline = process.env.NEXT_PUBLIC_ENABLE_ADAPTER_TIMELINE === 'true';
 
   const filterComponent = (
-    <label className="text-sm font-medium text-gray-700">
-      Filter:
-      <select
-        value={pipelineFilter}
-        onChange={(e) => setPipelineFilter(e.target.value)}
-        className="ml-2 border border-gray-300 rounded px-3 py-1"
-      >
-        <option value="all">All Events</option>
-        <option value="P0_CAPTURE">P0 Capture</option>
-        <option value="P1_SUBSTRATE">P1 Substrate</option>
-        <option value="P2_GRAPH">P2 Graph</option>
-        <option value="P3_REFLECTION">P3 Reflection</option>
-        <option value="P4_PRESENTATION">P4 Presentation</option>
-        <option value="QUEUE">Queue Processing</option>
-      </select>
-    </label>
+    <div className="flex items-center gap-4">
+      {/* View Mode Toggle */}
+      <label className="text-sm font-medium text-gray-700">
+        View:
+        <select
+          value={viewMode}
+          onChange={(e) => setViewMode(e.target.value as 'chains' | 'events')}
+          className="ml-2 border border-gray-300 rounded px-3 py-1"
+        >
+          <option value="chains">Memory Chains</option>
+          <option value="events">Event Log</option>
+        </select>
+      </label>
+      
+      {/* Pipeline Filter (only for events view) */}
+      {viewMode === 'events' && (
+        <label className="text-sm font-medium text-gray-700">
+          Filter:
+          <select
+            value={pipelineFilter}
+            onChange={(e) => setPipelineFilter(e.target.value)}
+            className="ml-2 border border-gray-300 rounded px-3 py-1"
+          >
+            <option value="all">All Events</option>
+            <option value="P0_CAPTURE">P0 Capture</option>
+            <option value="P1_SUBSTRATE">P1 Substrate</option>
+            <option value="P2_GRAPH">P2 Graph</option>
+            <option value="P3_REFLECTION">P3 Reflection</option>
+            <option value="P4_PRESENTATION">P4 Presentation</option>
+            <option value="QUEUE">Queue Processing</option>
+          </select>
+        </label>
+      )}
+    </div>
   );
 
   return (
@@ -44,11 +67,11 @@ export default function TimelinePage({ params }: { params: { id: string } }) {
       <div className="flex h-full flex-col">
         <div className="border-b p-4">
           <SubpageHeader 
-            title={useAdapterTimeline ? "Your Timeline" : "Timeline"} 
+            title={viewMode === 'chains' ? "Memory Chains" : "Event Timeline"} 
             basketId={id}
-            description={useAdapterTimeline ? 
-              "Your personal memory timeline - AI agents processing your thoughts" :
-              "Agent processing timeline - watch your thoughts become structured intelligence"
+            description={viewMode === 'chains' ? 
+              "Watch your memories transform through agent intelligence" :
+              "Detailed event log of agent processing pipeline"
             }
             rightContent={filterComponent}
           />
@@ -61,13 +84,18 @@ export default function TimelinePage({ params }: { params: { id: string } }) {
                 <ConsumerTimeline basketId={id} />
               </div>
             ) : (
-              // Phase 1: Canonical Timeline
               <div className="p-6">
-                <UnifiedTimeline 
-                  basketId={id} 
-                  className="bg-white rounded-lg shadow-sm" 
-                  pipelineFilter={pipelineFilter}
-                />
+                {viewMode === 'chains' ? (
+                  // Memory Chain View - shows processing chains and outcomes
+                  <MemoryChainTimeline basketId={id} />
+                ) : (
+                  // Event Log View - flat timeline with filters
+                  <UnifiedTimeline 
+                    basketId={id} 
+                    className="bg-white rounded-lg shadow-sm" 
+                    pipelineFilter={pipelineFilter}
+                  />
+                )}
               </div>
             )}
           </div>

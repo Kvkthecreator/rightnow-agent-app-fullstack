@@ -263,19 +263,17 @@ class GovernanceDumpProcessor:
                     "status": "PROPOSED"
                 }
                 
-                # FIXED: Split insert and select calls for Supabase client compatibility
                 response = supabase.table("proposals").insert(_sanitize_for_json(proposal_data)).execute()
                 if response.data:
-                    # Get the inserted records with all fields
-                    inserted_ids = [str(record["id"]) for record in response.data]
-                    select_response = supabase.table("proposals").select("*").in_("id", inserted_ids).execute()
-                    if select_response.data:
-                        proposals.extend(select_response.data)
-                        proposal_ids.extend([p["id"] for p in select_response.data])
-                        
-                        # Auto-approval logic per Canon v2.2: Agent origin + confidence > 0.7 → Auto-approved
-                        for proposal in select_response.data:
-                            await self._check_auto_approval(proposal)
+                    inserted_records = [_sanitize_for_json(record) for record in response.data]
+                    proposals.extend(inserted_records)
+                    proposal_ids.extend([
+                        str(record["id"]) for record in inserted_records if record.get("id") is not None
+                    ])
+
+                    # Auto-approval logic per Canon v2.2: Agent origin + confidence > 0.7 → Auto-approved
+                    for proposal in inserted_records:
+                        await self._check_auto_approval(proposal)
             
             return {
                 "proposals_created": len(proposals),
@@ -447,33 +445,22 @@ class GovernanceDumpProcessor:
             }
         }
         
-        # FIXED: Split insert and select calls for Supabase client compatibility
         response = supabase.table("proposals").insert(_sanitize_for_json(proposal_data)).execute()
-        
+
         if not response.data:
             raise RuntimeError("Failed to create unified governance proposal")
-        
-        # Get the inserted record with all fields
-        inserted_id = response.data[0]["id"]
-        inserted_id_str = str(inserted_id)
-        select_response = (
-            supabase
-            .table("proposals")
-            .select("*")
-            .eq("id", inserted_id_str)
-            .single()
-            .execute()
+
+        inserted_record = _sanitize_for_json(response.data[0])
+        proposal_id = UUID(str(inserted_record.get("id")))
+        self.logger.info(
+            "Created unified proposal %s from %d dumps",
+            proposal_id,
+            len(dump_ids)
         )
-        
-        if not select_response.data:
-            raise RuntimeError("Failed to retrieve created unified governance proposal")
-            
-        proposal_id = UUID(str(select_response.data["id"]))
-        self.logger.info(f"Created unified proposal {proposal_id} from {len(dump_ids)} dumps")
-        
+
         # Auto-approval logic per Canon v2.2: Agent origin + confidence > 0.7 → Auto-approved
-        await self._check_auto_approval(select_response.data)
-        
+        await self._check_auto_approval(inserted_record)
+
         return proposal_id
     
     async def _check_auto_approval(self, proposal: Dict[str, Any]) -> bool:
