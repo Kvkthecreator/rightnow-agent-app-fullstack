@@ -41,7 +41,6 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'needs-review' | 'ready' | 'additions'>('all');
   const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
@@ -132,80 +131,42 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
     }
   };
 
-  // Filter proposals by user action needed
-  const getFilteredProposals = () => {
-    const activeProposals = proposals.filter(p => p.status === 'PROPOSED');
-    
-    if (statusFilter === 'all') return activeProposals;
-    
-    return activeProposals.filter(proposal => {
-      const confidence = proposal.validator_report.confidence;
-      const warnings = proposal.validator_report.warnings || [];
-      const hasIssues = warnings.some(w => {
-        if (typeof w === 'string') {
-          return w.includes('CRITICAL') || w.includes('CONFLICT');
-        }
-        return w.severity === 'critical';
-      });
-      
-      // Check if it's primarily adding new content
-      const ops = Array.isArray(proposal.ops) ? proposal.ops : [];
-      const isMainlyAdditions = ops.length > 0 && 
-        ops.filter(op => op.type.includes('Create')).length > ops.length * 0.6;
+  const pendingProposals = proposals.filter(p => p.status === 'PROPOSED');
+  const autoApprovedProposals = proposals.filter(p => p.auto_approved);
+  const executedProposals = proposals.filter(p => (p.status === 'EXECUTED' || p.status === 'APPROVED') && !p.auto_approved);
+  const rejectedProposals = proposals.filter(p => p.status === 'REJECTED');
 
-      switch (statusFilter) {
-        case 'needs-review':
-          return hasIssues || confidence < 0.7;
-        case 'ready':
-          return confidence > 0.7 && !hasIssues;
-        case 'additions':
-          return isMainlyAdditions;
-        default:
-          return true;
-      }
-    });
-  };
-
-  const getFilterCounts = () => {
-    const activeProposals = proposals.filter(p => p.status === 'PROPOSED');
-    
-    const counts = {
-      all: activeProposals.length,
-      'needs-review': 0,
-      ready: 0,
-      additions: 0
-    };
-
-    activeProposals.forEach(proposal => {
-      const confidence = proposal.validator_report.confidence;
-      const warnings = proposal.validator_report.warnings || [];
-      const hasIssues = warnings.some(w => {
-        if (typeof w === 'string') {
-          return w.includes('CRITICAL') || w.includes('CONFLICT');
-        }
-        return w.severity === 'critical';
-      });
-      
-      const ops = Array.isArray(proposal.ops) ? proposal.ops : [];
-      const isMainlyAdditions = ops.length > 0 && 
-        ops.filter(op => op.type.includes('Create')).length > ops.length * 0.6;
-
-      if (hasIssues || confidence < 0.7) {
-        counts['needs-review']++;
-      }
-      if (confidence > 0.7 && !hasIssues) {
-        counts.ready++;
-      }
-      if (isMainlyAdditions) {
-        counts.additions++;
-      }
-    });
-
-    return counts;
-  };
-
-  const filteredProposals = getFilteredProposals();
-  const filterCounts = getFilterCounts();
+  const sections = [
+    {
+      key: 'pending',
+      title: 'Pending Review',
+      description: 'Proposals waiting on a human decision.',
+      items: pendingProposals,
+      allowQuickApprove: true,
+      emptyMessage: 'No proposals need review right now.',
+    },
+    {
+      key: 'auto-approved',
+      title: 'Auto-Approved',
+      description: 'Governance auto-approved these high-confidence changes.',
+      items: autoApprovedProposals,
+      emptyMessage: 'No auto-approved proposals yet.',
+    },
+    {
+      key: 'executed',
+      title: 'Executed Changes',
+      description: 'Recently approved proposals already committed to the substrate.',
+      items: executedProposals,
+      emptyMessage: 'No executed proposals yet.',
+    },
+    {
+      key: 'rejected',
+      title: 'Rejected',
+      description: 'Proposals that were reviewed but not accepted.',
+      items: rejectedProposals,
+      emptyMessage: 'No rejected proposals.',
+    },
+  ];
 
   if (error) {
     return (
@@ -227,47 +188,6 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
     );
   }
 
-  const filterComponent = (
-    <div className="flex items-center gap-2">
-      <span className="text-sm font-medium text-gray-700">Show:</span>
-      <div className="flex gap-1">
-        {[
-          { key: 'all', label: 'All changes', count: filterCounts.all, color: 'gray' },
-          { key: 'needs-review', label: 'Needs review', count: filterCounts['needs-review'], color: 'yellow' },
-          { key: 'ready', label: 'Ready to accept', count: filterCounts.ready, color: 'green' },
-          { key: 'additions', label: 'New content', count: filterCounts.additions, color: 'blue' },
-        ].map(filter => (
-          <button
-            key={filter.key}
-            onClick={() => setStatusFilter(filter.key as any)}
-            className={`px-3 py-1 text-sm rounded transition-colors ${
-              statusFilter === filter.key
-                ? filter.key === 'needs-review' ? 'bg-yellow-100 text-yellow-800 font-medium' :
-                  filter.key === 'ready' ? 'bg-green-100 text-green-800 font-medium' :
-                  filter.key === 'additions' ? 'bg-blue-100 text-blue-800 font-medium' :
-                  'bg-gray-100 text-gray-800 font-medium'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            {filter.label}
-            {filter.count > 0 && (
-              <span className={`ml-1.5 text-xs ${
-                statusFilter === filter.key ? 
-                  filter.key === 'needs-review' ? 'text-yellow-700' :
-                  filter.key === 'ready' ? 'text-green-700' :
-                  filter.key === 'additions' ? 'text-blue-700' :
-                  'text-gray-700'
-                : 'text-gray-500'
-              }`}>
-                ({filter.count})
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-6">
       <div className="border-b p-4">
@@ -275,36 +195,44 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
           title="Suggested Changes" 
           basketId={basketId}
           description="Review AI and manual updates to your knowledge base"
-          rightContent={filterComponent}
         />
       </div>
 
-      {/* Clean Proposals List */}
-      <div className="p-4">
-        {filteredProposals.length === 0 ? (
-          <div className="text-center py-12">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {filterCounts.all === 0 ? 'No pending changes' : 'No matching changes'}
-            </h3>
-            <p className="text-gray-600">
-              {filterCounts.all === 0 
-                ? 'All suggested changes have been reviewed.'
-                : `No changes match "${statusFilter.replace('-', ' ')}" filter.`
-              }
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredProposals.map((proposal) => (
-              <ProposalCard
-                key={proposal.id}
-                proposal={proposal}
-                onReview={openProposalDetail}
-                onQuickApprove={handleQuickApprove}
-              />
-            ))}
-          </div>
-        )}
+      <div className="px-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <SummaryStat label="Pending" value={pendingProposals.length} accent="bg-blue-100 text-blue-700" />
+          <SummaryStat label="Auto-approved" value={autoApprovedProposals.length} accent="bg-green-100 text-green-700" />
+          <SummaryStat label="Executed" value={executedProposals.length} accent="bg-indigo-100 text-indigo-700" />
+          <SummaryStat label="Rejected" value={rejectedProposals.length} accent="bg-red-100 text-red-700" />
+        </div>
+
+        <div className="space-y-8">
+          {sections.map(section => (
+            <section key={section.key} className="space-y-3">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">{section.title}</h2>
+                <p className="text-xs text-gray-500">{section.description}</p>
+              </div>
+
+              {section.items.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-200 bg-white p-8 text-center text-xs text-gray-500">
+                  {section.emptyMessage}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {section.items.map((proposalItem) => (
+                    <ProposalCard
+                      key={proposalItem.id}
+                      proposal={proposalItem}
+                      onReview={openProposalDetail}
+                      onQuickApprove={section.allowQuickApprove ? handleQuickApprove : undefined}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
       </div>
 
       <ProposalDetailModal
@@ -315,6 +243,15 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
         onApprove={handleApprove}
         onReject={handleReject}
       />
+    </div>
+  );
+}
+
+function SummaryStat({ label, value, accent }: { label: string; value: number; accent: string }) {
+  return (
+    <div className={`rounded-lg border border-gray-100 bg-white p-4 ${value === 0 ? 'opacity-75' : ''}`}>
+      <div className="text-xs text-gray-500 mb-1">{label}</div>
+      <div className={`text-lg font-semibold ${accent}`}>{value}</div>
     </div>
   );
 }
