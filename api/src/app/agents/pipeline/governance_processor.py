@@ -160,9 +160,9 @@ class GovernanceDumpProcessor:
         try:
             # Use improved P1 Agent to extract quality ingredients
             substrate_result = await self.p1_agent.create_substrate({
-                "dump_id": dump_id,
-                "workspace_id": workspace_id,
-                "basket_id": basket_id,
+                "dump_id": str(dump_id),
+                "workspace_id": str(workspace_id),
+                "basket_id": str(basket_id),
                 "max_blocks": max_blocks,
                 "agent_id": "canonical_governance_processor"
             })
@@ -355,9 +355,9 @@ class GovernanceDumpProcessor:
         try:
             # Use improved P1 Agent directly
             result = await self.p1_agent.create_substrate({
-                "dump_id": dump_id,
-                "workspace_id": workspace_id,
-                "basket_id": basket_id,
+                "dump_id": str(dump_id),
+                "workspace_id": str(workspace_id),
+                "basket_id": str(basket_id),
                 "max_blocks": max_blocks,
                 "agent_id": "direct_processor_v2"
             })
