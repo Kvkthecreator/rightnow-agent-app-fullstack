@@ -267,7 +267,7 @@ class GovernanceDumpProcessor:
                 response = supabase.table("proposals").insert(_sanitize_for_json(proposal_data)).execute()
                 if response.data:
                     # Get the inserted records with all fields
-                    inserted_ids = [record["id"] for record in response.data]
+                    inserted_ids = [str(record["id"]) for record in response.data]
                     select_response = supabase.table("proposals").select("*").in_("id", inserted_ids).execute()
                     if select_response.data:
                         proposals.extend(select_response.data)
