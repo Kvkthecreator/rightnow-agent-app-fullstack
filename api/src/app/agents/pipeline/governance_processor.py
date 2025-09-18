@@ -597,15 +597,32 @@ class GovernanceDumpProcessor:
                             supabase
                             .table("blocks")
                             .insert(block_payload)
-                            .select('*')
                             .execute()
                         )
 
                         if getattr(insert_resp, "error", None):
                             raise RuntimeError(f"block insert failed: {insert_resp.error}")
 
-                        block_record = (insert_resp.data or [{}])[0]
-                        created_id = block_record.get("id")
+                        created_id = None
+                        if insert_resp.data:
+                            created_id = insert_resp.data[0].get("id") if isinstance(insert_resp.data, list) else insert_resp.data.get("id")
+
+                        if not created_id:
+                            # Fallback: lookup most recent block with same basket/title
+                            lookup_resp = (
+                                supabase
+                                .table("blocks")
+                                .select("id")
+                                .eq("basket_id", str(basket_id))
+                                .eq("title", title)
+                                .order("created_at", desc=True)
+                                .limit(1)
+                                .execute()
+                            )
+                            if lookup_resp.data:
+                                candidate = lookup_resp.data[0]
+                                created_id = candidate.get("id")
+
                         if not created_id:
                             raise RuntimeError("block insert returned no id")
 
