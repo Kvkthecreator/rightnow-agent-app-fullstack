@@ -246,6 +246,20 @@ class GovernanceDumpProcessor:
                     # ignore CI derivation errors
                     pass
 
+                # Build impact summary for validator report compliance
+                ingredient_counts = metadata.get("knowledge_ingredients", {})
+                impact_summary = (
+                    f"block + {len(ops_list) - 1} context items"  # -1 because first op is CreateBlock
+                )
+                if ingredient_counts:
+                    summary_bits: List[str] = []
+                    for key in ("goals", "constraints", "metrics", "entities"):
+                        items = ingredient_counts.get(key, [])
+                        if isinstance(items, list) and items:
+                            summary_bits.append(f"{len(items)} {key}")
+                    if summary_bits:
+                        impact_summary = ", ".join(summary_bits)
+
                 proposal_data = {
                     "basket_id": str(basket_id),
                     "workspace_id": str(workspace_id),
@@ -258,7 +272,8 @@ class GovernanceDumpProcessor:
                         "confidence": confidence,
                         "method": "structured_knowledge_extraction",
                         "ingredients_count": len(metadata.get("knowledge_ingredients", {}).get("entities", [])),
-                        "extraction_quality": "high" if confidence and confidence > 0.7 else "medium"
+                        "extraction_quality": "high" if confidence and confidence > 0.7 else "medium",
+                        "impact_summary": impact_summary
                     },
                     "status": "PROPOSED"
                 }
@@ -413,10 +428,15 @@ class GovernanceDumpProcessor:
         
         # Translate blocks into an array of CreateBlock operations
         ops: List[Dict[str, Any]] = []
+        confidences: List[float] = []
         for b in sanitized_blocks:
             conf = b.get("confidence") if isinstance(b, dict) else None
             if conf is None:
                 conf = b.get("confidence_score", 0.7)
+            try:
+                confidences.append(float(conf))
+            except Exception:
+                confidences.append(0.7)
             ops.append({
                 "type": "CreateBlock",
                 "data": {
@@ -426,6 +446,8 @@ class GovernanceDumpProcessor:
                     "confidence": conf
                 }
             })
+
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
         # Create unified proposal data using canonical ops[] array
         proposal_data = {
@@ -442,6 +464,12 @@ class GovernanceDumpProcessor:
                 "comprehensive_review": True,
                 "processing_method": "share_updates_batch",
                 "ops_summary": ops_summary
+            },
+            "validator_report": {
+                "confidence": avg_confidence,
+                "method": "structured_knowledge_batch",
+                "ingredients_count": total_entities,
+                "impact_summary": ops_summary or "batch substrate extraction"
             }
         }
         
