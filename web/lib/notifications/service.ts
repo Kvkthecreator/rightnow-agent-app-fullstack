@@ -1,275 +1,183 @@
 /**
- * YARNNN Unified Notification Service - Canon v1.0.0 Compliant
+ * Legacy Notification Service Stub - Canon v3.0
  * 
- * Central service for creating, managing, and routing notifications.
- * Replaces all legacy notification systems with unified approach.
+ * Maintains compatibility for existing code that uses notificationService
+ * Real notifications are now handled by ActionCenter component
  */
 
-import { useNotificationStore } from './store';
-import type { CreateNotificationRequest } from './types';
+// Legacy notification types for compatibility
+export interface LegacyNotification {
+  id?: string;
+  title: string;
+  message: string;
+  type?: 'info' | 'success' | 'warning' | 'error' | 'system.user.action_required' | string;
+  severity?: 'info' | 'success' | 'warning' | 'error' | string;
+  duration?: number;
+  persistent?: boolean;
+  channels?: string[];
+  related_entities?: Record<string, any>;
+  persistence?: {
+    auto_dismiss?: boolean | number;
+    cross_page?: boolean;
+  };
+  actions?: Array<{
+    label: string;
+    action: () => void;
+  }>;
+}
 
-class UnifiedNotificationService {
-  private static instance: UnifiedNotificationService;
-  
-  static getInstance(): UnifiedNotificationService {
-    if (!UnifiedNotificationService.instance) {
-      UnifiedNotificationService.instance = new UnifiedNotificationService();
+/**
+ * Legacy notification service - now no-op stubs
+ * Real notification functionality is handled by ActionCenter
+ */
+class NotificationServiceStub {
+  private static instance: NotificationServiceStub;
+
+  static getInstance(): NotificationServiceStub {
+    if (!NotificationServiceStub.instance) {
+      NotificationServiceStub.instance = new NotificationServiceStub();
     }
-    return UnifiedNotificationService.instance;
+    return NotificationServiceStub.instance;
   }
-  
-  /**
-   * Create a new notification
-   */
-  notify(request: CreateNotificationRequest): string {
-    const store = useNotificationStore.getState();
-    return store.addNotification(request);
-  }
-  
-  /**
-   * Convenience methods for common notification patterns
-   */
-  
-  // Substrate notifications
-  substrateCreated(title: string, message: string, substrate_ids?: string[], basket_id?: string) {
-    return this.notify({
-      type: 'substrate.block.created',
-      title,
-      message,
-      severity: 'info',
-      channels: ['toast', 'badge'],
-      related_entities: { substrate_ids, basket_id }
-    });
-  }
-  
-  substrateApproved(title: string, message: string, substrate_ids?: string[], basket_id?: string) {
-    return this.notify({
-      type: 'substrate.block.approved',
-      title,
-      message,
-      severity: 'success',
-      channels: ['toast'],
-      persistence: { auto_dismiss: 5, cross_page: false },
-      related_entities: { substrate_ids, basket_id }
-    });
-  }
-  
-  substrateRejected(title: string, message: string, substrate_ids?: string[], basket_id?: string) {
-    return this.notify({
-      type: 'substrate.block.rejected',
-      title,
-      message,
-      severity: 'error',
-      channels: ['toast', 'persistent'],
-      persistence: { auto_dismiss: false, cross_page: true },
-      related_entities: { substrate_ids, basket_id }
-    });
-  }
-  
-  // Presentation layer notifications
-  documentComposed(title: string, message: string, document_id?: string, substrate_count?: number) {
-    return this.notify({
-      type: 'presentation.document.composed',
-      title,
-      message,
-      severity: 'success',
-      channels: ['toast'],
-      persistence: { auto_dismiss: 5, cross_page: false },
-      related_entities: { document_id },
-      actions: document_id ? [{
-        label: 'View Document',
-        variant: 'primary',
-        handler: () => {
-          window.location.href = `/documents/${document_id}`;
-        }
-      }] : undefined
-    });
-  }
-  
-  documentCompositionFailed(title: string, message: string, document_id?: string) {
-    return this.notify({
-      type: 'presentation.document.composition_failed',
-      title,
-      message,
-      severity: 'error',
-      channels: ['toast', 'persistent'],
-      persistence: { auto_dismiss: false, cross_page: true },
-      related_entities: { document_id },
-      actions: [{
-        label: 'Retry',
-        variant: 'primary',
-        handler: async () => {
-          // TODO: Implement retry logic
-          console.log('Retrying composition for', document_id);
-        }
-      }]
-    });
-  }
-  
-  documentImpactReady(title: string, message: string, document_ids?: string[]) {
-    return this.notify({
-      type: 'presentation.document.impact_ready',
-      title,
-      message,
-      severity: 'info',
-      channels: ['badge', 'persistent'],
-      persistence: { auto_dismiss: false, cross_page: true },
-      actions: [{
-        label: 'Review Impacts',
-        variant: 'primary',
-        handler: () => {
-          // TODO: Open document impact checkpoint
-          console.log('Opening impact review');
-        }
-      }]
-    });
-  }
-  
-  // Work orchestration notifications
-  workCompleted(title: string, message: string, work_id?: string) {
-    return this.notify({
-      type: 'work.completed',
-      title,
-      message,
-      severity: 'success',
-      channels: ['toast'],
-      persistence: { auto_dismiss: 5, cross_page: false },
-      related_entities: { work_id }
-    });
-  }
-  
-  workFailed(title: string, message: string, work_id?: string) {
-    return this.notify({
-      type: 'work.failed',
-      title,
-      message,
-      severity: 'error',
-      channels: ['toast', 'persistent'],
-      persistence: { auto_dismiss: false, cross_page: true },
-      related_entities: { work_id },
-      actions: [{
-        label: 'View Details',
-        variant: 'secondary',
-        handler: () => {
-          // TODO: Show work failure details
-          console.log('Showing work failure details', work_id);
-        }
-      }]
-    });
-  }
-  
-  // Governance notifications
-  approvalRequired(title: string, message: string, basket_id?: string) {
-    return this.notify({
-      type: 'governance.approval.required',
-      title,
-      message,
-      severity: 'warning',
-      channels: ['badge', 'persistent'],
-      persistence: { auto_dismiss: false, cross_page: true, requires_acknowledgment: true },
-      related_entities: { basket_id },
-      governance_context: {
-        requires_approval: true,
-        auto_approvable: false,
-        smart_review_eligible: true,
-        permission_level: 'admin'
-      }
-    });
-  }
-  
-  // System notifications
-  userJoinedWorkspace(userEmail: string, workspace_id: string) {
-    return this.notify({
-      type: 'system.user.joined_workspace',
-      title: 'User Joined',
-      message: `${userEmail} joined the workspace`,
-      severity: 'info',
-      channels: ['toast'],
-      persistence: { auto_dismiss: 4, cross_page: false }
-    });
-  }
-  
-  conflictDetected(title: string, message: string, document_id?: string) {
-    return this.notify({
-      type: 'system.conflict.detected',
-      title,
-      message,
-      severity: 'warning',
-      channels: ['toast', 'persistent'],
-      persistence: { auto_dismiss: false, cross_page: true },
-      related_entities: { document_id },
-      actions: [{
-        label: 'Resolve',
-        variant: 'primary',
-        handler: () => {
-          // TODO: Open conflict resolution UI
-          console.log('Opening conflict resolution');
-        }
-      }]
-    });
-  }
-  
-
-  // Reflection notifications
-  reflectionComputed(title: string, message: string, params?: { basket_id?: string; reflection_id?: string; document_id?: string }) {
-    return this.notify({
-      type: 'reflection.computed',
-      title,
-      message,
-      severity: 'info',
-      channels: ['toast', 'badge'],
-      persistence: { auto_dismiss: 6, cross_page: false },
-      related_entities: {
-        basket_id: params?.basket_id,
-        reflection_id: params?.reflection_id,
-        document_id: params?.document_id,
-      },
-      actions: params?.document_id ? [{
-        label: 'Open Document',
-        variant: 'secondary',
-        handler: () => { window.location.href = `/documents/${params!.document_id}`; }
-      }] : undefined
-    });
-  }
-
-  
-  /**
-   * Broadcast notification to all clients in workspace
-   */
-  async broadcast(request: CreateNotificationRequest) {
-    const store = useNotificationStore.getState();
-    const { workspace_id, realtime_channel } = store;
-    
-    if (!workspace_id || !realtime_channel) {
-      console.warn('Cannot broadcast notification without workspace context or real-time connection');
-      return '';
+  // Stub methods for backward compatibility
+  async show(notification: LegacyNotification): Promise<void> {
+    // No-op - ActionCenter handles notifications now
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Notification Stub]:', notification.title, notification.message);
     }
-    
-    // Add to local store first
-    const id = this.notify(request);
-    
-    // Broadcast to other clients
-    await realtime_channel.send({
-      type: 'broadcast',
-      event: 'notification',
-      notification: request
-    });
-    
-    return id;
   }
-  
-  /**
-   * Get store instance for component usage
-   */
-  getStore() {
-    return useNotificationStore;
+
+  async showSuccess(title: string, message?: string): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Success Stub]:', title, message);
+    }
+  }
+
+  async showError(title: string, message?: string): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Error Stub]:', title, message);
+    }
+  }
+
+  async showInfo(title: string, message?: string): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Info Stub]:', title, message);
+    }
+  }
+
+  async showWarning(title: string, message?: string): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Warning Stub]:', title, message);
+    }
+  }
+
+  async dismiss(id: string): Promise<void> {
+    // No-op
+  }
+
+  async clear(): Promise<void> {
+    // No-op
+  }
+
+  // Legacy work integration stubs
+  async showWorkStarted(workType: string, description?: string): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Work Started Stub]:', workType, description);
+    }
+  }
+
+  async showWorkCompleted(workType: string, description?: string): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Work Completed Stub]:', workType, description);
+    }
+  }
+
+  async showWorkFailed(workType: string, error?: string): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Work Failed Stub]:', workType, error);
+    }
+  }
+
+  // Legacy governance integration stubs
+  async showGovernanceUpdate(message: string): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Governance Stub]:', message);
+    }
+  }
+
+  async showProposalReady(proposalId: string, description: string): Promise<void> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Proposal Stub]:', proposalId, description);
+    }
+  }
+
+  // Legacy specific method stubs for backward compatibility
+  notify(notification: LegacyNotification): string {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Notify Stub]:', notification.title, notification.message);
+    }
+    return 'stub-id';
+  }
+
+  async substrateApproved(title: string, description: string, substrateId: string | string[], basketId: string): Promise<string> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Substrate Approved Stub]:', title, description, substrateId, basketId);
+    }
+    return 'stub-id';
+  }
+
+  async substrateRejected(title: string, description: string, substrateId?: string | string[], basketId?: string): Promise<string> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Substrate Rejected Stub]:', title, description, substrateId, basketId);
+    }
+    return 'stub-id';
+  }
+
+  async substrateCreated(title: string, description: string, substrateId?: string | string[], basketId?: string): Promise<string> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Substrate Created Stub]:', title, description, substrateId, basketId);
+    }
+    return 'stub-id';
+  }
+
+  async approvalRequired(title: string, description: string, proposalIdOrBasketId: string | string[], basketId?: string): Promise<string> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Approval Required Stub]:', title, description, proposalIdOrBasketId, basketId);
+    }
+    return 'stub-id';
+  }
+
+  async documentComposed(title: string, description: string, documentId: string | string[], basketIdOrSubstrateCount?: string | number): Promise<string> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Document Composed Stub]:', title, description, documentId, basketIdOrSubstrateCount);
+    }
+    return 'stub-id';
+  }
+
+  async documentCompositionFailed(title: string, description: string, documentId?: string | string[], basketIdOrError?: string | number): Promise<string> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Document Composition Failed Stub]:', title, description, documentId, basketIdOrError);
+    }
+    return 'stub-id';
+  }
+
+  async reflectionComputed(title: string, description: string, reflectionIdOrData?: string | string[] | Record<string, any>, basketId?: string): Promise<string> {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Legacy Reflection Computed Stub]:', title, description, reflectionIdOrData, basketId);
+    }
+    return 'stub-id';
   }
 }
 
-// Export singleton instance
-export const notificationService = UnifiedNotificationService.getInstance();
+// Export singleton instance for compatibility
+export const notificationService = new NotificationServiceStub();
 
-// Convenience hooks for React components
-export { useNotificationStore };
+// Default export for compatibility with different import styles
+export default NotificationServiceStub;
 
-export default UnifiedNotificationService;
+// Legacy class export for compatibility
+export { NotificationServiceStub as UnifiedNotificationService };
+
+// Legacy types export for compatibility
+export type { LegacyNotification as Notification };
+export type NotificationService = NotificationServiceStub;

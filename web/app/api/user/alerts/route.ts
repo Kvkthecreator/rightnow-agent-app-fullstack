@@ -76,12 +76,12 @@ export async function GET(req: NextRequest) {
 
     const badgeCounts = {
       total: counts?.length || 0,
-      unread: counts?.filter(a => !a.read_at).length || 0,
-      actionable: counts?.filter(a => a.actionable && !a.read_at).length || 0
+      unread: counts?.filter((a: any) => !a.read_at).length || 0,
+      actionable: counts?.filter((a: any) => a.actionable && !a.read_at).length || 0
     };
 
     // Transform for frontend
-    const alertList = (alerts || []).map(alert => ({
+    const alertList = (alerts || []).map((alert: any) => ({
       id: alert.id,
       type: alert.alert_type,
       severity: alert.severity,

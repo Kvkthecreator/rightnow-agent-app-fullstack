@@ -70,7 +70,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     }
 
     // Transform for frontend
-    const timeline = (events || []).map(event => ({
+    const timeline = (events || []).map((event: any) => ({
       id: event.id,
       type: event.event_type,
       title: event.title,
