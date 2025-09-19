@@ -97,18 +97,19 @@ export default function ProcessingStoryTimeline({ basketId, className = "" }: Pr
             }
           });
           
-          if (closestStory) {
+          if (closestStory !== null) {
+            const story = closestStory as ProcessingStory;
             if (event.event_type.includes('processing') || event.event_type.includes('queued')) {
-              closestStory.processingEvents.push(event);
+              story.processingEvents.push(event);
             } else {
-              closestStory.outcomeEvents.push(event);
+              story.outcomeEvents.push(event);
             }
-            
+
             // Update status based on events
             if (event.event_type === 'queue.processing_completed') {
-              closestStory.status = 'completed';
+              story.status = 'completed';
             } else if (event.event_type === 'queue.processing_failed') {
-              closestStory.status = 'failed';
+              story.status = 'failed';
             }
           }
         }
@@ -296,6 +297,8 @@ export default function ProcessingStoryTimeline({ basketId, className = "" }: Pr
                                        event.event_type.includes('context_item') ||
                                        event.event_type.includes('reflection') ||
                                        event.event_type.includes('document');
+                        const eventData = (event.event_data ?? {}) as Record<string, unknown>;
+                        const refId = typeof eventData.ref_id === 'string' ? eventData.ref_id : undefined;
                         
                         return (
                           <div key={event.id} className="flex items-center justify-between text-xs">
@@ -305,14 +308,14 @@ export default function ProcessingStoryTimeline({ basketId, className = "" }: Pr
                                 {translation.label}: {event.description || translation.label}
                               </span>
                             </div>
-                            {hasLink && event.event_data?.ref_id && (
+                            {hasLink && refId && (
                               <Link
                                 href={`/baskets/${basketId}/${
                                   event.event_type.includes('block') ? 'building-blocks' :
                                   event.event_type.includes('context_item') ? 'building-blocks' :
                                   event.event_type.includes('reflection') ? 'reflections' :
                                   'documents'
-                                }#${event.event_data.ref_id}`}
+                                }#${refId}`}
                                 className="text-blue-600 dark:text-blue-400 hover:underline"
                               >
                                 View →

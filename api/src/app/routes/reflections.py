@@ -4,7 +4,7 @@ from typing import Optional
 
 from app.utils.supabase_client import supabase_admin_client as supabase
 from app.agents.pipeline.reflection_agent_canon_v2 import CanonP3ReflectionAgent
-from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
+from app.agents.pipeline.reflection_agent_canon_v2 import ReflectionComputationRequest
 
 router = APIRouter(prefix="/api/reflections", tags=["reflections"])
 
@@ -12,16 +12,35 @@ class ComputeWindowBody(BaseModel):
     workspace_id: str
     basket_id: Optional[str] = None
     agent_id: Optional[str] = "p3_reflection_agent"
+    substrate_window_hours: Optional[int] = None
+    document_focus: Optional[str] = None
+    proposal_focus: Optional[str] = None
 
 @router.post("/compute_window")
 async def compute_window(body: ComputeWindowBody):
     try:
+        # Handle document-specific reflections
+        if body.document_focus:
+            return await compute_document_reflection(body.document_focus, body.workspace_id)
+        
+        # Handle proposal-specific reflections  
+        if body.proposal_focus:
+            # For now, fall back to general basket analysis with proposal context
+            # TODO: Implement dedicated proposal analysis
+            pass
+        
+        # Standard basket-level reflection
         agent = CanonP3ReflectionAgent()
         req = ReflectionComputationRequest(
             workspace_id=body.workspace_id,
             basket_id=body.basket_id,
             agent_id=body.agent_id or "p3_reflection_agent",
         )
+        
+        # Pass time window constraint to agent if specified
+        if body.substrate_window_hours:
+            req.substrate_window_hours = body.substrate_window_hours
+            
         result = await agent.compute_reflections(req)
         return {"success": True, "result": result.model_dump()}
     except Exception as e:

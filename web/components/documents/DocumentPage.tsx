@@ -62,8 +62,18 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
           setComposition(await compositionResponse.json());
         }
         
-        // Load reflections
-        const reflectionsUrl = new URL(`/api/baskets/${basketId}/reflections`, window.location.origin);
+        // Load document-specific reflections
+        try {
+          // First trigger a fresh reflection for this document
+          await fetchWithToken(`/api/documents/${document.id}/reflections`, {
+            method: 'POST',
+          });
+        } catch (err) {
+          console.log('Note: Failed to trigger fresh reflection, loading existing ones');
+        }
+        
+        // Load existing document reflections
+        const reflectionsUrl = new URL(`/api/documents/${document.id}/reflections`, window.location.origin);
         reflectionsUrl.searchParams.set("limit", "5");
         
         const reflectionsResponse = await fetchWithToken(reflectionsUrl.toString());

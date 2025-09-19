@@ -90,9 +90,11 @@ export async function routeWork(
 
   const canAutoExecute = execution_mode === 'auto_execute' && AUTO_EXECUTABLE_WORK_TYPES.has(request.work_type);
 
+  const workId = crypto.randomUUID();
+
   const insertPayload = {
-    id: crypto.randomUUID(),
-    work_id: undefined as string | undefined,
+    id: workId,
+    work_id: workId,
     work_type: request.work_type,
     work_payload: request.work_payload,
     workspace_id: request.workspace_id,
@@ -104,8 +106,6 @@ export async function routeWork(
     governance_policy: policy,
     created_at: new Date().toISOString(),
   };
-  insertPayload.work_id = insertPayload.id;
-
   let work_id: string | null = null;
   {
     const { data, error } = await supabase

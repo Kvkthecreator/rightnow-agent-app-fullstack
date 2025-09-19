@@ -25,6 +25,7 @@ class ReflectionComputationRequest(BaseModel):
     basket_id: Optional[UUID] = None
     reflection_types: List[str] = Field(default=["patterns", "insights", "gaps"])
     agent_id: str
+    substrate_window_hours: Optional[int] = None
 
 
 class ReflectionComputationResult(BaseModel):
@@ -52,8 +53,8 @@ class CanonP3ReflectionAgent:
             raise ValueError("P3 Reflection requires basket_id - canon mandates basket-scoped analysis")
             
         try:
-            # CANON STEP 1: Get text window (raw_dumps in basket)
-            text_window = self._get_text_window(request.basket_id)
+            # CANON STEP 1: Get text window (raw_dumps in basket) with optional time constraint
+            text_window = self._get_text_window(request.basket_id, request.substrate_window_hours)
             
             if not text_window:
                 self.logger.info(f"P3 Reflection: No raw_dumps found in basket {request.basket_id}")
@@ -91,12 +92,19 @@ class CanonP3ReflectionAgent:
             self.logger.error(f"Canon P3 Reflection failed for basket {request.basket_id}: {e}")
             raise
     
-    def _get_text_window(self, basket_id: UUID, limit: int = 50) -> List[Dict[str, Any]]:
-        """Canon: Text window = last N raw_dumps in basket"""
+    def _get_text_window(self, basket_id: UUID, window_hours: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:
+        """Canon: Text window = last N raw_dumps in basket with optional time constraint"""
         try:
-            response = supabase.table("raw_dumps").select(
+            query = supabase.table("raw_dumps").select(
                 "id,basket_id,text_dump,file_url,created_at"
-            ).eq("basket_id", str(basket_id)).order(
+            ).eq("basket_id", str(basket_id))
+            
+            # Apply time window constraint if specified
+            if window_hours is not None:
+                cutoff_time = datetime.utcnow() - timedelta(hours=window_hours)
+                query = query.gte("created_at", cutoff_time.isoformat())
+            
+            response = query.order(
                 "created_at", desc=True
             ).limit(limit).execute()
             
@@ -143,49 +151,98 @@ class CanonP3ReflectionAgent:
             return []
     
     def _compute_reflection_artifact(self, text_window: List[Dict], graph_window: List[Dict]) -> Dict[str, Any]:
-        """Canon: Pure computation - no substrate mutations"""
+        """
+        Canon: Pure computation following YARNNN_REFLECTIONS_UX_CANON.md
+        Focus on user content, not system structure
+        """
         
-        # Simple pattern analysis following canon output format
         dump_count = len(text_window)
         graph_count = len(graph_window)
         
-        # Analyze text content for patterns
+        # Analyze actual user content for meaningful patterns
         text_content = []
+        file_names = []
         for dump in text_window:
             if dump.get("text_dump"):
                 text_content.append(dump["text_dump"])
+            # Extract file names if available for context
+            if dump.get("file_url"):
+                file_names.append(dump.get("file_url", "").split('/')[-1])
         
-        combined_text = " ".join(text_content).lower()
+        combined_text = " ".join(text_content)
         
-        # Simple pattern detection
-        patterns = []
-        if "project" in combined_text and "goal" in combined_text:
-            patterns.append("project_planning")
-        if "problem" in combined_text and "solution" in combined_text:
-            patterns.append("problem_solving")
-        if "idea" in combined_text or "concept" in combined_text:
-            patterns.append("conceptual_development")
-        
-        # Generate reflection text
-        reflection_text = f"Memory analysis of {dump_count} substrate elements reveals "
-        
-        if patterns:
-            reflection_text += f"emerging patterns in {', '.join(patterns)}. "
-        else:
-            reflection_text += "foundational memory formation. "
-            
-        if graph_count > 0:
-            reflection_text += f"Connected through {graph_count} semantic relationships, indicating active knowledge structuring."
-        else:
-            reflection_text += "Initial memory capture phase with limited semantic connections."
+        # Look for user-meaningful patterns in their actual content
+        reflection_text = self._generate_user_centric_insight(combined_text, file_names, dump_count, graph_count)
         
         return {
             "text": reflection_text,
-            "patterns": patterns,
-            "substrate_elements": dump_count,
-            "graph_elements": graph_count,
-            "computation_method": "canon_window_analysis"
+            "patterns": self._extract_content_themes(combined_text),
+            "source_count": dump_count,
+            "connection_count": graph_count,
+            "computation_method": "user_content_analysis"
         }
+    
+    def _generate_user_centric_insight(self, content: str, file_names: List[str], dump_count: int, graph_count: int) -> str:
+        """Generate user-focused insights following UX canon principles"""
+        
+        # Look for actual themes in user content
+        content_lower = content.lower()
+        
+        # Detect specific patterns user would recognize
+        if "goal" in content_lower and ("plan" in content_lower or "strategy" in content_lower):
+            if "budget" in content_lower or "cost" in content_lower:
+                return f"Your planning documents mention both growth goals and budget concerns. Consider whether these priorities align - {dump_count} recent uploads show this tension."
+            else:
+                return f"You're actively planning and setting goals across {dump_count} uploads. Your strategy thinking is becoming more structured."
+        
+        if ("problem" in content_lower or "issue" in content_lower) and ("solution" in content_lower or "fix" in content_lower):
+            return f"Your recent work shows problem-solving patterns. You identify issues and propose solutions consistently across {dump_count} items."
+        
+        if "team" in content_lower and ("remote" in content_lower or "work" in content_lower):
+            return f"Team collaboration themes appear repeatedly in your content. This seems important to your current thinking."
+        
+        if "market" in content_lower and ("competition" in content_lower or "customer" in content_lower):
+            return f"Market analysis is a recurring focus across your uploads. You're building substantial market intelligence."
+        
+        # Look for evolution/change patterns
+        if "new" in content_lower and ("approach" in content_lower or "method" in content_lower):
+            return f"You're exploring new approaches across {dump_count} recent items. Your thinking appears to be evolving."
+        
+        # Check for potential gaps or missing pieces  
+        if "research" in content_lower and not ("timeline" in content_lower or "deadline" in content_lower):
+            return f"You have substantial research but timelines and deadlines aren't mentioned. Consider adding implementation planning."
+        
+        # File-based insights if available
+        if file_names:
+            unique_files = len(set(file_names))
+            if unique_files >= 3:
+                return f"You've uploaded diverse content ({unique_files} different files). Look for common threads across these different areas."
+        
+        # Default insight that's still user-focused
+        if dump_count >= 5:
+            return f"Your knowledge base is growing ({dump_count} recent items). Patterns and themes are starting to emerge that might be worth exploring."
+        elif dump_count >= 2:
+            return f"You've added {dump_count} items recently. As you add more content, I'll start spotting patterns and connections."
+        else:
+            return "Keep adding content and I'll help you spot patterns, tensions, and themes in your thinking."
+    
+    def _extract_content_themes(self, content: str) -> List[str]:
+        """Extract meaningful themes from user content"""
+        content_lower = content.lower()
+        themes = []
+        
+        if "strategy" in content_lower or "plan" in content_lower:
+            themes.append("strategic_planning")
+        if "team" in content_lower or "people" in content_lower:
+            themes.append("team_management")
+        if "market" in content_lower or "customer" in content_lower:
+            themes.append("market_focus")
+        if "product" in content_lower or "feature" in content_lower:
+            themes.append("product_development")
+        if "goal" in content_lower or "objective" in content_lower:
+            themes.append("goal_setting")
+        
+        return themes
     
     def _store_reflection_artifact(self, request: ReflectionComputationRequest, reflection: Dict[str, Any]):
         """Canon: Store as artifact, never mutate substrate
