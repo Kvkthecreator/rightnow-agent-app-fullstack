@@ -63,11 +63,20 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error('User alerts query error:', error);
+      // Graceful handling for missing table during migration
+      if (error.code === '42P01') {
+        return NextResponse.json({
+          success: true,
+          alerts: [],
+          counts: { total: 0, unread: 0, actionable: 0 },
+          workspace_id: workspace.id
+        });
+      }
       return NextResponse.json({ error: "Failed to load alerts" }, { status: 500 });
     }
 
     // Get counts for badge
-    const { data: counts } = await supabase
+    const { data: counts, error: countError } = await supabase
       .from('user_alerts')
       .select('id, actionable, read_at')
       .eq('user_id', userId)
@@ -79,6 +88,13 @@ export async function GET(req: NextRequest) {
       unread: counts?.filter((a: any) => !a.read_at).length || 0,
       actionable: counts?.filter((a: any) => a.actionable && !a.read_at).length || 0
     };
+
+    // Handle missing table for count query too
+    if (countError && countError.code === '42P01') {
+      badgeCounts.total = 0;
+      badgeCounts.unread = 0;
+      badgeCounts.actionable = 0;
+    }
 
     // Transform for frontend
     const alertList = (alerts || []).map((alert: any) => ({

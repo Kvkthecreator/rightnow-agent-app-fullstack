@@ -66,6 +66,15 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 
     if (error) {
       console.error('Knowledge timeline query error:', error);
+      // Graceful handling for missing table during migration
+      if (error.code === '42P01') {
+        return NextResponse.json({
+          success: true,
+          timeline: [],
+          total: 0,
+          basket_id: basketId
+        });
+      }
       return NextResponse.json({ error: "Failed to load timeline" }, { status: 500 });
     }
 
