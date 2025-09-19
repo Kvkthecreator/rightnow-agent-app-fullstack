@@ -1,4 +1,24 @@
 CREATE SCHEMA public;
+CREATE TYPE public.alert_severity AS ENUM (
+    'info',
+    'warning',
+    'error',
+    'critical'
+);
+CREATE TYPE public.alert_type AS ENUM (
+    'approval.required',
+    'decision.needed',
+    'error.attention',
+    'processing.completed',
+    'document.ready',
+    'insights.available',
+    'governance.updated',
+    'collaboration.update',
+    'system.maintenance',
+    'system.performance',
+    'system.security',
+    'system.storage'
+);
 CREATE TYPE public.basket_state AS ENUM (
     'INIT',
     'ACTIVE',
@@ -26,6 +46,21 @@ CREATE TYPE public.context_item_state AS ENUM (
     'DEPRECATED',
     'MERGED',
     'REJECTED'
+);
+CREATE TYPE public.event_significance AS ENUM (
+    'low',
+    'medium',
+    'high'
+);
+CREATE TYPE public.knowledge_event_type AS ENUM (
+    'memory.captured',
+    'knowledge.evolved',
+    'insights.discovered',
+    'document.created',
+    'document.updated',
+    'relationships.mapped',
+    'governance.decided',
+    'milestone.achieved'
 );
 CREATE TYPE public.processing_state AS ENUM (
     'pending',
@@ -123,6 +158,34 @@ begin
   return query select v_basket_id;
 end;
 $$;
+CREATE FUNCTION public.dismiss_user_alert(p_alert_id uuid) RETURNS boolean
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  UPDATE user_alerts 
+  SET dismissed_at = now() 
+  WHERE id = p_alert_id AND user_id = auth.uid();
+  
+  RETURN FOUND;
+END;
+$$;
+CREATE FUNCTION public.emit_knowledge_event(p_basket_id uuid, p_workspace_id uuid, p_event_type public.knowledge_event_type, p_title text, p_description text DEFAULT NULL::text, p_significance public.event_significance DEFAULT 'medium'::public.event_significance, p_metadata jsonb DEFAULT '{}'::jsonb, p_related_ids jsonb DEFAULT '{}'::jsonb) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  event_id uuid;
+BEGIN
+  INSERT INTO knowledge_timeline (
+    basket_id, workspace_id, event_type, title, description, 
+    significance, metadata, related_ids
+  ) VALUES (
+    p_basket_id, p_workspace_id, p_event_type, p_title, p_description,
+    p_significance, p_metadata, p_related_ids
+  ) RETURNING id INTO event_id;
+  
+  RETURN event_id;
+END;
+$$;
 CREATE FUNCTION public.emit_narrative_event(p_basket_id uuid, p_doc_id uuid, p_kind text, p_preview text) RETURNS void
     LANGUAGE plpgsql
     AS $$
@@ -171,6 +234,23 @@ BEGIN
   ) INTO v_event_id;
   
   RETURN v_event_id;
+END;
+$$;
+CREATE FUNCTION public.emit_user_alert(p_user_id uuid, p_workspace_id uuid, p_alert_type public.alert_type, p_title text, p_message text, p_severity public.alert_severity DEFAULT 'info'::public.alert_severity, p_actionable boolean DEFAULT false, p_action_url text DEFAULT NULL::text, p_action_label text DEFAULT NULL::text, p_related_entities jsonb DEFAULT '{}'::jsonb, p_expires_at timestamp with time zone DEFAULT NULL::timestamp with time zone) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  alert_id uuid;
+BEGIN
+  INSERT INTO user_alerts (
+    user_id, workspace_id, alert_type, title, message, severity,
+    actionable, action_url, action_label, related_entities, expires_at
+  ) VALUES (
+    p_user_id, p_workspace_id, p_alert_type, p_title, p_message, p_severity,
+    p_actionable, p_action_url, p_action_label, p_related_entities, p_expires_at
+  ) RETURNING id INTO alert_id;
+  
+  RETURN alert_id;
 END;
 $$;
 CREATE FUNCTION public.ensure_raw_dump_text_columns() RETURNS trigger
@@ -1208,6 +1288,17 @@ BEGIN
   RETURN result;
 END;
 $$;
+CREATE FUNCTION public.mark_alert_read(p_alert_id uuid) RETURNS boolean
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  UPDATE user_alerts 
+  SET read_at = now() 
+  WHERE id = p_alert_id AND user_id = auth.uid() AND read_at IS NULL;
+  
+  RETURN FOUND;
+END;
+$$;
 CREATE FUNCTION public.normalize_label(p_label text) RETURNS text
     LANGUAGE sql IMMUTABLE
     AS $$
@@ -1621,6 +1712,20 @@ CREATE TABLE public.idempotency_keys (
     delta_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+CREATE TABLE public.knowledge_timeline (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    basket_id uuid NOT NULL,
+    workspace_id uuid NOT NULL,
+    event_type public.knowledge_event_type NOT NULL,
+    significance public.event_significance DEFAULT 'medium'::public.event_significance,
+    title text NOT NULL,
+    description text,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    related_ids jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT knowledge_timeline_description_length CHECK ((length(description) <= 1000)),
+    CONSTRAINT knowledge_timeline_title_length CHECK (((length(title) >= 1) AND (length(title) <= 200)))
+);
 CREATE TABLE public.narrative (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
@@ -1795,6 +1900,26 @@ CREATE SEQUENCE public.timeline_events_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.timeline_events_id_seq OWNED BY public.timeline_events.id;
+CREATE TABLE public.user_alerts (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    user_id uuid NOT NULL,
+    workspace_id uuid NOT NULL,
+    alert_type public.alert_type NOT NULL,
+    severity public.alert_severity DEFAULT 'info'::public.alert_severity,
+    title text NOT NULL,
+    message text NOT NULL,
+    actionable boolean DEFAULT false,
+    action_url text,
+    action_label text,
+    related_entities jsonb DEFAULT '{}'::jsonb,
+    expires_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    read_at timestamp with time zone,
+    dismissed_at timestamp with time zone,
+    CONSTRAINT user_alerts_action_label_length CHECK (((actionable = false) OR ((length(action_label) >= 1) AND (length(action_label) <= 50)))),
+    CONSTRAINT user_alerts_message_length CHECK (((length(message) >= 1) AND (length(message) <= 500))),
+    CONSTRAINT user_alerts_title_length CHECK (((length(title) >= 1) AND (length(title) <= 150)))
+);
 CREATE TABLE public.user_notifications (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
     workspace_id uuid NOT NULL,
@@ -1998,6 +2123,8 @@ ALTER TABLE ONLY public.events
     ADD CONSTRAINT events_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.idempotency_keys
     ADD CONSTRAINT idempotency_keys_pkey PRIMARY KEY (request_id);
+ALTER TABLE ONLY public.knowledge_timeline
+    ADD CONSTRAINT knowledge_timeline_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.pipeline_metrics
@@ -2024,6 +2151,8 @@ ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT uq_raw_dumps_basket_dump_req UNIQUE (basket_id, dump_request_id);
+ALTER TABLE ONLY public.user_alerts
+    ADD CONSTRAINT user_alerts_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.user_notifications
     ADD CONSTRAINT user_notifications_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_governance_settings
@@ -2083,6 +2212,9 @@ CREATE INDEX idx_history_basket_ts ON public.timeline_events USING btree (basket
 CREATE INDEX idx_idem_delta_id ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_idempotency_delta ON public.idempotency_keys USING btree (delta_id);
 CREATE INDEX idx_idempotency_keys_delta_id ON public.idempotency_keys USING btree (delta_id);
+CREATE INDEX idx_knowledge_timeline_basket_time ON public.knowledge_timeline USING btree (basket_id, created_at DESC);
+CREATE INDEX idx_knowledge_timeline_significance ON public.knowledge_timeline USING btree (significance, created_at DESC);
+CREATE INDEX idx_knowledge_timeline_workspace_time ON public.knowledge_timeline USING btree (workspace_id, created_at DESC);
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
 CREATE INDEX idx_proposal_executions_executed_at ON public.proposal_executions USING btree (executed_at DESC);
 CREATE INDEX idx_proposal_executions_proposal ON public.proposal_executions USING btree (proposal_id, operation_index);
@@ -2118,6 +2250,9 @@ CREATE INDEX idx_tombstones_lookup ON public.substrate_tombstones USING btree (w
 CREATE INDEX idx_un_cross ON public.user_notifications USING btree (cross_page_persist) WHERE cross_page_persist;
 CREATE INDEX idx_un_status ON public.user_notifications USING btree (status);
 CREATE INDEX idx_un_ws_user ON public.user_notifications USING btree (workspace_id, user_id, created_at DESC);
+CREATE INDEX idx_user_alerts_actionable ON public.user_alerts USING btree (user_id, actionable, created_at DESC) WHERE (dismissed_at IS NULL);
+CREATE INDEX idx_user_alerts_user_active ON public.user_alerts USING btree (user_id, created_at DESC) WHERE (dismissed_at IS NULL);
+CREATE INDEX idx_user_alerts_workspace_active ON public.user_alerts USING btree (workspace_id, created_at DESC) WHERE (dismissed_at IS NULL);
 CREATE INDEX idx_workspace_governance_settings_workspace_id ON public.workspace_governance_settings USING btree (workspace_id);
 CREATE INDEX ix_block_links_doc_block ON public.block_links USING btree (document_id, block_id);
 CREATE INDEX ix_events_kind_ts ON public.events USING btree (kind, ts);
@@ -2211,6 +2346,10 @@ ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT fk_rawdump_document FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT fk_rawdump_workspace FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.knowledge_timeline
+    ADD CONSTRAINT knowledge_timeline_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.knowledge_timeline
+    ADD CONSTRAINT knowledge_timeline_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.narrative
@@ -2237,6 +2376,8 @@ ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.user_alerts
+    ADD CONSTRAINT user_alerts_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.user_notifications
     ADD CONSTRAINT user_notifications_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.workspace_governance_settings
@@ -2534,6 +2675,10 @@ CREATE POLICY events_select_workspace_member ON public.events FOR SELECT TO auth
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY events_service_role_all ON public.events TO service_role USING (true) WITH CHECK (true);
+ALTER TABLE public.knowledge_timeline ENABLE ROW LEVEL SECURITY;
+CREATE POLICY knowledge_timeline_workspace_read ON public.knowledge_timeline FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY member_self_crud ON public.workspace_memberships USING ((user_id = auth.uid()));
 CREATE POLICY member_self_insert ON public.workspace_memberships FOR INSERT TO authenticated WITH CHECK ((auth.uid() = user_id));
 ALTER TABLE public.narrative ENABLE ROW LEVEL SECURITY;
@@ -2652,6 +2797,9 @@ CREATE POLICY "timeline read: workspace member" ON public.timeline_events FOR SE
 ALTER TABLE public.timeline_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "update history by service role" ON public.timeline_events FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
 CREATE POLICY "update reflections by service role" ON public.reflections_artifact FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
+ALTER TABLE public.user_alerts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY user_alerts_own_read ON public.user_alerts FOR SELECT USING ((user_id = auth.uid()));
+CREATE POLICY user_alerts_own_update ON public.user_alerts FOR UPDATE USING ((user_id = auth.uid()));
 ALTER TABLE public.user_notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspace_governance_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY workspace_governance_settings_insert ON public.workspace_governance_settings FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
