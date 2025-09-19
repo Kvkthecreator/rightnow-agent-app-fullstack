@@ -91,7 +91,7 @@ app = FastAPI(title="RightNow Agent Server", lifespan=lifespan)
 # Require JWT auth on API routes
 app.add_middleware(
     AuthMiddleware,
-    exempt_paths={"/", "/health", "/health/db", "/docs", "/openapi.json", "/favicon.ico"},
+    exempt_paths={"/", "/health", "/health/db", "/docs", "/openapi.json", "/favicon.ico", "/api/agents/p4-composition"},
     exempt_prefixes={"/health"},
 )
 
