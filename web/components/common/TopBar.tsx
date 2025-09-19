@@ -8,17 +8,11 @@ import React from "react";
 import Link from "next/link";
 import { SECTION_ORDER } from "@/components/features/baskets/sections";
 import UserNav from "@/components/UserNav";
-import { useNotifications } from "@/components/notifications/NotificationCenter";
-import { NotificationBadge } from "@/components/notifications/NotificationBadge";
+import ActionCenter from "@/components/notifications/ActionCenter";
 
 export default function TopBar() {
   const { toggle, open } = useNavState();
   const pathname = usePathname();
-  const { getBadgeCount, hasPendingWork } = useNotifications();
-
-  const handleNotificationClick = () => {
-    window.dispatchEvent(new CustomEvent('notification:toggle-drawer'));
-  };
 
   const crumbs = React.useMemo(() => {
     const items: { label: string; href?: string }[] = [];
@@ -105,13 +99,7 @@ export default function TopBar() {
 
       {/* Top Bar Actions */}
       <div className="flex items-center gap-2">
-        <NotificationBadge
-          count={getBadgeCount('badge')}
-          isLoading={hasPendingWork}
-          onClick={handleNotificationClick}
-          size="sm"
-          className="mr-1"
-        />
+        <ActionCenter className="mr-1" />
         <UserNav compact />
       </div>
     </header>

@@ -1,22 +1,13 @@
 /**
- * YARNNN Notification Center - Canon v1.0.0 Compliant
+ * Clean Notification Center - Canon v3.0
  * 
- * Cross-page persistent notification display system.
- * Replaces all legacy notification components with unified approach.
+ * Minimal wrapper around new ActionCenter component
+ * Maintains compatibility while using clean notification system
  */
 
 "use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { useNotificationStore } from '@/lib/notifications/store';
-import type { UnifiedNotification, NotificationChannel } from '@/lib/notifications/types';
-import { NotificationToast } from './NotificationToast';
-import { NotificationBadge } from './NotificationBadge';
-import { NotificationDrawer } from './NotificationDrawer';
-import { PersistentNotifications } from './PersistentNotifications';
-import { usePathname } from 'next/navigation';
-import { createBrowserClient } from '@/lib/supabase/clients';
-import { useWorkNotificationIntegration } from '@/lib/notifications/workIntegration';
+import React from 'react';
 
 interface NotificationCenterProps {
   workspace_id?: string;
@@ -25,181 +16,41 @@ interface NotificationCenterProps {
 }
 
 /**
- * Main Notification Center Component
- * 
- * Orchestrates all notification channels and manages unified state.
- * Automatically initializes workspace context and real-time subscriptions.
+ * Legacy notification center - now empty wrapper
+ * Real notification functionality is handled by ActionCenter in TopBar
  */
 export function NotificationCenter({ 
   workspace_id, 
   user_id, 
   className = "" 
 }: NotificationCenterProps) {
-  const pathname = usePathname();
-  const {
-    notifications,
-    workspace_id: currentWorkspace,
-    connection_status,
-    governance,
-    setWorkspace,
-    dismissNotification,
-    markAsRead,
-    acknowledgeNotification,
-    getNotificationsByCategory,
-    getBadgeCount
-  } = useNotificationStore();
-
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // Extract current basket ID for work integration
-  const basketId = useMemo(() => {
-    if (!pathname) return undefined;
-    const basketMatch = pathname.match(/^\/baskets\/([^/]+)/);
-    return basketMatch ? basketMatch[1] : undefined;
-  }, [pathname]);
-
-  // Integrate work notifications
-  useWorkNotificationIntegration(basketId);
-
-  // Listen for drawer toggle events from TopBar
-  useEffect(() => {
-    const handleToggleDrawer = () => {
-      setDrawerOpen(prev => !prev);
-    };
-
-    window.addEventListener('notification:toggle-drawer', handleToggleDrawer);
-    return () => window.removeEventListener('notification:toggle-drawer', handleToggleDrawer);
-  }, []);
-
-  // Auto-detect workspace and user context
-  useEffect(() => {
-    const initializeContext = async () => {
-      // If explicitly provided, use those values
-      if (workspace_id && user_id && workspace_id !== currentWorkspace) {
-        setWorkspace(workspace_id, user_id);
-        return;
-      }
-
-      // Auto-detect from current session and route
-      try {
-        const supabase = createBrowserClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          let detectedWorkspaceId = workspace_id;
-          
-          // Try to extract workspace from current route (basket context)
-          if (!detectedWorkspaceId && pathname) {
-            const basketMatch = pathname.match(/^\/baskets\/([^/]+)/);
-            if (basketMatch) {
-              const basketId = basketMatch[1];
-              
-              // Get workspace from basket
-              const { data: basket } = await supabase
-                .from('baskets')
-                .select('workspace_id')
-                .eq('id', basketId)
-                .single();
-                
-              if (basket) {
-                detectedWorkspaceId = basket.workspace_id;
-              }
-            }
-          }
-          
-          // Fallback to user's default workspace
-          if (!detectedWorkspaceId) {
-            const { data: memberships } = await supabase
-              .from('workspace_memberships')
-              .select('workspace_id')
-              .eq('user_id', user.id)
-              .limit(1);
-              
-            if (memberships && memberships.length > 0) {
-              detectedWorkspaceId = memberships[0].workspace_id;
-            }
-          }
-          
-          if (detectedWorkspaceId && detectedWorkspaceId !== currentWorkspace) {
-            setWorkspace(detectedWorkspaceId, user.id);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to initialize notification context:', error);
-      }
-    };
-
-    initializeContext();
-  }, [workspace_id, user_id, currentWorkspace, setWorkspace, pathname]);
-
-  // Filter notifications by channel for rendering
-  const toastNotifications = notifications.filter(n => 
-    n.channels.includes('toast') && 
-    n.status === 'unread' &&
-    n.persistence.auto_dismiss !== false // Don't show persistent notifications as toasts
-  );
-
-  const persistentNotifications = notifications.filter(n => 
-    n.channels.includes('persistent') && 
-    n.status !== 'dismissed'
-  );
-
-  const badgeCount = getBadgeCount('badge');
-  const drawerCount = getBadgeCount('drawer');
-
-  if (!currentWorkspace) {
-    return null; // Don't render without workspace context
-  }
-
-  return (
-    <>
-      {/* Notification Drawer - Only show drawer, no intrusive popups */}
-      <NotificationDrawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        notifications={notifications}
-        onDismiss={dismissNotification}
-        onRead={markAsRead}
-        onAcknowledge={acknowledgeNotification}
-        governance={governance}
-        connectionStatus={connection_status}
-      />
-
-      {/* Development indicator */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-2 left-2 text-xs text-gray-400 bg-black/10 px-2 py-1 rounded">
-          Notifications: {notifications.length} | Status: {connection_status}
-        </div>
-      )}
-    </>
-  );
+  // No-op component - ActionCenter handles everything now
+  return null;
 }
 
 /**
- * Hook for components that need notification context
+ * Legacy hook - minimal implementation for backward compatibility
  */
 export function useNotifications() {
-  const store = useNotificationStore();
-  
   return {
-    // State
-    notifications: store.notifications,
-    unreadCount: store.getUnreadCount(),
-    connectionStatus: store.connection_status,
-    hasPendingWork: store.hasPendingWork(),
+    // Stub state for compatibility
+    notifications: [],
+    unreadCount: 0,
+    connectionStatus: 'connected' as const,
+    hasPendingWork: false,
     
-    // Actions
-    dismiss: store.dismissNotification,
-    markRead: store.markAsRead,
-    acknowledge: store.acknowledgeNotification,
-    clearAll: store.clearAll,
+    // Stub actions for compatibility
+    dismiss: () => {},
+    markRead: () => {},
+    acknowledge: () => {},
+    clearAll: () => {},
     
-    // Queries
-    getByCategory: store.getNotificationsByCategory,
-    getBadgeCount: store.getBadgeCount,
+    // Stub queries for compatibility
+    getByCategory: () => [],
+    getBadgeCount: () => 0,
     
-    // Governance
-    governance: store.governance,
-    updateGovernance: store.updateGovernance
+    // Stub governance for compatibility
+    governance: { auto_approve: false, confidence_threshold: 0.8 },
+    updateGovernance: () => {}
   };
 }
