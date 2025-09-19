@@ -24,7 +24,7 @@ These layers MUST NOT be mixed in implementation.
 **Operations:**
 - ALL mutations flow through governance proposals
 - Exception: P0 capture (raw_dumps) is direct by canon
-- Work types: P0_CAPTURE, P1_SUBSTRATE, P2_GRAPH, P3_REFLECTION, MANUAL_EDIT
+- Work types: P0_CAPTURE, P1_SUBSTRATE, P2_GRAPH, MANUAL_EDIT, PROPOSAL_REVIEW, TIMELINE_RESTORE
 
 **API Pattern:**
 ```typescript
@@ -99,7 +99,7 @@ POST /api/documents
 // CANON VIOLATION - Reflections are computed artifacts
 POST /api/work
 {
-  work_type: 'P3_REFLECTION',
+  work_type: 'P3_REFLECTION',  // REMOVED from work queue
   work_payload: {
     operations: [{ type: 'create_reflection' }]  // Wrong!
   }
@@ -109,11 +109,12 @@ POST /api/work
 ### ✅ RIGHT: Reflections Direct
 ```typescript
 // CANON COMPLIANT - Direct computation
-POST /api/reflections
+POST /api/reflections/trigger
 {
-  target_type: 'substrate',
-  target_ids: [uuid1, uuid2],
-  computation_type: 'pattern_analysis'
+  basket_id: uuid,
+  scope: 'window',
+  substrate_window_hours: 168,
+  force_refresh: true
 }
 ```
 
@@ -137,7 +138,7 @@ POST /api/reflections
 ### P3: Reflect (Artifact - Direct)
 - Computes `reflections` from substrate
 - Direct computation, no governance
-- API: `/api/reflections` → direct computation
+- API: `/api/reflections/trigger` → direct computation
 
 ### P4: Compose (Artifact - Direct)
 - Creates/updates `documents`

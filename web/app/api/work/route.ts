@@ -12,15 +12,16 @@ import { routeWork } from "@/lib/governance/universalWorkRouter";
 import { createTimelineEmitter } from "@/lib/canon/TimelineEventEmitter";
 
 /**
- * Universal Work Orchestration Endpoint
+ * Substrate Work Orchestration Endpoint
  * 
- * ALL substrate mutations flow through this endpoint.
- * No direct substrate writes allowed - everything is governed work.
+ * SUBSTRATE mutations flow through this endpoint for governance.
+ * Artifact operations (documents, reflections) use direct REST APIs.
  * 
- * Canon v2.2 Compliance:
- * - Sacred Principle #1: Universal Governance
+ * Canon v2.3 Compliance:
+ * - Sacred Principle #1: Substrate-Only Governance
  * - Sacred Principle #2: User-Controlled Execution Mode  
  * - Sacred Principle #3: Confidence-Informed Routing (within governance)
+ * - Sacred Principle #4: Artifact Independence
  */
 
 const WorkRequestSchema = z.object({
@@ -28,10 +29,10 @@ const WorkRequestSchema = z.object({
     'P0_CAPTURE',      // Raw dump capture (substrate - direct)
     'P1_SUBSTRATE',    // AI substrate creation (substrate - governed)
     'P2_GRAPH',        // Relationship mapping (substrate - governed)
-    'P3_REFLECTION',   // AI insights (artifact - but may use work queue for async processing)
     'MANUAL_EDIT',     // User substrate edits (substrate - governed)
     'PROPOSAL_REVIEW', // Manual proposal review (substrate - governed)
     'TIMELINE_RESTORE' // Historical restoration (substrate - governed)
+    // P3_REFLECTION removed - now direct artifact operations via /api/reflections
     // P4_COMPOSE_NEW, P4_RECOMPOSE removed - now direct artifact operations via /api/documents
   ]),
   work_payload: z.object({

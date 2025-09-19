@@ -1,7 +1,7 @@
 """
 Canonical Queue Processor - YARNNN Canon v2.3 Compliant
 
-Orchestrates substrate pipeline agents (P0-P3) for governed substrate mutations
+Orchestrates substrate pipeline agents (P0-P2) for governed substrate mutations
 while respecting Sacred Principles and substrate/artifact boundaries.
 Integrates with Universal Work Tracker for comprehensive status visibility.
 
@@ -9,8 +9,8 @@ Canon v2.3 Pipeline Processing Sequence:
 1. P0 Capture: Raw dump ingestion (direct, no governance)
 2. P1 Substrate: Block/context creation (governed proposals)
 3. P2 Graph: Relationship mapping (governed proposals)  
-4. P3 Reflection: Pattern computation (direct artifact generation)
-(P4 Document Composition: Direct artifact operations via REST APIs)
+(P3 Reflection: Direct artifact operations via /api/reflections)
+(P4 Document Composition: Direct artifact operations via /api/documents)
 """
 
 import asyncio
@@ -92,8 +92,8 @@ class CanonicalQueueProcessor:
                             elif work_type == 'P2_GRAPH':
                                 # Graph relationship mapping
                                 await self._process_graph_work(entry)
-                            # P4_COMPOSE_NEW and P4_RECOMPOSE removed - now direct artifact operations
-                            # Document composition happens via direct REST APIs per Canon v2.3
+                            # P3_REFLECTION removed - now direct artifact operations via /api/reflections
+                            # P4_COMPOSE_NEW and P4_RECOMPOSE removed - now direct artifact operations via /api/documents
                             else:
                                 # Governance-only items like MANUAL_EDIT are not processed here.
                                 # Return the entry to pending to be handled by governance/proposal executors.
@@ -461,14 +461,15 @@ class CanonicalQueueProcessor:
         return {
             "processor_name": "CanonicalQueueProcessor",
             "worker_id": self.worker_id,
-            "canon_version": "v2.1",
+            "canon_version": "v2.3",
             "pipeline_agents": {
                 "P0_CAPTURE": self.p0_capture.get_agent_info(),
                 "P1_GOVERNANCE": self.p1_governance.get_agent_info(),
-                "P2_GRAPH": self.p2_graph.get_agent_info(),
-                "P3_REFLECTION": self.p3_reflection.get_agent_info()
+                "P2_GRAPH": self.p2_graph.get_agent_info()
+                # P3_REFLECTION removed - now direct artifact operations via /api/reflections
+                # P4_COMPOSITION removed - now direct artifact operations via /api/documents
             },
-            "processing_sequence": ["P0_CAPTURE", "P1_GOVERNANCE", "P2_DEFERRED", "P3_DEFERRED"],
+            "processing_sequence": ["P0_CAPTURE", "P1_GOVERNANCE", "P2_DEFERRED"],
             "sacred_principles": [
                 "Capture is Sacred",
                 "All Substrates are Peers",
