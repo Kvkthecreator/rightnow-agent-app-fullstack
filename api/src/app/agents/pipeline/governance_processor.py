@@ -276,6 +276,7 @@ class GovernanceDumpProcessor:
                 summary_text = metadata.get("content") or metadata.get("summary") or ctx.get("description") or label
 
                 metadata.setdefault("kind", kind)
+                metadata.setdefault("label", label)
                 metadata.setdefault("source", "agent_context_ingredient")
 
                 ops_accum.append({
@@ -719,6 +720,7 @@ class GovernanceDumpProcessor:
 
                         metadata["synonyms"] = synonyms
                         metadata.setdefault("kind", kind_value)
+                        metadata.setdefault("label", label)
 
                         context_payload = _sanitize_for_json({
                             "basket_id": str(basket_id),

@@ -252,7 +252,12 @@ class P2GraphAgent:
                 causal_analysis = self._analyze_causal_relationships(elem1, elem2)
                 for causal_rel in causal_analysis:
                     relationships.append(causal_rel)
-                
+
+                # Explicit context references (block ↔ context)
+                context_reference = self._detect_context_reference(elem1, elem2)
+                if context_reference:
+                    relationships.append(context_reference)
+
                 # Limit relationships to prevent explosion
                 if len(relationships) >= 50:
                     break
@@ -429,7 +434,37 @@ class P2GraphAgent:
                     break
         
         return causal_relationships
-    
+
+    def _detect_context_reference(self, elem1: Dict[str, Any], elem2: Dict[str, Any]) -> Optional[RelationshipProposal]:
+        """Detect explicit block → context_item references via label mention."""
+
+        def build_relationship(src: Dict[str, Any], dst: Dict[str, Any]) -> Optional[RelationshipProposal]:
+            if src.get("type") != "block" or dst.get("type") != "context_item":
+                return None
+
+            label = (dst.get("metadata", {}) or {}).get("label") or dst.get("title") or ""
+            label_norm = label.lower().strip()
+            if not label_norm:
+                return None
+
+            block_text = (src.get("content", "") + " " + src.get("title", "")).lower()
+            if label_norm in block_text:
+                return RelationshipProposal(
+                    from_type="block",
+                    from_id=UUID(src["id"]),
+                    to_type="context_item",
+                    to_id=UUID(dst["id"]),
+                    relationship_type="context_reference",
+                    strength=0.75,
+                    description=f"Block references context item '{label[:40]}...'"
+                )
+            return None
+
+        rel = build_relationship(elem1, elem2)
+        if rel:
+            return rel
+        return build_relationship(elem2, elem1)
+
     def _are_causally_compatible(self, elem1: Dict[str, Any], elem2: Dict[str, Any], rel_type: str) -> bool:
         """Check if two elements are semantically compatible for causal relationships."""
         type1 = elem1.get("semantic_type", "").lower()
