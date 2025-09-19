@@ -271,3 +271,5 @@ export const notificationService = UnifiedNotificationService.getInstance();
 
 // Convenience hooks for React components
 export { useNotificationStore };
+
+export default UnifiedNotificationService;
