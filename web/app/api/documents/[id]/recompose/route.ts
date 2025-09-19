@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     // Load and verify document access
     const { data: document, error: docError } = await supabase
       .from('documents')
-      .select('id, basket_id, title, workspace_id')
+      .select('id, basket_id, title, workspace_id, metadata')
       .eq('id', document_id)
       .eq('workspace_id', workspace.id)
       .single();
