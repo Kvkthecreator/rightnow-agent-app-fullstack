@@ -309,7 +309,7 @@ class OpenAIProvider(LLMProvider):
                 ],
                 response_format=response_format,
                 temperature=temperature,
-                max_tokens=max_tokens,
+                max_completion_tokens=max_tokens,
             )
 
             raw = resp.choices[0].message.content or ""
@@ -350,7 +350,7 @@ class OpenAIProvider(LLMProvider):
                 model=self.text_model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
-                max_tokens=max_tokens,
+                max_completion_tokens=max_tokens,
             )
             content = resp.choices[0].message.content or ""
             return LLMResponse(

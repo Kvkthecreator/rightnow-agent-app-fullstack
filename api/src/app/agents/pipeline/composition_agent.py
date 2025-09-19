@@ -162,6 +162,10 @@ Example response:
         )
         
         strategy = response.parsed
+        if strategy is None:
+            logger.error("P4 Intent Analysis failed: No strategy parsed from LLM response")
+            raise ValueError("Intent analysis failed - could not parse strategy from LLM response")
+        
         strategy["original_intent"] = request.intent
         
         logger.info(f"P4 Composition strategy: {strategy}")
