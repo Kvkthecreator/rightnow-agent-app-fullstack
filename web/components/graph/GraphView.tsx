@@ -22,6 +22,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
+import { enqueueWork } from '@/lib/work/enqueueWork';
 // Page-level header supplied by parent layout
 
 interface GraphNode {
@@ -378,47 +379,36 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
     setMappingConnections(true);
     
     try {
-      // Use fetchWithToken for proper authentication
-      const { fetchWithToken } = await import('@/lib/fetchWithToken');
-      
-      const response = await fetchWithToken('/api/work', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          work_type: 'P2_GRAPH',
-          work_payload: {
-            operations: [{ 
-              type: 'MapRelationships', 
-              data: { 
-                basket_id: basketId,
-                trigger: 'user_manual_mapping',
-                substrate_count: nodes.length 
-              } 
-            }],
-            basket_id: basketId,
-            confidence_score: 0.9, // High confidence for manual user trigger
-            user_override: 'allow_auto'
-          },
-          priority: 'high'
-        })
+      await enqueueWork({
+        workType: 'P2_GRAPH',
+        workPayload: {
+          operations: [{
+            type: 'MapRelationships',
+            data: {
+              basket_id: basketId,
+              trigger: 'user_manual_mapping',
+              substrate_count: nodes.length,
+            },
+          }],
+          basket_id: basketId,
+          confidence_score: 0.9,
+          user_override: 'allow_auto',
+        },
+        priority: 'high',
+        pendingTitle: 'Mapping connections…',
+        pendingMessage: 'We\'ll notify you as soon as new relationships are created.',
+        successTitle: 'Connections mapped',
+        successMessage: status => {
+          const count = status?.substrate_impact?.relationships_mapped ?? 0;
+          return count
+            ? `Created ${count} relationships. Refresh the graph to view them.`
+            : 'Graph mapping completed.';
+        },
+        failureTitle: 'Connection mapping failed',
+        failureMessage: msg => msg || 'Unable to map connections. Check governance for details.',
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('P2 Graph mapping initiated:', result);
-        
-        // Show success message and suggest refresh
-        setTimeout(() => {
-          alert('Connection mapping started! Refresh this page in a few moments to see the results.');
-        }, 1000);
-      } else {
-        const error = await response.json();
-        console.error('P2 Graph mapping failed:', error);
-        alert('Failed to start connection mapping. Please try again.');
-      }
     } catch (error) {
       console.error('Error triggering P2 mapping:', error);
-      alert('Error starting connection mapping. Please try again.');
     } finally {
       setMappingConnections(false);
     }

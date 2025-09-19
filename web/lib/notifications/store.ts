@@ -37,6 +37,7 @@ interface NotificationStore {
   // Actions
   setWorkspace: (workspace_id: string, user_id: string) => void;
   addNotification: (request: CreateNotificationRequest) => string;
+  updateNotification: (id: string, updates: Partial<UnifiedNotification>) => void;
   dismissNotification: (id: string) => void;
   markAsRead: (id: string) => void;
   acknowledgeNotification: (id: string) => void;
@@ -49,6 +50,7 @@ interface NotificationStore {
   getNotificationsByCategory: (category: NotificationCategory) => UnifiedNotification[];
   getUnreadCount: () => number;
   getBadgeCount: (channel: NotificationChannel) => number;
+  hasPendingWork: () => boolean;
   
   // Persistence & sync
   hydrate: (workspace_id: string, user_id: string) => Promise<void>;
@@ -190,6 +192,31 @@ export const useNotificationStore = create<NotificationStore>()(
         }));
         get().sync();
       },
+
+      updateNotification: (id: string, updates: Partial<UnifiedNotification>) => {
+        set(state => ({
+          notifications: state.notifications.map(n => {
+            if (n.id !== id) return n;
+
+            const merged: UnifiedNotification = {
+              ...n,
+              ...updates,
+              related_entities: updates.related_entities
+                ? { ...n.related_entities, ...updates.related_entities }
+                : n.related_entities,
+              persistence: updates.persistence
+                ? { ...n.persistence, ...updates.persistence }
+                : n.persistence,
+              governance_context: updates.governance_context
+                ? { ...n.governance_context, ...updates.governance_context }
+                : n.governance_context,
+            };
+
+            return merged;
+          })
+        }));
+        get().sync();
+      },
       
       // Clear all notifications
       clearAll: () => {
@@ -226,6 +253,14 @@ export const useNotificationStore = create<NotificationStore>()(
           n.channels.includes(channel) && 
           (n.status === 'unread' || n.persistence.requires_acknowledgment)
         ).length;
+      },
+
+      hasPendingWork: () => {
+        return get().notifications.some(n =>
+          n.category === 'work' &&
+          ['work.queued', 'work.processing', 'work.cascade.initiated'].includes(n.type) &&
+          n.status !== 'dismissed'
+        );
       },
       
       // Hydrate from Supabase

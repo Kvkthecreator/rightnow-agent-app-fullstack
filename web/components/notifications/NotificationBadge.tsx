@@ -17,6 +17,7 @@ interface NotificationBadgeProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'default' | 'minimal' | 'prominent';
+  isLoading?: boolean;
 }
 
 export function NotificationBadge({ 
@@ -24,9 +25,10 @@ export function NotificationBadge({
   onClick, 
   className = "",
   size = 'md',
-  variant = 'default'
+  variant = 'default',
+  isLoading = false
 }: NotificationBadgeProps) {
-  if (count === 0) return null;
+  if (count === 0 && !isLoading) return null;
 
   const sizeClasses = {
     sm: 'w-6 h-6',
@@ -70,20 +72,31 @@ export function NotificationBadge({
       `}
       title={`${count} notification${count === 1 ? '' : 's'}`}
     >
-      <Bell size={iconSizes[size]} />
+      <Bell size={iconSizes[size]} className={isLoading ? 'opacity-60' : ''} />
+
+      {isLoading && (
+        <span
+          className="absolute inset-0 flex items-center justify-center"
+          aria-hidden="true"
+        >
+          <span className="h-3 w-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </span>
+      )}
       
-      <Badge 
-        variant={getBadgeVariant()}
-        className={`
-          absolute ${getBadgePosition()}
-          min-w-[20px] h-5 px-1 py-0 
-          flex items-center justify-center 
-          text-xs font-bold leading-none
-          ${count > 99 ? 'text-[10px]' : 'text-xs'}
-        `}
-      >
-        {count > 99 ? '99+' : count}
-      </Badge>
+      {count > 0 && (
+        <Badge 
+          variant={getBadgeVariant()}
+          className={`
+            absolute ${getBadgePosition()}
+            min-w-[20px] h-5 px-1 py-0 
+            flex items-center justify-center 
+            text-xs font-bold leading-none
+            ${count > 99 ? 'text-[10px]' : 'text-xs'}
+          `}
+        >
+          {count > 99 ? '99+' : count}
+        </Badge>
+      )}
     </button>
   );
 }

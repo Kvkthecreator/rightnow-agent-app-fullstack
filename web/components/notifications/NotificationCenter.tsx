@@ -186,6 +186,7 @@ export function useNotifications() {
     notifications: store.notifications,
     unreadCount: store.getUnreadCount(),
     connectionStatus: store.connection_status,
+    hasPendingWork: store.hasPendingWork(),
     
     // Actions
     dismiss: store.dismissNotification,

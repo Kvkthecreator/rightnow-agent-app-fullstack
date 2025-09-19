@@ -14,7 +14,7 @@ import { NotificationBadge } from "@/components/notifications/NotificationBadge"
 export default function TopBar() {
   const { toggle, open } = useNavState();
   const pathname = usePathname();
-  const { getBadgeCount } = useNotifications();
+  const { getBadgeCount, hasPendingWork } = useNotifications();
 
   const handleNotificationClick = () => {
     window.dispatchEvent(new CustomEvent('notification:toggle-drawer'));
@@ -107,6 +107,7 @@ export default function TopBar() {
       <div className="flex items-center gap-2">
         <NotificationBadge
           count={getBadgeCount('badge')}
+          isLoading={hasPendingWork}
           onClick={handleNotificationClick}
           size="sm"
           className="mr-1"
