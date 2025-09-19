@@ -673,7 +673,7 @@ class CanonicalQueueProcessor:
             })
         }
         
-        result = await self.supabase.table('documents').insert(document_data).execute()
+        result = supabase.table('documents').insert(document_data).execute()
         if result.data and len(result.data) > 0:
             logger.info(f"Created blank document {document_id} for P4 composition")
             return document_id
