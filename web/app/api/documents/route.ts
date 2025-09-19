@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
         workspace_id: workspace.id,
         title: String(title),
         content_raw: String(content_raw || ''),
+        status: 'draft',
         document_type: 'narrative',
         metadata: {
           created_via: 'memory_page',
