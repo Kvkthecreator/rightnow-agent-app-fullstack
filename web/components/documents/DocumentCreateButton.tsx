@@ -35,12 +35,12 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
   const composeFromMemory = async () => {
     setCreating(true);
     try {
-      // Use canonical /api/work endpoint with P4_COMPOSE work type
+      // Use canonical /api/work endpoint with P4_COMPOSE_NEW work type for new document creation
       const res = await fetch('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          work_type: 'P4_COMPOSE',
+          work_type: 'P4_COMPOSE_NEW',
           work_payload: {
             operations: [{
               type: 'compose_from_memory',
@@ -70,13 +70,13 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
       sessionStorage.setItem(`compose_work_${data.work_id}`, JSON.stringify({
         work_id: data.work_id,
         status_url: data.status_url,
-        work_type: 'P4_COMPOSE',
+        work_type: 'P4_COMPOSE_NEW',
         title,
         basket_id: basketId
       }));
       
       // Navigate to basket with work status (document will be created async)
-      router.push(`/baskets/${basketId}?work_id=${data.work_id}&work_type=P4_COMPOSE`);
+      router.push(`/baskets/${basketId}?work_id=${data.work_id}&work_type=P4_COMPOSE_NEW`);
     } catch (e) {
       alert('Failed to compose document');
     } finally {

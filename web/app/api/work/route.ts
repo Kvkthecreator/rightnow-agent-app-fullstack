@@ -29,7 +29,8 @@ const WorkRequestSchema = z.object({
     'P1_SUBSTRATE',    // AI substrate creation
     'P2_GRAPH',        // Relationship mapping
     'P3_REFLECTION',   // AI insights
-    'P4_COMPOSE',      // Document creation
+    'P4_COMPOSE_NEW',  // New document creation from memory
+    'P4_RECOMPOSE',    // Update existing document 
     'MANUAL_EDIT',     // User substrate edits
     'PROPOSAL_REVIEW', // Manual proposal review
     'TIMELINE_RESTORE' // Historical restoration

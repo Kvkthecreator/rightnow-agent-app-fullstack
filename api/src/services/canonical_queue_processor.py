@@ -92,8 +92,11 @@ class CanonicalQueueProcessor:
                             elif work_type == 'P2_GRAPH':
                                 # Graph relationship mapping
                                 await self._process_graph_work(entry)
-                            elif work_type == 'P4_COMPOSE':
-                                # Document composition processing
+                            elif work_type == 'P4_COMPOSE_NEW':
+                                # New document creation from memory
+                                await self._process_new_document_composition(entry)
+                            elif work_type == 'P4_RECOMPOSE':
+                                # Update existing document
                                 await self._process_composition_work(entry)
                             else:
                                 # Governance-only items like MANUAL_EDIT are not processed here.
@@ -557,6 +560,125 @@ class CanonicalQueueProcessor:
             ],
             "status": "running" if self.running else "stopped"
         }
+    
+    async def _process_new_document_composition(self, queue_entry: Dict[str, Any]):
+        """
+        Process P4_COMPOSE_NEW work for creating new documents from memory.
+        
+        Canon Compliance:
+        - P4 creates new document artifact from substrate
+        - Implements Sacred Principle #3: Narrative is Deliberate
+        - Creates document first, then populates with composed content
+        """
+        work_id = queue_entry.get('work_id', queue_entry['id'])
+        queue_id = queue_entry['id']
+        work_payload = queue_entry.get('work_payload', {})
+        
+        logger.info(f"Starting P4 new document composition: work_id={work_id}")
+        
+        try:
+            # Mark as processing
+            await self._update_queue_state(queue_id, 'processing')
+            
+            # Extract composition operation data
+            operations = work_payload.get('operations', [])
+            if not operations:
+                raise ValueError("P4 new document composition work missing operations")
+            
+            compose_op = next((op for op in operations if op['type'] == 'compose_from_memory'), None)
+            if not compose_op:
+                raise ValueError("P4 new document composition work missing compose_from_memory operation")
+            
+            op_data = compose_op['data']
+            
+            # Step 1: Create new blank document first (Canon: P4 creates artifacts)
+            document_id = await self._create_blank_document(
+                basket_id=work_payload['basket_id'],
+                workspace_id=queue_entry['workspace_id'],
+                title=op_data.get('title', 'Untitled Document'),
+                intent=op_data.get('intent', '')
+            )
+            
+            # Step 2: Create composition request with the new document ID
+            composition_request = CompositionRequest(
+                document_id=document_id,
+                basket_id=work_payload['basket_id'],
+                workspace_id=queue_entry['workspace_id'],
+                intent=op_data.get('intent', ''),
+                window=op_data.get('window'),
+                pinned_ids=op_data.get('pinned_ids')
+            )
+            
+            # Step 3: Process through P4 composition agent
+            composition_result = await self.p4_composition.process(composition_request)
+            
+            if not composition_result.success:
+                raise RuntimeError(f"P4 new document composition failed: {composition_result.message}")
+            
+            logger.info(f"P4 new document composition completed: {composition_result.message}")
+            
+            # Prepare work result
+            work_result = {
+                'document_id': document_id,
+                'title': op_data.get('title', 'Untitled Document'),
+                'composition_status': 'completed',
+                'agent_message': composition_result.message,
+                'substrate_count': composition_result.data.get('substrate_count', 0),
+                'confidence': composition_result.data.get('confidence', 0.8)
+            }
+            
+            # Update universal work tracker if work_id exists
+            if queue_entry.get('work_id'):
+                await universal_work_tracker.complete_work(
+                    queue_entry['work_id'],
+                    work_result,
+                    'P4_new_document_completed'
+                )
+            
+            await self._update_queue_state(queue_id, 'completed')
+            logger.info(f"P4 new document composition work completed successfully: {work_id}")
+            
+        except Exception as e:
+            logger.exception(f"P4 new document composition work failed: {work_id}: {e}")
+            
+            # Update universal work tracker for failure
+            if queue_entry.get('work_id'):
+                await universal_work_tracker.fail_work(
+                    queue_entry['work_id'],
+                    str(e)
+                )
+            
+            await self._mark_failed(queue_id, str(e))
+    
+    async def _create_blank_document(self, basket_id: str, workspace_id: str, title: str, intent: str) -> str:
+        """Create a blank document that will be populated by P4 composition"""
+        from uuid import uuid4
+        import json
+        
+        document_id = str(uuid4())
+        
+        # Create document record
+        document_data = {
+            'id': document_id,
+            'basket_id': basket_id,
+            'workspace_id': workspace_id,
+            'title': title,
+            'content_raw': intent if intent else f"# {title}\n\n_Composing from your memory..._",
+            'content_rendered': f"<h1>{title}</h1><p><em>Composing from your memory...</em></p>",
+            'status': 'composing',
+            'metadata': json.dumps({
+                'composition_intent': intent,
+                'composition_source': 'memory',
+                'creation_method': 'P4_COMPOSE_NEW'
+            })
+        }
+        
+        result = await self.supabase.table('documents').insert(document_data).execute()
+        if result.data and len(result.data) > 0:
+            logger.info(f"Created blank document {document_id} for P4 composition")
+            return document_id
+        else:
+            raise RuntimeError("Failed to create blank document for P4 composition")
 
 
 # Global canonical processor instance for lifecycle management  
