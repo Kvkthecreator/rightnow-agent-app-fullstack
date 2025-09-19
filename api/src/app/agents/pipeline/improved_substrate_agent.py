@@ -165,17 +165,24 @@ Extract the information above in the specified JSON format. Focus on quality ove
         # Retry logic for reliability
         for attempt in range(3):
             try:
-                response = client.chat.completions.create(
-                    model=MODEL_P1,
-                    messages=[
+                # Build request parameters
+                request_params = {
+                    "model": MODEL_P1,
+                    "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    response_format=response_format,
-                    temperature=template.temperature,
-                    max_completion_tokens=template.max_tokens,
-                    seed=SEED_P1
-                )
+                    "response_format": response_format,
+                    "max_completion_tokens": template.max_tokens,
+                    "seed": SEED_P1
+                }
+                
+                # Only add temperature if it's different from default (1.0)
+                # Some models don't support custom temperature values
+                if template.temperature != 1.0:
+                    request_params["temperature"] = template.temperature
+                
+                response = client.chat.completions.create(**request_params)
                 
                 raw_response = response.choices[0].message.content
                 data = json.loads(raw_response)

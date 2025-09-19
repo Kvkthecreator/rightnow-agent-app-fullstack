@@ -301,16 +301,23 @@ class OpenAIProvider(LLMProvider):
                 if schema is not None:
                     response_format = self._schema_wrapper(schema_name, schema)
 
-            resp = self.client.chat.completions.create(
-                model=self.json_model,
-                messages=[
+            # Build request parameters
+            request_params = {
+                "model": self.json_model,
+                "messages": [
                     {"role": "system", "content": "Respond ONLY with valid JSON per schema when provided."},
                     {"role": "user", "content": prompt},
                 ],
-                response_format=response_format,
-                temperature=temperature,
-                max_completion_tokens=max_tokens,
-            )
+                "response_format": response_format,
+                "max_completion_tokens": max_tokens,
+            }
+            
+            # Only add temperature if it's different from default (1.0)
+            # Some models don't support custom temperature values
+            if temperature != 1.0:
+                request_params["temperature"] = temperature
+            
+            resp = self.client.chat.completions.create(**request_params)
 
             raw = resp.choices[0].message.content or ""
             parsed: Optional[Dict[str, Any]] = None
@@ -346,12 +353,19 @@ class OpenAIProvider(LLMProvider):
         max_tokens: int = 4000,
     ) -> LLMResponse:
         try:
-            resp = self.client.chat.completions.create(
-                model=self.text_model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-                max_completion_tokens=max_tokens,
-            )
+            # Build request parameters
+            request_params = {
+                "model": self.text_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_completion_tokens": max_tokens,
+            }
+            
+            # Only add temperature if it's different from default (1.0)
+            # Some models don't support custom temperature values
+            if temperature != 1.0:
+                request_params["temperature"] = temperature
+                
+            resp = self.client.chat.completions.create(**request_params)
             content = resp.choices[0].message.content or ""
             return LLMResponse(
                 success=True,
