@@ -75,16 +75,16 @@ export default function OnboardingPanel({ basketId, onComplete, onDismiss }: Onb
   }
 
   return (
-    <Card className="mb-6 border-purple-200">
-      <CardHeader className="bg-purple-50 border-b border-purple-100">
+    <Card className="mb-6 border-purple-200 dark:border-purple-800">
+      <CardHeader className="bg-purple-50 dark:bg-purple-950/20 border-b border-purple-100 dark:border-purple-800">
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Sparkles className="w-5 h-5 text-purple-600" />
-              Let’s get you started
+              <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              Let's get you started
             </CardTitle>
             <CardDescription className="mt-1">
-              Bring in what you’re working on or set your focus
+              Bring in what you're working on or set your focus
             </CardDescription>
           </div>
           <Button
@@ -103,12 +103,12 @@ export default function OnboardingPanel({ basketId, onComplete, onDismiss }: Onb
       <CardContent className="p-6">
         <div className="grid grid-cols-1 gap-4">
           {/* Add Memory Card */}
-          <div className="border border-gray-200 rounded-lg p-4 bg-white">
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-900">
             <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-4 h-4 text-blue-600" />
-              <h3 className="text-sm font-semibold text-gray-900">Bring in what you’re working on</h3>
+              <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Bring in what you’re working on</h3>
             </div>
-            <p className="text-xs text-gray-600 mb-3">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
               Upload a file or paste a quick note. I’ll organize it for you.
             </p>
             <div className="flex items-center gap-2">
@@ -119,16 +119,16 @@ export default function OnboardingPanel({ basketId, onComplete, onDismiss }: Onb
                 Paste a note
               </Button>
             </div>
-            <p className="text-[11px] text-gray-400 mt-2">PDFs, images, and text supported</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">PDFs, images, and text supported</p>
           </div>
 
           {/* Add Meaning Card */}
-          <div className="border border-gray-200 rounded-lg p-4 bg-white">
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-900">
             <div className="flex items-center gap-2 mb-2">
-              <Tag className="w-4 h-4 text-purple-600" />
-              <h3 className="text-sm font-semibold text-gray-900">Set your focus</h3>
+              <Tag className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Set your focus</h3>
             </div>
-            <p className="text-xs text-gray-600 mb-3">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
               Tell me the one thing you’re aiming for. It helps me prioritize.
             </p>
             <div className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export default function OnboardingPanel({ basketId, onComplete, onDismiss }: Onb
                 Create your first meaning
               </Button>
             </div>
-            <p className="text-[11px] text-gray-400 mt-2">We’ll treat this as your current focus</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">We’ll treat this as your current focus</p>
           </div>
         </div>
 
