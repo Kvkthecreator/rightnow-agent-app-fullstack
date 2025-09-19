@@ -173,7 +173,7 @@ Extract the information above in the specified JSON format. Focus on quality ove
                     ],
                     response_format=response_format,
                     temperature=template.temperature,
-                    max_tokens=template.max_tokens,
+                    max_completion_tokens=template.max_tokens,
                     seed=SEED_P1
                 )
                 
