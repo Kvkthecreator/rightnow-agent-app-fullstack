@@ -17,10 +17,14 @@ const MemoryChainTimeline = dynamic(() => import('@/components/timeline/MemoryCh
   loading: () => <div className="h-48 animate-pulse" />,
 });
 
+const ProcessingStoryTimeline = dynamic(() => import('@/components/timeline/ProcessingStoryTimeline'), {
+  loading: () => <div className="h-48 animate-pulse" />,
+});
+
 export default function TimelinePage({ params }: { params: { id: string } }) {
   const { id } = params;
   const [pipelineFilter, setPipelineFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<'chains' | 'events'>('chains');
+  const [viewMode, setViewMode] = useState<'stories' | 'chains' | 'events'>('stories');
   
   // Phase 2: Adapter Layer Feature Flag
   const useAdapterTimeline = process.env.NEXT_PUBLIC_ENABLE_ADAPTER_TIMELINE === 'true';
@@ -32,9 +36,10 @@ export default function TimelinePage({ params }: { params: { id: string } }) {
         View:
         <select
           value={viewMode}
-          onChange={(e) => setViewMode(e.target.value as 'chains' | 'events')}
+          onChange={(e) => setViewMode(e.target.value as 'stories' | 'chains' | 'events')}
           className="ml-2 border border-gray-300 rounded px-3 py-1"
         >
+          <option value="stories">Processing Stories</option>
           <option value="chains">Memory Chains</option>
           <option value="events">Event Log</option>
         </select>
@@ -67,10 +72,15 @@ export default function TimelinePage({ params }: { params: { id: string } }) {
       <div className="flex h-full flex-col">
         <div className="border-b p-4">
           <SubpageHeader 
-            title={viewMode === 'chains' ? "Memory Chains" : "Event Timeline"} 
+            title={
+              viewMode === 'stories' ? "Processing Stories" :
+              viewMode === 'chains' ? "Memory Chains" : 
+              "Event Timeline"
+            } 
             basketId={id}
-            description={viewMode === 'chains' ? 
-              "Watch your memories transform through agent intelligence" :
+            description={
+              viewMode === 'stories' ? "See what's happening with your knowledge - from upload to insights" :
+              viewMode === 'chains' ? "Watch your memories transform through agent intelligence" :
               "Detailed event log of agent processing pipeline"
             }
             rightContent={filterComponent}
@@ -85,7 +95,10 @@ export default function TimelinePage({ params }: { params: { id: string } }) {
               </div>
             ) : (
               <div className="p-6">
-                {viewMode === 'chains' ? (
+                {viewMode === 'stories' ? (
+                  // Processing Stories - user-friendly stories showing cause and effect
+                  <ProcessingStoryTimeline basketId={id} />
+                ) : viewMode === 'chains' ? (
                   // Memory Chain View - shows processing chains and outcomes
                   <MemoryChainTimeline basketId={id} />
                 ) : (
