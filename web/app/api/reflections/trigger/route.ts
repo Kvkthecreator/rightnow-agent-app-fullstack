@@ -15,6 +15,8 @@ export async function POST(req: NextRequest) {
     const substrate_window_hours = typeof body?.substrate_window_hours === 'number' ? body.substrate_window_hours : undefined;
     const scope = (body?.scope as string | undefined) || 'window';
     const event_id = body?.event_id as string | undefined;
+    const document_id = body?.document_id as string | undefined;
+    const proposal_id = body?.proposal_id as string | undefined;
 
     if (scope === 'event') {
       if (!event_id) return NextResponse.json({ error: 'event_id required for scope=event' }, { status: 422 });
@@ -43,6 +45,60 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data, { status: resp.status });
     }
 
+    // Handle document-specific insights
+    if (scope === 'document') {
+      if (!document_id) return NextResponse.json({ error: 'document_id required for scope=document' }, { status: 422 });
+      const supabase = createServerSupabaseClient();
+      const { userId } = await getAuthenticatedUser(supabase);
+      const workspace = await ensureWorkspaceForUser(userId, supabase);
+
+      // For now, fall back to window scope with document context
+      // TODO: Implement dedicated document reflection endpoint
+      const { getApiBaseUrl } = await import('@/lib/config/api');
+      const backend = getApiBaseUrl();
+      if (!backend) return NextResponse.json({ error: 'backend_url_missing' }, { status: 500 });
+      const authHeader = req.headers.get('authorization') || undefined;
+      const resp = await fetch(`${backend}/api/reflections/compute_window`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(authHeader ? { Authorization: authHeader } : {}) },
+        body: JSON.stringify({ 
+          workspace_id: workspace.id, 
+          basket_id: basket_id || workspace.id, 
+          agent_id: 'p3_reflection_agent',
+          document_focus: document_id 
+        })
+      });
+      const data = await resp.json();
+      return NextResponse.json(data, { status: resp.status });
+    }
+
+    // Handle proposal-specific insights
+    if (scope === 'proposal') {
+      if (!proposal_id) return NextResponse.json({ error: 'proposal_id required for scope=proposal' }, { status: 422 });
+      const supabase = createServerSupabaseClient();
+      const { userId } = await getAuthenticatedUser(supabase);
+      const workspace = await ensureWorkspaceForUser(userId, supabase);
+
+      // For now, fall back to window scope with proposal context
+      // TODO: Implement dedicated proposal reflection endpoint
+      const { getApiBaseUrl } = await import('@/lib/config/api');
+      const backend = getApiBaseUrl();
+      if (!backend) return NextResponse.json({ error: 'backend_url_missing' }, { status: 500 });
+      const authHeader = req.headers.get('authorization') || undefined;
+      const resp = await fetch(`${backend}/api/reflections/compute_window`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(authHeader ? { Authorization: authHeader } : {}) },
+        body: JSON.stringify({ 
+          workspace_id: workspace.id, 
+          basket_id: basket_id || workspace.id, 
+          agent_id: 'p3_reflection_agent',
+          proposal_focus: proposal_id 
+        })
+      });
+      const data = await resp.json();
+      return NextResponse.json(data, { status: resp.status });
+    }
+
     if (!basket_id) return NextResponse.json({ error: 'basket_id required' }, { status: 422 });
 const supabase = createServerSupabaseClient();
     const { userId } = await getAuthenticatedUser(supabase);
@@ -65,7 +121,12 @@ const supabase = createServerSupabaseClient();
     const resp = await fetch(`${backend}/api/reflections/compute_window`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(authHeader2 ? { Authorization: authHeader2 } : {}) },
-      body: JSON.stringify({ workspace_id: basket.workspace_id, basket_id, agent_id: 'p3_reflection_agent' })
+      body: JSON.stringify({ 
+        workspace_id: basket.workspace_id, 
+        basket_id, 
+        agent_id: 'p3_reflection_agent',
+        substrate_window_hours
+      })
     });
     const data = await resp.json();
     return NextResponse.json(data, { status: resp.status });

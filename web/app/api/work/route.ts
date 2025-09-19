@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       execution_mode: routingResult.execution_mode,
       proposal_id: routingResult.proposal_id,
       status_url: `/api/work/status/${routingResult.work_id}`,
-      message: getExecutionModeMessage(routingResult.execution_mode)
+      message: getExecutionModeMessage(routingResult.execution_mode, routingResult.executed_immediately)
     }, { 
       status: routingResult.execution_mode === 'auto_execute' ? 201 : 202 
     });
@@ -127,10 +127,12 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function getExecutionModeMessage(execution_mode: string): string {
+function getExecutionModeMessage(execution_mode: string, executed_immediately?: boolean): string {
   switch (execution_mode) {
     case 'auto_execute':
-      return 'Work executed immediately based on governance policy';
+      return executed_immediately
+        ? 'Work executed immediately based on governance policy'
+        : 'Work queued for automatic execution based on governance policy';
     case 'create_proposal':
       return 'Proposal created for review based on governance policy';
     case 'confidence_routing':

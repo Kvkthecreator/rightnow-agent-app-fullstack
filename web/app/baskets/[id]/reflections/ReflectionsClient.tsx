@@ -188,15 +188,15 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
         </div>
         <h3 className="text-lg font-medium text-gray-900 mb-2">No Insights Yet</h3>
         <p className="text-gray-600 text-sm mb-4">
-          Add some content to your knowledge base and insights will automatically be discovered.
-          Patterns, themes, and connections will appear here as your knowledge grows.
+          As you add content and work with your ideas, I'll spot patterns, tensions, and themes worth exploring.
+          Insights about your thinking will appear here automatically.
         </p>
         <div className="flex justify-center gap-3">
           <button
             onClick={refreshReflections}
             className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
-            🔄 Check for Insights
+            🔍 Look for Patterns
           </button>
         </div>
       </div>
@@ -248,16 +248,16 @@ export default function ReflectionsClient({ basketId }: ReflectionsClientProps) 
                   <span className="text-2xl">💡</span>
                   <div>
                     <h3 className="text-lg font-medium text-gray-900">
-                      Discovery #{filteredReflections.length - index}
+                      Insight #{filteredReflections.length - index}
                     </h3>
                     <p className="text-sm text-gray-500">
-                      Found {formatComputationTime(reflection.computation_timestamp)}
+                      Discovered {formatComputationTime(reflection.computation_timestamp)}
                     </p>
                   </div>
                 </div>
                 {reflection.meta?.substrate_dump_count && (
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    From {reflection.meta.substrate_dump_count} sources
+                    Based on {reflection.meta.substrate_dump_count} items
                   </span>
                 )}
               </div>

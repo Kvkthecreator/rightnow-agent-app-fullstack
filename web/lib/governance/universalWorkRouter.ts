@@ -11,6 +11,8 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { policyDecider } from './policyDecider';
 
+const AUTO_EXECUTABLE_WORK_TYPES = new Set(['MANUAL_EDIT']);
+
 export interface WorkRequest {
   work_type: string;
   work_payload: {
@@ -36,6 +38,7 @@ export interface WorkRoutingResult {
   proposal_id?: string;
   // When execution_mode is auto_execute, include executor summary
   work_result?: any;
+  executed_immediately?: boolean;
 }
 
 // Convert string priority to integer for database storage
@@ -85,49 +88,41 @@ export async function routeWork(
     execution_mode = 'create_proposal';
   }
 
-  // Create work entry in canonical queue (with backward‑compat fallbacks)
+  const canAutoExecute = execution_mode === 'auto_execute' && AUTO_EXECUTABLE_WORK_TYPES.has(request.work_type);
+
+  const insertPayload = {
+    id: crypto.randomUUID(),
+    work_id: undefined as string | undefined,
+    work_type: request.work_type,
+    work_payload: request.work_payload,
+    workspace_id: request.workspace_id,
+    user_id: request.user_id,
+    basket_id: request.work_payload.basket_id,
+    priority: priorityToInteger(request.priority),
+    processing_state: canAutoExecute ? 'claimed' : 'pending',
+    execution_mode,
+    governance_policy: policy,
+    created_at: new Date().toISOString(),
+  };
+  insertPayload.work_id = insertPayload.id;
+
   let work_id: string | null = null;
-  const workId = crypto.randomUUID();
   {
     const { data, error } = await supabase
       .from('agent_processing_queue')
-      .insert({
-        id: workId,
-        work_id: workId,
-        work_type: request.work_type,
-        work_payload: request.work_payload,
-        workspace_id: request.workspace_id,
-        user_id: request.user_id,
-        priority: priorityToInteger(request.priority),
-        processing_state: execution_mode === 'auto_execute' && AUTO_EXECUTABLE_WORK_TYPES.has(request.work_type)
-          ? 'claimed'
-          : 'pending',
-        execution_mode, // may not exist on older schemas
-        governance_policy: policy, // may not exist on older schemas
-        created_at: new Date().toISOString()
-      })
+      .insert(insertPayload)
       .select('id')
       .single();
 
     if (data && (data as any).id) {
       work_id = (data as any).id;
     } else if (error && /execution_mode|governance_policy|column/i.test(error.message || '')) {
-      // Retry without newer columns
+      const fallbackInsert = { ...insertPayload } as any;
+      delete fallbackInsert.execution_mode;
+      delete fallbackInsert.governance_policy;
       const retry = await supabase
         .from('agent_processing_queue')
-        .insert({
-          id: workId,
-          work_id: workId,
-          work_type: request.work_type,
-          work_payload: request.work_payload,
-          workspace_id: request.workspace_id,
-          user_id: request.user_id,
-          priority: priorityToInteger(request.priority),
-          processing_state: execution_mode === 'auto_execute' && AUTO_EXECUTABLE_WORK_TYPES.has(request.work_type)
-            ? 'claimed'
-            : 'pending',
-          created_at: new Date().toISOString()
-        })
+        .insert(fallbackInsert)
         .select('id')
         .single();
       if (retry.data && (retry.data as any).id) {
@@ -140,13 +135,9 @@ export async function routeWork(
     }
   }
 
-  // Non-null by here
   const workEntryId = work_id!;
   let proposal_id: string | undefined;
-  const AUTO_EXECUTABLE_WORK_TYPES = new Set(['MANUAL_EDIT']);
-  const canAutoExecute = execution_mode === 'auto_execute' && AUTO_EXECUTABLE_WORK_TYPES.has(request.work_type);
 
-  // Handle execution based on mode
   if (canAutoExecute) {
     // Execute immediately
     await supabase
@@ -166,6 +157,7 @@ export async function routeWork(
         execution_mode: execution_mode as any,
         proposal_id,
         work_result: result,
+        executed_immediately: true,
       };
     } catch (e: any) {
       await supabase
@@ -174,13 +166,11 @@ export async function routeWork(
         .eq('id', workEntryId);
       throw e;
     }
-  } else {
-    if (execution_mode !== 'auto_execute') {
-    // Create proposal for review (schema-compatible)
-    // Prefer canonical v2.2 schema; fallback to legacy (ops/proposal_kind/origin) if needed.
+  }
+
+  if (execution_mode === 'create_proposal') {
     const nowIso = new Date().toISOString();
 
-    // Helper to infer proposal_kind and origin
     const inferProposalKind = (): 'Extraction' | 'Edit' | 'Merge' | 'Attachment' => {
       const types = (request.work_payload.operations || []).map(o => o?.type);
       if (types.some(t => /Merge/i.test(t))) return 'Merge';
@@ -190,7 +180,6 @@ export async function routeWork(
     };
     const origin = request.work_type === 'MANUAL_EDIT' ? 'human' : 'agent';
 
-    // Attempt new schema first
     const tryNew = await supabase
       .from('proposals')
       .insert({
@@ -209,7 +198,6 @@ export async function routeWork(
     if (tryNew.data && (tryNew.data as any).id) {
       proposal_id = (tryNew.data as any).id;
     } else {
-      // Fallback to legacy schema with required fields
       const fallback = await supabase
         .from('proposals')
         .insert({
@@ -227,19 +215,20 @@ export async function routeWork(
         .single();
 
       if (fallback.error || !fallback.data) {
-        // Prefer specific error messages for common schema mismatch cases
         const errMsg = fallback.error?.message || tryNew.error?.message || 'Unknown error';
         throw new Error(`Failed to create proposal: ${errMsg}`);
       }
 
       proposal_id = (fallback.data as any).id;
     }
-    }
+  }
+
   return {
     work_id: workEntryId,
     routing_decision: execution_mode as any,
     execution_mode: execution_mode as any,
-    proposal_id
+    proposal_id,
+    executed_immediately: false,
   };
 }
 
