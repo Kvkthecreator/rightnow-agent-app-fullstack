@@ -85,8 +85,29 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
     // Trigger P4 recomposition asynchronously (direct agent call, not governance)
     try {
-      const recompositionResponse = await apiFetch('/api/agents/p4-composition', {
+      // Get user's access token from the Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      const userToken = session?.access_token;
+      
+      if (!userToken) {
+        console.warn('No user token available for P4 recomposition');
+        return NextResponse.json({
+          success: true,
+          document_id,
+          title: document.title,
+          status: 'composing',
+          composition_started: false,
+          message: 'Document updated but recomposition could not be started - please refresh page'
+        }, { status: 200 });
+      }
+
+      const recompositionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/agents/p4-composition`, {
         method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`,
+          'sb-access-token': userToken
+        },
         body: JSON.stringify({
           document_id,
           basket_id: document.basket_id,

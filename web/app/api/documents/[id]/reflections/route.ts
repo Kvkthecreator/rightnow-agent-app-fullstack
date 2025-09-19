@@ -3,6 +3,7 @@ export const revalidate = 0;
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { withSchema } from '@/lib/api/withSchema';
@@ -14,7 +15,7 @@ export async function GET(
 ) {
   try {
     const { id: document_id } = await params;
-    const supabase = createRouteHandlerClient({ cookies: () => req.headers.get('cookie') ?? '' as any });
+    const supabase = createRouteHandlerClient({ cookies });
     const { userId } = await getAuthenticatedUser(supabase);
 
     // Load document + verify workspace membership
@@ -101,7 +102,7 @@ export async function POST(
 ) {
   try {
     const { id: document_id } = await params;
-    const supabase = createRouteHandlerClient({ cookies: () => req.headers.get('cookie') ?? '' as any });
+    const supabase = createRouteHandlerClient({ cookies });
     const { userId } = await getAuthenticatedUser(supabase);
 
     // Load document + verify workspace membership
