@@ -195,27 +195,93 @@ export default function Sidebar({ className }: SidebarProps) {
               <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                 🧺 {basket.name || "Untitled Basket"}
               </div>
-              <div className="ml-4 flex flex-col gap-0.5">
-                {SECTION_ORDER.filter((s) => s.key !== "documents").map((section) => {
-                  const href = section.href(basket.id);
-                  const Icon = sectionIcons[section.key];
-                  return (
-                    <SidebarItem
-                      key={section.key}
-                      href={href}
-                      onClick={() => {
-                        if (isMobile) {
-                          setOpen(false);
-                        }
-                      }}
-                    >
-                      <span className="flex items-center gap-2">
-                        {Icon && <Icon size={14} />}
-                        {section.label}
-                      </span>
-                    </SidebarItem>
-                  );
-                })}
+              <div className="flex flex-col gap-2">
+                {/* Memory Group */}
+                <div>
+                  <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Memory
+                  </div>
+                  <div className="ml-4 flex flex-col gap-0.5">
+                    {SECTION_ORDER.slice(0, 3).map((section) => {
+                      const href = section.href(basket.id);
+                      const Icon = sectionIcons[section.key];
+                      return (
+                        <SidebarItem
+                          key={section.key}
+                          href={href}
+                          onClick={() => {
+                            if (isMobile) {
+                              setOpen(false);
+                            }
+                          }}
+                        >
+                          <span className="flex items-center gap-2">
+                            {Icon && <Icon size={14} />}
+                            {section.label}
+                          </span>
+                        </SidebarItem>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Insights Group */}
+                <div>
+                  <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Insights
+                  </div>
+                  <div className="ml-4 flex flex-col gap-0.5">
+                    {SECTION_ORDER.slice(3, 6).map((section) => {
+                      const href = section.href(basket.id);
+                      const Icon = sectionIcons[section.key];
+                      return (
+                        <SidebarItem
+                          key={section.key}
+                          href={href}
+                          onClick={() => {
+                            if (isMobile) {
+                              setOpen(false);
+                            }
+                          }}
+                        >
+                          <span className="flex items-center gap-2">
+                            {Icon && <Icon size={14} />}
+                            {section.label}
+                          </span>
+                        </SidebarItem>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Settings Group */}
+                <div>
+                  <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Settings
+                  </div>
+                  <div className="ml-4 flex flex-col gap-0.5">
+                    {SECTION_ORDER.slice(6, 7).filter((s) => s.key !== "documents").map((section) => {
+                      const href = section.href(basket.id);
+                      const Icon = sectionIcons[section.key];
+                      return (
+                        <SidebarItem
+                          key={section.key}
+                          href={href}
+                          onClick={() => {
+                            if (isMobile) {
+                              setOpen(false);
+                            }
+                          }}
+                        >
+                          <span className="flex items-center gap-2">
+                            {Icon && <Icon size={14} />}
+                            {section.label}
+                          </span>
+                        </SidebarItem>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
               {/* Documents section */}
               <div className="mt-4">

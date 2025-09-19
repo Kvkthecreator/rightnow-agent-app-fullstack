@@ -4,14 +4,19 @@ export type BasketSection = {
   href: (id: string) => string;
 };
 
-// \uD83D\uDD12 Canonical UI order (display only)
+// 🔒 User-intent grouping (Canon v2.3)
 export const SECTION_ORDER: BasketSection[] = [
+  // Memory
   { key: "memory", label: "Memory", href: (id) => `/baskets/${id}/memory` },
-  { key: "governance", label: "Change Requests", href: (id) => `/baskets/${id}/governance` },
-  { key: "timeline", label: "Timeline", href: (id) => `/baskets/${id}/timeline` },
-  { key: "reflections", label: "Reflections", href: (id) => `/baskets/${id}/reflections` },
   { key: "building-blocks", label: "Building Blocks", href: (id) => `/baskets/${id}/building-blocks` },
+  { key: "governance", label: "Change Requests", href: (id) => `/baskets/${id}/governance` },
+  
+  // Insights
+  { key: "reflections", label: "Reflections", href: (id) => `/baskets/${id}/reflections` },
   { key: "graph", label: "Graph", href: (id) => `/baskets/${id}/graph` },
+  { key: "timeline", label: "Timeline", href: (id) => `/baskets/${id}/timeline` },
+  
+  // Settings
   { key: "settings", label: "Settings", href: (id) => `/baskets/${id}/settings` },
   { key: "documents", label: "Documents", href: (id) => `/baskets/${id}/documents` },
 ];
