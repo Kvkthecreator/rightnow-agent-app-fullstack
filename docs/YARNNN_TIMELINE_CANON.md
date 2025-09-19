@@ -1,4 +1,80 @@
-# Timeline Development Roadmap
+# YARNNN Timeline Canon
+
+## Core Purpose
+The timeline shows **what's happening with your knowledge** - not technical events, but meaningful progress on your ideas.
+
+## User Experience Principles
+
+### 1. Human-Readable Stories, Not Technical Logs
+**Wrong**: "event_type: dump.created at 14:23:45"  
+**Right**: "You added 'Marketing Strategy Q4.pdf' → AI is reading it now"
+
+### 2. Show Cause and Effect
+Every timeline entry should clearly show:
+- **Trigger**: What the user did (uploaded, wrote, asked)
+- **Process**: What the AI is doing (reading, analyzing, connecting)
+- **Outcome**: What the user got (new insights, connections found, document created)
+
+### 3. Use Consistent User-Facing Language
+Must match terminology from other pages exactly:
+- `dumps` → "Source Notes" or "uploads"
+- `context_items` → "Meanings" 
+- `blocks` → "Building Blocks"
+- `relationships` → "Connections"
+- `reflections` → "Reflections"
+- `documents` → "Documents"
+
+### 4. Group by User Intent, Not Technical IDs
+Events should be grouped by what the user was trying to accomplish, not by system IDs:
+- Group events within 30 seconds of a user action
+- Show the user action as the parent
+- Indent AI processing steps below
+
+### 5. Make It Actionable
+Every timeline item should answer: "What can I do with this?"
+- Failed? → Retry button
+- Completed? → View results link
+- Processing? → Show progress
+
+## Event Translation Guide
+
+### Technical Events → User Language
+This mapping ensures consistency across all timeline implementations:
+
+| Technical Event | User Sees | Example |
+|----------------|-----------|---------|
+| `dump.created` | "Added [source]" | "Added Marketing Strategy Q4.pdf" |
+| `dump.queued` | "Processing..." | "AI is reading your file..." |
+| `block.created` | "Found insight" | "Found insight: Q4 revenue targets" |
+| `context_item.created` | "Tagged concept" | "Tagged as 'Quarterly Planning'" |
+| `relationship.created` | "Connected ideas" | "Connected to your Annual Goals" |
+| `reflection.computed` | "Generated reflection" | "New reflection on growth patterns" |
+| `document.created` | "Created document" | "Created summary document" |
+| `queue.processing_started` | "AI started working" | "AI started analyzing..." |
+| `queue.processing_completed` | "Finished processing" | "✓ Analysis complete" |
+| `queue.processing_failed` | "Couldn't process" | "⚠️ Couldn't read file" |
+
+### Processing Chain Example
+Instead of showing individual technical events, group them into stories:
+
+**User sees:**
+```
+📄 You added "Product Roadmap.pdf" (2 minutes ago)
+  └─ 🤖 AI is analyzing the document...
+      ├─ ✓ Found 5 key concepts
+      ├─ ✓ Created 3 building blocks
+      ├─ ✓ Connected to your "Product Strategy" meaning
+      └─ View results →
+```
+
+**NOT:**
+```
+dump.created - dump_3fa2
+queue.entry_created - queue_8b5c
+block.created - block_9d2e
+context_item.created - ctx_4a1f
+relationship.created - rel_7c3d
+```
 
 ## Current State (Completed)
 

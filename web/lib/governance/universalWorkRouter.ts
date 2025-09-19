@@ -99,7 +99,9 @@ export async function routeWork(
         workspace_id: request.workspace_id,
         user_id: request.user_id,
         priority: priorityToInteger(request.priority),
-        processing_state: execution_mode === 'auto_execute' ? 'claimed' : 'pending',
+        processing_state: execution_mode === 'auto_execute' && AUTO_EXECUTABLE_WORK_TYPES.has(request.work_type)
+          ? 'claimed'
+          : 'pending',
         execution_mode, // may not exist on older schemas
         governance_policy: policy, // may not exist on older schemas
         created_at: new Date().toISOString()
@@ -121,7 +123,9 @@ export async function routeWork(
           workspace_id: request.workspace_id,
           user_id: request.user_id,
           priority: priorityToInteger(request.priority),
-          processing_state: execution_mode === 'auto_execute' ? 'claimed' : 'pending',
+          processing_state: execution_mode === 'auto_execute' && AUTO_EXECUTABLE_WORK_TYPES.has(request.work_type)
+            ? 'claimed'
+            : 'pending',
           created_at: new Date().toISOString()
         })
         .select('id')
@@ -139,9 +143,11 @@ export async function routeWork(
   // Non-null by here
   const workEntryId = work_id!;
   let proposal_id: string | undefined;
+  const AUTO_EXECUTABLE_WORK_TYPES = new Set(['MANUAL_EDIT']);
+  const canAutoExecute = execution_mode === 'auto_execute' && AUTO_EXECUTABLE_WORK_TYPES.has(request.work_type);
 
   // Handle execution based on mode
-  if (execution_mode === 'auto_execute') {
+  if (canAutoExecute) {
     // Execute immediately
     await supabase
       .from('agent_processing_queue')
@@ -169,6 +175,7 @@ export async function routeWork(
       throw e;
     }
   } else {
+    if (execution_mode !== 'auto_execute') {
     // Create proposal for review (schema-compatible)
     // Prefer canonical v2.2 schema; fallback to legacy (ops/proposal_kind/origin) if needed.
     const nowIso = new Date().toISOString();
@@ -227,8 +234,7 @@ export async function routeWork(
 
       proposal_id = (fallback.data as any).id;
     }
-  }
-
+    }
   return {
     work_id: workEntryId,
     routing_decision: execution_mode as any,
