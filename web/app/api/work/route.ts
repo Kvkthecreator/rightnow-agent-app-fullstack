@@ -25,15 +25,14 @@ import { createTimelineEmitter } from "@/lib/canon/TimelineEventEmitter";
 
 const WorkRequestSchema = z.object({
   work_type: z.enum([
-    'P0_CAPTURE',      // Raw dump capture
-    'P1_SUBSTRATE',    // AI substrate creation
-    'P2_GRAPH',        // Relationship mapping
-    'P3_REFLECTION',   // AI insights
-    'P4_COMPOSE_NEW',  // New document creation from memory
-    'P4_RECOMPOSE',    // Update existing document 
-    'MANUAL_EDIT',     // User substrate edits
-    'PROPOSAL_REVIEW', // Manual proposal review
-    'TIMELINE_RESTORE' // Historical restoration
+    'P0_CAPTURE',      // Raw dump capture (substrate - direct)
+    'P1_SUBSTRATE',    // AI substrate creation (substrate - governed)
+    'P2_GRAPH',        // Relationship mapping (substrate - governed)
+    'P3_REFLECTION',   // AI insights (artifact - but may use work queue for async processing)
+    'MANUAL_EDIT',     // User substrate edits (substrate - governed)
+    'PROPOSAL_REVIEW', // Manual proposal review (substrate - governed)
+    'TIMELINE_RESTORE' // Historical restoration (substrate - governed)
+    // P4_COMPOSE_NEW, P4_RECOMPOSE removed - now direct artifact operations via /api/documents
   ]),
   work_payload: z.object({
     operations: z.array(z.object({

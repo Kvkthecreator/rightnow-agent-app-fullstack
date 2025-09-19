@@ -166,44 +166,20 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
   const recomposeDocument = async () => {
     setSaving(true);
     try {
-      // Use P4_RECOMPOSE work type for existing document recomposition
-      const res = await fetch('/api/work', {
+      // Canon-Pure: Direct document recomposition (artifact operation, no governance)
+      const res = await fetch(`/api/documents/${document.id}/recompose`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          work_type: 'P4_RECOMPOSE',
-          work_payload: {
-            operations: [{
-              type: 'compose_from_memory',
-              data: {
-                document_id: document.id,
-                intent: 'Update document with latest memory',
-                narrative_sections: [],
-                substrate_references: [],
-                composition_context: { 
-                  intent: 'Recompose existing document with fresh substrate from memory',
-                  trace_id: crypto.randomUUID(),
-                  window: { days: 30 } // Default to last 30 days
-                }
-              }
-            }],
-            basket_id: basketId,
-            confidence_score: 0.9, // High confidence for user-initiated recomposition
-            user_override: 'allow_auto'
-          },
-          priority: 'normal'
+          intent: 'Update document with latest memory',
+          window_days: 30, // Default to last 30 days
+          pinned_ids: [] // Could be extended for UI pinning
         })
       });
       const data = await res.json();
-      if (!res.ok || !data?.work_id) throw new Error(data?.error || 'Recompose failed');
+      if (!res.ok) throw new Error(data?.error || 'Recompose failed');
       
-      // Store work status for tracking
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(`doc_${document.id}_work_id`, data.work_id);
-        sessionStorage.setItem(`doc_${document.id}_status_url`, data.status_url);
-      }
-      
-      // Refresh page to show composition status
+      // Refresh page to show recomposition status
       window.location.reload();
     } catch (e) {
       alert('Failed to recompose document');

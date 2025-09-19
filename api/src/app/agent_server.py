@@ -52,6 +52,7 @@ from .routes.narrative_jobs import router as narrative_jobs_router
 from .routes.phase1_routes import router as phase1_router
 from .routes.projection import router as projection_router
 from .routes.work_status import router as work_status_router
+from .routes.p4_composition import router as p4_composition_router
 from .api.validator.validate_proposal import router as validator_router
 
 
@@ -117,6 +118,7 @@ routers = (
     auth_health_router,
     health_router,
     work_status_router,
+    p4_composition_router,
     validator_router,
 )
 
