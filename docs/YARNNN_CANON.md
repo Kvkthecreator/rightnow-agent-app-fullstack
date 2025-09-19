@@ -15,9 +15,25 @@ Yarnnn is a **memory-first cognitive system** that captures human thought as imm
 
 ### The Three Governance Principles (v2.2)
 
-1. **Universal Governance** - ALL substrate mutations flow through governance framework
-2. **User-Controlled Execution Mode** - Users control execution policy via governance flags
+1. **Substrate-Only Governance** - ALL substrate mutations flow through governance framework
+2. **User-Controlled Execution Mode** - Users control execution policy via governance flags  
 3. **Confidence-Informed Routing** - Confidence scores inform routing within governance modes
+
+### 🚨 CRITICAL: Governance Scope Boundaries
+
+**GOVERNED (Substrate Layer - Memory):**
+- `raw_dumps` creation (P0 - direct only, no proposals)
+- `context_blocks` mutations (P1 - via proposals)
+- `context_items` mutations (P1 - via proposals)
+- `timeline_events` (system controlled)
+
+**INDEPENDENT (Artifact Layer - Expression):**
+- `documents` - Direct CRUD, free user editing
+- `reflections` - Direct computation from substrate
+- `substrate_references` - Document-substrate metadata linking
+- All artifact analytics and composition stats
+
+**Canon Violation**: Forcing artifacts through substrate governance breaks the sacred substrate/artifact separation.
 
 ## 🎯 Conceptual Model
 
@@ -109,12 +125,13 @@ New raw_dumps + Existing substrate → Agent Analysis → Governance Proposal �
 - Governance decisions audited in timeline
 - Single source of truth: the substrate tables
 
-### 5. Universal Work Orchestration (v2.2)
-- **Universal Endpoint**: `POST /api/work` - ALL substrate mutations flow through here
-- **Work Types**: P0_CAPTURE, P1_SUBSTRATE, P2_GRAPH, P3_REFLECTION, P4_COMPOSE, MANUAL_EDIT, PROPOSAL_REVIEW, TIMELINE_RESTORE
-- **Governance Integration**: Every work request evaluated against workspace governance policies
-- **No Direct Substrate Writes** - All operations must flow through universal orchestration
-- **Status Visibility**: Complete traceability from user action through governance to completion
+### 5. Substrate Work Orchestration (v2.3)
+- **Substrate Endpoint**: `POST /api/work` - Substrate mutations flow through governance
+- **Substrate Work Types**: P0_CAPTURE, P1_SUBSTRATE, P2_GRAPH, P3_REFLECTION, MANUAL_EDIT, PROPOSAL_REVIEW, TIMELINE_RESTORE
+- **Artifact Work Types**: P4_COMPOSE_NEW, P4_RECOMPOSE (document operations)
+- **Governance Integration**: Substrate work evaluated against workspace governance policies
+- **Direct Artifact Operations** - Documents, reflections operate independently via dedicated endpoints
+- **Status Visibility**: Complete traceability for substrate mutations, simple REST for artifacts
 
 ### Governance Architecture Detail
 
@@ -367,25 +384,42 @@ interface WorkTypePolicy {
 
 ### Sacred Principles Enforcement
 
-1. **Universal Governance**: No direct substrate endpoints exist - all flow through `/api/work`
-2. **User Control**: Governance policies are user-configurable per workspace
-3. **Confidence Integration**: AI confidence informs routing but doesn't override governance
+1. **Substrate-Only Governance**: No direct substrate endpoints exist - substrate mutations flow through `/api/work`
+2. **Artifact Independence**: Documents and reflections use direct REST endpoints (`/api/documents`, `/api/reflections`)
+3. **User Control**: Governance policies are user-configurable per workspace for substrate operations only
+4. **Confidence Integration**: AI confidence informs substrate routing but doesn't override governance
 
-### Eliminated Dual Approaches
+### Canon-Pure Patterns (v2.3)
 
-**DELETED Legacy Patterns:**
-- Direct block creation: `/api/context-blocks/create` → Use universal work
-- Direct block updates: `/api/context-blocks/update` → Use universal work  
-- Entry-point governance → Work-type governance
-- Confidence-only routing → Confidence within governance modes
+**SUBSTRATE OPERATIONS (Governed):**
+- Substrate mutations: `/api/work` → governance → substrate tables
+- Work types: P0_CAPTURE, P1_SUBSTRATE, P2_GRAPH, P3_REFLECTION, MANUAL_EDIT
+
+**ARTIFACT OPERATIONS (Independent):**
+- Document CRUD: `/api/documents` → direct → documents table
+- Document composition: P4 agents → direct → document updates
+- Reflection generation: `/api/reflections` → direct → reflections table
+- Analytics: Direct queries to composition_stats, substrate_references
+
+**ELIMINATED Canon Violations:**
+- Document creation through governance ❌ → Direct REST endpoints ✅
+- Reflection proposals ❌ → Direct computation ✅  
+- Universal governance for artifacts ❌ → Substrate-only governance ✅
 
 ---
 
 ## Version Lock
 
-- Canon version: **v2.2**  
-- Frozen as of: **2025-01-07**  
+- Canon version: **v2.3**  
+- Frozen as of: **2025-01-19**  
 - Update policy: Do not edit in place. Amendments require a new canon version.
+
+### v2.3.0 Changes (Clarification & Canon Purity)
+- **Substrate/Artifact Separation**: Clarified governance applies ONLY to substrate layer
+- **Artifact Independence**: Documents and reflections operate via direct REST, not governance
+- **Canon-Pure Boundaries**: Eliminated universal governance violation of artifact autonomy
+- **P4 Reclassification**: Document composition moved from governance to direct artifact operations
+- **Documentation Hardening**: Crystal clear boundaries prevent future canon violations
 
 ### v2.2.0 Changes (Revolutionary)
 - **Universal Work Orchestration**: ALL substrate mutations flow through single governance pipeline

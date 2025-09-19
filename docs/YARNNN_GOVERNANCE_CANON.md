@@ -6,9 +6,31 @@ This document consolidates governance architecture, workspace settings policy, a
 
 ## Sacred Principles
 
-**Governance Sacred Principle #1**: All pure substrate mutations flow through governed proposals
-**Governance Sacred Principle #2**: Proposals target substrates only - artifacts are generated separately
-**Governance Sacred Principle #3**: Agent validation is mandatory for substrate proposals only  
+**Governance Sacred Principle #1**: All substrate mutations flow through governed proposals
+**Governance Sacred Principle #2**: Proposals target substrates only - artifacts operate independently
+**Governance Sacred Principle #3**: Agent validation is mandatory for substrate proposals only
+
+## 🚨 CRITICAL: Substrate vs Artifact Governance Boundaries
+
+### SUBSTRATE LAYER (Governed Operations)
+**Memory Layer - ALL operations require governance routing:**
+- `raw_dumps` - P0 capture (direct only, no proposals per canon)
+- `context_blocks` - CREATE/UPDATE/REVISE/MERGE via proposals
+- `context_items` - CREATE/UPDATE/MERGE via proposals  
+- `timeline_events` - System events (append-only, controlled)
+
+### ARTIFACT LAYER (Independent Operations)
+**Expression Layer - NO governance required:**
+- `documents` - Direct CRUD operations, free user editing
+- `reflections` - Direct generation from substrate, computed insights
+- `substrate_references` - Document-substrate linking (metadata only)
+- `document_composition_stats` - Analytics and metrics
+
+### CANON-BREAKING PATTERNS TO ELIMINATE
+❌ **Document creation through governance** - Documents are artifacts
+❌ **Document editing through proposals** - User edits are free per canon
+❌ **Reflection creation through governance** - Reflections are computed artifacts
+❌ **Universal governance for all operations** - Violates substrate/artifact separation  
 
 ## 🏛️ Governance Architecture
 
