@@ -87,10 +87,13 @@ export async function routeWork(
 
   // Create work entry in canonical queue (with backward‑compat fallbacks)
   let work_id: string | null = null;
+  const workId = crypto.randomUUID();
   {
     const { data, error } = await supabase
       .from('agent_processing_queue')
       .insert({
+        id: workId,
+        work_id: workId,
         work_type: request.work_type,
         work_payload: request.work_payload,
         workspace_id: request.workspace_id,
@@ -111,6 +114,8 @@ export async function routeWork(
       const retry = await supabase
         .from('agent_processing_queue')
         .insert({
+          id: workId,
+          work_id: workId,
           work_type: request.work_type,
           work_payload: request.work_payload,
           workspace_id: request.workspace_id,
