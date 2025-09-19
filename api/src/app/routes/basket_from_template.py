@@ -90,17 +90,21 @@ async def create_from_template(payload: TemplatePayload, user: dict = Depends(ve
 
     if payload.guidelines and payload.guidelines.strip():
         try:
-            supabase.rpc('fn_context_item_upsert_bulk', {
-                "p_items": [
+            supabase.table("context_items").insert(
+                json_safe(
                     {
                         "basket_id": basket_id,
                         "type": "guideline",
                         "content": payload.guidelines,
                         "title": None,
                         "description": None,
+                        "metadata": {"source": "template_guideline"},
+                        "normalized_label": None,
+                        "state": "ACTIVE",
+                        "status": "active",
                     }
-                ]
-            }).execute()
+                )
+            ).execute()
         except Exception:
             log.exception("context item insert failed")
             raise HTTPException(status_code=500, detail="internal error")

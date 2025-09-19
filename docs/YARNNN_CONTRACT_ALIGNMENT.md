@@ -133,21 +133,25 @@ await supabase.from('context_items').insert({
 });
 
 // After
-await supabase.rpc('fn_context_item_upsert_bulk', {
-  p_items: [{
-    kind: 'theme',
-    label: 'Product roadmap'
-  }]
-});
+await supabase
+  .from('context_items')
+  .insert({
+    type: 'theme',
+    title: 'Product roadmap',
+    content: 'Product roadmap',
+    normalized_label: 'product roadmap',
+    state: 'ACTIVE',
+    status: 'active',
+  });
 ```
 
 ## ✅ Validation
 
 After alignment, these should all match:
 1. TypeScript interfaces in `/shared/contracts`
-2. RPC function parameter names
+2. Insert payloads used by backend services
 3. Frontend component prop usage
-4. Agent service calls
+4. Agent/service calls
 
 ## 🎯 End Goal
 

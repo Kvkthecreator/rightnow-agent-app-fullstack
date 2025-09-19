@@ -22,22 +22,33 @@ async def create_item(
     workspace=Depends(get_or_create_workspace),
 ):
     try:
-        resp = supabase.rpc('fn_context_item_upsert_bulk', {
-            "p_items": [
-                {
-                    "basket_id": str(workspace.basket_id),
-                    "type": body.type,
-                    "content": body.content,
-                    "title": body.title,
-                    "description": body.description,
-                }
-            ]
-        }).execute()
+        metadata = body.composition_metadata or {}
+        label = body.title or metadata.get("label") or body.content[:50]
+        payload = {
+            "basket_id": str(workspace.basket_id),
+            "type": body.type,
+            "content": body.content,
+            "title": body.title,
+            "description": body.description,
+            "metadata": metadata,
+            "normalized_label": label.lower() if label else None,
+            "state": "ACTIVE",
+            "status": "active",
+            "confidence_score": body.confidence,
+        }
+        resp = supabase.table("context_items").insert(payload).execute()
     except Exception as err:  # pragma: no cover - network failure
         log.exception("context item insert failed")
         raise HTTPException(status_code=500, detail="internal error") from err
     raise_on_supabase_error(resp)
-    ctx_id = resp.data
+    ctx_id = None
+    if resp.data:
+        ctx_id = resp.data[0].get("id") if isinstance(resp.data, list) else resp.data.get("id")
+
+    if not ctx_id:
+        record = resp.data[0] if resp.data else {}
+        return ContextItem(**record)
+
     record_resp = (
         supabase.table("context_items")
         .select("*")

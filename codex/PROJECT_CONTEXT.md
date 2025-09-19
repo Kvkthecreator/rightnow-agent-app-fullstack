@@ -32,7 +32,7 @@ Agents run as workers that poll a database-backed queue and write via RPCs with 
 - Queue: `agent_processing_queue` populated by a trigger on `raw_dumps` inserts
 - Workers: `api/src/services/agent_queue_processor.py` uses a Supabase service-role client (no DATABASE_URL)
 - Pipelines: P0 (capture) → P1 (substrate) → P2 (graph) → P3 (signals) → P4 (presentation)
-- Allowed RPCs: P0 `fn_ingest_dumps`; P1 `fn_block_create`, `fn_block_revision_create`, `fn_context_item_upsert_bulk`; P2 `fn_relationship_upsert_bulk`; P4 document RPCs
+- Allowed RPCs: P0 `fn_ingest_dumps`; P1 `fn_block_create`, `fn_block_revision_create` (context items inserted directly); P2 `fn_relationship_upsert_bulk`; P4 document RPCs
 - Events: mutations emit `timeline_events`; UI mirrors server state and never synthesizes substrate
 
 🖥️ Vercel (Frontend) Service

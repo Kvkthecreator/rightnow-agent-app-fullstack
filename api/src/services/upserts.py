@@ -1,9 +1,28 @@
 # ruff: noqa
 
 async def upsert_context_items(db, items):
-    await db.rpc('fn_context_item_upsert_bulk', {
-        "p_items": items,
-    })
+    if not items:
+        return
+
+    prepared = []
+    for item in items:
+        metadata = item.get("metadata") or {}
+        label = item.get("title") or metadata.get("label") or item.get("content") or ""
+        normalized_label = label.lower() if isinstance(label, str) else None
+        prepared.append({
+            "basket_id": item.get("basket_id"),
+            "type": item.get("type") or metadata.get("kind") or "concept",
+            "title": label,
+            "content": item.get("content"),
+            "description": item.get("description"),
+            "metadata": metadata,
+            "normalized_label": normalized_label,
+            "state": "ACTIVE",
+            "status": "active",
+            "confidence_score": item.get("confidence") or metadata.get("confidence"),
+        })
+
+    await db.table('context_items').insert(prepared).execute()
 
 async def upsert_relationships(db, edges):
     for e in edges:

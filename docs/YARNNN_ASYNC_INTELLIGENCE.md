@@ -206,19 +206,22 @@ async def extract_context_items(self, dump):
     # Entity recognition
     entities = await self.extractor.extract_entities(dump['body_md'])
     
-    # Bulk create via RPC
+    # Bulk create via direct insert (service role)
     if entities:
-        await self.supabase.rpc('fn_context_item_upsert_bulk', {
-            'p_basket_id': dump['basket_id'],
-            'p_items': [
-                {
-                    'kind': e.type,
-                    'label': e.name,
-                    'metadata': e.metadata
-                }
-                for e in entities
-            ]
-        }).execute()
+        payload = [
+            {
+                'basket_id': dump['basket_id'],
+                'type': e.type,
+                'title': e.name,
+                'content': e.name,
+                'metadata': e.metadata,
+                'normalized_label': e.name.lower(),
+                'state': 'ACTIVE',
+                'status': 'active'
+            }
+            for e in entities
+        ]
+        await self.supabase.table('context_items').insert(payload).execute()
     
     return entities
 ```

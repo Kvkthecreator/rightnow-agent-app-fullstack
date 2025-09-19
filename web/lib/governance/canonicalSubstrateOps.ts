@@ -85,50 +85,28 @@ export async function createContextItemCanonical(
 
   metadata.synonyms = synonyms;
 
-  const { data, error } = await supabase.rpc('fn_context_item_upsert_bulk', {
-    p_items: [
-      {
-        basket_id: basketId,
-        type: op.kind || metadata.kind || 'concept',
-        title: label,
-        content,
-        description: metadata.description || null,
-        metadata,
-      },
-    ],
-  });
-
-  if (error) {
-    throw new Error(`fn_context_item_upsert_bulk failed: ${error.message}`);
-  }
-
-  let contextItemId = Array.isArray(data) ? data[0] : data;
-  if (contextItemId && typeof contextItemId === 'object') {
-    const values = Object.values(contextItemId);
-    contextItemId = values[0] as string | undefined;
-  }
-  if (!contextItemId) {
-    throw new Error('fn_context_item_upsert_bulk returned no context item id');
-  }
-
-  const { data: updateData, error: updateError } = await supabase
+  const { data, error } = await supabase
     .from('context_items')
-    .update({
+    .insert({
+      basket_id: basketId,
+      type: op.kind || metadata.kind || 'concept',
+      title: label,
+      content,
+      description: metadata.description || null,
+      metadata,
       normalized_label: normalizedLabel,
       confidence_score: confidence,
-      metadata,
-      content,
       state: 'ACTIVE',
+      status: 'active',
     })
-    .eq('id', contextItemId)
     .select('*')
     .single();
 
-  if (updateError) {
-    throw new Error(`Failed to finalize context item ${contextItemId}: ${updateError.message}`);
+  if (error || !data) {
+    throw new Error(`context_items insert failed: ${error?.message ?? 'unknown error'}`);
   }
 
-  return { created_id: updateData.id, type: 'context_item' };
+  return { created_id: data.id, type: 'context_item' };
 }
 
 function sanitizeForJson<T>(value: T): T {

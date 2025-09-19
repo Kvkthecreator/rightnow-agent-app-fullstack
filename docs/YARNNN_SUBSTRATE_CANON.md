@@ -118,7 +118,7 @@ interface Proposal {
 | Pipeline | Allowed RPCs |
 |---|---|
 | P0 | `fn_ingest_dumps` |
-| P1 | `fn_context_item_upsert_bulk`, `fn_block_create`, `fn_block_revision_create`, `fn_proposal_create`, `fn_proposal_approve`, `fn_proposal_reject` |
+| P1 | context_items direct inserts (service role), `fn_block_create`, `fn_block_revision_create`, `fn_proposal_create`, `fn_proposal_approve`, `fn_proposal_reject` |
 | P2 | `fn_relationship_upsert_bulk` |
 | P3 | *(none)* `fn_reflection_cache_upsert` *(optional)* |
 | P4 | `fn_document_create`, `fn_document_attach_block`, `fn_document_attach_context_item` |

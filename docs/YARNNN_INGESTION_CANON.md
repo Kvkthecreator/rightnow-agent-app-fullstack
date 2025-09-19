@@ -40,7 +40,7 @@ Capture → `/api/dumps/new` → `fn_ingest_dumps` → `raw_dumps`
 **Governance Integration** (New):
 → P1 Substrate Agent extracts structured knowledge (goals, constraints, metrics, entities) → creates proposals via `fn_proposal_create`
 → governance review → `fn_proposal_approve` → commits substrate operations
-→ each approval calls substrate RPCs: `fn_block_create` (with knowledge_ingredients), `fn_context_item_upsert_bulk`, etc.
+→ each approval inserts blocks and context items directly through service-role clients (`blocks`, `context_items`), respecting substrate equality.
 
 **Manual Substrate Path** (New):
 User intent → agent validation → `fn_proposal_create` → governance → substrate commitment
@@ -61,7 +61,7 @@ Clients may include additional trace/context fields inside `meta` (e.g., `meta.c
 
 ## RPCs
 - `fn_ingest_dumps`, `fn_reflection_cache_upsert` (optional), `fn_document_create`, `fn_block_create`,
-  `fn_block_revision_create`, `fn_context_item_upsert_bulk`, `fn_relationship_upsert_bulk`.
+  `fn_block_revision_create`, `fn_relationship_upsert_bulk`.
 
 ## Tests
 - Replaying the same `dump_request_id` returns the same `dump_id` and **exactly one** timeline `dump`.
