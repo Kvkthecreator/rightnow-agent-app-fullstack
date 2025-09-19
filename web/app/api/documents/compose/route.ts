@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { createTestAwareClient, getTestAwareAuth } from "@/lib/auth/testHelpers";
 import { createServiceRoleClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceForUser } from "@/lib/workspaces/ensureWorkspaceForUser";
+import { apiFetch } from "@/lib/server/http";
 import { z } from "zod";
 
 /**
@@ -92,12 +93,8 @@ export async function POST(req: NextRequest) {
 
     // Trigger P4 composition asynchronously (direct agent call, not governance)
     try {
-      const compositionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/agents/p4-composition`, {
+      const compositionResponse = await apiFetch('/api/agents/p4-composition', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
-        },
         body: JSON.stringify({
           document_id,
           basket_id,
