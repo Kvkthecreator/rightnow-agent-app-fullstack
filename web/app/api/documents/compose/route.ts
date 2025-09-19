@@ -93,28 +93,11 @@ export async function POST(req: NextRequest) {
 
     // Trigger P4 composition asynchronously (direct agent call, not governance)
     try {
-      // Get user's access token from the Supabase session
-      const { data: { session } } = await supabase.auth.getSession();
-      const userToken = session?.access_token;
-      
-      if (!userToken) {
-        console.warn('No user token available for P4 composition');
-        return NextResponse.json({
-          success: true,
-          document_id,
-          title,
-          status: 'composing',
-          composition_started: false,
-          message: 'Document created but composition could not be started - please refresh page'
-        }, { status: 201 });
-      }
-
       const compositionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/agents/p4-composition`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userToken}`,
-          'sb-access-token': userToken
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
         },
         body: JSON.stringify({
           document_id,
