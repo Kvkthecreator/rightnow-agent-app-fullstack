@@ -157,7 +157,7 @@ Example response:
 
         response = await self.llm.get_json_response(
             prompt,
-            temperature=0.3,
+            temperature=1.0,  # Use default temperature for model compatibility
             schema_name="p4_intent_strategy",
         )
         
@@ -318,7 +318,7 @@ Example:
 
         response = await self.llm.get_json_response(
             scoring_prompt,
-            temperature=0.4,
+            temperature=1.0,  # Use default temperature for model compatibility
             schema_name="p4_scoring_selection",
         )
         
@@ -412,7 +412,7 @@ Example:
 
         response = await self.llm.get_json_response(
             narrative_prompt,
-            temperature=0.6,
+            temperature=1.0,  # Use default temperature for model compatibility
             schema_name="p4_narrative_structure",
         )
         
@@ -553,7 +553,7 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
         try:
             response = await self.llm.get_text_response(
                 content_prompt,
-                temperature=0.7,
+                temperature=1.0,  # Use default temperature for model compatibility
                 max_tokens=800
             )
             return response.strip()
