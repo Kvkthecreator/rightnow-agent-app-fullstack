@@ -1,6 +1,12 @@
 import os
 import logging
-from supabase import create_client, Client
+from typing import Any
+
+try:  # pragma: no cover - tolerate minimal supabase builds in tests
+    from supabase import create_client, Client  # type: ignore
+except ImportError:  # pragma: no cover
+    from supabase import create_client  # type: ignore
+    Client = Any  # type: ignore
 
 log = logging.getLogger("uvicorn.error")
 

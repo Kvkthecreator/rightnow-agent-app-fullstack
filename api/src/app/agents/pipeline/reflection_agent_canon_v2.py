@@ -12,6 +12,7 @@ Sacred Rules:
 
 from typing import Optional, List, Dict, Any
 from uuid import UUID
+import hashlib
 import logging
 from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
@@ -69,12 +70,15 @@ class CanonP3ReflectionAgent:
             # CANON STEP 2: Get graph window (context_items + relationships touching text window)
             graph_window = self._get_graph_window(request.basket_id, text_window)
             
+            # Canon: Collect substrate ids for idempotent storage
+            substrate_ids = sorted({str(dump.get("id")) for dump in text_window if dump.get("id")})
+
             # CANON STEP 3: Compute reflection artifact from windows
             reflection_artifact = self._compute_reflection_artifact(text_window, graph_window)
-            
+
             # CANON STEP 4: Store artifact (not substrate mutation)
-            self._store_reflection_artifact(request, reflection_artifact)
-            
+            self._store_reflection_artifact(request, reflection_artifact, substrate_ids)
+
             return ReflectionComputationResult(
                 workspace_id=str(request.workspace_id),
                 basket_id=str(request.basket_id),
@@ -244,7 +248,12 @@ class CanonP3ReflectionAgent:
         
         return themes
     
-    def _store_reflection_artifact(self, request: ReflectionComputationRequest, reflection: Dict[str, Any]):
+    def _store_reflection_artifact(
+        self,
+        request: ReflectionComputationRequest,
+        reflection: Dict[str, Any],
+        substrate_ids: List[str],
+    ):
         """Canon: Store as artifact, never mutate substrate
 
         Tries in order (first that succeeds wins):
@@ -256,12 +265,20 @@ class CanonP3ReflectionAgent:
         ws_id = str(request.workspace_id)
         b_id = str(request.basket_id)
 
+        # Normalize substrate ids for stable hashing
+        normalized_ids = [sid for sid in substrate_ids if sid]
+
         # Try newer RPC (basket_id, substrate_ids, text, method)
         try:
             # Minimal substrate ids window: not mandatory for smoke
             resp = supabase.rpc(
                 'fn_reflection_create_from_substrate',
-                { 'p_basket_id': b_id, 'p_substrate_ids': [], 'p_reflection_text': payload_text, 'p_computation_method': 'canon_window_analysis' }
+                {
+                    'p_basket_id': b_id,
+                    'p_substrate_ids': normalized_ids,
+                    'p_reflection_text': payload_text,
+                    'p_computation_method': 'canon_window_analysis'
+                }
             ).execute()
             if getattr(resp, 'data', None):
                 self.logger.info("Canon P3: stored via RPC (new signature)")
@@ -283,15 +300,17 @@ class CanonP3ReflectionAgent:
 
         # Fallback: direct minimal insert (no ON CONFLICT)
         try:
+            hash_input = ','.join(normalized_ids) if normalized_ids else b_id
+            substrate_hash = f"substrate_{hashlib.sha256(hash_input.encode('utf-8')).hexdigest()}"
             minimal = {
                 "workspace_id": ws_id,
                 "basket_id": b_id,
                 "reflection_text": payload_text,
                 "reflection_target_type": "substrate",
                 "computation_timestamp": datetime.utcnow().isoformat(),
-                "substrate_hash": f"substrate_{b_id}",
+                "substrate_hash": substrate_hash,
                 "meta": {
-                    "substrate_elements": reflection.get("substrate_elements", 0),
+                    "substrate_elements": len(normalized_ids) or reflection.get("substrate_elements", 0),
                     "graph_elements": reflection.get("graph_elements", 0),
                     "computation_method": reflection.get("computation_method", "canon_window_analysis"),
                 },

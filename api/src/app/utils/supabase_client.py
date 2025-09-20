@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 import os
-from supabase import create_client, Client
+from typing import Any
+
+try:  # pragma: no cover - guard for slim supabase client builds
+    from supabase import create_client, Client  # type: ignore
+except ImportError:  # pragma: no cover - fallback for test environments
+    from supabase import create_client  # type: ignore
+    Client = Any  # type: ignore
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")

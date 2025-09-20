@@ -20,7 +20,45 @@ for name in ("supabase", "supabase_py", "asyncpg"):
     if name not in sys.modules:
         mod = _stub(name)
         if name == "supabase":
-            mod.create_client = lambda *a, **k: None
+            class _SupabaseStub:
+                def __init__(self):
+                    self.postgrest = types.SimpleNamespace(auth=lambda *args, **kwargs: None)
+
+                # Fluent interface used by tests; return self for chaining
+                def table(self, *args, **kwargs):
+                    return self
+
+                def select(self, *args, **kwargs):
+                    return self
+
+                def insert(self, *args, **kwargs):
+                    return self
+
+                def update(self, *args, **kwargs):
+                    return self
+
+                def eq(self, *args, **kwargs):
+                    return self
+
+                def single(self, *args, **kwargs):
+                    return self
+
+                def order(self, *args, **kwargs):
+                    return self
+
+                def limit(self, *args, **kwargs):
+                    return self
+
+                def in_(self, *args, **kwargs):
+                    return self
+
+                def rpc(self, *args, **kwargs):
+                    return self
+
+                def execute(self, *args, **kwargs):
+                    return types.SimpleNamespace(data=[], error=None)
+
+            mod.create_client = lambda *a, **k: _SupabaseStub()
         if name == "asyncpg":
             mod.Pool = type("Pool", (), {})
             mod.create_pool = lambda *a, **k: None
