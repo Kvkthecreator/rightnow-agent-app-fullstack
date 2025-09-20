@@ -246,7 +246,6 @@ Example response:
         if strategy["substrate_priorities"].get("relationships", True):
             relationships_response = supabase.table("substrate_relationships").select("*")\
                 .eq("basket_id", request.basket_id)\
-                .eq("state", "ACTIVE")\
                 .execute()
             
             for relationship in relationships_response.data:
