@@ -4,6 +4,7 @@ Integrates ImprovedP1SubstrateAgent with governance workflow for quality substra
 """
 
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from uuid import UUID, uuid4
@@ -12,6 +13,31 @@ from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgen
 from app.utils.supabase_client import supabase_admin_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
+
+
+@dataclass
+class SubstrateCandidate:
+    """Structured representation of extracted substrate prior to proposal creation."""
+
+    type: str
+    content: Optional[str] = None
+    semantic_type: Optional[str] = None
+    label: Optional[str] = None
+    confidence: float = 0.7
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class GovernanceProposal:
+    """Lightweight governance proposal descriptor used for testing and planning."""
+
+    basket_id: UUID
+    workspace_id: UUID
+    ops: List[Dict[str, Any]]
+    provenance: List[UUID] = field(default_factory=list)
+    confidence: float = 0.0
+    proposal_kind: str = "Extraction"
+    origin: str = "agent"
 
 
 def _sanitize_for_json(value: Any) -> Any:
@@ -735,19 +761,43 @@ class GovernanceDumpProcessor:
                             "status": "active"
                         })
 
-                        insert_resp = (
-                            supabase
-                            .table("context_items")
-                            .insert(context_payload)
-                            .execute()
-                        )
+                        context_id: Optional[str] = None
+                        duplicate_detected = False
 
-                        if getattr(insert_resp, "error", None):
-                            raise RuntimeError(f"context item insert failed: {insert_resp.error}")
+                        try:
+                            insert_resp = (
+                                supabase
+                                .table("context_items")
+                                .insert(context_payload)
+                                .execute()
+                            )
 
-                        context_id = None
-                        if insert_resp.data:
-                            context_id = insert_resp.data[0].get("id") if isinstance(insert_resp.data, list) else insert_resp.data.get("id")
+                            if getattr(insert_resp, "error", None):
+                                error_payload = insert_resp.error
+                                error_text = str(error_payload)
+                                error_code = (
+                                    error_payload.get("code")
+                                    if isinstance(error_payload, dict)
+                                    else getattr(error_payload, "code", "")
+                                )
+                                if (error_code == "23505" or "duplicate key value" in error_text):
+                                    duplicate_detected = True
+                                else:
+                                    raise RuntimeError(f"context item insert failed: {error_payload}")
+
+                            if not duplicate_detected and insert_resp.data:
+                                if isinstance(insert_resp.data, list):
+                                    context_id = insert_resp.data[0].get("id")
+                                else:
+                                    context_id = insert_resp.data.get("id")
+
+                        except Exception as insert_error:
+                            error_code = getattr(insert_error, "code", "")
+                            error_text = str(insert_error)
+                            if "23505" in error_text or "duplicate key value" in error_text or error_code == "23505":
+                                duplicate_detected = True
+                            else:
+                                raise
 
                         if not context_id:
                             lookup_resp = (
@@ -755,21 +805,23 @@ class GovernanceDumpProcessor:
                                 .table("context_items")
                                 .select("id")
                                 .eq("basket_id", str(basket_id))
+                                .eq("type", kind_value)
                                 .eq("normalized_label", normalized_label)
                                 .order("created_at", desc=True)
                                 .limit(1)
                                 .execute()
                             )
-                            if lookup_resp.data:
+                            if getattr(lookup_resp, "data", None):
                                 context_id = lookup_resp.data[0].get("id")
 
                         if not context_id:
                             raise RuntimeError("context item insert returned no id")
 
                         executed_operations.append({
-                            "type": "CreateContextItem", 
+                            "type": "CreateContextItem",
                             "success": True,
-                            "created_id": context_id
+                            "created_id": context_id,
+                            "duplicate": duplicate_detected
                         })
                     
                     else:
@@ -788,20 +840,46 @@ class GovernanceDumpProcessor:
                 "executed": executed_operations,
                 "success_count": len([op for op in executed_operations if op.get("success")])
             }
-            execution_payload = _sanitize_for_json({
-                "proposal_id": str(proposal_id),
-                "operations_count": len(ops),
-                "operations_summary": execution_summary
-            })
 
-            if self._execution_logging_enabled:
+            if self._execution_logging_enabled and executed_operations:
+                execution_rows: List[Dict[str, Any]] = []
+                sanitized_summary = _sanitize_for_json(execution_summary)
+
+                for index, op_result in enumerate(executed_operations):
+                    op_type = op_result.get("type") or "unknown"
+                    success = bool(op_result.get("success"))
+                    result_data = {
+                        k: v for k, v in op_result.items()
+                        if k not in {"type", "success", "error"}
+                    } or {}
+
+                    row: Dict[str, Any] = {
+                        "proposal_id": str(proposal_id),
+                        "operation_index": index,
+                        "operation_type": op_type,
+                        "success": success,
+                        "result_data": _sanitize_for_json(result_data),
+                        "error_message": op_result.get("error"),
+                    }
+
+                    created_id = op_result.get("created_id")
+                    if created_id:
+                        row["substrate_id"] = str(created_id)
+
+                    # Only attach aggregate metadata on the first row to reduce duplication
+                    if index == 0:
+                        row["operations_count"] = len(ops)
+                        row["operations_summary"] = sanitized_summary
+
+                    execution_rows.append(row)
+
                 try:
-                    exec_resp = supabase.table("proposal_executions").insert(execution_payload).execute()
+                    exec_resp = supabase.table("proposal_executions").insert(_sanitize_for_json(execution_rows)).execute()
                     if getattr(exec_resp, "error", None):
                         raise RuntimeError(exec_resp.error)
                 except Exception as exec_error:
                     error_text = str(exec_error)
-                    if "operations_count" in error_text or "operations_summary" in error_text:
+                    if "operation_index" in error_text:
                         self._execution_logging_enabled = False
                     self.logger.warning(
                         "Failed to persist proposal execution summary for proposal %s: %s",

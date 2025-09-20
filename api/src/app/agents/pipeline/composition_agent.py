@@ -280,11 +280,22 @@ Example response:
             return []
         
         # Prepare candidates for LLM scoring
+        def _preview_content(value: Any, limit: int = 500) -> str:
+            if value is None:
+                return ""
+            if isinstance(value, str):
+                return value[:limit]
+            try:
+                return json.dumps(value)[:limit]
+            except (TypeError, ValueError):
+                return str(value)[:limit]
+
+        metadata_keys = {"semantic_type", "confidence_score", "kind", "relationship_type"}
         candidates_text = "\n\n".join([
-            f"[{i}] Type: {c['type']}\n"
-            f"Content: {c['content'][:500]}...\n"
-            f"Created: {c['created_at']}\n"
-            f"Metadata: {json.dumps({k: v for k, v in c.get('metadata', {}).items() if k in ['semantic_type', 'confidence_score', 'kind']})}"
+            f"[{i}] Type: {c.get('type', 'unknown')}\n"
+            f"Content: {_preview_content(c.get('content'))}...\n"
+            f"Created: {c.get('created_at', 'unknown')}\n"
+            f"Metadata: {json.dumps({k: v for k, v in c.get('metadata', {}).items() if k in metadata_keys})}"
             for i, c in enumerate(candidates[:30])  # Limit to prevent context overflow
         ])
         
@@ -555,11 +566,22 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                 temperature=1.0,  # Use default temperature for model compatibility
                 max_tokens=800
             )
-            return response.strip()
         except Exception as e:
             logger.warning(f"Failed to generate section content: {e}")
-            # Fallback to basic content
             return section.get('content', 'Content generation failed.')
+
+        if not response.success:
+            logger.warning(
+                "LLM section generation returned unsuccessful response: %s",
+                response.error or "unknown error",
+            )
+            return section.get('content', 'Content generation failed.')
+
+        generated = response.content.strip()
+        if not generated:
+            return section.get('content', 'Content generation failed.')
+
+        return generated
     
     async def _compose_document(
         self,
