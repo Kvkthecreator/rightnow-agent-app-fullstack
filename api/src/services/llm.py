@@ -172,6 +172,7 @@ def _p4_schema(name: str) -> Optional[Dict[str, Any]]:
                 "organization",
                 "tone",
                 "confidence",
+                "original_intent",
             ],
             "additionalProperties": False,
         }
