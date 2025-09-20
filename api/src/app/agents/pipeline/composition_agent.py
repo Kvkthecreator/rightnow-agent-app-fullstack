@@ -139,6 +139,7 @@ Provide a JSON strategy with:
 4. organization: How to organize the document ("chronological", "thematic", "priority", "categorical")
 5. tone: The appropriate tone ("analytical", "narrative", "instructional", "reflective")
 6. confidence: 0.0-1.0 confidence in understanding the intent
+7. original_intent: The user's original intent (exactly as provided)
 
 Example response:
 {{
@@ -152,7 +153,8 @@ Example response:
   }},
   "organization": "thematic",
   "tone": "analytical",
-  "confidence": 0.85
+  "confidence": 0.85,
+  "original_intent": "Create comprehensive project timeline"
 }}"""
 
         response = await self.llm.get_json_response(
@@ -165,8 +167,6 @@ Example response:
         if strategy is None:
             logger.error("P4 Intent Analysis failed: No strategy parsed from LLM response")
             raise ValueError("Intent analysis failed - could not parse strategy from LLM response")
-        
-        strategy["original_intent"] = request.intent
         
         logger.info(f"P4 Composition strategy: {strategy}")
         return strategy
