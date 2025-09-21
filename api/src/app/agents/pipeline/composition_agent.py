@@ -675,22 +675,9 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                     "composition_summary": narrative.get("summary", ""),
                     "composition_substrate_count": len(selected_substrate),
                     "composition_narrative": narrative,
-                    "relationship_map": relationship_map,  # NEW: Relationship data for future operations
-                    "synthesis_approach": narrative.get("synthesis_approach", "Connected intelligence"),
-                    # Canon: Store substrate references as artifact metadata (not substrate mutations)
-                    "substrate_references": [
-                        {
-                            "substrate_type": substrate["type"],
-                            "substrate_id": substrate["id"],
-                            "role": "primary" if idx < 5 else "supporting",
-                            "weight": substrate.get("confidence_score", 0.7),
-                            "content_snippet": substrate.get("content", "")[:200],
-                            "order": idx,
-                            "selection_reason": substrate.get("selection_reason", ""),
-                            "attached_at": datetime.now(timezone.utc).isoformat()
-                        }
-                        for idx, substrate in enumerate(selected_substrate)
-                    ]
+                    "relationship_map": relationship_map,  # Relationship data for future operations
+                    "synthesis_approach": narrative.get("synthesis_approach", "Connected intelligence")
+                    # Canon-Pure: substrate_references stored in dedicated table, not metadata
                 }
             }
             
@@ -702,14 +689,46 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             if not update_response.data:
                 raise RuntimeError("Failed to update document with composition")
             
-            # Canon Compliance: P4 only creates artifacts, no substrate mutations
-            # Substrate references now stored in document metadata (artifact)
-            logger.info(f"✅ Canon-pure P4 composition: {len(selected_substrate)} substrate references stored as document metadata")
+            # Canon-Pure: Create substrate references in dedicated table
+            substrate_refs_created = []
+            for idx, substrate in enumerate(selected_substrate):
+                try:
+                    # Map substrate type to canonical enum
+                    substrate_type_map = {
+                        "block": "block",
+                        "context_item": "context_item", 
+                        "dump": "raw_dump",
+                        "raw_dump": "raw_dump",
+                        "relationship": "relationship",
+                        "timeline_event": "timeline_event"
+                    }
+                    canonical_type = substrate_type_map.get(substrate["type"], substrate["type"])
+                    
+                    # Create substrate reference via canonical RPC
+                    ref_response = supabase.rpc("fn_document_attach_substrate", {
+                        "p_document_id": document_id,
+                        "p_substrate_type": canonical_type,
+                        "p_substrate_id": substrate["id"],
+                        "p_role": "primary" if idx < 5 else "supporting",
+                        "p_weight": min(1.0, substrate.get("confidence_score", 0.7)),
+                        "p_snippets": [substrate.get("content", "")[:200]] if substrate.get("content") else [],
+                        "p_metadata": {
+                            "selection_reason": substrate.get("selection_reason", ""),
+                            "composition_order": idx,
+                            "composition_agent": self.__class__.__name__
+                        }
+                    }).execute()
+                    
+                    if ref_response.data:
+                        substrate_refs_created.append(ref_response.data)
+                        logger.info(f"✅ Created substrate reference: {canonical_type}:{substrate['id']}")
+                    else:
+                        logger.warning(f"Failed to create substrate reference: {canonical_type}:{substrate['id']}")
+                        
+                except Exception as e:
+                    logger.warning(f"Error creating substrate reference for {substrate['type']}:{substrate['id']}: {e}")
             
-            if selected_substrate:
-                logger.info("📚 Substrate references (stored as artifact metadata):")
-                for idx, substrate in enumerate(selected_substrate):
-                    logger.info(f"   [{idx}] {substrate['type']}:{substrate['id']} - {substrate.get('title', 'No title')}")
+            logger.info(f"✅ Canon-pure P4 composition: {len(substrate_refs_created)}/{len(selected_substrate)} substrate references created in canonical table")
             
             # Create new document version
             version_response = supabase.rpc("fn_document_create_version", {
@@ -735,7 +754,9 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                 "success": True,
                 "summary": narrative.get("summary", "Document composed"),
                 "substrate_count": len(selected_substrate),
-                "content_length": len(final_content)
+                "substrate_references_created": len(substrate_refs_created),
+                "content_length": len(final_content),
+                "canon_compliance": "substrate_references_in_canonical_table"
             }
             
         except Exception as e:
