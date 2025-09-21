@@ -23,7 +23,11 @@ import {
   EyeOff
 } from 'lucide-react';
 import { enqueueWork } from '@/lib/work/enqueueWork';
-// Page-level header supplied by parent layout
+/* Canon-Compliant Graph View - Redesigned UX
+   Knowledge-first approach with substrate equality and deliberate narrative
+   Clear distinction between structured knowledge (blocks) and semantic meaning (context_items)
+   Prominent connection mapping as core Canon operation
+*/
 
 interface GraphNode {
   id: string;
@@ -88,7 +92,7 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const [visibleTypes, setVisibleTypes] = useState({
     block: true,
     context_item: true,
-    dump: false, // Default to focusing on used substrate; hide dumps by default
+    dump: false, // Canon: Focus on structured knowledge and meaning, not raw input
   });
   const [graphLayout, setGraphLayout] = useState<'force' | 'hierarchy' | 'circular'>('force');
   const [zoom, setZoom] = useState(1);
@@ -379,6 +383,11 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
     setMappingConnections(true);
     
     try {
+      // Count substrate for better operation data
+      const blockCount = graphData.blocks?.length || 0;
+      const contextItemCount = graphData.context_items?.length || 0;
+      const totalSubstrate = blockCount + contextItemCount;
+      
       await enqueueWork({
         workType: 'P2_GRAPH',
         workPayload: {
@@ -386,17 +395,24 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
             type: 'MapRelationships',
             data: {
               basket_id: basketId,
+              workspace_id: graphData.blocks?.[0]?.workspace_id, // Include workspace_id if available
               trigger: 'user_manual_mapping',
-              substrate_count: nodes.length,
+              substrate_count: totalSubstrate,
+              blocks_count: blockCount,
+              context_items_count: contextItemCount,
+              relationship_scope: 'basket_wide',
+              agent_id: 'graph_ui_manual'
             },
           }],
           basket_id: basketId,
           confidence_score: 0.9,
           user_override: 'allow_auto',
+          trace_id: `graph_mapping_${Date.now()}`,
+          provenance: ['user_graph_ui', 'manual_trigger']
         },
         priority: 'high',
         pendingTitle: 'Mapping connections…',
-        pendingMessage: 'We\'ll notify you as soon as new relationships are created.',
+        pendingMessage: `Analyzing ${totalSubstrate} knowledge items for relationships...`,
         successTitle: 'Connections mapped',
         successMessage: status => {
           const count = status?.substrate_impact?.relationships_mapped ?? 0;
@@ -497,94 +513,138 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
   const totalNodes = Object.values(visibleTypes).filter(Boolean).length;
   const hasData = nodes.length > 0;
   const hasRelationships = edges.length > 0;
-  const canMapConnections = nodes.length >= 5 && !hasRelationships; // Mature basket with no relationships
+  const canMapConnections = nodes.length >= 2; // Canon: Any 2+ substrate can have relationships
+  const isKnowledgeRich = (graphData.blocks?.length || 0) >= 3 && (graphData.context_items?.length || 0) >= 2;
+  
+  // Canon-compliant substrate statistics
+  const substrateStats = {
+    structuredKnowledge: graphData.blocks?.length || 0,
+    semanticMeaning: graphData.context_items?.length || 0,
+    relationships: graphData.relationships?.length || 0,
+    connectionDensity: hasData ? (graphData.relationships?.length || 0) / Math.max(1, nodes.length) : 0
+  };
+  
+  const [view, setView] = useState<'graph' | 'insights'>('graph');
 
   return (
-    <>
-      {hasData ? (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            
-            {/* Graph Visualization */}
-            <div className="lg:col-span-3">
-              <Card className="h-[600px]">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Network className="h-5 w-5" />
-                      Knowledge Network ({nodes.length} items, {edges.length} connections)
-                    </CardTitle>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
-                      >
-                        <ZoomOut className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setZoom(Math.min(2, zoom + 0.1))}
-                      >
-                        <ZoomIn className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={resetGraph}
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </Button>
-                      <label className="ml-2 text-xs flex items-center gap-2">
-                        <input type="checkbox" checked={selectionMode} onChange={(e) => { setSelectionMode(e.target.checked); setSelected({}); setBulkPreview(null); }} />
-                        Multi‑select
-                      </label>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0 relative">
-                  <canvas
-                    ref={canvasRef}
-                    onClick={handleCanvasClick}
-                    className="w-full h-full cursor-pointer"
-                    style={{ height: '500px' }}
-                  />
-                  
-                  {selectedNode && (
-                    <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-xs">
-                      <div className="flex items-center gap-2 mb-2">
-                        {getNodeTypeIcon(selectedNode.type)}
-                        <span className="font-medium">{getNodeTypeDisplayName(selectedNode.type)}</span>
-                      </div>
-                      <h4 className="font-semibold mb-1">{selectedNode.title}</h4>
-                      <p className="text-sm text-gray-600 mb-3">
-                        {selectedNode.metadata.created_at && 
-                          `Created ${new Date(selectedNode.metadata.created_at).toLocaleDateString()}`}
-                      </p>
-                      <Button 
-                        size="sm" 
-                        onClick={() => handleNodeNavigation(selectedNode)}
-                        className="w-full"
-                      >
-                        View Details
-                      </Button>
-                      <div className="flex gap-2 mt-2">
-                        {selectedNode.type === 'block' && (
-                          <Button size="sm" variant="outline" onClick={() => { setPreview(null); setConfirming('archive'); fetch('/api/cascade/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ basket_id: basketId, substrate_type: 'block', substrate_id: selectedNode.id }) }).then(r=>r.json()).then(d=>setPreview(d.preview)).catch(()=>{}); }}>Archive</Button>
-                        )}
-                        {selectedNode.type === 'dump' && (
-                          <Button size="sm" variant="outline" onClick={() => { setPreview(null); setConfirming('redact'); fetch('/api/cascade/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ basket_id: basketId, substrate_type: 'dump', substrate_id: selectedNode.id }) }).then(r=>r.json()).then(d=>setPreview(d.preview)).catch(()=>{}); }}>Redact</Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+    <div className="space-y-6">
+      {/* Header with View Toggle */}
+      <div className="border-b p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Knowledge Connections</h1>
+            <p className="text-gray-600">Explore relationships between your structured knowledge and semantic meanings</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={view === 'graph' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setView('graph')}
+              >
+                <Network className="h-4 w-4 mr-2" />
+                Graph View
+              </Button>
+              <Button
+                variant={view === 'insights' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setView('insights')}
+              >
+                <Lightbulb className="h-4 w-4 mr-2" />
+                Connection Insights
+              </Button>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Controls Panel */}
-            <div className="space-y-4">
+      {hasData ? (
+        view === 'graph' ? (
+          /* Graph Visualization View */
+          <div className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              
+              {/* Main Graph Area */}
+              <div className="lg:col-span-3">
+                <Card className="h-[600px]">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Network className="h-5 w-5" />
+                        Knowledge Network ({substrateStats.structuredKnowledge + substrateStats.semanticMeaning} items, {substrateStats.relationships} connections)
+                      </CardTitle>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
+                        >
+                          <ZoomOut className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setZoom(Math.min(2, zoom + 0.1))}
+                        >
+                          <ZoomIn className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={resetGraph}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                        <label className="ml-2 text-xs flex items-center gap-2">
+                          <input type="checkbox" checked={selectionMode} onChange={(e) => { setSelectionMode(e.target.checked); setSelected({}); setBulkPreview(null); }} />
+                          Multi‑select
+                        </label>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0 relative">
+                    <canvas
+                      ref={canvasRef}
+                      onClick={handleCanvasClick}
+                      className="w-full h-full cursor-pointer"
+                      style={{ height: '500px' }}
+                    />
+                    
+                    {selectedNode && (
+                      <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-xs">
+                        <div className="flex items-center gap-2 mb-2">
+                          {getNodeTypeIcon(selectedNode.type)}
+                          <span className="font-medium">{getNodeTypeDisplayName(selectedNode.type)}</span>
+                        </div>
+                        <h4 className="font-semibold mb-1">{selectedNode.title}</h4>
+                        <p className="text-sm text-gray-600 mb-3">
+                          {selectedNode.metadata.created_at && 
+                            `Created ${new Date(selectedNode.metadata.created_at).toLocaleDateString()}`}
+                        </p>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleNodeNavigation(selectedNode)}
+                          className="w-full"
+                        >
+                          View Details
+                        </Button>
+                        <div className="flex gap-2 mt-2">
+                          {selectedNode.type === 'block' && (
+                            <Button size="sm" variant="outline" onClick={() => { setPreview(null); setConfirming('archive'); fetch('/api/cascade/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ basket_id: basketId, substrate_type: 'block', substrate_id: selectedNode.id }) }).then(r=>r.json()).then(d=>setPreview(d.preview)).catch(()=>{}); }}>Archive</Button>
+                          )}
+                          {selectedNode.type === 'dump' && (
+                            <Button size="sm" variant="outline" onClick={() => { setPreview(null); setConfirming('redact'); fetch('/api/cascade/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ basket_id: basketId, substrate_type: 'dump', substrate_id: selectedNode.id }) }).then(r=>r.json()).then(d=>setPreview(d.preview)).catch(()=>{}); }}>Redact</Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Controls Panel */}
+              <div className="space-y-4">
               
               {/* Layout Controls */}
               <Card>
@@ -690,53 +750,89 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
                 </CardContent>
               </Card>
 
-              {/* Graph Stats */}
+              {/* Canon-Compliant Connection Management */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <Network className="h-4 w-4" />
+                    Connection Discovery
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Primary Canon Operation */}
+                  <Button 
+                    onClick={triggerConnectionMapping}
+                    disabled={mappingConnections || !canMapConnections}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                  >
+                    {mappingConnections ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Discovering Connections...
+                      </>
+                    ) : (
+                      <>
+                        <Network className="h-4 w-4 mr-2" />
+                        {hasRelationships ? 'Discover More' : 'Map Knowledge Connections'}
+                      </>
+                    )}
+                  </Button>
+                  
+                  {canMapConnections && (
+                    <p className="text-xs text-gray-600 text-center">
+                      Canon P2 Agent will analyze semantic relationships between your structured knowledge and meanings
+                    </p>
+                  )}
+                  
+                  {substrateStats.connectionDensity > 0 && (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Connection Density:</span>
+                        <span>{(substrateStats.connectionDensity * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Substrate Statistics */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <Info className="h-4 w-4" />
-                    Statistics
+                    Knowledge Overview
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>Knowledge Blocks:</span>
-                    <span>{graphData.blocks?.length ?? 0}</span>
+                    <span className="flex items-center gap-1">
+                      <Database className="h-3 w-3 text-orange-600" />
+                      Structured Knowledge:
+                    </span>
+                    <span className="font-medium">{substrateStats.structuredKnowledge}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Meanings:</span>
-                    <span>{graphData.context_items?.length ?? 0}</span>
+                    <span className="flex items-center gap-1">
+                      <Lightbulb className="h-3 w-3 text-blue-600" />
+                      Semantic Meanings:
+                    </span>
+                    <span className="font-medium">{substrateStats.semanticMeaning}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Source Notes:</span>
-                    <span>{graphData.dumps?.length ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Relationships:</span>
-                    <span>{graphData.relationships?.length ?? 0}</span>
+                    <span className="flex items-center gap-1">
+                      <Network className="h-3 w-3 text-green-600" />
+                      Relationships:
+                    </span>
+                    <span className="font-medium">{substrateStats.relationships}</span>
                   </div>
                   
-                  {/* Manual connection mapping for mature baskets */}
-                  {nodes.length >= 5 && (
-                    <div className="pt-2 border-t border-gray-100">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={triggerConnectionMapping}
-                        disabled={mappingConnections}
-                        className="w-full text-xs"
-                      >
-                        {mappingConnections ? (
-                          <>
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
-                            Mapping...
-                          </>
-                        ) : (
-                          <>
-                            🔗 {hasRelationships ? 'Refresh' : 'Map'} Connections
-                          </>
-                        )}
-                      </Button>
+                  {visibleTypes.dump && (
+                    <div className="flex justify-between pt-2 border-t border-gray-100">
+                      <span className="flex items-center gap-1">
+                        <FolderOpen className="h-3 w-3 text-gray-500" />
+                        Source Notes:
+                      </span>
+                      <span className="text-gray-500">{graphData.dumps?.length ?? 0}</span>
                     </div>
                   )}
                 </CardContent>
@@ -745,45 +841,190 @@ export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphVi
             </div>
           </div>
         ) : (
-          <Card>
-            <CardContent className="py-12">
-              <EmptyState
-                icon={<Network className="h-8 w-8 text-gray-400" />}
-                title={canMapConnections ? "Ready to map connections" : "No connections yet"}
-                action={
-                  canMapConnections ? (
-                    <div className="text-center max-w-md mx-auto">
-                      <p className="text-sm text-gray-500 mb-4">
-                        You have {nodes.length} knowledge items ready for connection mapping.
-                        Discover relationships between your knowledge blocks and meanings.
-                      </p>
-                      <Button 
-                        onClick={triggerConnectionMapping}
-                        disabled={mappingConnections}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {mappingConnections ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Mapping Connections...
-                          </>
-                        ) : (
-                          <>
-                            🔗 Map Knowledge Connections
-                          </>
-                        )}
-                      </Button>
+          /* Connection Insights View */
+          <div className="p-6 space-y-6">
+            {/* Knowledge Network Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setView('graph')}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <Database className="h-8 w-8 text-orange-600" />
+                    <div>
+                      <div className="text-2xl font-bold text-orange-600">{substrateStats.structuredKnowledge}</div>
+                      <div className="text-sm text-gray-600">Structured Knowledge</div>
+                      <div className="text-xs text-gray-500">Facts, insights, findings</div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 mt-2 max-w-md text-center">
-                      Your knowledge network will appear as you add content and create connections. 
-                      Add meanings and knowledge blocks to see how your ideas relate.
-                    </p>
-                  )
-                }
-              />
-            </CardContent>
-          </Card>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setView('graph')}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <Lightbulb className="h-8 w-8 text-blue-600" />
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">{substrateStats.semanticMeaning}</div>
+                      <div className="text-sm text-gray-600">Semantic Meanings</div>
+                      <div className="text-xs text-gray-500">Concepts, themes, patterns</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setView('graph')}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <Network className="h-8 w-8 text-green-600" />
+                    <div>
+                      <div className="text-2xl font-bold text-green-600">{substrateStats.relationships}</div>
+                      <div className="text-sm text-gray-600">Connections</div>
+                      <div className="text-xs text-gray-500">Relationships mapped</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Connection Discovery CTA */}
+            {canMapConnections && (
+              <Card className="border-blue-200 bg-blue-50">
+                <CardContent className="p-6 text-center">
+                  <Network className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-blue-900 mb-2">
+                    {hasRelationships ? 'Discover More Connections' : 'Map Knowledge Connections'}
+                  </h3>
+                  <p className="text-blue-700 mb-4 max-w-md mx-auto">
+                    {hasRelationships 
+                      ? `Analyze ${substrateStats.structuredKnowledge + substrateStats.semanticMeaning} items to discover additional semantic relationships.`
+                      : `Start connecting your ${substrateStats.structuredKnowledge + substrateStats.semanticMeaning} knowledge items to reveal hidden patterns and relationships.`
+                    }
+                  </p>
+                  <Button 
+                    onClick={triggerConnectionMapping}
+                    disabled={mappingConnections}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {mappingConnections ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Canon P2 Agent Working...
+                      </>
+                    ) : (
+                      <>
+                        <Network className="h-4 w-4 mr-2" />
+                        {hasRelationships ? 'Discover More Connections' : 'Begin Connection Discovery'}
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Relationship Insights */}
+            {hasRelationships && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Network className="h-5 w-5" />
+                    Connection Patterns
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-gray-900">Connection Density</h4>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-500 h-2 rounded-full" 
+                          style={{width: `${Math.min(100, substrateStats.connectionDensity * 100)}%`}}
+                        />
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {(substrateStats.connectionDensity * 100).toFixed(1)}% of possible connections discovered
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-gray-900">Network Health</h4>
+                      <div className="text-sm space-y-1">
+                        {substrateStats.connectionDensity > 0.3 ? (
+                          <div className="text-green-600">✓ Well-connected knowledge network</div>
+                        ) : substrateStats.connectionDensity > 0.1 ? (
+                          <div className="text-yellow-600">⚡ Moderate connectivity</div>
+                        ) : (
+                          <div className="text-blue-600">🔗 Ready for more connections</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Button variant="outline" onClick={() => setView('graph')} className="w-full">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Explore Graph Visualization
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )
+        ) : (
+          /* Canon-compliant empty state */
+          <div className="p-6">
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center max-w-md mx-auto">
+                  <Network className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Build Your Knowledge Network</h3>
+                  <p className="text-gray-600 mb-6">
+                    Your knowledge connections will appear here as you add content. 
+                    Start by adding memory to create structured knowledge and semantic meanings.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div className="text-left space-y-3">
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                          <Database className="h-4 w-4 text-orange-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Structured Knowledge</div>
+                          <div className="text-gray-500">Facts, insights, and findings from your content</div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Lightbulb className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Semantic Meanings</div>
+                          <div className="text-gray-500">Concepts, themes, and patterns across your knowledge</div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 text-sm">
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                          <Network className="h-4 w-4 text-green-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Knowledge Connections</div>
+                          <div className="text-gray-500">Semantic relationships discovered by Canon P2 Agent</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      onClick={() => router.push(`/baskets/${basketId}/add-memory`)}
+                      className="bg-blue-600 hover:bg-blue-700 mt-6"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Add Memory to Start
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       {/* Confirm Dialog for Archive/Redact */}
       {confirming && selectedNode && (
