@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import { fetchWithToken } from "@/lib/fetchWithToken";
 
 /**
- * Clean Knowledge Timeline Component
+ * Canon-Compliant Knowledge Timeline Component
  * 
- * Canon v3.0: Knowledge evolution story (artifact-like)
- * Shows user-meaningful milestones in their knowledge journey
- * Simple, focused, story-driven experience
+ * Sacred Principle: "Narrative is Deliberate" - Shows user's knowledge evolution story
+ * Focus on meaningful milestones in knowledge development, not technical processing
+ * Transforms timeline_events into user-friendly knowledge journey narrative
  */
 
 interface KnowledgeEvent {
@@ -50,22 +50,39 @@ export default function KnowledgeTimeline({
       setLoading(true);
       setError(null);
       
-      const url = new URL(`/api/baskets/${basketId}/knowledge-timeline`, window.location.origin);
-      if (significance) {
-        url.searchParams.set('significance', significance);
-      }
+      // Use the working timeline endpoint instead of non-existent knowledge-timeline
+      const url = new URL(`/api/baskets/${basketId}/timeline`, window.location.origin);
       url.searchParams.set('limit', limit.toString());
       
       const response = await fetchWithToken(url.toString());
       if (!response.ok) {
-        throw new Error("Failed to load knowledge timeline");
+        throw new Error("Failed to load timeline");
       }
       
       const data = await response.json();
-      setEvents(data.timeline || []);
+      // Transform timeline_events data to Canon-compliant knowledge narrative
+      const transformedEvents = (data.items || []).map((item: any) => ({
+        id: item.ref_id || `event_${Math.random()}`,
+        type: item.type,
+        title: createNarrativeTitle(item.type, item.summary, item.payload),
+        description: createNarrativeDescription(item.type, item.payload),
+        significance: inferSignificance(item.type),
+        metadata: item.payload || {},
+        relatedIds: { ref_id: item.ref_id },
+        timestamp: item.ts,
+        icon: getEventIcon(item.type),
+        color: getEventColor(inferSignificance(item.type))
+      }));
+      
+      // Apply significance filter on frontend since API doesn't support it
+      const filteredEvents = significance 
+        ? transformedEvents.filter((event: any) => event.significance === significance)
+        : transformedEvents;
+      
+      setEvents(filteredEvents);
       
     } catch (err) {
-      console.error('Knowledge timeline error:', err);
+      console.error('Timeline error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load timeline');
     } finally {
       setLoading(false);
@@ -104,12 +121,52 @@ export default function KnowledgeTimeline({
 
   if (events.length === 0) {
     return (
-      <div className={`text-center py-12 ${className}`}>
-        <div className="text-gray-400 text-6xl mb-4">🌱</div>
-        <div className="text-gray-600 text-lg mb-2">Your knowledge journey starts here</div>
-        <div className="text-gray-500 text-sm">
-          Add some memory to begin building your knowledge base
+      <div className={`text-center py-12 max-w-md mx-auto ${className}`}>
+        <div className="text-gray-400 text-6xl mb-6">🌱</div>
+        <h3 className="text-xl font-semibold text-gray-900 mb-3">Your Knowledge Journey Starts Here</h3>
+        <p className="text-gray-600 mb-6">
+          Your timeline will track the evolution of your understanding as you add memories 
+          and build knowledge connections following Canon principles.
+        </p>
+        
+        <div className="text-left space-y-3 mb-6">
+          <div className="flex items-center gap-3 text-sm">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              📝
+            </div>
+            <div>
+              <div className="font-medium">Add Memory</div>
+              <div className="text-gray-500">Capture content to begin your knowledge base</div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 text-sm">
+            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+              🧱
+            </div>
+            <div>
+              <div className="font-medium">Knowledge Extraction</div>
+              <div className="text-gray-500">AI agents structure your content into knowledge blocks</div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 text-sm">
+            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+              🔗
+            </div>
+            <div>
+              <div className="font-medium">Discover Connections</div>
+              <div className="text-gray-500">See relationships emerge between your ideas</div>
+            </div>
+          </div>
         </div>
+        
+        <button 
+          onClick={() => window.location.href = `/baskets/${basketId}/add-memory`}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+        >
+          Add Your First Memory
+        </button>
       </div>
     );
   }
@@ -194,7 +251,121 @@ export default function KnowledgeTimeline({
   );
 }
 
-// Helper functions
+// Helper functions for transforming timeline_events data into Canon-compliant narrative
+function createNarrativeTitle(eventType: string, summary: string, payload: any): string {
+  // Create user-friendly titles that focus on knowledge evolution, not technical details
+  const narrativeTitles: Record<string, string> = {
+    'memory.captured': 'New memory added to your knowledge base',
+    'substrate.creation_completed': 'Knowledge extracted and structured',
+    'substrate.relationships_mapped': 'Connections discovered between your ideas',
+    'document.composed': 'Document created from your knowledge',
+    'governance.proposal_executed': 'Knowledge changes approved and applied',
+    'governance.proposal_created': 'Changes proposed for review',
+    'work.initiated': 'Knowledge processing started',
+    'work.completed': 'Knowledge processing completed'
+  };
+  
+  const baseTitle = narrativeTitles[eventType];
+  if (baseTitle) return baseTitle;
+  
+  // Fallback to summary or clean up event type
+  if (summary && summary !== eventType) return summary;
+  return eventType.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function createNarrativeDescription(eventType: string, payload: any): string | undefined {
+  if (!payload) return undefined;
+  
+  // Create narrative descriptions based on event type and payload content
+  if (eventType === 'memory.captured' && payload.source_type) {
+    return `Added ${payload.source_type} content to your knowledge collection`;
+  }
+  
+  if (eventType === 'substrate.creation_completed') {
+    const blockCount = payload.substrate_created?.blocks || 0;
+    const contextCount = payload.substrate_created?.context_items || 0;
+    if (blockCount || contextCount) {
+      const parts = [];
+      if (blockCount) parts.push(`${blockCount} knowledge block${blockCount === 1 ? '' : 's'}`);
+      if (contextCount) parts.push(`${contextCount} meaning${contextCount === 1 ? '' : 's'}`);
+      return `Created ${parts.join(' and ')} from your memory`;
+    }
+  }
+  
+  if (eventType === 'substrate.relationships_mapped' && payload.relationships_mapped) {
+    return `Discovered ${payload.relationships_mapped} new connection${payload.relationships_mapped === 1 ? '' : 's'} between your knowledge`;
+  }
+  
+  if (eventType === 'document.composed' && payload.document_title) {
+    return `Composed "${payload.document_title}" using your structured knowledge`;
+  }
+  
+  // Fallback to existing description extraction
+  if (payload.impact_summary) return payload.impact_summary;
+  if (payload.ops_summary) return payload.ops_summary;
+  if (payload.message) return payload.message;
+  if (payload.description) return payload.description;
+  
+  return undefined;
+}
+
+function inferSignificance(eventType: string): 'low' | 'medium' | 'high' {
+  // Map timeline event types to significance levels
+  const significanceMap: Record<string, 'low' | 'medium' | 'high'> = {
+    // High significance - major knowledge milestones
+    'substrate.creation_completed': 'high',
+    'governance.proposal_executed': 'high', 
+    'document.composed': 'high',
+    'memory.captured': 'high',
+    
+    // Medium significance - processing and connections
+    'substrate.relationships_mapped': 'medium',
+    'governance.proposal_created': 'medium',
+    'work.initiated': 'medium',
+    'work.completed': 'medium',
+    
+    // Low significance - routine operations
+    'work.processing': 'low',
+    'system.notification': 'low'
+  };
+  
+  return significanceMap[eventType] || 'medium';
+}
+
+function getEventIcon(eventType: string): string {
+  const icons: Record<string, string> = {
+    // Canon substrate operations
+    'memory.captured': '📝',
+    'substrate.creation_completed': '🧱', 
+    'substrate.relationships_mapped': '🔗',
+    'document.composed': '📄',
+    
+    // Governance operations
+    'governance.proposal_created': '📋',
+    'governance.proposal_executed': '✅',
+    'governance.proposal_rejected': '❌',
+    
+    // Work operations
+    'work.initiated': '🚀',
+    'work.completed': '✅',
+    'work.failed': '⚠️',
+    
+    // Default
+    'default': '📌'
+  };
+  
+  return icons[eventType] || icons['default'];
+}
+
+function getEventColor(significance: string): string {
+  const colors: Record<string, string> = {
+    'low': 'text-gray-600',
+    'medium': 'text-blue-600', 
+    'high': 'text-green-600'
+  };
+  return colors[significance] || 'text-gray-600';
+}
+
 function getSignificanceBackground(significance: string): string {
   const backgrounds: Record<string, string> = {
     'low': 'bg-gray-100',
