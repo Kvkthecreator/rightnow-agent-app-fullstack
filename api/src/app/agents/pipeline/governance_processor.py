@@ -685,6 +685,7 @@ class GovernanceDumpProcessor:
                 try:
                     if op_type == "CreateBlock":
                         metadata = _sanitize_for_json(op_data.get("metadata") or {})
+                        # Canon-compliant: P1 agent provides title and content separately
                         title = op_data.get("title") or metadata.get("title") or "Untitled insight"
                         semantic_type_raw = (
                             op_data.get("semantic_type")
@@ -708,14 +709,23 @@ class GovernanceDumpProcessor:
                             confidence_value = float(confidence)
                         except Exception:
                             confidence_value = 0.7
-                        body_source = op_data.get("body_md") or op_data.get("content") or metadata.get("summary") or ""
-                        body = body_source if isinstance(body_source, str) else str(body_source)
+                        # Canon-compliant: P1 agent provides content in 'content' field
+                        content = (
+                            op_data.get("content") or        # Primary: P1 agent content field
+                            op_data.get("body_md") or        # Legacy compatibility
+                            metadata.get("summary") or       # Fallback: summary
+                            metadata.get("content") or       # Metadata content
+                            ""
+                        )
+                        body = content if isinstance(content, str) else str(content)
 
+                        # Canon-compliant block creation with proper title/content separation
                         block_payload = _sanitize_for_json({
                             "basket_id": str(basket_id),
                             "workspace_id": str(workspace_id),
-                            "title": title,
-                            "body_md": body,
+                            "title": title,                    # Short descriptive title from P1 agent
+                            "content": body,                   # Full content from P1 agent
+                            "body_md": body,                   # Legacy field for compatibility
                             "semantic_type": semantic_type,
                             "confidence_score": confidence_value,
                             "metadata": metadata,
