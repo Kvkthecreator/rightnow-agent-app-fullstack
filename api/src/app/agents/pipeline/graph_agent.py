@@ -152,32 +152,32 @@ class P2GraphAgent:
             
             # Get blocks (exclude archived)
             blocks_response = supabase.table("blocks").select(
-                "id,title,body_md,semantic_type,metadata,confidence_score,status"
-            ).eq("basket_id", str(basket_id)).neq("status", "archived").execute()
+                "id,label,content,semantic_type,state"
+            ).eq("basket_id", str(basket_id)).neq("state", "REJECTED").execute()
             
             if blocks_response.data:
                 for block in blocks_response.data:
                     substrate_elements.append({
                         "id": block["id"],
                         "type": "block",
-                        "title": block.get("title", ""),
-                        "content": block.get("body_md", ""),
+                        "title": block.get("label", ""),
+                        "content": block.get("content", ""),
                         "semantic_type": block.get("semantic_type", "concept"),
-                        "metadata": block.get("metadata", {}),
-                        "confidence": block.get("confidence_score", 0.5)
+                        "metadata": {},  # blocks table doesn't have metadata field
+                        "confidence": 0.7  # blocks table doesn't have confidence_score field
                     })
             
             # Get context items (exclude archived)
             context_response = supabase.table("context_items").select(
-                "id,type,content,metadata,status"
-            ).eq("basket_id", str(basket_id)).neq("status", "archived").execute()
+                "id,type,content,metadata,state,title"
+            ).eq("basket_id", str(basket_id)).neq("state", "REJECTED").execute()
             
             if context_response.data:
                 for item in context_response.data:
                     substrate_elements.append({
                         "id": item["id"],
                         "type": "context_item", 
-                        "title": item.get("content", "")[:50],  # Use content as title
+                        "title": item.get("title", item.get("content", ""))[:50],  # Use title or content as title
                         "content": item.get("content", ""),
                         "semantic_type": item.get("type", "concept"),
                         "metadata": item.get("metadata", {}),

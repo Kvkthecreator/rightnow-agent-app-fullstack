@@ -23,7 +23,7 @@ class ContentType(str, Enum):
 class ExtractedFact(BaseModel):
     """A simple fact extracted from content"""
     text: str = Field(description="The factual statement")
-    type: Literal["metric", "event", "status", "quote", "finding"] = Field(description="Type of fact")
+    type: Literal["metric", "event", "status", "quote", "finding", "fact"] = Field(description="Type of fact")
     confidence: float = Field(ge=0.0, le=1.0, default=0.8)
     source_hint: Optional[str] = Field(default=None, description="Simple source reference")
 
