@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/Card';
-import { Save, Upload, ArrowLeft, ChevronDown, ChevronRight, Database, FileText, MessageSquare, Clock, Layers } from 'lucide-react';
+import { Save, Upload, ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Database, FileText, MessageSquare, Clock, Layers } from 'lucide-react';
 import { DocumentCompositionStatus } from './DocumentCompositionStatus';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { useBasket } from '@/contexts/BasketContext';
@@ -188,6 +188,14 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
     }
   };
 
+  // Canon-Pure: Navigate to substrate source for deeper exploration
+  const navigateToSubstrate = (substrate: any) => {
+    if (!substrate) return;
+    
+    // Navigate to building blocks page with substrate highlighted
+    // This preserves the substrate equality principle by treating all substrate types consistently
+    router.push(`/baskets/${basketId}/building-blocks?highlight=${substrate.id}&type=${substrate.substrate_type}`);
+  };
 
   const formatReflectionAge = (timestamp: string): string => {
     const date = new Date(timestamp);
@@ -266,11 +274,83 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                 </h1>
               </div>
 
-              {/* Document Body */}
+              {/* Document Body with Substrate Context */}
               {composition?.document?.content_raw ? (
-                <div className="prose prose-gray prose-lg max-w-none mb-12">
-                  <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                    {composition.document.content_raw}
+                <div className="relative mb-12">
+                  {/* Canon-Pure: Substrate Context Toggle */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Layers className="h-4 w-4" />
+                      <span>Composed from {composition.composition_stats.total_substrate_references || 0} substrate sources</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowComposition(!showComposition)}
+                      className="text-xs"
+                    >
+                      {showComposition ? 'Hide' : 'Show'} Sources
+                      {showComposition ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+                    </Button>
+                  </div>
+
+                  <div className={`grid gap-6 ${showComposition ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                    {/* Main Content */}
+                    <div className={showComposition ? 'lg:col-span-2' : 'col-span-1'}>
+                      <div className="prose prose-gray prose-lg max-w-none">
+                        <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                          {composition.document.content_raw}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Canon-Pure: Substrate Context Panel */}
+                    {showComposition && composition.references && (
+                      <div className="lg:col-span-1">
+                        <div className="sticky top-6">
+                          <Card className="p-4">
+                            <h3 className="font-medium text-gray-900 mb-3 text-sm">Substrate Sources</h3>
+                            <div className="space-y-3 max-h-96 overflow-y-auto">
+                              {composition.references.map((ref: any, index: number) => (
+                                <div key={ref.reference?.id || index} className="group">
+                                  <button
+                                    className="w-full text-left p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-colors"
+                                    onClick={() => navigateToSubstrate(ref.substrate)}
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      {getSubstrateIcon(ref.substrate?.substrate_type || '')}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-gray-800 text-sm truncate">
+                                          {ref.substrate?.preview || ref.substrate?.title || 'Substrate source'}
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-1 capitalize">
+                                          {ref.substrate?.substrate_type?.replace('_', ' ')}
+                                          {ref.reference?.role && (
+                                            <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                              {ref.reference.role}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {ref.reference?.weight && (
+                                          <div className="mt-1">
+                                            <div className="w-full bg-gray-200 rounded-full h-1">
+                                              <div 
+                                                className="bg-blue-500 h-1 rounded-full" 
+                                                style={{width: `${ref.reference.weight * 100}%`}}
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </Card>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -288,75 +368,24 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
               )}
             </div>
 
-            {/* Composition Context - Subtle Footer */}
+            {/* Canon-Pure: Action Bar */}
             {composition && (
               <div className="border-t border-gray-100 pt-6 mt-12">
                 <div className="flex items-center justify-between text-sm text-gray-500">
-                  <div className="flex items-center gap-6">
-                    <span className="flex items-center gap-1">
-                      <Layers className="h-4 w-4" />
-                      Built from {composition.composition_stats.total_substrate_references || 0} memory sources
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      Updated {new Date(document.updated_at).toLocaleDateString()}
-                    </span>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4" />
+                    Updated {new Date(document.updated_at).toLocaleDateString()}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={recomposeDocument}
-                      className="text-xs text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50"
-                      disabled={saving}
-                    >
-                      🔄 Recompose from Memory
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowComposition(!showComposition)}
-                      className="text-xs text-gray-500 hover:text-gray-700"
-                    >
-                      {showComposition ? 'Hide' : 'Show'} Composition
-                      {showComposition ? 
-                        <ChevronDown className="h-3 w-3 ml-1" /> :
-                        <ChevronRight className="h-3 w-3 ml-1" />
-                      }
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={recomposeDocument}
+                    className="text-xs text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50"
+                    disabled={saving}
+                  >
+                    🔄 Recompose from Memory
+                  </Button>
                 </div>
-
-                {/* Expandable Composition Details */}
-                {showComposition && composition.references && (
-                  <div className="mt-4 pt-4 border-t border-gray-50">
-                    <div className="text-xs text-gray-600 mb-3">
-                      This document is composed from these knowledge sources:
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {composition.references.slice(0, 8).map((ref: any, index: number) => (
-                        <div key={ref.reference?.id || index} className="flex items-start gap-2 p-3 bg-gray-50 rounded text-xs">
-                          {getSubstrateIcon(ref.substrate?.substrate_type || '')}
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-700 truncate">
-                              {ref.substrate?.preview || ref.substrate?.title || 'Memory source'}
-                            </div>
-                            <div className="text-gray-500 capitalize">
-                              {ref.substrate?.substrate_type?.replace('_', ' ')}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {composition.references.length > 8 && (
-                      <div className="text-center mt-3">
-                        <span className="text-xs text-gray-500">
-                          +{composition.references.length - 8} more sources
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             )}
           </div>
