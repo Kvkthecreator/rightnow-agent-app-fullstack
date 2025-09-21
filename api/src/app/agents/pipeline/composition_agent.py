@@ -246,7 +246,6 @@ Example response:
         if strategy["substrate_priorities"].get("relationships", True):
             relationships_response = supabase.table("substrate_relationships").select("*")\
                 .eq("basket_id", request.basket_id)\
-                .eq("state", "ACTIVE")\
                 .execute()
             
             for relationship in relationships_response.data:
@@ -291,6 +290,7 @@ Example response:
             except (TypeError, ValueError):
                 return str(value)[:limit]
 
+
         def _parse_created_at(raw_value: Any) -> datetime:
             if isinstance(raw_value, datetime):
                 return raw_value.astimezone(timezone.utc) if raw_value.tzinfo else raw_value.replace(tzinfo=timezone.utc)
@@ -323,7 +323,6 @@ Example response:
                 fallback.append(chosen)
             logger.info("P4 Composition: Selected %d substrate items via fallback", len(fallback))
             return fallback
-
         metadata_keys = {"semantic_type", "confidence_score", "kind", "relationship_type"}
         candidates_text = "\n\n".join([
             f"[{i}] Type: {c.get('type', 'unknown')}\n"

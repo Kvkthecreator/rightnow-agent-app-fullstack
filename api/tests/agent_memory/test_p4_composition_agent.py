@@ -22,7 +22,9 @@ _supabase_module.create_client = lambda *_args, **_kwargs: _StubSupabaseClient()
 _supabase_module.Client = _StubSupabaseClient
 sys.modules["supabase"] = _supabase_module
 
+
 from app.agents.pipeline.composition_agent import CompositionRequest, P4CompositionAgent
+
 from services.llm import LLMResponse
 
 
@@ -33,6 +35,7 @@ class _StubLLM:
         self._text_responses = list(text_responses or [])
         self._json_responses = list(json_responses or [])
 
+
     async def get_text_response(self, *_args, **_kwargs):
         if not self._text_responses:
             raise AssertionError("Unexpected additional text response request")
@@ -42,7 +45,6 @@ class _StubLLM:
         if not self._json_responses:
             raise AssertionError("JSON response path should not be invoked in this test")
         return self._json_responses.pop(0)
-
 
 @pytest.mark.asyncio
 async def test_generate_section_content_success(monkeypatch):

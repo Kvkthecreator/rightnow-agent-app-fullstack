@@ -275,6 +275,7 @@ class TestGovernanceDumpProcessor:
             exec_response.error = None
             executions_table.insert.return_value.execute.return_value = exec_response
 
+
             result = await processor._execute_proposal_operations(proposal)
 
             assert context_table.insert.called
