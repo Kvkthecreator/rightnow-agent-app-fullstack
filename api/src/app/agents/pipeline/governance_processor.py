@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
 from app.utils.supabase_client import supabase_admin_client as supabase
+from services.enhanced_cascade_manager import canonical_cascade_manager
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -590,12 +591,67 @@ class GovernanceDumpProcessor:
                 }).eq("id", proposal_id).execute()
 
                 # Execute the proposal operations
-                await self._execute_proposal_operations(proposal)
+                execution_result = await self._execute_proposal_operations(proposal)
 
                 supabase.table("proposals").update({
                     "is_executed": True,
                     "executed_at": datetime.utcnow().isoformat()
                 }).eq("id", proposal_id).execute()
+
+                created_substrate_ids = execution_result.get("created_substrate_ids", {}) if execution_result else {}
+                blocks_created = len(created_substrate_ids.get("blocks", []))
+                context_items_created = len(created_substrate_ids.get("context_items", []))
+
+                basket_id = proposal.get("basket_id")
+                workspace_id = proposal.get("workspace_id")
+
+                if blocks_created or context_items_created:
+                    if not basket_id or not workspace_id:
+                        self.logger.warning(
+                            "Skipping cascade trigger for proposal %s due to missing basket/workspace",
+                            proposal_id
+                        )
+                        self.logger.info(
+                            "Auto-approved proposal %s created substrate but lacks routing context",
+                            proposal_id
+                        )
+                    else:
+                        cascade_user_id = (
+                            proposal.get("created_by")
+                            or proposal.get("created_by_user")
+                            or proposal.get("created_by_user_id")
+                            or proposal.get("reviewer_id")
+                            or proposal.get("user_id")
+                            or "00000000-0000-0000-0000-000000000000"
+                        )
+                        try:
+                            await canonical_cascade_manager.trigger_p1_substrate_cascade(
+                                proposal_id=proposal_id,
+                                basket_id=str(basket_id),
+                                workspace_id=str(workspace_id),
+                                user_id=str(cascade_user_id),
+                                substrate_created={
+                                    "blocks": blocks_created,
+                                    "context_items": context_items_created
+                                }
+                            )
+                            self.logger.info(
+                                "Triggered P1→P2 cascade for proposal %s (blocks=%s, context_items=%s)",
+                                proposal_id,
+                                blocks_created,
+                                context_items_created
+                            )
+                        except Exception as cascade_error:
+                            self.logger.warning(
+                                "Failed to trigger P1→P2 cascade for proposal %s: %s",
+                                proposal_id,
+                                cascade_error
+                            )
+                else:
+                    self.logger.info(
+                        "Auto-approved proposal %s created no new substrate; skipping cascade",
+                        proposal_id
+                    )
 
                 self.logger.info(f"Auto-approved and executed proposal {proposal_id}")
                 return True
@@ -607,18 +663,22 @@ class GovernanceDumpProcessor:
             self.logger.error(f"Auto-approval check failed for proposal {proposal.get('id')}: {e}")
             return False
     
-    async def _execute_proposal_operations(self, proposal: Dict[str, Any]) -> None:
+    async def _execute_proposal_operations(self, proposal: Dict[str, Any]) -> Dict[str, Any]:
         """Execute the operations in an approved proposal to create substrate."""
         try:
             proposal_id = proposal["id"]
             ops = proposal.get("ops", [])
             basket_id = proposal.get("basket_id")
             workspace_id = proposal.get("workspace_id")
-            
+
             self.logger.info(f"Executing {len(ops)} operations for proposal {proposal_id}")
-            
+
             executed_operations = []
-            
+            created_substrate_ids: Dict[str, List[str]] = {
+                "blocks": [],
+                "context_items": []
+            }
+
             for i, op in enumerate(ops):
                 op_type = (op.get("type") if isinstance(op, dict) else None) or (op.get("operation_type") if isinstance(op, dict) else None)
                 op_data = op.get("data", op) if isinstance(op, dict) else op
@@ -729,6 +789,7 @@ class GovernanceDumpProcessor:
                             "success": True,
                             "created_id": created_id
                         })
+                        created_substrate_ids["blocks"].append(str(created_id))
 
                     elif op_type == "CreateContextItem":
                         metadata = _sanitize_for_json(op_data.get("metadata") or {})
@@ -823,6 +884,8 @@ class GovernanceDumpProcessor:
                             "created_id": context_id,
                             "duplicate": duplicate_detected
                         })
+                        if not duplicate_detected and context_id:
+                            created_substrate_ids["context_items"].append(str(context_id))
                     
                     else:
                         self.logger.warning(f"Unsupported operation type: {op_type}")
@@ -838,7 +901,8 @@ class GovernanceDumpProcessor:
             # Record execution results; tolerate older schema variants
             execution_summary = {
                 "executed": executed_operations,
-                "success_count": len([op for op in executed_operations if op.get("success")])
+                "success_count": len([op for op in executed_operations if op.get("success")]),
+                "created_substrate": created_substrate_ids
             }
 
             if self._execution_logging_enabled and executed_operations:
@@ -888,7 +952,12 @@ class GovernanceDumpProcessor:
                     )
             
             self.logger.info(f"Completed execution of proposal {proposal_id}: {len(executed_operations)} operations")
-            
+
+            return {
+                "executed_operations": executed_operations,
+                "created_substrate_ids": created_substrate_ids
+            }
+
         except Exception as e:
             self.logger.error(f"Failed to execute proposal operations: {e}")
             raise

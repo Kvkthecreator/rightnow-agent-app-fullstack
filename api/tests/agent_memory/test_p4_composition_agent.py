@@ -22,24 +22,29 @@ _supabase_module.create_client = lambda *_args, **_kwargs: _StubSupabaseClient()
 _supabase_module.Client = _StubSupabaseClient
 sys.modules["supabase"] = _supabase_module
 
-from app.agents.pipeline.composition_agent import P4CompositionAgent
+
+from app.agents.pipeline.composition_agent import CompositionRequest, P4CompositionAgent
+
 from services.llm import LLMResponse
 
 
 class _StubLLM:
-    """Simple stub provider for deterministic P4 section generation tests."""
+    """Simple stub provider for deterministic P4 composition tests."""
 
-    def __init__(self, *, text_responses):
-        self._text_responses = list(text_responses)
+    def __init__(self, *, text_responses=None, json_responses=None):
+        self._text_responses = list(text_responses or [])
+        self._json_responses = list(json_responses or [])
+
 
     async def get_text_response(self, *_args, **_kwargs):
         if not self._text_responses:
             raise AssertionError("Unexpected additional text response request")
         return self._text_responses.pop(0)
 
-    async def get_json_response(self, *_args, **_kwargs):  # pragma: no cover - not used in tests
-        raise AssertionError("JSON response path should not be invoked in section tests")
-
+    async def get_json_response(self, *_args, **_kwargs):
+        if not self._json_responses:
+            raise AssertionError("JSON response path should not be invoked in this test")
+        return self._json_responses.pop(0)
 
 @pytest.mark.asyncio
 async def test_generate_section_content_success(monkeypatch):
@@ -91,3 +96,51 @@ async def test_generate_section_content_failure_falls_back_to_outline(monkeypatc
     result = await agent._generate_section_content(section, selected_substrate, narrative)
 
     assert result == section["content"]
+
+
+@pytest.mark.asyncio
+async def test_score_and_select_falls_back_when_json_call_fails(monkeypatch):
+    stub_llm = _StubLLM(
+        json_responses=[
+            LLMResponse(
+                success=False,
+                content="",
+                parsed=None,
+                usage=None,
+                error="Invalid schema for response_format",
+            )
+        ]
+    )
+    monkeypatch.setattr("app.agents.pipeline.composition_agent.get_llm", lambda: stub_llm)
+
+    agent = P4CompositionAgent()
+
+    candidates = [
+        {
+            "type": "block",
+            "content": "Older, lower confidence entry",
+            "confidence_score": 0.2,
+            "created_at": "2025-09-18T10:00:00",
+        },
+        {
+            "type": "block",
+            "content": "Recent high confidence insight",
+            "confidence_score": 0.9,
+            "created_at": "2025-09-20T15:30:00",
+        },
+    ]
+
+    request = CompositionRequest(
+        document_id="doc-1",
+        basket_id="basket-1",
+        workspace_id="ws-1",
+        intent="Summarize updates",
+    )
+
+    strategy = {"document_type": "summary", "key_themes": ["updates"]}
+
+    selected = await agent._score_and_select(candidates, request, strategy)
+
+    assert selected, "Fallback selection should return candidates"
+    assert selected[0]["content"] == "Recent high confidence insight"
+    assert "fallback" in selected[0]["selection_reason"].lower()

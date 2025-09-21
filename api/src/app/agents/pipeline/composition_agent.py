@@ -290,6 +290,39 @@ Example response:
             except (TypeError, ValueError):
                 return str(value)[:limit]
 
+
+        def _parse_created_at(raw_value: Any) -> datetime:
+            if isinstance(raw_value, datetime):
+                return raw_value.astimezone(timezone.utc) if raw_value.tzinfo else raw_value.replace(tzinfo=timezone.utc)
+            if isinstance(raw_value, str):
+                candidate = raw_value.rstrip("Z")
+                try:
+                    parsed = datetime.fromisoformat(candidate)
+                    return parsed.astimezone(timezone.utc) if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+                except ValueError:
+                    pass
+            return datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+        def _fallback_selection(reason: str, limit: int = 5) -> List[Dict[str, Any]]:
+            logger.warning(
+                "P4 Composition: Falling back to heuristic substrate selection (%s)",
+                reason,
+            )
+            scored = sorted(
+                candidates,
+                key=lambda item: (
+                    item.get("confidence_score", 0.0),
+                    _parse_created_at(item.get("created_at")),
+                ),
+                reverse=True,
+            )
+            fallback = []
+            for source in scored[:limit]:
+                chosen = source.copy()
+                chosen["selection_reason"] = f"fallback: {reason}"
+                fallback.append(chosen)
+            logger.info("P4 Composition: Selected %d substrate items via fallback", len(fallback))
+            return fallback
         metadata_keys = {"semantic_type", "confidence_score", "kind", "relationship_type"}
         candidates_text = "\n\n".join([
             f"[{i}] Type: {c.get('type', 'unknown')}\n"
@@ -331,27 +364,31 @@ Example:
             temperature=1.0,  # Use default temperature for model compatibility
             schema_name="p4_scoring_selection",
         )
-        
+
+        if not response.success or not isinstance(response.parsed, dict):
+            return _fallback_selection(response.error or "LLM scoring unavailable")
+
         selection_result = response.parsed
-        
+
         # Extract selected substrate
         selected = []
-        for idx in selection_result.get("selected_indices", []):
+        selected_indices = selection_result.get("selected_indices", [])
+        if not isinstance(selected_indices, list):
+            return _fallback_selection("Invalid scoring response format")
+
+        for idx in selected_indices:
+            if not isinstance(idx, int):
+                continue
             if 0 <= idx < len(candidates):
                 substrate = candidates[idx].copy()
                 # Add selection metadata
                 substrate["selection_reason"] = selection_result.get("reasoning", "")
                 selected.append(substrate)
-        
+
         # If no substrate selected, provide explanation
         if not selected and candidates:
-            # Select top 5 by confidence/recency as fallback
-            selected = sorted(
-                candidates[:10], 
-                key=lambda x: (x.get("confidence_score", 0.5), x.get("created_at", "")),
-                reverse=True
-            )[:5]
-        
+            return _fallback_selection("LLM returned no substrate indices")
+
         logger.info(f"P4 Composition: Selected {len(selected)} substrate items")
         return selected
     

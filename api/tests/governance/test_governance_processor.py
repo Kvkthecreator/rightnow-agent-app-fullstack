@@ -275,7 +275,8 @@ class TestGovernanceDumpProcessor:
             exec_response.error = None
             executions_table.insert.return_value.execute.return_value = exec_response
 
-            await processor._execute_proposal_operations(proposal)
+
+            result = await processor._execute_proposal_operations(proposal)
 
             assert context_table.insert.called
             assert context_table.select.called
@@ -290,6 +291,74 @@ class TestGovernanceDumpProcessor:
             assert first_row['substrate_id'] == 'existing-context-id'
             assert first_row['operations_count'] == 1
             assert first_row['operations_summary']['success_count'] == 1
+            assert result['created_substrate_ids']['context_items'] == []
+
+    @patch('src.app.agents.pipeline.governance_processor.canonical_cascade_manager.trigger_p1_substrate_cascade', new_callable=AsyncMock)
+    @patch('src.app.agents.pipeline.governance_processor.supabase')
+    @pytest.mark.asyncio
+    async def test_auto_approval_triggers_cascade(self, mock_supabase, mock_cascade_trigger, processor):
+        """Auto-approved proposals should trigger cascade when substrate is created."""
+
+        proposal = {
+            'id': 'proposal-123',
+            'origin': 'agent',
+            'validator_report': {'confidence': 0.92},
+            'basket_id': 'basket-1',
+            'workspace_id': 'workspace-1',
+            'created_by': 'user-1',
+            'ops': []
+        }
+
+        update_builder = MagicMock()
+        update_builder.eq.return_value = update_builder
+        update_builder.execute.return_value = MagicMock()
+        mock_supabase.table.return_value.update.return_value = update_builder
+
+        processor._execute_proposal_operations = AsyncMock(return_value={
+            'executed_operations': [{'type': 'CreateBlock', 'success': True, 'created_id': 'block-1'}],
+            'created_substrate_ids': {'blocks': ['block-1'], 'context_items': []}
+        })
+
+        result = await processor._check_auto_approval(proposal)
+
+        assert result is True
+        mock_cascade_trigger.assert_awaited_once_with(
+            proposal_id='proposal-123',
+            basket_id='basket-1',
+            workspace_id='workspace-1',
+            user_id='user-1',
+            substrate_created={'blocks': 1, 'context_items': 0}
+        )
+
+    @patch('src.app.agents.pipeline.governance_processor.canonical_cascade_manager.trigger_p1_substrate_cascade', new_callable=AsyncMock)
+    @patch('src.app.agents.pipeline.governance_processor.supabase')
+    @pytest.mark.asyncio
+    async def test_auto_approval_skips_cascade_without_substrate(self, mock_supabase, mock_cascade_trigger, processor):
+        """Auto-approval should not trigger cascade when no new substrate was created."""
+
+        proposal = {
+            'id': 'proposal-456',
+            'origin': 'agent',
+            'validator_report': {'confidence': 0.85},
+            'basket_id': 'basket-1',
+            'workspace_id': 'workspace-1',
+            'ops': []
+        }
+
+        update_builder = MagicMock()
+        update_builder.eq.return_value = update_builder
+        update_builder.execute.return_value = MagicMock()
+        mock_supabase.table.return_value.update.return_value = update_builder
+
+        processor._execute_proposal_operations = AsyncMock(return_value={
+            'executed_operations': [],
+            'created_substrate_ids': {'blocks': [], 'context_items': []}
+        })
+
+        result = await processor._check_auto_approval(proposal)
+
+        assert result is True
+        mock_cascade_trigger.assert_not_awaited()
 
     @patch('src.app.agents.pipeline.governance_processor.supabase')
     @pytest.mark.asyncio

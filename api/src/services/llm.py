@@ -185,11 +185,25 @@ def _p4_schema(name: str) -> Optional[Dict[str, Any]]:
                     "items": {"type": "integer", "minimum": 0},
                 },
                 "reasoning": {"type": "string"},
-                "groupings": {"type": "object"},
+                "groupings": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "indices": {
+                                "type": "array",
+                                "items": {"type": "integer", "minimum": 0},
+                            },
+                        },
+                        "required": ["name", "indices"],
+                        "additionalProperties": False,
+                    },
+                },
                 "coverage_assessment": {"type": "string"},
             },
             "required": ["selected_indices", "reasoning"],
-            "additionalProperties": True,
+            "additionalProperties": False,
         }
     if name == "p4_narrative_structure":
         return {
