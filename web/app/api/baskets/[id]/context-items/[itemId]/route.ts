@@ -43,15 +43,14 @@ export async function GET(
     }
     
     // Map fields for consistent API
-    item.label = item.title;
-    item.kind = item.type;
+    const response = {
+      ...item,
+      label: item.title,
+      kind: item.type,
+      synonyms: item.metadata?.synonyms || []
+    };
     
-    // Extract synonyms from metadata if available
-    if (item.metadata?.synonyms) {
-      item.synonyms = item.metadata.synonyms;
-    }
-    
-    return Response.json(item);
+    return Response.json(response);
   } catch (error: any) {
     console.error('Failed to fetch context item:', error);
     return Response.json(
