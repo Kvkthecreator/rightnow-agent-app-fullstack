@@ -30,6 +30,7 @@ interface ProposalDetail {
     suggested_merges: string[];
     ontology_hits: string[];
     impact_summary: string;
+    ops_summary?: string;
   };
   provenance: Array<{
     type: string;
@@ -38,6 +39,11 @@ interface ProposalDetail {
   }>;
   created_at: string;
   created_by?: string;
+  auto_approved: boolean;
+  reviewed_at: string | null;
+  executed_at: string | null;
+  review_notes: string;
+  is_executed: boolean;
 }
 
 interface ProposalDetailModalProps {

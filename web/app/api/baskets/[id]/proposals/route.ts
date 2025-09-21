@@ -63,13 +63,14 @@ export async function GET(
       const validator_report = normalizeValidatorReport(proposal.validator_report);
       const status = proposal.status || 'PROPOSED';
       const review_notes = proposal.review_notes || '';
-      const auto_approved = status === 'EXECUTED' && typeof review_notes === 'string' && review_notes.toLowerCase().includes('auto-approved');
+      const auto_approved = (status === 'APPROVED' && proposal.is_executed === true) && 
+                         typeof review_notes === 'string' && review_notes.toLowerCase().includes('auto-approved');
       return {
         id: proposal.id,
         proposal_kind: proposal.proposal_kind,
         origin: proposal.origin,
         status,
-        ops_summary: validator_report.ops_summary || generateOpsSummary(ops),
+        ops_summary: validator_report.ops_summary || validator_report.impact_summary || generateOpsSummary(ops),
         confidence: typeof validator_report.confidence === 'number' ? validator_report.confidence : 0.5,
         impact_summary: validator_report.impact_summary || 'Impact unknown',
         created_at: proposal.created_at,
@@ -247,16 +248,25 @@ function generateOpsSummary(ops: any[]): string {
     return acc;
   }, {} as Record<string, number>);
   
-  return Object.entries(opCounts)
-    .map(([type, count]) => {
-      // Use plural forms that match backend format
-      const pluralType = type === 'CreateBlock' ? 'CreateBlocks' :
-                        type === 'CreateContextItem' ? 'CreateContextItems' :
-                        type === 'CreateDump' ? 'CreateDumps' :
-                        type + 's';
-      return `${count as number} ${count === 1 ? type : pluralType}`;
-    })
-    .join(', ');
+  // Canon-compliant unified proposal summary: show blocks + context items
+  const parts = [];
+  if (opCounts.CreateBlock) {
+    parts.push(`${opCounts.CreateBlock} block${opCounts.CreateBlock === 1 ? '' : 's'}`);
+  }
+  if (opCounts.CreateContextItem) {
+    parts.push(`${opCounts.CreateContextItem} context item${opCounts.CreateContextItem === 1 ? '' : 's'}`);
+  }
+  
+  // Add other operation types
+  Object.entries(opCounts)
+    .filter(([type]) => !['CreateBlock', 'CreateContextItem'].includes(type))
+    .forEach(([type, count]) => {
+      const displayName = type.replace(/([A-Z])/g, ' $1').toLowerCase().trim();
+      parts.push(`${count} ${displayName}${count === 1 ? '' : 's'}`);
+    });
+  
+  const summary = parts.join(', ');
+  return parts.length > 1 ? `Unified proposal: ${summary}` : summary;
 }
 
 function normalizeValidatorReport(report: any) {

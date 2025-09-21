@@ -241,8 +241,20 @@ class CanonicalCascadeManager:
             }
         }
         
-        # Add target-specific payload data
+        # Add target-specific payload data with required operations
         if target_work_type == 'P2_GRAPH':
+            # Create required operations array for P2 graph processing
+            cascade_payload['operations'] = [{
+                'type': 'MapRelationships',
+                'data': {
+                    'basket_id': context.basket_id,
+                    'workspace_id': context.workspace_id,
+                    'substrate_ids': work_result.get('substrate_created', {}),
+                    'relationship_scope': 'basket_wide',
+                    'agent_id': f"cascade-{source_work_id}"
+                }
+            }]
+            # Keep metadata for debugging/monitoring
             cascade_payload['graph_processing'] = {
                 'substrate_ids': work_result.get('substrate_created', {}),
                 'relationship_scope': 'basket_wide'
@@ -262,6 +274,10 @@ class CanonicalCascadeManager:
                     datetime.now(timezone.utc) + timedelta(seconds=delay_seconds)
                 ).isoformat()
             }
+        
+        # Add required fields for canonical queue processor
+        cascade_payload['basket_id'] = context.basket_id
+        cascade_payload['workspace_id'] = context.workspace_id
         
         # Create work via universal work tracker
         work_id = await universal_work_tracker.initiate_work(

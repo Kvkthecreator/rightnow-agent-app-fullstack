@@ -59,9 +59,9 @@ export async function GET(
       // Foundational substrate - Context items  
       supabase
         .from('context_items')
-        .select('id, type, content, created_at, metadata, status')
+        .select('id, type, content, created_at, metadata, status, state, title')
         .eq('basket_id', basketId)
-        .neq('status', 'archived')
+        .eq('state', 'ACTIVE')
         .order('created_at', { ascending: false })
         .limit(100),
       
@@ -114,7 +114,7 @@ export async function GET(
       unifiedSubstrates.push({
         id: item.id,
         type: 'context_item',
-        title: item.metadata?.title || `${item.type} context`,
+        title: item.title || item.metadata?.title || item.metadata?.label || `${item.type} context`,
         content: item.content || '',
         agent_stage: 'P1', // Context items are foundational substrate
         created_at: item.created_at,
