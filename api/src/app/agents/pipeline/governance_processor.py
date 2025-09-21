@@ -4,14 +4,41 @@ Integrates ImprovedP1SubstrateAgent with governance workflow for quality substra
 """
 
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from uuid import UUID, uuid4
 
 from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
 from app.utils.supabase_client import supabase_admin_client as supabase
+from services.enhanced_cascade_manager import canonical_cascade_manager
 
 logger = logging.getLogger("uvicorn.error")
+
+
+@dataclass
+class SubstrateCandidate:
+    """Structured representation of extracted substrate prior to proposal creation."""
+
+    type: str
+    content: Optional[str] = None
+    semantic_type: Optional[str] = None
+    label: Optional[str] = None
+    confidence: float = 0.7
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class GovernanceProposal:
+    """Lightweight governance proposal descriptor used for testing and planning."""
+
+    basket_id: UUID
+    workspace_id: UUID
+    ops: List[Dict[str, Any]]
+    provenance: List[UUID] = field(default_factory=list)
+    confidence: float = 0.0
+    proposal_kind: str = "Extraction"
+    origin: str = "agent"
 
 
 def _sanitize_for_json(value: Any) -> Any:
@@ -564,12 +591,67 @@ class GovernanceDumpProcessor:
                 }).eq("id", proposal_id).execute()
 
                 # Execute the proposal operations
-                await self._execute_proposal_operations(proposal)
+                execution_result = await self._execute_proposal_operations(proposal)
 
                 supabase.table("proposals").update({
                     "is_executed": True,
                     "executed_at": datetime.utcnow().isoformat()
                 }).eq("id", proposal_id).execute()
+
+                created_substrate_ids = execution_result.get("created_substrate_ids", {}) if execution_result else {}
+                blocks_created = len(created_substrate_ids.get("blocks", []))
+                context_items_created = len(created_substrate_ids.get("context_items", []))
+
+                basket_id = proposal.get("basket_id")
+                workspace_id = proposal.get("workspace_id")
+
+                if blocks_created or context_items_created:
+                    if not basket_id or not workspace_id:
+                        self.logger.warning(
+                            "Skipping cascade trigger for proposal %s due to missing basket/workspace",
+                            proposal_id
+                        )
+                        self.logger.info(
+                            "Auto-approved proposal %s created substrate but lacks routing context",
+                            proposal_id
+                        )
+                    else:
+                        cascade_user_id = (
+                            proposal.get("created_by")
+                            or proposal.get("created_by_user")
+                            or proposal.get("created_by_user_id")
+                            or proposal.get("reviewer_id")
+                            or proposal.get("user_id")
+                            or "00000000-0000-0000-0000-000000000000"
+                        )
+                        try:
+                            await canonical_cascade_manager.trigger_p1_substrate_cascade(
+                                proposal_id=proposal_id,
+                                basket_id=str(basket_id),
+                                workspace_id=str(workspace_id),
+                                user_id=str(cascade_user_id),
+                                substrate_created={
+                                    "blocks": blocks_created,
+                                    "context_items": context_items_created
+                                }
+                            )
+                            self.logger.info(
+                                "Triggered P1→P2 cascade for proposal %s (blocks=%s, context_items=%s)",
+                                proposal_id,
+                                blocks_created,
+                                context_items_created
+                            )
+                        except Exception as cascade_error:
+                            self.logger.warning(
+                                "Failed to trigger P1→P2 cascade for proposal %s: %s",
+                                proposal_id,
+                                cascade_error
+                            )
+                else:
+                    self.logger.info(
+                        "Auto-approved proposal %s created no new substrate; skipping cascade",
+                        proposal_id
+                    )
 
                 self.logger.info(f"Auto-approved and executed proposal {proposal_id}")
                 return True
@@ -581,18 +663,22 @@ class GovernanceDumpProcessor:
             self.logger.error(f"Auto-approval check failed for proposal {proposal.get('id')}: {e}")
             return False
     
-    async def _execute_proposal_operations(self, proposal: Dict[str, Any]) -> None:
+    async def _execute_proposal_operations(self, proposal: Dict[str, Any]) -> Dict[str, Any]:
         """Execute the operations in an approved proposal to create substrate."""
         try:
             proposal_id = proposal["id"]
             ops = proposal.get("ops", [])
             basket_id = proposal.get("basket_id")
             workspace_id = proposal.get("workspace_id")
-            
+
             self.logger.info(f"Executing {len(ops)} operations for proposal {proposal_id}")
-            
+
             executed_operations = []
-            
+            created_substrate_ids: Dict[str, List[str]] = {
+                "blocks": [],
+                "context_items": []
+            }
+
             for i, op in enumerate(ops):
                 op_type = (op.get("type") if isinstance(op, dict) else None) or (op.get("operation_type") if isinstance(op, dict) else None)
                 op_data = op.get("data", op) if isinstance(op, dict) else op
@@ -703,6 +789,7 @@ class GovernanceDumpProcessor:
                             "success": True,
                             "created_id": created_id
                         })
+                        created_substrate_ids["blocks"].append(str(created_id))
 
                     elif op_type == "CreateContextItem":
                         metadata = _sanitize_for_json(op_data.get("metadata") or {})
@@ -735,19 +822,43 @@ class GovernanceDumpProcessor:
                             "status": "active"
                         })
 
-                        insert_resp = (
-                            supabase
-                            .table("context_items")
-                            .insert(context_payload)
-                            .execute()
-                        )
+                        context_id: Optional[str] = None
+                        duplicate_detected = False
 
-                        if getattr(insert_resp, "error", None):
-                            raise RuntimeError(f"context item insert failed: {insert_resp.error}")
+                        try:
+                            insert_resp = (
+                                supabase
+                                .table("context_items")
+                                .insert(context_payload)
+                                .execute()
+                            )
 
-                        context_id = None
-                        if insert_resp.data:
-                            context_id = insert_resp.data[0].get("id") if isinstance(insert_resp.data, list) else insert_resp.data.get("id")
+                            if getattr(insert_resp, "error", None):
+                                error_payload = insert_resp.error
+                                error_text = str(error_payload)
+                                error_code = (
+                                    error_payload.get("code")
+                                    if isinstance(error_payload, dict)
+                                    else getattr(error_payload, "code", "")
+                                )
+                                if (error_code == "23505" or "duplicate key value" in error_text):
+                                    duplicate_detected = True
+                                else:
+                                    raise RuntimeError(f"context item insert failed: {error_payload}")
+
+                            if not duplicate_detected and insert_resp.data:
+                                if isinstance(insert_resp.data, list):
+                                    context_id = insert_resp.data[0].get("id")
+                                else:
+                                    context_id = insert_resp.data.get("id")
+
+                        except Exception as insert_error:
+                            error_code = getattr(insert_error, "code", "")
+                            error_text = str(insert_error)
+                            if "23505" in error_text or "duplicate key value" in error_text or error_code == "23505":
+                                duplicate_detected = True
+                            else:
+                                raise
 
                         if not context_id:
                             lookup_resp = (
@@ -755,22 +866,26 @@ class GovernanceDumpProcessor:
                                 .table("context_items")
                                 .select("id")
                                 .eq("basket_id", str(basket_id))
+                                .eq("type", kind_value)
                                 .eq("normalized_label", normalized_label)
                                 .order("created_at", desc=True)
                                 .limit(1)
                                 .execute()
                             )
-                            if lookup_resp.data:
+                            if getattr(lookup_resp, "data", None):
                                 context_id = lookup_resp.data[0].get("id")
 
                         if not context_id:
                             raise RuntimeError("context item insert returned no id")
 
                         executed_operations.append({
-                            "type": "CreateContextItem", 
+                            "type": "CreateContextItem",
                             "success": True,
-                            "created_id": context_id
+                            "created_id": context_id,
+                            "duplicate": duplicate_detected
                         })
+                        if not duplicate_detected and context_id:
+                            created_substrate_ids["context_items"].append(str(context_id))
                     
                     else:
                         self.logger.warning(f"Unsupported operation type: {op_type}")
@@ -786,22 +901,49 @@ class GovernanceDumpProcessor:
             # Record execution results; tolerate older schema variants
             execution_summary = {
                 "executed": executed_operations,
-                "success_count": len([op for op in executed_operations if op.get("success")])
+                "success_count": len([op for op in executed_operations if op.get("success")]),
+                "created_substrate": created_substrate_ids
             }
-            execution_payload = _sanitize_for_json({
-                "proposal_id": str(proposal_id),
-                "operations_count": len(ops),
-                "operations_summary": execution_summary
-            })
 
-            if self._execution_logging_enabled:
+            if self._execution_logging_enabled and executed_operations:
+                execution_rows: List[Dict[str, Any]] = []
+                sanitized_summary = _sanitize_for_json(execution_summary)
+
+                for index, op_result in enumerate(executed_operations):
+                    op_type = op_result.get("type") or "unknown"
+                    success = bool(op_result.get("success"))
+                    result_data = {
+                        k: v for k, v in op_result.items()
+                        if k not in {"type", "success", "error"}
+                    } or {}
+
+                    row: Dict[str, Any] = {
+                        "proposal_id": str(proposal_id),
+                        "operation_index": index,
+                        "operation_type": op_type,
+                        "success": success,
+                        "result_data": _sanitize_for_json(result_data),
+                        "error_message": op_result.get("error"),
+                    }
+
+                    created_id = op_result.get("created_id")
+                    if created_id:
+                        row["substrate_id"] = str(created_id)
+
+                    # Only attach aggregate metadata on the first row to reduce duplication
+                    if index == 0:
+                        row["operations_count"] = len(ops)
+                        row["operations_summary"] = sanitized_summary
+
+                    execution_rows.append(row)
+
                 try:
-                    exec_resp = supabase.table("proposal_executions").insert(execution_payload).execute()
+                    exec_resp = supabase.table("proposal_executions").insert(_sanitize_for_json(execution_rows)).execute()
                     if getattr(exec_resp, "error", None):
                         raise RuntimeError(exec_resp.error)
                 except Exception as exec_error:
                     error_text = str(exec_error)
-                    if "operations_count" in error_text or "operations_summary" in error_text:
+                    if "operation_index" in error_text:
                         self._execution_logging_enabled = False
                     self.logger.warning(
                         "Failed to persist proposal execution summary for proposal %s: %s",
@@ -810,7 +952,12 @@ class GovernanceDumpProcessor:
                     )
             
             self.logger.info(f"Completed execution of proposal {proposal_id}: {len(executed_operations)} operations")
-            
+
+            return {
+                "executed_operations": executed_operations,
+                "created_substrate_ids": created_substrate_ids
+            }
+
         except Exception as e:
             self.logger.error(f"Failed to execute proposal operations: {e}")
             raise
