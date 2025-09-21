@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { SubpageHeader } from "@/components/basket/SubpageHeader";
-import { ProposalDetailModal } from "@/components/governance/ProposalDetailModal_v3";
+import { ProposalDetailModal } from "@/components/governance/ProposalDetailModal";
 import { CheckCircle, Clock, XCircle, FileText, Database, User, Bot, ChevronRight, Filter, Eye } from "lucide-react";
 
 interface Proposal {
@@ -57,13 +57,11 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
     const fetchProposals = async () => {
       if (!basketId) return;
       
-      console.log('Fetching proposals for basket:', basketId, 'with filter:', statusFilter);
       setLoading(true);
       setError(null);
 
       try {
         const url = `/api/baskets/${basketId}/proposals${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`;
-        console.log('Fetching from URL:', url);
         const response = await fetch(url);
         
         if (!response.ok) {
@@ -73,7 +71,6 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
         }
 
         const data = await response.json();
-        console.log('Fetched proposals data:', data);
         setProposals(data.items || []);
       } catch (error) {
         console.error('Failed to fetch proposals:', error);

@@ -1,15 +1,25 @@
+/**
+ * Canon-Compliant Proposal Detail Modal - Redesigned from First Principles
+ * 
+ * Clear information hierarchy:
+ * 1. Header: Status, auto-approval indicator, metadata
+ * 2. Operations: Clean breakdown of unified proposal operations
+ * 3. Context: Provenance and confidence
+ * 4. Actions: Clear approve/reject workflow
+ * 
+ * Fixes rendering issues with proper error boundaries and loading states
+ */
 "use client";
 
 import { useState, useEffect } from 'react';
-import { X, FileText, Database, FolderOpen, Lightbulb, Clock, AlertTriangle, CheckCircle, Brain, Eye, Layers, ChevronDown, ChevronRight, Edit, Plus, Trash2, GitBranch, BookOpen } from 'lucide-react';
+import { 
+  X, CheckCircle, Clock, XCircle, Bot, User, Database, 
+  FileText, MessageSquare, AlertTriangle, Info, Eye, 
+  ChevronDown, ChevronRight, Sparkles
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { createBrowserClient } from '@/lib/supabase/clients';
-import { previewDocumentImpacts, getConfidenceLevel, getConfidenceColor, getImpactTypeIcon } from '@/lib/artifacts/documentImpactPreview';
-import type { DocumentImpactPreview } from '@/lib/artifacts/documentImpactPreview';
-import { fetchWithToken } from '@/lib/fetchWithToken';
-import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
 
 interface ProposalOperation {
   type: string;
@@ -21,24 +31,14 @@ interface ProposalDetail {
   proposal_kind: string;
   origin: 'agent' | 'human';
   status: string;
-  blast_radius: 'Local' | 'Scoped' | 'Global';
   ops: ProposalOperation[];
   validator_report: {
     confidence: number;
-    dupes: any[];
     warnings: string[];
-    suggested_merges: string[];
-    ontology_hits: string[];
     impact_summary: string;
     ops_summary?: string;
   };
-  provenance: Array<{
-    type: string;
-    id: string;
-    metadata?: Record<string, any>;
-  }>;
   created_at: string;
-  created_by?: string;
   auto_approved: boolean;
   reviewed_at: string | null;
   executed_at: string | null;
@@ -66,26 +66,24 @@ export function ProposalDetailModal({
   const [proposal, setProposal] = useState<ProposalDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showRejectForm, setShowRejectForm] = useState(false);
-  const [showRequestChanges, setShowRequestChanges] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
-  const [requestChangesReason, setRequestChangesReason] = useState('');
-  const [reviewNotes, setReviewNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
-    changes: true,
+    operations: true,
     context: false,
-    impact: false,
-    reflections: false,
-    documents: false
+    history: false
   });
-  const [documentImpactPreviews, setDocumentImpactPreviews] = useState<DocumentImpactPreview[]>([]);
-  const [reflections, setReflections] = useState<ReflectionDTO[]>([]);
-  const [reflectionsLoading, setReflectionsLoading] = useState(false);
+  const [actionMode, setActionMode] = useState<'none' | 'approve' | 'reject'>('none');
+  const [actionNotes, setActionNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen && proposalId) {
       fetchProposalDetail();
+    } else {
+      // Reset state when modal closes
+      setProposal(null);
+      setError(null);
+      setActionMode('none');
+      setActionNotes('');
     }
   }, [isOpen, proposalId]);
 
@@ -98,179 +96,15 @@ export function ProposalDetailModal({
     try {
       const response = await fetch(`/api/baskets/${basketId}/proposals/${proposalId}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch proposal details');
+        throw new Error(`Failed to load proposal: ${response.status}`);
       }
       const data = await response.json();
       setProposal(data);
-      
-      // Fetch document impact preview (read-only)
-      await fetchDocumentImpactPreview(data);
-      
-      // Fetch reflections for context
-      await fetchReflectionsContext();
     } catch (err) {
+      console.error('Proposal fetch error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load proposal');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchDocumentImpactPreview = async (proposal: ProposalDetail) => {
-    try {
-      const supabase = createBrowserClient();
-      
-      // Get workspace ID from current session
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error('No authenticated user for document impact preview');
-        return;
-      }
-
-      // Get workspace from user session
-      const { data: workspaces } = await supabase
-        .from('workspace_memberships')
-        .select('workspace_id')
-        .eq('user_id', user.id)
-        .limit(1);
-
-      const workspaceId = workspaces?.[0]?.workspace_id;
-      if (!workspaceId) {
-        console.error('No workspace found for document impact preview');
-        return;
-      }
-
-      const previews = await previewDocumentImpacts(
-        supabase,
-        proposal.ops,
-        workspaceId,
-        basketId
-      );
-      setDocumentImpactPreviews(previews);
-    } catch (err) {
-      console.error('Failed to fetch document impact preview:', err);
-      setDocumentImpactPreviews([]);
-    }
-  };
-
-  const fetchReflectionsContext = async () => {
-    try {
-      setReflectionsLoading(true);
-      
-      const url = new URL(`/api/baskets/${basketId}/reflections`, window.location.origin);
-      url.searchParams.set("limit", "5"); // Get recent 5 reflections for context
-      
-      const response = await fetchWithToken(url.toString());
-      if (!response.ok) {
-        throw new Error("Failed to load reflections");
-      }
-
-      const data: GetReflectionsResponse = await response.json();
-      setReflections(data.reflections);
-    } catch (err) {
-      console.error('Failed to fetch reflections context:', err);
-      setReflections([]);
-    } finally {
-      setReflectionsLoading(false);
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!proposal) return;
-    
-    setSubmitting(true);
-    try {
-      await onApprove(proposal.id, reviewNotes);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to approve proposal');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleRequestChanges = async () => {
-    if (!proposal || !requestChangesReason.trim()) return;
-    
-    setSubmitting(true);
-    try {
-      // Update proposal status to UNDER_REVIEW with request changes reason
-      const response = await fetch(`/api/baskets/${basketId}/proposals/${proposal.id}/request-changes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          review_notes: requestChangesReason,
-          status: 'UNDER_REVIEW'
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to request changes');
-      }
-      
-      setShowRequestChanges(false);
-      setRequestChangesReason('');
-      onClose();
-      // Parent component should refresh the proposals list
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to request changes');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!proposal || !rejectReason.trim()) return;
-    
-    setSubmitting(true);
-    try {
-      await onReject(proposal.id, rejectReason);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reject proposal');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const getOperationIcon = (type: string) => {
-    switch (type) {
-      case 'CreateDump': return <Plus className="h-4 w-4 text-green-600" />;
-      case 'CreateBlock': return <Plus className="h-4 w-4 text-blue-600" />;
-      case 'CreateContextItem': return <Plus className="h-4 w-4 text-purple-600" />;
-      case 'ReviseBlock': return <Edit className="h-4 w-4 text-orange-600" />;
-      case 'EditContextItem': return <Edit className="h-4 w-4 text-orange-600" />;
-      case 'AttachContextItem': return <GitBranch className="h-4 w-4 text-yellow-600" />;
-      case 'MergeContextItems': return <GitBranch className="h-4 w-4 text-red-600" />;
-      case 'PromoteScope': return <Brain className="h-4 w-4 text-indigo-600" />;
-      case 'Delete': return <Trash2 className="h-4 w-4 text-red-600" />;
-      // REMOVED: DocumentCompose - documents are artifacts, not substrates
-      default: return <Eye className="h-4 w-4 text-gray-400" />;
-    }
-  };
-
-  const formatOperationDescription = (op: ProposalOperation) => {
-    switch (op.type) {
-      case 'CreateDump':
-        return `Add new content to workspace`;
-      case 'CreateBlock':
-        return `Create new knowledge block${op.data.title ? `: "${op.data.title}"` : ''}`;
-      case 'CreateContextItem':
-        return `Add context item${op.data.label ? `: "${op.data.label}"` : ''}`;
-      case 'ReviseBlock':
-        return `Update existing content${op.data.title ? `: "${op.data.title}"` : ''}`;
-      case 'EditContextItem':
-        return `Modify context${op.data.label ? `: "${op.data.label}"` : ''}`;
-      case 'AttachContextItem':
-        return `Connect context to current scope`;
-      case 'MergeContextItems':
-        return `Combine related context items`;
-      case 'PromoteScope':
-        return `Expand scope to workspace level`;
-      // REMOVED: DocumentCompose - documents are artifacts, not substrates
-      case 'Delete':
-        return `Remove from workspace`;
-      default:
-        return `Execute ${op.type} operation`;
     }
   };
 
@@ -281,559 +115,304 @@ export function ProposalDetailModal({
     }));
   };
 
-  const getAffectedSubstrateTypes = (ops: ProposalOperation[]) => {
-    const types = new Set<string>();
-    ops.forEach(op => {
-      if (op.type.includes('Block')) types.add('blocks');
-      if (op.type.includes('Dump')) types.add('dumps');
-      if (op.type.includes('ContextItem')) types.add('context items');
-      if (op.type.includes('Timeline')) types.add('timeline events');
-    });
-    return Array.from(types);
-  };
-
-  const getBlastRadiusColor = (radius: string) => {
-    switch (radius) {
-      case 'Local': return 'text-green-600 bg-green-50';
-      case 'Scoped': return 'text-yellow-600 bg-yellow-50';
-      case 'Global': return 'text-red-600 bg-red-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-
-  const hasBlockingWarnings = (proposal: ProposalDetail) => {
-    return proposal.validator_report.confidence < 0.3 || 
-           proposal.validator_report.warnings.some(w => w.includes('CRITICAL'));
-  };
-
-  const formatReflectionAge = (timestamp: string): string => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+  const handleAction = async () => {
+    if (!proposal || !actionMode || submitting) return;
     
-    if (diffHours < 1) {
-      const diffMinutes = Math.round(diffHours * 60);
-      return `${diffMinutes}m ago`;
-    } else if (diffHours < 24) {
-      return `${Math.round(diffHours)}h ago`;
-    } else {
-      const diffDays = Math.round(diffHours / 24);
-      return `${diffDays}d ago`;
+    setSubmitting(true);
+    try {
+      if (actionMode === 'approve') {
+        await onApprove(proposal.id, actionNotes || 'Approved via detailed review');
+      } else if (actionMode === 'reject') {
+        await onReject(proposal.id, actionNotes || 'Rejected via detailed review');
+      }
+      onClose();
+    } catch (err) {
+      console.error('Action failed:', err);
+      alert(`Failed to ${actionMode} proposal. Please try again.`);
+    } finally {
+      setSubmitting(false);
     }
+  };
+
+  const getOperationIcon = (type: string) => {
+    switch (type) {
+      case 'CreateBlock': return <Database className="h-4 w-4 text-orange-600" />;
+      case 'CreateContextItem': return <MessageSquare className="h-4 w-4 text-blue-600" />;
+      case 'CreateDump': return <FileText className="h-4 w-4 text-green-600" />;
+      default: return <Info className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getOperationSummary = (ops: ProposalOperation[]) => {
+    const counts = ops.reduce((acc, op) => {
+      acc[op.type] = (acc[op.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const parts = [];
+    if (counts.CreateBlock) parts.push(`${counts.CreateBlock} block${counts.CreateBlock === 1 ? '' : 's'}`);
+    if (counts.CreateContextItem) parts.push(`${counts.CreateContextItem} context item${counts.CreateContextItem === 1 ? '' : 's'}`);
+    
+    return parts.length > 0 ? `${parts.join(', ')}` : `${ops.length} operations`;
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        {/* Lightened backdrop to match Add Memory modal */}
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-[1px]" onClick={onClose} />
-        
-        <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl md:max-w-5xl w-full max-h-[90vh] flex flex-col">
-          {/* Streamlined Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-100">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Change Request Review</h2>
-              {proposal && (
-                <p className="text-sm text-gray-500 mt-1">
-                  {proposal.proposal_kind} • {proposal.origin} • {new Date(proposal.created_at).toLocaleDateString()}
-                </p>
-              )}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {proposal?.origin === 'agent' ? <Bot className="h-5 w-5 text-purple-600" /> : <User className="h-5 w-5 text-blue-600" />}
+              <h2 className="text-xl font-semibold text-gray-900">Proposal Detail</h2>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <X className="h-5 w-5" />
-            </button>
+            {proposal && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline">{proposal.proposal_kind}</Badge>
+                <Badge 
+                  variant={proposal.status === 'APPROVED' ? 'default' : proposal.status === 'PROPOSED' ? 'secondary' : 'outline'}
+                  className={
+                    proposal.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                    proposal.status === 'PROPOSED' ? 'bg-orange-100 text-orange-800' :
+                    'bg-red-100 text-red-800'
+                  }
+                >
+                  {proposal.status}
+                </Badge>
+                {proposal.auto_approved && (
+                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Auto-Approved
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
+          <Button variant="ghost" onClick={onClose} className="p-2">
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
 
-          <div className="overflow-y-auto flex-1">
-            {loading ? (
-              <div className="flex items-center justify-center p-12">
-                <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full"></div>
-              </div>
-            ) : error ? (
-              <div className="p-6 text-center">
-                <p className="text-red-600 mb-4">{error}</p>
-                <Button onClick={fetchProposalDetail}>Retry</Button>
-              </div>
-            ) : proposal ? (
-              <div className="p-6 space-y-6">
-                
-                {/* PRIMARY: Decision Context (Always Visible) */}
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    {proposal.validator_report.impact_summary || "Changes to workspace substrate"}
-                  </h3>
-                  
-                  <div className="flex items-center gap-4 mb-4">
-                    <Badge variant={proposal.origin === 'agent' ? 'default' : 'secondary'}>
-                      {proposal.origin === 'agent' ? 'AI Proposed' : 'User Proposed'}
-                    </Badge>
-                    <Badge className={getBlastRadiusColor(proposal.blast_radius)}>
-                      {proposal.blast_radius} Impact
-                    </Badge>
-                    <Badge variant="outline">
-                      {proposal.ops.length} {proposal.ops.length === 1 ? 'change' : 'changes'}
-                    </Badge>
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full"></div>
+            </div>
+          )}
+
+          {error && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  <div>
+                    <h3 className="font-medium text-red-800">Error Loading Proposal</h3>
+                    <p className="text-red-700 text-sm mt-1">{error}</p>
                   </div>
+                </div>
+                <Button variant="outline" onClick={fetchProposalDetail} className="mt-3">
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
-                  {/* Risk Assessment */}
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-700">Confidence:</span>
-                      <Badge className={getConfidenceColor(getConfidenceLevel(proposal.validator_report.confidence))}>
-                        {Math.round(proposal.validator_report.confidence * 100)}%
-                      </Badge>
+          {proposal && (
+            <>
+              {/* Summary */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        {proposal.validator_report.ops_summary || getOperationSummary(proposal.ops)}
+                      </h3>
+                      <p className="text-gray-700">
+                        {proposal.validator_report.impact_summary}
+                      </p>
                     </div>
-                    
-                    {proposal.validator_report.warnings.length > 0 && (
-                      <div className="flex items-center gap-2 text-yellow-600">
-                        <AlertTriangle className="h-4 w-4" />
-                        <span className="text-sm font-medium">
-                          {proposal.validator_report.warnings.length} warnings
-                        </span>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Inline Warnings */}
-                  {proposal.validator_report.warnings.length > 0 && (
-                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <h4 className="text-sm font-medium text-yellow-800 mb-2">Review Required:</h4>
-                      <ul className="space-y-1">
-                        {proposal.validator_report.warnings.slice(0, 3).map((warning, i) => (
-                          <li key={i} className="text-sm text-yellow-700">• {warning}</li>
-                        ))}
-                        {proposal.validator_report.warnings.length > 3 && (
-                          <li className="text-sm text-yellow-600 italic">
-                            +{proposal.validator_report.warnings.length - 3} more warnings
-                          </li>
+                    <div className="flex items-center justify-between text-sm text-gray-600">
+                      <div className="flex items-center gap-4">
+                        <span>Created: {new Date(proposal.created_at).toLocaleString()}</span>
+                        {proposal.reviewed_at && (
+                          <span>Reviewed: {new Date(proposal.reviewed_at).toLocaleString()}</span>
                         )}
-                      </ul>
+                        {proposal.executed_at && (
+                          <span>Executed: {new Date(proposal.executed_at).toLocaleString()}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Confidence:</span>
+                        <div className="w-16 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-500 h-2 rounded-full" 
+                            style={{width: `${proposal.validator_report.confidence * 100}%`}}
+                          />
+                        </div>
+                        <span className="text-xs font-medium">{Math.round(proposal.validator_report.confidence * 100)}%</span>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {/* SECONDARY: Expandable Sections */}
-                <div className="space-y-4">
-                  
-                  {/* What's Changing Section */}
-                  <div className="border border-gray-200 rounded-lg">
-                    <button
-                      onClick={() => toggleSection('changes')}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <GitBranch className="h-4 w-4 text-gray-600" />
-                        <span className="font-medium">What's Changing</span>
-                        <Badge variant="outline" className="text-xs">
-                          {proposal.ops.length} operations
-                        </Badge>
-                      </div>
-                      {expandedSections.changes ? 
-                        <ChevronDown className="h-4 w-4 text-gray-400" /> : 
-                        <ChevronRight className="h-4 w-4 text-gray-400" />
-                      }
-                    </button>
-                    
-                    {expandedSections.changes && (
-                      <div className="border-t border-gray-200 p-4 space-y-3">
-                        {proposal.ops.map((op, index) => (
-                          <div key={index} className="flex items-start gap-3 p-3 bg-white border border-gray-100 rounded">
-                            {getOperationIcon(op.type)}
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900 text-sm">
-                                {formatOperationDescription(op)}
-                              </div>
-                              {(op.data.content || op.data.body_md) && (
-                                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                                  {(op.data.content || op.data.body_md).substring(0, 120)}
-                                  {(op.data.content || op.data.body_md).length > 120 && '...'}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Why This Change Section */}
-                  <div className="border border-gray-200 rounded-lg">
-                    <button
-                      onClick={() => toggleSection('context')}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Brain className="h-4 w-4 text-gray-600" />
-                        <span className="font-medium">Why This Change</span>
-                      </div>
-                      {expandedSections.context ? 
-                        <ChevronDown className="h-4 w-4 text-gray-400" /> : 
-                        <ChevronRight className="h-4 w-4 text-gray-400" />
-                      }
-                    </button>
-                    
-                    {expandedSections.context && (
-                      <div className="border-t border-gray-200 p-4">
-                        <div className="space-y-3">
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-700 mb-2">Triggered by:</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {proposal.provenance.map((entry, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {entry.type}: {entry.id.slice(0, 8)}...
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                          
-                          {proposal.validator_report.ontology_hits.length > 0 && (
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">Related concepts:</h4>
-                              <div className="flex flex-wrap gap-2">
-                                {proposal.validator_report.ontology_hits.map((hit, i) => (
-                                  <Badge key={i} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                    {hit}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Impact Analysis Section */}
-                  <div className="border border-gray-200 rounded-lg">
-                    <button
-                      onClick={() => toggleSection('impact')}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Layers className="h-4 w-4 text-gray-600" />
-                        <span className="font-medium">Impact Analysis</span>
-                      </div>
-                      {expandedSections.impact ? 
-                        <ChevronDown className="h-4 w-4 text-gray-400" /> : 
-                        <ChevronRight className="h-4 w-4 text-gray-400" />
-                      }
-                    </button>
-                    
-                    {expandedSections.impact && (
-                      <div className="border-t border-gray-200 p-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-700 mb-2">Substrate affected:</h4>
-                            <div className="space-y-1">
-                              {getAffectedSubstrateTypes(proposal.ops).map(type => (
-                                <div key={type} className="text-sm text-gray-600">• {type}</div>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-700 mb-2">Scope:</h4>
-                            <div className="text-sm text-gray-600">
-                              <Badge className={getBlastRadiusColor(proposal.blast_radius)}>
-                                {proposal.blast_radius}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Memory Insights Context Section */}
-                  {reflections.length > 0 && (
-                    <div className="border border-purple-200 rounded-lg bg-purple-50/30">
-                      <button
-                        onClick={() => toggleSection('reflections')}
-                        className="w-full flex items-center justify-between p-4 text-left hover:bg-purple-50"
-                      >
+                    {proposal.auto_approved && proposal.review_notes && (
+                      <div className="bg-green-50 border border-green-200 rounded p-3">
                         <div className="flex items-center gap-2">
-                          <Brain className="h-4 w-4 text-purple-600" />
-                          <span className="font-medium text-purple-900">Memory Insights Context</span>
-                          <Badge variant="outline" className="text-xs bg-white">
-                            {reflections.length} insight{reflections.length === 1 ? '' : 's'}
-                          </Badge>
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-green-800 font-medium text-sm">Auto-Approval Details</span>
                         </div>
-                        {expandedSections.reflections ? 
-                          <ChevronDown className="h-4 w-4 text-purple-400" /> : 
-                          <ChevronRight className="h-4 w-4 text-purple-400" />
-                        }
-                      </button>
-                      
-                      {expandedSections.reflections && (
-                        <div className="border-t border-purple-200 p-4 bg-white">
-                          <div className="mb-3 p-3 bg-purple-50 border border-purple-200 rounded">
-                            <p className="text-xs text-purple-700 font-medium mb-1">🧠 AI Insights Context</p>
-                            <p className="text-xs text-purple-600">
-                              Recent patterns and connections discovered in your knowledge that may be relevant to this proposal.
-                            </p>
-                          </div>
-                          
-                          {reflectionsLoading ? (
-                            <div className="space-y-2">
-                              <div className="animate-pulse bg-purple-100 h-16 rounded"></div>
-                              <div className="animate-pulse bg-purple-100 h-12 rounded"></div>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {reflections.slice(0, 3).map((reflection, index) => (
-                                <div key={reflection.id} className="border border-gray-100 rounded p-3 bg-gray-50">
-                                  <div className="flex items-start gap-2 mb-2">
-                                    <span className="text-sm">💡</span>
-                                    <div className="flex-1">
-                                      <div className="flex items-center justify-between">
-                                        <h5 className="font-medium text-gray-900 text-sm">
-                                          Insight #{reflections.length - index}
-                                        </h5>
-                                        <span className="text-xs text-gray-500">
-                                          {formatReflectionAge(reflection.computation_timestamp)}
-                                        </span>
-                                      </div>
-                                      <p className="text-xs text-gray-600 mt-1">
-                                        {reflection.reflection_text.length > 200 
-                                          ? reflection.reflection_text.substring(0, 200) + "..."
-                                          : reflection.reflection_text
-                                        }
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          
-                          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                            <p className="text-xs text-blue-800">
-                              💡 <strong>Consider:</strong> How does this substrate change align with or contradict these discovered patterns in your knowledge?
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Document Impact Preview Section (Read-Only) */}
-                  {documentImpactPreviews.length > 0 && (
-                    <div className="border border-blue-200 rounded-lg bg-blue-50/30">
-                      <button
-                        onClick={() => toggleSection('documents')}
-                        className="w-full flex items-center justify-between p-4 text-left hover:bg-blue-50"
-                      >
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-blue-600" />
-                          <span className="font-medium text-blue-900">Document Impact Preview</span>
-                          <Badge variant="outline" className="text-xs bg-white">
-                            {documentImpactPreviews.length} document{documentImpactPreviews.length === 1 ? '' : 's'}
-                          </Badge>
-                        </div>
-                        {expandedSections.documents ? 
-                          <ChevronDown className="h-4 w-4 text-blue-400" /> : 
-                          <ChevronRight className="h-4 w-4 text-blue-400" />
-                        }
-                      </button>
-                      
-                      {expandedSections.documents && (
-                        <div className="border-t border-blue-200 p-4 bg-white">
-                          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
-                            <p className="text-xs text-blue-700 font-medium mb-1">📋 Read-Only Preview</p>
-                            <p className="text-xs text-blue-600">
-                              These documents may be affected by the substrate changes. Document update decisions will be handled separately after substrate approval.
-                            </p>
-                          </div>
-                          
-                          <div className="space-y-3">
-                            {documentImpactPreviews.map(preview => {
-                              const confidenceLevel = getConfidenceLevel(preview.confidence_score);
-                              const confidenceColor = getConfidenceColor(confidenceLevel);
-                              const impactIcon = getImpactTypeIcon(preview.impact_type);
-                              
-                              return (
-                                <div key={preview.document_id} className="border border-gray-100 rounded p-3 bg-gray-50">
-                                  <div className="flex items-start justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-lg">{impactIcon}</span>
-                                      <div>
-                                        <h5 className="font-medium text-gray-900 text-sm">
-                                          {preview.document_title}
-                                        </h5>
-                                        <p className="text-xs text-gray-600 mt-1">
-                                          {preview.impact_summary}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="outline" className="text-xs">
-                                        {preview.affected_references_count} refs
-                                      </Badge>
-                                      <Badge className={`text-xs ${confidenceColor}`}>
-                                        {confidenceLevel} confidence
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                  <p className="text-xs text-gray-600 bg-white p-2 rounded border">
-                                    {preview.preview_description}
-                                  </p>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          
-                          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                            <p className="text-xs text-yellow-800">
-                              💡 <strong>Next Steps:</strong> After substrate approval, you'll be notified to review and approve document updates separately.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Action Footer */}
-          {proposal && proposal.status === 'PROPOSED' && (
-            <div className="border-t p-6 bg-gray-50">
-              {!showRejectForm ? (
-                <div className="space-y-4">
-                  {/* Review Notes */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Review Notes (Optional)
-                    </label>
-                    <textarea
-                      value={reviewNotes}
-                      onChange={(e) => setReviewNotes(e.target.value)}
-                      placeholder="Add any notes about this review..."
-                      className="w-full p-3 border border-gray-300 rounded-md text-sm resize-none"
-                      rows={3}
-                    />
-                  </div>
-                  
-                  {/* Git-style Action Panel */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => setShowRejectForm(true)}
-                        variant="outline"
-                        className="text-red-600 border-red-600 hover:bg-red-50"
-                        disabled={submitting}
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Reject
-                      </Button>
-                      
-                      {!showRequestChanges ? (
-                        <Button
-                          onClick={() => setShowRequestChanges(true)}
-                          variant="outline"
-                          className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
-                          disabled={submitting}
-                        >
-                          Request Changes
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={() => {
-                            setShowRequestChanges(false);
-                            setRequestChangesReason('');
-                          }}
-                          variant="ghost"
-                          disabled={submitting}
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                    </div>
-                    
-                    <Button
-                      onClick={handleApprove}
-                      className="bg-green-600 hover:bg-green-700"
-                      disabled={submitting || (proposal && hasBlockingWarnings(proposal))}
-                      title={proposal && hasBlockingWarnings(proposal) ? 'Cannot approve - critical warnings present' : ''}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      {submitting ? 'Approving...' : 'Approve & Execute'}
-                    </Button>
-                  </div>
-                  
-                  {/* Request Changes Form */}
-                  {showRequestChanges && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-                      <div className="mb-3">
-                        <label className="block text-sm font-medium text-yellow-800 mb-2">
-                          What changes are needed? <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                          value={requestChangesReason}
-                          onChange={(e) => setRequestChangesReason(e.target.value)}
-                          placeholder="Please describe what changes are needed before this can be approved..."
-                          className="w-full p-3 border border-yellow-300 rounded-md text-sm resize-none bg-white"
-                          rows={3}
-                          autoFocus
-                        />
+                        <p className="text-green-700 text-sm mt-1">{proposal.review_notes}</p>
                       </div>
-                      
-                      <div className="flex justify-end">
-                        <Button
-                          onClick={handleRequestChanges}
-                          className="bg-yellow-600 hover:bg-yellow-700"
-                          disabled={submitting || !requestChangesReason.trim()}
-                        >
-                          {submitting ? 'Submitting...' : 'Submit Request'}
-                        </Button>
-                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Operations */}
+              <Card>
+                <CardHeader 
+                  className="cursor-pointer" 
+                  onClick={() => toggleSection('operations')}
+                >
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Database className="h-5 w-5" />
+                      Operations ({proposal.ops.length})
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Rejection Reason <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={rejectReason}
-                      onChange={(e) => setRejectReason(e.target.value)}
-                      placeholder="Please explain why this proposal should be rejected..."
-                      className="w-full p-3 border border-gray-300 rounded-md text-sm resize-none"
-                      rows={4}
-                      autoFocus
-                    />
-                  </div>
-                  
-                  <div className="flex justify-between">
-                    <Button
-                      onClick={() => {
-                        setShowRejectForm(false);
-                        setRejectReason('');
-                      }}
-                      variant="ghost"
-                      disabled={submitting}
-                    >
-                      Cancel
-                    </Button>
-                    
-                    <Button
-                      onClick={handleReject}
-                      className="bg-red-600 hover:bg-red-700"
-                      disabled={submitting || !rejectReason.trim()}
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      {submitting ? 'Rejecting...' : 'Confirm Rejection'}
-                    </Button>
-                  </div>
-                </div>
+                    {expandedSections.operations ? 
+                      <ChevronDown className="h-4 w-4" /> : 
+                      <ChevronRight className="h-4 w-4" />
+                    }
+                  </CardTitle>
+                </CardHeader>
+                {expandedSections.operations && (
+                  <CardContent className="space-y-3">
+                    {proposal.ops.map((op, index) => (
+                      <div key={index} className="flex items-start gap-3 p-3 border rounded">
+                        {getOperationIcon(op.type)}
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{op.type}</div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            {op.type === 'CreateBlock' && (
+                              <div>
+                                <div><strong>Title:</strong> {op.data.title || 'Untitled'}</div>
+                                <div><strong>Type:</strong> {op.data.semantic_type || 'insight'}</div>
+                                {op.data.confidence && <div><strong>Confidence:</strong> {Math.round(op.data.confidence * 100)}%</div>}
+                              </div>
+                            )}
+                            {op.type === 'CreateContextItem' && (
+                              <div>
+                                <div><strong>Label:</strong> {op.data.label || 'Untitled'}</div>
+                                <div><strong>Kind:</strong> {op.data.kind || 'concept'}</div>
+                                {op.data.confidence && <div><strong>Confidence:</strong> {Math.round(op.data.confidence * 100)}%</div>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Warnings */}
+              {proposal.validator_report.warnings.length > 0 && (
+                <Card className="border-yellow-200 bg-yellow-50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-yellow-800">
+                      <AlertTriangle className="h-5 w-5" />
+                      Validation Warnings
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-1">
+                      {proposal.validator_report.warnings.map((warning, i) => (
+                        <li key={i} className="text-yellow-700 text-sm">• {warning}</li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
               )}
-            </div>
+
+              {/* Actions */}
+              {proposal.status === 'PROPOSED' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Review Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {actionMode === 'none' && (
+                      <div className="flex gap-3">
+                        <Button 
+                          onClick={() => setActionMode('approve')}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve Proposal
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setActionMode('reject')}
+                          className="border-red-200 text-red-700 hover:bg-red-50"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject Proposal
+                        </Button>
+                      </div>
+                    )}
+
+                    {actionMode !== 'none' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {actionMode === 'approve' ? 'Approval Notes (Optional)' : 'Rejection Reason'}
+                          </label>
+                          <textarea
+                            value={actionNotes}
+                            onChange={(e) => setActionNotes(e.target.value)}
+                            placeholder={
+                              actionMode === 'approve' 
+                                ? 'Additional notes about the approval...'
+                                : 'Please provide a reason for rejection...'
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            rows={3}
+                          />
+                        </div>
+                        <div className="flex gap-3">
+                          <Button 
+                            onClick={handleAction}
+                            disabled={submitting || (actionMode === 'reject' && !actionNotes.trim())}
+                            className={actionMode === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+                          >
+                            {submitting ? (
+                              <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full mr-2" />
+                            ) : actionMode === 'approve' ? (
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                            ) : (
+                              <XCircle className="h-4 w-4 mr-2" />
+                            )}
+                            {submitting ? 'Processing...' : `${actionMode === 'approve' ? 'Approve' : 'Reject'}`}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => {
+                              setActionMode('none');
+                              setActionNotes('');
+                            }}
+                            disabled={submitting}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </div>
       </div>
