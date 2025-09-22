@@ -128,9 +128,10 @@ def list_proposed_blocks(
         workspace_id = get_or_create_workspace(user["user_id"])
         
         from ..utils.supabase_client import supabase_client as supabase
+        # Canon: use canonical fields for blocks
         resp = (
             supabase.table("blocks")
-            .select("id,semantic_type,content,state,created_at,origin_ref")
+            .select("id,title,content,semantic_type,confidence_score,state,created_at,updated_at")
             .eq("basket_id", basket_id)
             .eq("workspace_id", workspace_id)
             .eq("state", "PROPOSED")

@@ -22,19 +22,18 @@ async def create_item(
     workspace=Depends(get_or_create_workspace),
 ):
     try:
+        # Canon: proper field mapping for context_items 
         metadata = body.composition_metadata or {}
-        label = body.title or metadata.get("label") or body.content[:50]
+        entity_label = body.title or body.content[:50]  # Canon: title is entity label
+        
         payload = {
             "basket_id": str(workspace.basket_id),
-            "type": body.type,
-            "content": body.content,
-            "title": body.title,
-            "description": body.description,
+            "kind": body.type,  # Canon: use 'kind' field instead of 'type'
+            "title": entity_label,  # Canon: entity name/label
+            "content": body.content,  # Canon: semantic meaning/description
             "metadata": metadata,
-            "normalized_label": label.lower() if label else None,
             "state": "ACTIVE",
-            "status": "active",
-            "confidence_score": body.confidence,
+            "confidence_score": body.confidence or 0.8,
         }
         resp = supabase.table("context_items").insert(payload).execute()
     except Exception as err:  # pragma: no cover - network failure
@@ -66,10 +65,13 @@ async def list_items(
     workspace=Depends(get_or_create_workspace),
 ):
     try:
+        # Canon: select canonical fields for context_items
         resp = (
             supabase.table("context_items")
-            .select("*")
+            .select("id,basket_id,title,content,kind,semantic_meaning,semantic_category,state,confidence_score,created_at,updated_at")
             .eq("basket_id", workspace.basket_id)
+            .neq("state", "REJECTED")  # Canon: exclude rejected items
+            .order("created_at", desc=True)
             .execute()
         )
     except Exception as err:

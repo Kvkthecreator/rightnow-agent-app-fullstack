@@ -21,12 +21,13 @@ logger = logging.getLogger("uvicorn.error")
 def list_blocks(basket_id: str, user: dict = Depends(verify_jwt)):
     try:
         workspace_id = get_or_create_workspace(user["user_id"])
+        # Canon: use canonical fields only
         resp = (
             supabase.table("blocks")
-            .select("id,type,content,order,meta_tags,origin,state")
+            .select("id,title,content,semantic_type,confidence_score,state,created_at,updated_at")
             .eq("basket_id", basket_id)
             .eq("workspace_id", workspace_id)
-            .order("order")
+            .order("created_at", desc=True)  # Canon: order by creation time
             .execute()
         )
         return resp.data  # type: ignore[attr-defined]
