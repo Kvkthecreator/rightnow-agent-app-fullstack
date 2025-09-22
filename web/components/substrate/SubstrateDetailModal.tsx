@@ -16,23 +16,28 @@ interface SubstrateDetailModalProps {
 interface SubstrateDetail {
   id: string;
   created_at: string;
+  updated_at?: string;
   // Raw dump fields
   body_md?: string;
+  text_dump?: string;
   file_url?: string;
   processing_status?: string;
   processed_at?: string;
-  // Block fields
-  title?: string;
-  content?: string;
+  // Block fields (Canon-compliant)
+  title?: string;           // Canon: authoritative title field
+  content?: string;         // Canon: authoritative content field
   semantic_type?: string;
   state?: string;
   confidence_score?: number;
-  // Context item fields
-  label?: string;
-  kind?: string;
+  // Context item fields (Canon-compliant)
+  label?: string;              // Legacy support
+  kind?: string;               // Canon: entity kind/type
+  type?: string;               // Legacy support
+  semantic_meaning?: string;   // Canon: semantic interpretation
+  semantic_category?: string;  // Canon: semantic category
   synonyms?: string[];
   description?: string;
-  // Relationship fields
+  // Relationship fields (Canon-compliant)
   from_type?: string;
   from_id?: string;
   to_type?: string;
@@ -130,9 +135,9 @@ export default function SubstrateDetailModal({
 
   const getTitle = () => {
     switch (substrateType) {
-      case 'raw_dump': return `Raw Dump - ${formatTimestamp(substrate?.created_at || '')}`;
+      case 'raw_dump': return `Memory - ${formatTimestamp(substrate?.created_at || '')}`;
       case 'block': return `Block - ${substrate?.semantic_type || 'Unknown Type'}`;
-      case 'context_item': return `Context Item - ${substrate?.label || 'Unnamed'}`;
+      case 'context_item': return `Entity - ${substrate?.title || substrate?.label || 'Unnamed'}`;
       case 'relationship': return 'Relationship';
       case 'timeline_event': return `Event - ${substrate?.event_kind || 'Unknown'}`;
     }
@@ -155,11 +160,11 @@ export default function SubstrateDetailModal({
       case 'raw_dump':
         return (
           <div className="space-y-4">
-            {substrate.body_md && (
+            {(substrate.body_md || substrate.text_dump) && (
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Text Content</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Memory Content</h4>
                 <div className="bg-gray-50 p-3 rounded text-sm text-gray-800 max-h-64 overflow-y-auto whitespace-pre-wrap">
-                  {substrate.body_md}
+                  {substrate.body_md || substrate.text_dump}
                 </div>
               </div>
             )}
@@ -204,7 +209,7 @@ export default function SubstrateDetailModal({
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">Content</h4>
               <div className="bg-gray-50 p-3 rounded text-sm text-gray-800 max-h-64 overflow-y-auto">
-                {substrate.content || 'No content'}
+                {substrate.content || 'No content available'}
               </div>
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -218,14 +223,20 @@ export default function SubstrateDetailModal({
         return (
           <div className="space-y-4">
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-1">Label</h4>
-              <p className="text-lg font-medium">{substrate.label}</p>
+              <h4 className="text-sm font-medium text-gray-700 mb-1">Entity</h4>
+              <p className="text-lg font-medium">{substrate.title || substrate.label || 'Unknown Entity'}</p>
             </div>
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-1">Kind</h4>
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                {substrate.kind}
+                {substrate.kind || substrate.type || 'entity'}
               </span>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-1">Semantic Meaning</h4>
+              <div className="bg-gray-50 p-3 rounded text-sm text-gray-800 max-h-64 overflow-y-auto">
+                {substrate.content || substrate.semantic_meaning || 'No semantic meaning available'}
+              </div>
             </div>
             {substrate.synonyms && substrate.synonyms.length > 0 && (
               <div>
@@ -244,7 +255,7 @@ export default function SubstrateDetailModal({
               </div>
             )}
             <div className="text-sm text-gray-600">
-              <span>State: <span className="font-medium">ACTIVE</span></span>
+              <span>State: <span className="font-medium">{substrate.state || 'ACTIVE'}</span></span>
             </div>
           </div>
         );
