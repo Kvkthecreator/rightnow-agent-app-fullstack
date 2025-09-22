@@ -163,11 +163,28 @@ class P3ReflectionAgent:
                 if len(substrate_data) >= 5:  # minimal signal threshold
                     digest = self._build_digest(substrate_data)
                     llm_res = await self.llm.get_json_response(
-                        f"""Generate a structured reflection JSON for this substrate digest:
+                        f"""Analyze this knowledge substrate to generate deep, actionable insights.
 
+SUBSTRATE DIGEST:
 {digest}
 
-Return JSON only.""",
+INSTRUCTIONS:
+1. Look for PATTERNS: What themes, concepts, or ideas appear repeatedly?
+2. Find TENSIONS: What contradictions, trade-offs, or difficult choices emerge?
+3. Trace EVOLUTION: How is the thinking changing or developing over time?
+4. Identify GAPS: What's missing that could unlock new understanding?
+5. Surface CONNECTIONS: What non-obvious relationships exist between elements?
+6. Spot TRAJECTORIES: Where is this line of thinking heading?
+
+Generate insights that are:
+- SPECIFIC (not generic platitudes)
+- ACTIONABLE (suggest concrete next steps)
+- REVEALING (surface what the user might not see themselves)
+- FORWARD-LOOKING (help anticipate what's coming)
+
+Focus on providing "aha moment" insights that help the user see their own thinking from a new angle.
+
+Return JSON with deep analysis, not surface observations.""",
                         temperature=0.3,
                         schema_name="p3_reflection",
                     )

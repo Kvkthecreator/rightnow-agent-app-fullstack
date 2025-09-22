@@ -187,48 +187,157 @@ class CanonP3ReflectionAgent:
         }
     
     def _generate_user_centric_insight(self, content: str, file_names: List[str], dump_count: int, graph_count: int) -> str:
-        """Generate user-focused insights following UX canon principles"""
+        """Generate deep, actionable insights using advanced pattern recognition"""
         
-        # Look for actual themes in user content
         content_lower = content.lower()
         
-        # Detect specific patterns user would recognize
-        if "goal" in content_lower and ("plan" in content_lower or "strategy" in content_lower):
-            if "budget" in content_lower or "cost" in content_lower:
-                return f"Your planning documents mention both growth goals and budget concerns. Consider whether these priorities align - {dump_count} recent uploads show this tension."
-            else:
-                return f"You're actively planning and setting goals across {dump_count} uploads. Your strategy thinking is becoming more structured."
+        # Advanced insight generation based on YARNNN's intelligence objectives
+        insights = self._analyze_deep_patterns(content_lower, dump_count, graph_count)
+        tensions = self._identify_tensions_and_contradictions(content_lower)
+        trajectory = self._analyze_thinking_trajectory(content_lower, dump_count)
+        gaps = self._identify_critical_gaps(content_lower)
         
-        if ("problem" in content_lower or "issue" in content_lower) and ("solution" in content_lower or "fix" in content_lower):
-            return f"Your recent work shows problem-solving patterns. You identify issues and propose solutions consistently across {dump_count} items."
+        # Prioritize insights by value
+        if tensions:
+            return tensions
+        elif trajectory:
+            return trajectory
+        elif insights:
+            return insights
+        elif gaps:
+            return gaps
         
-        if "team" in content_lower and ("remote" in content_lower or "work" in content_lower):
-            return f"Team collaboration themes appear repeatedly in your content. This seems important to your current thinking."
-        
-        if "market" in content_lower and ("competition" in content_lower or "customer" in content_lower):
-            return f"Market analysis is a recurring focus across your uploads. You're building substantial market intelligence."
-        
-        # Look for evolution/change patterns
-        if "new" in content_lower and ("approach" in content_lower or "method" in content_lower):
-            return f"You're exploring new approaches across {dump_count} recent items. Your thinking appears to be evolving."
-        
-        # Check for potential gaps or missing pieces  
-        if "research" in content_lower and not ("timeline" in content_lower or "deadline" in content_lower):
-            return f"You have substantial research but timelines and deadlines aren't mentioned. Consider adding implementation planning."
-        
-        # File-based insights if available
-        if file_names:
-            unique_files = len(set(file_names))
-            if unique_files >= 3:
-                return f"You've uploaded diverse content ({unique_files} different files). Look for common threads across these different areas."
-        
-        # Default insight that's still user-focused
-        if dump_count >= 5:
-            return f"Your knowledge base is growing ({dump_count} recent items). Patterns and themes are starting to emerge that might be worth exploring."
+        # Sophisticated default based on substrate richness
+        if graph_count > 10:
+            return f"Your knowledge graph shows {graph_count} connections across {dump_count} items. The density suggests you're building a comprehensive understanding - consider documenting the key relationships you're discovering."
+        elif dump_count >= 5:
+            return f"With {dump_count} memories captured, patterns are emerging. Your thinking shows signs of convergence around key themes - now might be a good time to synthesize these insights into action."
         elif dump_count >= 2:
-            return f"You've added {dump_count} items recently. As you add more content, I'll start spotting patterns and connections."
+            return f"Early patterns detected across {dump_count} items. Continue building your knowledge base to unlock deeper insights about your thinking trajectory."
         else:
-            return "Keep adding content and I'll help you spot patterns, tensions, and themes in your thinking."
+            return "Your knowledge garden is just beginning. Each memory you add creates potential for discovering unexpected connections."
+    
+    def _analyze_deep_patterns(self, content: str, dump_count: int, graph_count: int) -> str:
+        """Analyze deep patterns using multiple signals"""
+        
+        # Strategic pattern detection
+        strategic_indicators = ["strategy", "plan", "roadmap", "vision", "objective", "milestone"]
+        execution_indicators = ["implement", "execute", "deliver", "build", "launch", "ship"]
+        strategic_count = sum(1 for ind in strategic_indicators if ind in content)
+        execution_count = sum(1 for ind in execution_indicators if ind in content)
+        
+        if strategic_count > 3 and execution_count < 2:
+            return f"Pattern detected: Heavy strategic planning ({strategic_count} indicators) with limited execution focus. Your thinking is in 'planning mode' - consider identifying one concrete next action to bridge strategy to execution."
+        
+        # Innovation vs optimization pattern
+        innovation_words = ["new", "novel", "innovative", "disrupt", "transform", "reimagine", "breakthrough"]
+        optimization_words = ["improve", "enhance", "optimize", "refine", "iterate", "polish", "streamline"]
+        innovation_score = sum(1 for word in innovation_words if word in content)
+        optimization_score = sum(1 for word in optimization_words if word in content)
+        
+        if innovation_score > optimization_score * 2:
+            return f"Your thinking leans heavily toward innovation over optimization ({innovation_score}:{optimization_score} ratio). This suggests you're in exploration mode - perfect for breakthrough thinking, but remember to validate ideas with small experiments."
+        elif optimization_score > innovation_score * 2:
+            return f"You're focused on optimization and refinement ({optimization_score}:{innovation_score} ratio). This disciplined approach yields consistent improvements - but occasionally stepping back for radical rethinking can unlock new possibilities."
+        
+        # Complexity emergence pattern
+        concept_density = len(set(content.split())) / len(content.split()) if content.split() else 0
+        if concept_density > 0.7 and dump_count > 3:
+            return f"High conceptual density detected ({concept_density:.1%} unique terms). Your thinking is becoming increasingly sophisticated - this complexity suggests you're ready to identify the core principles that tie everything together."
+        
+        # Network effects pattern
+        if graph_count > dump_count * 2:
+            connection_ratio = graph_count / dump_count
+            return f"Exceptional connectivity in your knowledge graph ({connection_ratio:.1f} connections per item). You're discovering relationships others might miss - this network thinking is your superpower for innovative solutions."
+        
+        return ""
+    
+    def _identify_tensions_and_contradictions(self, content: str) -> str:
+        """Identify productive tensions that drive insight"""
+        
+        # Speed vs Quality tension
+        speed_words = ["fast", "quick", "rapid", "urgent", "asap", "immediately", "now"]
+        quality_words = ["quality", "excellence", "perfect", "thorough", "comprehensive", "detailed"]
+        has_speed = any(word in content for word in speed_words)
+        has_quality = any(word in content for word in quality_words)
+        
+        if has_speed and has_quality:
+            return "Tension detected: You're balancing speed with quality. This classic dilemma often resolves through iteration - ship fast to learn, then refine based on real feedback. Which can you prototype first?"
+        
+        # Scale vs Personalization tension
+        scale_words = ["scale", "growth", "expand", "automate", "systematic", "platform"]
+        personal_words = ["personal", "custom", "individual", "bespoke", "tailored", "unique"]
+        has_scale = any(word in content for word in scale_words)
+        has_personal = any(word in content for word in personal_words)
+        
+        if has_scale and has_personal:
+            return "Strategic tension: Scaling while maintaining personalization. The most successful approaches often find the 'scalable personal' - what core elements can you standardize while keeping key touchpoints human?"
+        
+        # Innovation vs Stability tension
+        change_words = ["change", "new", "transform", "disrupt", "revolutionize", "reimagine"]
+        stability_words = ["stable", "reliable", "consistent", "proven", "established", "maintain"]
+        has_change = any(word in content for word in change_words)
+        has_stability = any(word in content for word in stability_words)
+        
+        if has_change and has_stability:
+            return "Core tension: Innovation versus stability. This productive friction often leads to 'stable innovation' - changing HOW you do things while keeping WHAT you deliver consistent. Where can you innovate behind the scenes?"
+        
+        return ""
+    
+    def _analyze_thinking_trajectory(self, content: str, dump_count: int) -> str:
+        """Analyze the evolution and trajectory of thinking"""
+        
+        # Convergence detection
+        question_marks = content.count('?')
+        exclamation_marks = content.count('!')
+        
+        if dump_count >= 3:
+            if question_marks > exclamation_marks * 2:
+                return f"Trajectory: Your thinking is in active exploration mode ({question_marks} questions captured). This questioning phase is crucial for breakthrough insights - keep probing until patterns crystallize."
+            elif exclamation_marks > question_marks:
+                return f"Trajectory: You're moving from questions to insights ({exclamation_marks} key realizations). This convergence suggests you're ready to test your hypotheses in reality."
+        
+        # Evolution detection
+        temporal_words = ["initially", "then", "now", "evolved", "changed", "realized", "discovered"]
+        evolution_count = sum(1 for word in temporal_words if word in content)
+        
+        if evolution_count >= 3:
+            return f"Your thinking shows clear evolution ({evolution_count} transition markers). This intellectual growth trajectory suggests you're integrating new perspectives - document this journey, as the path often matters more than the destination."
+        
+        # Depth detection
+        because_count = content.count("because")
+        therefore_count = content.count("therefore")
+        reasoning_depth = because_count + therefore_count
+        
+        if reasoning_depth >= 3:
+            return f"Strong causal reasoning detected ({reasoning_depth} logical connections). You're not just collecting facts but building understanding - this depth of analysis positions you to make non-obvious connections."
+        
+        return ""
+    
+    def _identify_critical_gaps(self, content: str) -> str:
+        """Identify what's missing that could unlock new insights"""
+        
+        # Implementation gap
+        if "idea" in content or "concept" in content:
+            if not any(word in content for word in ["test", "experiment", "pilot", "prototype", "try"]):
+                return "Gap identified: Rich ideas without experimentation plans. Even the best concepts need reality contact - what's the smallest test that could validate or invalidate your thinking?"
+        
+        # Stakeholder gap
+        if any(word in content for word in ["project", "initiative", "product", "solution"]):
+            if not any(word in content for word in ["user", "customer", "stakeholder", "audience"]):
+                return "Missing perspective: No explicit user/stakeholder consideration detected. The best solutions deeply understand who they serve - whose problem are you really solving?"
+        
+        # Metrics gap
+        if any(word in content for word in ["goal", "objective", "success", "achieve"]):
+            if not any(word in content for word in ["measure", "metric", "kpi", "indicator", "track"]):
+                return "Insight gap: Goals without metrics often drift. What specific, observable changes would indicate you're succeeding? Defining measures sharpens thinking and accelerates learning."
+        
+        # Systems gap
+        if content.count("problem") > 2 or content.count("issue") > 2:
+            if not any(word in content for word in ["system", "cause", "root", "underlying", "pattern"]):
+                return "Depth opportunity: Multiple problems might share systemic roots. Stepping back to see the system often reveals elegant interventions that address multiple issues simultaneously."
+        
+        return ""
     
     def _extract_content_themes(self, content: str) -> List[str]:
         """Extract meaningful themes from user content"""
