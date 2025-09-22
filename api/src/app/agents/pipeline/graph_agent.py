@@ -319,9 +319,9 @@ class P2GraphAgent:
     
     def _calculate_thematic_connection(self, elem1: Dict[str, Any], elem2: Dict[str, Any]) -> float:
         """Calculate thematic connection strength between elements."""
-        # Check for thematic keywords in both elements
-        content1 = (elem1.get("content", "") + " " + elem1.get("title", "")).lower()
-        content2 = (elem2.get("content", "") + " " + elem2.get("title", "")).lower()
+        # Check for thematic keywords in both elements - handle None values safely
+        content1 = ((elem1.get("content") or "") + " " + (elem1.get("title") or "")).lower()
+        content2 = ((elem2.get("content") or "") + " " + (elem2.get("title") or "")).lower()
         
         # Define thematic keyword clusters
         theme_clusters = {

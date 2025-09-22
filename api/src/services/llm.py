@@ -202,7 +202,7 @@ def _p4_schema(name: str) -> Optional[Dict[str, Any]]:
                 },
                 "coverage_assessment": {"type": "string"},
             },
-            "required": ["selected_indices", "reasoning"],
+            "required": ["selected_indices", "reasoning", "groupings"],
             "additionalProperties": False,
         }
     if name == "p4_narrative_structure":
@@ -223,7 +223,7 @@ def _p4_schema(name: str) -> Optional[Dict[str, Any]]:
                             "order": {"type": "integer"},
                         },
                         "required": ["title", "content", "order"],
-                        "additionalProperties": True,
+                        "additionalProperties": False,
                     },
                 },
                 "introduction": {"type": "string"},
@@ -231,7 +231,7 @@ def _p4_schema(name: str) -> Optional[Dict[str, Any]]:
                 "composition_notes": {"type": "string"},
             },
             "required": ["sections", "summary"],
-            "additionalProperties": True,
+            "additionalProperties": False,
         }
     return None
 

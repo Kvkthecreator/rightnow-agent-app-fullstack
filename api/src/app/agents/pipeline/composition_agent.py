@@ -87,6 +87,11 @@ class P4CompositionAgent:
             
             # Phase 4: Generate narrative structure
             narrative = await self._generate_narrative(selected_substrate, request, strategy)
+            if narrative is None:
+                return AgentResponse(
+                    success=False,
+                    message="Failed to generate narrative structure"
+                )
             
             # Phase 5: Compose document
             composition_result = await self._compose_document(
@@ -464,6 +469,10 @@ Example:
         )
         
         narrative = response.parsed
+        if narrative is None:
+            logger.error(f"P4 Composition: Failed to generate narrative - LLM returned None")
+            return None
+            
         logger.info(f"P4 Composition: Generated narrative with {len(narrative.get('sections', []))} sections")
         
         return narrative

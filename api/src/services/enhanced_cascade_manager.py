@@ -330,6 +330,7 @@ class CanonicalCascadeManager:
             event_data = {
                 'workspace_id': context.workspace_id,
                 'basket_id': context.basket_id,
+                'ts': datetime.now(timezone.utc).isoformat(),
                 'kind': 'pipeline.cascade_triggered',
                 'ref_id': None,  # No specific reference ID for cascade events
                 'preview': f"{source_work_type} → {target_work_type}",
