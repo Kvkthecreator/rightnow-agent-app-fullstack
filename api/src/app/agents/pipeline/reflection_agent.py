@@ -219,9 +219,9 @@ Return JSON only.""",
             basket_filter = str(basket_id) if basket_id else None
             basket_ids = None  # Initialize basket_ids
             
-            # Get blocks
+            # Get blocks - Canon: use canonical fields only
             blocks_query = supabase.table("blocks").select(
-                "id,basket_id,title,body_md,semantic_type,status,confidence_score,metadata,created_at,updated_at"
+                "id,basket_id,title,content,semantic_type,state,confidence_score,created_at,updated_at"
             )
             
             if basket_filter:
@@ -247,18 +247,17 @@ Return JSON only.""",
                             "type": "block", 
                             "basket_id": block.get("basket_id"),
                             "title": block.get("title", ""),
-                            "content": block.get("body_md", ""),
+                            "content": block.get("content", ""),  # Canon: use canonical content field
                             "semantic_type": block.get("semantic_type", "concept"),
-                            "status": block.get("status", "proposed"),
+                            "status": block.get("state", "PROPOSED"),  # Canon: use state field
                             "confidence": block.get("confidence_score", 0.5),
-                            "metadata": block.get("metadata", {}),
                             "created_at": block.get("created_at"),
                             "updated_at": block.get("updated_at")
                         })
             
-            # Get context items
+            # Get context items - Canon: include title and semantic fields
             context_query = supabase.table("context_items").select(
-                "id,basket_id,type,content,metadata,created_at"
+                "id,basket_id,kind,content,title,semantic_meaning,semantic_category,state,created_at"
             )
             
             if basket_filter:
@@ -273,14 +272,19 @@ Return JSON only.""",
             if context_response.data and len(context_response.data) > 0:
                 for item in context_response.data:
                     if item and isinstance(item, dict) and "id" in item:
+                        # Canon: title is entity label, content is semantic meaning
+                        entity_label = item.get("title", "Unknown Entity")
+                        semantic_meaning = item.get("content", "") or item.get("semantic_meaning", "")
+                        
                         substrate_data.append({
                             "id": item["id"],
                             "type": "context_item",
                             "basket_id": item.get("basket_id"),
-                            "title": item.get("content", "")[:50] if item.get("content") else "",
-                            "content": item.get("content", ""),
-                            "semantic_type": item.get("type", "concept"),
-                            "metadata": item.get("metadata", {}),
+                            "title": entity_label,  # Canon: entity name/label
+                            "content": semantic_meaning,  # Canon: semantic interpretation
+                            "semantic_type": item.get("kind", "entity"),  # Canon: use kind field
+                            "semantic_category": item.get("semantic_category", "concept"),
+                            "state": item.get("state", "ACTIVE"),
                             "created_at": item.get("created_at")
                         })
             
@@ -668,23 +672,26 @@ Return JSON only.""",
             "pipeline": self.pipeline,
             "type": "reflection",
             "status": "active",
-            "sacred_rule": "Read-only computation, optionally cached"
+            "sacred_rule": "Read-only computation, optionally cached",
+            "canon_compliance": "fully_compliant",
+            "improvements": "canonical_field_usage,semantic_meaning_processing,enhanced_context_analysis"
         }
 
     def _build_digest(self, substrate_data: List[Dict[str, Any]]) -> str:
-        """Build a compact digest from substrate data for LLM input (size-capped)."""
+        """Build a compact digest from substrate data for LLM input (size-capped) - Canon compliant."""
         lines: List[str] = []
         for item in substrate_data[:50]:  # cap
             t = item.get('type')
             if t == 'block':
                 title = (item.get('title') or '')[:80]
-                content = (item.get('content') or '')[:200]
+                content = (item.get('content') or '')[:200]  # Canon: proper content field
                 st = item.get('semantic_type')
                 lines.append(f"BLOCK[{st}]: {title}\n{content}")
             elif t == 'context_item':
-                content = (item.get('content') or '')[:120]
-                st = item.get('semantic_type') or item.get('type')
-                lines.append(f"CONTEXT[{st}]: {content}")
+                entity_label = (item.get('title') or '')[:40]  # Canon: entity name
+                semantic_meaning = (item.get('content') or '')[:120]  # Canon: semantic interpretation
+                st = item.get('semantic_type') or 'entity'
+                lines.append(f"CONTEXT[{st}]: {entity_label} - {semantic_meaning}")
             elif t == 'relationship':
                 rtype = item.get('relationship_type')
                 lines.append(f"REL[{rtype}]: {item.get('from_id')} -> {item.get('to_id')}")

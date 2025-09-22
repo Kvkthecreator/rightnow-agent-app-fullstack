@@ -201,32 +201,38 @@ Example response:
                 candidates.append({
                     "type": "block",
                     "id": block["id"],
-                    "content": block.get("content", ""),
-                    "title": block.get("title", ""),
+                    "content": block.get("content", ""),  # Canon: use canonical content field
+                    "title": block.get("title", ""),     # Canon: use canonical title field
                     "semantic_type": block.get("semantic_type"),
                     "confidence_score": block.get("confidence_score", 0.7),
                     "created_at": block["created_at"],
                     "metadata": block
                 })
         
-        # Query context items if prioritized
+        # Query context items if prioritized - Canon: proper field handling
         if strategy["substrate_priorities"].get("context_items", True):
             items_response = supabase.table("context_items").select("*")\
                 .eq("basket_id", request.basket_id)\
-                .eq("state", "ACTIVE")\
+                .neq("state", "REJECTED")\
                 .execute()
             
             for item in items_response.data:
+                # Canon: title is entity label, content is semantic meaning
+                entity_label = item.get("title", "Unknown Entity")
+                semantic_meaning = item.get("content", "") or item.get("semantic_meaning", "")
+                
                 candidates.append({
                     "type": "context_item",
                     "id": item["id"],
-                    "content": item.get("label", ""),
+                    "content": semantic_meaning,  # Canon: semantic interpretation 
+                    "title": entity_label,       # Canon: entity name/label
                     "kind": item.get("kind"),
+                    "semantic_category": item.get("semantic_category", "concept"),
                     "created_at": item["created_at"],
                     "metadata": item
                 })
         
-        # Query raw dumps if prioritized
+        # Query raw dumps if prioritized - Canon: use canonical content fields
         if strategy["substrate_priorities"].get("dumps", False):
             dumps_query = supabase.table("raw_dumps").select("*").eq("basket_id", request.basket_id)
             
@@ -242,24 +248,33 @@ Example response:
                 candidates.append({
                     "type": "dump",
                     "id": dump["id"],
-                    "content": dump.get("body_md", "") or dump.get("text_dump", ""),
+                    "content": dump.get("body_md", "") or dump.get("text_dump", ""),  # Use available content
+                    "title": f"Memory from {dump.get('created_at', '')[:10]}",  # Generate descriptive title
                     "created_at": dump["created_at"],
                     "metadata": dump
                 })
         
-        # Query relationships if prioritized (MISSING INTEGRATION!)
+        # Query relationships if prioritized - Canon: use correct field names
         if strategy["substrate_priorities"].get("relationships", True):
             relationships_response = supabase.table("substrate_relationships").select("*")\
                 .eq("basket_id", request.basket_id)\
                 .execute()
             
             for relationship in relationships_response.data:
+                # Canon: use proper field names for relationships
+                from_id = relationship.get("from_id", "unknown")
+                to_id = relationship.get("to_id", "unknown") 
+                rel_type = relationship.get("relationship_type", "related")
+                
                 candidates.append({
                     "type": "relationship",
                     "id": relationship["id"],
-                    "content": f"Relationship: {relationship.get('from_element_id')} → {relationship.get('relationship_type')} → {relationship.get('to_element_id')}",
-                    "relationship_type": relationship.get("relationship_type"),
-                    "confidence_score": relationship.get("confidence_score", 0.7),
+                    "content": f"{rel_type}: {from_id} → {to_id}",  # Canon: descriptive content
+                    "title": f"{rel_type} relationship",  # Canon: add title
+                    "relationship_type": rel_type,
+                    "from_id": from_id,
+                    "to_id": to_id,
+                    "strength": relationship.get("strength", 0.7),
                     "created_at": relationship["created_at"],
                     "metadata": relationship
                 })
@@ -487,12 +502,12 @@ Example:
         dumps = [s for s in selected_substrate if s['type'] == 'dump']
         relationships = [s for s in selected_substrate if s['type'] == 'relationship']
         
-        # Build relationship map
+        # Build relationship map - Canon: use proper field names
         relationship_map = {}
         for rel in relationships:
             rel_type = rel.get('relationship_type', 'related')
-            from_id = rel.get('metadata', {}).get('from_element_id')
-            to_id = rel.get('metadata', {}).get('to_element_id')
+            from_id = rel.get('from_id')  # Canon: direct field access
+            to_id = rel.get('to_id')      # Canon: direct field access
             
             if from_id and to_id:
                 if from_id not in relationship_map:
@@ -500,7 +515,7 @@ Example:
                 relationship_map[from_id].append({
                     'to': to_id,
                     'type': rel_type,
-                    'confidence': rel.get('confidence_score', 0.7)
+                    'strength': rel.get('strength', 0.7)  # Canon: use strength field
                 })
         
         # Generate enhanced substrate summary
@@ -521,11 +536,14 @@ Example:
                 
                 summary_parts.append(block_content)
         
-        # Add context items
+        # Add context items - Canon: use proper semantic meanings
         if context_items:
             summary_parts.append("\n=== CONTEXT ENTITIES ===")
             for item in context_items:
-                summary_parts.append(f"[ENTITY] {item.get('content', '')} ({item.get('kind', 'unknown')})")
+                entity_label = item.get('title', 'Unknown Entity')
+                semantic_meaning = item.get('content', '')
+                kind = item.get('kind', 'unknown')
+                summary_parts.append(f"[ENTITY] {entity_label}: {semantic_meaning} ({kind})")
         
         # Add relationships summary
         if relationships:
@@ -576,10 +594,11 @@ Example:
         for sub in relevant_substrate[:8]:  # Limit to prevent context overflow
             sub_info = f"[{sub['type'].upper()}] {sub.get('content', '')[:300]}"
             
-            # Add relationship context if available
+            # Add relationship context if available - Canon: use proper fields
             if sub['type'] == 'relationship':
-                rel_meta = sub.get('metadata', {})
-                sub_info += f" (Connects: {rel_meta.get('from_element_id')} → {rel_meta.get('to_element_id')})"
+                from_id = sub.get('from_id', 'unknown')
+                to_id = sub.get('to_id', 'unknown')
+                sub_info += f" (Connects: {from_id} → {to_id})"
             
             substrate_context.append(sub_info)
         
