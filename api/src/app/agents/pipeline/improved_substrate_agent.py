@@ -299,15 +299,19 @@ Extract the information above in the specified JSON format. Focus on quality ove
                 }
             })
         
-        # Transform context to context items
+        # Transform context to context items with proper semantic meaning
         for ctx in extraction.context[:15]:  # Limit to 15 best context items
+            # Generate semantic meaning based on entity role and context
+            semantic_meaning = self._generate_semantic_meaning(ctx, content_type, extraction)
+            
             context_items.append({
                 "label": ctx.entity,
-                "content": f"{ctx.role}: {ctx.details or ''}".strip(),
+                "content": semantic_meaning,  # Canon: Semantic interpretation
                 "kind": "entity",
                 "metadata": {
                     "role": ctx.role,
                     "details": ctx.details,
+                    "semantic_meaning": semantic_meaning,  # Store for governance processor
                     "content_type": content_type,
                     "source_dump_id": str(dump_id),
                     "extraction_method": "focused_context"
@@ -329,6 +333,45 @@ Extract the information above in the specified JSON format. Focus on quality ove
         })
         
         return blocks, context_items
+    
+    def _generate_semantic_meaning(
+        self, 
+        ctx: ExtractedContext, 
+        content_type: ContentType,
+        extraction: FocusedExtraction
+    ) -> str:
+        """
+        Generate Canon-compliant semantic meaning for context items.
+        This transforms simple entity labels into meaningful semantic interpretations.
+        """
+        entity = ctx.entity
+        role = ctx.role
+        details = ctx.details or ""
+        
+        # Build semantic interpretation based on role and content type
+        if content_type == ContentType.FINANCIAL:
+            if "company" in role.lower() or "competitor" in role.lower():
+                return f"{entity} represents a {role} in the financial landscape. {details} Their presence indicates market dynamics and competitive positioning."
+            elif "executive" in role.lower() or "ceo" in role.lower():
+                return f"{entity} as {role} provides leadership perspective. {details} Their statements reflect strategic direction and company vision."
+            elif "product" in role.lower():
+                return f"{entity} is a {role} offering. {details} It represents revenue streams and market positioning."
+        
+        elif content_type == ContentType.SECURITY:
+            if "threat" in role.lower() or "attacker" in role.lower():
+                return f"{entity} identified as {role}. {details} This represents security risk requiring mitigation."
+            elif "system" in role.lower() or "service" in role.lower():
+                return f"{entity} is a {role} component. {details} Its security posture affects overall system integrity."
+        
+        elif content_type == ContentType.PRODUCT:
+            if "feature" in role.lower():
+                return f"{entity} represents a {role}. {details} This shapes user experience and product value."
+            elif "user" in role.lower() or "customer" in role.lower():
+                return f"{entity} as {role} defines product requirements. {details} Understanding their needs drives product evolution."
+        
+        # Default semantic interpretation
+        theme = extraction.primary_theme
+        return f"{entity} plays the role of {role} in the context of {theme}. {details or 'This entity shapes the narrative and outcomes described.'}"
     
     def get_agent_info(self) -> Dict[str, str]:
         """Get agent information"""

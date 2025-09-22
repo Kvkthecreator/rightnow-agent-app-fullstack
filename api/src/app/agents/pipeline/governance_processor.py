@@ -710,22 +710,20 @@ class GovernanceDumpProcessor:
                         except Exception:
                             confidence_value = 0.7
                         # Canon-compliant: P1 agent provides content in 'content' field
-                        content = (
-                            op_data.get("content") or        # Primary: P1 agent content field
-                            op_data.get("body_md") or        # Legacy compatibility
-                            metadata.get("summary") or       # Fallback: summary
-                            metadata.get("content") or       # Metadata content
-                            ""
-                        )
+                        content = op_data.get("content", "")
+                        if not content:
+                            self.logger.warning(f"Block missing content: {title}")
+                            content = metadata.get("summary", "No content provided")
+                        
                         body = content if isinstance(content, str) else str(content)
 
                         # Canon-compliant block creation with proper title/content separation
                         block_payload = _sanitize_for_json({
                             "basket_id": str(basket_id),
                             "workspace_id": str(workspace_id),
-                            "title": title,                    # Short descriptive title from P1 agent
-                            "content": body,                   # Full content from P1 agent
-                            "body_md": body,                   # Legacy field for compatibility
+                            "title": title,                    # Canon: Short descriptive title
+                            "content": body,                   # Canon: Primary knowledge content
+                            "body_md": body,                   # DEPRECATED: Will be removed
                             "semantic_type": semantic_type,
                             "confidence_score": confidence_value,
                             "metadata": metadata,
@@ -819,11 +817,17 @@ class GovernanceDumpProcessor:
                         metadata.setdefault("kind", kind_value)
                         metadata.setdefault("label", label)
 
+                        # Canon-compliant context item should have semantic meaning
+                        semantic_meaning = metadata.get("semantic_meaning") or summary_text
+                        if not semantic_meaning or semantic_meaning == label:
+                            # If no real semantic meaning, create one from context
+                            semantic_meaning = f"{kind_value}: {label} - {metadata.get('role', 'related entity')}"
+                        
                         context_payload = _sanitize_for_json({
                             "basket_id": str(basket_id),
                             "type": kind_value,
-                            "title": label,
-                            "content": summary_text,
+                            "title": label,                       # Canon: Entity/concept name
+                            "content": semantic_meaning,          # Canon: Semantic interpretation
                             "description": metadata.get("description") or summary_text,
                             "confidence_score": confidence_value,
                             "metadata": metadata,

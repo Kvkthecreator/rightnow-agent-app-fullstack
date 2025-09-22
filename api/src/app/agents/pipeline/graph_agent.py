@@ -146,13 +146,13 @@ class P2GraphAgent:
         basket_id: UUID,
         substrate_ids: List[UUID]
     ) -> List[Dict[str, Any]]:
-        """Get substrate elements for relationship analysis."""
+        """Get substrate elements for relationship analysis - Canon compliant."""
         try:
             substrate_elements = []
             
-            # Get blocks (exclude archived)
+            # Get blocks (exclude archived) - Canon: use canonical fields only
             blocks_response = supabase.table("blocks").select(
-                "id,label,content,semantic_type,state"
+                "id,title,content,semantic_type,state,confidence_score"
             ).eq("basket_id", str(basket_id)).neq("state", "REJECTED").execute()
             
             if blocks_response.data:
@@ -160,28 +160,31 @@ class P2GraphAgent:
                     substrate_elements.append({
                         "id": block["id"],
                         "type": "block",
-                        "title": block.get("label", ""),
-                        "content": block.get("content", ""),
+                        "title": block.get("title", "Untitled Block"),  # Canon: title is authoritative
+                        "content": block.get("content", ""),  # Canon: content is authoritative
                         "semantic_type": block.get("semantic_type", "concept"),
-                        "metadata": {},  # blocks table doesn't have metadata field
-                        "confidence": 0.7  # blocks table doesn't have confidence_score field
+                        "confidence": block.get("confidence_score", 0.7)  # Use actual confidence field
                     })
             
-            # Get context items (exclude archived)
+            # Get context items (exclude archived) - Canon: handle semantic meanings properly
             context_response = supabase.table("context_items").select(
-                "id,type,content,metadata,state,title"
+                "id,kind,content,title,state,semantic_meaning,semantic_category"
             ).eq("basket_id", str(basket_id)).neq("state", "REJECTED").execute()
             
             if context_response.data:
                 for item in context_response.data:
+                    # Canon: title is entity label, content is semantic meaning
+                    entity_label = item.get("title", "Unknown Entity")
+                    semantic_meaning = item.get("content", "") or item.get("semantic_meaning", "")
+                    
                     substrate_elements.append({
                         "id": item["id"],
                         "type": "context_item", 
-                        "title": item.get("title", item.get("content", ""))[:50],  # Use title or content as title
-                        "content": item.get("content", ""),
-                        "semantic_type": item.get("type", "concept"),
-                        "metadata": item.get("metadata", {}),
-                        "confidence": item.get("metadata", {}).get("confidence", 0.5)
+                        "title": entity_label,  # Canon: entity name/label
+                        "content": semantic_meaning,  # Canon: semantic interpretation
+                        "semantic_type": item.get("kind", "entity"),
+                        "semantic_category": item.get("semantic_category", "concept"),
+                        "confidence": 0.8  # Context items are generally high confidence
                     })
             
             # Filter by requested substrate_ids if specified
@@ -191,6 +194,10 @@ class P2GraphAgent:
                     elem for elem in substrate_elements 
                     if elem["id"] in substrate_id_strs
                 ]
+            
+            self.logger.info(f"P2 Graph: Retrieved {len(substrate_elements)} substrate elements "
+                           f"({len([e for e in substrate_elements if e['type'] == 'block'])} blocks, "
+                           f"{len([e for e in substrate_elements if e['type'] == 'context_item'])} context items)")
             
             return substrate_elements
             
@@ -288,9 +295,10 @@ class P2GraphAgent:
         return 0.2  # Base similarity for all elements
     
     def _calculate_content_overlap(self, elem1: Dict[str, Any], elem2: Dict[str, Any]) -> float:
-        """Calculate content overlap between two substrate elements."""
-        content1 = elem1.get("content", "").lower()
-        content2 = elem2.get("content", "").lower()
+        """Calculate content overlap between two substrate elements - Canon compliant."""
+        # Canon: Use proper analyzable content (includes semantic meanings for context_items)
+        content1 = self._get_analyzable_content(elem1).lower()
+        content2 = self._get_analyzable_content(elem2).lower()
         
         if not content1 or not content2:
             return 0.0
@@ -318,10 +326,10 @@ class P2GraphAgent:
         return min(1.0, jaccard)
     
     def _calculate_thematic_connection(self, elem1: Dict[str, Any], elem2: Dict[str, Any]) -> float:
-        """Calculate thematic connection strength between elements."""
-        # Check for thematic keywords in both elements - handle None values safely
-        content1 = ((elem1.get("content") or "") + " " + (elem1.get("title") or "")).lower()
-        content2 = ((elem2.get("content") or "") + " " + (elem2.get("title") or "")).lower()
+        """Calculate thematic connection strength between elements - Canon compliant."""
+        # Canon: Use proper analyzable content for thematic analysis
+        content1 = self._get_analyzable_content(elem1).lower()
+        content2 = self._get_analyzable_content(elem2).lower()
         
         # Define thematic keyword clusters
         theme_clusters = {
@@ -350,13 +358,17 @@ class P2GraphAgent:
     
     def _analyze_causal_relationships(self, elem1: Dict[str, Any], elem2: Dict[str, Any]) -> List[RelationshipProposal]:
         """
-        CRITICAL: Analyze causal relationships between substrate elements.
+        CRITICAL: Analyze causal relationships between substrate elements - Canon compliant.
         This enables real intelligence by detecting HOW concepts connect and influence each other.
         """
         causal_relationships = []
         
-        content1 = (elem1.get("content", "") + " " + elem1.get("title", "")).lower()
-        content2 = (elem2.get("content", "") + " " + elem2.get("title", "")).lower()
+        # Canon: Use proper content for analysis - blocks have content, context_items have semantic meaning
+        content1 = self._get_analyzable_content(elem1).lower()
+        content2 = self._get_analyzable_content(elem2).lower()
+        
+        if not content1 or not content2:
+            return causal_relationships
         
         # CAUSAL RELATIONSHIP DETECTION
         causal_patterns = {
@@ -435,20 +447,34 @@ class P2GraphAgent:
         
         return causal_relationships
 
+    def _get_analyzable_content(self, elem: Dict[str, Any]) -> str:
+        """
+        Get analyzable content for relationship analysis - Canon compliant.
+        Blocks: title + content (facts/insights/actions)
+        Context items: title + content (semantic meaning)
+        """
+        title = elem.get("title", "")
+        content = elem.get("content", "")
+        
+        # Combine title and content for analysis
+        analyzable = f"{title} {content}".strip()
+        return analyzable if analyzable else ""
+
     def _detect_context_reference(self, elem1: Dict[str, Any], elem2: Dict[str, Any]) -> Optional[RelationshipProposal]:
-        """Detect explicit block → context_item references via label mention."""
+        """Detect explicit block → context_item references via entity label mention - Canon compliant."""
 
         def build_relationship(src: Dict[str, Any], dst: Dict[str, Any]) -> Optional[RelationshipProposal]:
             if src.get("type") != "block" or dst.get("type") != "context_item":
                 return None
 
-            label = (dst.get("metadata", {}) or {}).get("label") or dst.get("title") or ""
-            label_norm = label.lower().strip()
-            if not label_norm:
+            # Canon: context_item title is the entity label
+            entity_label = dst.get("title", "").lower().strip()
+            if not entity_label:
                 return None
 
+            # Check if block content/title mentions the entity
             block_text = (src.get("content", "") + " " + src.get("title", "")).lower()
-            if label_norm in block_text:
+            if entity_label in block_text:
                 return RelationshipProposal(
                     from_type="block",
                     from_id=UUID(src["id"]),
@@ -456,7 +482,7 @@ class P2GraphAgent:
                     to_id=UUID(dst["id"]),
                     relationship_type="context_reference",
                     strength=0.75,
-                    description=f"Block references context item '{label[:40]}...'"
+                    description=f"Block '{src.get('title', 'Unknown')[:30]}' references entity '{dst.get('title', 'Unknown')[:30]}'"
                 )
             return None
 
@@ -637,5 +663,7 @@ class P2GraphAgent:
             "pipeline": self.pipeline,
             "type": "graph",
             "status": "active",
-            "sacred_rule": "Creates relationships, never modifies substrate content"
+            "sacred_rule": "Creates relationships, never modifies substrate content",
+            "canon_compliance": "fully_compliant",
+            "improvements": "proper_field_usage,semantic_meaning_processing,enhanced_causal_analysis"
         }
