@@ -230,7 +230,7 @@ def _p4_schema(name: str) -> Optional[Dict[str, Any]]:
                 "summary": {"type": "string"},
                 "composition_notes": {"type": "string"},
             },
-            "required": ["sections", "summary"],
+            "required": ["sections", "summary", "introduction", "composition_notes"],
             "additionalProperties": False,
         }
     return None
