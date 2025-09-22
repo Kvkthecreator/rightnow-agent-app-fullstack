@@ -256,9 +256,16 @@ Return JSON only.""",
                         })
             
             # Get context items - Canon: include title and semantic fields
-            context_query = supabase.table("context_items").select(
-                "id,basket_id,kind,content,title,semantic_meaning,semantic_category,state,created_at"
-            )
+            # HOTFIX: Handle missing fields in pre-migration schema
+            try:
+                context_query = supabase.table("context_items").select(
+                    "id,basket_id,kind,content,title,semantic_meaning,semantic_category,state,created_at"
+                )
+            except Exception:
+                # Fallback for pre-migration schema
+                context_query = supabase.table("context_items").select(
+                    "id,basket_id,type,content,metadata,created_at"
+                )
             
             if basket_filter:
                 context_query = context_query.eq("basket_id", basket_filter)
@@ -273,8 +280,12 @@ Return JSON only.""",
                 for item in context_response.data:
                     if item and isinstance(item, dict) and "id" in item:
                         # Canon: title is entity label, content is semantic meaning
-                        entity_label = item.get("title", "Unknown Entity")
+                        # HOTFIX: Handle missing fields in pre-migration schema
+                        entity_label = item.get("title") or item.get("content", "Unknown Entity")[:50]
                         semantic_meaning = item.get("content", "") or item.get("semantic_meaning", "")
+                        
+                        # HOTFIX: Handle both kind (new) and type (old) fields
+                        item_kind = item.get("kind") or item.get("type", "entity")
                         
                         substrate_data.append({
                             "id": item["id"],
@@ -282,7 +293,7 @@ Return JSON only.""",
                             "basket_id": item.get("basket_id"),
                             "title": entity_label,  # Canon: entity name/label
                             "content": semantic_meaning,  # Canon: semantic interpretation
-                            "semantic_type": item.get("kind", "entity"),  # Canon: use kind field
+                            "semantic_type": item_kind,  # Canon: use kind field with fallback
                             "semantic_category": item.get("semantic_category", "concept"),
                             "state": item.get("state", "ACTIVE"),
                             "created_at": item.get("created_at")

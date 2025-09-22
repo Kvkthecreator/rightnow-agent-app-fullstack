@@ -26,11 +26,11 @@ async def create_item(
         metadata = body.composition_metadata or {}
         entity_label = body.title or body.content[:50]  # Canon: title is entity label
         
+        # HOTFIX: Use existing schema fields until migration is applied
         payload = {
             "basket_id": str(workspace.basket_id),
-            "kind": body.type,  # Canon: use 'kind' field instead of 'type'
-            "title": entity_label,  # Canon: entity name/label
-            "content": body.content,  # Canon: semantic meaning/description
+            "type": body.type,  # HOTFIX: Use existing 'type' field 
+            "content": body.content,  # Use content as provided
             "metadata": metadata,
             "state": "ACTIVE",
             "confidence_score": body.confidence or 0.8,
@@ -65,12 +65,11 @@ async def list_items(
     workspace=Depends(get_or_create_workspace),
 ):
     try:
-        # Canon: select canonical fields for context_items
+        # HOTFIX: Use existing schema fields until migration is applied
         resp = (
             supabase.table("context_items")
-            .select("id,basket_id,title,content,kind,semantic_meaning,semantic_category,state,confidence_score,created_at,updated_at")
+            .select("id,basket_id,content,type,metadata,state,confidence_score,created_at")
             .eq("basket_id", workspace.basket_id)
-            .neq("state", "REJECTED")  # Canon: exclude rejected items
             .order("created_at", desc=True)
             .execute()
         )

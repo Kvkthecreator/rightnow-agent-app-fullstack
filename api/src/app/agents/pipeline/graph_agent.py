@@ -167,22 +167,33 @@ class P2GraphAgent:
                     })
             
             # Get context items (exclude archived) - Canon: handle semantic meanings properly
-            context_response = supabase.table("context_items").select(
-                "id,kind,content,title,state,semantic_meaning,semantic_category"
-            ).eq("basket_id", str(basket_id)).neq("state", "REJECTED").execute()
+            # HOTFIX: Use type field if kind doesn't exist yet (pre-migration)
+            try:
+                context_response = supabase.table("context_items").select(
+                    "id,kind,content,title,state,semantic_meaning,semantic_category"
+                ).eq("basket_id", str(basket_id)).neq("state", "REJECTED").execute()
+            except Exception:
+                # Fallback for pre-migration schema
+                context_response = supabase.table("context_items").select(
+                    "id,type,content,title,state,metadata"
+                ).eq("basket_id", str(basket_id)).neq("state", "REJECTED").execute()
             
             if context_response.data:
                 for item in context_response.data:
                     # Canon: title is entity label, content is semantic meaning
-                    entity_label = item.get("title", "Unknown Entity")
+                    # HOTFIX: Handle missing title field in pre-migration schema
+                    entity_label = item.get("title") or item.get("content", "Unknown Entity")[:50]
                     semantic_meaning = item.get("content", "") or item.get("semantic_meaning", "")
+                    
+                    # HOTFIX: Handle both kind (new) and type (old) fields
+                    item_kind = item.get("kind") or item.get("type", "entity")
                     
                     substrate_elements.append({
                         "id": item["id"],
                         "type": "context_item", 
                         "title": entity_label,  # Canon: entity name/label
                         "content": semantic_meaning,  # Canon: semantic interpretation
-                        "semantic_type": item.get("kind", "entity"),
+                        "semantic_type": item_kind,  # Canon: use kind field with fallback
                         "semantic_category": item.get("semantic_category", "concept"),
                         "confidence": 0.8  # Context items are generally high confidence
                     })

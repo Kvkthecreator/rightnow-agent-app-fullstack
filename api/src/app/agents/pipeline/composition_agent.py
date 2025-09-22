@@ -213,20 +213,23 @@ Example response:
         if strategy["substrate_priorities"].get("context_items", True):
             items_response = supabase.table("context_items").select("*")\
                 .eq("basket_id", request.basket_id)\
-                .neq("state", "REJECTED")\
-                .execute()
+                .execute()  # HOTFIX: Remove state filter for now
             
             for item in items_response.data:
                 # Canon: title is entity label, content is semantic meaning
-                entity_label = item.get("title", "Unknown Entity")
+                # HOTFIX: Handle missing fields in pre-migration schema
+                entity_label = item.get("title") or item.get("content", "Unknown Entity")[:50]
                 semantic_meaning = item.get("content", "") or item.get("semantic_meaning", "")
+                
+                # HOTFIX: Handle both kind (new) and type (old) fields
+                item_kind = item.get("kind") or item.get("type", "entity")
                 
                 candidates.append({
                     "type": "context_item",
                     "id": item["id"],
                     "content": semantic_meaning,  # Canon: semantic interpretation 
                     "title": entity_label,       # Canon: entity name/label
-                    "kind": item.get("kind"),
+                    "kind": item_kind,           # HOTFIX: with fallback
                     "semantic_category": item.get("semantic_category", "concept"),
                     "created_at": item["created_at"],
                     "metadata": item
