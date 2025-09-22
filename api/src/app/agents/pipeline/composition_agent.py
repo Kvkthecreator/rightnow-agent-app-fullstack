@@ -836,7 +836,7 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             
             update_response = supabase.table("documents")\
                 .update(doc_update)\
-                .eq("id", document_id)\
+                .eq("id", str(document_id))\
                 .execute()
             
             if not update_response.data:
@@ -859,9 +859,9 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                     
                     # Create substrate reference via canonical RPC
                     ref_response = supabase.rpc("fn_document_attach_substrate", {
-                        "p_document_id": document_id,
+                        "p_document_id": str(document_id),
                         "p_substrate_type": canonical_type,
-                        "p_substrate_id": substrate["id"],
+                        "p_substrate_id": str(substrate["id"]),
                         "p_role": "primary" if idx < 5 else "supporting",
                         "p_weight": min(1.0, substrate.get("confidence_score", 0.7)),
                         "p_snippets": [substrate.get("content", "")[:200]] if substrate.get("content") else [],
@@ -885,16 +885,16 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             
             # Create new document version
             version_response = supabase.rpc("fn_document_create_version", {
-                "p_document_id": document_id,
+                "p_document_id": str(document_id),
                 "p_content": final_content,
                 "p_version_message": f"Composed from {len(selected_substrate)} substrate items"
             }).execute()
             
             # Emit timeline event
             timeline_response = supabase.rpc("fn_timeline_emit", {
-                "p_basket_id": supabase.table("documents").select("basket_id").eq("id", document_id).execute().data[0]["basket_id"],
+                "p_basket_id": supabase.table("documents").select("basket_id").eq("id", str(document_id)).execute().data[0]["basket_id"],
                 "p_kind": "document.composed",
-                "p_ref_id": document_id,
+                "p_ref_id": str(document_id),
                 "p_preview": f"Document composed: {narrative.get('summary', 'Composition complete')}",
                 "p_payload": json.dumps({
                     "substrate_count": len(selected_substrate),
@@ -940,7 +940,7 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                     "composition_error": error,
                     "composition_failed_at": datetime.now(timezone.utc).isoformat()
                 }
-            }).eq("id", document_id).execute()
+            }).eq("id", str(document_id)).execute()
             
         except Exception as e:
             logger.error(f"Failed to mark composition failed for {document_id}: {e}")
