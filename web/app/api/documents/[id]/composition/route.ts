@@ -12,10 +12,10 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     const { userId, isTest } = await getTestAwareAuth(supabase);
     const workspace = isTest ? { id: '00000000-0000-0000-0000-000000000002' } : await ensureWorkspaceForUser(userId, supabase);
 
-    // Load document
+    // Load document with metadata for Phase 1 metrics
     const { data: doc, error: docErr } = await supabase
       .from('documents')
-      .select('id, basket_id, title, content_raw, created_at, updated_at, workspace_id')
+      .select('id, basket_id, title, content_raw, created_at, updated_at, workspace_id, metadata')
       .eq('id', id)
       .maybeSingle();
     if (docErr || !doc) return NextResponse.json({ error: 'document not found' }, { status: 404 });
@@ -55,8 +55,18 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       resolved.push({ reference: r, substrate });
     }
 
+    // Enhance with Phase 1 metrics if available
+    const enhanced_doc = {
+      ...doc,
+      metadata: {
+        ...doc.metadata,
+        // Include Phase 1 metrics from document metadata if available
+        phase1_metrics: doc.metadata?.phase1_metrics || null
+      }
+    };
+
     const payload = {
-      document: doc,
+      document: enhanced_doc,
       references: resolved,
       composition_stats: stats || {
         document_id: id,
@@ -64,7 +74,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
         dumps_count: 0,
         context_items_count: 0,
         timeline_events_count: 0,
-        total_substrate_references: 0
+        total_substrate_references: (refs || []).length
       }
     };
     return NextResponse.json(payload, { status: 200 });
