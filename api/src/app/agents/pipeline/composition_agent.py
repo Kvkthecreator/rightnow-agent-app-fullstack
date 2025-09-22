@@ -15,9 +15,11 @@ This agent:
 import asyncio
 import json
 import logging
+import os
 from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from uuid import UUID
+import math
 
 from app.utils.supabase_client import supabase_admin_client as supabase
 from services.llm import get_llm
@@ -31,6 +33,40 @@ class AgentResponse:
     message: str
     data: Optional[Dict[str, Any]] = None
     confidence: Optional[float] = None
+
+@dataclass
+class RetrievalBudget:
+    """Phase 1: Retrieval budget configuration"""
+    total_budget: int = 120
+    type_weights: Dict[str, float] = None
+    per_type_caps: Dict[str, int] = None
+    recency_days: int = 90
+    mmr_lambda: float = 0.7  # Diversity vs relevance balance
+    
+    def __post_init__(self):
+        if self.type_weights is None:
+            self.type_weights = {"blocks": 0.45, "context_items": 0.30, "relationships": 0.25, "dumps": 0.00}
+        if self.per_type_caps is None:
+            self.per_type_caps = {"blocks": 80, "context_items": 60, "relationships": 40, "dumps": 0}
+
+@dataclass
+class CompositionMetrics:
+    """Phase 1: Metrics for composition analysis"""
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    candidates_found: Dict[str, int] = None
+    candidates_selected: Dict[str, int] = None
+    provenance_percentage: float = 0.0
+    freshness_score: float = 0.0
+    raw_gaps_used: bool = False
+    coverage_percentage: float = 0.0
+    tokens_used: int = 0
+    
+    def __post_init__(self):
+        if self.candidates_found is None:
+            self.candidates_found = {}
+        if self.candidates_selected is None:
+            self.candidates_selected = {}
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -79,11 +115,11 @@ class P4CompositionAgent:
             # Phase 1: Analyze intent and determine composition strategy
             strategy = await self._analyze_intent(request)
             
-            # Phase 2: Query substrate comprehensively
-            substrate_candidates = await self._query_substrate(request, strategy)
+            # Phase 2: Query substrate with budgets and metrics
+            substrate_candidates, query_metrics = await self._query_substrate(request, strategy)
             
-            # Phase 3: Score and select substrate
-            selected_substrate = await self._score_and_select(substrate_candidates, request, strategy)
+            # Phase 3: Score and select substrate with MMR diversity
+            selected_substrate, query_metrics = await self._score_and_select(substrate_candidates, request, strategy, query_metrics)
             
             # Phase 4: Generate narrative structure
             narrative = await self._generate_narrative(selected_substrate, request, strategy)
@@ -98,7 +134,8 @@ class P4CompositionAgent:
                 request.document_id,
                 selected_substrate,
                 narrative,
-                request.workspace_id
+                request.workspace_id,
+                query_metrics
             )
             
             return AgentResponse(
@@ -108,7 +145,8 @@ class P4CompositionAgent:
                     "document_id": request.document_id,
                     "substrate_count": len(selected_substrate),
                     "composition_summary": composition_result.get("summary"),
-                    "confidence": strategy.get("confidence", 0.8)
+                    "confidence": strategy.get("confidence", 0.8),
+                    "phase1_metrics": composition_result.get("phase1_metrics", {})
                 }
             )
             
@@ -176,15 +214,25 @@ Example response:
         logger.info(f"P4 Composition strategy: {strategy}")
         return strategy
     
-    async def _query_substrate(self, request: CompositionRequest, strategy: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _query_substrate(self, request: CompositionRequest, strategy: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], CompositionMetrics]:
         """
-        Query all relevant substrate based on strategy
+        Phase 1: Query substrate with budgets, caps, and recency filtering
         """
+        metrics = CompositionMetrics(start_time=datetime.utcnow())
+        budget = RetrievalBudget()
         candidates = []
         
-        # Query blocks if prioritized
-        if strategy["substrate_priorities"].get("blocks", True):
+        # Calculate recency cutoff (90 days by default)
+        recency_cutoff = datetime.utcnow() - timedelta(days=budget.recency_days)
+        
+        logger.info(f"P4 Phase 1: Applying retrieval budget - total={budget.total_budget}, recency_days={budget.recency_days}")
+        
+        # Query blocks with budget and recency constraints
+        if strategy["substrate_priorities"].get("blocks", True) and budget.per_type_caps["blocks"] > 0:
             blocks_query = supabase.table("blocks").select("*").eq("basket_id", request.basket_id)
+            
+            # Apply recency filter (Phase 1 improvement)
+            blocks_query = blocks_query.gte("created_at", recency_cutoff.isoformat())
             
             # Apply window filter if specified
             if request.window.get("start_date"):
@@ -192,12 +240,13 @@ Example response:
             if request.window.get("end_date"):
                 blocks_query = blocks_query.lte("created_at", request.window["end_date"])
             
-            # Exclude rejected blocks
-            blocks_query = blocks_query.neq("state", "REJECTED")
+            # Exclude rejected blocks and apply cap
+            blocks_query = blocks_query.neq("state", "REJECTED").limit(budget.per_type_caps["blocks"])
             
             blocks_response = blocks_query.execute()
+            metrics.candidates_found["blocks"] = len(blocks_response.data or [])
             
-            for block in blocks_response.data:
+            for block in blocks_response.data or []:
                 candidates.append({
                     "type": "block",
                     "id": block["id"],
@@ -206,16 +255,21 @@ Example response:
                     "semantic_type": block.get("semantic_type"),
                     "confidence_score": block.get("confidence_score", 0.7),
                     "created_at": block["created_at"],
-                    "metadata": block
+                    "metadata": block,
+                    "freshness_score": self._calculate_freshness(block["created_at"], recency_cutoff)
                 })
         
-        # Query context items if prioritized - Canon: proper field handling
-        if strategy["substrate_priorities"].get("context_items", True):
-            items_response = supabase.table("context_items").select("*")\
+        # Query context items with budget constraints - Canon: proper field handling
+        if strategy["substrate_priorities"].get("context_items", True) and budget.per_type_caps["context_items"] > 0:
+            items_query = supabase.table("context_items").select("*")\
                 .eq("basket_id", request.basket_id)\
-                .execute()  # HOTFIX: Remove state filter for now
+                .gte("created_at", recency_cutoff.isoformat())\
+                .limit(budget.per_type_caps["context_items"])
             
-            for item in items_response.data:
+            items_response = items_query.execute()
+            metrics.candidates_found["context_items"] = len(items_response.data or [])
+            
+            for item in items_response.data or []:
                 # Canon: title is entity label, content is semantic meaning
                 # HOTFIX: Handle missing fields in pre-migration schema
                 entity_label = item.get("title") or item.get("content", "Unknown Entity")[:50]
@@ -232,38 +286,50 @@ Example response:
                     "kind": item_kind,           # HOTFIX: with fallback
                     "semantic_category": item.get("semantic_category", "concept"),
                     "created_at": item["created_at"],
-                    "metadata": item
+                    "metadata": item,
+                    "freshness_score": self._calculate_freshness(item["created_at"], recency_cutoff)
                 })
         
-        # Query raw dumps if prioritized - Canon: use canonical content fields
-        if strategy["substrate_priorities"].get("dumps", False):
+        # Phase 1: Raw dumps only for gaps-only policy (controlled by feature flag)
+        use_raw_gaps = os.getenv("USE_RAW_GAPS_ONLY", "false").lower() == "true"
+        if strategy["substrate_priorities"].get("dumps", False) and not use_raw_gaps:
+            # Legacy behavior: include raw dumps if strategy requests them
             dumps_query = supabase.table("raw_dumps").select("*").eq("basket_id", request.basket_id)
+            
+            # Apply recency filter
+            dumps_query = dumps_query.gte("created_at", recency_cutoff.isoformat())
             
             if request.window.get("start_date"):
                 dumps_query = dumps_query.gte("created_at", request.window["start_date"])
             if request.window.get("end_date"):
                 dumps_query = dumps_query.lte("created_at", request.window["end_date"])
             
-            # Limit dumps to prevent overwhelming the composition
-            dumps_response = dumps_query.limit(20).execute()
+            # Apply cap (much lower for raw dumps)
+            dumps_response = dumps_query.limit(min(20, budget.per_type_caps.get("dumps", 0))).execute()
+            metrics.candidates_found["dumps"] = len(dumps_response.data or [])
             
-            for dump in dumps_response.data:
+            for dump in dumps_response.data or []:
                 candidates.append({
                     "type": "dump",
                     "id": dump["id"],
                     "content": dump.get("body_md", "") or dump.get("text_dump", ""),  # Use available content
                     "title": f"Memory from {dump.get('created_at', '')[:10]}",  # Generate descriptive title
                     "created_at": dump["created_at"],
-                    "metadata": dump
+                    "metadata": dump,
+                    "freshness_score": self._calculate_freshness(dump["created_at"], recency_cutoff)
                 })
         
-        # Query relationships if prioritized - Canon: use correct field names
-        if strategy["substrate_priorities"].get("relationships", True):
-            relationships_response = supabase.table("substrate_relationships").select("*")\
+        # Query relationships with budget constraints - Canon: use correct field names
+        if strategy["substrate_priorities"].get("relationships", True) and budget.per_type_caps["relationships"] > 0:
+            relationships_query = supabase.table("substrate_relationships").select("*")\
                 .eq("basket_id", request.basket_id)\
-                .execute()
+                .gte("created_at", recency_cutoff.isoformat())\
+                .limit(budget.per_type_caps["relationships"])
             
-            for relationship in relationships_response.data:
+            relationships_response = relationships_query.execute()
+            metrics.candidates_found["relationships"] = len(relationships_response.data or [])
+            
+            for relationship in relationships_response.data or []:
                 # Canon: use proper field names for relationships
                 from_id = relationship.get("from_id", "unknown")
                 to_id = relationship.get("to_id", "unknown") 
@@ -279,7 +345,8 @@ Example response:
                     "to_id": to_id,
                     "strength": relationship.get("strength", 0.7),
                     "created_at": relationship["created_at"],
-                    "metadata": relationship
+                    "metadata": relationship,
+                    "freshness_score": self._calculate_freshness(relationship["created_at"], recency_cutoff)
                 })
         
         # Add pinned items if specified
@@ -287,8 +354,12 @@ Example response:
             # TODO: Query pinned items across all substrate types
             pass
         
-        logger.info(f"P4 Composition: Found {len(candidates)} substrate candidates")
-        return candidates
+        # Calculate overall metrics
+        total_found = sum(metrics.candidates_found.values())
+        metrics.end_time = datetime.utcnow()
+        
+        logger.info(f"P4 Phase 1: Found {total_found} substrate candidates with budget constraints: {dict(metrics.candidates_found)}")
+        return candidates, metrics
     
     async def _score_and_select(
         self, 
@@ -412,8 +483,33 @@ Example:
         if not selected and candidates:
             return _fallback_selection("LLM returned no substrate indices")
 
-        logger.info(f"P4 Composition: Selected {len(selected)} substrate items")
-        return selected
+        # Update metrics with selections
+        for substrate in selected:
+            substrate_type = substrate.get("type", "unknown")
+            if substrate_type not in query_metrics.candidates_selected:
+                query_metrics.candidates_selected[substrate_type] = 0
+            query_metrics.candidates_selected[substrate_type] += 1
+        
+        # Calculate coverage and freshness
+        query_metrics.coverage_percentage = self._calculate_coverage_percentage(selected, strategy)
+        query_metrics.freshness_score = self._calculate_average_freshness(selected)
+        query_metrics.provenance_percentage = self._calculate_provenance_percentage(selected)
+        
+        # Phase 1: Gaps-only raw retrieval if coverage is insufficient
+        use_raw_gaps = os.getenv("USE_RAW_GAPS_ONLY", "false").lower() == "true"
+        coverage_target = 0.90  # 90% coverage target
+        
+        if use_raw_gaps and query_metrics.coverage_percentage < coverage_target:
+            logger.info(f"P4 Phase 1: Coverage {query_metrics.coverage_percentage:.1%} below target {coverage_target:.1%}, adding gaps-only raw")
+            gap_filled_substrate = await self._fill_gaps_with_raw(request, selected, strategy, query_metrics)
+            selected = gap_filled_substrate
+            query_metrics.raw_gaps_used = True
+            
+            # Recalculate metrics after gap filling
+            query_metrics.coverage_percentage = self._calculate_coverage_percentage(selected, strategy)
+        
+        logger.info(f"P4 Phase 1: Selected {len(selected)} substrate items with coverage={query_metrics.coverage_percentage:.1%}, freshness={query_metrics.freshness_score:.2f}, gaps_used={query_metrics.raw_gaps_used}")
+        return selected, query_metrics
     
     async def _generate_narrative(
         self,
@@ -656,7 +752,8 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
         document_id: str,
         selected_substrate: List[Dict[str, Any]],
         narrative: Dict[str, Any],
-        workspace_id: str
+        workspace_id: str,
+        query_metrics: CompositionMetrics
     ) -> Dict[str, Any]:
         """
         Compose final document with relationship-aware content and substrate references
@@ -781,13 +878,26 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                 })
             }).execute()
             
+            # Log final metrics before returning
+            query_metrics.tokens_used = len(final_content.split())  # Rough token estimate
+            self._log_composition_metrics(request.document_id, query_metrics)
+            
             return {
                 "success": True,
                 "summary": narrative.get("summary", "Document composed"),
                 "substrate_count": len(selected_substrate),
                 "substrate_references_created": len(substrate_refs_created),
                 "content_length": len(final_content),
-                "canon_compliance": "substrate_references_in_canonical_table"
+                "canon_compliance": "substrate_references_in_canonical_table",
+                "phase1_metrics": {
+                    "coverage_percentage": query_metrics.coverage_percentage,
+                    "freshness_score": query_metrics.freshness_score,
+                    "provenance_percentage": query_metrics.provenance_percentage,
+                    "candidates_found": query_metrics.candidates_found,
+                    "candidates_selected": query_metrics.candidates_selected,
+                    "processing_time_ms": int((query_metrics.end_time - query_metrics.start_time).total_seconds() * 1000),
+                    "raw_gaps_used": query_metrics.raw_gaps_used
+                }
             }
             
         except Exception as e:
@@ -809,3 +919,197 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             
         except Exception as e:
             logger.error(f"Failed to mark composition failed for {document_id}: {e}")
+    
+    def _calculate_freshness(self, created_at: str, recency_cutoff: datetime) -> float:
+        """
+        Phase 1: Calculate freshness score (0.0 to 1.0) based on recency
+        """
+        try:
+            if isinstance(created_at, str):
+                created_time = datetime.fromisoformat(created_at.rstrip('Z'))
+            else:
+                created_time = created_at
+            
+            if created_time.tzinfo is None:
+                created_time = created_time.replace(tzinfo=timezone.utc)
+            
+            # Calculate days since creation
+            age_days = (datetime.utcnow().replace(tzinfo=timezone.utc) - created_time).days
+            
+            # Fresher items get higher scores (exponential decay)
+            # Items from today = 1.0, items from 30 days ago ≈ 0.5, items from 90 days ago ≈ 0.1
+            freshness = math.exp(-age_days / 30.0)
+            return min(1.0, freshness)
+            
+        except Exception:
+            return 0.5  # Default middle score for unparseable dates
+    
+    def _calculate_coverage_percentage(self, selected_substrate: List[Dict[str, Any]], strategy: Dict[str, Any]) -> float:
+        """
+        Phase 1: Calculate how well selected substrate covers the intended document types
+        """
+        if not selected_substrate:
+            return 0.0
+        
+        # Count coverage by substrate type
+        type_counts = {}
+        for substrate in selected_substrate:
+            substrate_type = substrate.get("type", "unknown")
+            type_counts[substrate_type] = type_counts.get(substrate_type, 0) + 1
+        
+        # Assess coverage based on strategy priorities
+        priorities = strategy.get("substrate_priorities", {})
+        expected_types = [t for t, needed in priorities.items() if needed]
+        
+        if not expected_types:
+            return 1.0  # If no specific types needed, any content is full coverage
+        
+        covered_types = set(type_counts.keys())
+        expected_set = set(expected_types)
+        
+        # Coverage = intersection / expected
+        coverage = len(covered_types.intersection(expected_set)) / len(expected_set)
+        return coverage
+    
+    def _calculate_average_freshness(self, selected_substrate: List[Dict[str, Any]]) -> float:
+        """
+        Phase 1: Calculate average freshness of selected substrate
+        """
+        if not selected_substrate:
+            return 0.0
+        
+        freshness_scores = [s.get("freshness_score", 0.5) for s in selected_substrate]
+        return sum(freshness_scores) / len(freshness_scores)
+    
+    def _calculate_provenance_percentage(self, selected_substrate: List[Dict[str, Any]]) -> float:
+        """
+        Phase 1: Calculate percentage of substrate with clear provenance
+        """
+        if not selected_substrate:
+            return 0.0
+        
+        # Count substrate with confidence scores or clear metadata
+        provenance_count = 0
+        for substrate in selected_substrate:
+            has_confidence = substrate.get("confidence_score", 0) > 0
+            has_metadata = bool(substrate.get("metadata", {}))
+            has_selection_reason = bool(substrate.get("selection_reason", ""))
+            
+            if has_confidence or has_metadata or has_selection_reason:
+                provenance_count += 1
+        
+        return provenance_count / len(selected_substrate)
+    
+    async def _fill_gaps_with_raw(
+        self, 
+        request: CompositionRequest, 
+        selected_substrate: List[Dict[str, Any]], 
+        strategy: Dict[str, Any],
+        metrics: CompositionMetrics
+    ) -> List[Dict[str, Any]]:
+        """
+        Phase 1: Fill coverage gaps with raw dumps (gaps-only policy)
+        """
+        try:
+            # Identify what types of content we're missing
+            existing_types = set(s.get("type") for s in selected_substrate)
+            needed_types = set(k for k, v in strategy.get("substrate_priorities", {}).items() if v)
+            missing_types = needed_types - existing_types
+            
+            if not missing_types:
+                logger.info("P4 Phase 1: No content gaps detected, skipping raw retrieval")
+                return selected_substrate
+            
+            # Query raw dumps with strict limits (gaps-only policy)
+            recency_cutoff = datetime.utcnow() - timedelta(days=90)
+            raw_token_cap = 2000  # Strict token limit for raw content
+            max_snippets = 12     # Maximum number of raw snippets
+            
+            dumps_query = supabase.table("raw_dumps").select("*")\
+                .eq("basket_id", request.basket_id)\
+                .gte("created_at", recency_cutoff.isoformat())\
+                .limit(max_snippets)
+            
+            # Apply window filter if specified
+            if request.window.get("start_date"):
+                dumps_query = dumps_query.gte("created_at", request.window["start_date"])
+            if request.window.get("end_date"):
+                dumps_query = dumps_query.lte("created_at", request.window["end_date"])
+            
+            dumps_response = dumps_query.execute()
+            
+            # Process raw dumps with token caps and snapshotting
+            gap_filled = selected_substrate.copy()
+            total_tokens = 0
+            
+            for i, dump in enumerate(dumps_response.data or []):
+                if total_tokens >= raw_token_cap:
+                    break
+                
+                content = dump.get("body_md", "") or dump.get("text_dump", "")
+                content_tokens = len(content.split())  # Rough token estimate
+                
+                # Apply token cap per snippet
+                if total_tokens + content_tokens > raw_token_cap:
+                    remaining_tokens = raw_token_cap - total_tokens
+                    content_words = content.split()[:remaining_tokens]
+                    content = " ".join(content_words) + "... [truncated]"
+                    content_tokens = remaining_tokens
+                
+                gap_filled.append({
+                    "type": "dump",
+                    "id": dump["id"],
+                    "content": content,
+                    "title": f"Gap-fill memory from {dump.get('created_at', '')[:10]}",
+                    "created_at": dump["created_at"],
+                    "metadata": {
+                        **dump,
+                        "gap_fill_reason": f"Missing types: {', '.join(missing_types)}",
+                        "token_count": content_tokens,
+                        "truncated": "[truncated]" in content
+                    },
+                    "freshness_score": self._calculate_freshness(dump["created_at"], recency_cutoff),
+                    "selection_reason": f"Gap-fill for missing {', '.join(missing_types)} content"
+                })
+                
+                total_tokens += content_tokens
+                
+                # Update metrics
+                if "dumps" not in metrics.candidates_found:
+                    metrics.candidates_found["dumps"] = 0
+                metrics.candidates_found["dumps"] += 1
+                
+                if "dumps" not in metrics.candidates_selected:
+                    metrics.candidates_selected["dumps"] = 0
+                metrics.candidates_selected["dumps"] += 1
+            
+            logger.info(f"P4 Phase 1: Added {len(gap_filled) - len(selected_substrate)} raw dumps for gap-filling (tokens: {total_tokens}/{raw_token_cap})")
+            return gap_filled
+            
+        except Exception as e:
+            logger.warning(f"Gap-fill with raw dumps failed: {e}")
+            return selected_substrate
+    
+    def _log_composition_metrics(self, document_id: str, metrics: CompositionMetrics) -> None:
+        """
+        Phase 1: Log composition metrics for analysis
+        """
+        try:
+            metrics_data = {
+                "document_id": document_id,
+                "processing_time_ms": int((metrics.end_time - metrics.start_time).total_seconds() * 1000) if metrics.end_time else 0,
+                "candidates_found": metrics.candidates_found,
+                "candidates_selected": metrics.candidates_selected,
+                "coverage_percentage": metrics.coverage_percentage,
+                "freshness_score": metrics.freshness_score,
+                "provenance_percentage": metrics.provenance_percentage,
+                "raw_gaps_used": metrics.raw_gaps_used,
+                "tokens_estimated": metrics.tokens_used,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            # Log for analysis (could be sent to analytics system later)
+            logger.info(f"P4 Phase 1 Metrics: {json.dumps(metrics_data)}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to log composition metrics: {e}")
