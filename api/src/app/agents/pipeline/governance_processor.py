@@ -236,11 +236,17 @@ class GovernanceDumpProcessor:
                     block_data["metadata"] = metadata
                 semantic_type = block_data.get("semantic_type") or metadata.get("semantic_type") or metadata.get("fact_type") or "insight"
                 title = block_data.get("title") or metadata.get("title") or "Untitled insight"
+                # CRITICAL FIX: Include content field that P1 agent generated
+                content = block_data.get("content", "")
+                if not content:
+                    # Fallback to title if no content (shouldn't happen with new P1 agent)
+                    content = title
 
                 ops_accum.append({
                     "type": "CreateBlock",
                     "data": {
                         "title": title,
+                        "content": content,  # CRITICAL FIX: Include the actual content
                         "semantic_type": semantic_type,
                         "metadata": metadata,
                         "confidence": confidence
