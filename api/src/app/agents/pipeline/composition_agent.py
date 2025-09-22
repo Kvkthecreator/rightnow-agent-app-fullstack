@@ -365,8 +365,9 @@ Example response:
         self, 
         candidates: List[Dict[str, Any]], 
         request: CompositionRequest,
-        strategy: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        strategy: Dict[str, Any],
+        query_metrics: CompositionMetrics
+    ) -> Tuple[List[Dict[str, Any]], CompositionMetrics]:
         """
         Score substrate candidates and select the most relevant
         """
@@ -460,7 +461,15 @@ Example:
         )
 
         if not response.success or not isinstance(response.parsed, dict):
-            return _fallback_selection(response.error or "LLM scoring unavailable")
+            fallback_selected = _fallback_selection(response.error or "LLM scoring unavailable")
+            # Update metrics for fallback
+            for substrate in fallback_selected:
+                substrate_type = substrate.get("type", "unknown")
+                query_metrics.candidates_selected[substrate_type] = query_metrics.candidates_selected.get(substrate_type, 0) + 1
+            query_metrics.coverage_percentage = self._calculate_coverage_percentage(fallback_selected, strategy)
+            query_metrics.freshness_score = self._calculate_average_freshness(fallback_selected)
+            query_metrics.provenance_percentage = self._calculate_provenance_percentage(fallback_selected)
+            return fallback_selected, query_metrics
 
         selection_result = response.parsed
 
@@ -468,7 +477,15 @@ Example:
         selected = []
         selected_indices = selection_result.get("selected_indices", [])
         if not isinstance(selected_indices, list):
-            return _fallback_selection("Invalid scoring response format")
+            fallback_selected = _fallback_selection("Invalid scoring response format")
+            # Update metrics for fallback
+            for substrate in fallback_selected:
+                substrate_type = substrate.get("type", "unknown")
+                query_metrics.candidates_selected[substrate_type] = query_metrics.candidates_selected.get(substrate_type, 0) + 1
+            query_metrics.coverage_percentage = self._calculate_coverage_percentage(fallback_selected, strategy)
+            query_metrics.freshness_score = self._calculate_average_freshness(fallback_selected)
+            query_metrics.provenance_percentage = self._calculate_provenance_percentage(fallback_selected)
+            return fallback_selected, query_metrics
 
         for idx in selected_indices:
             if not isinstance(idx, int):
@@ -481,7 +498,15 @@ Example:
 
         # If no substrate selected, provide explanation
         if not selected and candidates:
-            return _fallback_selection("LLM returned no substrate indices")
+            fallback_selected = _fallback_selection("LLM returned no substrate indices")
+            # Update metrics for fallback
+            for substrate in fallback_selected:
+                substrate_type = substrate.get("type", "unknown")
+                query_metrics.candidates_selected[substrate_type] = query_metrics.candidates_selected.get(substrate_type, 0) + 1
+            query_metrics.coverage_percentage = self._calculate_coverage_percentage(fallback_selected, strategy)
+            query_metrics.freshness_score = self._calculate_average_freshness(fallback_selected)
+            query_metrics.provenance_percentage = self._calculate_provenance_percentage(fallback_selected)
+            return fallback_selected, query_metrics
 
         # Update metrics with selections
         for substrate in selected:

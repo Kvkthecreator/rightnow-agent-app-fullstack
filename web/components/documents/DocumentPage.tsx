@@ -12,6 +12,7 @@ import { useBasket } from '@/contexts/BasketContext';
 // Removed broken reflections import
 import ExplainButton from './ExplainButton';
 import TrustBanner from './TrustBanner';
+import { EnhancedDocumentViewer } from './EnhancedDocumentViewer';
 
 type Mode = 'read' | 'edit';
 
@@ -277,7 +278,7 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       <Layers className="h-4 w-4" />
-                      <span>Composed from {composition.composition_stats.total_substrate_references || 0} substrate sources</span>
+                      <span>Composed from {composition.references?.length || 0} substrate sources</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {/* Phase 1: Explain Button */}
@@ -313,20 +314,26 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
                         onClick={() => setShowComposition(!showComposition)}
                         className="text-xs"
                       >
-                        {showComposition ? 'Hide' : 'Show'} Sources
+                        {showComposition ? 'Hide' : 'Show'} Context Panel
                         {showComposition ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
                       </Button>
                     </div>
                   </div>
 
                   <div className={`grid gap-6 ${showComposition ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
-                    {/* Main Content */}
+                    {/* Main Content - Enhanced with Markdown and Substrate Overlays */}
                     <div className={showComposition ? 'lg:col-span-2' : 'col-span-1'}>
-                      <div className="prose prose-gray prose-lg max-w-none">
-                        <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                          {composition.document.content_raw}
-                        </div>
-                      </div>
+                      <EnhancedDocumentViewer
+                        content={composition.document.content_raw}
+                        references={composition.references?.map((ref: any) => ({
+                          id: ref.substrate?.id || ref.reference?.id,
+                          substrate_type: ref.substrate?.substrate_type || 'block',
+                          preview: ref.substrate?.preview || ref.substrate?.title,
+                          title: ref.substrate?.title,
+                          role: ref.reference?.role,
+                          weight: ref.reference?.weight
+                        })) || []}
+                      />
                     </div>
 
                     {/* Canon-Pure: Substrate Context Panel */}
