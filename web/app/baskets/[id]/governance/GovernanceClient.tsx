@@ -180,29 +180,33 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
           basketId={basketId}
           description="Unified proposals and canon-compliant review workflow"
           rightContent={
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                 <Button
-                  variant={view === 'summary' ? 'default' : 'outline'}
+                  variant={view === 'summary' ? 'primary' : 'ghost'}
                   size="sm"
                   onClick={() => setView('summary')}
+                  className={view === 'summary' ? '' : 'text-gray-600 hover:text-gray-900'}
                 >
-                  Summary View
+                  <Eye className="h-3.5 w-3.5" />
+                  Summary
                 </Button>
                 <Button
-                  variant={view === 'list' ? 'default' : 'outline'}
+                  variant={view === 'list' ? 'primary' : 'ghost'}
                   size="sm"
                   onClick={() => setView('list')}
+                  className={view === 'list' ? '' : 'text-gray-600 hover:text-gray-900'}
                 >
-                  List View
+                  <Filter className="h-3.5 w-3.5" />
+                  List
                 </Button>
               </div>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as StatusFilterType)}
-                className="border border-gray-300 rounded px-3 py-2 text-sm"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors"
               >
-                <option value="all">All Status</option>
+                <option value="all">All Proposals</option>
                 <option value="PROPOSED">Pending Review</option>
                 <option value="APPROVED">Approved</option>
                 <option value="REJECTED">Rejected</option>
@@ -217,49 +221,66 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
         <div className="p-6 space-y-6">
           {/* Governance Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('all')}>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-blue-600" />
+            <Card 
+              className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border-l-4 border-l-blue-500" 
+              onClick={() => setStatusFilter('all')}
+            >
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-2xl font-bold text-blue-600">{governanceStats.total}</div>
-                    <div className="text-sm text-gray-600">Total Proposals</div>
+                    <div className="text-3xl font-bold text-blue-600 mb-1">{governanceStats.total}</div>
+                    <div className="text-sm font-medium text-gray-700">Total Proposals</div>
+                  </div>
+                  <div className="p-3 bg-blue-100 rounded-full">
+                    <FileText className="h-6 w-6 text-blue-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('PROPOSED')}>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-orange-600" />
+            <Card 
+              className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border-l-4 border-l-orange-500" 
+              onClick={() => setStatusFilter('PROPOSED')}
+            >
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-2xl font-bold text-orange-600">{governanceStats.pending}</div>
-                    <div className="text-sm text-gray-600">Pending Review</div>
+                    <div className="text-3xl font-bold text-orange-600 mb-1">{governanceStats.pending}</div>
+                    <div className="text-sm font-medium text-gray-700">Pending Review</div>
+                  </div>
+                  <div className="p-3 bg-orange-100 rounded-full">
+                    <Clock className="h-6 w-6 text-orange-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('APPROVED')}>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+            <Card 
+              className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border-l-4 border-l-green-500" 
+              onClick={() => setStatusFilter('APPROVED')}
+            >
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-2xl font-bold text-green-600">{governanceStats.approved}</div>
-                    <div className="text-sm text-gray-600">Approved</div>
+                    <div className="text-3xl font-bold text-green-600 mb-1">{governanceStats.approved}</div>
+                    <div className="text-sm font-medium text-gray-700">Approved</div>
+                  </div>
+                  <div className="p-3 bg-green-100 rounded-full">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-purple-600" />
+            <Card className="border-l-4 border-l-purple-500">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-2xl font-bold text-purple-600">{governanceStats.autoApproved}</div>
-                    <div className="text-sm text-gray-600">Auto-Approved</div>
+                    <div className="text-3xl font-bold text-purple-600 mb-1">{governanceStats.autoApproved}</div>
+                    <div className="text-sm font-medium text-gray-700">Auto-Approved</div>
+                  </div>
+                  <div className="p-3 bg-purple-100 rounded-full">
+                    <Bot className="h-6 w-6 text-purple-600" />
                   </div>
                 </div>
               </CardContent>
@@ -276,39 +297,62 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
                   <Badge variant="outline">{filteredProposals.length}</Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2">
                 {filteredProposals.slice(0, 5).map((proposal) => (
-                  <div key={proposal.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => openProposalDetail(proposal.id)}>
-                    <div className="flex items-center gap-3">
-                      {proposal.origin === 'agent' ? <Bot className="h-4 w-4 text-purple-600" /> : <User className="h-4 w-4 text-blue-600" />}
-                      <div>
-                        <div className="font-medium text-gray-900">{proposal.ops_summary}</div>
-                        <div className="text-sm text-gray-600">{proposal.impact_summary}</div>
+                  <div 
+                    key={proposal.id} 
+                    className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 hover:border-gray-200 cursor-pointer transition-all duration-200 group" 
+                    onClick={() => openProposalDetail(proposal.id)}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`p-2 rounded-full ${proposal.origin === 'agent' ? 'bg-purple-100' : 'bg-blue-100'}`}>
+                        {proposal.origin === 'agent' ? 
+                          <Bot className="h-4 w-4 text-purple-600" /> : 
+                          <User className="h-4 w-4 text-blue-600" />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 truncate">{proposal.ops_summary}</div>
+                        <div className="text-sm text-gray-600 truncate">{proposal.impact_summary}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-500">
+                            {new Date(proposal.created_at).toLocaleDateString()}
+                          </span>
+                          <span className="text-xs text-gray-400">•</span>
+                          <span className="text-xs text-gray-500">
+                            {proposal.ops.length} operation{proposal.ops.length === 1 ? '' : 's'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 ml-4">
                       <Badge 
-                        variant={proposal.status === 'APPROVED' ? 'default' : proposal.status === 'PROPOSED' ? 'secondary' : 'outline'}
+                        variant="outline"
                         className={
-                          proposal.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                          proposal.status === 'PROPOSED' ? 'bg-orange-100 text-orange-800' :
-                          'bg-red-100 text-red-800'
+                          proposal.status === 'APPROVED' ? 'bg-green-50 text-green-700 border-green-200' :
+                          proposal.status === 'PROPOSED' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                          'bg-red-50 text-red-700 border-red-200'
                         }
                       >
                         {proposal.status}
                       </Badge>
                       {proposal.auto_approved && (
-                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs">
                           Auto
                         </Badge>
                       )}
-                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                      <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
                     </div>
                   </div>
                 ))}
                 {filteredProposals.length > 5 && (
-                  <Button variant="outline" className="w-full" onClick={() => setView('list')}>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full mt-4 text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
+                    onClick={() => setView('list')}
+                  >
                     View All {filteredProposals.length} Proposals
+                    <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 )}
               </CardContent>
@@ -398,11 +442,11 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
                     <div className="flex gap-2 ml-4">
                       <Button
                         onClick={() => openProposalDetail(proposal.id)}
-                        variant="outline"
+                        variant="primary"
                         size="sm"
                       >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Review Details
+                        <Eye className="h-3.5 w-3.5" />
+                        Review
                       </Button>
                     </div>
                   </div>

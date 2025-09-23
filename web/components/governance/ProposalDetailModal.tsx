@@ -346,18 +346,19 @@ export function ProposalDetailModal({
                     {actionMode === 'none' && (
                       <div className="flex gap-3">
                         <Button 
+                          variant="primary"
                           onClick={() => setActionMode('approve')}
-                          className="bg-green-600 hover:bg-green-700"
+                          className="bg-green-600 hover:bg-green-700 text-white"
                         >
-                          <CheckCircle className="h-4 w-4 mr-2" />
+                          <CheckCircle className="h-3.5 w-3.5" />
                           Approve Proposal
                         </Button>
                         <Button 
                           variant="outline" 
                           onClick={() => setActionMode('reject')}
-                          className="border-red-200 text-red-700 hover:bg-red-50"
+                          className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
                         >
-                          <XCircle className="h-4 w-4 mr-2" />
+                          <XCircle className="h-3.5 w-3.5" />
                           Reject Proposal
                         </Button>
                       </div>
@@ -383,21 +384,22 @@ export function ProposalDetailModal({
                         </div>
                         <div className="flex gap-3">
                           <Button 
+                            variant="primary"
                             onClick={handleAction}
                             disabled={submitting || (actionMode === 'reject' && !actionNotes.trim())}
-                            className={actionMode === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+                            className={actionMode === 'approve' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}
                           >
                             {submitting ? (
-                              <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full mr-2" />
+                              <div className="animate-spin h-3.5 w-3.5 border-b-2 border-white rounded-full" />
                             ) : actionMode === 'approve' ? (
-                              <CheckCircle className="h-4 w-4 mr-2" />
+                              <CheckCircle className="h-3.5 w-3.5" />
                             ) : (
-                              <XCircle className="h-4 w-4 mr-2" />
+                              <XCircle className="h-3.5 w-3.5" />
                             )}
                             {submitting ? 'Processing...' : `${actionMode === 'approve' ? 'Approve' : 'Reject'}`}
                           </Button>
                           <Button 
-                            variant="outline" 
+                            variant="ghost" 
                             onClick={() => {
                               setActionMode('none');
                               setActionNotes('');
