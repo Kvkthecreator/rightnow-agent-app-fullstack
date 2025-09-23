@@ -163,24 +163,22 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
         basketId={basketId}
         description="Add thoughts and build structured knowledge from your experiences"
         rightContent={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <DocumentCreateButton basketId={basketId} />
             <Button
               onClick={refreshReflections}
               variant="ghost"
               size="sm"
-              className="text-sm flex items-center gap-2"
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className="h-3.5 w-3.5" />
               Refresh Insights
             </Button>
             <Button
               onClick={() => setShowAddMemory(true)}
-              variant="outline"
+              variant="primary"
               size="sm"
-              className="flex items-center gap-2"
             >
-              <PenTool className="h-4 w-4" />
+              <PenTool className="h-3.5 w-3.5" />
               Add Thought
             </Button>
           </div>
@@ -324,9 +322,9 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                   onClick={refreshReflections}
                   variant="outline"
                   size="sm"
-                  className="mx-auto flex items-center gap-2"
+                  className="mx-auto"
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw className="h-3.5 w-3.5" />
                   Check for Insights
                 </Button>
               </div>

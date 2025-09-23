@@ -62,7 +62,7 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
 
   return (
     <div className="relative">
-      <Button onClick={() => setOpen(v => !v)}>New Document</Button>
+      <Button onClick={() => setOpen(v => !v)} size="sm" variant="outline">Create Document</Button>
       {open && (
         <div className="absolute right-0 mt-2 w-72 bg-white border rounded shadow-lg z-10 p-3">
           {!mode && (

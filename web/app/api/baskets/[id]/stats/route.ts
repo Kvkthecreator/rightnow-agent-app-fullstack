@@ -33,7 +33,7 @@ export async function GET(
       return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
     }
 
-    // Gather substrate statistics
+    // Gather substrate statistics - aligned with building blocks filtering
     const [
       { count: blocks_count },
       { count: raw_dumps_count },
@@ -41,11 +41,27 @@ export async function GET(
       { count: timeline_events_count },
       { count: documents_count }
     ] = await Promise.all([
-      supabase.from('blocks').select('*', { count: 'exact', head: true }).eq('basket_id', id),
-      supabase.from('raw_dumps').select('*', { count: 'exact', head: true }).eq('basket_id', id),
-      supabase.from('context_items').select('*', { count: 'exact', head: true }).eq('basket_id', id),
-      supabase.from('timeline_events').select('*', { count: 'exact', head: true }).eq('basket_id', id),
-      supabase.from('documents').select('*', { count: 'exact', head: true }).eq('basket_id', id)
+      supabase.from('blocks')
+        .select('*', { count: 'exact', head: true })
+        .eq('basket_id', id)
+        .eq('workspace_id', workspace.id)
+        .neq('status', 'archived'),
+      supabase.from('raw_dumps')
+        .select('*', { count: 'exact', head: true })
+        .eq('basket_id', id)
+        .eq('workspace_id', workspace.id)
+        .neq('processing_status', 'redacted'),
+      supabase.from('context_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('basket_id', id)
+        .eq('state', 'ACTIVE'),
+      supabase.from('timeline_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('basket_id', id),
+      supabase.from('documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('basket_id', id)
+        .eq('workspace_id', workspace.id)
     ]);
 
     const stats: BasketStats = {
