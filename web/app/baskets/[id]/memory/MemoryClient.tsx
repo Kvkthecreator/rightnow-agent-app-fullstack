@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SubpageHeader } from '@/components/basket/SubpageHeader';
 import { DocumentCreateButton } from '@/components/documents/DocumentCreateButton';
-import { PenTool, TrendingUp, Target } from 'lucide-react';
+import { PenTool, TrendingUp, Target, Database, FileText, MessageSquare, RefreshCw } from 'lucide-react';
 import AddMemoryModal from '@/components/memory/AddMemoryModal';
 import OnboardingPanel from '@/components/memory/OnboardingPanel';
 import { useReflectionNotifications } from '@/lib/hooks/useReflectionNotifications';
@@ -159,9 +159,9 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
     <div className="space-y-6">
       
       <SubpageHeader
-        title="Your Memory"
+        title="Your Knowledge Base"
         basketId={basketId}
-        description="Capture thoughts and create documents to organize your knowledge"
+        description="Add thoughts and build structured knowledge from your experiences"
         rightContent={
           <div className="flex items-center gap-3">
             <DocumentCreateButton basketId={basketId} />
@@ -169,9 +169,10 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
               onClick={refreshReflections}
               variant="ghost"
               size="sm"
-              className="text-sm"
+              className="text-sm flex items-center gap-2"
             >
-              Find new patterns
+              <RefreshCw className="h-4 w-4" />
+              Refresh Insights
             </Button>
             <Button
               onClick={() => setShowAddMemory(true)}
@@ -180,7 +181,7 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
               className="flex items-center gap-2"
             >
               <PenTool className="h-4 w-4" />
-              Add Memory
+              Add Thought
             </Button>
           </div>
         }
@@ -195,63 +196,72 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
       
       <div className="space-y-6">
         
-        {/* Knowledge Base Growth */}
-        {maturity && (
+        {/* Your Knowledge Foundation - Substrate Health Dashboard */}
+        {stats && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
-                Your Knowledge Growth
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                  maturity.level === 1 ? 'bg-orange-100 text-orange-700' :
-                  maturity.level === 2 ? 'bg-yellow-100 text-yellow-700' :
-                  maturity.level === 3 ? 'bg-green-100 text-green-700' :
-                  'bg-purple-100 text-purple-700'
-                }`}>
-                  {getGrowthStage(maturity.level, maturity.phase)}
-                </span>
+                <Database className="h-5 w-5 text-blue-600" />
+                Your Knowledge Foundation
               </CardTitle>
               <p className="text-sm text-gray-600">
-                {getKnowledgeDescription(maturity, stats)}
+                Building blocks that power your documents and insights
               </p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {/* Growth Progress */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">{getProgressLabel(maturity.level)}</span>
-                    <span className="font-medium">{Math.round(maturity.progressPercent)}%</span>
+              <div className="space-y-6">
+                {/* Substrate breakdown with visual indicators */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-4 rounded-lg bg-blue-50 border border-blue-100">
+                    <Database className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                    <div className="text-2xl font-semibold text-gray-900">{stats.blocks_count || 0}</div>
+                    <div className="text-xs text-gray-600">Knowledge Blocks</div>
+                    <div className="text-xs text-gray-500 mt-1">Structured insights</div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${maturity.progressPercent}%` }}
-                    ></div>
+                  <div className="text-center p-4 rounded-lg bg-purple-50 border border-purple-100">
+                    <MessageSquare className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                    <div className="text-2xl font-semibold text-gray-900">{stats.context_items_count || 0}</div>
+                    <div className="text-xs text-gray-600">Context Items</div>
+                    <div className="text-xs text-gray-500 mt-1">Semantic connections</div>
                   </div>
-                  {maturity.nextLevelAt && (
-                    <div className="text-xs text-gray-500">
-                      {getGrowthMessage(maturity)}
-                      {maturity.varietyBonus && ' 🌟 Great variety in your knowledge!'}
-                    </div>
-                  )}
+                  <div className="text-center p-4 rounded-lg bg-green-50 border border-green-100">
+                    <FileText className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                    <div className="text-2xl font-semibold text-gray-900">{stats.raw_dumps_count || 0}</div>
+                    <div className="text-xs text-gray-600">Raw Thoughts</div>
+                    <div className="text-xs text-gray-500 mt-1">Unprocessed ideas</div>
+                  </div>
                 </div>
                 
-                {/* What's Next */}
-                {maturityGuidance && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Target className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-900">What to focus on next</span>
+                {/* Composition readiness indicator */}
+                {maturity && (
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-sm font-medium text-gray-700">Composition Quality Factors</div>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        maturity.level >= 3 ? 'bg-green-100 text-green-700' :
+                        maturity.level === 2 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-orange-100 text-orange-700'
+                      }`}>
+                        {maturity.level >= 3 ? 'Ready' : maturity.level === 2 ? 'Building' : 'Early Stage'}
+                      </span>
                     </div>
-                    <ul className="text-sm text-blue-800 space-y-1">
-                      {maturityGuidance.nextSteps.map((step, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <span className="text-blue-500 mt-0.5">•</span>
-                          <span>{humanizeGuidanceStep(step)}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Substrate Diversity</span>
+                        <span className={`font-medium ${maturity.varietyBonus ? 'text-green-600' : 'text-gray-500'}`}>
+                          {maturity.varietyBonus ? 'Good' : 'Limited'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Knowledge Density</span>
+                        <span className="font-medium text-gray-700">{maturity.substrateDensity} pieces</span>
+                      </div>
+                    </div>
+                    {maturity.substrateDensity < 10 && (
+                      <div className="mt-3 text-xs text-gray-500">
+                        Add {10 - maturity.substrateDensity} more thoughts to unlock better document composition
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -271,13 +281,13 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              Patterns I've Found
+              Emerging Insights
               <span className="text-sm font-normal text-gray-500">
-                {reflections.length} {reflections.length === 1 ? 'discovery' : 'discoveries'}
+                {reflections.length} {reflections.length === 1 ? 'pattern' : 'patterns'}
               </span>
             </CardTitle>
             <p className="text-sm text-gray-600">
-              {maturityGuidance?.memoryInsightsMessage || "Interesting connections I've discovered in your thoughts"}
+              Patterns and connections discovered in your knowledge base
             </p>
           </CardHeader>
           <CardContent>
@@ -306,17 +316,18 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl">🤔</span>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Patterns Yet</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Insights Yet</h3>
                 <p className="text-gray-600 text-sm mb-4">
-                  As you add more thoughts and ideas, I'll start finding interesting connections for you.
+                  As you add more thoughts to your knowledge base, patterns will emerge.
                 </p>
                 <Button
                   onClick={refreshReflections}
                   variant="outline"
                   size="sm"
-                  className="mx-auto"
+                  className="mx-auto flex items-center gap-2"
                 >
-                  🔍 Look for Patterns
+                  <RefreshCw className="h-4 w-4" />
+                  Check for Insights
                 </Button>
               </div>
             ) : (
@@ -337,7 +348,7 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                       </div>
                       {reflection.meta?.substrate_dump_count && (
                         <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
-                          From {reflection.meta.substrate_dump_count} of your thoughts
+                          From {reflection.meta.substrate_dump_count} knowledge pieces
                         </span>
                       )}
                     </div>

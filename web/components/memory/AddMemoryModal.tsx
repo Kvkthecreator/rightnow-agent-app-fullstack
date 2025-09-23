@@ -26,8 +26,8 @@ export default function AddMemoryModal({
         {/* Header */}
         <div className="border-b px-8 py-6 flex items-center justify-between">
           <div>
-            <h3 className="text-2xl font-semibold text-gray-900">Add Memory</h3>
-            <p className="text-sm text-gray-600">Capture thoughts, ideas, or observations</p>
+            <h3 className="text-2xl font-semibold text-gray-900">Capture a Thought</h3>
+            <p className="text-sm text-gray-600">Add a thought to process into knowledge</p>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
