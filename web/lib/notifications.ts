@@ -91,7 +91,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
         return true;
       }
       
-      // Action results: show non-info severity
+      // Action results: show success, warnings, and errors (not just info)
       if (event.type === 'action_result') {
         return event.severity !== 'info';
       }

@@ -24,6 +24,7 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
       });
       if (!res.ok) throw new Error('Create failed');
       const data = await res.json();
+      notificationAPI.emitActionResult('document.create', 'Document created successfully', { severity: 'success' });
       router.push(`/baskets/${basketId}/documents/${data.document_id}`);
     } catch (e) {
       notificationAPI.emitActionResult('document.create', 'Failed to create document', { severity: 'error' });

@@ -100,6 +100,8 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
       document.title = title.trim();
       document.content_raw = prose;
       
+      // Emit success notification
+      notificationAPI.emitActionResult('document.save', 'Document saved successfully', { severity: 'success' });
       return true; // Return success status
     } catch (e) {
       console.error('Failed to save document:', e);

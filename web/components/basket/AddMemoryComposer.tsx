@@ -177,12 +177,12 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
           
           // Show feedback based on response
           if (dump.route === 'proposal') {
-            // Async processing via proposal
+            // Async processing via proposal - backend will handle job notifications
             console.log(`Memory submitted for review (proposal: ${dump.proposal_id})`);
-            notificationAPI.emitJobStarted(
-              'memory.review',
+            notificationAPI.emitActionResult(
+              'memory.submit',
               'Memory submitted for governance review',
-              { basketId, correlationId: dump.proposal_id }
+              { severity: 'success' }
             );
           } else if (dump.route === 'direct') {
             // Direct commit
