@@ -34,6 +34,18 @@ jobs:
             exit 1
           fi
           
+          # Check for deprecated notification files/patterns
+          if find web -name "*.sql" -path "*/migrations/*" -exec grep -l "user_notifications\|notification_settings" {} \; | head -1; then
+            echo "❌ Found deprecated notification migrations - use app_events table instead"
+            exit 1
+          fi
+          
+          # Check for imports of removed files
+          if grep -r "events/alertEmitter\|api/middleware.*AppEvent\|events/emit" --include="*.ts" --include="*.tsx" web; then
+            echo "❌ Found imports of removed notification files - use @/lib/api/notifications instead"
+            exit 1
+          fi
+          
           echo "✅ No deprecated notification patterns found"
           
       - name: Verify notification system integrity
