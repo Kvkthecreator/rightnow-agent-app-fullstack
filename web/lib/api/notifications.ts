@@ -115,10 +115,11 @@ class NotificationAPI {
     });
   }
 
-  async emitActionResult(actionName: string, message: string, options: { severity?: AppEvent['severity']; payload?: any } = {}) {
+  async emitActionResult(actionName: string, message: string, options: { severity?: AppEvent['severity']; payload?: any; ttlMs?: number } = {}) {
     await this.emitEvent('action_result', actionName, message, {
       severity: options.severity || 'success',  // Default to success instead of info for better visibility
-      payload: options.payload
+      payload: options.payload,
+      ttlMs: options.ttlMs
     });
   }
 

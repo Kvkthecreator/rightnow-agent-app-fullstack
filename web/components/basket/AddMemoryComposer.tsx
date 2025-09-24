@@ -175,24 +175,15 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
           onSuccess?.(dump);
           setText("");
           
-          // Show feedback based on response
-          if (dump.route === 'proposal') {
-            // Async processing via proposal - backend will handle job notifications
-            console.log(`Memory submitted for review (proposal: ${dump.proposal_id})`);
-            notificationAPI.emitActionResult(
-              'memory.submit',
-              'Memory submitted for governance review',
-              { severity: 'success' }
-            );
-          } else if (dump.route === 'direct') {
-            // Direct commit
-            console.log("Memory added successfully");
-            notificationAPI.emitActionResult(
-              'memory.create',
-              'Memory added successfully',
-              { severity: 'success' }
-            );
-          }
+          // Show immediate acknowledgment only
+          console.log(`Memory submitted (${dump.route}): ${dump.dump_id || dump.proposal_id}`);
+          notificationAPI.emitActionResult(
+            'memory.submit',
+            'Memory submitted ✓',
+            { severity: 'success', ttlMs: 2500 } // Short toast - quick acknowledgment
+          );
+          
+          // Backend will handle job progress and completion notifications
         } else {
           console.error("Failed to create dump", await res.text());
           notificationAPI.emitActionResult(
