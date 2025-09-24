@@ -61,6 +61,13 @@ npm run agent:test -- --subset=contracts    # Contract validation
 
 The pipeline generates structured reports in `artifacts/` and is designed for agent automation. See `docs/TEST_ARCHITECTURE_AUDIT.md` for complete documentation.
 
+## Canon Documentation
+
+The following Canon documents govern key architectural decisions:
+
+- **[Alerts & Notifications Canon](web/docs/YARNNN_ALERTS_NOTIFICATIONS_CANON.md)** - Unified event system for all user-facing notifications
+- **[Governance Hierarchy](web/docs/governance-hierarchy.md)** - User settings authority and automation boundaries
+
 ## Repository Layout
 
 api/   FastAPI backend

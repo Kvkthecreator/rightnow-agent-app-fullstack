@@ -25,6 +25,7 @@ except ImportError:
 
 # Route imports
 from middleware.auth import AuthMiddleware
+from middleware.correlation import CorrelationIdMiddleware
 
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
 from .routes.reflections import router as reflections_router
@@ -121,6 +122,9 @@ routers = (
     p4_composition_router,
     validator_router,
 )
+
+# Add correlation middleware
+app.add_middleware(CorrelationIdMiddleware)
 
 for r in routers:
     app.include_router(r, prefix="/api")
