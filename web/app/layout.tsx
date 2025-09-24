@@ -6,10 +6,10 @@ import "../styles/diff.css";
 import { BasketProvider } from "@/lib/context/BasketContext";
 import DumpModalWrapper from "@/components/DumpModalWrapper";
 import ClientLayoutShell from "@/components/shell/ClientLayoutShell";
-import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 // ✅ NEW: Import SupabaseProvider
 import { SupabaseProvider } from "@/components/SupabaseProvider";
+import { NotificationProvider } from "@/components/providers/NotificationProvider";
 import Providers from "./providers";
 import { GlobalErrorBoundary } from "./GlobalErrorBoundary";
 import { RequestBoundary } from "@/components/RequestBoundary";
@@ -57,13 +57,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <GlobalErrorBoundary>
           <Providers>
             <SupabaseProvider>
-              <BasketProvider>
-                <RequestBoundary>
-                  <ClientLayoutShell>{children}</ClientLayoutShell>
-                </RequestBoundary>
-                <DumpModalWrapper />
-                <NotificationCenter />
-              </BasketProvider>
+              <NotificationProvider>
+                <BasketProvider>
+                  <RequestBoundary>
+                    <ClientLayoutShell>{children}</ClientLayoutShell>
+                  </RequestBoundary>
+                  <DumpModalWrapper />
+                </BasketProvider>
+              </NotificationProvider>
             </SupabaseProvider>
           </Providers>
         </GlobalErrorBoundary>

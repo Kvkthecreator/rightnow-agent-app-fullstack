@@ -12,6 +12,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { notificationAPI } from "@/lib/api/notifications";
 import { 
   X, CheckCircle, Clock, XCircle, Bot, User, Database, 
   FileText, MessageSquare, AlertTriangle, Info, Eye, 
@@ -128,7 +129,11 @@ export function ProposalDetailModal({
       onClose();
     } catch (err) {
       console.error('Action failed:', err);
-      alert(`Failed to ${actionMode} proposal. Please try again.`);
+      notificationAPI.emitActionResult(
+        'proposal.action',
+        `Failed to ${actionMode} proposal. Please try again.`,
+        { severity: 'error' }
+      );
     } finally {
       setSubmitting(false);
     }

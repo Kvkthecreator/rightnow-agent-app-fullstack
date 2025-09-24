@@ -7,6 +7,7 @@ import { createBrowserClient } from "@/lib/supabase/clients";
 import { insertBlockFile } from "@/lib/insertBlockFile";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/library/progress";
+import { notificationAPI } from "@/lib/api/notifications";
 
 export function UploadArea({ onUpload }: { onUpload: () => void }) {
   const [uploading, setUploading] = useState(false);
@@ -30,7 +31,7 @@ export function UploadArea({ onUpload }: { onUpload: () => void }) {
       });
 
     if (error) {
-      alert("Upload failed.");
+      notificationAPI.emitActionResult('file.upload', 'Upload failed', { severity: 'error' });
     } else {
       // Centralize file metadata insertion
       const {

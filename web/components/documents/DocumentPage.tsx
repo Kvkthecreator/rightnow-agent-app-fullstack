@@ -9,6 +9,7 @@ import { Save, Upload, ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Database
 import { DocumentCompositionStatus } from './DocumentCompositionStatus';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { useBasket } from '@/contexts/BasketContext';
+import { notificationAPI } from '@/lib/api/notifications';
 // Removed broken reflections import
 import ExplainButton from './ExplainButton';
 import TrustBanner from './TrustBanner';
@@ -102,7 +103,7 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
       return true; // Return success status
     } catch (e) {
       console.error('Failed to save document:', e);
-      alert('Failed to save document');
+      notificationAPI.emitActionResult('document.save', 'Failed to save document', { severity: 'error' });
       return false; // Return failure status
     } finally {
       setSaving(false);
@@ -111,7 +112,7 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
 
   const extractToMemory = async () => {
     if (!prose.trim()) {
-      alert('Please add some content before extracting to memory');
+      notificationAPI.emitActionResult('document.extract', 'Please add some content before extracting to memory', { severity: 'warning' });
       return;
     }
 
@@ -143,7 +144,7 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
       router.push(`/baskets/${basketId}/memory`);
     } catch (e) {
       console.error('Failed to extract to memory:', e);
-      alert('Failed to extract to memory');
+      notificationAPI.emitActionResult('document.extract', 'Failed to extract to memory', { severity: 'error' });
     }
   };
 
@@ -166,7 +167,7 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
       // Refresh page to show recomposition status
       window.location.reload();
     } catch (e) {
-      alert('Failed to recompose document');
+      notificationAPI.emitActionResult('document.recompose', 'Failed to recompose document', { severity: 'error' });
     } finally {
       setSaving(false);
     }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { notificationAPI } from '@/lib/api/notifications';
 
 export function DocumentCreateButton({ basketId }: { basketId: string }) {
   const router = useRouter();
@@ -25,7 +26,7 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
       const data = await res.json();
       router.push(`/baskets/${basketId}/documents/${data.document_id}`);
     } catch (e) {
-      alert('Failed to create document');
+      notificationAPI.emitActionResult('document.create', 'Failed to create document', { severity: 'error' });
     } finally {
       setCreating(false);
       setOpen(false);
@@ -53,7 +54,7 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
       // Navigate directly to the created document
       router.push(`/baskets/${basketId}/documents/${data.document_id}`);
     } catch (e) {
-      alert('Failed to compose document');
+      notificationAPI.emitActionResult('document.compose', 'Failed to compose document', { severity: 'error' });
     } finally {
       setCreating(false);
       setOpen(false);

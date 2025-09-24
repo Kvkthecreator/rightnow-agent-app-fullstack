@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { Paperclip, X, FileText, Image, File } from "lucide-react";
 import { CANONICAL_ACCEPT_ATTRIBUTE, SUPPORTED_FORMAT_DESCRIPTION, isCanonicalFile } from "@/shared/constants/canonical_file_types";
+import { notificationAPI } from "@/lib/api/notifications";
 
 interface AddMemoryComposerProps {
   basketId: string;
@@ -44,7 +45,11 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
     const validFiles = files.filter(file => isCanonicalFile(file));
     
     if (validFiles.length !== files.length) {
-      alert(`Some files were not added. ${SUPPORTED_FORMAT_DESCRIPTION}`);
+      notificationAPI.emitActionResult(
+        'file.validation', 
+        `Some files were not added. ${SUPPORTED_FORMAT_DESCRIPTION}`,
+        { severity: 'warning' }
+      );
     }
     
     setAttachments(prev => [...prev, ...validFiles]);
@@ -142,7 +147,11 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
           }
         } else {
           console.error("Some uploads failed", results);
-          alert("Some uploads failed. Please try again.");
+          notificationAPI.emitActionResult(
+            'memory.upload',
+            'Some uploads failed. Please try again.',
+            { severity: 'error' }
+          );
         }
       } else {
         // Text only - original flow
@@ -170,18 +179,36 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
           if (dump.route === 'proposal') {
             // Async processing via proposal
             console.log(`Memory submitted for review (proposal: ${dump.proposal_id})`);
+            notificationAPI.emitJobStarted(
+              'memory.review',
+              'Memory submitted for governance review',
+              { basketId, correlationId: dump.proposal_id }
+            );
           } else if (dump.route === 'direct') {
             // Direct commit
             console.log("Memory added successfully");
+            notificationAPI.emitActionResult(
+              'memory.create',
+              'Memory added successfully',
+              { severity: 'success' }
+            );
           }
         } else {
           console.error("Failed to create dump", await res.text());
-          alert("Failed to add memory. Please try again.");
+          notificationAPI.emitActionResult(
+            'memory.create',
+            'Failed to add memory. Please try again.',
+            { severity: 'error' }
+          );
         }
       }
     } catch (err) {
       console.error("Submit error:", err);
-      alert("Upload failed. Please try again.");
+      notificationAPI.emitActionResult(
+        'memory.upload',
+        'Upload failed. Please try again.',
+        { severity: 'error' }
+      );
     } finally {
       setLoading(false);
     }

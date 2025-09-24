@@ -1,8 +1,9 @@
 /**
  * Legacy Notification Service Stub - Canon v3.0
+ * Governed by: /docs/YARNNN_ALERTS_NOTIFICATIONS_CANON.md (v1.0)
  * 
  * Maintains compatibility for existing code that uses notificationService
- * Real notifications are now handled by ActionCenter component
+ * Real notifications are now routed to new notification system via ToastHost
  */
 
 // Legacy notification types for compatibility
@@ -39,36 +40,59 @@ class NotificationServiceStub {
     }
     return NotificationServiceStub.instance;
   }
-  // Stub methods for backward compatibility
+  // Stub methods for backward compatibility - now route to new notification system
   async show(notification: LegacyNotification): Promise<void> {
-    // No-op - ActionCenter handles notifications now
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Legacy Notification Stub]:', notification.title, notification.message);
-    }
+    const { notificationAPI } = await import('@/lib/api/notifications');
+    const severity = this._mapLegacySeverity(notification.type || notification.severity || 'info');
+    
+    await notificationAPI.emitActionResult(
+      'legacy.notification',
+      `${notification.title}${notification.message ? ': ' + notification.message : ''}`,
+      { severity }
+    );
   }
 
   async showSuccess(title: string, message?: string): Promise<void> {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Legacy Success Stub]:', title, message);
-    }
+    const { notificationAPI } = await import('@/lib/api/notifications');
+    await notificationAPI.emitActionResult(
+      'legacy.success',
+      `${title}${message ? ': ' + message : ''}`,
+      { severity: 'success' }
+    );
   }
 
   async showError(title: string, message?: string): Promise<void> {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Legacy Error Stub]:', title, message);
-    }
+    const { notificationAPI } = await import('@/lib/api/notifications');
+    await notificationAPI.emitActionResult(
+      'legacy.error',
+      `${title}${message ? ': ' + message : ''}`,
+      { severity: 'error' }
+    );
   }
 
   async showInfo(title: string, message?: string): Promise<void> {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Legacy Info Stub]:', title, message);
-    }
+    const { notificationAPI } = await import('@/lib/api/notifications');
+    await notificationAPI.emitActionResult(
+      'legacy.info',
+      `${title}${message ? ': ' + message : ''}`,
+      { severity: 'info' }
+    );
   }
 
   async showWarning(title: string, message?: string): Promise<void> {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Legacy Warning Stub]:', title, message);
-    }
+    const { notificationAPI } = await import('@/lib/api/notifications');
+    await notificationAPI.emitActionResult(
+      'legacy.warning',
+      `${title}${message ? ': ' + message : ''}`,
+      { severity: 'warning' }
+    );
+  }
+
+  private _mapLegacySeverity(type: string): 'info' | 'success' | 'warning' | 'error' {
+    if (type.includes('success')) return 'success';
+    if (type.includes('error') || type.includes('failed')) return 'error';
+    if (type.includes('warning') || type.includes('warn')) return 'warning';
+    return 'info';
   }
 
   async dismiss(id: string): Promise<void> {

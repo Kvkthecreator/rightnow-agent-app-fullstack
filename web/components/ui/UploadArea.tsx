@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { uploadFile } from "@/lib/storage/upload";
 import { cn } from "@/lib/utils";
 import { sanitizeFilename } from "@/lib/utils/sanitizeFilename";
+import { notificationAPI } from "@/lib/api/notifications";
 
 export interface UploadAreaProps {
   /** Storage path prefix (folder) within the bucket */
@@ -99,7 +100,7 @@ export function UploadArea({
     const toUpload = Array.from(fileList).slice(0, maxFiles - files.length);
     toUpload.forEach((file) => {
       if (maxSizeMB && file.size > maxSizeMB * 1024 * 1024) {
-        alert(`File ${file.name} must be smaller than ${maxSizeMB}MB`);
+        notificationAPI.emitActionResult('file.validation', `File ${file.name} must be smaller than ${maxSizeMB}MB`, { severity: 'warning' });
         return;
       }
       const id = `${Date.now()}-${file.name}`;

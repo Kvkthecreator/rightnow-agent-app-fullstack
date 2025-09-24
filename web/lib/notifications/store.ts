@@ -1,8 +1,9 @@
 /**
  * Legacy Notification Store Stub - Canon v3.0
+ * Governed by: /docs/YARNNN_ALERTS_NOTIFICATIONS_CANON.md (v1.0)
  * 
  * Compatibility store for legacy notification system
- * Real notifications are now handled by ActionCenter component
+ * Real notifications are now handled by new notification system with ToastHost
  */
 
 import { create } from 'zustand';
