@@ -17,6 +17,9 @@ import type { ChangeDescriptor } from './changeDescriptor';
 import { validateChangeDescriptor, computeOperationRisk } from './changeDescriptor';
 import { decide } from './policyDecider';
 import type { Decision, RiskHints } from './policyDecider';
+import { globalProposalBatcher } from './proposalBatcher';
+import { globalAutoApprovalEngine } from './smartAutoApproval';
+import type { AutoApprovalContext } from './smartAutoApproval';
 
 export interface ChangeResult {
   committed?: boolean;
@@ -46,25 +49,114 @@ export async function routeChange(
   // Step 2: Get workspace governance flags
   const flags = await getWorkspaceFlags(supabase, cd.workspace_id);
 
-  // Step 3: Compute risk hints (call P1 Validator or heuristic)
-  const riskHints = await computeRiskHints(supabase, cd);
-
-  // Step 4: Make routing decision
-  const decision = decide(flags, cd, riskHints);
-
-  // Step 5: Execute based on decision
-  // Canon hardening: allow 'direct' only for P0 onboarding_dump with CreateDump ops
-  if (decision.route === 'direct') {
-    const isP0 = cd.entry_point === 'onboarding_dump';
-    const onlyCreateDump = Array.isArray(cd.ops) && cd.ops.every(op => op.type === 'CreateDump');
-    if (isP0 && onlyCreateDump) {
-      return await executeDirectCommit(supabase, cd, decision);
+  // Step 3: Priority 1 - Proposal Batching Check
+  // Batching runs regardless of user mode to reduce proposal volume (governance optimization)
+  // Both "proposal" and "hybrid" modes benefit from intelligent batching
+  let batchResult = { batched: false, shouldProcess: true };
+  if (flags.governance_enabled) {
+    batchResult = await globalProposalBatcher.processBatchableChange(supabase, cd);
+    if (batchResult.batched && !batchResult.shouldProcess) {
+      // Operation batched, not processing immediately
+      console.log(`Batched operation for later processing: ${(batchResult as any).batchId}`);
+      return {
+        committed: false,
+        proposal_id: (batchResult as any).batchId || 'batch-pending',
+        decision: {
+          route: 'proposal' as any,
+          effective_blast_radius: cd.blast_radius || 'Local',
+          require_validator: false,
+          validator_mode: 'lenient' as any,
+          reason: 'Batched for later processing'
+        }
+      };
     }
-    // Fallback to proposal for any other case
-    return await createGovernanceProposal(supabase, cd, decision, riskHints);
+    
+    if (batchResult.batched && batchResult.shouldProcess) {
+      console.log(`Processing batched operations now: ${(batchResult as any).batchId}`);
+    }
   }
 
-  return await createGovernanceProposal(supabase, cd, decision, riskHints);
+  // If batched and should process, create unified change descriptor from batch
+  let processedCd = cd;
+  if (batchResult.batched && batchResult.shouldProcess) {
+    // Get the batch and create unified change descriptor
+    const batchStats = globalProposalBatcher.getBatchStatistics();
+    console.log(`Processing batch with ${batchStats.totalOperations} operations`);
+  }
+
+  // Step 4: Compute risk hints (call P1 Validator or heuristic)
+  const riskHints = await computeRiskHints(supabase, processedCd);
+
+  // Step 5: Make routing decision
+  const decision = decide(flags, processedCd, riskHints);
+
+  // Step 6: Priority 2 - Smart Auto-Approval Check
+  // CRITICAL: Only run auto-approval if user enabled "hybrid" mode
+  if (decision.route === 'proposal') {
+    const entryPointPolicy = flags.ep[processedCd.entry_point as keyof typeof flags.ep] || 'proposal';
+    const isHybridMode = entryPointPolicy === 'hybrid';
+    
+    if (isHybridMode) {
+      console.log(`Smart auto-approval enabled for entry point: ${processedCd.entry_point}`);
+      
+      const basketMaturity = await calculateBasketMaturity(supabase, processedCd);
+      const autoApprovalContext: AutoApprovalContext = {
+        workspace_id: processedCd.workspace_id,
+        basket_id: processedCd.basket_id!,
+        actor_id: processedCd.actor_id,
+        basketMaturity,
+        recentFailures: await getRecentFailures(supabase, processedCd.workspace_id)
+      };
+
+      // Run validator for auto-approval evaluation
+      let validatorReport;
+      try {
+        if (decision.require_validator) {
+          validatorReport = await runValidator(processedCd, decision);
+        }
+      } catch (error) {
+        console.warn('Validator failed for auto-approval check:', error);
+      }
+
+      const autoApprovalResult = await globalAutoApprovalEngine.evaluateAutoApproval(
+        supabase,
+        processedCd,
+        autoApprovalContext,
+        validatorReport
+      );
+
+      if (autoApprovalResult.approved) {
+        // Auto-approve and execute directly
+        console.log(`Auto-approving proposal: ${autoApprovalResult.reason}`);
+        
+        return await executeAutoApprovedChange(
+          supabase,
+          processedCd,
+          decision,
+          autoApprovalResult,
+          validatorReport
+        );
+      } else {
+        console.log(`Auto-approval declined: ${autoApprovalResult.reason}`);
+      }
+    } else {
+      console.log(`Auto-approval disabled - user selected "Review everything" mode for ${processedCd.entry_point}`);
+    }
+  }
+
+  // Step 7: Execute based on decision
+  // Canon hardening: allow 'direct' only for P0 onboarding_dump with CreateDump ops
+  if (decision.route === 'direct') {
+    const isP0 = processedCd.entry_point === 'onboarding_dump';
+    const onlyCreateDump = Array.isArray(processedCd.ops) && processedCd.ops.every(op => op.type === 'CreateDump');
+    if (isP0 && onlyCreateDump) {
+      return await executeDirectCommit(supabase, processedCd, decision);
+    }
+    // Fallback to proposal for any other case
+    return await createGovernanceProposal(supabase, processedCd, decision, riskHints);
+  }
+
+  return await createGovernanceProposal(supabase, processedCd, decision, riskHints);
 }
 
 /**
@@ -618,6 +710,205 @@ async function emitCommitFailureEvent(
       entry_point: cd.entry_point,
       error_message: error instanceof Error ? error.message : String(error),
       operations_attempted: cd.ops.length
+    },
+    p_workspace_id: cd.workspace_id,
+    p_actor_id: cd.actor_id
+  });
+}
+
+/**
+ * Calculate basket maturity for auto-approval context
+ */
+async function calculateBasketMaturity(
+  supabase: SupabaseClient,
+  cd: ChangeDescriptor
+): Promise<{ level: number; substrateDensity: number; varietyBonus: boolean }> {
+  try {
+    if (!cd.basket_id) {
+      return { level: 1, substrateDensity: 0, varietyBonus: false };
+    }
+
+    // Get substrate counts
+    const { data: stats } = await supabase.rpc('fn_get_basket_substrate_stats', {
+      p_basket_id: cd.basket_id,
+      p_workspace_id: cd.workspace_id
+    });
+
+    if (!stats) {
+      return { level: 1, substrateDensity: 0, varietyBonus: false };
+    }
+
+    const totalSubstrate = (stats.blocks_count || 0) + (stats.context_items_count || 0) + (stats.raw_dumps_count || 0);
+    const substrateDensity = totalSubstrate / 100; // Normalize per 100 items
+    
+    // Calculate maturity level based on substrate density and variety
+    let level = 1;
+    if (totalSubstrate >= 10) level = 2;
+    if (totalSubstrate >= 50) level = 3;
+    if (totalSubstrate >= 100) level = 4;
+    if (totalSubstrate >= 200) level = 5;
+
+    // Variety bonus for diverse substrate types
+    const varietyTypes = [stats.blocks_count, stats.context_items_count, stats.raw_dumps_count]
+      .filter(count => (count || 0) > 0).length;
+    const varietyBonus = varietyTypes >= 2;
+
+    return { level, substrateDensity, varietyBonus };
+  } catch (error) {
+    console.error('Failed to calculate basket maturity:', error);
+    return { level: 1, substrateDensity: 0, varietyBonus: false };
+  }
+}
+
+/**
+ * Get recent failure count for auto-approval context
+ */
+async function getRecentFailures(
+  supabase: SupabaseClient,
+  workspace_id: string
+): Promise<number> {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    
+    const { data, error } = await supabase
+      .from('proposals')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspace_id)
+      .eq('status', 'REJECTED')
+      .gte('created_at', cutoff.toISOString());
+
+    if (error) {
+      console.error('Failed to get recent failures:', error);
+      return 0;
+    }
+
+    return data?.length || 0;
+  } catch (error) {
+    console.error('Error getting recent failures:', error);
+    return 0;
+  }
+}
+
+/**
+ * Execute auto-approved change with tracking
+ */
+async function executeAutoApprovedChange(
+  supabase: SupabaseClient,
+  cd: ChangeDescriptor,
+  decision: Decision,
+  autoApprovalResult: any,
+  validatorReport?: any
+): Promise<ChangeResult> {
+  const startTime = Date.now();
+  
+  try {
+    // Create proposal record for tracking
+    const { data: proposal, error: createError } = await supabase
+      .from('proposals')
+      .insert({
+        workspace_id: cd.workspace_id,
+        basket_id: cd.basket_id,
+        proposal_kind: inferProposalKind(cd.ops),
+        ops: cd.ops,
+        origin: cd.entry_point === 'onboarding_dump' ? 'agent' : 'human',
+        provenance: cd.provenance || [],
+        basis_snapshot_id: cd.basis_snapshot_id,
+        validator_report: validatorReport || { confidence: autoApprovalResult.confidence },
+        status: 'APPROVED', // Auto-approved
+        blast_radius: decision.effective_blast_radius,
+        created_by: cd.actor_id,
+        reviewed_at: new Date().toISOString(),
+        review_notes: `Auto-approved: ${autoApprovalResult.reason}. Rule: ${autoApprovalResult.rule?.name || 'unknown'}`,
+        is_executed: false
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      throw new Error(`Failed to create auto-approved proposal: ${createError.message}`);
+    }
+
+    // Execute operations
+    const results = await executeOpsTransactional(supabase, cd.ops, {
+      actor_id: cd.actor_id,
+      workspace_id: cd.workspace_id,
+      basket_id: cd.basket_id,
+      blast_radius: decision.effective_blast_radius
+    });
+
+    // Mark proposal as executed
+    await supabase
+      .from('proposals')
+      .update({ 
+        is_executed: true, 
+        executed_at: new Date().toISOString() 
+      })
+      .eq('id', proposal.id);
+
+    // Emit auto-approval events
+    await emitAutoApprovalEvents(supabase, cd, proposal, autoApprovalResult, results);
+
+    const executionTime = Date.now() - startTime;
+
+    return {
+      committed: true,
+      proposal_id: proposal.id,
+      decision: {
+        ...decision,
+        auto_approved: true,
+        auto_approval_rule: autoApprovalResult.rule?.name
+      } as any,
+      execution_summary: {
+        operations_executed: cd.ops.length,
+        execution_time_ms: executionTime,
+        timeline_events_emitted: 2 // proposal.submitted + substrate.committed.auto_approved
+      }
+    };
+
+  } catch (error) {
+    console.error('Auto-approved execution failed:', error);
+    throw new Error(`Auto-approved execution failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Emit timeline events for auto-approval
+ */
+async function emitAutoApprovalEvents(
+  supabase: SupabaseClient,
+  cd: ChangeDescriptor,
+  proposal: any,
+  autoApprovalResult: any,
+  results: any[]
+): Promise<void> {
+  // Emit proposal submitted event
+  await supabase.rpc('emit_timeline_event', {
+    p_basket_id: cd.basket_id,
+    p_event_type: 'proposal.auto_approved',
+    p_event_data: {
+      proposal_id: proposal.id,
+      proposal_kind: proposal.proposal_kind,
+      auto_approval_rule: autoApprovalResult.rule?.name,
+      auto_approval_reason: autoApprovalResult.reason,
+      confidence: autoApprovalResult.confidence,
+      operations_count: cd.ops.length,
+      blast_radius: proposal.blast_radius
+    },
+    p_workspace_id: cd.workspace_id,
+    p_actor_id: cd.actor_id
+  });
+
+  // Emit substrate committed event
+  await supabase.rpc('emit_timeline_event', {
+    p_basket_id: cd.basket_id,
+    p_event_type: 'substrate.committed.auto_approved',
+    p_event_data: {
+      proposal_id: proposal.id,
+      entry_point: cd.entry_point,
+      operations_executed: results.length,
+      blast_radius: cd.blast_radius,
+      execution_results: results,
+      auto_approval_rule: autoApprovalResult.rule?.name
     },
     p_workspace_id: cd.workspace_id,
     p_actor_id: cd.actor_id
