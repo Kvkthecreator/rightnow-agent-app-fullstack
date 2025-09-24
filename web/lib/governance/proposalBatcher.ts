@@ -112,7 +112,7 @@ export class ProposalBatcher {
    */
   private generateBatchKey(cd: ChangeDescriptor): string {
     const theme = this.inferBatchTheme(cd.ops);
-    return `${cd.basket_id}:${cd.actor_id}:${theme}:${cd.entry_point}`;
+    return `${cd.basket_id || 'no-basket'}:${cd.actor_id}:${theme}:${cd.entry_point}`;
   }
 
   /**
@@ -143,7 +143,7 @@ export class ProposalBatcher {
     if (batch.operations.length + cd.ops.length > this.rules.maxBatchSize) return false;
     
     // Context similarity check
-    if (batch.context.basket_id !== cd.basket_id) return false;
+    if (batch.context.basket_id !== (cd.basket_id || '')) return false;
     if (batch.context.actor_id !== cd.actor_id) return false;
     if (batch.context.entry_point !== cd.entry_point) return false;
     
@@ -205,7 +205,7 @@ export class ProposalBatcher {
       id: crypto.randomUUID(),
       operations: [...cd.ops],
       context: {
-        basket_id: cd.basket_id,
+        basket_id: cd.basket_id || '',
         workspace_id: cd.workspace_id,
         actor_id: cd.actor_id,
         entry_point: cd.entry_point,
