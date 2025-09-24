@@ -36,6 +36,7 @@ from app.utils.supabase_client import supabase_admin_client as supabase
 from contracts.basket import BasketDelta, BasketChangeRequest
 from services.clock import now_iso
 from services.universal_work_tracker import universal_work_tracker
+from services.events import EventService
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -198,6 +199,19 @@ class CanonicalQueueProcessor:
         
         logger.info(f"Starting canonical processing: dump_id={dump_id}")
         
+        # Emit job started event
+        try:
+            EventService.emit_job_started(
+                workspace_id=str(workspace_id),
+                job_id=str(queue_id),
+                job_name="canonical.process",
+                message=f"Started canonical processing for dump {dump_id}",
+                basket_id=str(basket_id),
+                correlation_id=queue_entry.get('correlation_id')
+            )
+        except Exception as e:
+            logger.warning(f"Failed to emit job started notification: {e}")
+        
         try:
             # Mark as processing
             await self._update_queue_state(queue_id, 'processing')
@@ -264,6 +278,20 @@ class CanonicalQueueProcessor:
             
             logger.info(f"Canonical processing completed successfully for dump {dump_id}")
             
+            # Emit job succeeded event
+            try:
+                EventService.emit_job_succeeded(
+                    workspace_id=str(workspace_id),
+                    job_id=str(queue_id),
+                    job_name="canonical.process",
+                    message=f"Canonical processing completed successfully for dump {dump_id}",
+                    basket_id=str(basket_id),
+                    correlation_id=queue_entry.get('correlation_id'),
+                    payload={"dump_id": str(dump_id), "result": work_result}
+                )
+            except Exception as e:
+                logger.warning(f"Failed to emit job success notification: {e}")
+            
         except Exception as e:
             logger.exception(f"Canonical processing failed for dump {dump_id}: {e}")
             
@@ -275,6 +303,21 @@ class CanonicalQueueProcessor:
                 )
             
             await self._mark_failed(queue_id, str(e))
+            
+            # Emit job failed event
+            try:
+                EventService.emit_job_failed(
+                    workspace_id=str(workspace_id),
+                    job_id=str(queue_id),
+                    job_name="canonical.process",
+                    message=f"Canonical processing failed for dump {dump_id}",
+                    basket_id=str(basket_id),
+                    correlation_id=queue_entry.get('correlation_id'),
+                    error=str(e)
+                )
+            except Exception as notify_error:
+                logger.warning(f"Failed to emit job failure notification: {notify_error}")
+            
             raise
     
     # P4 composition methods removed - now direct artifact operations per Canon v2.3

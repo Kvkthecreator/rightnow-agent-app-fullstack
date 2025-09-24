@@ -16,6 +16,7 @@ from ..memory.blocks import (
 )
 from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace
+from services.events import EventService
 
 router = APIRouter(prefix="/blocks", tags=["block-lifecycle"])
 logger = logging.getLogger("uvicorn.error")
@@ -85,6 +86,26 @@ async def approve_block_proposal(
             user_id=user["user_id"],
             feedback=request.feedback
         )
+        
+        # Emit notification for approval
+        try:
+            workspace = await get_or_create_workspace(user["user_id"])
+            EventService.emit_app_event(
+                workspace_id=workspace["id"],
+                type="action_result",
+                name="block.approve",
+                message=f"Block proposal approved",
+                severity="success",
+                entity_id=block_id,
+                payload={
+                    "block_id": block_id,
+                    "approved_by": user["user_id"],
+                    "feedback": request.feedback
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Failed to emit block approval notification: {e}")
+        
         return result
     except StateTransitionError as e:
         raise HTTPException(400, str(e))
@@ -108,6 +129,26 @@ async def reject_block_proposal(
             user_id=user["user_id"],
             reason=request.feedback
         )
+        
+        # Emit notification for rejection
+        try:
+            workspace = await get_or_create_workspace(user["user_id"])
+            EventService.emit_app_event(
+                workspace_id=workspace["id"],
+                type="action_result",
+                name="block.reject",
+                message=f"Block proposal rejected",
+                severity="warning",
+                entity_id=block_id,
+                payload={
+                    "block_id": block_id,
+                    "rejected_by": user["user_id"],
+                    "reason": request.feedback
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Failed to emit block rejection notification: {e}")
+        
         return result
     except StateTransitionError as e:
         raise HTTPException(400, str(e))

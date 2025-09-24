@@ -22,6 +22,7 @@ from ..documents.services.lifecycle_management import DocumentLifecycleService
 from ..documents.services.coherence_analyzer import CoherenceAnalyzerService
 from ..agents.pipeline.presentation_agent import P4PresentationAgent
 from ..dependencies import get_current_user
+from services.events import EventService
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -60,10 +61,48 @@ async def compose_contextual_document(
         )
         
         logger.info(f"Contextual document created: {document.id}")
+        
+        # Emit document composition success event
+        try:
+            EventService.emit_app_event(
+                workspace_id=current_user.workspace_id,
+                type="action_result",
+                name="document.compose",
+                message="Document composed successfully from context",
+                severity="success",
+                basket_id=request.basket_id,
+                entity_id=str(document.id),
+                payload={
+                    "document_id": str(document.id),
+                    "composition_type": "contextual",
+                    "title": getattr(document, 'title', 'Untitled')
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Failed to emit document composition notification: {e}")
+        
         return document
         
     except Exception as e:
         logger.exception(f"Failed to compose contextual document: {e}")
+        
+        # Emit document composition failure event
+        try:
+            EventService.emit_app_event(
+                workspace_id=current_user.workspace_id,
+                type="action_result",
+                name="document.compose",
+                message="Document composition failed",
+                severity="error",
+                basket_id=request.basket_id,
+                payload={
+                    "composition_type": "contextual",
+                    "error": str(e)
+                }
+            )
+        except Exception as notify_error:
+            logger.warning(f"Failed to emit document composition failure notification: {notify_error}")
+        
         raise HTTPException(
             status_code=500,
             detail=f"Failed to compose contextual document: {str(e)}"

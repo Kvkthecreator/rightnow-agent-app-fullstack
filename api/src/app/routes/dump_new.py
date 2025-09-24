@@ -12,6 +12,7 @@ from pydantic import BaseModel, model_validator
 
 from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_client as supabase
+from services.events import EventService
 
 router = APIRouter(prefix="/dumps", tags=["dumps"])
 log = logging.getLogger("uvicorn.error")
@@ -108,4 +109,25 @@ async def create_dump(
             }
         )
     )
+    
+    # Emit notification for dump creation
+    try:
+        EventService.emit_app_event(
+            workspace_id=workspace_id,
+            type="action_result",
+            name="dump.create",
+            message=f"Memory dump created successfully",
+            severity="success",
+            basket_id=payload.basket_id,
+            entity_id=dump_id,
+            correlation_id=req.headers.get("X-Correlation-Id"),
+            payload={
+                "dump_id": dump_id,
+                "content_type": "text" if payload.text_dump else "file",
+                "duration_ms": int((time.time() - start) * 1000)
+            }
+        )
+    except Exception as e:
+        log.warning(f"Failed to emit dump creation notification: {e}")
+    
     return JSONResponse({"dump_id": dump_id}, status_code=201)
