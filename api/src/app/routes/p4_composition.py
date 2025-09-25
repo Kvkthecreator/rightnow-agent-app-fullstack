@@ -7,7 +7,7 @@ P4 operates directly on the artifact layer without substrate governance overhead
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import logging
 from uuid import UUID
 
@@ -34,6 +34,11 @@ class P4CompositionResponseDto(BaseModel):
     substrate_count: int = 0
     confidence: float = 0.0
     processing_time_ms: int = 0
+    version_hash: Optional[str] = None
+    summary: Optional[str] = None
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+    timeline_event_emitted: bool = False
+    substrate_references_created: int = 0
 
 @router.post("/p4-composition", response_model=P4CompositionResponseDto)
 async def compose_document(
@@ -71,13 +76,20 @@ async def compose_document(
         
         logger.info(f"P4 composition completed successfully: {result.message}")
         
+        data = result.data or {}
+
         return P4CompositionResponseDto(
             success=True,
             document_id=request.document_id,
             message=result.message,
-            substrate_count=result.data.get('substrate_count', 0),
-            confidence=result.data.get('confidence', 0.0),
-            processing_time_ms=result.data.get('processing_time_ms', 0)
+            substrate_count=data.get('substrate_count', 0),
+            confidence=data.get('confidence', 0.0),
+            processing_time_ms=data.get('processing_time_ms', 0),
+            version_hash=data.get('version_hash'),
+            summary=data.get('composition_summary'),
+            metrics=data.get('phase1_metrics', {}),
+            timeline_event_emitted=data.get('timeline_emitted', False),
+            substrate_references_created=data.get('substrate_references_created', 0)
         )
         
     except ValueError as e:

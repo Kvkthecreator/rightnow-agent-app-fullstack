@@ -142,11 +142,15 @@ class P4CompositionAgent:
                 success=True,
                 message="Document composed successfully",
                 data={
-                    "document_id": request.document_id,
+                    "document_id": str(request.document_id),
                     "substrate_count": len(selected_substrate),
                     "composition_summary": composition_result.get("summary"),
                     "confidence": strategy.get("confidence", 0.8),
-                    "phase1_metrics": composition_result.get("phase1_metrics", {})
+                    "phase1_metrics": composition_result.get("phase1_metrics", {}),
+                    "processing_time_ms": composition_result.get("phase1_metrics", {}).get("processing_time_ms", 0),
+                    "version_hash": composition_result.get("version_hash"),
+                    "timeline_emitted": composition_result.get("timeline_emitted", False),
+                    "substrate_references_created": composition_result.get("substrate_references_created", 0)
                 }
             )
             
@@ -837,11 +841,13 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             update_response = supabase.table("documents")\
                 .update(doc_update)\
                 .eq("id", str(document_id))\
+                .select("id,basket_id,workspace_id")\
                 .execute()
-            
+
             if not update_response.data:
                 raise RuntimeError("Failed to update document with composition")
-            
+            document_record = update_response.data[0]
+
             # Canon-Pure: Create substrate references in dedicated table
             substrate_refs_created = []
             for idx, substrate in enumerate(selected_substrate):
@@ -883,29 +889,42 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             
             logger.info(f"✅ Canon-pure P4 composition: {len(substrate_refs_created)}/{len(selected_substrate)} substrate references created in canonical table")
             
-            # Create new document version
-            version_response = supabase.rpc("fn_document_create_version", {
-                "p_document_id": str(document_id),
-                "p_content": final_content,
-                "p_version_message": f"Composed from {len(selected_substrate)} substrate items"
-            }).execute()
+            version_hash = None
+            try:
+                version_response = supabase.rpc("fn_document_create_version", {
+                    "p_document_id": str(document_id),
+                    "p_content": final_content,
+                    "p_version_message": f"Composed from {len(selected_substrate)} substrate items"
+                }).execute()
+                if version_response.data is not None:
+                    if isinstance(version_response.data, list) and version_response.data:
+                        version_hash = version_response.data[0]
+                    elif isinstance(version_response.data, str):
+                        version_hash = version_response.data
+            except Exception as version_error:
+                logger.warning(f"Failed to create document version for {document_id}: {version_error}")
             
-            # Emit timeline event
-            timeline_response = supabase.rpc("fn_timeline_emit", {
-                "p_basket_id": supabase.table("documents").select("basket_id").eq("id", str(document_id)).execute().data[0]["basket_id"],
-                "p_kind": "document.composed",
-                "p_ref_id": str(document_id),
-                "p_preview": f"Document composed: {narrative.get('summary', 'Composition complete')}",
-                "p_payload": json.dumps({
-                    "substrate_count": len(selected_substrate),
-                    "narrative_sections": len(narrative.get("sections", [])),
-                    "composition_type": "intelligent"
-                })
-            }).execute()
+            timeline_emitted = False
+            try:
+                supabase.rpc("fn_timeline_emit", {
+                    "p_basket_id": document_record["basket_id"],
+                    "p_kind": "document.composed",
+                    "p_ref_id": str(document_id),
+                    "p_preview": f"Document composed: {narrative.get('summary', 'Composition complete')}",
+                    "p_payload": json.dumps({
+                        "substrate_count": len(selected_substrate),
+                        "narrative_sections": len(narrative.get("sections", [])),
+                        "composition_type": "intelligent"
+                    })
+                }).execute()
+                timeline_emitted = True
+            except Exception as timeline_error:
+                logger.warning(f"Timeline event emit failed for {document_id}: {timeline_error}")
             
             # Log final metrics before returning
+            query_metrics.end_time = datetime.utcnow()
             query_metrics.tokens_used = len(final_content.split())  # Rough token estimate
-            self._log_composition_metrics(request.document_id, query_metrics)
+            self._log_composition_metrics(str(document_id), query_metrics)
             
             return {
                 "success": True,
@@ -913,6 +932,8 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                 "substrate_count": len(selected_substrate),
                 "substrate_references_created": len(substrate_refs_created),
                 "content_length": len(final_content),
+                "version_hash": version_hash,
+                "timeline_emitted": timeline_emitted,
                 "canon_compliance": "substrate_references_in_canonical_table",
                 "phase1_metrics": {
                     "coverage_percentage": query_metrics.coverage_percentage,
@@ -920,7 +941,7 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                     "provenance_percentage": query_metrics.provenance_percentage,
                     "candidates_found": query_metrics.candidates_found,
                     "candidates_selected": query_metrics.candidates_selected,
-                    "processing_time_ms": int((query_metrics.end_time - query_metrics.start_time).total_seconds() * 1000),
+                    "processing_time_ms": int((query_metrics.end_time - query_metrics.start_time).total_seconds() * 1000) if query_metrics.end_time else 0,
                     "raw_gaps_used": query_metrics.raw_gaps_used
                 }
             }
