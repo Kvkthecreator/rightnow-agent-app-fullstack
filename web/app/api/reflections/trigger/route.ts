@@ -52,23 +52,27 @@ export async function POST(req: NextRequest) {
       const { userId } = await getAuthenticatedUser(supabase);
       const workspace = await ensureWorkspaceForUser(userId, supabase);
 
-      // For now, fall back to window scope with document context
-      // TODO: Implement dedicated document reflection endpoint
+      const { data: document, error: dErr } = await supabase
+        .from('documents')
+        .select('id, basket_id, workspace_id')
+        .eq('id', document_id)
+        .maybeSingle();
+      if (dErr) return NextResponse.json({ error: dErr.message }, { status: 400 });
+      if (!document) return NextResponse.json({ error: 'document_not_found' }, { status: 404 });
+      if (document.workspace_id !== workspace.id) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+      if (basket_id && document.basket_id !== basket_id) {
+        return NextResponse.json({ error: 'document_basket_mismatch' }, { status: 400 });
+      }
+
       const { getApiBaseUrl } = await import('@/lib/config/api');
       const backend = getApiBaseUrl();
       if (!backend) return NextResponse.json({ error: 'backend_url_missing' }, { status: 500 });
       const authHeader = req.headers.get('authorization') || undefined;
-      const resp = await fetch(`${backend}/api/reflections/compute_window`, {
+      const resp = await fetch(`${backend}/api/reflections/documents/${document_id}/compute?workspace_id=${workspace.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(authHeader ? { Authorization: authHeader } : {}) },
-        body: JSON.stringify({ 
-          workspace_id: workspace.id, 
-          basket_id: basket_id || workspace.id, 
-          agent_id: 'p3_reflection_agent',
-          document_focus: document_id 
-        })
       });
-      const data = await resp.json();
+      const data = await resp.json().catch(() => ({}));
       return NextResponse.json(data, { status: resp.status });
     }
 
@@ -100,7 +104,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!basket_id) return NextResponse.json({ error: 'basket_id required' }, { status: 422 });
-const supabase = createServerSupabaseClient();
+    const supabase = createServerSupabaseClient();
     const { userId } = await getAuthenticatedUser(supabase);
     const workspace = await ensureWorkspaceForUser(userId, supabase);
 
@@ -139,4 +143,3 @@ const supabase = createServerSupabaseClient();
 export async function OPTIONS() {
   return new Response(null, { status: 204 });
 }
-

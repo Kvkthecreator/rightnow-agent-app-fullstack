@@ -63,7 +63,12 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
       await fetchWithToken('/api/reflections/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ basket_id: basketId, force_refresh: true, scope: 'window' }),
+        body: JSON.stringify({
+          basket_id: basketId,
+          force_refresh: true,
+          scope: 'window',
+          substrate_window_hours: 24 * 7,
+        }),
       });
     } catch (err) {
       console.error('Failed to trigger reflection refresh:', err);

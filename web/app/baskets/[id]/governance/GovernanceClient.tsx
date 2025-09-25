@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { SubpageHeader } from "@/components/basket/SubpageHeader";
 import { ProposalDetailModal } from "@/components/governance/ProposalDetailModal";
-import { CheckCircle, Clock, XCircle, FileText, Database, User, Bot, ChevronRight, Filter, Eye } from "lucide-react";
+import { CheckCircle, Clock, XCircle, FileText, Database, User, Bot, ChevronRight, Filter, Eye, Lightbulb } from "lucide-react";
 
 interface Proposal {
   id: string;
@@ -50,6 +50,8 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
   const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [view, setView] = useState<'summary' | 'list'>('summary');
+  const [insightLoadingId, setInsightLoadingId] = useState<string | null>(null);
+  const [insightError, setInsightError] = useState<string | null>(null);
 
   type StatusFilterType = 'all' | 'PROPOSED' | 'APPROVED' | 'REJECTED';
 
@@ -88,6 +90,32 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
   const openProposalDetail = (proposalId: string) => {
     setSelectedProposalId(proposalId);
     setIsDetailModalOpen(true);
+  };
+
+  const handleProposalInsights = async (proposalId: string) => {
+    setInsightLoadingId(proposalId);
+    setInsightError(null);
+    try {
+      const resp = await fetch('/api/reflections/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          basket_id: basketId,
+          scope: 'proposal',
+          proposal_id: proposalId,
+          force_refresh: true,
+        }),
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        throw new Error(payload?.error || payload?.detail || 'Failed to request insights');
+      }
+      window.dispatchEvent(new CustomEvent('reflections:refresh'));
+    } catch (error) {
+      setInsightError(error instanceof Error ? error.message : 'Failed to request insights');
+    } finally {
+      setInsightLoadingId(null);
+    }
   };
 
   const closeProposalDetail = () => {
@@ -441,6 +469,16 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
 
                     <div className="flex gap-2 ml-4">
                       <Button
+                        onClick={() => handleProposalInsights(proposal.id)}
+                        variant="ghost"
+                        size="sm"
+                        disabled={insightLoadingId === proposal.id}
+                        className="text-amber-600 hover:text-amber-700"
+                      >
+                        <Lightbulb className="h-3.5 w-3.5" />
+                        {insightLoadingId === proposal.id ? 'Analyzing…' : 'Analyze Insights'}
+                      </Button>
+                      <Button
                         onClick={() => openProposalDetail(proposal.id)}
                         variant="primary"
                         size="sm"
@@ -465,6 +503,11 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
         onApprove={handleApprove}
         onReject={handleReject}
       />
+      {insightError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {insightError}
+        </div>
+      )}
     </div>
   );
 }
