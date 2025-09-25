@@ -48,6 +48,7 @@
     "react-dom": "18.x",
     "react-dropzone": "^14.2.3",
     "react-error-boundary": "^6.0.0",
+    "react-force-graph-2d": "^1.29.0",
     "react-hook-form": "^7.56.3",
     "react-markdown": "^8.0.7",
     "remark-gfm": "^4.0.1",

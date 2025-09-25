@@ -2,17 +2,17 @@
 
 import { useMemo, useRef, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import type { ForceGraphMethods } from 'react-force-graph';
+import type { ForceGraphMethods } from 'react-force-graph-2d';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Network, Zap, Sparkles, GitMerge, Filter } from 'lucide-react';
 
 // ForceGraph relies on window, so load on client only
-const ForceGraph2D = dynamic(
-  () => import('react-force-graph').then(mod => mod.ForceGraph2D),
-  { ssr: false }
-);
+const ForceGraph2D = dynamic(async () => {
+  const mod = await import('react-force-graph-2d');
+  return mod.default;
+}, { ssr: false });
 
 type SubstrateBlock = {
   id: string;
