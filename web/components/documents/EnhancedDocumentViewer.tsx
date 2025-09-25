@@ -175,7 +175,7 @@ export function EnhancedDocumentViewer({ content, references = [], className = "
       <div className="prose prose-gray prose-lg max-w-none">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeRaw]}
+          rehypePlugins={[rehypeRaw as any]}
           skipHtml={false}
           components={customRenderers}
           className="text-gray-800 leading-relaxed"
