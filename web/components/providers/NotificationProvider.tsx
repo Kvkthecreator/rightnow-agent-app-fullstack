@@ -3,17 +3,22 @@
 import { useEffect } from 'react';
 import { notificationAPI } from '@/lib/api/notifications';
 import { ToastHost } from '@/components/notifications/ToastHost';
+import { useAuth } from '@/lib/useAuth';
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    // Start realtime subscription when component mounts
-    notificationAPI.startRealtimeSubscription();
+  const { user } = useAuth();
 
-    // Cleanup on unmount
+  useEffect(() => {
+    // Only start realtime subscription when user is authenticated
+    if (user) {
+      notificationAPI.startRealtimeSubscription();
+    }
+
+    // Cleanup on unmount or when user logs out
     return () => {
       notificationAPI.stopRealtimeSubscription();
     };
-  }, []);
+  }, [user]);
 
   return (
     <>
