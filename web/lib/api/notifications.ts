@@ -24,21 +24,14 @@ class NotificationAPI {
     } = {}
   ): Promise<void> {
     try {
-      // Get current user and workspace context
-      const { data: { session } } = await this.supabase.auth.getSession();
-      if (!session?.user) return;
-
-      // Extract workspace from user metadata or use a default
-      const workspaceId = session.user.user_metadata?.workspace_id || session.user.id;
-
-      const eventData: Partial<AppEvent> = {
-        v: 1,
+      // Frontend should NOT insert events directly per Auth Canon
+      // Instead, call backend API to emit events with service_role
+      const eventData = {
         type,
         name,
         message,
         severity: options.severity || 'info',
         phase: options.phase,
-        workspace_id: workspaceId,
         basket_id: options.basketId,
         entity_id: options.entityId,
         correlation_id: options.correlationId,
@@ -52,9 +45,14 @@ class NotificationAPI {
         Object.entries(eventData).filter(([_, value]) => value !== undefined)
       );
 
-      await this.supabase
-        .from('app_events')
-        .insert(cleanedEventData);
+      // Call backend API instead of direct Supabase insert
+      await fetch('/api/events/emit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(cleanedEventData),
+      });
 
     } catch (error) {
       console.warn('Failed to emit app event:', error);
