@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { ClarificationResponse } from "@/components/ClarificationResponse";
+import { useAuth } from "@/lib/useAuth";
 
 interface ChatPaneProps {
   taskId: string;
@@ -22,12 +23,14 @@ interface AgentMessage {
 }
 
 export function ChatPane({ taskId, collectedInputs, onClarificationSubmit }: ChatPaneProps) {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const supabase = createBrowserClient();
 
   useEffect(() => {
+    if (!user) return;
 
     // Load existing messages
     supabase
@@ -39,7 +42,7 @@ export function ChatPane({ taskId, collectedInputs, onClarificationSubmit }: Cha
         if (data) setMessages(data as AgentMessage[]);
       });
 
-    // Subscribe to new messages
+    // Subscribe to new messages only when authenticated
     const subscription = supabase
       .channel("messages")
       .on(
@@ -60,7 +63,7 @@ export function ChatPane({ taskId, collectedInputs, onClarificationSubmit }: Cha
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [taskId]);
+  }, [taskId, user]);
 
   // Scroll to bottom when new message arrives
   useEffect(() => {

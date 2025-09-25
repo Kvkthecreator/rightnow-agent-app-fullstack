@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { createBrowserClient } from '@/lib/supabase/clients';
 import { DocumentImpactCheckpoint } from './DocumentImpactCheckpoint';
+import { useAuth } from '@/lib/useAuth';
 
 interface DocumentImpactNotificationProps {
   workspaceId: string;
@@ -31,6 +32,7 @@ export function DocumentImpactNotification({
   userId,
   className = "" 
 }: DocumentImpactNotificationProps) {
+  const { user } = useAuth();
   const [notificationData, setNotificationData] = useState<NotificationData>({
     pending_count: 0,
     high_confidence_count: 0,
@@ -41,9 +43,11 @@ export function DocumentImpactNotification({
   const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
+    
     fetchNotificationData();
     
-    // Set up real-time subscription for document impact events
+    // Set up real-time subscription for document impact events only when authenticated
     const supabase = createBrowserClient();
     
     const subscription = supabase
@@ -62,7 +66,7 @@ export function DocumentImpactNotification({
     return () => {
       subscription.unsubscribe();
     };
-  }, [workspaceId, userId]);
+  }, [workspaceId, userId, user]);
 
   const fetchNotificationData = async () => {
     try {

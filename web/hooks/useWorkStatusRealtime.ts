@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/clients";
+import { useAuth } from "@/lib/useAuth";
 
 interface WorkStatusData {
   work_id: string;
@@ -64,6 +65,7 @@ export function useWorkStatusRealtime(
   workId: string, 
   options: UseWorkStatusRealtimeOptions = {}
 ) {
+  const { user } = useAuth();
   const { 
     enableRealtime = true, 
     pollInterval = 5000, 
@@ -76,7 +78,7 @@ export function useWorkStatusRealtime(
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error' | 'disconnected'>('disconnected');
   
   // Track if we should use real-time vs polling
-  const [useRealtime, setUseRealtime] = useState(enableRealtime);
+  const [useRealtime, setUseRealtime] = useState(enableRealtime && !!user);
 
   // Fetch work status from API
   const fetchStatus = useCallback(async () => {
@@ -111,7 +113,7 @@ export function useWorkStatusRealtime(
 
   // Set up real-time subscription
   useEffect(() => {
-    if (!useRealtime || !autoStart) return;
+    if (!useRealtime || !autoStart || !user) return;
 
     const supabase = createBrowserClient();
     let channel: any = null;
