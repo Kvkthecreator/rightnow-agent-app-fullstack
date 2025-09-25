@@ -16,6 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 const GraphView = dynamic(() => import('@/components/graph/GraphView').then(m => m.GraphView), {
   loading: () => <div className="h-64 animate-pulse" />,
+});
 
 export default async function GraphPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: basketId } = await params;
