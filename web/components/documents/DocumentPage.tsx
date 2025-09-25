@@ -232,7 +232,10 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const handleDocumentInsights = async () => {
     setInsightLoading(true);
     setInsightError(null);
-    await notificationAPI.emitJobStarted('document.reflection', `Analyzing “${document.title}”`, { basketId, documentId: document.id });
+    await notificationAPI.emitJobStarted('document.reflection', `Analyzing “${document.title}”`, {
+      basketId,
+      correlationId: document.id,
+    });
     try {
       const resp = await fetch('/api/reflections/trigger', {
         method: 'POST',
@@ -248,12 +251,18 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
       if (!resp.ok) {
         throw new Error(payload?.error || payload?.detail || 'Failed to request insights');
       }
-      await notificationAPI.emitJobSucceeded('document.reflection', 'Document insights requested', { basketId, documentId: document.id });
+      await notificationAPI.emitJobSucceeded('document.reflection', 'Document insights requested', {
+        basketId,
+        correlationId: document.id,
+      });
       window.dispatchEvent(new CustomEvent('reflections:refresh'));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to request insights';
       setInsightError(message);
-      await notificationAPI.emitJobFailed('document.reflection', message, { basketId, documentId: document.id });
+      await notificationAPI.emitJobFailed('document.reflection', message, {
+        basketId,
+        correlationId: document.id,
+      });
     } finally {
       setInsightLoading(false);
     }

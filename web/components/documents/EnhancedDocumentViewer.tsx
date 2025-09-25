@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { Database, FileText, MessageSquare, Clock, Layers, Info } from 'lucide-react';
 
 interface SubstrateReference {
@@ -98,31 +99,36 @@ export function EnhancedDocumentViewer({ content, references = [], className = "
       if (className === 'substrate-section' && substrateId) {
         const reference = references.find(r => r.id === substrateId);
         const isHovered = hoveredReference === substrateId;
-        
+
+        if (!showSubstrateMode) {
+          return (
+            <div {...props}>
+              {children}
+            </div>
+          );
+        }
+
         return (
           <div
             className={`
               relative group transition-all duration-200 rounded-lg px-3 py-2 my-2
               border-l-2 ${getSubstrateColor(substrateType)}
               ${isHovered ? 'shadow-sm scale-[1.01]' : ''}
-              ${showSubstrateMode ? 'opacity-100' : 'opacity-95'}
             `}
             onMouseEnter={() => setHoveredReference(substrateId)}
             onMouseLeave={() => setHoveredReference(null)}
             {...props}
           >
             {/* Subtle substrate indicator */}
-            {showSubstrateMode && (
-              <div className="absolute -left-1 top-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                {getSubstrateIcon(substrateType)}
-              </div>
-            )}
-            
+            <div className="absolute -left-1 top-2 opacity-60 group-hover:opacity-100 transition-opacity">
+              {getSubstrateIcon(substrateType)}
+            </div>
+
             {/* Content */}
-            <div className={showSubstrateMode ? 'ml-3' : ''}>{children}</div>
-            
+            <div className="ml-3">{children}</div>
+
             {/* Hover tooltip */}
-            {isHovered && reference && showSubstrateMode && (
+            {isHovered && reference && (
               <div className="absolute left-full ml-2 top-0 z-10 p-2 bg-white border border-gray-200 rounded-lg shadow-lg text-xs max-w-xs">
                 <div className="flex items-center gap-1 mb-1">
                   {getSubstrateIcon(substrateType)}
@@ -169,6 +175,8 @@ export function EnhancedDocumentViewer({ content, references = [], className = "
       <div className="prose prose-gray prose-lg max-w-none">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw]}
+          skipHtml={false}
           components={customRenderers}
           className="text-gray-800 leading-relaxed"
         >
