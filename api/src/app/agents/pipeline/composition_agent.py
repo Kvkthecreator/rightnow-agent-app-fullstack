@@ -865,13 +865,11 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             update_response = supabase.table("documents")\
                 .update(doc_update)\
                 .eq("id", str(document_id))\
-                .select("id,basket_id,workspace_id,metadata")\
                 .execute()
 
-            if not update_response.data:
-                raise RuntimeError("Failed to update document with composition")
-            document_record = update_response.data[0]
-            updated_metadata = document_record.get("metadata", {}) or {}
+            if update_response.error:
+                raise RuntimeError(f"Failed to update document with composition: {update_response.error}")
+            updated_metadata = base_metadata
 
             # Canon-Pure: Create substrate references in dedicated table
             substrate_refs_created = []
@@ -932,7 +930,7 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             timeline_emitted = False
             try:
                 supabase.rpc("fn_timeline_emit", {
-                    "p_basket_id": document_record["basket_id"],
+                    "p_basket_id": document_context["basket_id"],
                     "p_kind": "document.composed",
                     "p_ref_id": str(document_id),
                     "p_preview": f"Document composed: {narrative.get('summary', 'Composition complete')}",
