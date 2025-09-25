@@ -1,163 +1,108 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { fetchWithToken } from "@/lib/fetchWithToken";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
-import { Paperclip, X, FileText, Image, File } from "lucide-react";
-import { CANONICAL_ACCEPT_ATTRIBUTE, SUPPORTED_FORMAT_DESCRIPTION, isCanonicalFile } from "@/shared/constants/canonical_file_types";
+import { Trash, Upload, Plus, Send, Image } from "lucide-react";
+import { useDropzone } from "react-dropzone";
 import { notificationAPI } from "@/lib/api/notifications";
 
-interface AddMemoryComposerProps {
+export interface AddMemoryComposerProps {
   basketId: string;
   disabled?: boolean;
-  onSuccess?: (res: { dump_id: string }) => void;
+  onSuccess?: (result: any) => void;
 }
 
 export default function AddMemoryComposer({ basketId, disabled, onSuccess }: AddMemoryComposerProps) {
-  const router = useRouter();
   const [text, setText] = useState("");
-  const [attachments, setAttachments] = useState<File[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [images, setImages] = useState<File[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    // If basketId is missing, disable interactions instead of redirecting.
-    if (!basketId) return;
-    const focusComposer = () => textareaRef.current?.focus();
-    if (window.location.hash === "#add") {
-      focusComposer();
-    }
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "m") {
-        e.preventDefault();
-        focusComposer();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [basketId, router]);
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setImages(prev => [...prev, ...acceptedFiles]);
+  }, []);
 
-  const handleAddAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => isCanonicalFile(file));
-    
-    if (validFiles.length !== files.length) {
-      notificationAPI.emitActionResult(
-        'file.validation', 
-        `Some files were not added. ${SUPPORTED_FORMAT_DESCRIPTION}`,
-        { severity: 'warning' }
-      );
-    }
-    
-    setAttachments(prev => [...prev, ...validFiles]);
-    
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+    },
+    multiple: true,
+    noClick: true
+  });
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSubmit();
     }
   };
 
-  const handleRemoveAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-  };
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    if (submitting) return;
+    
     const trimmed = text.trim();
-    const hasContent = trimmed || attachments.length > 0;
-    
-    if (!hasContent || !basketId || loading || disabled) return;
-    setLoading(true);
-    
+    if (!trimmed && images.length === 0) {
+      return;
+    }
+
     try {
-      if (attachments.length > 0) {
-        // Handle file uploads with batch processing for unified context
-        const batchId = crypto.randomUUID();
-        const promises = [];
-        
-        // Process text if present
-        if (trimmed) {
-          promises.push(
-            fetchWithToken("/api/dumps/new", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                basket_id: basketId,
-                text_dump: trimmed,
-                dump_request_id: crypto.randomUUID(),
-                meta: {
-                  client_ts: new Date().toISOString(),
-                  ingest_trace_id: crypto.randomUUID(),
-                  batch_id: batchId,
-                  batch_context: "multi_format_memory"
-                },
-              }),
-            })
-          );
-        }
-        
-        // Process each file
-        for (const file of attachments) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('basket_id', basketId);
-          formData.append('dump_request_id', crypto.randomUUID());
-          formData.append('meta', JSON.stringify({
-            client_ts: new Date().toISOString(),
-            ingest_trace_id: crypto.randomUUID(),
-            batch_id: batchId,
-            batch_context: "multi_format_memory",
-            original_filename: file.name,
-            file_type: file.type,
-            upload_method: 'add_memory_modal'
-          }));
-          
-          promises.push(
-            fetchWithToken("/api/dumps/upload", {
-              method: "POST",
-              body: formData,
-            })
-          );
-        }
-        
-        const results = await Promise.all(promises);
-        const allSuccessful = results.every(res => res.ok);
-        
-        if (allSuccessful) {
-          // Parse all responses to understand the routes
-          const responses = await Promise.all(results.map(r => r.json()));
-          console.log("Batch responses:", responses);
-          
-          const proposalCount = responses.filter(r => r.route === 'proposal').length;
-          const directCount = responses.filter(r => r.route === 'direct').length;
-          
-          onSuccess?.({ dump_id: batchId }); // Return batch ID for tracking
+      setSubmitting(true);
+
+      if (images.length > 0) {
+        // Handle file uploads
+        const formData = new FormData();
+        formData.append('basket_id', basketId);
+        formData.append('text_dump', trimmed);
+        formData.append('dump_request_id', crypto.randomUUID());
+        formData.append('meta', JSON.stringify({
+          client_ts: new Date().toISOString(),
+          ingest_trace_id: crypto.randomUUID(),
+        }));
+
+        images.forEach(file => {
+          formData.append('files', file);
+        });
+
+        const res = await fetch('/api/dumps/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (res.ok) {
+          const dump = await res.json();
+          console.log("Upload response:", dump);
+          onSuccess?.(dump);
           setText("");
-          setAttachments([]);
+          setImages([]);
           
-          // Log feedback
-          if (proposalCount > 0) {
-            console.log(`${proposalCount} items submitted for review`);
-          }
-          if (directCount > 0) {
-            console.log(`${directCount} items added directly`);
-          }
+          // Show immediate acknowledgment
+          console.log(`Memory with files submitted: ${dump.dump_id || dump.proposal_id}`);
+          await notificationAPI.emitActionResult(
+            'memory.submit',
+            'Memory with files submitted ✓',
+            { severity: 'success', ttlMs: 2500 }
+          );
         } else {
-          console.error("Some uploads failed", results);
-          notificationAPI.emitActionResult(
-            'memory.upload',
-            'Some uploads failed. Please try again.',
+          console.error("Failed to upload", await res.text());
+          await notificationAPI.emitActionResult(
+            'memory.error',
+            'Failed to upload files',
             { severity: 'error' }
           );
         }
       } else {
-        // Text only - original flow
-        const res = await fetchWithToken("/api/dumps/new", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        // Handle text-only submission
+        const res = await fetch('/api/dumps/new', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
             basket_id: basketId,
             text_dump: trimmed,
@@ -168,7 +113,7 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
             },
           }),
         });
-        
+
         if (res.ok) {
           const dump = await res.json();
           console.log("Dump response:", dump);
@@ -177,7 +122,7 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
           
           // Show immediate acknowledgment only
           console.log(`Memory submitted (${dump.route}): ${dump.dump_id || dump.proposal_id}`);
-          notificationAPI.emitActionResult(
+          await notificationAPI.emitActionResult(
             'memory.submit',
             'Memory submitted ✓',
             { severity: 'success', ttlMs: 2500 } // Short toast - quick acknowledgment
@@ -186,110 +131,152 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
           // Backend will handle job progress and completion notifications
         } else {
           console.error("Failed to create dump", await res.text());
-          notificationAPI.emitActionResult(
-            'memory.create',
-            'Failed to add memory. Please try again.',
+          await notificationAPI.emitActionResult(
+            'memory.error',
+            'Failed to submit memory',
             { severity: 'error' }
           );
         }
       }
-    } catch (err) {
-      console.error("Submit error:", err);
-      notificationAPI.emitActionResult(
-        'memory.upload',
-        'Upload failed. Please try again.',
+    } catch (error) {
+      console.error("Error submitting:", error);
+      await notificationAPI.emitActionResult(
+        'memory.error',
+        'Error submitting memory',
         { severity: 'error' }
       );
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  }
-
-  const getFileIcon = (file: File) => {
-    if (file.type === 'application/pdf') return <FileText className="w-4 h-4" />;
-    if (file.type.startsWith('image/')) return <Image className="w-4 h-4" />;
-    return <File className="w-4 h-4" />;
   };
 
-  const hasContent = text.trim() || attachments.length > 0;
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.max(60, Math.min(textarea.scrollHeight, 200))}px`;
+    }
+  }, [text]);
+
+  const hasContent = text.trim() || images.length > 0;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="border rounded-lg bg-white">
-        {/* Main input area */}
-        <div className="p-3 md:p-4">
-          <Textarea
-            ref={textareaRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Add a memory, thoughts, or observations..."
-            rows={8}
-            disabled={disabled || loading}
-            className="border-0 focus:ring-0 resize-none text-base min-h-[180px] md:min-h-[260px]"
-          />
-          
-          {/* Attachment preview */}
-          {attachments.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {attachments.map((file, index) => (
-                <div 
-                  key={`${file.name}-${index}`}
-                  className="flex items-center gap-2 p-2 bg-gray-50 rounded-md text-sm"
+    <div 
+      {...getRootProps()} 
+      className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
+        isDragActive 
+          ? 'border-blue-400 bg-blue-50' 
+          : hasContent 
+            ? 'border-gray-300 bg-white' 
+            : 'border-gray-200 bg-gray-50'
+      } ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
+    >
+      <input {...getInputProps()} />
+      
+      <div className="space-y-4">
+        {/* Image previews */}
+        {images.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {images.map((image, index) => (
+              <div key={index} className="relative group">
+                <img 
+                  src={URL.createObjectURL(image)}
+                  alt={`Upload ${index + 1}`}
+                  className="w-16 h-16 object-cover rounded border"
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeImage(index);
+                  }}
+                  className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  {getFileIcon(file)}
-                  <span className="flex-1 truncate">{file.name}</span>
-                  <span className="text-xs text-gray-500">
-                    {(file.size / 1024).toFixed(1)}KB
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveAttachment(index)}
-                    className="text-gray-400 hover:text-red-600 transition-colors"
-                    disabled={loading}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        {/* Action bar */}
-        <div className="border-t px-3 md:px-4 py-2 flex items-center justify-between bg-gray-50 rounded-b-lg">
-          <div className="flex items-center gap-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={CANONICAL_ACCEPT_ATTRIBUTE}
-              onChange={handleAddAttachment}
-              className="hidden"
-              id="memory-file-input"
-              disabled={loading}
-            />
-            <label 
-              htmlFor="memory-file-input"
-              className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 cursor-pointer transition-colors"
-            >
-              <Paperclip className="w-4 h-4" />
-              Attach files
-            </label>
-            
-            <span className="text-xs text-gray-500">
-              {SUPPORTED_FORMAT_DESCRIPTION}
-            </span>
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
-          
-          <Button 
-            type="submit" 
-            disabled={disabled || loading || !hasContent}
-            size="sm"
-          >
-            {loading ? "Adding..." : "Add memory"}
-          </Button>
+        )}
+
+        {/* Text input */}
+        <Textarea
+          ref={textareaRef}
+          placeholder={isDragActive ? "Drop images here..." : "Add your thoughts, insights, or observations..."}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={submitting || disabled}
+          className="resize-none min-h-[60px] max-h-[200px] border-0 p-0 bg-transparent focus:ring-0 focus-visible:ring-0 shadow-none"
+          style={{ height: 'auto' }}
+        />
+
+        {/* Action bar */}
+        <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center gap-2">
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  setImages(prev => [...prev, ...files]);
+                  e.target.value = '';
+                }}
+                className="hidden"
+                disabled={submitting || disabled}
+              />
+              <div className="flex items-center gap-1 px-2 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors">
+                <Image className="w-4 h-4" />
+                <span>Image</span>
+              </div>
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {hasContent && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setText("");
+                  setImages([]);
+                }}
+                disabled={submitting}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <Trash className="w-4 h-4" />
+              </Button>
+            )}
+            
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!hasContent || submitting || disabled}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {submitting ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              <span className="ml-1">
+                {submitting ? 'Adding...' : 'Add Memory'}
+              </span>
+            </Button>
+          </div>
         </div>
       </div>
-    </form>
+
+      {/* Drop zone hint */}
+      {isDragActive && (
+        <div className="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-90 rounded-lg">
+          <div className="text-blue-600 font-medium">
+            Drop images to add to your memory
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
