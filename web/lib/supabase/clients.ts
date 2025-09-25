@@ -12,7 +12,23 @@ let serviceRoleClient: SupabaseClient<Database> | undefined;
 
 export const createBrowserClient = (): SupabaseClient<Database> => {
   if (!browserClient) {
-    browserClient = createClientComponentClient<Database>();
+    // Get environment variables and trim any whitespace/newlines
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+    
+    if (supabaseUrl && supabaseAnonKey) {
+      // Create client directly with trimmed values to avoid %0A in WebSocket URL
+      browserClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true
+        }
+      });
+    } else {
+      // Fallback to auth helpers if env vars are missing
+      browserClient = createClientComponentClient<Database>();
+    }
   }
   return browserClient;
 };
