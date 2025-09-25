@@ -788,6 +788,19 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
         Compose final document with relationship-aware content and substrate references
         """
         try:
+            # Load existing document context for metadata merging
+            context_response = supabase.table("documents")\
+                .select("metadata,basket_id,workspace_id")\
+                .eq("id", str(document_id))\
+                .maybe_single()\
+                .execute()
+
+            if not context_response.data:
+                raise RuntimeError(f"Document {document_id} not found for composition")
+
+            document_context = context_response.data
+            existing_metadata = document_context.get("metadata", {}) or {}
+
             # Build document content
             content_parts = []
             
@@ -823,30 +836,42 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             final_content = "\n".join(content_parts)
             
             # Update document with composed content (Canon: P4 = Pure Artifact Creation)
+            base_metadata = {
+                **existing_metadata,
+                "composition_status": "completed",
+                "composition_completed_at": datetime.now(timezone.utc).isoformat(),
+                "composition_summary": narrative.get("summary", ""),
+                "composition_substrate_count": len(selected_substrate),
+                "composition_narrative": narrative,
+                "relationship_map": relationship_map,
+                "synthesis_approach": narrative.get("synthesis_approach", "Connected intelligence"),
+                "phase1_metrics": {
+                    "coverage_percentage": query_metrics.coverage_percentage,
+                    "freshness_score": query_metrics.freshness_score,
+                    "provenance_percentage": query_metrics.provenance_percentage,
+                    "candidates_found": query_metrics.candidates_found,
+                    "candidates_selected": query_metrics.candidates_selected,
+                    "raw_gaps_used": query_metrics.raw_gaps_used,
+                    "processing_time_ms": 0  # filled in after timing recorded
+                }
+            }
+
             doc_update = {
                 "content_raw": final_content,
                 "content_rendered": final_content,  # For now, same as raw
-                "metadata": {
-                    "composition_status": "completed",
-                    "composition_completed_at": datetime.now(timezone.utc).isoformat(),
-                    "composition_summary": narrative.get("summary", ""),
-                    "composition_substrate_count": len(selected_substrate),
-                    "composition_narrative": narrative,
-                    "relationship_map": relationship_map,  # Relationship data for future operations
-                    "synthesis_approach": narrative.get("synthesis_approach", "Connected intelligence")
-                    # Canon-Pure: substrate_references stored in dedicated table, not metadata
-                }
+                "metadata": base_metadata
             }
-            
+
             update_response = supabase.table("documents")\
                 .update(doc_update)\
                 .eq("id", str(document_id))\
-                .select("id,basket_id,workspace_id")\
+                .select("id,basket_id,workspace_id,metadata")\
                 .execute()
 
             if not update_response.data:
                 raise RuntimeError("Failed to update document with composition")
             document_record = update_response.data[0]
+            updated_metadata = document_record.get("metadata", {}) or {}
 
             # Canon-Pure: Create substrate references in dedicated table
             substrate_refs_created = []
@@ -924,6 +949,16 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             # Log final metrics before returning
             query_metrics.end_time = datetime.utcnow()
             query_metrics.tokens_used = len(final_content.split())  # Rough token estimate
+            if doc_update["metadata"].get("phase1_metrics"):
+                doc_update["metadata"]["phase1_metrics"]["processing_time_ms"] = int((query_metrics.end_time - query_metrics.start_time).total_seconds() * 1000) if query_metrics.end_time else 0
+                # Persist updated metrics with timing
+                try:
+                    supabase.table("documents")\
+                        .update({"metadata": {**updated_metadata, "phase1_metrics": doc_update["metadata"]["phase1_metrics"]}})\
+                        .eq("id", str(document_id))\
+                        .execute()
+                except Exception as metric_update_error:
+                    logger.warning(f"Failed to persist phase1 metrics timing for {document_id}: {metric_update_error}")
             self._log_composition_metrics(str(document_id), query_metrics)
             
             return {
@@ -955,14 +990,25 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
         Mark document composition as failed
         """
         try:
-            update_response = supabase.table("documents").update({
-                "metadata": {
-                    "composition_status": "failed",
-                    "composition_error": error,
-                    "composition_failed_at": datetime.now(timezone.utc).isoformat()
-                }
-            }).eq("id", str(document_id)).execute()
-            
+            doc_response = supabase.table("documents")\
+                .select("metadata")\
+                .eq("id", str(document_id))\
+                .maybe_single()\
+                .execute()
+
+            existing_metadata = doc_response.data.get("metadata", {}) if doc_response.data else {}
+            failure_metadata = {
+                **(existing_metadata or {}),
+                "composition_status": "failed",
+                "composition_error": error,
+                "composition_failed_at": datetime.now(timezone.utc).isoformat()
+            }
+
+            supabase.table("documents")\
+                .update({"metadata": failure_metadata})\
+                .eq("id", str(document_id))\
+                .execute()
+
         except Exception as e:
             logger.error(f"Failed to mark composition failed for {document_id}: {e}")
     

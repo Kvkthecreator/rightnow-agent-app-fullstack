@@ -1,128 +1,207 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/Card';
-import { Save, Upload, ArrowLeft, ChevronDown, ChevronRight, ChevronUp, Database, FileText, MessageSquare, Clock, Layers } from 'lucide-react';
-import { DocumentCompositionStatus } from './DocumentCompositionStatus';
-import { fetchWithToken } from '@/lib/fetchWithToken';
-import { useBasket } from '@/contexts/BasketContext';
-import { notificationAPI } from '@/lib/api/notifications';
-// Removed broken reflections import
-import ExplainButton from './ExplainButton';
+import { Badge } from '@/components/ui/Badge';
 import TrustBanner from './TrustBanner';
+import ExplainButton from './ExplainButton';
 import { EnhancedDocumentViewer } from './EnhancedDocumentViewer';
-
-type Mode = 'read' | 'edit';
+import { notificationAPI } from '@/lib/api/notifications';
+import { ChevronLeft, Sparkles, ArrowUpRight, RefreshCw, FileText, Layers, History, Download } from 'lucide-react';
 
 interface DocumentRow {
   id: string;
   basket_id: string;
+  workspace_id: string;
   title: string;
-  content_raw?: string;
-  created_at: string;
+  content_raw?: string | null;
+  metadata?: Record<string, any> | null;
   updated_at: string;
-  metadata: Record<string, any>;
+  created_at: string;
+}
+
+interface CompositionPayload {
+  document: DocumentRow & { metadata: Record<string, any> };
+  references: Array<{ reference: any; substrate: any }>;
+  composition_stats: Record<string, any>;
 }
 
 interface DocumentPageProps {
   document: DocumentRow;
   basketId: string;
-  initialMode?: Mode;
 }
 
-export function DocumentPage({ document, basketId, initialMode = 'read' }: DocumentPageProps) {
+type ComposeState = 'idle' | 'running' | 'success' | 'failed';
+
+type DocumentMode = 'read' | 'edit';
+
+const DEFAULT_WINDOW_DAYS = 30;
+const POLL_INTERVAL_MS = 5000;
+
+function formatDateTime(value?: string | null) {
+  if (!value) return 'Unknown';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown';
+  return date.toLocaleString();
+}
+
+function relativeTime(value?: string | null) {
+  if (!value) return '–';
+  const date = new Date(value);
+  const diff = Date.now() - date.getTime();
+  if (Number.isNaN(diff)) return '–';
+  const minutes = Math.round(diff / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
+
+export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>(initialMode);
-  const [title, setTitle] = useState(document.title);
-  const [prose, setProse] = useState(document.content_raw || '');
-  const [saving, setSaving] = useState(false);
-  const [composition, setComposition] = useState<any | null>(null);
+  const [mode, setMode] = useState<DocumentMode>('read');
+  const [composition, setComposition] = useState<CompositionPayload | null>(null);
+  const [references, setReferences] = useState<Array<{ reference: any; substrate: any }>>([]);
   const [versions, setVersions] = useState<any[]>([]);
-  const [compareTarget, setCompareTarget] = useState<string | null>(null);
-  // Removed broken reflections state
-  const [showComposition, setShowComposition] = useState(false);
-  
-  const { maturity } = useBasket();
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [composeState, setComposeState] = useState<ComposeState>('idle');
+  const [composeMessage, setComposeMessage] = useState<string | null>(null);
+  const [composeError, setComposeError] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState<string>(document.title);
+  const [editProse, setEditProse] = useState<string>(document.content_raw || '');
+  const [saving, setSaving] = useState<boolean>(false);
 
-  // Check for async composition status
-  const workId = typeof window !== 'undefined' ? sessionStorage.getItem(`doc_${document.id}_work_id`) : null;
-  const statusUrl = typeof window !== 'undefined' ? sessionStorage.getItem(`doc_${document.id}_status_url`) : null;
-  const isAsyncComposition = document.metadata?.composition_status === 'pending' || document.metadata?.composition_status === 'processing';
-
-  // Load all read mode data
-  useEffect(() => {
-    if (mode !== 'read') return;
-    (async () => {
-      try {
-        // Loading indicators managed by individual components
-        
-        // Load composition
-        const compositionResponse = await fetch(`/api/documents/${document.id}/composition`);
-        if (compositionResponse.ok) {
-          setComposition(await compositionResponse.json());
-        }
-        
-        // Removed broken reflections loading
-        
-        
-        // Load version history
-        const versionsResponse = await fetch(`/api/documents/${document.id}/versions`);
-        if (versionsResponse.ok) {
-          const versionsData = await versionsResponse.json();
-          setVersions(versionsData.items || []);
-        }
-        
-      } catch (err) {
-        console.error('Failed to fetch read mode data:', err);
-        // Removed reflections error handling
-      } finally {
-        // Loading complete
-      }
-    })();
-  }, [basketId, mode, document.id]);
-
-  const backToList = () => router.push(`/baskets/${basketId}/documents`);
-
-  const saveDocument = async () => {
-    setSaving(true);
+  const fetchComposition = useCallback(async (silent = false): Promise<CompositionPayload | null> => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
-      const res = await fetch(`/api/documents/${document.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), content_raw: prose })
-      });
-      if (!res.ok) throw new Error('Save failed');
-      
-      // Update local document state to reflect saved content
-      document.title = title.trim();
-      document.content_raw = prose;
-      
-      // Emit success notification
-      notificationAPI.emitActionResult('document.save', 'Document saved successfully', { severity: 'success' });
-      return true; // Return success status
-    } catch (e) {
-      console.error('Failed to save document:', e);
-      notificationAPI.emitActionResult('document.save', 'Failed to save document', { severity: 'error' });
-      return false; // Return failure status
+      const res = await fetch(`/api/documents/${document.id}/composition`, { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error('Failed to load document composition');
+      }
+      const payload: CompositionPayload = await res.json();
+      setComposition(payload);
+      setReferences(payload.references || []);
+      return payload;
+    } catch (err) {
+      console.error(err);
+      if (!silent) {
+        setError(err instanceof Error ? err.message : 'Failed to load document');
+      }
+      return null;
     } finally {
-      setSaving(false);
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  }, [document.id]);
+
+  const fetchVersions = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/documents/${document.id}/versions`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      setVersions(json.items || []);
+    } catch (err) {
+      console.debug('Versions fetch failed', err);
+    }
+  }, [document.id]);
+
+  useEffect(() => {
+    fetchComposition().then(payload => {
+      if (!payload) return;
+      const status = payload.document?.metadata?.composition_status;
+      if (status === 'processing' || status === 'recomposing') {
+        setComposeState('running');
+        setComposeMessage('Composition in progress');
+      }
+    });
+    fetchVersions();
+  }, [fetchComposition, fetchVersions]);
+
+  useEffect(() => {
+    if (composeState !== 'running') return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      const payload = await fetchComposition(true);
+      if (!payload || cancelled) return;
+      const status = payload.document?.metadata?.composition_status;
+      if (status === 'completed') {
+        setComposeState('success');
+        setComposeMessage('Document composed successfully');
+        setComposeError(null);
+        notificationAPI.emitJobSucceeded('document.compose', 'Document composed successfully', { basketId });
+        clearInterval(interval);
+      } else if (status === 'failed') {
+        const errMessage = payload.document?.metadata?.composition_error || 'Composition failed';
+        setComposeState('failed');
+        setComposeError(errMessage);
+        setComposeMessage(null);
+        notificationAPI.emitJobFailed('document.compose', 'Document composition failed', { basketId, error: errMessage });
+        clearInterval(interval);
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [composeState, fetchComposition, basketId]);
+
+  const metrics = useMemo(() => {
+    const meta = composition?.document?.metadata?.phase1_metrics || composition?.document?.metadata?.composition_metrics;
+    if (!meta) return null;
+    return {
+      coverage: meta.coverage_percentage ?? 0,
+      freshness: meta.freshness_score ?? 0,
+      provenance: meta.provenance_percentage ?? 0,
+      processingMs: meta.processing_time_ms ?? 0,
+      rawGaps: !!meta.raw_gaps_used,
+    };
+  }, [composition]);
+
+  const substrateCount = references.length;
+  const lastComposedAt = composition?.document?.metadata?.composition_completed_at;
+
+  const handleCompose = async () => {
+    setComposeState('running');
+    setComposeMessage('Composing from memory…');
+    setComposeError(null);
+    await notificationAPI.emitJobStarted('document.compose', `Composing “${document.title}”`, { basketId });
+    try {
+      const res = await fetch(`/api/documents/${document.id}/recompose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intent: document.metadata?.composition_intent || '', window_days: DEFAULT_WINDOW_DAYS })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || 'Failed to start composition');
+      }
+      setComposeMessage('Composition in progress…');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to start composition';
+      setComposeState('failed');
+      setComposeMessage(null);
+      setComposeError(message);
+      notificationAPI.emitJobFailed('document.compose', 'Unable to start composition', { basketId, error: message });
     }
   };
 
-  const extractToMemory = async () => {
-    if (!prose.trim()) {
-      notificationAPI.emitActionResult('document.extract', 'Please add some content before extracting to memory', { severity: 'warning' });
+  const handleExtractToMemory = async () => {
+    if (!composition?.document?.content_raw) {
+      notificationAPI.emitActionResult('document.extract', 'Add content before extracting to memory', { severity: 'warning' });
       return;
     }
-
     try {
-      // Save document first to ensure latest content is persisted
-      await saveDocument();
-      
-      // Create memory dump with document context
+      await notificationAPI.emitJobStarted('document.extract', 'Extracting document to memory');
       const dump_request_id = crypto.randomUUID();
       const res = await fetch('/api/dumps/new', {
         method: 'POST',
@@ -130,399 +209,324 @@ export function DocumentPage({ document, basketId, initialMode = 'read' }: Docum
         body: JSON.stringify({
           basket_id: basketId,
           dump_request_id,
-          text_dump: `${title}\n\n${prose}`,
-          meta: { 
-            source: 'document_extract', 
-            document_id: document.id,
-            document_title: title,
+          text_dump: `${composition.document.title}\n\n${composition.document.content_raw}`,
+          meta: {
+            source: 'document_extract',
+            document_id: composition.document.id,
+            document_title: composition.document.title,
             extraction_timestamp: new Date().toISOString()
           }
         })
       });
-      
       if (!res.ok) throw new Error('Extract failed');
-      
-      // Redirect to memory page to see the processing
+      await notificationAPI.emitJobSucceeded('document.extract', 'Captured extract as memory', { basketId });
       router.push(`/baskets/${basketId}/memory`);
-    } catch (e) {
-      console.error('Failed to extract to memory:', e);
-      notificationAPI.emitActionResult('document.extract', 'Failed to extract to memory', { severity: 'error' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to extract to memory';
+      await notificationAPI.emitJobFailed('document.extract', 'Extract failed', { basketId, error: message });
     }
   };
 
-  const recomposeDocument = async () => {
+  const handleSaveEdits = async () => {
     setSaving(true);
     try {
-      // Canon-Pure: Direct document recomposition (artifact operation, no governance)
-      const res = await fetch(`/api/documents/${document.id}/recompose`, {
-        method: 'POST',
+      const res = await fetch(`/api/documents/${document.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          intent: 'Update document with latest memory',
-          window_days: 30, // Default to last 30 days
-          pinned_ids: [] // Could be extended for UI pinning
-        })
+        body: JSON.stringify({ title: editTitle.trim(), content_raw: editProse })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Recompose failed');
-      
-      // Refresh page to show recomposition status
-      window.location.reload();
-    } catch (e) {
-      notificationAPI.emitActionResult('document.recompose', 'Failed to recompose document', { severity: 'error' });
+      if (!res.ok) throw new Error('Save failed');
+      notificationAPI.emitActionResult('document.save', 'Document saved successfully');
+      await fetchComposition();
+      setMode('read');
+    } catch (err) {
+      notificationAPI.emitActionResult('document.save', err instanceof Error ? err.message : 'Save failed', { severity: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
-  // Canon-Pure: Navigate to substrate source for deeper exploration
-  const navigateToSubstrate = (substrate: any) => {
-    if (!substrate) return;
-    
-    // Navigate to building blocks page with substrate highlighted
-    // This preserves the substrate equality principle by treating all substrate types consistently
-    router.push(`/baskets/${basketId}/building-blocks?highlight=${substrate.id}&type=${substrate.substrate_type}`);
+  const renderComposeBanner = () => {
+    if (composeState === 'idle') return null;
+    if (composeState === 'running') {
+      return (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-center gap-3">
+            <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
+            <div>
+              <p className="text-sm font-medium text-blue-700">Composing from memory…</p>
+              <p className="text-xs text-blue-600">Our agents are retrieving substrate and drafting narrative. This typically takes a few moments.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    if (composeState === 'failed') {
+      return (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center gap-3">
+            <RefreshCw className="h-4 w-4 text-red-500" />
+            <div>
+              <p className="text-sm font-medium text-red-700">Composition failed</p>
+              <p className="text-xs text-red-600">{composeError || 'Something prevented the composition from finishing.'}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    if (composeState === 'success') {
+      return (
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-4 w-4 text-green-600" />
+            <div>
+              <p className="text-sm font-medium text-green-700">Document composed successfully</p>
+              <p className="text-xs text-green-600">{composeMessage || 'Fresh narrative available. Review the content below.'}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
   };
 
-  const formatReflectionAge = (timestamp: string): string => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
-    if (diffHours < 1) {
-      const diffMinutes = Math.round(diffHours * 60);
-      return `${diffMinutes}m ago`;
-    } else if (diffHours < 24) {
-      return `${Math.round(diffHours)}h ago`;
-    } else {
-      const diffDays = Math.round(diffHours / 24);
-      return `${diffDays}d ago`;
+  const renderReferences = () => {
+    if (!references.length) {
+      return (
+        <Card className="p-4">
+          <div className="text-sm text-slate-500">No substrate references yet. Compose from memory to attach sources.</div>
+        </Card>
+      );
     }
+    return (
+      <Card className="p-0 overflow-hidden">
+        <div className="border-b border-slate-200 px-4 py-3">
+          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            <Layers className="h-4 w-4" />
+            Substrate Sources
+          </h3>
+        </div>
+        <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
+          {references.map((entry, idx) => {
+            const substrate = entry.substrate || {};
+            const ref = entry.reference || {};
+            const label = substrate.preview || substrate.title || 'Substrate source';
+            const typeLabel = (substrate.substrate_type || ref.substrate_type || 'substrate').replace('_', ' ');
+            return (
+              <button
+                key={ref.id || idx}
+                onClick={() => router.push(`/baskets/${basketId}/building-blocks?highlight=${substrate.id || ''}&type=${substrate.substrate_type || 'block'}`)}
+                className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors"
+              >
+                <div className="text-sm font-medium text-slate-800 truncate">{label}</div>
+                <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                  <Badge variant="secondary" className="bg-slate-100 text-slate-700 capitalize">{typeLabel}</Badge>
+                  {ref.role && (
+                    <Badge variant="outline" className="text-slate-600 border-slate-200">{ref.role}</Badge>
+                  )}
+                  {ref.weight ? <span>{Math.round(ref.weight * 100)}% weight</span> : null}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+    );
   };
 
-  const getSubstrateIcon = (type: string) => {
-    switch (type) {
-      case 'block': return <Database className="h-4 w-4 text-blue-600" />;
-      case 'dump': return <FileText className="h-4 w-4 text-green-600" />;
-      case 'context_item': return <MessageSquare className="h-4 w-4 text-purple-600" />;
-      case 'timeline_event': return <Clock className="h-4 w-4 text-red-600" />;
-      default: return <Database className="h-4 w-4 text-gray-400" />;
-    }
+  const renderVersions = () => {
+    if (!versions.length) return null;
+    return (
+      <Card className="p-0 overflow-hidden">
+        <div className="border-b border-slate-200 px-4 py-3 flex items-center gap-2">
+          <History className="h-4 w-4 text-slate-500" />
+          <h3 className="text-sm font-semibold text-slate-800">Version History</h3>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {versions.map((version) => (
+            <div key={version.version_hash} className="px-4 py-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-800">{version.version_message || 'Composed version'}</span>
+                <span className="text-xs text-slate-500">{relativeTime(version.created_at)}</span>
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                <code className="bg-slate-100 px-1.5 py-0.5 rounded">{version.version_hash.slice(0, 12)}</code>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    );
   };
+
+  const currentContent = composition?.document?.content_raw || document.content_raw || '';
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="border-b border-gray-100 bg-white">
-        <div className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={backToList} className="p-2"><ArrowLeft className="h-4 w-4" /></Button>
-            <div className="text-sm text-gray-500">Document</div>
-            <div className="font-semibold text-gray-900">{document.title}</div>
+    <div className="flex flex-col gap-6">
+      <header className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3 text-sm text-slate-500">
+              <button onClick={() => router.push(`/baskets/${basketId}/documents`)} className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-800 transition">
+                <ChevronLeft className="h-4 w-4" />
+                Documents
+              </button>
+              <span className="text-slate-300">/</span>
+              <span>{composition?.document?.title || document.title}</span>
+            </div>
+            <h1 className="text-3xl font-semibold text-slate-900 leading-tight">
+              {composition?.document?.title || document.title}
+            </h1>
+            <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+              <span>Last updated {relativeTime(composition?.document?.updated_at || document.updated_at)}</span>
+              {lastComposedAt && <span>Last composed {relativeTime(lastComposedAt)}</span>}
+              <span>{substrateCount} substrate references</span>
+            </div>
           </div>
-          <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-            <TabsList>
-              <TabsTrigger value="read">📖 Read</TabsTrigger>
-              <TabsTrigger value="edit">✏️ Edit</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="default" size="sm" onClick={handleCompose} disabled={composeState === 'running'}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              {composeState === 'running' ? 'Composing…' : 'Compose From Memory'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExtractToMemory} disabled={composeState === 'running'}>
+              <Download className="mr-2 h-4 w-4" />
+              Extract to Memory
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setMode(mode === 'read' ? 'edit' : 'read')}>
+              {mode === 'read' ? 'Edit' : 'Cancel'}
+            </Button>
+          </div>
         </div>
-      </div>
+        {metrics && (
+          <div className="border-t border-slate-200 px-6 py-4 bg-slate-50">
+            <TrustBanner
+              provenance_percentage={metrics.provenance}
+              freshness_score={metrics.freshness}
+              coverage_percentage={metrics.coverage}
+              raw_gaps_used={metrics.rawGaps}
+              processing_time_ms={metrics.processingMs}
+              substrate_count={substrateCount}
+            />
+          </div>
+        )}
+      </header>
 
-      {/* Modes */}
-      <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto w-full">
-        {/* Read - Document as Artifact */}
-        {mode === 'read' && (
-          <div className="space-y-0">
-            {/* Async Composition Status */}
-            {isAsyncComposition && workId && (
-              <div className="mb-6">
-                <DocumentCompositionStatus
-                  documentId={document.id}
-                  workId={workId}
-                  statusUrl={statusUrl || undefined}
-                  onCompositionComplete={() => {
-                    if (typeof window !== 'undefined') {
-                      sessionStorage.removeItem(`doc_${document.id}_work_id`);
-                      sessionStorage.removeItem(`doc_${document.id}_status_url`);
-                    }
-                    window.location.reload();
-                  }}
+      {renderComposeBanner()}
+      {composeMessage && composeState === 'running' && (
+        <p className="text-xs text-blue-600">{composeMessage}</p>
+      )}
+      {composeError && composeState === 'failed' && (
+        <p className="text-xs text-red-600">{composeError}</p>
+      )}
+
+      {mode === 'edit' ? (
+        <div className="grid gap-4">
+          <Card className="p-6 space-y-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700">Title</label>
+              <input
+                className="mt-2 w-full rounded border border-slate-200 px-3 py-2 text-sm"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700">Prose</label>
+              <textarea
+                className="mt-2 w-full rounded border border-slate-200 px-3 py-2 text-sm h-[360px]"
+                value={editProse}
+                onChange={(e) => setEditProse(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setMode('read')}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSaveEdits} disabled={saving}>
+                {saving ? 'Saving…' : 'Save Changes'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <Card className="p-0 overflow-hidden">
+            {loading ? (
+              <div className="p-6 text-sm text-slate-500">Loading document…</div>
+            ) : error ? (
+              <div className="p-6 text-sm text-red-600">{error}</div>
+            ) : currentContent ? (
+              <div className="p-6">
+                <div className="mb-6 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Layers className="h-4 w-4" />
+                    <span>Composed from {substrateCount} substrate items</span>
+                  </div>
+                  <ExplainButton
+                    documentId={composition?.document?.id || document.id}
+                    substrates={references.map(entry => ({
+                      id: entry.substrate?.id || entry.reference?.id,
+                      type: entry.substrate?.substrate_type || entry.reference?.substrate_type,
+                      title: entry.substrate?.preview || entry.substrate?.title || 'Substrate source',
+                      content: entry.substrate?.content || entry.substrate?.preview || '',
+                      role: entry.reference?.role,
+                      weight: entry.reference?.weight,
+                      selection_reason: entry.reference?.metadata?.selection_reason
+                    }))}
+                    metrics={metrics ? {
+                      coverage_percentage: metrics.coverage,
+                      freshness_score: metrics.freshness,
+                      provenance_percentage: metrics.provenance,
+                      raw_gaps_used: metrics.rawGaps
+                    } : undefined}
+                  />
+                </div>
+                <EnhancedDocumentViewer
+                  content={currentContent}
+                  references={references.map(entry => ({
+                    id: entry.substrate?.id || entry.reference?.id,
+                    substrate_type: entry.substrate?.substrate_type || entry.reference?.substrate_type,
+                    preview: entry.substrate?.preview || entry.substrate?.title,
+                    title: entry.substrate?.title,
+                    role: entry.reference?.role,
+                    weight: entry.reference?.weight
+                  }))}
                 />
               </div>
-            )}
-
-            {/* Document Content - Primary Focus */}
-            <div className="bg-white">
-              {/* Document Title with Phase 1 Trust Banner */}
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-4">
-                  {document.title}
-                </h1>
-                
-                {/* Phase 1: Trust Banner for composed documents */}
-                {composition?.document?.metadata?.phase1_metrics && (
-                  <TrustBanner
-                    provenance_percentage={composition.document.metadata.phase1_metrics.provenance_percentage || 0}
-                    freshness_score={composition.document.metadata.phase1_metrics.freshness_score || 0}
-                    coverage_percentage={composition.document.metadata.phase1_metrics.coverage_percentage || 0}
-                    raw_gaps_used={composition.document.metadata.phase1_metrics.raw_gaps_used || false}
-                    processing_time_ms={composition.document.metadata.phase1_metrics.processing_time_ms}
-                    substrate_count={composition.composition_stats?.total_substrate_references}
-                    className="mb-4"
-                  />
-                )}
-              </div>
-
-              {/* Document Body with Substrate Context */}
-              {composition?.document?.content_raw ? (
-                <div className="relative mb-12">
-                  {/* Canon-Pure: Substrate Context Toggle */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <Layers className="h-4 w-4" />
-                      <span>Composed from {composition.references?.length || 0} substrate sources</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {/* Phase 1: Explain Button */}
-                      <ExplainButton
-                        documentId={document.id}
-                        substrates={composition.references?.map((ref: any) => ({
-                          id: ref.substrate?.id || ref.reference?.id,
-                          type: ref.substrate?.substrate_type || 'unknown',
-                          title: ref.substrate?.preview || ref.substrate?.title || 'Substrate source',
-                          content: ref.substrate?.content || ref.substrate?.preview || '',
-                          role: ref.reference?.role || 'supporting',
-                          weight: ref.reference?.weight || 0.5,
-                          selection_reason: ref.substrate?.selection_reason || '',
-                          freshness_score: ref.substrate?.freshness_score,
-                          confidence_score: ref.substrate?.confidence_score
-                        })) || []}
-                        metrics={composition.document?.metadata?.phase1_metrics || {
-                          coverage_percentage: 0.8,
-                          freshness_score: 0.7,
-                          provenance_percentage: 0.9,
-                          candidates_found: { blocks: 5, context_items: 3 },
-                          candidates_selected: { blocks: 3, context_items: 2 },
-                          processing_time_ms: 1200,
-                          raw_gaps_used: false
-                        }}
-                        compositionSummary={composition.document?.metadata?.composition_summary}
-                        variant="outline"
-                        size="sm"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowComposition(!showComposition)}
-                        className="text-xs"
-                      >
-                        {showComposition ? 'Hide' : 'Show'} Context Panel
-                        {showComposition ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className={`grid gap-6 ${showComposition ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
-                    {/* Main Content - Enhanced with Markdown and Substrate Overlays */}
-                    <div className={showComposition ? 'lg:col-span-2' : 'col-span-1'}>
-                      <EnhancedDocumentViewer
-                        content={composition.document.content_raw}
-                        references={composition.references?.map((ref: any) => ({
-                          id: ref.substrate?.id || ref.reference?.id,
-                          substrate_type: ref.substrate?.substrate_type || 'block',
-                          preview: ref.substrate?.preview || ref.substrate?.title,
-                          title: ref.substrate?.title,
-                          role: ref.reference?.role,
-                          weight: ref.reference?.weight
-                        })) || []}
-                      />
-                    </div>
-
-                    {/* Canon-Pure: Substrate Context Panel */}
-                    {showComposition && composition.references && (
-                      <div className="lg:col-span-1">
-                        <div className="sticky top-6">
-                          <Card className="p-4">
-                            <h3 className="font-medium text-gray-900 mb-3 text-sm">Substrate Sources</h3>
-                            <div className="space-y-3 max-h-96 overflow-y-auto">
-                              {composition.references.map((ref: any, index: number) => (
-                                <div key={ref.reference?.id || index} className="group">
-                                  <button
-                                    className="w-full text-left p-3 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-50 transition-colors"
-                                    onClick={() => navigateToSubstrate(ref.substrate)}
-                                  >
-                                    <div className="flex items-start gap-2">
-                                      {getSubstrateIcon(ref.substrate?.substrate_type || '')}
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-gray-800 text-sm truncate">
-                                          {ref.substrate?.preview || ref.substrate?.title || 'Substrate source'}
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-1 capitalize">
-                                          {ref.substrate?.substrate_type?.replace('_', ' ')}
-                                          {ref.reference?.role && (
-                                            <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                                              {ref.reference.role}
-                                            </span>
-                                          )}
-                                        </div>
-                                        {ref.reference?.weight && (
-                                          <div className="mt-1">
-                                            <div className="w-full bg-gray-200 rounded-full h-1">
-                                              <div 
-                                                className="bg-blue-500 h-1 rounded-full" 
-                                                style={{width: `${ref.reference.weight * 100}%`}}
-                                              />
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </Card>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg p-12 text-center mb-12">
-                  <div className="text-gray-400 text-2xl mb-3">📝</div>
-                  <div className="text-gray-600 mb-4">No content yet</div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setMode('edit')}
-                  >
-                    Start Writing
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Canon-Pure: Action Bar */}
-            {composition && (
-              <div className="border-t border-gray-100 pt-6 mt-12">
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    Updated {new Date(document.updated_at).toLocaleDateString()}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={recomposeDocument}
-                    className="text-xs text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50"
-                    disabled={saving}
-                  >
-                    🔄 Recompose from Memory
-                  </Button>
-                </div>
+            ) : (
+              <div className="p-12 text-center text-sm text-slate-500">
+                No content yet. Compose from memory or switch to edit mode to begin writing.
               </div>
             )}
-          </div>
-        )}
+          </Card>
 
-        {/* Edit Mode - Clean Content Editor */}
-        {mode === 'edit' && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            {/* Document Editor */}
-            <Card>
-              <div className="p-8">
-                <div className="space-y-6">
-                  {/* Title Field */}
-                  <div>
-                    <label className="block text-lg font-medium text-gray-800 mb-3">
-                      Title
-                    </label>
-                    <input 
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" 
-                      value={title} 
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Document title..."
-                    />
-                  </div>
-                  
-                  {/* Content Field */}
-                  <div>
-                    <label className="block text-lg font-medium text-gray-800 mb-3">
-                      Content
-                    </label>
-                    <textarea 
-                      className="w-full min-h-[400px] px-4 py-4 border border-gray-200 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 leading-relaxed" 
-                      value={prose} 
-                      onChange={(e) => setProse(e.target.value)}
-                      placeholder="Write your content here..."
-                      style={{ fontFamily: 'ui-serif, Georgia, serif' }}
-                    />
-                  </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="flex items-center justify-between pt-6 border-t border-gray-100">
-                    <div className="flex gap-3">
-                      <Button 
-                        onClick={saveDocument} 
-                        disabled={saving}
-                        className="bg-blue-600 hover:bg-blue-700 px-6"
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        {saving ? 'Saving...' : 'Save'}
-                      </Button>
-                      
-                      <Button 
-                        variant="outline" 
-                        onClick={extractToMemory}
-                        disabled={!prose.trim()}
-                        className="border-green-200 text-green-700 hover:bg-green-50 px-6"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Extract to Memory
-                      </Button>
-                    </div>
-                    
-                    <Button
-                      variant="ghost"
-                      onClick={() => setMode('read')}
-                      className="text-gray-500"
-                    >
-                      Done Editing
-                    </Button>
-                  </div>
-                </div>
+          <div className="grid gap-6">
+            <Card className="p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                Composition Metrics
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary" className="bg-blue-50 text-blue-700">
+                  {substrateCount} substrate inputs
+                </Badge>
+                <Badge variant="secondary" className="bg-green-50 text-green-700">
+                  Coverage {metrics ? Math.round(metrics.coverage * 100) : 0}%
+                </Badge>
+                <Badge variant="secondary" className="bg-violet-50 text-violet-700">
+                  Freshness {metrics ? Math.round(metrics.freshness * 100) : 0}%
+                </Badge>
+              </div>
+              <div className="text-xs text-slate-500">
+                Last composed {lastComposedAt ? formatDateTime(lastComposedAt) : 'Not yet composed'}
               </div>
             </Card>
+
+            {renderReferences()}
+            {renderVersions()}
           </div>
-        )}
-
-      </div>
+        </div>
+      )}
     </div>
   );
-}
-
-function Metric({ label, value, color }: { label: string; value: any; color?: string }) {
-  return (
-    <div>
-      <div className={`font-semibold ${color || ''}`}>{String(value)}</div>
-      <div className="text-gray-500">{label}</div>
-    </div>
-  );
-}
-
-
-function VersionContent({ documentId, versionHash }: { documentId: string; versionHash: string }) {
-  const [content, setContent] = useState<string>('');
-  useEffect(() => {
-    (async () => {
-      const res = await fetch(`/api/documents/${documentId}/versions?version_hash=${encodeURIComponent(versionHash)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const item = (data.items || []).find((i: any) => i.version_hash === versionHash);
-        setContent(item?.content || '(empty)');
-      }
-    })();
-  }, [documentId, versionHash]);
-  return <pre className="text-xs whitespace-pre-wrap">{content}</pre>;
 }
