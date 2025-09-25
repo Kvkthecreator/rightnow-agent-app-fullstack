@@ -1,57 +1,53 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { useMemo, useRef, useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+import type { ForceGraphMethods } from 'react-force-graph';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { 
-  Network,
-  ArrowLeft,
-  Filter,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
-  Settings,
-  Info,
-  FileText,
-  Database,
-  FolderOpen,
-  Lightbulb,
-  Clock,
-  Eye,
-  EyeOff
-} from 'lucide-react';
-import { enqueueWork } from '@/lib/work/enqueueWork';
+import { Network, Zap, Sparkles, GitMerge, Filter } from 'lucide-react';
 
-interface GraphNode {
-  id: string;
-  type: 'block' | 'dump' | 'context_item';
-  title: string;
-  label: string;
-  color: string;
-  size: number;
-  metadata: Record<string, any>;
-  x?: number;
-  y?: number;
-}
+// ForceGraph relies on window, so load on client only
+const ForceGraph2D = dynamic(
+  () => import('react-force-graph').then(mod => mod.ForceGraph2D),
+  { ssr: false }
+);
 
-interface GraphEdge {
+type SubstrateBlock = {
   id: string;
-  source: string;
-  target: string;
-  weight: number;
-  relationship_type?: string;
-  type: 'semantic' | 'derivation';
-  color: string;
-  width: number;
-}
+  title?: string | null;
+  content?: string | null;
+  semantic_type?: string | null;
+  confidence_score?: number | null;
+};
+
+type SubstrateContextItem = {
+  id: string;
+  title?: string | null;
+  content?: string | null;
+  type?: string | null;
+  semantic_meaning?: string | null;
+  semantic_category?: string | null;
+};
+
+type SubstrateRelationship = {
+  id?: string | null;
+  basket_id?: string | null;
+  from_id: string;
+  to_id: string;
+  from_type: string;
+  to_type: string;
+  relationship_type: string;
+  description?: string | null;
+  strength?: number | null;
+};
 
 interface GraphData {
-  blocks: any[];
-  dumps: any[];
-  context_items: any[];
-  relationships: any[];
+  blocks?: SubstrateBlock[];
+  dumps?: any[];
+  context_items?: SubstrateContextItem[];
+  relationships?: SubstrateRelationship[];
 }
 
 interface GraphViewProps {
@@ -61,74 +57,343 @@ interface GraphViewProps {
   canEdit: boolean;
 }
 
-export function GraphView({ basketId, basketTitle, graphData, canEdit }: GraphViewProps) {
-  const router = useRouter();
-  
-  // Canon-compliant substrate statistics
-  const substrateStats = {
-    structuredKnowledge: graphData.blocks?.length || 0,
-    semanticMeaning: graphData.context_items?.length || 0,
-    relationships: graphData.relationships?.length || 0,
-    connectionDensity: 0
+type CanonNode = {
+  id: string;
+  label: string;
+  type: 'block' | 'context_item';
+  semanticType?: string | null;
+  confidence?: number;
+  contentSnippet?: string;
+  degree: number;
+};
+
+type CanonLink = {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+  strength: number;
+  description?: string | null;
+};
+
+const NODE_COLORS: Record<CanonNode['type'], string> = {
+  block: '#2563eb', // blue-600
+  context_item: '#7c3aed', // violet-600
+};
+
+const RELATIONSHIP_COLOR = '#94a3b8';
+
+const relationshipLabels: Record<string, string> = {
+  semantic_similarity: 'Semantic Similarity',
+  related_content: 'Related Content',
+  thematic_connection: 'Thematic Connection',
+  causal_relationship: 'Causal Relationship',
+  temporal_sequence: 'Temporal Sequence',
+  enablement_chain: 'Enablement Chain',
+  impact_relationship: 'Impact Relationship',
+  conditional_logic: 'Conditional Logic',
+  context_reference: 'Context Reference',
+};
+
+function formatRelationship(type: string) {
+  return relationshipLabels[type] ?? type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+const INITIAL_FILTER = {
+  block: true,
+  context_item: true,
+};
+
+export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) {
+  const graphRef = useRef<ForceGraphMethods | null>(null);
+  const [activeNode, setActiveNode] = useState<CanonNode | null>(null);
+  const [hoveredLinkId, setHoveredLinkId] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<Record<CanonNode['type'], boolean>>(INITIAL_FILTER);
+
+  const allNodes = useMemo<CanonNode[]>(() => {
+    const blocks = (graphData.blocks ?? []).map((block): CanonNode => {
+      const label = block.title?.trim() || 'Untitled Block';
+      return {
+        id: block.id,
+        label,
+        type: 'block',
+        semanticType: block.semantic_type,
+        confidence: block.confidence_score ?? undefined,
+        contentSnippet: block.content ?? undefined,
+        degree: 0,
+      };
+    });
+
+    const contextItems = (graphData.context_items ?? []).map((item): CanonNode => {
+      const label = item.title?.trim() || item.content?.trim() || 'Unnamed Meaning';
+      return {
+        id: item.id,
+        label,
+        type: 'context_item',
+        semanticType: item.type ?? item.semantic_category ?? undefined,
+        contentSnippet: item.semantic_meaning ?? item.content ?? undefined,
+        degree: 0,
+      };
+    });
+
+    return [...blocks, ...contextItems];
+  }, [graphData.blocks, graphData.context_items]);
+
+  const nodeLookup = useMemo(() => {
+    const map = new Map<string, CanonNode>();
+    allNodes.forEach(node => map.set(node.id, node));
+    return map;
+  }, [allNodes]);
+
+  const allLinks = useMemo<CanonLink[]>(() => {
+    const relationships = graphData.relationships ?? [];
+    return relationships
+      .filter(rel => nodeLookup.has(rel.from_id) && nodeLookup.has(rel.to_id))
+      .map((rel, index) => ({
+        id: rel.id ?? `${rel.from_id}-${rel.to_id}-${index}`,
+        source: rel.from_id,
+        target: rel.to_id,
+        type: rel.relationship_type,
+        strength: rel.strength ?? 0.5,
+        description: rel.description,
+      }));
+  }, [graphData.relationships, nodeLookup]);
+
+  useEffect(() => {
+    // Populate degree counts
+    nodeLookup.forEach(node => {
+      node.degree = 0;
+    });
+    allLinks.forEach(link => {
+      const from = nodeLookup.get(link.source);
+      const to = nodeLookup.get(link.target);
+      if (from) from.degree += 1;
+      if (to) to.degree += 1;
+    });
+  }, [allLinks, nodeLookup]);
+
+  const filteredNodes = useMemo(() =>
+    allNodes.filter(node => typeFilter[node.type]),
+  [allNodes, typeFilter]);
+
+  const filteredNodeIds = useMemo(() => new Set(filteredNodes.map(node => node.id)), [filteredNodes]);
+
+  const filteredLinks = useMemo(() =>
+    allLinks.filter(link => filteredNodeIds.has(String(link.source)) && filteredNodeIds.has(String(link.target))),
+  [allLinks, filteredNodeIds]);
+
+  const graphPayload = useMemo(() => ({
+    nodes: filteredNodes.map(node => ({ ...node })),
+    links: filteredLinks.map(link => ({ ...link })),
+  }), [filteredNodes, filteredLinks]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (graphPayload.nodes.length > 0 && graphPayload.links.length > 0) {
+        handleResetView();
+      }
+    }, 120);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graphPayload.nodes.length, graphPayload.links.length]);
+
+  const stats = useMemo(() => ({
+    blocks: (graphData.blocks ?? []).length,
+    contextItems: (graphData.context_items ?? []).length,
+    relationships: (graphData.relationships ?? []).length,
+  }), [graphData.blocks, graphData.context_items, graphData.relationships]);
+
+  useEffect(() => {
+    if (!activeNode) return;
+    if (!filteredNodeIds.has(activeNode.id)) {
+      setActiveNode(null);
+    }
+  }, [filteredNodeIds, activeNode]);
+
+  const handleResetView = () => {
+    if (graphRef.current) {
+      graphRef.current.zoomToFit(400, 80);
+    }
   };
 
-  const hasData = (graphData.blocks?.length || 0) > 0 || (graphData.context_items?.length || 0) > 0;
+  const hasGraphContent = filteredNodes.length > 0 && filteredLinks.length > 0;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="border-b p-4">
-        <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Knowledge Connections</h1>
-            <p className="text-gray-600">Explore relationships between your structured knowledge and semantic meanings</p>
+            <p className="text-sm font-medium text-slate-500">Basket</p>
+            <h1 className="text-2xl font-semibold text-slate-900">{basketTitle}</h1>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge variant="secondary" className="flex items-center gap-2 bg-blue-50 text-blue-700">
+              <Sparkles className="h-3.5 w-3.5" />
+              {stats.blocks} blocks
+            </Badge>
+            <Badge variant="secondary" className="flex items-center gap-2 bg-violet-50 text-violet-700">
+              <Network className="h-3.5 w-3.5" />
+              {stats.contextItems} meanings
+            </Badge>
+            <Badge variant="secondary" className="flex items-center gap-2 bg-slate-100 text-slate-700">
+              <GitMerge className="h-3.5 w-3.5" />
+              {stats.relationships} relationships
+            </Badge>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Filter className="h-4 w-4 text-slate-400" />
+            <span>Filter nodes</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(['block', 'context_item'] satisfies CanonNode['type'][]).map(type => {
+              const active = typeFilter[type];
+              const label = type === 'block' ? 'Structured Knowledge' : 'Semantic Meanings';
+              return (
+                <Button
+                  key={type}
+                  size="sm"
+                  variant={active ? 'default' : 'ghost'}
+                  className={active ? 'bg-slate-900 hover:bg-slate-800' : 'text-slate-600 hover:text-slate-900'}
+                  onClick={() => setTypeFilter(prev => ({ ...prev, [type]: !prev[type] }))}
+                >
+                  <span className="text-xs font-medium">{label}</span>
+                </Button>
+              );
+            })}
+            <Button size="sm" variant="outline" onClick={() => setTypeFilter(INITIAL_FILTER)}>
+              Reset
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleResetView}>
+              Center
+            </Button>
           </div>
         </div>
       </div>
 
-      {hasData ? (
-        <div className="p-6">
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center max-w-md mx-auto">
-                <Network className="h-16 w-16 text-blue-600 mx-auto mb-6" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Knowledge Graph</h3>
-                <p className="text-gray-600 mb-6">
-                  Your knowledge network contains {substrateStats.structuredKnowledge} structured knowledge items 
-                  and {substrateStats.semanticMeaning} semantic meanings.
-                </p>
-                <div className="space-y-2 text-sm text-gray-500">
-                  <div>Structured Knowledge: {substrateStats.structuredKnowledge}</div>
-                  <div>Semantic Meanings: {substrateStats.semanticMeaning}</div>
-                  <div>Relationships: {substrateStats.relationships}</div>
+      <Card className="border-slate-200">
+        <CardContent className="flex flex-col gap-6 p-6">
+          {hasGraphContent ? (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="relative h-[520px] rounded-lg border border-slate-200 bg-white">
+                <ForceGraph2D
+                  ref={graphRef as any}
+                  graphData={graphPayload}
+                  backgroundColor="#ffffff"
+                  cooldownTicks={120}
+                  onEngineStop={() => handleResetView()}
+                  nodeRelSize={6}
+                  nodeLabel={node => (node as CanonNode).label}
+                  nodeCanvasObject={(node, ctx, globalScale) => {
+                    const canonNode = node as CanonNode & { x?: number; y?: number };
+                    const color = NODE_COLORS[canonNode.type];
+                    const radius = Math.max(6, Math.min(14, 6 + canonNode.degree));
+                    ctx.beginPath();
+                    ctx.arc(canonNode.x ?? 0, canonNode.y ?? 0, radius, 0, 2 * Math.PI, false);
+                    ctx.fillStyle = color;
+                    ctx.fill();
+
+                    const label = canonNode.label;
+                    const fontSize = 12 / globalScale;
+                    ctx.font = `${fontSize}px var(--font-sans, 'Inter', sans-serif)`;
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#1e293b';
+                    ctx.fillText(label, (canonNode.x ?? 0) + radius + 4, canonNode.y ?? 0);
+                  }}
+                  nodePointerAreaPaint={(node, color, ctx) => {
+                    const canonNode = node as CanonNode & { x?: number; y?: number };
+                    const radius = Math.max(6, Math.min(14, 6 + canonNode.degree)) + 4;
+                    ctx.beginPath();
+                    ctx.arc(canonNode.x ?? 0, canonNode.y ?? 0, radius, 0, 2 * Math.PI, false);
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                  }}
+                  linkColor={() => RELATIONSHIP_COLOR}
+                  linkDirectionalParticles={2}
+                  linkDirectionalParticleSpeed={link => 0.002 + ((link as CanonLink).strength ?? 0.5) * 0.004}
+                  linkWidth={link => {
+                    const canonLink = link as CanonLink;
+                    const base = Math.max(0.8, canonLink.strength * 2);
+                    return hoveredLinkId === canonLink.id ? base + 1.2 : base;
+                  }}
+                  onNodeClick={node => setActiveNode(node as CanonNode)}
+                  onLinkHover={link => setHoveredLinkId(link ? (link as CanonLink).id : null)}
+                />
+              </div>
+
+              <aside className="flex max-h-[520px] flex-col gap-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm font-semibold text-slate-800">Relationship spotlight</span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <div className="p-6">
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center max-w-md mx-auto">
-                <Network className="h-16 w-16 text-gray-400 mx-auto mb-6" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Build Your Knowledge Network</h3>
-                <p className="text-gray-600 mb-6">
-                  Your knowledge connections will appear here as you add content. 
-                  Start by adding memory to create structured knowledge and semantic meanings.
-                </p>
-                <Button 
-                  onClick={() => router.push(`/baskets/${basketId}/add-memory`)}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Add Memory to Start
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+
+                {hoveredLinkId ? (
+                  (() => {
+                    const link = filteredLinks.find(item => item.id === hoveredLinkId);
+                    if (!link) return null;
+                    const from = nodeLookup.get(String(link.source));
+                    const to = nodeLookup.get(String(link.target));
+                    return (
+                      <div className="space-y-2 rounded-lg bg-white p-3 shadow-sm">
+                        <p className="text-xs uppercase tracking-wide text-slate-400">Relationship</p>
+                        <p className="text-sm font-medium text-slate-900">{formatRelationship(link.type)}</p>
+                        <p className="text-sm text-slate-500">{link.description ?? 'Agent-detected connection between your knowledge elements.'}</p>
+                        {from && to && (
+                          <div className="space-y-1 text-sm">
+                            <p className="font-semibold text-slate-700">{from.label}</p>
+                            <p className="font-semibold text-slate-700">→ {to.label}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                ) : activeNode ? (
+                  <div className="space-y-3 rounded-lg bg-white p-3 shadow-sm">
+                    <p className="text-xs uppercase tracking-wide text-slate-400">Selected node</p>
+                    <p className="text-base font-semibold text-slate-900">{activeNode.label}</p>
+                    <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+                      <Badge variant="outline" className="border-slate-200 text-slate-600">
+                        {activeNode.type === 'block' ? 'Structured knowledge' : 'Semantic meaning'}
+                      </Badge>
+                      {activeNode.semanticType && (
+                        <Badge variant="outline" className="border-slate-200 text-slate-600">
+                          {activeNode.semanticType}
+                        </Badge>
+                      )}
+                      <Badge variant="outline" className="border-slate-200 text-slate-600">
+                        {activeNode.degree} connections
+                      </Badge>
+                    </div>
+                    {activeNode.contentSnippet && (
+                      <p className="rounded border border-slate-100 bg-slate-50 p-2 text-sm text-slate-600">
+                        {activeNode.contentSnippet.slice(0, 240)}{activeNode.contentSnippet.length > 240 ? '…' : ''}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                    Hover a connection or click a node to explore details
+                  </div>
+                )}
+
+                <div className="mt-auto text-xs text-slate-500">
+                  Graph layout updates automatically as you add new knowledge. Relationships are generated by the P2 Graph agent after governance approves substrate changes.
+                </div>
+              </aside>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-12 text-center">
+              <Network className="h-20 w-20 text-slate-300" />
+              <h3 className="text-xl font-semibold text-slate-800">No relationships yet</h3>
+              <p className="max-w-md text-sm text-slate-600">
+                Capture a few related thoughts and allow the governance workflow to approve them. The P2 graph agent will map the connections between your structured knowledge and semantic meanings.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

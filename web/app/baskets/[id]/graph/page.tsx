@@ -10,14 +10,12 @@ import { SectionCard } from '@/components/ui/SectionCard';
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: `Knowledge Connections - Basket ${id}`,
     description: 'Visual exploration of connections between your knowledge',
   };
 }
 
 const GraphView = dynamic(() => import('@/components/graph/GraphView').then(m => m.GraphView), {
   loading: () => <div className="h-64 animate-pulse" />,
-});
 
 export default async function GraphPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: basketId } = await params;
@@ -68,7 +66,7 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
         
       supabase
         .from('context_items')
-        .select('id, title, description, type, metadata, created_at, state, status')
+        .select('id, title, content, semantic_meaning, semantic_category, type, metadata, created_at, state, status')
         .eq('basket_id', basketId)
         .in('state', ['ACTIVE']) // Only approved context items
         .neq('status', 'archived')
@@ -77,7 +75,7 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
       // Canon-aligned relationships table
       supabase
         .from('substrate_relationships')
-        .select('id, basket_id, from_id, to_id, relationship_type, from_type, to_type, strength')
+        .select('id, basket_id, from_id, to_id, relationship_type, from_type, to_type, strength, description')
         .eq('basket_id', basketId)
         .limit(500)
     ]);
@@ -103,7 +101,8 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
     const relationships = (relationshipsResult.data || []).map((r: any) => ({
       ...r,
       // Normalize field name for GraphView expectations
-      weight: r.strength ?? r.weight ?? 0.7,
+      strength: typeof r.strength === 'number' ? r.strength : r.weight ?? 0.7,
+      description: r.description ?? null,
     }));
 
     const graphData = {

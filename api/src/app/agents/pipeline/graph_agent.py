@@ -591,11 +591,6 @@ class P2GraphAgent:
                     "relationship_type": proposal.relationship_type,
                     "strength": proposal.strength,
                     "description": proposal.description,
-                    "metadata": {
-                        "generated_by": self.agent_name,
-                        "pipeline": self.pipeline,
-                        "agent_id": agent_id
-                    }
                 })
             
             # Use relationship RPC if available, otherwise direct insert
@@ -610,7 +605,10 @@ class P2GraphAgent:
                 
             except Exception:
                 # FIXED: Split insert and select calls for Supabase client compatibility
-                response = supabase.table("substrate_relationships").insert(relationship_data).execute()
+                response = supabase.table("substrate_relationships").upsert(
+                    relationship_data,
+                    on_conflict="basket_id,from_type,from_id,relationship_type,to_type,to_id"
+                ).execute()
                 if response.data:
                     # Get the inserted records with all fields
                     inserted_ids = [record["id"] for record in response.data]
