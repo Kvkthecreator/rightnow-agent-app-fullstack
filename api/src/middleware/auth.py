@@ -40,9 +40,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
         auth = request.headers.get("authorization") or ""
         token = auth.split(" ", 1)[1] if auth.lower().startswith("bearer ") else None
         if not token:
-            if dbg:
-                return JSONResponse(status_code=401, content={"error": "missing_token"})
-            raise HTTPException(status_code=401, detail="Missing authentication token")
+            if not dbg:
+                log.debug("AuthMiddleware: missing bearer token for %s", path)
+            return JSONResponse(status_code=401, content={"error": "missing_token"})
 
         # Verify (return rich detail in debug mode)
         try:
@@ -52,14 +52,21 @@ class AuthMiddleware(BaseHTTPMiddleware):
             request.state.jwt_payload = claims
             return await call_next(request)
         except HTTPException as e:
-            if dbg:
-                # Verifier will have logged details; expose a concise failure reason
+            if not dbg:
+                log.debug(
+                    "AuthMiddleware: token verification failed for %s (%s)",
+                    path,
+                    e.detail,
+                )
                 return JSONResponse(
                     status_code=e.status_code,
-                    content={"error": "invalid_token", "detail": e.detail},
+                    content={"error": "invalid_token"},
                 )
-            raise
+            # Verifier will have logged details; expose a concise failure reason
+            return JSONResponse(
+                status_code=e.status_code,
+                content={"error": "invalid_token", "detail": e.detail},
+            )
 
 
 __all__ = ["AuthMiddleware"]
-
