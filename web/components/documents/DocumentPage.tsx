@@ -72,6 +72,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const [composeState, setComposeState] = useState<ComposeState>('idle');
   const [composeMessage, setComposeMessage] = useState<string | null>(null);
   const [composeError, setComposeError] = useState<string | null>(null);
+  const [composeStartedAt, setComposeStartedAt] = useState<Date | null>(null);
   const [editTitle, setEditTitle] = useState<string>(document.title);
   const [editProse, setEditProse] = useState<string>(document.content_raw || '');
   const [saving, setSaving] = useState<boolean>(false);
@@ -157,6 +158,18 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
     };
   }, [composeState, fetchComposition, basketId]);
 
+  useEffect(() => {
+    if (composeState === 'success' || composeState === 'failed') {
+      const timeout = setTimeout(() => {
+        setComposeState('idle');
+        setComposeMessage(null);
+        setComposeError(null);
+      }, 6000);
+      return () => clearTimeout(timeout);
+    }
+    return undefined;
+  }, [composeState]);
+
   const metrics = useMemo(() => {
     const meta = composition?.document?.metadata?.phase1_metrics || composition?.document?.metadata?.composition_metrics;
     if (!meta) return null;
@@ -176,6 +189,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
     setComposeState('running');
     setComposeMessage('Composing from memory…');
     setComposeError(null);
+    setComposeStartedAt(new Date());
     await notificationAPI.emitJobStarted('document.compose', `Composing “${document.title}”`, { basketId });
     try {
       const res = await fetch(`/api/documents/${document.id}/recompose`, {
@@ -290,6 +304,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const renderComposeBanner = () => {
     if (composeState === 'idle') return null;
     if (composeState === 'running') {
+      const startedAgo = composeStartedAt ? relativeTime(composeStartedAt.toISOString()) : 'just now';
       return (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
           <div className="flex items-center gap-3">
@@ -297,6 +312,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
             <div>
               <p className="text-sm font-medium text-blue-700">Composing from memory…</p>
               <p className="text-xs text-blue-600">Our agents are retrieving substrate and drafting narrative. This typically takes a few moments.</p>
+              <p className="mt-1 text-[11px] text-blue-500">Started {startedAgo}</p>
             </div>
           </div>
         </div>

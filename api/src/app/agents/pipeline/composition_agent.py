@@ -873,19 +873,31 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
 
             # Canon-Pure: Create substrate references in dedicated table
             substrate_refs_created = []
+            allowed_substrate_types = {"block", "dump", "context_item", "timeline_event"}
+
             for idx, substrate in enumerate(selected_substrate):
                 try:
                     # Map substrate type to canonical enum
                     substrate_type_map = {
                         "block": "block",
                         "context_item": "context_item", 
-                        "dump": "raw_dump",
-                        "raw_dump": "raw_dump",
-                        "relationship": "relationship",
+                        "dump": "dump",
+                        "raw_dump": "dump",
                         "timeline_event": "timeline_event"
                     }
                     canonical_type = substrate_type_map.get(substrate["type"], substrate["type"])
-                    
+
+                    if canonical_type not in allowed_substrate_types:
+                        logger.warning(
+                            "Skipping unsupported substrate attachment",
+                            extra={
+                                "document_id": document_id,
+                                "substrate_id": substrate.get("id"),
+                                "substrate_type": substrate.get("type"),
+                            }
+                        )
+                        continue
+
                     # Create substrate reference via canonical RPC
                     ref_response = supabase.rpc("fn_document_attach_substrate", {
                         "p_document_id": str(document_id),

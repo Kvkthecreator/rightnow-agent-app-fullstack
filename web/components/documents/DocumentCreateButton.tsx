@@ -36,7 +36,16 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
 
   const composeFromMemory = async () => {
     setCreating(true);
+    // Close the menu immediately to avoid the perception of a stalled modal
+    setOpen(false);
     try {
+      // Emit canon-compliant job lifecycle notifications so the user sees progress in the center
+      await notificationAPI.emitJobStarted(
+        'document.compose',
+        `Composing “${title || 'Untitled Document'}”`,
+        { basketId }
+      );
+
       // Canon-Pure: Direct document composition (artifact operation, no governance)
       const res = await fetch('/api/documents/compose', {
         method: 'POST',
@@ -52,13 +61,25 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
       const data = await res.json();
       if (!res.ok || !data?.document_id) throw new Error(data?.error || 'Compose failed');
       
+      // Forward users to the new document surface while the background job runs
+      await notificationAPI.emitJobSucceeded(
+        'document.compose',
+        'Composition started. We will notify you once the draft is ready.',
+        { basketId, correlationId: data.document_id }
+      );
+
       // Navigate directly to the created document
       router.push(`/baskets/${basketId}/documents/${data.document_id}`);
     } catch (e) {
-      notificationAPI.emitActionResult('document.compose', 'Failed to compose document', { severity: 'error' });
+      const message = e instanceof Error ? e.message : 'Failed to compose document';
+      await notificationAPI.emitJobFailed(
+        'document.compose',
+        message,
+        { basketId }
+      );
     } finally {
       setCreating(false);
-      setOpen(false);
+      setMode(null);
     }
   };
 
@@ -103,4 +124,3 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
 function itemCls() {
   return cn('w-full text-left px-3 py-2 rounded hover:bg-gray-50 border');
 }
-
