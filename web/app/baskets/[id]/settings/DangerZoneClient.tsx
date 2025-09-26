@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { notificationAPI } from '@/lib/api/notifications';
 
 interface Props {
   basketId: string;
@@ -44,6 +45,13 @@ export default function DangerZoneClient({ basketId, basketName }: Props) {
   const run = async () => {
     setSubmitting(true);
     setResult(null);
+    const correlationId = `basket-${basketId}-purge-${Date.now()}`;
+
+    await notificationAPI.emitJobStarted('basket.purge', `Purging “${basketName}”`, {
+      basketId,
+      correlationId,
+    });
+
     try {
       const res = await fetch(`/api/baskets/${basketId}/purge`, {
         method: 'POST',
@@ -53,12 +61,32 @@ export default function DangerZoneClient({ basketId, basketName }: Props) {
       const json = await res.json();
       setResult(json);
       if (res.ok) {
+        await notificationAPI.emitJobSucceeded('basket.purge', 'Purge completed', {
+          basketId,
+          correlationId,
+          payload: {
+            operations: json.total_operations,
+            batches: json.executed_batches,
+          },
+        });
         // refresh counts
         const pv = await fetch(`/api/baskets/${basketId}/purge/preview`, { cache: 'no-store' });
         if (pv.ok) setCounts(await pv.json());
+      } else {
+        const errorMessage = json?.error || 'Purge failed';
+        await notificationAPI.emitJobFailed('basket.purge', errorMessage, {
+          basketId,
+          correlationId,
+          error: errorMessage,
+        });
       }
     } catch (e) {
       setResult({ error: 'Network error' });
+      await notificationAPI.emitJobFailed('basket.purge', 'Network error during purge', {
+        basketId,
+        correlationId,
+        error: e instanceof Error ? e.message : 'network_error',
+      });
     } finally {
       setSubmitting(false);
     }
