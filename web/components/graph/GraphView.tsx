@@ -216,7 +216,9 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
     }
   };
 
+  const hasAnyRelationships = (graphData.relationships ?? []).length > 0;
   const hasGraphContent = filteredNodes.length > 0 && filteredLinks.length > 0;
+  const relationshipsFilteredOut = hasAnyRelationships && !hasGraphContent;
 
   return (
     <div className="space-y-6">
@@ -383,12 +385,20 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
                 </div>
               </aside>
             </div>
+          ) : relationshipsFilteredOut ? (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-slate-200 bg-amber-50 p-12 text-center">
+              <Network className="h-20 w-20 text-amber-300" />
+              <h3 className="text-xl font-semibold text-amber-800">Relationships hidden by filters</h3>
+              <p className="max-w-md text-sm text-amber-700">
+                Connections exist in this basket, but they don’t match the current filters. Enable more node types or reset filters to see the full graph.
+              </p>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-12 text-center">
               <Network className="h-20 w-20 text-slate-300" />
               <h3 className="text-xl font-semibold text-slate-800">No relationships yet</h3>
               <p className="max-w-md text-sm text-slate-600">
-                Capture a few related thoughts and allow the governance workflow to approve them. The P2 graph agent will map the connections between your structured knowledge and semantic meanings.
+                Add a few related thoughts and let the governance workflow approve them. Once approved, the P2 graph agent will automatically map how your knowledge and meanings connect.
               </p>
             </div>
           )}
