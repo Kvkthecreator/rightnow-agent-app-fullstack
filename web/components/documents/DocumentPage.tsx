@@ -184,6 +184,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
 
   const substrateCount = references.length;
   const lastComposedAt = composition?.document?.metadata?.composition_completed_at;
+  const hasVersions = versions.length > 0;
 
   const handleCompose = async () => {
     setComposeState('running');
@@ -416,6 +417,38 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
     );
   };
 
+  const renderMetricsCard = () => {
+    if (!metrics && substrateCount === 0) return null;
+
+    return (
+      <Card className="p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Composition Metrics
+          </h3>
+          <div className="mt-2 text-xs text-slate-500">
+            Last composed {lastComposedAt ? formatDateTime(lastComposedAt) : 'Not yet composed'}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary" className="bg-blue-50 text-blue-700">
+            {substrateCount} substrate inputs
+          </Badge>
+          <Badge variant="secondary" className="bg-green-50 text-green-700">
+            Coverage {metrics ? Math.round(metrics.coverage * 100) : 0}%
+          </Badge>
+          <Badge variant="secondary" className="bg-violet-50 text-violet-700">
+            Freshness {metrics ? Math.round(metrics.freshness * 100) : 0}%
+          </Badge>
+          <Badge variant="secondary" className="bg-amber-50 text-amber-700">
+            Provenance {metrics ? Math.round(metrics.provenance * 100) : 0}%
+          </Badge>
+        </div>
+      </Card>
+    );
+  };
+
   const currentContent = composition?.document?.content_raw || document.content_raw || '';
 
   return (
@@ -517,7 +550,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
           </Card>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex flex-col gap-6">
           <Card className="p-0 overflow-hidden">
             {loading ? (
               <div className="p-6 text-sm text-slate-500">Loading document…</div>
@@ -568,30 +601,15 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
             )}
           </Card>
 
-          <div className="grid gap-6">
-            <Card className="p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                Composition Metrics
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="bg-blue-50 text-blue-700">
-                  {substrateCount} substrate inputs
-                </Badge>
-                <Badge variant="secondary" className="bg-green-50 text-green-700">
-                  Coverage {metrics ? Math.round(metrics.coverage * 100) : 0}%
-                </Badge>
-                <Badge variant="secondary" className="bg-violet-50 text-violet-700">
-                  Freshness {metrics ? Math.round(metrics.freshness * 100) : 0}%
-                </Badge>
-              </div>
-              <div className="text-xs text-slate-500">
-                Last composed {lastComposedAt ? formatDateTime(lastComposedAt) : 'Not yet composed'}
-              </div>
-            </Card>
+          {renderMetricsCard()}
 
-            {renderReferences()}
-            {renderVersions()}
+          <div className={`grid gap-6 ${hasVersions ? 'lg:grid-cols-2' : ''}`}>
+            <div className="flex flex-col gap-6">
+              {renderReferences()}
+            </div>
+            {hasVersions && (
+              <div className="flex flex-col gap-6">{renderVersions()}</div>
+            )}
           </div>
         </div>
       )}
