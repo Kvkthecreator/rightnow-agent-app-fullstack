@@ -20,6 +20,8 @@ type SubstrateBlock = {
   content?: string | null;
   semantic_type?: string | null;
   confidence_score?: number | null;
+  status?: string | null;
+  state?: string | null;
 };
 
 type SubstrateContextItem = {
@@ -29,6 +31,8 @@ type SubstrateContextItem = {
   type?: string | null;
   semantic_meaning?: string | null;
   semantic_category?: string | null;
+  status?: string | null;
+  state?: string | null;
 };
 
 type SubstrateRelationship = {
@@ -65,6 +69,7 @@ type CanonNode = {
   confidence?: number;
   contentSnippet?: string;
   degree: number;
+  archived: boolean;
 };
 
 type CanonLink = {
@@ -74,6 +79,7 @@ type CanonLink = {
   type: string;
   strength: number;
   description?: string | null;
+  archived: boolean;
 };
 
 const NODE_COLORS: Record<CanonNode['type'], string> = {
@@ -109,10 +115,12 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
   const [activeNode, setActiveNode] = useState<CanonNode | null>(null);
   const [hoveredLinkId, setHoveredLinkId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<Record<CanonNode['type'], boolean>>(INITIAL_FILTER);
+  const [includeArchived, setIncludeArchived] = useState(true);
 
   const allNodes = useMemo<CanonNode[]>(() => {
     const blocks = (graphData.blocks ?? []).map((block): CanonNode => {
       const label = block.title?.trim() || 'Untitled Block';
+      const archived = (block.status ?? '').toLowerCase() === 'archived';
       return {
         id: block.id,
         label,
@@ -121,11 +129,14 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
         confidence: block.confidence_score ?? undefined,
         contentSnippet: block.content ?? undefined,
         degree: 0,
+        archived,
       };
     });
 
     const contextItems = (graphData.context_items ?? []).map((item): CanonNode => {
       const label = item.title?.trim() || item.content?.trim() || 'Unnamed Meaning';
+      const archivedState = item.state ? item.state !== 'ACTIVE' : false;
+      const archived = (item.status ?? '').toLowerCase() === 'archived' || archivedState;
       return {
         id: item.id,
         label,
@@ -133,6 +144,7 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
         semanticType: item.type ?? item.semantic_category ?? undefined,
         contentSnippet: item.semantic_meaning ?? item.content ?? undefined,
         degree: 0,
+        archived,
       };
     });
 
@@ -156,6 +168,7 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
         type: rel.relationship_type,
         strength: rel.strength ?? 0.5,
         description: rel.description,
+        archived: Boolean(nodeLookup.get(rel.from_id)?.archived || nodeLookup.get(rel.to_id)?.archived),
       }));
   }, [graphData.relationships, nodeLookup]);
 
@@ -173,8 +186,8 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
   }, [allLinks, nodeLookup]);
 
   const filteredNodes = useMemo(() =>
-    allNodes.filter(node => typeFilter[node.type]),
-  [allNodes, typeFilter]);
+    allNodes.filter(node => typeFilter[node.type] && (includeArchived || !node.archived)),
+  [allNodes, typeFilter, includeArchived]);
 
   const filteredNodeIds = useMemo(() => new Set(filteredNodes.map(node => node.id)), [filteredNodes]);
 
@@ -197,11 +210,20 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graphPayload.nodes.length, graphPayload.links.length]);
 
-  const stats = useMemo(() => ({
-    blocks: (graphData.blocks ?? []).length,
-    contextItems: (graphData.context_items ?? []).length,
-    relationships: (graphData.relationships ?? []).length,
-  }), [graphData.blocks, graphData.context_items, graphData.relationships]);
+  const stats = useMemo(() => {
+    const totalBlocks = allNodes.filter(node => node.type === 'block').length;
+    const archivedBlocks = allNodes.filter(node => node.type === 'block' && node.archived).length;
+    const totalContext = allNodes.filter(node => node.type === 'context_item').length;
+    const archivedContext = allNodes.filter(node => node.type === 'context_item' && node.archived).length;
+    const totalRelationships = allLinks.length;
+    const archivedRelationships = allLinks.filter(link => link.archived).length;
+
+    return {
+      blocks: { total: totalBlocks, archived: archivedBlocks },
+      contextItems: { total: totalContext, archived: archivedContext },
+      relationships: { total: totalRelationships, archived: archivedRelationships },
+    };
+  }, [allNodes, allLinks]);
 
   useEffect(() => {
     if (!activeNode) return;
@@ -216,9 +238,10 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
     }
   };
 
-  const hasAnyRelationships = (graphData.relationships ?? []).length > 0;
+  const hasAnyRelationships = allLinks.length > 0;
   const hasGraphContent = filteredNodes.length > 0 && filteredLinks.length > 0;
   const relationshipsFilteredOut = hasAnyRelationships && !hasGraphContent;
+  const archivedOnly = !includeArchived && stats.relationships.archived === stats.relationships.total;
 
   return (
     <div className="space-y-6">
@@ -231,15 +254,18 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="secondary" className="flex items-center gap-2 bg-blue-50 text-blue-700">
               <Sparkles className="h-3.5 w-3.5" />
-              {stats.blocks} blocks
+              {stats.blocks.total - stats.blocks.archived} active blocks
+              {stats.blocks.archived > 0 ? ` (+${stats.blocks.archived} archived)` : ''}
             </Badge>
             <Badge variant="secondary" className="flex items-center gap-2 bg-violet-50 text-violet-700">
               <Network className="h-3.5 w-3.5" />
-              {stats.contextItems} meanings
+              {stats.contextItems.total - stats.contextItems.archived} active meanings
+              {stats.contextItems.archived > 0 ? ` (+${stats.contextItems.archived} archived)` : ''}
             </Badge>
             <Badge variant="secondary" className="flex items-center gap-2 bg-slate-100 text-slate-700">
               <GitMerge className="h-3.5 w-3.5" />
-              {stats.relationships} relationships
+              {stats.relationships.total - stats.relationships.archived} active relationships
+              {stats.relationships.archived > 0 ? ` (+${stats.relationships.archived} archived)` : ''}
             </Badge>
           </div>
         </div>
@@ -271,6 +297,14 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
             <Button size="sm" variant="ghost" onClick={handleResetView}>
               Center
             </Button>
+            <Button
+              size="sm"
+              variant={includeArchived ? 'default' : 'outline'}
+              className={includeArchived ? 'bg-amber-600 hover:bg-amber-500 border-amber-600' : ''}
+              onClick={() => setIncludeArchived(prev => !prev)}
+            >
+              {includeArchived ? 'Hide Archived' : 'Show Archived'}
+            </Button>
           </div>
         </div>
       </div>
@@ -292,6 +326,8 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
                     const canonNode = node as CanonNode & { x?: number; y?: number };
                     const color = NODE_COLORS[canonNode.type];
                     const radius = Math.max(6, Math.min(14, 6 + canonNode.degree));
+                    ctx.save();
+                    ctx.globalAlpha = canonNode.archived ? 0.35 : 1;
                     ctx.beginPath();
                     ctx.arc(canonNode.x ?? 0, canonNode.y ?? 0, radius, 0, 2 * Math.PI, false);
                     ctx.fillStyle = color;
@@ -301,8 +337,9 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
                     const fontSize = 12 / globalScale;
                     ctx.font = `${fontSize}px var(--font-sans, 'Inter', sans-serif)`;
                     ctx.textBaseline = 'middle';
-                    ctx.fillStyle = '#1e293b';
+                    ctx.fillStyle = canonNode.archived ? 'rgba(30,41,59,0.6)' : '#1e293b';
                     ctx.fillText(label, (canonNode.x ?? 0) + radius + 4, canonNode.y ?? 0);
+                    ctx.restore();
                   }}
                   nodePointerAreaPaint={(node, color, ctx) => {
                     const canonNode = node as CanonNode & { x?: number; y?: number };
@@ -312,7 +349,7 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
                     ctx.fillStyle = color;
                     ctx.fill();
                   }}
-                  linkColor={() => RELATIONSHIP_COLOR}
+                  linkColor={link => (link as CanonLink).archived ? 'rgba(148,163,184,0.45)' : RELATIONSHIP_COLOR}
                   linkDirectionalParticles={2}
                   linkDirectionalParticleSpeed={link => 0.002 + ((link as CanonLink).strength ?? 0.5) * 0.004}
                   linkWidth={link => {
@@ -388,9 +425,13 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
           ) : relationshipsFilteredOut ? (
             <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-slate-200 bg-amber-50 p-12 text-center">
               <Network className="h-20 w-20 text-amber-300" />
-              <h3 className="text-xl font-semibold text-amber-800">Relationships hidden by filters</h3>
+              <h3 className="text-xl font-semibold text-amber-800">
+                {archivedOnly ? 'Relationships live in archived knowledge' : 'Relationships hidden by filters'}
+              </h3>
               <p className="max-w-md text-sm text-amber-700">
-                Connections exist in this basket, but they don’t match the current filters. Enable more node types or reset filters to see the full graph.
+                {archivedOnly
+                  ? 'Every connection in this basket currently links archived blocks or meanings. Show archived nodes to review historical context or restore the relevant knowledge to make the graph active again.'
+                  : 'Connections exist in this basket, but they don’t match the current filters. Enable more node types or reset filters to see the full graph.'}
               </p>
             </div>
           ) : (
