@@ -31,6 +31,7 @@ export function NotificationCenter() {
   
   // Sort by most recent first and limit to last 20
   const recentEvents = eventHistory
+    .filter((event): event is NonNullable<typeof event> => !!event && typeof event.type === 'string')
     .slice()
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 20);
@@ -84,7 +85,7 @@ export function NotificationCenter() {
                       {/* Event Details */}
                       <div className="mt-1 space-y-1">
                         <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <span className="capitalize">{event.type.replace('_', ' ')}</span>
+                          <span className="capitalize">{event.type?.replace?.('_', ' ') ?? 'event'}</span>
                           <span>•</span>
                           <span>{event.name}</span>
                           {event.phase && (

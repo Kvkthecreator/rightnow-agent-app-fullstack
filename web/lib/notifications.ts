@@ -70,6 +70,12 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   },
   
   addEvent: (event) => {
+    if (!event || typeof event.type !== 'string') {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[NotificationStore] Ignoring malformed event payload', event);
+      }
+      return;
+    }
     set((state) => ({
       eventHistory: [event, ...state.eventHistory.slice(0, 99)] // Keep last 100
     }));
@@ -109,7 +115,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       return false;
     })();
     
-    if (shouldShowToast) {
+    if (event && typeof event.message === 'string' && shouldShowToast) {
       get().addToast({
         message: event.message,
         severity: event.severity,
