@@ -884,19 +884,39 @@ class GovernanceDumpProcessor:
                             lookup_resp = (
                                 supabase
                                 .table("context_items")
-                                .select("id")
+                                .select("id", "status")
                                 .eq("basket_id", str(basket_id))
                                 .eq("type", kind_value)
                                 .eq("normalized_label", normalized_label)
-                                .order("created_at", desc=True)
+                                .order("updated_at", desc=True)
                                 .limit(1)
                                 .execute()
                             )
                             if getattr(lookup_resp, "data", None):
-                                context_id = lookup_resp.data[0].get("id")
+                                row = lookup_resp.data[0]
+                                context_id = row.get("id")
+                                # Treat lookup result as duplicate
+                                duplicate_detected = True
 
                         if not context_id:
                             raise RuntimeError("context item insert returned no id")
+
+                        if duplicate_detected:
+                            try:
+                                supabase.table("context_items").update({
+                                    "status": "active",
+                                    "state": "ACTIVE",
+                                    "updated_at": datetime.utcnow().isoformat()
+                                }).eq("id", context_id).execute()
+                                supabase.table("substrate_tombstones").delete().eq(
+                                    "substrate_id", context_id
+                                ).eq("substrate_type", "context_item").execute()
+                            except Exception as reactivating_error:
+                                self.logger.warning(
+                                    "Context item %s reactivation failed: %s",
+                                    context_id,
+                                    reactivating_error
+                                )
 
                         executed_operations.append({
                             "type": "CreateContextItem",
@@ -904,7 +924,7 @@ class GovernanceDumpProcessor:
                             "created_id": context_id,
                             "duplicate": duplicate_detected
                         })
-                        if not duplicate_detected and context_id:
+                        if context_id and not duplicate_detected:
                             created_substrate_ids["context_items"].append(str(context_id))
                     
                     else:

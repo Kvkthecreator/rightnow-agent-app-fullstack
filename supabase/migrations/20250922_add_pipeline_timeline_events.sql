@@ -17,7 +17,7 @@ CHECK ((kind = ANY (ARRAY[
     
     -- P1 Substrate events
     'block.created'::text, 'block.updated'::text, 'block.state_changed'::text,
-    'context_item.created'::text, 'context_item.updated'::text,
+    'context_item.created'::text, 'context_item.updated'::text, 'context_item.archived'::text,
     
     -- P2 Graph events
     'relationship.created'::text, 'relationship.deleted'::text,
