@@ -867,8 +867,12 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                 .eq("id", str(document_id))\
                 .execute()
 
-            if update_response.error:
-                raise RuntimeError(f"Failed to update document with composition: {update_response.error}")
+            api_error = getattr(update_response, "error", None)
+            if api_error is not None:
+                raise RuntimeError(f"Failed to update document with composition: {api_error}")
+
+            if update_response.data is None:
+                raise RuntimeError("Failed to update document with composition: empty response")
             updated_metadata = base_metadata
 
             # Canon-Pure: Create substrate references in dedicated table
