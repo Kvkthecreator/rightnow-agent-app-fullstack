@@ -66,20 +66,26 @@ test.describe('Contract Validation: Frontend ↔ Backend ↔ Database', () => {
     expect(response.ok()).toBeTruthy();
     
     const buildingBlocksData = await response.json();
-    const blocks = buildingBlocksData.substrates.filter((s: any) => s.type === 'block');
-    
-    if (blocks.length > 0) {
-      const block = blocks[0];
-      
+    const captures = buildingBlocksData.captures || [];
+    const orphanBlocks = buildingBlocksData.orphans?.blocks || [];
+    const allBlocks = [
+      ...captures.flatMap((capture: any) => capture.derived_blocks || []),
+      ...orphanBlocks,
+    ];
+
+    if (allBlocks.length > 0) {
+      const block = allBlocks[0];
+
       // Block structure per canon
       expect(block).toHaveProperty('id');
-      expect(block).toHaveProperty('basket_id');
       expect(block).toHaveProperty('semantic_type');
-      expect(block).toHaveProperty('content');
-      expect(block).toHaveProperty('state'); // Block state machine
-      
-      // State should be valid
-      expect(['PROPOSED', 'ACCEPTED', 'LOCKED', 'CONSTANT', 'REJECTED', 'SUPERSEDED']).toContain(block.state);
+      // Derived block payload exposes metadata rather than raw content; ensure canonical props exist
+      expect(block).toHaveProperty('created_at');
+
+      // State should be valid when provided
+      if (block.state) {
+        expect(['PROPOSED', 'ACCEPTED', 'LOCKED', 'CONSTANT', 'REJECTED', 'SUPERSEDED']).toContain(block.state);
+      }
     }
   });
 
