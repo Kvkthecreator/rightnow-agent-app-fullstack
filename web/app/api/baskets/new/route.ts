@@ -16,7 +16,7 @@ import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
 import { apiUrl, PUBLIC_API_BASE_URL } from "@/lib/env";
 
 export async function POST(req: NextRequest) {
-  const ws = await getServerWorkspace();
+  await getServerWorkspace();
   const DBG = req.headers.get("x-yarnnn-debug-auth") === "1";
   const requestId = req.headers.get("x-request-id") ?? randomUUID();
   // 1) Parse & validate request (canon: { idempotency_key, basket? })

@@ -998,7 +998,8 @@ The frontend integrates with the canonical governance framework through standard
 
 | Frontend Page | Service Pipeline | Data Source | Operations Allowed |
 |---------------|------------------|-------------|-------------------|
-| `/memory` | P0 Capture | `raw_dumps` | Create dumps only |
+| `/baskets` | Workspace Hub | `baskets` | List/create baskets |
+| `/baskets/[id]/memory` | P0 Capture | `raw_dumps` | Create dumps only |
 | `/building-blocks` | P1 Substrate | `context_blocks`, `context_items` | View substrate, governance proposals |
 | `/graph` | P2 Graph | `context_relationships` | View connections only |
 | `/reflections` | P3 Reflection | `reflections_artifact` | View insights only |

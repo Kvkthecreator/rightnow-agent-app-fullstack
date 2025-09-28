@@ -36,16 +36,18 @@ Yarnnn uses **two complementary onboarding flows**, not redundant ones:
 ### Scenario A: Complete New User
 1. Login → `resolveUserLanding()` → `/welcome`
 2. Complete full onboarding → identity genesis created
-3. Navigate to `/baskets/[id]/memory` → full memory experience (no inline gate)
+3. Redirect to `/baskets` to pick or create a workspace basket
+4. Enter `/baskets/[id]/memory` → full memory experience (no inline gate)
 
 ### Scenario B: Partial/Incomplete User  
-1. Login → skipped welcome OR completed partial welcome
-2. Navigate to `/baskets/[id]/memory` → `OnboardingGate` appears
+1. Login → skipped welcome OR completed partial welcome → `/baskets`
+2. Enter a basket (`/baskets/[id]/memory`) → `OnboardingGate` appears
 3. Complete missing profile sections → enhanced memory experience
 
 ### Scenario C: Returning User
-1. Login → has identity genesis → direct to `/baskets/[id]/memory`
-2. No onboarding gates trigger → immediate memory workspace access
+1. Login → has identity genesis → direct to `/baskets`
+2. Choose any basket (or re-open the most recent)
+3. No onboarding gates trigger once inside `/baskets/[id]/memory`
 
 ## 🎨 UX Design Intent
 
@@ -78,6 +80,10 @@ Yarnnn uses **two complementary onboarding flows**, not redundant ones:
 /welcome/page.tsx (route-level)
 ├── resolveUserLanding() 
 └── [redirect to appropriate destination]
+
+/baskets/index (multi-basket hub)
+├── CreateBasketDialog (modal)
+└── Basket cards → `/baskets/[id]/memory`
 
 /baskets/[id]/memory/page.tsx (inline)
 ├── OnboardingGate (dashboard-style) [NEEDS REFACTORING]
