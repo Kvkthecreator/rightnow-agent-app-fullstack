@@ -4,7 +4,7 @@ import type { Database } from "@/lib/dbTypes";
 
 export type BasketOverview = Pick<
   Database["public"]["Tables"]["baskets"]["Row"],
-  "id" | "name" | "created_at"
+  "id" | "name" | "created_at" | "mode"
 >;
 
 export async function getAllBaskets(): Promise<BasketOverview[]> {
@@ -24,7 +24,7 @@ export async function getAllBaskets(): Promise<BasketOverview[]> {
 
     let query = supabase
       .from('baskets')
-      .select('id, name, created_at')
+      .select('id, name, created_at, mode')
       .order('created_at', { ascending: false });
 
     if (membership?.workspace_id) {

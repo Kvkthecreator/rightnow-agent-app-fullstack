@@ -31,7 +31,8 @@ class BasketManagerService:
         name: str,
         description: Optional[str] = None,
         status: str = "active",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        mode: str = "default",
     ) -> Dict[str, Any]:
         """Create a new basket with proper transaction handling."""
         
@@ -47,13 +48,14 @@ class BasketManagerService:
                     "description": description,
                     "status": status,
                     "metadata": metadata or {},
+                    "mode": mode,
                     "created_at": datetime.utcnow(),
                     "updated_at": datetime.utcnow()
                 }
-                
+
                 insert_query = """
-                    INSERT INTO baskets (id, workspace_id, name, description, status, metadata, created_at, updated_at)
-                    VALUES (:id, :workspace_id, :name, :description, :status, :metadata, :created_at, :updated_at)
+                    INSERT INTO baskets (id, workspace_id, name, description, status, metadata, mode, created_at, updated_at)
+                    VALUES (:id, :workspace_id, :name, :description, :status, :metadata, :mode, :created_at, :updated_at)
                     RETURNING *
                 """
                 

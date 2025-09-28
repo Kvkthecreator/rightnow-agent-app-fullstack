@@ -1,4 +1,5 @@
 import { BasketProvider } from '@/contexts/BasketContext';
+import { BasketModeProvider } from '@/basket-modes/provider';
 import type { ReactNode } from 'react';
 
 interface Basket {
@@ -11,6 +12,7 @@ interface Basket {
   workspace_id: string;
   tags?: string[] | null;
   origin_template?: string | null;
+  mode?: string | null;
 }
 
 interface BasketWrapperProps {
@@ -24,8 +26,10 @@ interface BasketWrapperProps {
  */
 export function BasketWrapper({ children, basket }: BasketWrapperProps) {
   return (
-    <BasketProvider initialBasket={basket}>
-      {children}
-    </BasketProvider>
+    <BasketModeProvider mode={basket.mode}>
+      <BasketProvider initialBasket={basket}>
+        {children}
+      </BasketProvider>
+    </BasketModeProvider>
   );
 }

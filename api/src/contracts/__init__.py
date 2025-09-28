@@ -24,7 +24,8 @@ def load_ts_contract(contract_name: str) -> Dict[str, Any]:
                 'name': str,
                 'status': str,
                 'workspace_id': str,
-                'created_at': str
+                'created_at': str,
+                'mode': str,
             }
         },
         'memory': {

@@ -11,6 +11,7 @@ import { BasketWrapper } from "@/components/basket/BasketWrapper";
 import MemoryClient from "./MemoryClient";
 import { hasIdentityGenesis, isBlankBasket } from "@/lib/server/onboarding";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
+import { ModeOnboardingPanel } from "@/components/basket-mode/ModeOnboardingPanel";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -30,21 +31,22 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
   // Fetch full basket data for context (extending the access check data)
   const { data: basketDetails } = await supabase
     .from('baskets')
-    .select('description, status, created_at, last_activity_ts, tags, origin_template')
+    .select('description, status, created_at, last_activity_ts, tags, origin_template, mode, name')
     .eq('id', id)
     .maybeSingle();
 
   // Combine access data with details, using safe defaults for optional fields
   const basket = {
     id: basketAccess.id,
-    name: basketAccess.name,
+    name: basketDetails?.name ?? basketAccess.name,
     workspace_id: basketAccess.workspace_id,
     description: basketDetails?.description || null,
     status: basketDetails?.status || null,
     created_at: basketDetails?.created_at || new Date().toISOString(),
     last_activity_ts: basketDetails?.last_activity_ts || null,
     tags: basketDetails?.tags || null,
-    origin_template: basketDetails?.origin_template || null
+    origin_template: basketDetails?.origin_template || null,
+    mode: (basketDetails?.mode ?? basketAccess.mode ?? 'default') as string,
   };
 
   // Check if user needs onboarding (only if basket blank AND no identity genesis)
@@ -58,6 +60,7 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
   return (
     <BasketWrapper basket={basket}>
       <div className="space-y-6 pb-8">
+        <ModeOnboardingPanel />
         {onboarded && (
           <div className="rounded-lg border bg-green-50 p-4 text-sm text-green-700 flex justify-between">
             <span>Memory initialized from your First Mirror.</span>

@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 
     const { data: basket, error } = await supabase
       .from('baskets')
-      .select('id,name,workspace_id,status,created_at')
+      .select('id,name,workspace_id,status,created_at,mode')
       .eq('id', id)
       .maybeSingle();
 
@@ -25,9 +25,14 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: 'forbidden' }, { status: 403 });
     }
 
-    return NextResponse.json({ id: basket.id, name: basket.name, status: basket.status, created_at: basket.created_at }, { status: 200 });
+    return NextResponse.json({
+      id: basket.id,
+      name: basket.name,
+      status: basket.status,
+      created_at: basket.created_at,
+      mode: basket.mode,
+    }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: 'internal server error' }, { status: 500 });
   }
 }
-

@@ -3,6 +3,16 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
+const MODE_VALUES = ['default', 'product_brain', 'campaign_brain'] as const;
+type ModeValue = typeof MODE_VALUES[number];
+
+function normalizeMode(raw: unknown): ModeValue {
+  if (typeof raw === 'string' && MODE_VALUES.includes(raw as ModeValue)) {
+    return raw as ModeValue;
+  }
+  return 'default';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
@@ -36,8 +46,11 @@ export async function POST(request: NextRequest) {
       description = "",
       status = "active",
       tags = [],
-      metadata = {}
-    } = body;
+      metadata = {},
+      mode: rawMode,
+    } = body ?? {};
+
+    const mode = normalizeMode(rawMode);
 
     // Create basket in database
     const { data: basket, error: createError } = await supabase
@@ -45,6 +58,7 @@ export async function POST(request: NextRequest) {
       .insert({
         name,
         status,
+        mode,
         workspace_id: workspace.id,
         tags,
         origin_template: description || null // Store description in origin_template if provided
@@ -66,7 +80,8 @@ export async function POST(request: NextRequest) {
         name: basket.name,
         description: basket.origin_template || "", // Map origin_template back to description for API compatibility
         status: basket.status,
-        created_at: basket.created_at
+        created_at: basket.created_at,
+        mode: basket.mode,
       },
       { status: 201 }
     );
@@ -113,7 +128,7 @@ export async function GET(request: NextRequest) {
     // Get baskets for the workspace
     const { data: baskets, error: fetchError } = await supabase
       .from("baskets")
-      .select("id, name, status, created_at, origin_template")
+      .select("id, name, status, created_at, origin_template, mode")
       .eq("workspace_id", workspace.id)
       .order("created_at", { ascending: false });
 
@@ -126,11 +141,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Map origin_template to description for API compatibility
-    const mappedBaskets = (baskets || []).map(basket => ({
-      ...basket,
-      description: basket.origin_template || "",
-      origin_template: undefined // Remove internal field from response
-    }));
+    const mappedBaskets = (baskets || []).map((basket) => {
+      const { origin_template, mode, ...rest } = basket ?? {};
+      return {
+        ...rest,
+        description: origin_template || "",
+        mode: normalizeMode(mode),
+      };
+    });
 
     return NextResponse.json(mappedBaskets);
 

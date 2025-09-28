@@ -27,6 +27,7 @@ export interface Database {
           user_id: string;
           raw_dump_id: string;
           workspace_id: string;
+          mode: 'default' | 'product_brain' | 'campaign_brain';
         };
       };
       events: {

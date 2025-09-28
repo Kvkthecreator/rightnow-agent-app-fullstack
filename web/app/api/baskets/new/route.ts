@@ -87,7 +87,14 @@ export async function POST(req: NextRequest) {
 
   // 3) Forward to FastAPI with Bearer token (workspace bootstrap is server-side)
   // Forward canonical payload to FastAPI
-  const payload = parsed.data;
+  const defaultedMode = parsed.data.basket?.mode ?? 'default';
+  const payload = {
+    ...parsed.data,
+    basket: {
+      ...(parsed.data.basket ?? {}),
+      mode: defaultedMode,
+    },
+  };
   // Debug: Log token info
   if (DBG) {
     console.log("Token forwarding debug:", {

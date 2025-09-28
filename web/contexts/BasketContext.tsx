@@ -21,6 +21,7 @@ interface Basket {
   workspace_id: string;
   tags?: string[] | null;
   origin_template?: string | null;
+  mode?: string | null;
 }
 
 interface BasketContextType {

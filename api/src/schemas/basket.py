@@ -16,6 +16,7 @@ class Basket(BaseSchema):
     status: str = "draft"
     tags: Optional[List[str]] = None
     commentary: Optional[str] = None
+    mode: Optional[str] = None
 
 
 class BasketOut(BaseSchema):
@@ -29,3 +30,4 @@ class BasketOut(BaseSchema):
     commentary: Optional[str] = None
     blocks: List[dict]
     configs: List[dict]
+    mode: Optional[str] = None

@@ -4,6 +4,7 @@ import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 import { notFound } from 'next/navigation';
 import { BasketWrapper } from '@/components/basket/BasketWrapper';
 import { DocumentPage } from '@/components/documents/DocumentPage';
+import { ModeDeliverablesPanel } from '@/components/basket-mode/ModeDeliverablesPanel';
 
 interface PageProps {
   params: Promise<{ id: string; docId: string }>;
@@ -36,26 +37,30 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   // Fetch additional basket data for context
   const { data: basketDetails } = await supabase
     .from('baskets')
-    .select('description, status, created_at, last_activity_ts, tags, origin_template')
+    .select('name, description, status, created_at, last_activity_ts, tags, origin_template, mode')
     .eq('id', basketId)
     .maybeSingle();
 
   // Create basket object with safe defaults
   const basket = {
     id: basketId,
-    name: 'Basket', // Default name if not available
+    name: basketDetails?.name || 'Basket',
     workspace_id: workspace.id,
     description: basketDetails?.description || null,
     status: basketDetails?.status || null,
     created_at: basketDetails?.created_at || new Date().toISOString(),
     last_activity_ts: basketDetails?.last_activity_ts || null,
     tags: basketDetails?.tags || null,
-    origin_template: basketDetails?.origin_template || null
+    origin_template: basketDetails?.origin_template || null,
+    mode: (basketDetails?.mode ?? 'default') as string,
   };
 
   return (
     <BasketWrapper basket={basket}>
-      <DocumentPage document={document} basketId={basketId} />
+      <div className="space-y-6">
+        <ModeDeliverablesPanel />
+        <DocumentPage document={document} basketId={basketId} />
+      </div>
     </BasketWrapper>
   );
 }

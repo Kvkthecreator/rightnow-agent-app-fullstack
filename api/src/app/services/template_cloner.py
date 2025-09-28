@@ -47,6 +47,7 @@ def clone_template(template_slug: str, user_id: str, workspace_id: str, supabase
                 "user_id": user_id,
                 "workspace_id": workspace_id,
                 "origin_template": template_slug,
+                "mode": basket_json.get("mode", "default"),
             }
         )
     ).execute()

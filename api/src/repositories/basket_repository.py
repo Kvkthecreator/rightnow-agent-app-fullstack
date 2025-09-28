@@ -18,8 +18,8 @@ class BasketRepository:
     async def create_basket(self, basket_data: dict) -> dict:
         """Create a new basket"""
         query = """
-            INSERT INTO baskets (id, name, status, workspace_id, created_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO baskets (id, name, status, workspace_id, mode, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *
         """
         result = await self.db.fetch_one(
@@ -29,6 +29,7 @@ class BasketRepository:
                 basket_data.get('name'),
                 basket_data.get('status', 'ACTIVE'),
                 basket_data.get('workspace_id'),
+                basket_data.get('mode', 'default'),
                 datetime.utcnow()
             ]
         )
