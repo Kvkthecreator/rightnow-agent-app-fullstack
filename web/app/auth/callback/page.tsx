@@ -33,7 +33,7 @@ export default function AuthCallbackPage() {
 
       // ✅ Redirect to correct landing page
       const redirectPath =
-        localStorage.getItem("redirectPath") || "/dashboard/home";
+        localStorage.getItem("redirectPath") || "/baskets";
       localStorage.removeItem("redirectPath");
       router.replace(redirectPath);
     };

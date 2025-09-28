@@ -44,7 +44,7 @@ export default function LandingPage() {
                 href="/login"
                 onClick={() => {
                   if (typeof window !== 'undefined') {
-                    localStorage.setItem('redirectPath', '/dashboard/home');
+                localStorage.setItem('redirectPath', '/baskets');
                   }
                 }}
                 className="inline-block bg-black text-white rounded-xl px-6 py-3 text-lg hover:bg-neutral-800 transition"

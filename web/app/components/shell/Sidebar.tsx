@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Package2, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -192,8 +193,16 @@ export default function Sidebar({ className }: SidebarProps) {
           {basket ? (
             <div>
               {/* Basket section with merged icon and name */}
-              <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                🧺 {basket.name || "Untitled Basket"}
+              <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1">
+                  🧺 {basket.name || "Untitled Basket"}
+                </span>
+                <Link
+                  href="/baskets"
+                  className="text-[11px] font-normal text-indigo-600 hover:text-indigo-500"
+                >
+                  All baskets
+                </Link>
               </div>
               <div className="flex flex-col gap-2">
                 {/* Memory Group */}

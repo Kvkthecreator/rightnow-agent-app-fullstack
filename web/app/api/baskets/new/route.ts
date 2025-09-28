@@ -13,22 +13,10 @@ import { NextResponse } from "next/server";
 import { CreateBasketReqSchema } from "@/lib/schemas/baskets";
 import { createHash, randomUUID } from "node:crypto";
 import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
-import { listBasketsByWorkspace } from "@/lib/baskets/listBasketsByWorkspace";
-import { logEvent } from "@/lib/telemetry";
 import { apiUrl, PUBLIC_API_BASE_URL } from "@/lib/env";
 
 export async function POST(req: NextRequest) {
   const ws = await getServerWorkspace();
-  const { data: existing, error } = await listBasketsByWorkspace(ws.id);
-  if (error) throw error;
-  if (existing && existing.length >= 1) {
-    await logEvent("basket.new_blocked_single_mode", {
-      workspace_id: ws.id,
-      existing_id: existing[0].id,
-    });
-    return NextResponse.redirect(new URL(`/baskets/${existing[0].id}/memory`, req.url), 303);
-  }
-
   const DBG = req.headers.get("x-yarnnn-debug-auth") === "1";
   const requestId = req.headers.get("x-request-id") ?? randomUUID();
   // 1) Parse & validate request (canon: { idempotency_key, basket? })
