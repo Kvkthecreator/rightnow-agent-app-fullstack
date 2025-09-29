@@ -66,7 +66,17 @@ export default function Sidebar({ className }: SidebarProps) {
           } catch {
             const data = await getAllBaskets();
             setBasketList(data);
-            setBasket(null);
+            const fallback = data.find((item) => item.id === idFromPath);
+            if (fallback) {
+              setBasket(fallback);
+            } else {
+              setBasket({
+                id: idFromPath,
+                name: 'Untitled Basket',
+                created_at: new Date().toISOString(),
+                mode: 'default',
+              } as BasketOverview);
+            }
           }
         } else {
           const data = await getAllBaskets();
