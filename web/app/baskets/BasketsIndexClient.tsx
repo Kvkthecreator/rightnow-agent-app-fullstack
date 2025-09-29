@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import CreateBasketDialog from '@/components/CreateBasketDialog';
 import type { BasketMode } from '@/shared/contracts/baskets';
@@ -15,6 +15,7 @@ export type BasketSummary = {
 };
 
 export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
+  const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const hasBaskets = baskets.length > 0;
@@ -50,10 +51,11 @@ export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
       {hasBaskets && (
         <section className="grid gap-4 md:grid-cols-2">
           {sortedBaskets.map((basket) => (
-            <Link
+            <button
               key={basket.id}
-              href={`/baskets/${basket.id}/memory`}
-              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
+              type="button"
+              onClick={() => router.push(`/baskets/${basket.id}/memory`)}
+              className="group rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:border-indigo-300 hover:shadow-md"
             >
               <div className="flex items-center justify-between gap-4">
                 <h2 className="text-lg font-semibold text-slate-900 group-hover:text-indigo-600">
@@ -73,7 +75,7 @@ export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
                   <dd>{new Date(basket.created_at).toLocaleDateString()}</dd>
                 </div>
               </dl>
-            </Link>
+            </button>
           ))}
         </section>
       )}
