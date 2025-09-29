@@ -21,6 +21,17 @@ interface AnchorStatusResponse {
   }>;
 }
 
+type AnchorRow = {
+  id: string;
+  title?: string | null;
+  body_md?: string | null;
+  content?: string | null;
+  state?: string | null;
+  status?: string | null;
+  metadata?: Record<string, any> | null;
+  updated_at?: string | null;
+};
+
 function summariseContent(value?: string | null): string | null {
   if (!value) return null;
   const trimmed = value.replace(/\s+/g, ' ').trim();
@@ -111,15 +122,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       continue;
     }
 
-    const latest = data?.[0];
+    const latest = (data?.[0] ?? null) as AnchorRow | null;
     const populated = (count ?? 0) > 0 && latest;
     const isApproved = anchor.substrateType === 'block'
       ? latest?.state === 'ACCEPTED'
       : (latest?.status ?? '').toUpperCase() === 'ACTIVE';
 
     const rawContent = anchor.substrateType === 'block'
-      ? latest?.body_md ?? (latest as any)?.content ?? null
-      : (latest as any)?.content ?? null;
+      ? latest?.body_md ?? latest?.content ?? null
+      : latest?.content ?? null;
 
     results.push({
       id: anchor.id,
@@ -131,7 +142,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       count: count ?? 0,
       updated_at: latest?.updated_at ?? null,
       preview: summariseContent(rawContent),
-      title: (latest as any)?.title ?? null,
+      title: latest?.title ?? null,
       content: rawContent,
     });
   }
