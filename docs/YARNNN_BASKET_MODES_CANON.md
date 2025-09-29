@@ -25,6 +25,12 @@ Basket modes ("brains" in the UI) let Yarnnn present different service veneers o
   - **Progress rules**: checklists and thresholds for gating deliverables.
 - Core anchors are shared truths (problem, customer, vision, metrics) available to every brain. Brain-specific anchors build on top and may optionally reference core anchors.
 
+### Core Anchor Bootstrap
+- New baskets surface a wizard that captures the four core anchors.
+- Submission calls `POST /api/baskets/{id}/anchors/bootstrap`, which resolves the authenticated workspace, validates basket ownership, and persists anchors via canon-friendly helpers (`createBlockCanonical`, `createContextItemCanonical`).
+- Bootstrap is additive: missing fields are ignored, failures are surfaced in logs, and users can always revise anchors later from Memory.
+- Anchor metadata sets `anchor_id`/`anchor_scope` tags only; downstream pipelines continue to govern content normally.
+
 ## Storage Contract
 - `public.baskets.mode` records the active mode for a basket.
 - Enum values (initial set):

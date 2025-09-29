@@ -29,20 +29,20 @@ export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Your baskets</h1>
           <p className="text-sm text-slate-600">
-            Each basket is an independent substrate workspace. Switch modes, compose documents, and govern memory per basket.
+            Baskets keep a product or project in one place. Pick a basket, capture what you know, and let Yarnnn help with the rest.
           </p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>New basket</Button>
       </header>
 
       {!hasBaskets && (
-        <section className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">No baskets yet</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Create your first basket to start capturing memories and composing documents.
+        <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
+          <h2 className="text-xl font-semibold text-slate-900">Start your first basket</h2>
+          <p className="mt-3 text-sm text-slate-600">
+            Drop in what you already have—notes, research, thoughts. We’ll help organise core truths and build the rest with you.
           </p>
-          <div className="mt-6">
-            <Button onClick={() => setDialogOpen(true)}>Create your first basket</Button>
+          <div className="mt-6 flex justify-center">
+            <Button onClick={() => setDialogOpen(true)}>Create basket</Button>
           </div>
         </section>
       )}
@@ -53,24 +53,24 @@ export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
             <Link
               key={basket.id}
               href={`/baskets/${basket.id}/memory`}
-              className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
+              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <h2 className="text-lg font-semibold text-slate-900 group-hover:text-indigo-600">
                   {basket.name || 'Untitled basket'}
                 </h2>
-                <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium uppercase tracking-wide text-indigo-700">
-                  {basket.mode}
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-700">
+                  {basket.mode.replace('_', ' ')}
                 </span>
               </div>
-              <dl className="mt-4 space-y-2 text-sm text-slate-600">
-                <div className="flex items-center justify-between">
-                  <dt className="font-medium text-slate-500">Status</dt>
-                  <dd className="uppercase tracking-wide">{basket.status ?? '—'}</dd>
+              <dl className="mt-4 space-y-1 text-sm text-slate-600">
+                <div className="flex items-center gap-2 text-slate-500">
+                  <dt className="font-medium">Status</dt>
+                  <dd className="uppercase tracking-wide text-slate-700">{basket.status ?? '—'}</dd>
                 </div>
-                <div className="flex items-center justify-between">
-                  <dt className="font-medium text-slate-500">Created</dt>
-                  <dd>{new Date(basket.created_at).toLocaleString()}</dd>
+                <div className="flex items-center gap-2 text-slate-500">
+                  <dt className="font-medium">Created</dt>
+                  <dd>{new Date(basket.created_at).toLocaleDateString()}</dd>
                 </div>
               </dl>
             </Link>

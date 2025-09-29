@@ -1,60 +1,60 @@
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { apiClient } from "@/lib/api/client";
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { apiClient } from '@/lib/api/client';
 
-interface WizardState {
-  basketName: string;
-  coreBlock: string;
-  dumps: string[];
-  guidelines: string;
+const STORAGE_KEY = 'yarnnn:new-basket-wizard';
+
+export interface BasketAnchorDraft {
+  problemStatement: string;
+  primaryCustomer: string;
+  productVision: string;
+  successMetrics: string;
 }
 
-const KEY = "rn-sp-wizard";
+interface WizardState extends BasketAnchorDraft {
+  basketName: string;
+}
 
-const emptyState: WizardState = {
-  basketName: "",
-  coreBlock: "",
-  dumps: [],
-  guidelines: "",
+const EMPTY_STATE: WizardState = {
+  basketName: '',
+  problemStatement: '',
+  primaryCustomer: '',
+  productVision: '',
+  successMetrics: '',
 };
 
 export function useCreateBasket() {
   const router = useRouter();
   const [state, setState] = useState<WizardState>(() => {
-    if (typeof window === "undefined") return emptyState;
-    const stored = localStorage.getItem(KEY);
-    if (stored) {
-      try {
-        return { ...emptyState, ...JSON.parse(stored) } as WizardState;
-      } catch {
-        return emptyState;
-      }
+    if (typeof window === 'undefined') return EMPTY_STATE;
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (!stored) return EMPTY_STATE;
+    try {
+      return { ...EMPTY_STATE, ...JSON.parse(stored) } as WizardState;
+    } catch {
+      return EMPTY_STATE;
     }
-    return emptyState;
   });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(KEY, JSON.stringify(state));
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
   }, [state]);
 
-  const setBasketName = (v: string) =>
-    setState((s) => ({ ...s, basketName: v }));
-  const setCoreBlock = (v: string) =>
-    setState((s) => ({ ...s, coreBlock: v }));
-  const setDump = (i: number, v: string) =>
-    setState((s) => {
-      const arr = [...s.dumps];
-      arr[i] = v;
-      return { ...s, dumps: arr };
-    });
-  const addDump = () =>
-    setState((s) => ({ ...s, dumps: [...s.dumps, ""] }));
-  const setGuidelines = (v: string) =>
-    setState((s) => ({ ...s, guidelines: v }));
+  const setField = (key: keyof WizardState) => (value: string) => {
+    setState((prev) => ({ ...prev, [key]: value }));
+  };
 
+  const trimmedAnchors = useMemo(() => ({
+    problemStatement: state.problemStatement.trim(),
+    primaryCustomer: state.primaryCustomer.trim(),
+    productVision: state.productVision.trim(),
+    successMetrics: state.successMetrics.trim(),
+  }), [state.problemStatement, state.primaryCustomer, state.productVision, state.successMetrics]);
+
+  const hasAnchorDraft = Object.values(trimmedAnchors).some((value) => value.length > 0);
   const canSubmit = !submitting && state.basketName.trim().length > 0;
 
   const submit = async () => {
@@ -63,17 +63,33 @@ export function useCreateBasket() {
     try {
       const payload = {
         idempotency_key: crypto.randomUUID(),
-        basket: { name: state.basketName || "Untitled Basket" },
+        basket: { name: state.basketName.trim() || 'Untitled Basket' },
       };
-      const { basket_id } = await apiClient.request<{ basket_id: string }>(
-        "/api/baskets/new",
+
+      const response = await apiClient.request<{ basket_id: string }>(
+        '/api/baskets/new',
         {
-          method: "POST",
+          method: 'POST',
           body: JSON.stringify(payload),
         },
       );
-      router.push(`/baskets/${basket_id}/memory`);
-      setState(emptyState);
+
+      const basketId = response.basket_id;
+
+      if (hasAnchorDraft) {
+        try {
+          await apiClient.request(`/api/baskets/${basketId}/anchors/bootstrap`, {
+            method: 'POST',
+            body: JSON.stringify(trimmedAnchors),
+          });
+        } catch (error) {
+          // Non-fatal: log so the user can add anchors manually in the memory view.
+          console.warn('Bootstrap anchors failed', error);
+        }
+      }
+
+      setState(EMPTY_STATE);
+      router.push(`/baskets/${basketId}/memory`);
     } finally {
       setSubmitting(false);
     }
@@ -81,16 +97,19 @@ export function useCreateBasket() {
 
   return {
     basketName: state.basketName,
-    coreBlock: state.coreBlock,
-    dumps: state.dumps,
-    guidelines: state.guidelines,
-    setBasketName,
-    setCoreBlock,
-    setDump,
-    addDump,
-    setGuidelines,
+    problemStatement: state.problemStatement,
+    primaryCustomer: state.primaryCustomer,
+    productVision: state.productVision,
+    successMetrics: state.successMetrics,
+    setBasketName: setField('basketName'),
+    setProblemStatement: setField('problemStatement'),
+    setPrimaryCustomer: setField('primaryCustomer'),
+    setProductVision: setField('productVision'),
+    setSuccessMetrics: setField('successMetrics'),
     submit,
     mutate: submit,
     canSubmit,
+    submitting,
+    hasAnchorDraft,
   };
 }
