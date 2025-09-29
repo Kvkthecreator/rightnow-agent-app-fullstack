@@ -31,6 +31,12 @@ Basket modes ("brains" in the UI) let Yarnnn present different service veneers o
 - Bootstrap is additive: missing fields are ignored, failures are surfaced in logs, and users can always revise anchors later from Memory.
 - Anchor metadata sets `anchor_id`/`anchor_scope` tags only; downstream pipelines continue to govern content normally.
 
+### Anchor Stewardship Surface
+- `/baskets/[id]/memory` renders mode-aware anchor groups (core + brain) with live status via `GET /api/baskets/{id}/anchors/status`.
+- Editors open inline and persist through `POST /api/baskets/{id}/anchors/save`, which reuses canonical helpers (`reviseBlockCanonical`, `createBlockCanonical`, `createContextItemCanonical`) to mutate substrate without bypassing governance.
+- Status states are **missing**, **in governance**, **ready** depending on canonical state, keeping UX and governance in lockstep.
+- Relationship anchors are displayed as guidance only until substrate support lands.
+
 ## Storage Contract
 - `public.baskets.mode` records the active mode for a basket.
 - Enum values (initial set):

@@ -189,6 +189,7 @@ export async function reviseBlockCanonical(
       semantic_type: newSemanticType,
       confidence_score: newConfidence,
       metadata: newMetadata,
+      title: op.title ?? existing.title,
       updated_at: new Date().toISOString(),
     })
     .eq('id', blockId)
