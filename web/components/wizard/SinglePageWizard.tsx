@@ -3,108 +3,105 @@ import { useCreateBasket } from "@/hooks/useCreateBasket";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import React from "react";
 
-function TextareaCard({
+function AnchorField({
+  id,
+  label,
+  placeholder,
   value,
   onChange,
-  index,
+  optional = false,
 }: {
+  id: string;
+  label: string;
+  placeholder: string;
   value: string;
-  onChange: (v: string) => void;
-  index: number;
+  onChange: (value: string) => void;
+  optional?: boolean;
 }) {
-  const [open, setOpen] = React.useState(true);
   return (
-    <Card className="space-y-2">
-      <div
-        className="flex justify-between cursor-pointer"
-        onClick={() => setOpen(!open)}
-      >
-        <span className="font-medium">Dump {index + 1}</span>
-        <span>{open ? "-" : "+"}</span>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm font-medium">
+        <label htmlFor={id}>{label}</label>
+        {optional && (
+          <span className="text-xs font-normal text-muted-foreground">Optional</span>
+        )}
       </div>
-      {open && (
-        <>
-          <label className="sr-only" htmlFor={`dump-${index}`}>Dump {index + 1}</label>
-          <Textarea
-            id={`dump-${index}`}
-            rows={4}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-          />
-          <p className="text-xs text-right text-muted-foreground">
-            {value.length} chars
-          </p>
-        </>
-      )}
-    </Card>
+      <Textarea
+        id={id}
+        rows={6}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <p className="text-xs text-right text-muted-foreground">
+        {value.trim().length} chars
+      </p>
+    </div>
   );
 }
 
 export function SinglePageWizard() {
   const state = useCreateBasket();
+
   return (
-    <div className="space-y-6 max-w-2xl mx-auto" data-testid="sp-wizard">
+    <div className="mx-auto max-w-2xl space-y-6" data-testid="sp-wizard">
       <div className="space-y-2">
         <label htmlFor="basket-name" className="text-sm font-medium">
-          Basket Name
+          Basket name
         </label>
         <Input
           id="basket-name"
           value={state.basketName}
-          onChange={(e) => state.setBasketName(e.target.value)}
+          onChange={(event) => state.setBasketName(event.target.value)}
         />
       </div>
-      <div className="space-y-2">
-        <label htmlFor="core-block" className="text-sm font-medium">
-          Core Block
-        </label>
-        <Textarea
-          id="core-block"
-          rows={4}
-          value={state.coreBlock}
-          onChange={(e) => state.setCoreBlock(e.target.value)}
-        />
-        <p className="text-xs text-right text-muted-foreground">
-          {state.coreBlock.length}/100–500
+
+      <div className="space-y-3">
+        <h2 className="text-base font-semibold">Core anchors</h2>
+        <p className="text-sm text-muted-foreground">
+          Describe the foundations of this basket. These anchors help Yarnnn orient
+          Product and Campaign brains. You can refine them later from the Memory
+          view.
         </p>
       </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Raw Dumps</label>
-        {state.dumps.map((d, i) => (
-          <TextareaCard
-            key={i}
-            value={d}
-            index={i}
-            onChange={(v) => state.setDump(i, v)}
-          />
-        ))}
-        {state.dumps.length < 10 && (
-          <Button
-            variant="ghost"
-            onClick={state.addDump}
-            type="button"
-          >
-            Add Dump
-          </Button>
-        )}
-      </div>
-      <div className="space-y-2">
-        <label htmlFor="guidelines" className="text-sm font-medium">
-          Guidelines (optional)
-        </label>
-        <Textarea
-          id="guidelines"
-          rows={4}
-          value={state.guidelines}
-          onChange={(e) => state.setGuidelines(e.target.value)}
-        />
-      </div>
+
+      <AnchorField
+        id="problem-statement"
+        label="Problem statement"
+        placeholder="What pain are you solving?"
+        value={state.problemStatement}
+        onChange={state.setProblemStatement}
+      />
+
+      <AnchorField
+        id="primary-customer"
+        label="Primary customer"
+        placeholder="Who feels it? Capture persona, environment, and motivation."
+        value={state.primaryCustomer}
+        onChange={state.setPrimaryCustomer}
+      />
+
+      <AnchorField
+        id="product-vision"
+        label="Vision & differentiation"
+        placeholder="Why this approach wins."
+        value={state.productVision}
+        onChange={state.setProductVision}
+      />
+
+      <AnchorField
+        id="success-metrics"
+        label="Success metrics"
+        placeholder="How will you measure progress?"
+        value={state.successMetrics}
+        onChange={state.setSuccessMetrics}
+        optional
+      />
+
       <div className="text-right">
         <Button onClick={state.submit} disabled={!state.canSubmit}>
-          Create Basket
+          {state.hasAnchorDraft ? "Create & seed anchors" : "Create basket"}
         </Button>
       </div>
     </div>
