@@ -9,44 +9,42 @@ export async function ensureWorkspaceServer(supabase: SupabaseClient<Database>) 
 
   if (authError || !user) return null;
 
-  const { data: membership } = await supabase
-    .from("workspace_memberships")
-    .select("workspace_id")
-    .eq("user_id", user.id)
+  // Mirror backend behaviour: user operates in exactly one workspace keyed by owner_id
+  const { data: ownedWorkspace, error: lookupError } = await supabase
+    .from('workspaces')
+    .select('*')
+    .eq('owner_id', user.id)
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (membership?.workspace_id) {
-    const { data: workspace } = await supabase
-      .from("workspaces")
-      .select("*")
-      .eq("id", membership.workspace_id)
-      .single();
-    return workspace ?? null;
+  if (!lookupError && ownedWorkspace) {
+    return ownedWorkspace;
   }
 
+  // Create workspace if missing
   const { data: newWorkspace, error: createError } = await supabase
-    .from("workspaces")
-    .insert({ name: `${user.email}'s Workspace`, owner_id: user.id })
+    .from('workspaces')
+    .insert({ name: `${user.email ?? 'Workspace'}`, owner_id: user.id })
     .select()
     .single();
 
   if (createError || !newWorkspace) {
-    console.error("❌ Failed to create workspace:", createError);
+    console.error('❌ Failed to create workspace:', createError);
     return null;
   }
 
+  // Ensure membership row exists (helps other RLS checks)
   const { error: membershipError } = await supabase
-    .from("workspace_memberships")
+    .from('workspace_memberships')
     .insert({
       user_id: user.id,
       workspace_id: newWorkspace.id,
-      role: "owner",
+      role: 'owner',
     });
 
   if (membershipError) {
-    console.error("❌ Failed to create workspace membership:", membershipError);
-    return null;
+    // Non-fatal; log for visibility
+    console.warn('⚠️ Failed to create workspace membership:', membershipError.message);
   }
 
   return newWorkspace;

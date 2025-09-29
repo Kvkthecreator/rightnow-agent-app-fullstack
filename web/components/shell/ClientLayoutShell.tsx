@@ -26,7 +26,7 @@ const shouldShowSidebarForPath = (pathname: string | null): boolean => {
   if (HIDE_SIDEBAR_PATTERNS.some((re) => re.test(pathname))) return false;
 
   // Only show on basket-scoped routes (/baskets/:id/...)
-  if (/^\/baskets\/[^/]+/.test(pathname)) return true;
+  if (/^\/baskets(\/[^/]+)?/.test(pathname)) return true;
 
   // Show sidebar on other allowed routes
   return SHOW_SIDEBAR_ROUTES.some((route) => pathname.startsWith(route));
