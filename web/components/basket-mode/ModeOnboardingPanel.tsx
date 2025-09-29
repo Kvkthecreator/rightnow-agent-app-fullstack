@@ -47,6 +47,7 @@ interface AnchorStatus {
   updated_at?: string | null;
   preview?: string | null;
   title?: string | null;
+  content?: string | null;
 }
 
 interface AnchorEditorState {
