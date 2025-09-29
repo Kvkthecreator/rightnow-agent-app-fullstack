@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { createServerComponentClient } from '@/lib/supabase/clients';
-import { BASKET_MODES } from '@/basket-modes';
+import { loadBasketModeConfigs } from '@/basket-modes/loader';
 import {
   credentialsConfigured,
   getAdminCookieName,
@@ -60,12 +60,7 @@ export default async function BasketModesAdminPage() {
     status: row.status,
   }));
 
-  const modes = Object.values(BASKET_MODES).map((mode) => ({
-    id: mode.id,
-    label: mode.label,
-    tagline: mode.tagline,
-    description: mode.description,
-  }));
+  const configs = await loadBasketModeConfigs();
 
-  return <AdminDashboard baskets={baskets} modes={modes} />;
+  return <AdminDashboard baskets={baskets} configs={configs} />;
 }

@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { BasketWrapper } from '@/components/basket/BasketWrapper';
 import { DocumentPage } from '@/components/documents/DocumentPage';
 import { ModeDeliverablesPanel } from '@/components/basket-mode/ModeDeliverablesPanel';
+import { loadBasketModeConfig } from '@/basket-modes/loader';
+import type { BasketModeId } from '@/basket-modes/types';
 
 interface PageProps {
   params: Promise<{ id: string; docId: string }>;
@@ -55,8 +57,12 @@ export default async function DocumentDetailPage({ params }: PageProps) {
     mode: (basketDetails?.mode ?? 'default') as string,
   };
 
+  const modeConfig = await loadBasketModeConfig(
+    (basket.mode ?? 'default') as BasketModeId,
+  );
+
   return (
-    <BasketWrapper basket={basket}>
+    <BasketWrapper basket={basket} modeConfig={modeConfig}>
       <div className="space-y-6">
         <ModeDeliverablesPanel />
         <DocumentPage document={document} basketId={basketId} />

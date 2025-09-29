@@ -1,28 +1,12 @@
 import type { BasketModeConfig } from './types';
+import { CORE_ANCHORS } from './coreAnchors';
 
 export const productBrainMode: BasketModeConfig = {
   id: 'product_brain',
   label: 'Product Brain',
   tagline: 'Spin raw insight into a living PRD stack.',
   description:
-    'Optimised for solo founders building product direction. Substrate fuels canonical narratives, prompt packs, and API scaffolds that evolve as you capture more signal.',
-  deliverables: [
-    {
-      id: 'prd',
-      title: 'Living PRD',
-      description: 'Narrative artefact outlining problem, solution, scope, and guardrails sourced from vetted substrate.',
-    },
-    {
-      id: 'prompt_pack',
-      title: 'Prompt Pack',
-      description: 'Reusable prompt templates aligned to the current product thesis and substrate references.',
-    },
-    {
-      id: 'api_spec',
-      title: 'API Skeleton',
-      description: 'Structured contract map derived from blocks and relationships for engineering kickoff.',
-    },
-  ],
+    'Optimised for solo founders building product direction. Product Brain hardens core truths, structures features, and composes PRDs, prompt packs, and API scaffolds from governed substrate.',
   onboarding: {
     headline: 'Capture founder truth, then compose deliverables.',
     steps: [
@@ -35,16 +19,158 @@ export const productBrainMode: BasketModeConfig = {
       {
         id: 'approve_substrate',
         title: 'Approve key building blocks',
-        description: 'Review the core problem, user, and solution blocks to lock the initial substrate canon.',
+        description: 'Review the core problem, user, solution, and feature anchors to lock the initial canon.',
         cta: { label: 'Review Blocks', href: '/building-blocks' },
       },
       {
         id: 'compose_deliverables',
         title: 'Generate product artefacts',
-        description: 'Use the documents surface to compose PRD v1 and prompt pack, anchored to approved substrate.',
+        description: 'Use the documents surface to compose PRD v1, prompt packs, and API skeletons.',
         cta: { label: 'Compose PRD', href: '/documents' },
       },
     ],
-    completion: 'When PRD, prompt pack, and API spec documents exist with recent substrate references, onboarding is complete.',
+    completion: 'When anchors for features, constraints, and insights are populated and PRD v1 is composed, onboarding is complete.',
+  },
+  anchors: {
+    core: CORE_ANCHORS,
+    brain: [
+      {
+        id: 'core_solution',
+        label: 'Solution Hypothesis',
+        scope: 'brain',
+        substrateType: 'block',
+        description: 'Describe how the product solves the core problem.',
+        acceptanceCriteria: 'Links to problem & customer anchors. Includes value proposition and key capabilities.',
+        required: true,
+        dependsOn: ['core_problem', 'core_customer'],
+      },
+      {
+        id: 'feature_block',
+        label: 'Feature Definition',
+        scope: 'brain',
+        substrateType: 'block',
+        description: 'Structured block describing a feature, user value, and status.',
+        acceptanceCriteria: 'Includes user story / outcome, effort or confidence, and ties back to solution.',
+        required: true,
+        dependsOn: ['core_solution', 'success_metrics'],
+      },
+      {
+        id: 'technical_constraints',
+        label: 'Technical Constraints',
+        scope: 'brain',
+        substrateType: 'context_item',
+        description: 'Platform or integration constraints shaping scope.',
+        acceptanceCriteria: 'Lists known limitations, dependencies, or tolerances. References related features.',
+        required: true,
+      },
+      {
+        id: 'customer_insights',
+        label: 'Customer Insights',
+        scope: 'brain',
+        substrateType: 'context_item',
+        description: 'Evidence or quotes supporting prioritisation choices.',
+        acceptanceCriteria: 'Captures observation, source, and confidence. Links to problem/customer anchors.',
+        required: true,
+      },
+      {
+        id: 'roadmap_milestone',
+        label: 'Roadmap Milestone',
+        scope: 'brain',
+        substrateType: 'context_item',
+        description: 'Milestone with timeframe and success criteria.',
+        acceptanceCriteria: 'Includes milestone name, target date/quarter, and metric alignment.',
+        required: false,
+        dependsOn: ['feature_block', 'success_metrics'],
+      },
+    ],
+  },
+  captureRecipes: [
+    {
+      id: 'founder-dump',
+      title: 'Founder Narrative Dump',
+      description: 'Paste interviews, product thoughts, or whiteboard exports to seed solution and feature anchors.',
+      captureType: 'raw_dump',
+      prompt: 'Describe the solution you envision and the core capabilities you cannot compromise on. Include customer quotes or supporting insight.',
+      anchorRefs: ['core_solution', 'feature_block', 'customer_insights'],
+    },
+    {
+      id: 'feature-outline',
+      title: 'Feature Outline',
+      description: 'Inline helper to capture name, user value, and definition of done for a feature.',
+      captureType: 'inline_block',
+      prompt: 'Feature name · user outcome · success signal · confidence (High/Med/Low).',
+      anchorRefs: ['feature_block'],
+    },
+    {
+      id: 'constraints-note',
+      title: 'Constraints Note',
+      description: 'Capture tech stack, integration limits, or compliance needs.',
+      captureType: 'inline_context',
+      prompt: 'List constraints, dependencies, or risks that influence scope. Reference relevant features.',
+      anchorRefs: ['technical_constraints'],
+    },
+    {
+      id: 'research-upload',
+      title: 'Research Upload',
+      description: 'Upload interviews, surveys, or support tickets to create insights.',
+      captureType: 'file_upload',
+      intentMetadata: { category: 'customer_research' },
+      anchorRefs: ['customer_insights'],
+    },
+    {
+      id: 'roadmap-milestones',
+      title: 'Roadmap Milestones',
+      description: 'Create or update key delivery milestones.',
+      captureType: 'inline_context',
+      prompt: 'Milestone name · target timeframe · linked features · success metric.',
+      anchorRefs: ['roadmap_milestone'],
+    },
+  ],
+  deliverables: [
+    {
+      id: 'prd',
+      title: 'Living PRD',
+      description: 'Narrative artefact outlining problem, solution, scope, and guardrails sourced from vetted substrate.',
+      composeIntent: 'product_prd_v1',
+      requiredAnchors: ['core_problem', 'core_customer', 'core_solution', 'feature_block', 'technical_constraints'],
+      optionalAnchors: ['customer_insights', 'roadmap_milestone'],
+    },
+    {
+      id: 'prompt_pack',
+      title: 'Prompt Pack',
+      description: 'Reusable prompt templates aligned to the current product thesis and substrate references.',
+      composeIntent: 'product_prompt_pack_v1',
+      requiredAnchors: ['core_solution', 'feature_block', 'customer_insights'],
+    },
+    {
+      id: 'api_spec',
+      title: 'API Skeleton',
+      description: 'Structured contract map derived from blocks and relationships for engineering kickoff.',
+      composeIntent: 'product_api_spec_v1',
+      requiredAnchors: ['core_solution', 'feature_block', 'technical_constraints'],
+    },
+  ],
+  progress: {
+    checklist: [
+      {
+        id: 'core-ready',
+        label: 'Core anchors approved',
+        description: 'Problem, customer, vision, and metrics anchors approved in governance.',
+        requiredAnchors: ['core_problem', 'core_customer', 'product_vision', 'success_metrics'],
+      },
+      {
+        id: 'feature-coverage',
+        label: 'Feature coverage',
+        description: 'At least three feature blocks exist and link to success metrics.',
+        requiredAnchors: ['feature_block'],
+        minCounts: { feature_block: 3 },
+      },
+      {
+        id: 'research-synced',
+        label: 'Research insights captured',
+        description: 'Customer insights and constraints anchors populated.',
+        requiredAnchors: ['customer_insights', 'technical_constraints'],
+      },
+    ],
   },
 };

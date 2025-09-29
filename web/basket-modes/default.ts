@@ -1,28 +1,12 @@
 import type { BasketModeConfig } from './types';
+import { CORE_ANCHORS } from './coreAnchors';
 
 export const defaultMode: BasketModeConfig = {
   id: 'default',
   label: 'Knowledge Garden',
   tagline: 'Grow structured understanding from every capture.',
   description:
-    'Use Yarnnn as a unified brain. Capture raw input, let governance shape substrate, and explore the graph to discover emergent structure.',
-  deliverables: [
-    {
-      id: 'canon_docs',
-      title: 'Canonical Documents',
-      description: 'Living documents that stay in sync with your latest substrate mutations.',
-    },
-    {
-      id: 'reflections',
-      title: 'Guided Reflections',
-      description: 'Periodic insights that surface tensions, blind spots, and next moves based on captured context.',
-    },
-    {
-      id: 'graph',
-      title: 'Relationship Graph',
-      description: 'Visual map of blocks, context items, and relationships as governance accepts new knowledge.',
-    },
-  ],
+    'The baseline Yarnnn experience. Capture raw input, let governance harden substrate, and explore the graph to discover emergent structure.',
   onboarding: {
     headline: 'Capture → Govern → Explore',
     steps: [
@@ -45,6 +29,67 @@ export const defaultMode: BasketModeConfig = {
         cta: { label: 'View Graph', href: '/graph' },
       },
     ],
-    completion: 'Once you have approved substrate and at least one canonical document, you are operating at canon baseline.',
+    completion: 'Once you have approved core anchors and at least one canonical document, you are operating at canon baseline.',
+  },
+  anchors: {
+    core: CORE_ANCHORS,
+    brain: [],
+  },
+  captureRecipes: [
+    {
+      id: 'problem-dump',
+      title: 'Problem Narrative',
+      description: 'Paste a story or transcript that captures the core problem in your own words.',
+      captureType: 'raw_dump',
+      prompt: 'Describe the pain you observe, who feels it, and what breaks if it remains unsolved. Include quotes or artifacts.',
+      anchorRefs: ['core_problem', 'core_customer'],
+    },
+    {
+      id: 'vision-note',
+      title: 'Vision Outline',
+      description: 'Summarise the north star and why you believe this approach wins.',
+      captureType: 'inline_block',
+      prompt: 'Capture the strategic thesis, differentiators, and horizon (6-12 months).',
+      anchorRefs: ['product_vision'],
+    },
+    {
+      id: 'metrics-entry',
+      title: 'Define Success Metrics',
+      description: 'List the leading and lagging indicators you will track.',
+      captureType: 'inline_context',
+      prompt: 'For each metric, include target value, measurement cadence, and owner.',
+      anchorRefs: ['success_metrics'],
+    },
+  ],
+  deliverables: [
+    {
+      id: 'canon_docs',
+      title: 'Canonical Documents',
+      description: 'Living documents that stay in sync with your substrate.',
+      composeIntent: 'canon_document',
+      requiredAnchors: ['core_problem', 'core_customer', 'product_vision'],
+    },
+    {
+      id: 'reflections',
+      title: 'Guided Reflections',
+      description: 'Periodic insights that surface tensions, blind spots, and next moves.',
+      composeIntent: 'reflection_digest',
+      requiredAnchors: ['core_problem', 'success_metrics'],
+    },
+  ],
+  progress: {
+    checklist: [
+      {
+        id: 'core-truths',
+        label: 'Core truths captured',
+        description: 'Problem, customer, vision, and success metrics anchors exist.',
+        requiredAnchors: ['core_problem', 'core_customer', 'product_vision', 'success_metrics'],
+      },
+      {
+        id: 'first-doc',
+        label: 'First canonical document composed',
+        description: 'At least one canon document exists referencing the core anchors.',
+      },
+    ],
   },
 };

@@ -1,5 +1,6 @@
 import { BasketProvider } from '@/contexts/BasketContext';
 import { BasketModeProvider } from '@/basket-modes/provider';
+import type { BasketModeConfig } from '@/basket-modes/types';
 import type { ReactNode } from 'react';
 
 interface Basket {
@@ -18,15 +19,16 @@ interface Basket {
 interface BasketWrapperProps {
   children: ReactNode;
   basket: Basket;
+  modeConfig?: BasketModeConfig;
 }
 
 /**
  * Wraps basket pages with the full BasketProvider context
  * Provides maturity data and basket state to all child components
  */
-export function BasketWrapper({ children, basket }: BasketWrapperProps) {
+export function BasketWrapper({ children, basket, modeConfig }: BasketWrapperProps) {
   return (
-    <BasketModeProvider mode={basket.mode}>
+    <BasketModeProvider mode={basket.mode} config={modeConfig}>
       <BasketProvider initialBasket={basket}>
         {children}
       </BasketProvider>

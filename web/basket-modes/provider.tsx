@@ -14,15 +14,20 @@ const BasketModeContext = createContext<BasketModeContextValue | null>(null);
 
 export function BasketModeProvider({
   mode,
+  config,
   children,
 }: {
   mode?: string | null;
+  config?: BasketModeConfig;
   children: ReactNode;
 }) {
-  const config = useMemo(() => getModeConfig(mode), [mode]);
+  const resolved = useMemo(() => {
+    if (config) return config;
+    return getModeConfig(mode);
+  }, [mode, config]);
 
   return (
-    <BasketModeContext.Provider value={{ modeId: config.id, config }}>
+    <BasketModeContext.Provider value={{ modeId: resolved.id, config: resolved }}>
       {children}
     </BasketModeContext.Provider>
   );

@@ -12,6 +12,8 @@ import MemoryClient from "./MemoryClient";
 import { hasIdentityGenesis, isBlankBasket } from "@/lib/server/onboarding";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import { ModeOnboardingPanel } from "@/components/basket-mode/ModeOnboardingPanel";
+import { loadBasketModeConfig } from "@/basket-modes/loader";
+import type { BasketModeId } from "@/basket-modes/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -49,6 +51,10 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
     mode: (basketDetails?.mode ?? basketAccess.mode ?? 'default') as string,
   };
 
+  const modeConfig = await loadBasketModeConfig(
+    (basket.mode ?? 'default') as BasketModeId,
+  );
+
   // Check if user needs onboarding (only if basket blank AND no identity genesis)
   const { userId } = await getAuthenticatedUser(supabase);
   const [blank, hasGenesis] = await Promise.all([
@@ -58,7 +64,7 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
   const needsOnboarding = blank && !hasGenesis;
 
   return (
-    <BasketWrapper basket={basket}>
+    <BasketWrapper basket={basket} modeConfig={modeConfig}>
       <div className="space-y-6 pb-8">
         <ModeOnboardingPanel />
         {onboarded && (
