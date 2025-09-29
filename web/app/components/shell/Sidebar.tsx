@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Package2, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +28,7 @@ export default function Sidebar({ className }: SidebarProps) {
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [basket, setBasket] = useState<BasketOverview | null>(null);
+  const [basketList, setBasketList] = useState<BasketOverview[]>([]);
   const [openDropdown, setOpenDropdown] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   // Mobile detection and responsive behavior
@@ -62,17 +62,21 @@ export default function Sidebar({ className }: SidebarProps) {
           try {
             const b = await getBasket(idFromPath);
             setBasket({ id: b.id, name: b.name } as BasketOverview);
+            setBasketList([]);
           } catch {
             const data = await getAllBaskets();
-            setBasket(data[0] || null);
+            setBasketList(data);
+            setBasket(null);
           }
         } else {
           const data = await getAllBaskets();
-          setBasket(data[0] || null);
+          setBasketList(data);
+          setBasket(null);
         }
       } catch (err) {
         console.error("❌ Sidebar: Init error:", err);
         setBasket(null);
+        setBasketList([]);
       }
     }
     init();
@@ -130,7 +134,9 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
   const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
-  const basketId = pathname?.match(/^\/baskets\/([^/]+)/)?.[1] || basket?.id;
+  const activeBasketId = pathname?.match(/^\/baskets\/([^/]+)/)?.[1] || null;
+  const basketId = activeBasketId || basket?.id;
+  const isBasketDetail = Boolean(activeBasketId);
   const { documents: docList, isLoading: docsLoading } = useBasketDocuments(basketId || "");
 
   // Map section keys to icons
@@ -190,19 +196,11 @@ export default function Sidebar({ className }: SidebarProps) {
 
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-3">
-          {basket ? (
+          {isBasketDetail && basket ? (
             <div>
               {/* Basket section with merged icon and name */}
-              <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1">
-                  🧺 {basket.name || "Untitled Basket"}
-                </span>
-                <Link
-                  href="/baskets"
-                  className="text-[11px] font-normal text-indigo-600 hover:text-indigo-500"
-                >
-                  All baskets
-                </Link>
+              <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                🧺 {basket.name || "Untitled Basket"}
               </div>
               <div className="flex flex-col gap-2">
                 {/* Memory Group */}
@@ -322,7 +320,30 @@ export default function Sidebar({ className }: SidebarProps) {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground px-2 py-1">Loading...</p>
+            <div>
+              <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Baskets
+              </div>
+              <div className="ml-4 flex flex-col gap-0.5">
+                {basketList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground px-2 py-1">No baskets yet</p>
+                ) : (
+                  basketList.map((item) => (
+                    <SidebarItem
+                      key={item.id}
+                      href={`/baskets/${item.id}/memory`}
+                      onClick={() => {
+                        if (isMobile) {
+                          setOpen(false);
+                        }
+                      }}
+                    >
+                      {item.name || 'Untitled Basket'}
+                    </SidebarItem>
+                  ))
+                )}
+              </div>
+            </div>
           )}
         </div>
 
