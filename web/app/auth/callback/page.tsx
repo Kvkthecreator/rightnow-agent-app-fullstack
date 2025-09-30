@@ -65,12 +65,10 @@ export default function AuthCallbackPage() {
           redirectPath = storedPath;
         }
       }
-      if (typeof window !== "undefined") {
-        const targetUrl = new URL(redirectPath, window.location.origin).toString();
-        window.location.replace(targetUrl);
-      } else {
-        router.replace(redirectPath);
-      }
+      
+      // Use router.replace for cleaner client-side navigation
+      console.log("✅ Auth successful, redirecting to:", redirectPath);
+      router.replace(redirectPath);
     };
 
     run();
