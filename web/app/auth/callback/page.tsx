@@ -57,10 +57,13 @@ export default function AuthCallbackPage() {
       }
 
       // ✅ Redirect to correct landing page
-      const redirectPath =
-        (typeof window !== "undefined" && localStorage.getItem("redirectPath")) || "/baskets";
+      let redirectPath = "/baskets";
       if (typeof window !== "undefined") {
+        const storedPath = localStorage.getItem("redirectPath");
         localStorage.removeItem("redirectPath");
+        if (storedPath && storedPath.startsWith("/")) {
+          redirectPath = storedPath;
+        }
       }
       router.replace(redirectPath);
     };
