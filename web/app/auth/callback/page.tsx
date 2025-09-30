@@ -65,7 +65,12 @@ export default function AuthCallbackPage() {
           redirectPath = storedPath;
         }
       }
-      router.replace(redirectPath);
+      if (typeof window !== "undefined") {
+        const targetUrl = new URL(redirectPath, window.location.origin).toString();
+        window.location.replace(targetUrl);
+      } else {
+        router.replace(redirectPath);
+      }
     };
 
     run();
