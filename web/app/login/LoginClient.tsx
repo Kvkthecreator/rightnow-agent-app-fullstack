@@ -16,11 +16,19 @@ export default function LoginClient() {
 
   const showDevMagicLogin = process.env.NODE_ENV === "development";
 
+  const resolveRedirectUrl = () => {
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/auth/callback`;
+    }
+    const fallback = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.yarnnn.com";
+    return `${fallback.replace(/\/$/, "")}/auth/callback`;
+  };
+
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: "https://yarnnn.com/auth/callback",
+        redirectTo: resolveRedirectUrl(),
       },
     });
     if (error) console.error("Google login error:", error.message);
@@ -31,7 +39,7 @@ export default function LoginClient() {
       email,
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: "https://yarnnn.com/auth/callback",
+        emailRedirectTo: resolveRedirectUrl(),
       },
     });
     if (error) setErrorMsg(error.message);

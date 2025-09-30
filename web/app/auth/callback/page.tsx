@@ -13,10 +13,35 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const run = async () => {
-      // PKCE flow: Exchange authorization code for session first
+      const url = typeof window !== "undefined" ? new URL(window.location.href) : null;
+      const code = url?.searchParams.get("code");
+      const errorDescription = url?.searchParams.get("error_description");
+
+      if (errorDescription) {
+        console.error("❌ OAuth provider returned error:", errorDescription);
+        router.replace("/login");
+        return;
+      }
+
+      try {
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(
+            window.location.href,
+          );
+          if (exchangeError) {
+            console.error("❌ Failed to exchange code for session:", exchangeError);
+            router.replace("/login");
+            return;
+          }
+        }
+      } catch (exchangeErr) {
+        console.error("❌ Unexpected error exchanging code:", exchangeErr);
+        router.replace("/login");
+        return;
+      }
+
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
+      if (sessionError || !session) {
         console.error("❌ Session error after callback:", sessionError);
         router.replace("/login");
         return;
@@ -33,8 +58,10 @@ export default function AuthCallbackPage() {
 
       // ✅ Redirect to correct landing page
       const redirectPath =
-        localStorage.getItem("redirectPath") || "/baskets";
-      localStorage.removeItem("redirectPath");
+        (typeof window !== "undefined" && localStorage.getItem("redirectPath")) || "/baskets";
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("redirectPath");
+      }
       router.replace(redirectPath);
     };
 
