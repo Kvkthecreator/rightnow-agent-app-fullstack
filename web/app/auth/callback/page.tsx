@@ -8,54 +8,53 @@ import YarnSpinner from "@/components/ui/OrganicSpinner";
 
 const supabase = createBrowserClient();
 
+/**
+ * OAuth Callback Handler
+ * 
+ * Handles OAuth redirects from providers (Google, etc.)
+ * Supabase auth-helpers automatically process the callback and create session cookies.
+ * 
+ * CRITICAL: Uses createBrowserClient() which stores sessions in COOKIES (not localStorage)
+ * to ensure server-side code can read the session.
+ */
 export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const run = async () => {
-      console.log("🔍 OAuth callback started");
-      
-      // Supabase auth-helpers automatically handle the OAuth callback
-      // Just get the session that Supabase already created
+    const handleCallback = async () => {
+      // Supabase auth-helpers automatically handle OAuth callback
+      // Session is already created in cookies by the time we get here
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (sessionError) {
-        console.error("❌ Session error after callback:", sessionError);
+      if (sessionError || !session) {
+        console.error("OAuth callback failed:", sessionError);
         router.replace("/login");
         return;
       }
 
-      // Verify user
+      // Verify user is authenticated
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        console.warn("❌ No user after callback. Redirecting to /login.");
+        console.error("User verification failed:", userError);
         router.replace("/login");
         return;
       }
 
-      console.log("✅ User authenticated:", user.email);
-
-      // Small delay to ensure Supabase has written session cookies
-      // This prevents server-side redirect back to /login
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Get redirect path - use /dashboard/home which handles basket selection
+      // Get stored redirect path or default to baskets index
       const redirectPath = 
         (typeof window !== "undefined" && localStorage.getItem("redirectPath")) || 
-        "/dashboard/home";
+        "/baskets";
       
       if (typeof window !== "undefined") {
         localStorage.removeItem("redirectPath");
       }
-
-      console.log("✅ Redirecting to:", redirectPath);
       
-      // Use window.location for full page load (ensures cookies are sent)
+      // Full page redirect ensures cookies are sent with the request
       window.location.href = redirectPath;
     };
 
-    run();
+    handleCallback();
   }, [router]);
 
   return (
