@@ -999,8 +999,9 @@ The frontend integrates with the canonical governance framework through standard
 | Frontend Page | Service Pipeline | Data Source | Operations Allowed |
 |---------------|------------------|-------------|-------------------|
 | `/baskets` | Workspace Hub | `baskets` | List/create baskets |
-| `/baskets/[id]/memory` | P0 Capture | `raw_dumps` | Create dumps only |
-| `/building-blocks` | P1 Substrate | `context_blocks`, `context_items` | View substrate, governance proposals |
+| `/baskets/[id]/memory` | Anchors + P0 Capture | `basket_anchors`, governed substrate lookup | Maintain anchors, launch capture |
+| `/baskets/[id]/uploads` | P0 Capture | `raw_dumps` | Browse immutable uploads |
+| `/baskets/[id]/building-blocks` | P1 Substrate | `blocks`, `context_items` | Knowledge workbench / governance actions |
 | `/graph` | P2 Graph | `context_relationships` | View connections only |
 | `/reflections` | P3 Reflection | `reflections_artifact` | View insights only |
 | `/documents` | P4 Presentation | `documents`, `substrate_references` | Compose from substrate |
