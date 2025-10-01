@@ -31,6 +31,18 @@ Basket modes ("brains" in the UI) let Yarnnn present different service veneers o
 - Bootstrap is additive: missing fields are ignored, failures are surfaced in logs, and users can always revise anchors later from Memory.
 - Anchor metadata sets `anchor_id`/`anchor_scope` tags only; downstream pipelines continue to govern content normally.
 
+### Anchor Registry
+- Runtime configuration lives in Supabase table `public.basket_anchors`. Each row represents the **contract** for an anchor inside a basket (key, label, scope, expected substrate type, required flag, ordering, metadata) and points to the substrate row that currently fulfils it.
+- Registry rows are metadata only. The source of truth for anchor content remains governed blocks/context items. Registry updates may only touch descriptive metadata (`label`, `description`, `ordering`, `status`); they never write substrate columns directly.
+- Basket mode configs seed the registry: whenever a basket loads its brain config, missing anchor specs are inserted with `scope='core' | 'brain'` and `expected_type` set from the config. Users can create additional `scope='custom'` anchors.
+- Anchor lifecycle is derived from governance state:
+  - `missing`: no substrate linked yet
+  - `draft`: linked substrate exists but is still in proposal/pending state
+  - `approved`: linked substrate is ACTIVE/ACCEPTED and fresh
+  - `stale`: linked substrate approved but past freshness threshold
+  - `archived`: anchor deprecated (registry row marked archived; substrate archived via governance)
+- Registry drives stewardship surfaces (Memory view, deliverable gating, notifications) while respecting Sacred Principle #1: all substrate mutations still flow through the Decision Gateway.
+
 ### Anchor Stewardship Surface
 - `/baskets/[id]/memory` renders mode-aware anchor groups (core + brain) with live status via `GET /api/baskets/{id}/anchors/status`.
 - Editors open inline and persist through `POST /api/baskets/{id}/anchors/save`, which reuses canonical helpers (`reviseBlockCanonical`, `createBlockCanonical`, `createContextItemCanonical`) to mutate substrate without bypassing governance.

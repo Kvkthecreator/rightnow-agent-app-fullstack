@@ -50,7 +50,7 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
     const [blocksResult, dumpsResult, contextItemsResult, relationshipsResult] = await Promise.all([
       supabase
         .from('blocks')
-        .select('id, semantic_type, content, title, body_md, confidence_score, created_at, meta_agent_notes, state, status')
+        .select('id, semantic_type, content, title, body_md, confidence_score, created_at, meta_agent_notes, state, status, metadata')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .in('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']) // Only approved substrate

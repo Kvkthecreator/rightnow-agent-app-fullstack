@@ -1,64 +1,167 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { PenTool, RefreshCw, Sparkles } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { DocumentsList } from '@/components/documents/DocumentsList';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SubpageHeader } from '@/components/basket/SubpageHeader';
 import { DocumentCreateButton } from '@/components/documents/DocumentCreateButton';
-import { PenTool, TrendingUp, Target, Database, FileText, MessageSquare, RefreshCw } from 'lucide-react';
 import AddMemoryModal from '@/components/memory/AddMemoryModal';
 import OnboardingPanel from '@/components/memory/OnboardingPanel';
 import { useReflectionNotifications } from '@/lib/hooks/useReflectionNotifications';
-import { useBasket } from '@/contexts/BasketContext';
 import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
+import { AnchorCard } from '@/components/anchors/AnchorCard';
+import { AnchorCaptureDialog } from '@/components/anchors/AnchorCaptureDialog';
+import { CreateAnchorDialog } from '@/components/anchors/CreateAnchorDialog';
+import type { AnchorStatusSummary } from '@/lib/anchors/types';
 
 interface Props {
   basketId: string;
   needsOnboarding?: boolean;
 }
 
+interface GovernanceDecisionNotice {
+  route: string;
+  reason?: string;
+}
+
 export default function MemoryClient({ basketId, needsOnboarding }: Props) {
+  const router = useRouter();
   const [showAddMemory, setShowAddMemory] = useState(false);
+
+  const [anchors, setAnchors] = useState<AnchorStatusSummary[]>([]);
+  const [anchorsLoading, setAnchorsLoading] = useState(true);
+  const [anchorError, setAnchorError] = useState<string | null>(null);
+  const [anchorSubmitting, setAnchorSubmitting] = useState(false);
+  const [selectedAnchor, setSelectedAnchor] = useState<AnchorStatusSummary | null>(null);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [governanceNotice, setGovernanceNotice] = useState<GovernanceDecisionNotice | null>(null);
+
   const [reflections, setReflections] = useState<ReflectionDTO[]>([]);
   const [reflectionsLoading, setReflectionsLoading] = useState(true);
   const [reflectionsError, setReflectionsError] = useState<string | null>(null);
-  const router = useRouter();
-  
-  // Get basket maturity data for adaptive content
-  const { maturity, maturityGuidance, stats } = useBasket();
-  const refreshDocuments = () => {
-    // Prefer soft refresh to avoid jarring redirects
-    try { router.refresh(); } catch {}
-  };
 
-  // Load reflections from API
-  async function loadReflections() {
+  const loadAnchors = useCallback(async () => {
+    setAnchorsLoading(true);
+    setAnchorError(null);
+    try {
+      const response = await fetchWithToken(`/api/baskets/${basketId}/anchors`);
+      if (!response.ok) {
+        throw new Error('Failed to load anchors');
+      }
+      const data = await response.json();
+      setAnchors(data.anchors ?? []);
+    } catch (error) {
+      console.error('Anchor load failed', error);
+      setAnchorError('Unable to load anchors');
+    } finally {
+      setAnchorsLoading(false);
+    }
+  }, [basketId]);
+
+  const loadReflections = useCallback(async () => {
     try {
       setReflectionsLoading(true);
       setReflectionsError(null);
-      
+
       const url = new URL(`/api/baskets/${basketId}/reflections`, window.location.origin);
-      url.searchParams.set("limit", "5"); // Show recent 5 in memory view
-      
+      url.searchParams.set('limit', '5');
+
       const response = await fetchWithToken(url.toString());
       if (!response.ok) {
-        throw new Error("Failed to load reflections");
+        throw new Error('Failed to load reflections');
       }
 
       const data: GetReflectionsResponse = await response.json();
       setReflections(data.reflections);
     } catch (err) {
-      setReflectionsError(err instanceof Error ? err.message : "Failed to load reflections");
+      setReflectionsError(err instanceof Error ? err.message : 'Failed to load reflections');
     } finally {
       setReflectionsLoading(false);
     }
-  }
+  }, [basketId]);
 
-  // Force refresh reflections (when user clicks refresh)
-  async function refreshReflections() {
+  useEffect(() => {
+    loadAnchors();
+  }, [loadAnchors]);
+
+  useEffect(() => {
+    loadReflections();
+  }, [loadReflections]);
+
+  useReflectionNotifications(basketId);
+
+  const handleCapture = (anchor: AnchorStatusSummary) => {
+    setSelectedAnchor(anchor);
+    setCaptureOpen(true);
+    setGovernanceNotice(null);
+  };
+
+  const handleCaptureSubmit = async (payload: { anchor_id: string; title?: string; content: string }) => {
+    setAnchorSubmitting(true);
+    try {
+      const response = await fetchWithToken(`/api/baskets/${basketId}/anchors/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const { error, details } = await response.json().catch(() => ({}));
+        throw new Error(error || details || 'Failed to save anchor');
+      }
+
+      const data = await response.json();
+      if (data.anchors) {
+        setAnchors(data.anchors);
+      }
+      if (data.decision) {
+        setGovernanceNotice({ route: data.decision.route, reason: data.decision.reason });
+      }
+    } catch (error) {
+      console.error('Anchor capture failed', error);
+      setAnchorError(error instanceof Error ? error.message : 'Failed to save anchor');
+    } finally {
+      setAnchorSubmitting(false);
+    }
+  };
+
+  const handleCreateAnchor = async (payload: { label: string; expected_type: 'block' | 'context_item'; description?: string }) => {
+    setAnchorSubmitting(true);
+    try {
+      const response = await fetchWithToken(`/api/baskets/${basketId}/anchors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const { error, details } = await response.json().catch(() => ({}));
+        throw new Error(error || details || 'Failed to create anchor');
+      }
+
+      const data = await response.json();
+      if (data.anchors) {
+        setAnchors(data.anchors);
+      }
+      setCreateDialogOpen(false);
+    } catch (error) {
+      console.error('Create anchor failed', error);
+      setAnchorError(error instanceof Error ? error.message : 'Failed to create anchor');
+    } finally {
+      setAnchorSubmitting(false);
+    }
+  };
+
+  const refreshDocuments = () => {
+    try { router.refresh(); } catch (error) { console.warn('Refresh failed', error); }
+  };
+
+  const refreshReflections = async () => {
     try {
       await fetchWithToken('/api/reflections/trigger', {
         method: 'POST',
@@ -73,110 +176,32 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
     } catch (err) {
       console.error('Failed to trigger reflection refresh:', err);
     }
-    
-    // Reload reflections after triggering
+
     setTimeout(loadReflections, 1000);
-  }
-
-  // Format computation time for display
-  function formatComputationTime(timestamp: string): string {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
-    if (diffHours < 1) {
-      const diffMinutes = Math.round(diffHours * 60);
-      return `${diffMinutes} minutes ago`;
-    } else if (diffHours < 24) {
-      return `${Math.round(diffHours)} hours ago`;
-    } else {
-      const diffDays = Math.round(diffHours / 24);
-      return `${diffDays} days ago`;
-    }
-  }
-
-  // Human-readable knowledge growth helpers
-  const getGrowthStage = (level: number, phase: string): string => {
-    switch (level) {
-      case 1: return 'Building foundation';
-      case 2: return 'Growing connections';
-      case 3: return 'Rich knowledge base';
-      case 4: return 'Comprehensive understanding';
-      default: return phase;
-    }
   };
 
-  const getKnowledgeDescription = (maturity: any, stats: any): string => {
-    if (!stats) return 'Building your knowledge base';
-    
-    const totalMemories = maturity.substrateDensity || 0;
-    const categories = Object.values(stats).filter(count => (count as number) > 0).length;
-    
-    if (totalMemories === 0) return 'Ready to capture your first thoughts';
-    if (totalMemories < 10) return `${totalMemories} memories captured so far`;
-    if (categories <= 1) return `${totalMemories} memories in ${categories} area`;
-    
-    return `${totalMemories} memories spanning ${categories} different areas`;
-  };
-
-  const getProgressLabel = (level: number): string => {
-    switch (level) {
-      case 1: return 'Building your foundation';
-      case 2: return 'Growing your knowledge';
-      case 3: return 'Enriching connections';
-      default: return 'Expanding understanding';
-    }
-  };
-
-  const getGrowthMessage = (maturity: any): string => {
-    const remaining = maturity.nextLevelAt - maturity.score;
-    const nextStage = getGrowthStage(maturity.level + 1, '');
-    
-    if (remaining <= 5) {
-      return `Almost ready for ${nextStage.toLowerCase()} stage!`;
-    }
-    if (remaining <= 15) {
-      return `Getting closer to ${nextStage.toLowerCase()} stage`;
-    }
-    return `Add ${remaining} more thoughts to reach ${nextStage.toLowerCase()} stage`;
-  };
-
-  const humanizeGuidanceStep = (step: string): string => {
-    return step
-      .replace(/substrate/gi, 'content')
-      .replace(/dump/gi, 'memory')
-      .replace(/context item/gi, 'note')
-      .replace(/building block/gi, 'knowledge piece')
-      .replace(/ontology/gi, 'topic structure')
-      .replace(/vector/gi, 'similarity')
-      .replace(/embedding/gi, 'connection');
-  };
-
-  // Load reflections on mount
-  useEffect(() => {
-    loadReflections();
-  }, [basketId]);
-
-  // Micro-reflection notifications for this basket
-  useReflectionNotifications(basketId);
+  const groupedAnchors = useMemo(() => {
+    const core = anchors.filter((anchor) => anchor.scope === 'core');
+    const brain = anchors.filter((anchor) => anchor.scope === 'brain');
+    const custom = anchors.filter((anchor) => anchor.scope === 'custom');
+    return { core, brain, custom };
+  }, [anchors]);
 
   return (
     <div className="space-y-6">
-      
       <SubpageHeader
-        title="Your Knowledge Base"
+        title="Anchor Stewardship"
         basketId={basketId}
-        description="Add thoughts and build structured knowledge from your experiences"
+        description="Capture and maintain the canonical truths that power graphs, reflections, and deliverables."
         rightContent={
           <div className="flex items-center gap-2">
-            <DocumentCreateButton basketId={basketId} />
             <Button
-              onClick={refreshReflections}
-              variant="ghost"
+              onClick={() => setCreateDialogOpen(true)}
+              variant="outline"
               size="sm"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Refresh Insights
+              <Sparkles className="h-3.5 w-3.5" />
+              New anchor
             </Button>
             <Button
               onClick={() => setShowAddMemory(true)}
@@ -184,212 +209,155 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
               size="sm"
             >
               <PenTool className="h-3.5 w-3.5" />
-              Add Thought
+              Add thought
             </Button>
           </div>
         }
       />
 
       {needsOnboarding && (
-        <OnboardingPanel 
-          basketId={basketId}
-          onComplete={() => window.location.reload()}
-        />
+        <OnboardingPanel basketId={basketId} onComplete={() => window.location.reload()} />
       )}
-      
-      <div className="space-y-6">
-        
-        {/* Your Knowledge Foundation - Substrate Health Dashboard */}
-        {stats && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5 text-blue-600" />
-                Your Knowledge Foundation
-              </CardTitle>
-              <p className="text-sm text-gray-600">
-                Building blocks that power your documents and insights
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Substrate breakdown with visual indicators */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 rounded-lg bg-blue-50 border border-blue-100">
-                    <Database className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                    <div className="text-2xl font-semibold text-gray-900">{stats.blocks_count || 0}</div>
-                    <div className="text-xs text-gray-600">Knowledge Blocks</div>
-                    <div className="text-xs text-gray-500 mt-1">Structured insights</div>
-                  </div>
-                  <div className="text-center p-4 rounded-lg bg-purple-50 border border-purple-100">
-                    <MessageSquare className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                    <div className="text-2xl font-semibold text-gray-900">{stats.context_items_count || 0}</div>
-                    <div className="text-xs text-gray-600">Context Items</div>
-                    <div className="text-xs text-gray-500 mt-1">Semantic connections</div>
-                  </div>
-                  <div className="text-center p-4 rounded-lg bg-green-50 border border-green-100">
-                    <FileText className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                    <div className="text-2xl font-semibold text-gray-900">{stats.raw_dumps_count || 0}</div>
-                    <div className="text-xs text-gray-600">Raw Thoughts</div>
-                    <div className="text-xs text-gray-500 mt-1">Unprocessed ideas</div>
-                  </div>
-                </div>
-                
-                {/* Composition readiness indicator */}
-                {maturity && (
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="text-sm font-medium text-gray-700">Composition Quality Factors</div>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        maturity.level >= 3 ? 'bg-green-100 text-green-700' :
-                        maturity.level === 2 ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-orange-100 text-orange-700'
-                      }`}>
-                        {maturity.level >= 3 ? 'Ready' : maturity.level === 2 ? 'Building' : 'Early Stage'}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Substrate Diversity</span>
-                        <span className={`font-medium ${maturity.varietyBonus ? 'text-green-600' : 'text-gray-500'}`}>
-                          {maturity.varietyBonus ? 'Good' : 'Limited'}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Knowledge Density</span>
-                        <span className="font-medium text-gray-700">{maturity.substrateDensity} pieces</span>
-                      </div>
-                    </div>
-                    {maturity.substrateDensity < 10 && (
-                      <div className="mt-3 text-xs text-gray-500">
-                        Add {10 - maturity.substrateDensity} more thoughts to unlock better document composition
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Documents</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DocumentsList basketId={basketId} />
+
+      {governanceNotice && governanceNotice.route === 'proposal' && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-4 text-sm text-amber-800">
+            Anchor updates queued for governance review. You’ll be notified once the proposal is approved.
           </CardContent>
         </Card>
+      )}
 
+      {anchorError && (
+        <Card className="border-rose-200 bg-rose-50">
+          <CardContent className="p-4 text-sm text-rose-800">
+            {anchorError}
+          </CardContent>
+        </Card>
+      )}
+
+      <section className="space-y-4">
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold text-slate-900">Core anchors</h2>
+          <p className="text-sm text-slate-500">Capture the foundational truths for this basket.</p>
+        </div>
+        {anchorsLoading ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-500">Loading anchors…</div>
+        ) : groupedAnchors.core.length ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {groupedAnchors.core.map((anchor) => (
+              <AnchorCard key={anchor.anchor_key} anchor={anchor} onCapture={handleCapture} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+            Mode is missing core anchors. Check basket configuration.
+          </div>
+        )}
+      </section>
+
+      {groupedAnchors.brain.length > 0 && (
+        <section className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-slate-900">Brain anchors</h2>
+            <p className="text-sm text-slate-500">Mode-specific anchors tailored to this basket’s brain.</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {groupedAnchors.brain.map((anchor) => (
+              <AnchorCard key={anchor.anchor_key} anchor={anchor} onCapture={handleCapture} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="space-y-4">
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold text-slate-900">Custom anchors</h2>
+          <p className="text-sm text-slate-500">Add basket-specific truths or workflows.</p>
+        </div>
+        {groupedAnchors.custom.length ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {groupedAnchors.custom.map((anchor) => (
+              <AnchorCard key={anchor.anchor_key} anchor={anchor} onCapture={handleCapture} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+            No custom anchors yet. Create one to scaffold bespoke workflows.
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-slate-900">Recent activity</h2>
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Emerging Insights
-              <span className="text-sm font-normal text-gray-500">
-                {reflections.length} {reflections.length === 1 ? 'pattern' : 'patterns'}
-              </span>
-            </CardTitle>
-            <p className="text-sm text-gray-600">
-              Patterns and connections discovered in your knowledge base
-            </p>
-          </CardHeader>
-          <CardContent>
-            {reflectionsLoading ? (
-              <div className="space-y-4">
-                <div className="animate-pulse bg-gray-100 h-24 rounded-lg"></div>
-                <div className="animate-pulse bg-gray-100 h-20 rounded-lg"></div>
-                <div className="animate-pulse bg-gray-100 h-28 rounded-lg"></div>
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-slate-600">Documents composed from your canon</p>
+                <p className="text-xs text-slate-500">Keep documents aligned with anchor coverage</p>
               </div>
-            ) : reflectionsError ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 text-red-800 text-sm font-medium mb-2">
-                  <span>⚠️</span>
-                  <span>Failed to load insights</span>
-                </div>
-                <p className="text-red-700 text-sm">{reflectionsError}</p>
-                <button
-                  onClick={loadReflections}
-                  className="mt-2 px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                >
-                  Try Again
-                </button>
-              </div>
-            ) : reflections.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">🤔</span>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Insights Yet</h3>
-                <p className="text-gray-600 text-sm mb-4">
-                  As you add more thoughts to your knowledge base, patterns will emerge.
-                </p>
-                <Button
-                  onClick={refreshReflections}
-                  variant="outline"
-                  size="sm"
-                  className="mx-auto"
-                >
+              <div className="flex items-center gap-2">
+                <DocumentCreateButton basketId={basketId} />
+                <Button onClick={refreshDocuments} variant="outline" size="sm">
                   <RefreshCw className="h-3.5 w-3.5" />
-                  Check for Insights
+                  Refresh
                 </Button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {reflections.slice(0, 3).map((reflection, index) => (
-                  <div key={reflection.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">💡</span>
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-900">
-                            Pattern #{reflections.length - index}
-                          </h4>
-                          <p className="text-xs text-gray-500">
-                            Discovered {formatComputationTime(reflection.computation_timestamp)}
-                          </p>
-                        </div>
-                      </div>
-                      {reflection.meta?.substrate_dump_count && (
-                        <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
-                          From {reflection.meta.substrate_dump_count} knowledge pieces
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="text-gray-700 text-sm leading-relaxed">
-                      {reflection.reflection_text.length > 300 
-                        ? reflection.reflection_text.substring(0, 300) + "..."
-                        : reflection.reflection_text
-                      }
-                    </div>
-                  </div>
-                ))}
-                
-                {reflections.length > 3 && (
-                  <div className="text-center pt-4">
-                    <Button
-                      onClick={() => router.push(`/baskets/${basketId}/reflections`)}
-                      variant="outline"
-                      size="sm"
-                    >
-                      View All {reflections.length} Patterns
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
+            </div>
+            <div className="mt-4">
+              <DocumentsList limit={5} basketId={basketId} />
+            </div>
           </CardContent>
         </Card>
-      </div>
+      </section>
 
-      {/* Modals */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Latest reflections</h2>
+          <Button onClick={refreshReflections} variant="ghost" size="sm">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh insights
+          </Button>
+        </div>
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            {reflectionsLoading && <p className="text-sm text-slate-500">Loading reflections…</p>}
+            {reflectionsError && <p className="text-sm text-rose-600">{reflectionsError}</p>}
+            {!reflectionsLoading && !reflections.length && (
+              <p className="text-sm text-slate-500">No reflections yet. Capture anchors and knowledge to unlock reflections.</p>
+            )}
+            {reflections.map((reflection) => (
+              <div key={reflection.id} className="rounded border border-slate-200 bg-white p-3">
+                <p className="text-sm font-medium text-slate-900">{reflection.title}</p>
+                <p className="text-sm text-slate-600">{reflection.summary}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+
+      <AnchorCaptureDialog
+        open={captureOpen}
+        anchor={selectedAnchor}
+        submitting={anchorSubmitting}
+        onSubmit={handleCaptureSubmit}
+        onClose={() => setCaptureOpen(false)}
+      />
+
+      <CreateAnchorDialog
+        open={createDialogOpen}
+        submitting={anchorSubmitting}
+        onSubmit={handleCreateAnchor}
+        onClose={() => setCreateDialogOpen(false)}
+      />
+
       <AddMemoryModal
         basketId={basketId}
         open={showAddMemory}
-        onClose={() => setShowAddMemory(false)}
-        onSuccess={() => {
+        onOpenChange={setShowAddMemory}
+        onSubmitted={() => {
           setShowAddMemory(false);
-          refreshDocuments();
+          loadAnchors();
         }}
       />
     </div>

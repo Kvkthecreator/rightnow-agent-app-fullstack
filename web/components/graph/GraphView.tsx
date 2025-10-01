@@ -22,6 +22,7 @@ type SubstrateBlock = {
   confidence_score?: number | null;
   status?: string | null;
   state?: string | null;
+  metadata?: Record<string, any> | null;
 };
 
 type SubstrateContextItem = {
@@ -33,6 +34,7 @@ type SubstrateContextItem = {
   semantic_category?: string | null;
   status?: string | null;
   state?: string | null;
+  metadata?: Record<string, any> | null;
 };
 
 type SubstrateRelationship = {

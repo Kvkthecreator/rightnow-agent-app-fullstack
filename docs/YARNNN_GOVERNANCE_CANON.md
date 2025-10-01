@@ -17,6 +17,7 @@ This document consolidates governance architecture, workspace settings policy, a
 - `raw_dumps` - P0 capture (direct only, no proposals per canon)
 - `context_blocks` - CREATE/UPDATE/REVISE/MERGE via proposals
 - `context_items` - CREATE/UPDATE/MERGE via proposals  
+- `basket anchors` - Metadata registry only. Anchor content is always mediated through block/context operations above; registry updates may not bypass governance.
 - `timeline_events` - System events (append-only, controlled)
 
 ### ARTIFACT LAYER (Independent Operations)
@@ -31,6 +32,7 @@ This document consolidates governance architecture, workspace settings policy, a
 ❌ **Document editing through proposals** - User edits are free per canon
 ❌ **Reflection creation through governance** - Reflections are computed artifacts
 ❌ **Universal governance for all operations** - Violates substrate/artifact separation  
+❌ **Anchor CRUD that bypasses Decision Gateway** - Capture/revise/delete must be expressed as block/context operations. Registry metadata may be edited, but substrate mutations route through governance.
 
 ## 🏛️ Governance Architecture
 
