@@ -40,10 +40,10 @@ export default function AuthCallbackPage() {
       // This prevents server-side redirect back to /login
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Get redirect path
+      // Get redirect path - use /dashboard/home which handles basket selection
       const redirectPath = 
         (typeof window !== "undefined" && localStorage.getItem("redirectPath")) || 
-        "/baskets";
+        "/dashboard/home";
       
       if (typeof window !== "undefined") {
         localStorage.removeItem("redirectPath");
