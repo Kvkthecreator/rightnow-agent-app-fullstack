@@ -54,7 +54,8 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .in('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']) // Only approved substrate
-        .limit(100),
+        .order('created_at', { ascending: false })
+        .limit(250),
       
       supabase
         .from('raw_dumps')
@@ -62,21 +63,24 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
         .neq('processing_status', 'redacted')
-        .limit(50),
+        .order('created_at', { ascending: false })
+        .limit(75),
         
       supabase
         .from('context_items')
         .select('id, title, content, semantic_meaning, semantic_category, type, metadata, created_at, state, status')
         .eq('basket_id', basketId)
         .in('state', ['ACTIVE', 'DEPRECATED'])
-        .limit(100),
+        .order('created_at', { ascending: false })
+        .limit(200),
         
       // Canon-aligned relationships table
       supabase
         .from('substrate_relationships')
-        .select('id, basket_id, from_id, to_id, relationship_type, from_type, to_type, strength, description')
+        .select('id, basket_id, from_id, to_id, relationship_type, from_type, to_type, strength, description, created_at')
         .eq('basket_id', basketId)
-        .limit(500)
+        .order('created_at', { ascending: false })
+        .limit(1000)
     ]);
 
     // Check for database errors that might cause notFound()

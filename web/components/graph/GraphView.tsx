@@ -310,10 +310,12 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
       </div>
 
       <Card className="border-slate-200">
-        <CardContent className="flex flex-col gap-6 p-6">
+        <CardContent className="p-0">
           {hasGraphContent ? (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="relative h-[520px] rounded-lg border border-slate-200 bg-white">
+            <div className="p-4 sm:p-6">
+            <div className="grid min-h-[640px] grid-rows-[minmax(0,1fr)_auto] gap-0 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-1">
+              <div className="relative order-1 overflow-hidden rounded-t-lg bg-slate-900/5 lg:order-none lg:rounded-l-lg lg:rounded-tr-none">
+                <div className="h-[520px] w-full sm:h-[560px] lg:h-full">
                 <ForceGraph2D
                   ref={graphRef as any}
                   graphData={graphPayload}
@@ -326,19 +328,32 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
                     const canonNode = node as CanonNode & { x?: number; y?: number };
                     const color = NODE_COLORS[canonNode.type];
                     const radius = Math.max(6, Math.min(14, 6 + canonNode.degree));
+                    const x = canonNode.x ?? 0;
+                    const y = canonNode.y ?? 0;
+
                     ctx.save();
                     ctx.globalAlpha = canonNode.archived ? 0.35 : 1;
                     ctx.beginPath();
-                    ctx.arc(canonNode.x ?? 0, canonNode.y ?? 0, radius, 0, 2 * Math.PI, false);
+                    ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
                     ctx.fillStyle = color;
                     ctx.fill();
 
                     const label = canonNode.label;
                     const fontSize = 12 / globalScale;
+                    const paddingX = 6;
+                    const paddingY = 4;
                     ctx.font = `${fontSize}px var(--font-sans, 'Inter', sans-serif)`;
                     ctx.textBaseline = 'middle';
-                    ctx.fillStyle = canonNode.archived ? 'rgba(30,41,59,0.6)' : '#1e293b';
-                    ctx.fillText(label, (canonNode.x ?? 0) + radius + 4, canonNode.y ?? 0);
+                    const textWidth = ctx.measureText(label).width;
+                    const rectX = x + radius + 6;
+                    const rectY = y - fontSize / 2 - paddingY / 2;
+                    const rectWidth = textWidth + paddingX * 2;
+                    const rectHeight = fontSize + paddingY;
+
+                    ctx.fillStyle = canonNode.archived ? 'rgba(226,232,240,0.8)' : 'rgba(15,23,42,0.85)';
+                    ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+                    ctx.fillStyle = canonNode.archived ? '#334155' : '#f8fafc';
+                    ctx.fillText(label, rectX + paddingX, y);
                     ctx.restore();
                   }}
                   nodePointerAreaPaint={(node, color, ctx) => {
@@ -350,7 +365,7 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
                     ctx.fill();
                   }}
                   linkColor={link => (link as CanonLink).archived ? 'rgba(148,163,184,0.45)' : RELATIONSHIP_COLOR}
-                  linkDirectionalParticles={2}
+                  linkDirectionalParticles={hoveredLinkId ? 2 : 0}
                   linkDirectionalParticleSpeed={link => 0.002 + ((link as CanonLink).strength ?? 0.5) * 0.004}
                   linkWidth={link => {
                     const canonLink = link as CanonLink;
@@ -360,9 +375,19 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
                   onNodeClick={node => setActiveNode(node as CanonNode)}
                   onLinkHover={link => setHoveredLinkId(link ? (link as CanonLink).id : null)}
                 />
+                </div>
+
+                <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-between p-4">
+                  <Badge variant="outline" className="border-slate-200 bg-white/80 text-xs text-slate-600">
+                    {graphPayload.nodes.length} nodes
+                  </Badge>
+                  <Badge variant="outline" className="border-slate-200 bg-white/80 text-xs text-slate-600">
+                    {graphPayload.links.length} connections
+                  </Badge>
+                </div>
               </div>
 
-              <aside className="flex max-h-[520px] flex-col gap-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <aside className="order-2 flex max-h-[520px] flex-col gap-4 overflow-hidden border-t border-slate-100 bg-slate-50/70 p-4 lg:order-none lg:border-t-0 lg:border-l lg:overflow-y-auto">
                 <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-amber-500" />
                   <span className="text-sm font-semibold text-slate-800">Relationship spotlight</span>
@@ -422,8 +447,10 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
                 </div>
               </aside>
             </div>
+            </div>
           ) : relationshipsFilteredOut ? (
-            <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-slate-200 bg-amber-50 p-12 text-center">
+            <div className="p-8 sm:p-12">
+            <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-slate-200 bg-amber-50 p-10 text-center">
               <Network className="h-20 w-20 text-amber-300" />
               <h3 className="text-xl font-semibold text-amber-800">
                 {archivedOnly ? 'Relationships live in archived knowledge' : 'Relationships hidden by filters'}
@@ -434,13 +461,16 @@ export function GraphView({ basketId, basketTitle, graphData }: GraphViewProps) 
                   : 'Connections exist in this basket, but they don’t match the current filters. Enable more node types or reset filters to see the full graph.'}
               </p>
             </div>
+            </div>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-12 text-center">
+            <div className="p-8 sm:p-12">
+            <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
               <Network className="h-20 w-20 text-slate-300" />
               <h3 className="text-xl font-semibold text-slate-800">No relationships yet</h3>
               <p className="max-w-md text-sm text-slate-600">
                 Add a few related thoughts and let the governance workflow approve them. Once approved, the P2 graph agent will automatically map how your knowledge and meanings connect.
               </p>
+            </div>
             </div>
           )}
         </CardContent>
