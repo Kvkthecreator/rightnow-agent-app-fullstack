@@ -90,7 +90,7 @@ export default function AuthCallbackPage() {
 
       // Wait a bit to ensure session is persisted to cookies
       console.log("⏳ Waiting for session to sync...");
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // ✅ Redirect to correct landing page
       let redirectPath = "/baskets";
@@ -102,9 +102,9 @@ export default function AuthCallbackPage() {
         }
       }
       
-      // Use router.replace for cleaner client-side navigation
+      // Use full page redirect to ensure cookies are sent with the request
       console.log("✅ Auth complete! Redirecting to:", redirectPath);
-      router.replace(redirectPath);
+      window.location.href = redirectPath;
     };
 
     run();
