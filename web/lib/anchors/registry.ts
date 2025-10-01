@@ -91,7 +91,7 @@ async function ensureAnchorsFromMode(
       .from('basket_anchors')
       .insert(inserts);
 
-    if (insertError) {
+    if (insertError && insertError.code !== '23505') {
       throw new Error(`Failed to seed anchors for basket ${basketId}: ${insertError.message}`);
     }
   }
