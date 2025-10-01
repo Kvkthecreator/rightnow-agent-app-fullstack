@@ -326,12 +326,21 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
             {!reflectionsLoading && !reflections.length && (
               <p className="text-sm text-slate-500">No reflections yet. Capture anchors and knowledge to unlock reflections.</p>
             )}
-            {reflections.map((reflection) => (
-              <div key={reflection.id} className="rounded border border-slate-200 bg-white p-3">
-                <p className="text-sm font-medium text-slate-900">{reflection.title}</p>
-                <p className="text-sm text-slate-600">{reflection.summary}</p>
-              </div>
-            ))}
+            {reflections.map((reflection) => {
+              const text = reflection.reflection_text;
+              const preview = text.length > 220 ? `${text.slice(0, 217)}…` : text;
+              const contextLabel = reflection.reflection_target_type === 'document'
+                ? 'Document insight'
+                : reflection.reflection_target_type === 'substrate'
+                  ? 'Substrate insight'
+                  : 'Legacy insight';
+              return (
+                <div key={reflection.id} className="rounded border border-slate-200 bg-white p-3 space-y-1">
+                  <p className="text-xs uppercase tracking-wide text-slate-400">{contextLabel}</p>
+                  <p className="text-sm text-slate-600">{preview}</p>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       </section>
@@ -354,10 +363,10 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
       <AddMemoryModal
         basketId={basketId}
         open={showAddMemory}
-        onOpenChange={setShowAddMemory}
-        onSubmitted={() => {
-          setShowAddMemory(false);
+        onClose={() => setShowAddMemory(false)}
+        onSuccess={() => {
           loadAnchors();
+          loadReflections();
         }}
       />
     </div>

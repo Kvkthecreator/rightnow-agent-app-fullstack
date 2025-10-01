@@ -136,6 +136,7 @@ function AnchorSummaryGroup({
   loading: boolean;
   error?: unknown;
 }) {
+  const errorMessage = error instanceof Error ? error.message : null;
   return (
     <div className="rounded-lg border border-slate-200 bg-white/80 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -145,7 +146,7 @@ function AnchorSummaryGroup({
         </div>
         {loading && <span className="text-xs text-slate-400">Loading…</span>}
       </div>
-      {error && (
+      {errorMessage && (
         <p className="mt-3 rounded bg-rose-50 px-3 py-2 text-xs text-rose-600">Failed to load anchor status. Please retry.</p>
       )}
       <ul className="mt-4 space-y-3">

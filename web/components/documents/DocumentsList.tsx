@@ -8,9 +8,10 @@ import type { DocumentDTO } from '@/shared/contracts/documents';
 
 interface DocumentsListProps {
   basketId: string;
+  limit?: number;
 }
 
-export function DocumentsList({ basketId }: DocumentsListProps) {
+export function DocumentsList({ basketId, limit }: DocumentsListProps) {
   const [documents, setDocuments] = useState<DocumentDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,8 @@ export function DocumentsList({ basketId }: DocumentsListProps) {
         }
         
         const data = await response.json();
-        setDocuments(data.documents || []);
+        const docs = data.documents || [];
+        setDocuments(typeof limit === 'number' ? docs.slice(0, limit) : docs);
       } catch (err) {
         console.error('Error fetching documents:', err);
         setError(err instanceof Error ? err.message : 'Failed to load documents');

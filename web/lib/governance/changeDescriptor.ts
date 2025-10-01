@@ -60,6 +60,8 @@ export interface CreateBlockOp {
     canonical_value?: string;
     confidence?: number;
     scope?: 'LOCAL' | 'WORKSPACE' | 'GLOBAL';
+    title?: string;
+    metadata?: Record<string, any>;
   };
 }
 
@@ -71,6 +73,9 @@ export interface ReviseBlockOp {
     canonical_value?: string;
     confidence?: number;
     revision_reason?: string;
+    title?: string;
+    metadata?: Record<string, any>;
+    semantic_type?: string;
   };
 }
 
@@ -83,6 +88,7 @@ export interface CreateContextItemOp {
     synonyms?: string[];
     kind?: 'concept' | 'entity' | 'topic' | 'theme';
     confidence?: number;
+    metadata?: Record<string, any>;
   };
 }
 
