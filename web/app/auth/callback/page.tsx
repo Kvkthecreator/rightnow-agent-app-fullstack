@@ -18,8 +18,14 @@ export default function AuthCallbackPage() {
       const url = typeof window !== "undefined" ? new URL(window.location.href) : null;
       const code = url?.searchParams.get("code");
       const errorDescription = url?.searchParams.get("error_description");
+      
+      // Check for hash-based tokens (implicit flow)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
 
       console.log("🔍 Code present:", !!code);
+      console.log("🔍 Access token present:", !!accessToken);
       console.log("🔍 Error description:", errorDescription || "none");
 
       if (errorDescription) {
@@ -29,6 +35,7 @@ export default function AuthCallbackPage() {
       }
 
       try {
+        // Handle PKCE flow (code in query params)
         if (code) {
           console.log("🔄 Exchanging code for session...");
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(
@@ -41,8 +48,22 @@ export default function AuthCallbackPage() {
           }
           console.log("✅ Code exchange successful");
         }
+        // Handle implicit flow (tokens in hash)
+        else if (accessToken && refreshToken) {
+          console.log("🔄 Setting session from hash tokens (implicit flow)...");
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (sessionError) {
+            console.error("❌ Failed to set session from tokens:", sessionError);
+            router.replace("/login");
+            return;
+          }
+          console.log("✅ Session set from tokens");
+        }
       } catch (exchangeErr) {
-        console.error("❌ Unexpected error exchanging code:", exchangeErr);
+        console.error("❌ Unexpected error during auth:", exchangeErr);
         router.replace("/login");
         return;
       }
@@ -66,6 +87,10 @@ export default function AuthCallbackPage() {
         return;
       }
       console.log("✅ User verified:", user.email);
+
+      // Wait a bit to ensure session is persisted to cookies
+      console.log("⏳ Waiting for session to sync...");
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // ✅ Redirect to correct landing page
       let redirectPath = "/baskets";
