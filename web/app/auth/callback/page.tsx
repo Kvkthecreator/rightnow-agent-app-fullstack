@@ -36,6 +36,10 @@ export default function AuthCallbackPage() {
 
       console.log("✅ User authenticated:", user.email);
 
+      // Small delay to ensure Supabase has written session cookies
+      // This prevents server-side redirect back to /login
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       // Get redirect path
       const redirectPath = 
         (typeof window !== "undefined" && localStorage.getItem("redirectPath")) || 
