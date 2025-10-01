@@ -13,9 +13,14 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const run = async () => {
+      console.log("🔍 OAuth callback started, full URL:", window.location.href);
+      
       const url = typeof window !== "undefined" ? new URL(window.location.href) : null;
       const code = url?.searchParams.get("code");
       const errorDescription = url?.searchParams.get("error_description");
+
+      console.log("🔍 Code present:", !!code);
+      console.log("🔍 Error description:", errorDescription || "none");
 
       if (errorDescription) {
         console.error("❌ OAuth provider returned error:", errorDescription);
@@ -25,6 +30,7 @@ export default function AuthCallbackPage() {
 
       try {
         if (code) {
+          console.log("🔄 Exchanging code for session...");
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(
             window.location.href,
           );
@@ -33,6 +39,7 @@ export default function AuthCallbackPage() {
             router.replace("/login");
             return;
           }
+          console.log("✅ Code exchange successful");
         }
       } catch (exchangeErr) {
         console.error("❌ Unexpected error exchanging code:", exchangeErr);
@@ -40,14 +47,17 @@ export default function AuthCallbackPage() {
         return;
       }
 
+      console.log("🔍 Getting session...");
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !session) {
         console.error("❌ Session error after callback:", sessionError);
         router.replace("/login");
         return;
       }
+      console.log("✅ Session obtained:", session.user.email);
 
       // Then verify user
+      console.log("🔍 Verifying user...");
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError || !user) {
@@ -55,6 +65,7 @@ export default function AuthCallbackPage() {
         router.replace("/login");
         return;
       }
+      console.log("✅ User verified:", user.email);
 
       // ✅ Redirect to correct landing page
       let redirectPath = "/baskets";
@@ -67,7 +78,7 @@ export default function AuthCallbackPage() {
       }
       
       // Use router.replace for cleaner client-side navigation
-      console.log("✅ Auth successful, redirecting to:", redirectPath);
+      console.log("✅ Auth complete! Redirecting to:", redirectPath);
       router.replace(redirectPath);
     };
 
