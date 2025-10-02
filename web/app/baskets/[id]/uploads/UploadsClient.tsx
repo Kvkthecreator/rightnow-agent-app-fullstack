@@ -293,7 +293,7 @@ export default function UploadsClient({ basketId }: UploadsClientProps) {
       {selectedCapture && (
         <SubstrateDetailModal
           open
-          onOpenChange={(open) => { if (!open) setSelected(null); }}
+          onClose={() => setSelected(null)}
           type="raw_dump"
           substrateId={selectedCapture.dump.id}
           basketId={basketId}

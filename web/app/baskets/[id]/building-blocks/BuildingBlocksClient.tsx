@@ -697,7 +697,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
       {selected && (
         <SubstrateDetailModal
           open
-          onOpenChange={(open) => { if (!open) setSelected(null); }}
+          onClose={() => setSelected(null)}
           type={selected.type}
           substrateId={selected.id}
           basketId={basketId}
