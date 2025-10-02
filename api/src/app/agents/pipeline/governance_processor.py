@@ -198,6 +198,27 @@ class GovernanceDumpProcessor:
                 "agent_id": "canonical_governance_processor"
             })
             substrate_result = _sanitize_for_json(substrate_result)
+
+            # Log extraction quality metrics for monitoring
+            blocks_created = len(substrate_result.get("block_ingredients", []))
+            context_items_created = len(substrate_result.get("context_item_ingredients", []))
+            avg_confidence = substrate_result.get("agent_confidence", 0.0)
+            processing_time = substrate_result.get("processing_time_ms", 0)
+
+            try:
+                await self._log_extraction_metrics(
+                    dump_id=dump_id,
+                    basket_id=basket_id,
+                    workspace_id=workspace_id,
+                    agent_version="improved_p1_v2_context_aware",
+                    extraction_method=substrate_result.get("extraction_method", "focused_extraction"),
+                    blocks_created=blocks_created,
+                    context_items_created=context_items_created,
+                    avg_confidence=avg_confidence,
+                    processing_time_ms=processing_time
+                )
+            except Exception as metrics_error:
+                self.logger.warning(f"Failed to log extraction metrics: {metrics_error}")
             
             # Prefer non-persisted ingredients in strict mode; fall back to persisted blocks
             blocks_source = substrate_result.get("block_ingredients") or substrate_result.get("blocks_created", [])
@@ -1002,14 +1023,46 @@ class GovernanceDumpProcessor:
             self.logger.error(f"Failed to execute proposal operations: {e}")
             raise
     
+    async def _log_extraction_metrics(
+        self,
+        dump_id: UUID,
+        basket_id: UUID,
+        workspace_id: UUID,
+        agent_version: str,
+        extraction_method: str,
+        blocks_created: int,
+        context_items_created: int,
+        avg_confidence: float,
+        processing_time_ms: int
+    ):
+        """Log extraction quality metrics for continuous monitoring"""
+        try:
+            result = supabase.rpc(
+                'log_extraction_metrics',
+                {
+                    'p_dump_id': str(dump_id),
+                    'p_basket_id': str(basket_id),
+                    'p_workspace_id': str(workspace_id),
+                    'p_agent_version': agent_version,
+                    'p_extraction_method': extraction_method,
+                    'p_blocks_created': blocks_created,
+                    'p_context_items_created': context_items_created,
+                    'p_avg_confidence': avg_confidence,
+                    'p_processing_time_ms': processing_time_ms
+                }
+            ).execute()
+            self.logger.info(f"Logged extraction metrics for dump {dump_id}")
+        except Exception as e:
+            self.logger.warning(f"Failed to log extraction metrics: {e}")
+
     def get_agent_info(self) -> Dict[str, str]:
         """Get processor information."""
         return {
-            "name": "GovernanceDumpProcessorV2",
-            "pipeline": "P1_GOVERNANCE_V2",
+            "name": "GovernanceDumpProcessorV2_ContextAware",
+            "pipeline": "P1_GOVERNANCE_V2_CONTEXT_AWARE",
             "type": "governance_processor",
             "status": "active",
             "substrate_agent": self.p1_agent.agent_name,
-            "extraction_method": "structured_knowledge_ingredients",
-            "version": "2.0_data_ingredients"
+            "extraction_method": "context_aware_structured_ingredients",
+            "version": "2.1_context_aware"
         }
