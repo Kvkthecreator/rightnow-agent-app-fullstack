@@ -8,13 +8,23 @@ import { basketModeConfigSchema } from './schema';
 const TABLE = 'basket_mode_configs';
 
 export async function loadBasketModeConfigs(): Promise<Record<BasketModeId, BasketModeConfig>> {
-  const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select('mode_id, config');
+  let data: any[] | null = null;
 
-  if (error) {
-    console.error('[basket-modes] Failed to fetch configs from Supabase:', error.message);
+  try {
+    const supabase = createServiceRoleClient();
+    const { data: fetchedData, error } = await supabase
+      .from(TABLE)
+      .select('mode_id, config');
+
+    if (error) {
+      console.error('[basket-modes] Failed to fetch configs from Supabase:', error.message);
+      return DEFAULT_MODE_CONFIGS;
+    }
+
+    data = fetchedData;
+  } catch (clientError) {
+    console.error('[basket-modes] Failed to create service role client:', clientError);
+    console.warn('[basket-modes] Falling back to default mode configs');
     return DEFAULT_MODE_CONFIGS;
   }
 

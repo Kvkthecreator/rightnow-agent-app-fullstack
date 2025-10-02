@@ -39,7 +39,12 @@ export async function GET(
     return NextResponse.json({ anchors });
   } catch (error) {
     console.error('[anchors] list failed', error);
-    return NextResponse.json({ error: 'failed_to_load_anchors' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[anchors] error details:', errorMessage);
+    return NextResponse.json({
+      error: 'failed_to_load_anchors',
+      details: errorMessage
+    }, { status: 500 });
   }
 }
 
