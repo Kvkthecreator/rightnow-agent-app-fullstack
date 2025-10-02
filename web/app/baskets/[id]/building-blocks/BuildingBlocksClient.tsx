@@ -1,41 +1,60 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useMemo, useState } from 'react';
+import useSWR from 'swr';
+import Link from 'next/link';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import {
+  Anchor,
+  Blocks,
+  Brain,
   Clock,
-  Database,
   FileText,
-  Layers,
-  MessageSquare,
-  Plus,
+  Filter,
   RefreshCw,
   Search,
-  Sparkles,
-  Eye,
+  Star,
+  TrendingUp,
+  AlertTriangle,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import CreateBlockModal from '@/components/building-blocks/CreateBlockModal';
-import CreateContextItemModal from '@/components/building-blocks/CreateContextItemModal';
 import SubstrateDetailModal from '@/components/substrate/SubstrateDetailModal';
-import AddMemoryModal from '@/components/memory/AddMemoryModal';
+import type { AnchorStatusSummary } from '@/lib/anchors/types';
 
-interface DerivedBlock {
+/**
+ * Building Blocks Client - Substrate Management UI
+ *
+ * Canon v2.1 compliant with context-aware quality metrics:
+ * - Anchored vs Free blocks separation
+ * - Usefulness scoring (usage tracking)
+ * - Staleness detection (temporal awareness)
+ * - Confidence-based quality indicators
+ *
+ * NOTE: Raw dumps are NOT shown here - they belong in /uploads page
+ */
+
+interface BlockWithMetrics {
   id: string;
   title: string | null;
+  content: string | null;
   semantic_type: string | null;
   confidence_score: number | null;
   created_at: string;
   updated_at?: string | null;
-  state?: string | null;
+  status: string | null;
   metadata?: Record<string, any> | null;
+
+  // Context-aware quality metrics
+  usefulness_score: number;
+  times_referenced: number;
+  staleness_days: number | null;
+  last_validated_at: string | null;
 }
 
-interface DerivedContextItem {
+interface ContextItemWithMetrics {
   id: string;
   title: string | null;
   semantic_category: string | null;
@@ -44,545 +63,646 @@ interface DerivedContextItem {
   metadata?: Record<string, any> | null;
 }
 
-interface WorkItemSummary {
-  work_id: string;
-  work_type: string;
-  status: string | null;
-  created_at: string;
-}
-
-interface CaptureSummary {
-  dump: {
-    id: string;
-    body_md: string | null;
-    file_url: string | null;
-    processing_status: string | null;
-    created_at: string;
-    source_meta: Record<string, any> | null;
-  };
-  derived_blocks: DerivedBlock[];
-  derived_context_items: DerivedContextItem[];
-  work_items: WorkItemSummary[];
-}
-
 interface BuildingBlocksResponse {
-  captures: CaptureSummary[];
+  blocks: BlockWithMetrics[];
+  context_items: ContextItemWithMetrics[];
   stats: {
-    captures: number;
-    dumps: number;
-    blocks: number;
-    context_items: number;
-  };
-  orphans: {
-    blocks: DerivedBlock[];
-    context_items: DerivedContextItem[];
+    total_blocks: number;
+    total_context_items: number;
+    anchored_blocks: number;
+    stale_blocks: number;
+    unused_blocks: number;
   };
 }
+
+const fetcher = (url: string) => fetchWithToken(url).then((res) => {
+  if (!res.ok) throw new Error('Failed to load knowledge base');
+  return res.json();
+});
+
+function formatTimestamp(value: string | null | undefined) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return date.toLocaleString();
+}
+
+function confidenceBadge(score: number | null | undefined) {
+  if (typeof score !== 'number') return null;
+  if (score >= 0.85) return { label: 'High', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+  if (score >= 0.7) return { label: 'Medium', className: 'bg-amber-50 text-amber-700 border-amber-200' };
+  return { label: 'Review', className: 'bg-rose-50 text-rose-700 border-rose-200' };
+}
+
+function usefulnessBadge(score: number) {
+  if (score >= 0.9) return { label: 'Highly useful', className: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: Star };
+  if (score >= 0.5) return { label: 'Useful', className: 'bg-blue-50 text-blue-700 border-blue-200', icon: TrendingUp };
+  return { label: 'Unused', className: 'bg-slate-50 text-slate-600 border-slate-200', icon: Clock };
+}
+
+type FilterMode = 'all' | 'anchored' | 'free' | 'stale' | 'unused' | 'context_items';
+type SortMode = 'usefulness' | 'recency' | 'confidence' | 'staleness';
 
 interface BuildingBlocksClientProps {
   basketId: string;
 }
 
-const WORK_TYPE_LABELS: Record<string, string> = {
-  P0_CAPTURE: 'Capture',
-  P1_SUBSTRATE: 'Interpretation',
-  P2_GRAPH: 'Graph Mapping',
-  P3_REFLECTION: 'Insight Composition',
-};
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleString();
-}
-
-function formatRelativeDays(value: string) {
-  const diff = new Date(value).getTime() - Date.now();
-  const days = Math.round(diff / (1000 * 60 * 60 * 24));
-  const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-  return formatter.format(days, 'day');
-}
-
-function confidenceLabel(score: number | null | undefined) {
-  if (typeof score !== 'number') return null;
-  if (score >= 0.85) return 'High confidence';
-  if (score >= 0.7) return 'Medium confidence';
-  return 'Low confidence';
-}
-
-function statusBadge(status: string | null) {
-  if (!status) return { label: 'pending', className: 'bg-slate-100 text-slate-600' };
-  const normalized = status.toLowerCase();
-  if (['processing', 'claimed', 'cascading'].includes(normalized)) {
-    return { label: 'in-progress', className: 'bg-blue-100 text-blue-700' };
-  }
-  if (['completed', 'success'].includes(normalized)) {
-    return { label: 'completed', className: 'bg-green-100 text-green-700' };
-  }
-  if (['failed', 'error'].includes(normalized)) {
-    return { label: 'failed', className: 'bg-red-100 text-red-700' };
-  }
-  return { label: normalized, className: 'bg-slate-100 text-slate-600' };
-}
-
-function workTypeLabel(type: string) {
-  return WORK_TYPE_LABELS[type] ?? type.replace(/_/g, ' ');
-}
-
 export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientProps) {
-  const [data, setData] = useState<BuildingBlocksResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showCreateBlock, setShowCreateBlock] = useState(false);
-  const [showCreateContextItem, setShowCreateContextItem] = useState(false);
-  const [showAddMemory, setShowAddMemory] = useState(false);
-  const [selectedSubstrate, setSelectedSubstrate] = useState<{
-    type: 'raw_dump' | 'block' | 'context_item' | 'relationship' | 'timeline_event';
-    id: string;
-  } | null>(null);
+  const { data, error, isLoading, mutate } = useSWR<BuildingBlocksResponse>(
+    `/api/baskets/${basketId}/building-blocks`,
+    fetcher,
+    { refreshInterval: 60_000 },
+  );
 
-  const searchParams = useSearchParams();
+  const { data: anchorsData } = useSWR<{ anchors: AnchorStatusSummary[] }>(
+    `/api/baskets/${basketId}/anchors`,
+    fetcher,
+  );
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await fetchWithToken(`/api/baskets/${basketId}/building-blocks`);
-      if (!response.ok) {
-        throw new Error('Failed to load knowledge base');
+  const [query, setQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('usefulness');
+  const [selected, setSelected] = useState<{ id: string; type: 'block' | 'context_item' } | null>(null);
+
+  // Build anchor map for quick lookup
+  const anchorMap = useMemo(() => {
+    const map = new Map<string, AnchorStatusSummary>();
+    (anchorsData?.anchors ?? []).forEach((anchor) => {
+      if (anchor.linked_substrate?.id) {
+        map.set(anchor.linked_substrate.id, anchor);
       }
-      const payload: BuildingBlocksResponse = await response.json();
-      setData(payload);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load knowledge base');
-    } finally {
-      setLoading(false);
-    }
-  }, [basketId]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  useEffect(() => {
-    if (!data) return;
-    const highlightId = searchParams.get('highlight');
-    const highlightType = searchParams.get('type');
-    if (!highlightId || !highlightType) return;
-
-    if (highlightType === 'dump' || highlightType === 'raw_dump') {
-      if (data.captures.some(capture => capture.dump.id === highlightId)) {
-        setSelectedSubstrate({ type: 'raw_dump', id: highlightId });
-      }
-      return;
-    }
-
-    if (highlightType === 'block') {
-      const capture = data.captures.find(c => c.derived_blocks.some(block => block.id === highlightId));
-      if (capture) {
-        setSelectedSubstrate({ type: 'block', id: highlightId });
-      }
-      return;
-    }
-
-    if (highlightType === 'context_item') {
-      const capture = data.captures.find(c => c.derived_context_items.some(item => item.id === highlightId));
-      if (capture) {
-        setSelectedSubstrate({ type: 'context_item', id: highlightId });
-      }
-    }
-  }, [data, searchParams]);
-
-  const filteredCaptures = useMemo(() => {
-    if (!data) return [] as CaptureSummary[];
-    if (!searchQuery.trim()) return data.captures;
-
-    const query = searchQuery.toLowerCase();
-    return data.captures.filter(capture => {
-      const dumpMatch = (capture.dump.body_md || '').toLowerCase().includes(query);
-      const blockMatch = capture.derived_blocks.some(block =>
-        (block.title || '').toLowerCase().includes(query) ||
-        (block.semantic_type || '').toLowerCase().includes(query)
-      );
-      const contextMatch = capture.derived_context_items.some(item =>
-        (item.title || '').toLowerCase().includes(query) ||
-        (item.semantic_meaning || '').toLowerCase().includes(query)
-      );
-      return dumpMatch || blockMatch || contextMatch;
     });
-  }, [data, searchQuery]);
+    return map;
+  }, [anchorsData?.anchors]);
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-24 animate-pulse rounded-lg bg-slate-100" />
-        <div className="h-40 animate-pulse rounded-lg bg-slate-100" />
-        <div className="h-40 animate-pulse rounded-lg bg-slate-100" />
-      </div>
-    );
-  }
+  // Filter and sort blocks
+  const processedBlocks = useMemo(() => {
+    if (!data?.blocks) return [];
 
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-6">
-        <h3 className="text-sm font-semibold text-red-700">Unable to load knowledge base</h3>
-        <p className="mt-2 text-sm text-red-600">{error}</p>
-        <Button variant="outline" size="sm" className="mt-4" onClick={loadData}>
-          Try again
-        </Button>
-      </div>
-    );
-  }
+    let filtered = data.blocks;
 
-  if (!data || data.captures.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="rounded-lg border border-slate-200 bg-white p-10 text-center space-y-4">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-            <Layers className="h-8 w-8" />
-          </div>
-          <h3 className="text-lg font-semibold text-slate-900">Let’s capture your first thought</h3>
-          <p className="text-sm text-slate-600">
-            Add a thought, upload a file, or paste research. YARNNN will ingest each capture and turn it into structured knowledge you can reuse.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button onClick={() => setShowAddMemory(true)}>
-              <FileText className="mr-2 h-4 w-4" />
-              Capture a Thought
-            </Button>
-            <Button variant="outline" onClick={() => setShowCreateBlock(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Block
-            </Button>
-          </div>
-        </div>
-        <AddMemoryModal
-          basketId={basketId}
-          open={showAddMemory}
-          onClose={() => setShowAddMemory(false)}
-          onSuccess={loadData}
-        />
-        <CreateBlockModal
-          basketId={basketId}
-          open={showCreateBlock}
-          onClose={() => setShowCreateBlock(false)}
-          onSuccess={loadData}
-        />
-        <CreateContextItemModal
-          basketId={basketId}
-          open={showCreateContextItem}
-          onClose={() => setShowCreateContextItem(false)}
-          onSuccess={loadData}
-        />
-      </div>
-    );
-  }
+    // Apply filter mode
+    if (filterMode === 'anchored') {
+      filtered = filtered.filter(b => anchorMap.has(b.id));
+    } else if (filterMode === 'free') {
+      filtered = filtered.filter(b => !anchorMap.has(b.id));
+    } else if (filterMode === 'stale') {
+      filtered = filtered.filter(b => b.staleness_days !== null && b.staleness_days > 30);
+    } else if (filterMode === 'unused') {
+      filtered = filtered.filter(b => b.times_referenced === 0);
+    }
+
+    // Apply search query
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      filtered = filtered.filter((block) => {
+        const title = block.title?.toLowerCase() ?? '';
+        const semantic = block.semantic_type?.toLowerCase() ?? '';
+        const content = block.content?.toLowerCase() ?? '';
+        return title.includes(q) || semantic.includes(q) || content.includes(q);
+      });
+    }
+
+    // Apply sort
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortMode) {
+        case 'usefulness':
+          return b.usefulness_score - a.usefulness_score;
+        case 'recency':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'confidence':
+          return (b.confidence_score ?? 0) - (a.confidence_score ?? 0);
+        case 'staleness':
+          return (b.staleness_days ?? 0) - (a.staleness_days ?? 0);
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [data?.blocks, anchorMap, filterMode, query, sortMode]);
+
+  // Split into anchored and free for default view
+  const anchoredBlocks = processedBlocks.filter(b => anchorMap.has(b.id));
+  const freeBlocks = processedBlocks.filter(b => !anchorMap.has(b.id));
+
+  // Filter context items
+  const filteredContextItems = useMemo(() => {
+    if (!data?.context_items) return [];
+    if (!query.trim()) return data.context_items;
+
+    const q = query.toLowerCase();
+    return data.context_items.filter((item) => {
+      const title = item.title?.toLowerCase() ?? '';
+      const meaning = item.semantic_meaning?.toLowerCase() ?? '';
+      return title.includes(q) || meaning.includes(q);
+    });
+  }, [data?.context_items, query]);
+
+  // Calculate stats including anchored count
+  const stats = useMemo(() => {
+    if (!data) return null;
+    return {
+      ...data.stats,
+      anchored_blocks: anchorMap.size,
+    };
+  }, [data, anchorMap.size]);
+
+  const selectedAnchor = selected ? anchorMap.get(selected.id) : undefined;
 
   return (
-    <>
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Header Card */}
+      <Card>
+        <CardHeader className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-semibold text-slate-900">Knowledge Base Timeline</h2>
-            <p className="text-sm text-slate-600">
-              Track each capture from raw input to structured knowledge. See how YARNNN interprets your thoughts into blocks, meanings, and downstream work.
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Blocks className="h-5 w-5 text-indigo-600" />
+              Building Blocks
+            </CardTitle>
+            <p className="text-sm text-slate-500 mt-1">
+              Manage extracted knowledge. Anchor important blocks to lock them in place.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={loadData}>
-              <RefreshCw className="mr-2 h-4 w-4" />
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => mutate()}>
+              <RefreshCw className="h-3.5 w-3.5" />
               Refresh
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowCreateContextItem(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Context Item
+            <Link
+              href={`/baskets/${basketId}/uploads`}
+              className="text-sm text-slate-600 hover:text-indigo-600 flex items-center gap-1"
+            >
+              <FileText className="h-4 w-4" />
+              View Uploads
+            </Link>
+          </div>
+        </CardHeader>
+
+        {/* Stats Bar */}
+        <CardContent className="flex flex-wrap gap-3 border-t border-slate-100">
+          <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+            {stats?.total_blocks ?? 0} total blocks
+          </Badge>
+          <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">
+            <Anchor className="h-3 w-3 mr-1" />
+            {stats?.anchored_blocks ?? 0} anchored
+          </Badge>
+          <Badge variant="secondary" className="bg-amber-50 text-amber-700">
+            <Clock className="h-3 w-3 mr-1" />
+            {stats?.stale_blocks ?? 0} stale
+          </Badge>
+          <Badge variant="secondary" className="bg-slate-50 text-slate-600">
+            {stats?.unused_blocks ?? 0} unused
+          </Badge>
+          <Badge variant="secondary" className="bg-purple-50 text-purple-700">
+            <Brain className="h-3 w-3 mr-1" />
+            {stats?.total_context_items ?? 0} entities
+          </Badge>
+        </CardContent>
+      </Card>
+
+      {/* Filter & Search Card */}
+      <Card>
+        <CardContent className="space-y-4">
+          {/* Filter Tabs */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={filterMode === 'all' ? 'default' : 'outline'}
+              onClick={() => setFilterMode('all')}
+            >
+              All Blocks
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowCreateBlock(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Block
+            <Button
+              size="sm"
+              variant={filterMode === 'anchored' ? 'default' : 'outline'}
+              onClick={() => setFilterMode('anchored')}
+            >
+              <Anchor className="h-3 w-3 mr-1" />
+              Anchored
             </Button>
-            <Button onClick={() => setShowAddMemory(true)}>
-              <FileText className="mr-2 h-4 w-4" />
-              Add Thought
+            <Button
+              size="sm"
+              variant={filterMode === 'free' ? 'default' : 'outline'}
+              onClick={() => setFilterMode('free')}
+            >
+              Free Blocks
+            </Button>
+            <Button
+              size="sm"
+              variant={filterMode === 'stale' ? 'default' : 'outline'}
+              onClick={() => setFilterMode('stale')}
+            >
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Stale
+            </Button>
+            <Button
+              size="sm"
+              variant={filterMode === 'unused' ? 'default' : 'outline'}
+              onClick={() => setFilterMode('unused')}
+            >
+              Unused
+            </Button>
+            <Button
+              size="sm"
+              variant={filterMode === 'context_items' ? 'default' : 'outline'}
+              onClick={() => setFilterMode('context_items')}
+            >
+              <Brain className="h-3 w-3 mr-1" />
+              Entities
             </Button>
           </div>
-        </div>
 
-        <Card className="border border-slate-200">
-          <CardContent className="flex flex-wrap gap-6 py-5">
-            <div>
-              <p className="text-xs uppercase text-slate-500">Captures</p>
-              <p className="text-2xl font-semibold text-slate-900">{data.stats.captures}</p>
+          {/* Search & Sort */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="pl-9"
+                placeholder="Search blocks, entities, or content..."
+              />
             </div>
-            <div>
-              <p className="text-xs uppercase text-slate-500">Structured blocks</p>
-              <p className="text-2xl font-semibold text-slate-900">{data.stats.blocks}</p>
+
+            {filterMode !== 'context_items' && (
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-slate-400" />
+                <select
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value as SortMode)}
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="usefulness">Sort by Usefulness</option>
+                  <option value="recency">Sort by Recency</option>
+                  <option value="confidence">Sort by Confidence</option>
+                  <option value="staleness">Sort by Staleness</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          {isLoading && (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-sm text-slate-500">
+              Loading building blocks…
             </div>
-            <div>
-              <p className="text-xs uppercase text-slate-500">Semantic meanings</p>
-              <p className="text-2xl font-semibold text-slate-900">{data.stats.context_items}</p>
+          )}
+
+          {error && (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+              {error instanceof Error ? error.message : String(error)}
             </div>
-          </CardContent>
-        </Card>
+          )}
 
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search captures, blocks, or context"
-            className="w-full rounded-lg border border-slate-200 py-2 pl-10 pr-3 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
-
-        <div className="space-y-6">
-          {filteredCaptures.map(capture => {
-            const { dump, derived_blocks, derived_context_items, work_items } = capture;
-            const hasOutputs = derived_blocks.length > 0 || derived_context_items.length > 0;
-            const processingStatus = dump.processing_status?.toLowerCase();
-
-            return (
-              <Card key={dump.id} className={cn('border border-slate-200', !hasOutputs && 'border-amber-200 bg-amber-50/40')}>
-                <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <FileText className="h-4 w-4 text-blue-500" />
-                      <CardTitle className="text-base font-semibold text-slate-900">
-                        Capture from {formatDate(dump.created_at)}
-                      </CardTitle>
-                      {dump.file_url && (
-                        <Badge variant="secondary" className="bg-slate-100 text-slate-600">
-                          File
-                        </Badge>
-                      )}
-                      {processingStatus && (
-                        <Badge variant="secondary" className="bg-blue-50 text-blue-700 capitalize">
-                          {processingStatus}
-                        </Badge>
-                      )}
-                      {hasOutputs ? (
-                        <Badge variant="secondary" className="bg-green-50 text-green-700">
-                          Structured
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="bg-slate-100 text-slate-600">
-                          Pending interpretation
-                        </Badge>
-                      )}
-                    </div>
-                    {dump.source_meta?.ingest_trace_id && (
-                      <p className="text-xs text-slate-500">Trace ID: {dump.source_meta.ingest_trace_id}</p>
-                    )}
-                  </div>
+          {/* Content based on filter mode */}
+          {!isLoading && !error && (
+            <div className="space-y-6">
+              {filterMode === 'context_items' ? (
+                // Context Items View
+                <section className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedSubstrate({ type: 'raw_dump', id: dump.id })}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View source
-                    </Button>
-                    {dump.file_url && (
-                      <Button variant="ghost" size="sm" asChild>
-                        <a href={dump.file_url} target="_blank" rel="noopener noreferrer">
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          Open file
-                        </a>
-                      </Button>
-                    )}
+                    <h2 className="text-lg font-semibold text-slate-900">Entities & Concepts</h2>
+                    <Badge variant="secondary" className="bg-purple-50 text-purple-700">
+                      {filteredContextItems.length}
+                    </Badge>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {dump.body_md && (
-                    <div className="rounded-lg border border-slate-100 bg-white p-4">
-                      <p className="text-sm text-slate-700 whitespace-pre-line">
-                        {dump.body_md.slice(0, 1000)}{dump.body_md.length > 1000 ? '…' : ''}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-3">
-                      <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                        <Database className="h-4 w-4 text-blue-500" />
-                        Structured knowledge
-                      </h4>
-                      {derived_blocks.length > 0 ? (
-                        <div className="space-y-2">
-                          {derived_blocks.map(block => {
-                            const label = confidenceLabel(block.confidence_score);
-                            return (
-                              <div key={block.id} className="rounded-lg border border-slate-100 bg-white p-3">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="text-sm font-medium text-slate-900">
-                                      {block.title || 'Untitled block'}
-                                    </p>
-                                    <p className="text-xs text-slate-500">{block.semantic_type || 'Uncategorised'}</p>
-                                  </div>
-                                  <Button variant="ghost" size="sm" onClick={() => setSelectedSubstrate({ type: 'block', id: block.id })}>
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-                                  <Badge variant="secondary" className="bg-slate-100 text-slate-600">
-                                    Captured {formatRelativeDays(block.created_at)}
-                                  </Badge>
-                                  {block.state && (
-                                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 uppercase">
-                                      {block.state.toLowerCase()}
-                                    </Badge>
-                                  )}
-                                  {label && (
-                                    <Badge variant="secondary" className="bg-green-50 text-green-700">
-                                      {label}
-                                    </Badge>
-                                  )}
-                                </div>
+                  {filteredContextItems.length > 0 ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      {filteredContextItems.map((item) => (
+                        <Card key={item.id} className="border-slate-200 hover:border-indigo-300 transition-colors">
+                          <CardContent className="space-y-3 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1">
+                                <h3 className="text-base font-semibold text-slate-900">
+                                  {item.title || 'Unnamed entity'}
+                                </h3>
+                                <p className="text-xs text-slate-500">
+                                  {formatTimestamp(item.created_at)}
+                                </p>
                               </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-slate-500">No blocks created yet.</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                        <MessageSquare className="h-4 w-4 text-purple-500" />
-                        Semantic links
-                      </h4>
-                      {derived_context_items.length > 0 ? (
-                        <div className="space-y-2">
-                          {derived_context_items.map(item => (
-                            <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border border-slate-100 bg-white p-3">
-                              <div>
-                                <p className="text-sm font-medium text-slate-900">{item.title || 'Untitled meaning'}</p>
-                                <p className="text-xs text-slate-500">{item.semantic_category || 'Context item'}</p>
-                                {item.semantic_meaning && (
-                                  <p className="mt-2 text-xs text-slate-600">{item.semantic_meaning}</p>
-                                )}
-                              </div>
-                              <Button variant="ghost" size="sm" onClick={() => setSelectedSubstrate({ type: 'context_item', id: item.id })}>
-                                <Eye className="h-4 w-4" />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelected({ id: item.id, type: 'context_item' })}
+                              >
+                                <FileText className="h-4 w-4" />
                               </Button>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-slate-500">No context items yet.</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {work_items.length > 0 && (
-                    <div className="space-y-3">
-                      <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                        <Clock className="h-4 w-4 text-slate-500" />
-                        Pipeline activity
-                      </h4>
-                      <div className="space-y-2">
-                        {work_items.map(item => {
-                          const badge = statusBadge(item.status);
-                          return (
-                            <div key={item.work_id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-white p-3">
-                              <div>
-                                <p className="text-sm font-medium text-slate-800">{workTypeLabel(item.work_type)}</p>
-                                <p className="text-xs text-slate-500">{formatDate(item.created_at)}</p>
-                              </div>
-                              <Badge variant="secondary" className={badge.className}>
-                                {badge.label}
+                            {item.semantic_meaning && (
+                              <p className="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                                {item.semantic_meaning}
+                              </p>
+                            )}
+                            {item.semantic_category && (
+                              <Badge variant="outline" className="border-slate-200 text-slate-600">
+                                {item.semantic_category}
                               </Badge>
-                            </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 text-center">
+                      No entities found matching your search.
+                    </div>
+                  )}
+                </section>
+              ) : filterMode === 'all' ? (
+                // Default view: Anchored + Free sections
+                <>
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-semibold text-slate-900">Anchored Knowledge</h2>
+                        <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">
+                          {anchoredBlocks.length}
+                        </Badge>
+                      </div>
+                      <Link
+                        href={`/baskets/${basketId}/memory`}
+                        className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                      >
+                        <Brain className="h-4 w-4" />
+                        Manage Anchors
+                      </Link>
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      Locked canonical knowledge. Won&apos;t change unless explicitly updated.
+                    </p>
+
+                    {anchoredBlocks.length > 0 ? (
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        {anchoredBlocks.map((block) => {
+                          const anchor = anchorMap.get(block.id);
+                          const confidence = confidenceBadge(block.confidence_score);
+                          const usefulness = usefulnessBadge(block.usefulness_score);
+                          const isStale = block.staleness_days !== null && block.staleness_days > 30;
+
+                          return (
+                            <Card
+                              key={block.id}
+                              className={`border-slate-200 hover:border-indigo-300 transition-colors ${
+                                isStale ? 'bg-amber-50/30' : ''
+                              }`}
+                            >
+                              <CardContent className="space-y-3 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <h3 className="text-base font-semibold text-slate-900">
+                                        {anchor?.label || block.title || 'Untitled block'}
+                                      </h3>
+                                      <Badge variant="outline" className="border-emerald-200 text-emerald-700">
+                                        <Anchor className="h-3 w-3 mr-1" />
+                                        Anchor
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-1">
+                                      Updated {formatTimestamp(block.updated_at)}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setSelected({ id: block.id, type: 'block' })}
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                  </Button>
+                                </div>
+
+                                {/* Quality Metrics */}
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {confidence && (
+                                    <Badge variant="outline" className={confidence.className}>
+                                      {confidence.label}
+                                    </Badge>
+                                  )}
+                                  <Badge variant="outline" className={usefulness.className}>
+                                    <usefulness.icon className="h-3 w-3 mr-1" />
+                                    {usefulness.label}
+                                  </Badge>
+                                  {isStale && (
+                                    <Badge variant="outline" className="border-amber-200 text-amber-700">
+                                      <AlertTriangle className="h-3 w-3 mr-1" />
+                                      Stale ({block.staleness_days}d)
+                                    </Badge>
+                                  )}
+                                  {block.semantic_type && (
+                                    <Badge variant="outline" className="border-slate-200 text-slate-600">
+                                      {block.semantic_type}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
                           );
                         })}
                       </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 text-center">
+                        No anchors yet. Visit the Memory page to create anchors from your knowledge.
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-semibold text-slate-900">Free Blocks</h2>
+                      <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                        {freeBlocks.length}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      Emerging knowledge that evolves with new uploads. Convert to anchors when ready.
+                    </p>
+
+                    {freeBlocks.length > 0 ? (
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        {freeBlocks.slice(0, 20).map((block) => {
+                          const confidence = confidenceBadge(block.confidence_score);
+                          const usefulness = usefulnessBadge(block.usefulness_score);
+                          const isStale = block.staleness_days !== null && block.staleness_days > 30;
+
+                          return (
+                            <Card
+                              key={block.id}
+                              className={`border-slate-200 hover:border-indigo-300 transition-colors ${
+                                isStale ? 'bg-amber-50/30' : ''
+                              }`}
+                            >
+                              <CardContent className="space-y-3 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1">
+                                    <h3 className="text-base font-semibold text-slate-900">
+                                      {block.title || 'Untitled block'}
+                                    </h3>
+                                    <p className="text-xs text-slate-500">
+                                      {formatTimestamp(block.created_at)}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setSelected({ id: block.id, type: 'block' })}
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                  </Button>
+                                </div>
+
+                                {/* Quality Metrics */}
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {confidence && (
+                                    <Badge variant="outline" className={confidence.className}>
+                                      {confidence.label}
+                                    </Badge>
+                                  )}
+                                  <Badge variant="outline" className={usefulness.className}>
+                                    <usefulness.icon className="h-3 w-3 mr-1" />
+                                    {usefulness.label}
+                                  </Badge>
+                                  {isStale && (
+                                    <Badge variant="outline" className="border-amber-200 text-amber-700">
+                                      <AlertTriangle className="h-3 w-3 mr-1" />
+                                      Stale ({block.staleness_days}d)
+                                    </Badge>
+                                  )}
+                                  {block.semantic_type && (
+                                    <Badge variant="outline" className="border-slate-200 text-slate-600">
+                                      {block.semantic_type}
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                {/* Quick Action */}
+                                <div className="pt-2 border-t border-slate-100">
+                                  <Link
+                                    href={`/baskets/${basketId}/memory`}
+                                    className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                                  >
+                                    <Anchor className="h-3 w-3" />
+                                    Convert to Anchor
+                                  </Link>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 text-center">
+                        All blocks are anchored. Capture new knowledge to expand your understanding.
+                      </div>
+                    )}
+                  </section>
+                </>
+              ) : (
+                // Filtered view: Show all matching blocks
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold text-slate-900">
+                      {filterMode === 'anchored' && 'Anchored Blocks'}
+                      {filterMode === 'free' && 'Free Blocks'}
+                      {filterMode === 'stale' && 'Stale Blocks'}
+                      {filterMode === 'unused' && 'Unused Blocks'}
+                    </h2>
+                    <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                      {processedBlocks.length}
+                    </Badge>
+                  </div>
+
+                  {processedBlocks.length > 0 ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      {processedBlocks.map((block) => {
+                        const anchor = anchorMap.get(block.id);
+                        const confidence = confidenceBadge(block.confidence_score);
+                        const usefulness = usefulnessBadge(block.usefulness_score);
+                        const isStale = block.staleness_days !== null && block.staleness_days > 30;
+
+                        return (
+                          <Card
+                            key={block.id}
+                            className={`border-slate-200 hover:border-indigo-300 transition-colors ${
+                              isStale ? 'bg-amber-50/30' : ''
+                            }`}
+                          >
+                            <CardContent className="space-y-3 p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="text-base font-semibold text-slate-900">
+                                      {anchor?.label || block.title || 'Untitled block'}
+                                    </h3>
+                                    {anchor && (
+                                      <Badge variant="outline" className="border-emerald-200 text-emerald-700">
+                                        <Anchor className="h-3 w-3 mr-1" />
+                                        Anchor
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    {formatTimestamp(block.created_at)}
+                                  </p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setSelected({ id: block.id, type: 'block' })}
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                              </div>
+
+                              {/* Quality Metrics */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                {confidence && (
+                                  <Badge variant="outline" className={confidence.className}>
+                                    {confidence.label}
+                                  </Badge>
+                                )}
+                                <Badge variant="outline" className={usefulness.className}>
+                                  <usefulness.icon className="h-3 w-3 mr-1" />
+                                  {usefulness.label} ({block.times_referenced}×)
+                                </Badge>
+                                {isStale && (
+                                  <Badge variant="outline" className="border-amber-200 text-amber-700">
+                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    {block.staleness_days}d stale
+                                  </Badge>
+                                )}
+                                {block.semantic_type && (
+                                  <Badge variant="outline" className="border-slate-200 text-slate-600">
+                                    {block.semantic_type}
+                                  </Badge>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 text-center">
+                      No blocks found matching your filters.
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {(data.orphans.blocks.length > 0 || data.orphans.context_items.length > 0) && (
-          <Card className="border border-slate-200">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-slate-900">Unlinked substrate</CardTitle>
-              <p className="text-xs text-slate-500">
-                These items do not have a recorded capture reference. They may have been created before provenance tracking or imported manually.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {data.orphans.blocks.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-slate-800">Blocks</h4>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {data.orphans.blocks.map(block => (
-                      <div key={block.id} className="rounded-lg border border-slate-100 bg-white p-3">
-                        <p className="text-sm font-medium text-slate-900 truncate">{block.title || 'Untitled block'}</p>
-                        <p className="text-xs text-slate-500 mt-1">{block.semantic_type || 'Uncategorised'}</p>
-                        <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                          <span>{formatDate(block.created_at)}</span>
-                          <Button variant="ghost" size="sm" onClick={() => setSelectedSubstrate({ type: 'block', id: block.id })}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                </section>
               )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-              {data.orphans.context_items.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-slate-800">Context items</h4>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {data.orphans.context_items.map(item => (
-                      <div key={item.id} className="rounded-lg border border-slate-100 bg-white p-3">
-                        <p className="text-sm font-medium text-slate-900 truncate">{item.title || 'Untitled meaning'}</p>
-                        <p className="text-xs text-slate-500 mt-1">{item.semantic_category || 'Context item'}</p>
-                        <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                          <span>{formatDate(item.created_at)}</span>
-                          <Button variant="ghost" size="sm" onClick={() => setSelectedSubstrate({ type: 'context_item', id: item.id })}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      <CreateBlockModal
-        basketId={basketId}
-        open={showCreateBlock}
-        onClose={() => setShowCreateBlock(false)}
-        onSuccess={loadData}
-      />
-      <CreateContextItemModal
-        basketId={basketId}
-        open={showCreateContextItem}
-        onClose={() => setShowCreateContextItem(false)}
-        onSuccess={loadData}
-      />
-      <AddMemoryModal
-        basketId={basketId}
-        open={showAddMemory}
-        onClose={() => setShowAddMemory(false)}
-        onSuccess={loadData}
-      />
-
-      {selectedSubstrate && (
+      {/* Substrate Detail Modal */}
+      {selected && (
         <SubstrateDetailModal
-          open={Boolean(selectedSubstrate)}
-          onClose={() => setSelectedSubstrate(null)}
-          substrateType={selectedSubstrate.type}
-          substrateId={selectedSubstrate.id}
+          open
+          onOpenChange={(open) => { if (!open) setSelected(null); }}
+          type={selected.type}
+          substrateId={selected.id}
           basketId={basketId}
         />
       )}
-    </>
+    </div>
   );
 }
