@@ -70,7 +70,7 @@ export async function GET(
       : await ensureWorkspaceForUser(userId, supabase);
 
     // Canon v2.1: Fetch substrate types with context-aware metrics
-    // Blocks with usage tracking and staleness detection
+    // Fetch blocks first (without block_usage join to avoid RLS issues)
     const { data: blocksData, error: blocksError } = await supabase
       .from('blocks')
       .select(`
@@ -84,12 +84,7 @@ export async function GET(
         metadata,
         status,
         raw_dump_id,
-        last_validated_at,
-        block_usage (
-          times_referenced,
-          usefulness_score,
-          last_used_at
-        )
+        last_validated_at
       `)
       .eq('basket_id', basketId)
       .eq('workspace_id', workspace.id)
@@ -101,6 +96,19 @@ export async function GET(
       console.error('Blocks query error:', blocksError);
       return NextResponse.json({ error: 'Failed to fetch blocks' }, { status: 500 });
     }
+
+    // Fetch block usage separately and join in application code
+    // This avoids RLS issues with nested selects
+    const blockIds = (blocksData ?? []).map(b => b.id);
+    const { data: usageData } = await supabase
+      .from('block_usage')
+      .select('block_id, times_referenced, usefulness_score, last_used_at')
+      .in('block_id', blockIds);
+
+    // Create usage lookup map
+    const usageMap = new Map(
+      (usageData ?? []).map(u => [u.block_id, u])
+    );
 
     // Context items with semantic meaning
     const { data: contextItemsData, error: contextItemsError } = await supabase
@@ -118,7 +126,7 @@ export async function GET(
 
     // Transform blocks with quality metrics
     const blocks: BlockWithMetrics[] = (blocksData ?? []).map(block => {
-      const usage = Array.isArray(block.block_usage) ? block.block_usage[0] : block.block_usage;
+      const usage = usageMap.get(block.id);
 
       // Calculate staleness_days from last_validated_at
       let staleness_days: number | null = null;
