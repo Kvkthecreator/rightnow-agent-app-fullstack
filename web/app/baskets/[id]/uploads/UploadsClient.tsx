@@ -139,7 +139,7 @@ export default function UploadsClient({ basketId }: UploadsClientProps) {
       });
     }
     return captures;
-  }, [data?.captures, query, typeFilter]);
+  }, [data?.uploads, query, typeFilter]);
 
   const selectedCapture = uploads.find((capture) => capture.dump.id === selected);
 
