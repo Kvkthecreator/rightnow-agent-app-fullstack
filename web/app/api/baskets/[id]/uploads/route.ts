@@ -66,7 +66,7 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
 
     const { data: dumps, error: dumpsError } = await supabase
       .from('raw_dumps')
-      .select<RawDumpRow>(`
+      .select(`
         id,
         created_at,
         file_url,
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
     if (dumpIds.length > 0) {
       const { data: blockRows, error: blocksError } = await supabase
         .from('blocks')
-        .select<BlockRow>(`
+        .select(`
           id,
           raw_dump_id,
           title,
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
 
       const { data: contextRows, error: contextError } = await supabase
         .from('context_items')
-        .select<ContextItemRow>(`
+        .select(`
           id,
           raw_dump_id,
           title,
