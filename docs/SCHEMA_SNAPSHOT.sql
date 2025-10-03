@@ -2759,6 +2759,8 @@ CREATE POLICY "Members can upsert settings" ON public.workspace_notification_set
 CREATE POLICY "Service role can manage notifications" ON public.user_notifications TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role can manage queue" ON public.agent_processing_queue TO service_role USING (true);
 CREATE POLICY "Service role full access" ON public.baskets TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role has full access to block_usage" ON public.block_usage TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role has full access to extraction_quality_metrics" ON public.extraction_quality_metrics TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Users can create proposals in their workspace" ON public.proposals FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -2800,6 +2802,11 @@ CREATE POLICY "Users can update their queued items" ON public.agent_processing_q
   WHERE (workspace_memberships.user_id = auth.uid())))) WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY "Users can view block_usage in their workspace" ON public.block_usage FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM ((public.blocks b
+     JOIN public.baskets bsk ON ((bsk.id = b.basket_id)))
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = bsk.workspace_id)))
+  WHERE ((b.id = block_usage.block_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY "Users can view blocks in their workspace" ON public.blocks FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.baskets
   WHERE ((baskets.id = blocks.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
@@ -2815,6 +2822,9 @@ CREATE POLICY "Users can view executions in their workspace" ON public.proposal_
   WHERE (proposals.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid()))))));
+CREATE POLICY "Users can view extraction metrics in their workspace" ON public.extraction_quality_metrics FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships wm
+  WHERE ((wm.workspace_id = extraction_quality_metrics.workspace_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY "Users can view narrative in their workspace" ON public.narrative FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.baskets
   WHERE ((baskets.id = narrative.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
@@ -2917,6 +2927,7 @@ CREATE POLICY block_member_update ON public.blocks FOR UPDATE USING ((workspace_
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
 ALTER TABLE public.block_revisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.block_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blocks ENABLE ROW LEVEL SECURITY;
 CREATE POLICY blocks_delete_workspace_member ON public.blocks FOR DELETE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -3039,6 +3050,7 @@ CREATE POLICY events_select_workspace_member ON public.events FOR SELECT TO auth
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY events_service_role_all ON public.events TO service_role USING (true) WITH CHECK (true);
+ALTER TABLE public.extraction_quality_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.knowledge_timeline ENABLE ROW LEVEL SECURITY;
 CREATE POLICY knowledge_timeline_workspace_read ON public.knowledge_timeline FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
