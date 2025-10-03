@@ -1,8 +1,12 @@
 /**
- * Page: /baskets/[id]/memory - Primary Operating Surface (Canon v2.0)
- * 
- * Now uses real P3 reflections instead of projection-based data.
- * MemoryClient directly fetches P3 reflection artifacts for insights display.
+ * Page: /baskets/[id]/memory - Memory Overview
+ *
+ * Streamlined memory dashboard showing:
+ * - Latest basket-level reflection (insights snapshot)
+ * - Key metrics (blocks, links, documents counts)
+ * - Documents list
+ *
+ * Note: Anchors now managed in /building-blocks as substrate metadata
  */
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";

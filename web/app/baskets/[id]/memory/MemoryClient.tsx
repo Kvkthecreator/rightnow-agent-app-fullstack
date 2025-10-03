@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PenTool, RefreshCw, Sparkles } from 'lucide-react';
+import { PenTool, RefreshCw, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -13,155 +13,72 @@ import AddMemoryModal from '@/components/memory/AddMemoryModal';
 import OnboardingPanel from '@/components/memory/OnboardingPanel';
 import { useReflectionNotifications } from '@/lib/hooks/useReflectionNotifications';
 import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
-import { AnchorCard } from '@/components/anchors/AnchorCard';
-import { AnchorCaptureDialog } from '@/components/anchors/AnchorCaptureDialog';
-import { CreateAnchorDialog } from '@/components/anchors/CreateAnchorDialog';
-import type { AnchorStatusSummary } from '@/lib/anchors/types';
+import type { BasketStats } from '@/app/api/baskets/[id]/stats/route';
 
 interface Props {
   basketId: string;
   needsOnboarding?: boolean;
 }
 
-interface GovernanceDecisionNotice {
-  route: string;
-  reason?: string;
-}
-
 export default function MemoryClient({ basketId, needsOnboarding }: Props) {
   const router = useRouter();
   const [showAddMemory, setShowAddMemory] = useState(false);
 
-  const [anchors, setAnchors] = useState<AnchorStatusSummary[]>([]);
-  const [anchorsLoading, setAnchorsLoading] = useState(true);
-  const [anchorError, setAnchorError] = useState<string | null>(null);
-  const [anchorSubmitting, setAnchorSubmitting] = useState(false);
-  const [selectedAnchor, setSelectedAnchor] = useState<AnchorStatusSummary | null>(null);
-  const [captureOpen, setCaptureOpen] = useState(false);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [governanceNotice, setGovernanceNotice] = useState<GovernanceDecisionNotice | null>(null);
+  const [stats, setStats] = useState<BasketStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
-  const [reflections, setReflections] = useState<ReflectionDTO[]>([]);
-  const [reflectionsLoading, setReflectionsLoading] = useState(true);
-  const [reflectionsError, setReflectionsError] = useState<string | null>(null);
+  const [latestReflection, setLatestReflection] = useState<ReflectionDTO | null>(null);
+  const [reflectionLoading, setReflectionLoading] = useState(true);
+  const [reflectionError, setReflectionError] = useState<string | null>(null);
 
-  const loadAnchors = useCallback(async () => {
-    setAnchorsLoading(true);
-    setAnchorError(null);
+  const loadStats = useCallback(async () => {
+    setStatsLoading(true);
     try {
-      const response = await fetchWithToken(`/api/baskets/${basketId}/anchors`);
-      if (!response.ok) {
-        throw new Error('Failed to load anchors');
-      }
+      const response = await fetchWithToken(`/api/baskets/${basketId}/stats`);
+      if (!response.ok) throw new Error('Failed to load stats');
       const data = await response.json();
-      setAnchors(data.anchors ?? []);
+      setStats(data.stats);
     } catch (error) {
-      console.error('Anchor load failed', error);
-      setAnchorError('Unable to load anchors');
+      console.error('Stats load failed', error);
     } finally {
-      setAnchorsLoading(false);
+      setStatsLoading(false);
     }
   }, [basketId]);
 
-  const loadReflections = useCallback(async () => {
+  const loadLatestReflection = useCallback(async () => {
     try {
-      setReflectionsLoading(true);
-      setReflectionsError(null);
+      setReflectionLoading(true);
+      setReflectionError(null);
 
       const url = new URL(`/api/baskets/${basketId}/reflections`, window.location.origin);
-      url.searchParams.set('limit', '5');
+      url.searchParams.set('limit', '1');
 
       const response = await fetchWithToken(url.toString());
       if (!response.ok) {
-        throw new Error('Failed to load reflections');
+        throw new Error('Failed to load reflection');
       }
 
       const data: GetReflectionsResponse = await response.json();
-      setReflections(data.reflections);
+      setLatestReflection(data.reflections[0] || null);
     } catch (err) {
-      setReflectionsError(err instanceof Error ? err.message : 'Failed to load reflections');
+      setReflectionError(err instanceof Error ? err.message : 'Failed to load reflection');
     } finally {
-      setReflectionsLoading(false);
+      setReflectionLoading(false);
     }
   }, [basketId]);
 
   useEffect(() => {
-    loadAnchors();
-  }, [loadAnchors]);
-
-  useEffect(() => {
-    loadReflections();
-  }, [loadReflections]);
+    loadStats();
+    loadLatestReflection();
+  }, [loadStats, loadLatestReflection]);
 
   useReflectionNotifications(basketId);
-
-  const handleCapture = (anchor: AnchorStatusSummary) => {
-    setSelectedAnchor(anchor);
-    setCaptureOpen(true);
-    setGovernanceNotice(null);
-  };
-
-  const handleCaptureSubmit = async (payload: { anchor_id: string; title?: string; content: string }) => {
-    setAnchorSubmitting(true);
-    try {
-      const response = await fetchWithToken(`/api/baskets/${basketId}/anchors/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const { error, details } = await response.json().catch(() => ({}));
-        throw new Error(error || details || 'Failed to save anchor');
-      }
-
-      const data = await response.json();
-      if (data.anchors) {
-        setAnchors(data.anchors);
-      }
-      if (data.decision) {
-        setGovernanceNotice({ route: data.decision.route, reason: data.decision.reason });
-      }
-    } catch (error) {
-      console.error('Anchor capture failed', error);
-      setAnchorError(error instanceof Error ? error.message : 'Failed to save anchor');
-    } finally {
-      setAnchorSubmitting(false);
-    }
-  };
-
-  const handleCreateAnchor = async (payload: { label: string; expected_type: 'block' | 'context_item'; description?: string }) => {
-    setAnchorSubmitting(true);
-    try {
-      const response = await fetchWithToken(`/api/baskets/${basketId}/anchors`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const { error, details } = await response.json().catch(() => ({}));
-        throw new Error(error || details || 'Failed to create anchor');
-      }
-
-      const data = await response.json();
-      if (data.anchors) {
-        setAnchors(data.anchors);
-      }
-      setCreateDialogOpen(false);
-    } catch (error) {
-      console.error('Create anchor failed', error);
-      setAnchorError(error instanceof Error ? error.message : 'Failed to create anchor');
-    } finally {
-      setAnchorSubmitting(false);
-    }
-  };
 
   const refreshDocuments = () => {
     try { router.refresh(); } catch (error) { console.warn('Refresh failed', error); }
   };
 
-  const refreshReflections = async () => {
+  const refreshReflection = async () => {
     try {
       await fetchWithToken('/api/reflections/trigger', {
         method: 'POST',
@@ -177,41 +94,24 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
       console.error('Failed to trigger reflection refresh:', err);
     }
 
-    setTimeout(loadReflections, 1000);
+    setTimeout(loadLatestReflection, 1000);
   };
-
-  const groupedAnchors = useMemo(() => {
-    const core = anchors.filter((anchor) => anchor.scope === 'core');
-    const brain = anchors.filter((anchor) => anchor.scope === 'brain');
-    const custom = anchors.filter((anchor) => anchor.scope === 'custom');
-    return { core, brain, custom };
-  }, [anchors]);
 
   return (
     <div className="space-y-6">
       <SubpageHeader
-        title="Anchor Stewardship"
+        title="Memory"
         basketId={basketId}
-        description="Capture and maintain the canonical truths that power graphs, reflections, and deliverables."
+        description="Your basket's collective knowledge and latest insights."
         rightContent={
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setCreateDialogOpen(true)}
-              variant="outline"
-              size="sm"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              New anchor
-            </Button>
-            <Button
-              onClick={() => setShowAddMemory(true)}
-              variant="primary"
-              size="sm"
-            >
-              <PenTool className="h-3.5 w-3.5" />
-              Add thought
-            </Button>
-          </div>
+          <Button
+            onClick={() => setShowAddMemory(true)}
+            variant="primary"
+            size="sm"
+          >
+            <PenTool className="h-3.5 w-3.5" />
+            Add thought
+          </Button>
         }
       />
 
@@ -219,154 +119,144 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
         <OnboardingPanel basketId={basketId} onComplete={() => window.location.reload()} />
       )}
 
-      {governanceNotice && governanceNotice.route === 'proposal' && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="p-4 text-sm text-amber-800">
-            Anchor updates queued for governance review. You’ll be notified once the proposal is approved.
-          </CardContent>
-        </Card>
-      )}
-
-      {anchorError && (
-        <Card className="border-rose-200 bg-rose-50">
-          <CardContent className="p-4 text-sm text-rose-800">
-            {anchorError}
-          </CardContent>
-        </Card>
-      )}
-
-      <section className="space-y-4">
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-slate-900">Core anchors</h2>
-          <p className="text-sm text-slate-500">Capture the foundational truths for this basket.</p>
-        </div>
-        {anchorsLoading ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-500">Loading anchors…</div>
-        ) : groupedAnchors.core.length ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {groupedAnchors.core.map((anchor) => (
-              <AnchorCard key={anchor.anchor_key} anchor={anchor} onCapture={handleCapture} />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-            Mode is missing core anchors. Check basket configuration.
-          </div>
-        )}
-      </section>
-
-      {groupedAnchors.brain.length > 0 && (
-        <section className="space-y-4">
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-slate-900">Brain anchors</h2>
-            <p className="text-sm text-slate-500">Mode-specific anchors tailored to this basket’s brain.</p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {groupedAnchors.brain.map((anchor) => (
-              <AnchorCard key={anchor.anchor_key} anchor={anchor} onCapture={handleCapture} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="space-y-4">
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-slate-900">Custom anchors</h2>
-          <p className="text-sm text-slate-500">Add basket-specific truths or workflows.</p>
-        </div>
-        {groupedAnchors.custom.length ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {groupedAnchors.custom.map((anchor) => (
-              <AnchorCard key={anchor.anchor_key} anchor={anchor} onCapture={handleCapture} />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-            No custom anchors yet. Create one to scaffold bespoke workflows.
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-slate-900">Recent activity</h2>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Documents composed from your canon</p>
-                <p className="text-xs text-slate-500">Keep documents aligned with anchor coverage</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <DocumentCreateButton basketId={basketId} />
-                <Button onClick={refreshDocuments} variant="outline" size="sm">
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Refresh
-                </Button>
-              </div>
-            </div>
-            <div className="mt-4">
-              <DocumentsList limit={5} basketId={basketId} />
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
+      {/* Latest Insight - Basket-level reflection */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Latest reflections</h2>
-          <Button onClick={refreshReflections} variant="ghost" size="sm">
+          <h2 className="text-lg font-semibold text-slate-900">Latest insight</h2>
+          <Button onClick={refreshReflection} variant="ghost" size="sm">
             <RefreshCw className="h-3.5 w-3.5" />
-            Refresh insights
+            Refresh
           </Button>
         </div>
         <Card>
-          <CardContent className="space-y-3 p-4">
-            {reflectionsLoading && <p className="text-sm text-slate-500">Loading reflections…</p>}
-            {reflectionsError && <p className="text-sm text-rose-600">{reflectionsError}</p>}
-            {!reflectionsLoading && !reflections.length && (
-              <p className="text-sm text-slate-500">No reflections yet. Capture anchors and knowledge to unlock reflections.</p>
+          <CardContent className="p-6">
+            {reflectionLoading && (
+              <p className="text-sm text-slate-500">Loading latest insight…</p>
             )}
-            {reflections.map((reflection) => {
-              const text = reflection.reflection_text;
-              const preview = text.length > 220 ? `${text.slice(0, 217)}…` : text;
-              const contextLabel = reflection.reflection_target_type === 'document'
-                ? 'Document insight'
-                : reflection.reflection_target_type === 'substrate'
-                  ? 'Substrate insight'
-                  : 'Legacy insight';
-              return (
-                <div key={reflection.id} className="rounded border border-slate-200 bg-white p-3 space-y-1">
-                  <p className="text-xs uppercase tracking-wide text-slate-400">{contextLabel}</p>
-                  <p className="text-sm text-slate-600">{preview}</p>
+            {reflectionError && (
+              <p className="text-sm text-rose-600">{reflectionError}</p>
+            )}
+            {!reflectionLoading && !latestReflection && (
+              <div className="text-center py-6">
+                <p className="text-sm text-slate-500 mb-2">No reflections yet.</p>
+                <p className="text-xs text-slate-400">Add knowledge to your basket to unlock AI-generated insights.</p>
+              </div>
+            )}
+            {latestReflection && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs uppercase tracking-wide text-slate-400">
+                    {latestReflection.reflection_target_type === 'document'
+                      ? 'Document insight'
+                      : latestReflection.reflection_target_type === 'substrate'
+                        ? 'Substrate insight'
+                        : 'Basket insight'}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {new Date(latestReflection.created_at).toLocaleDateString()}
+                  </p>
                 </div>
-              );
-            })}
+                <p className="text-sm text-slate-700 leading-relaxed">
+                  {latestReflection.reflection_text}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
 
-      <AnchorCaptureDialog
-        open={captureOpen}
-        anchor={selectedAnchor}
-        submitting={anchorSubmitting}
-        onSubmit={handleCaptureSubmit}
-        onClose={() => setCaptureOpen(false)}
-      />
+      {/* Dashboard-like metrics */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-slate-900">Knowledge overview</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Blocks */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-blue-50">
+                    <Boxes className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-600">Blocks</span>
+                </div>
+                {!statsLoading && (
+                  <span className="text-2xl font-semibold text-slate-900">
+                    {stats?.blocks_count ?? 0}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">Structured knowledge pieces</p>
+            </CardContent>
+          </Card>
 
-      <CreateAnchorDialog
-        open={createDialogOpen}
-        submitting={anchorSubmitting}
-        onSubmit={handleCreateAnchor}
-        onClose={() => setCreateDialogOpen(false)}
-      />
+          {/* Context Items */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-purple-50">
+                    <LinkIcon className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-600">Links</span>
+                </div>
+                {!statsLoading && (
+                  <span className="text-2xl font-semibold text-slate-900">
+                    {stats?.context_items_count ?? 0}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">Connections and tags</p>
+            </CardContent>
+          </Card>
+
+          {/* Documents */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-green-50">
+                    <FileText className="h-4 w-4 text-green-600" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-600">Documents</span>
+                </div>
+                {!statsLoading && (
+                  <span className="text-2xl font-semibold text-slate-900">
+                    {stats?.documents_count ?? 0}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">Composed narratives</p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Documents list */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Documents</h2>
+          <div className="flex items-center gap-2">
+            <DocumentCreateButton basketId={basketId} />
+            <Button onClick={refreshDocuments} variant="outline" size="sm">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Refresh
+            </Button>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-4">
+            <DocumentsList limit={10} basketId={basketId} />
+          </CardContent>
+        </Card>
+      </section>
 
       <AddMemoryModal
         basketId={basketId}
         open={showAddMemory}
         onClose={() => setShowAddMemory(false)}
         onSuccess={() => {
-          loadAnchors();
-          loadReflections();
+          loadStats();
+          loadLatestReflection();
         }}
       />
     </div>
