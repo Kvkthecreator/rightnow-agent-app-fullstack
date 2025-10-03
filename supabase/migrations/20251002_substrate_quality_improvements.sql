@@ -1,5 +1,10 @@
 -- Substrate Quality Improvements: Usage Tracking & Staleness Detection
 -- Phase 1: Core infrastructure for context-aware extraction and quality feedback
+--
+-- NOTE: Phase A anchor refactor (20251003_anchor_substrate_metadata.sql) supersedes
+-- the basket_substrate_context view created in this migration. The view was used by
+-- P1 context-aware extraction, which was removed to restore phase boundaries.
+-- See 20251003_cleanup_legacy_anchor_code.sql for cleanup.
 
 BEGIN;
 

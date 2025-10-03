@@ -9,6 +9,12 @@ export type AnchorSpec = {
   substrateType: 'block' | 'context_item' | 'relationship';
   description: string;
   acceptanceCriteria: string;
+  /**
+   * Phase A: ADVISORY ONLY (not enforced)
+   * `required: true` means "strongly recommended" but does not block composition.
+   * Anchors emerge from user-promoted substrate via governance (Phase B).
+   * Mode configs provide suggestions, not hard requirements.
+   */
   required: boolean;
   dependsOn?: string[];
 };
@@ -28,6 +34,12 @@ export type DeliverableSpec = {
   title: string;
   description: string;
   composeIntent: string;
+  /**
+   * Phase A: ADVISORY ONLY (not enforced)
+   * `requiredAnchors` are "recommended inputs" but composition proceeds
+   * with graceful degradation if anchors are missing (shows unknowns).
+   * Phase B will implement coverage thresholds (e.g., 70% coverage unlocks compose).
+   */
   requiredAnchors: string[];
   optionalAnchors?: string[];
 };

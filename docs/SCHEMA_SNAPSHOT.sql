@@ -1415,6 +1415,24 @@ BEGIN
   RETURN v_metric_id;
 END;
 $$;
+CREATE FUNCTION public.map_anchor_key_to_role(anchor_key text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+BEGIN
+  -- Extract role from anchor_key patterns
+  -- Examples: "core_problem" -> "problem", "feature_block_1" -> "feature"
+  IF anchor_key LIKE '%problem%' THEN RETURN 'problem';
+  ELSIF anchor_key LIKE '%customer%' THEN RETURN 'customer';
+  ELSIF anchor_key LIKE '%solution%' THEN RETURN 'solution';
+  ELSIF anchor_key LIKE '%feature%' THEN RETURN 'feature';
+  ELSIF anchor_key LIKE '%constraint%' THEN RETURN 'constraint';
+  ELSIF anchor_key LIKE '%metric%' THEN RETURN 'metric';
+  ELSIF anchor_key LIKE '%insight%' THEN RETURN 'insight';
+  ELSIF anchor_key LIKE '%vision%' THEN RETURN 'vision';
+  ELSE RETURN NULL; -- Unknown anchor key pattern
+  END IF;
+END;
+$$;
 CREATE FUNCTION public.mark_alert_read(p_alert_id uuid) RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
@@ -1610,6 +1628,121 @@ BEGIN
   WHERE proname = 'fn_timeline_emit';
 END;
 $$;
+CREATE TABLE public.blocks (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid,
+    parent_block_id uuid,
+    semantic_type text NOT NULL,
+    content text,
+    version integer DEFAULT 1 NOT NULL,
+    state public.block_state DEFAULT 'PROPOSED'::public.block_state NOT NULL,
+    scope public.scope_level,
+    canonical_value text,
+    origin_ref uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    workspace_id uuid NOT NULL,
+    meta_agent_notes text,
+    label text,
+    meta_tags text[],
+    is_required boolean DEFAULT false,
+    raw_dump_id uuid,
+    title text,
+    body_md text,
+    confidence_score double precision DEFAULT 0.5,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    processing_agent text,
+    status text DEFAULT 'proposed'::text,
+    proposal_id uuid,
+    approved_at timestamp with time zone,
+    approved_by uuid,
+    extraction_method text DEFAULT 'legacy_text_chunks'::text,
+    provenance_validated boolean DEFAULT false,
+    ingredient_version text DEFAULT '1.0'::text,
+    normalized_label text,
+    updated_at timestamp with time zone DEFAULT now(),
+    last_validated_at timestamp with time zone DEFAULT now(),
+    anchor_role text,
+    anchor_status text DEFAULT 'proposed'::text,
+    anchor_confidence real,
+    CONSTRAINT blocks_anchor_confidence_check CHECK (((anchor_confidence >= (0.0)::double precision) AND (anchor_confidence <= (1.0)::double precision))),
+    CONSTRAINT blocks_anchor_role_check CHECK ((anchor_role = ANY (ARRAY['problem'::text, 'customer'::text, 'solution'::text, 'feature'::text, 'constraint'::text, 'metric'::text, 'insight'::text, 'vision'::text]))),
+    CONSTRAINT blocks_anchor_status_check CHECK ((anchor_status = ANY (ARRAY['proposed'::text, 'accepted'::text, 'rejected'::text, 'n/a'::text]))),
+    CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state))),
+    CONSTRAINT blocks_content_not_empty CHECK (((content IS NOT NULL) AND (content <> ''::text))),
+    CONSTRAINT blocks_title_not_empty CHECK (((title IS NOT NULL) AND (title <> ''::text))),
+    CONSTRAINT check_structured_ingredient_metadata CHECK (public.validate_structured_ingredient_metadata(metadata))
+)
+WITH (autovacuum_enabled='true');
+ALTER TABLE ONLY public.blocks REPLICA IDENTITY FULL;
+CREATE TABLE public.context_items (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid NOT NULL,
+    document_id uuid,
+    type text NOT NULL,
+    content text,
+    status text DEFAULT 'active'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    raw_dump_id uuid,
+    title text,
+    description text,
+    confidence_score double precision DEFAULT 0.5,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    updated_at timestamp with time zone DEFAULT now(),
+    normalized_label text,
+    origin_ref jsonb,
+    equivalence_class uuid,
+    state public.context_item_state DEFAULT 'ACTIVE'::public.context_item_state,
+    proposal_id uuid,
+    approved_at timestamp with time zone,
+    approved_by uuid,
+    semantic_meaning text,
+    semantic_category character varying(50),
+    anchor_role text,
+    anchor_status text DEFAULT 'proposed'::text,
+    anchor_confidence real,
+    CONSTRAINT context_items_anchor_confidence_check CHECK (((anchor_confidence >= (0.0)::double precision) AND (anchor_confidence <= (1.0)::double precision))),
+    CONSTRAINT context_items_anchor_role_check CHECK ((anchor_role = ANY (ARRAY['problem'::text, 'customer'::text, 'solution'::text, 'feature'::text, 'constraint'::text, 'metric'::text, 'insight'::text, 'vision'::text]))),
+    CONSTRAINT context_items_anchor_status_check CHECK ((anchor_status = ANY (ARRAY['proposed'::text, 'accepted'::text, 'rejected'::text, 'n/a'::text]))),
+    CONSTRAINT context_items_label_not_empty CHECK (((title IS NOT NULL) AND (title <> ''::text))),
+    CONSTRAINT context_items_status_check CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
+);
+ALTER TABLE ONLY public.context_items REPLICA IDENTITY FULL;
+CREATE VIEW public.anchored_substrate AS
+ SELECT 'block'::text AS substrate_type,
+    blocks.id AS substrate_id,
+    blocks.basket_id,
+    blocks.anchor_role,
+    blocks.anchor_status,
+    blocks.anchor_confidence,
+    blocks.title,
+    blocks.content,
+    blocks.semantic_type,
+    (blocks.state)::text AS state,
+    blocks.status,
+    blocks.created_at,
+    blocks.updated_at,
+    blocks.last_validated_at,
+    blocks.metadata
+   FROM public.blocks
+  WHERE (blocks.anchor_role IS NOT NULL)
+UNION ALL
+ SELECT 'context_item'::text AS substrate_type,
+    context_items.id AS substrate_id,
+    context_items.basket_id,
+    context_items.anchor_role,
+    context_items.anchor_status,
+    context_items.anchor_confidence,
+    context_items.title,
+    context_items.semantic_meaning AS content,
+    context_items.semantic_category AS semantic_type,
+    (context_items.state)::text AS state,
+    context_items.status,
+    context_items.created_at,
+    context_items.updated_at,
+    NULL::timestamp with time zone AS last_validated_at,
+    context_items.metadata
+   FROM public.context_items
+  WHERE (context_items.anchor_role IS NOT NULL);
 CREATE TABLE public.app_events (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     v integer DEFAULT 1 NOT NULL,
@@ -1701,130 +1834,6 @@ CREATE TABLE public.baskets (
     idempotency_key uuid,
     mode public.basket_mode DEFAULT 'default'::public.basket_mode NOT NULL
 );
-CREATE TABLE public.block_usage (
-    block_id uuid NOT NULL,
-    times_referenced integer DEFAULT 0 NOT NULL,
-    last_used_at timestamp with time zone,
-    usefulness_score real GENERATED ALWAYS AS (
-CASE
-    WHEN (times_referenced = 0) THEN 0.0
-    WHEN (times_referenced < 3) THEN 0.5
-    ELSE 0.9
-END) STORED,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-CREATE TABLE public.blocks (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    basket_id uuid,
-    parent_block_id uuid,
-    semantic_type text NOT NULL,
-    content text,
-    version integer DEFAULT 1 NOT NULL,
-    state public.block_state DEFAULT 'PROPOSED'::public.block_state NOT NULL,
-    scope public.scope_level,
-    canonical_value text,
-    origin_ref uuid,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    workspace_id uuid NOT NULL,
-    meta_agent_notes text,
-    label text,
-    meta_tags text[],
-    is_required boolean DEFAULT false,
-    raw_dump_id uuid,
-    title text,
-    body_md text,
-    confidence_score double precision DEFAULT 0.5,
-    metadata jsonb DEFAULT '{}'::jsonb,
-    processing_agent text,
-    status text DEFAULT 'proposed'::text,
-    proposal_id uuid,
-    approved_at timestamp with time zone,
-    approved_by uuid,
-    extraction_method text DEFAULT 'legacy_text_chunks'::text,
-    provenance_validated boolean DEFAULT false,
-    ingredient_version text DEFAULT '1.0'::text,
-    normalized_label text,
-    updated_at timestamp with time zone DEFAULT now(),
-    last_validated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state))),
-    CONSTRAINT blocks_content_not_empty CHECK (((content IS NOT NULL) AND (content <> ''::text))),
-    CONSTRAINT blocks_title_not_empty CHECK (((title IS NOT NULL) AND (title <> ''::text))),
-    CONSTRAINT check_structured_ingredient_metadata CHECK (public.validate_structured_ingredient_metadata(metadata))
-)
-WITH (autovacuum_enabled='true');
-ALTER TABLE ONLY public.blocks REPLICA IDENTITY FULL;
-CREATE TABLE public.context_items (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    basket_id uuid NOT NULL,
-    document_id uuid,
-    type text NOT NULL,
-    content text,
-    status text DEFAULT 'active'::text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    raw_dump_id uuid,
-    title text,
-    description text,
-    confidence_score double precision DEFAULT 0.5,
-    metadata jsonb DEFAULT '{}'::jsonb,
-    updated_at timestamp with time zone DEFAULT now(),
-    normalized_label text,
-    origin_ref jsonb,
-    equivalence_class uuid,
-    state public.context_item_state DEFAULT 'ACTIVE'::public.context_item_state,
-    proposal_id uuid,
-    approved_at timestamp with time zone,
-    approved_by uuid,
-    semantic_meaning text,
-    semantic_category character varying(50),
-    CONSTRAINT context_items_label_not_empty CHECK (((title IS NOT NULL) AND (title <> ''::text))),
-    CONSTRAINT context_items_status_check CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
-);
-ALTER TABLE ONLY public.context_items REPLICA IDENTITY FULL;
-CREATE VIEW public.basket_substrate_context AS
- WITH ranked_blocks AS (
-         SELECT b.id,
-            b.basket_id,
-            b.workspace_id,
-            b.title,
-            b.semantic_type,
-            b.content,
-            b.confidence_score,
-            b.status,
-            b.last_validated_at,
-            COALESCE(bu.usefulness_score, (0.0)::real) AS usefulness,
-            row_number() OVER (PARTITION BY b.basket_id ORDER BY COALESCE(bu.usefulness_score, (0.0)::real) DESC, b.created_at DESC) AS rank
-           FROM (public.blocks b
-             LEFT JOIN public.block_usage bu ON ((bu.block_id = b.id)))
-          WHERE (b.status <> ALL (ARRAY['archived'::text, 'rejected'::text]))
-        ), ranked_context_items AS (
-         SELECT ci.id,
-            ci.basket_id,
-            ci.title,
-            ci.semantic_meaning,
-            ci.metadata,
-            ci.state,
-            row_number() OVER (PARTITION BY ci.basket_id ORDER BY ci.created_at DESC) AS rank
-           FROM public.context_items ci
-          WHERE (ci.state = 'ACTIVE'::public.context_item_state)
-        )
- SELECT bsk.id AS basket_id,
-    bsk.workspace_id,
-    ( SELECT jsonb_agg(jsonb_build_object('id', rb.id, 'title', rb.title, 'semantic_type', rb.semantic_type, 'content', "left"(rb.content, 200), 'confidence', rb.confidence_score, 'usefulness', rb.usefulness, 'staleness_days', (EXTRACT(day FROM (now() - rb.last_validated_at)))::integer)) AS jsonb_agg
-           FROM ranked_blocks rb
-          WHERE ((rb.basket_id = bsk.id) AND (rb.rank <= 20))) AS blocks_summary,
-    ( SELECT jsonb_agg(jsonb_build_object('id', rci.id, 'label', rci.title, 'semantic_meaning', rci.semantic_meaning, 'kind', (rci.metadata ->> 'kind'::text))) AS jsonb_agg
-           FROM ranked_context_items rci
-          WHERE ((rci.basket_id = bsk.id) AND (rci.rank <= 20))) AS context_items_summary,
-    ( SELECT count(*) AS count
-           FROM ranked_blocks rb
-          WHERE (rb.basket_id = bsk.id)) AS active_blocks_count,
-    ( SELECT count(*) AS count
-           FROM ranked_context_items rci
-          WHERE (rci.basket_id = bsk.id)) AS active_context_items_count,
-    ( SELECT string_agg(b.content, ' | '::text) AS string_agg
-           FROM public.blocks b
-          WHERE ((b.basket_id = bsk.id) AND (b.semantic_type = ANY (ARRAY['goal'::text, 'constraint'::text])) AND (b.status <> ALL (ARRAY['archived'::text, 'rejected'::text])))) AS goals_and_constraints
-   FROM public.baskets bsk;
 CREATE TABLE public.block_links (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     block_id uuid,
@@ -1840,6 +1849,18 @@ CREATE TABLE public.block_revisions (
     summary text,
     diff_json jsonb,
     created_at timestamp with time zone DEFAULT now()
+);
+CREATE TABLE public.block_usage (
+    block_id uuid NOT NULL,
+    times_referenced integer DEFAULT 0 NOT NULL,
+    last_used_at timestamp with time zone,
+    usefulness_score real GENERATED ALWAYS AS (
+CASE
+    WHEN (times_referenced = 0) THEN 0.0
+    WHEN (times_referenced < 3) THEN 0.5
+    ELSE 0.9
+END) STORED,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 CREATE TABLE public.substrate_references (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2479,6 +2500,8 @@ CREATE INDEX idx_baskets_workspace ON public.baskets USING btree (workspace_id);
 CREATE INDEX idx_block_revisions_basket_ts ON public.block_revisions USING btree (workspace_id, created_at DESC);
 CREATE INDEX idx_block_usage_last_used ON public.block_usage USING btree (last_used_at DESC NULLS LAST);
 CREATE INDEX idx_block_usage_score ON public.block_usage USING btree (usefulness_score DESC);
+CREATE INDEX idx_blocks_anchor_confidence ON public.blocks USING btree (basket_id, anchor_confidence DESC) WHERE ((anchor_role IS NOT NULL) AND (anchor_confidence IS NOT NULL));
+CREATE INDEX idx_blocks_anchor_role ON public.blocks USING btree (basket_id, anchor_role, anchor_status) WHERE (anchor_role IS NOT NULL);
 CREATE INDEX idx_blocks_basket ON public.blocks USING btree (basket_id);
 CREATE INDEX idx_blocks_extraction_method ON public.blocks USING btree (extraction_method);
 CREATE INDEX idx_blocks_provenance_validated ON public.blocks USING btree (provenance_validated);
@@ -2489,6 +2512,8 @@ CREATE INDEX idx_blocks_updated_at ON public.blocks USING btree (updated_at);
 CREATE INDEX idx_blocks_workspace ON public.blocks USING btree (workspace_id);
 CREATE INDEX idx_context_basket ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_doc ON public.context_items USING btree (document_id);
+CREATE INDEX idx_context_items_anchor_confidence ON public.context_items USING btree (basket_id, anchor_confidence DESC) WHERE ((anchor_role IS NOT NULL) AND (anchor_confidence IS NOT NULL));
+CREATE INDEX idx_context_items_anchor_role ON public.context_items USING btree (basket_id, anchor_role, anchor_status) WHERE (anchor_role IS NOT NULL);
 CREATE INDEX idx_context_items_basket ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_items_basket_id ON public.context_items USING btree (basket_id);
 CREATE INDEX idx_context_items_semantic_category ON public.context_items USING btree (semantic_category);
