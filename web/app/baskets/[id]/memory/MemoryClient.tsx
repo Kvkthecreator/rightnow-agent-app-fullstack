@@ -153,7 +153,7 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                         : 'Basket insight'}
                   </p>
                   <p className="text-xs text-slate-400">
-                    {new Date(latestReflection.created_at).toLocaleDateString()}
+                    {new Date(latestReflection.computation_timestamp).toLocaleDateString()}
                   </p>
                 </div>
                 <p className="text-sm text-slate-700 leading-relaxed">
