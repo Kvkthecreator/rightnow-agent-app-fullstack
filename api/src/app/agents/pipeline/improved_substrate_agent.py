@@ -53,12 +53,12 @@ class ImprovedP1SubstrateAgent:
     
     async def create_substrate(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Create quality substrate using context-aware focused extraction.
+        Create quality substrate using focused extraction.
 
-        KEY IMPROVEMENT: Fetches existing basket substrate before extraction to enable:
-        - Deduplication during extraction (not after)
-        - Semantic linking to existing substrate
-        - Goal-aligned extraction (only relevant concepts)
+        Phase A: Anchor-blind P1 (respects phase boundaries)
+        - P1 extracts claims from dumps without anchor awareness
+        - Deduplication and anchor mapping happens in P2 (normalization)
+        - Keeps P1 single-responsibility: extract facts from content
         """
         start_time = datetime.utcnow()
         workspace_id = UUID(request["workspace_id"])
@@ -76,19 +76,11 @@ class ImprovedP1SubstrateAgent:
             content_type = detect_content_type(content)
             self.logger.info(f"Detected content type: {content_type} for dump {dump_id}")
 
-            # CONTEXT-AWARE: Fetch existing basket substrate before extraction
-            basket_context = await self._get_basket_substrate_context(basket_id, workspace_id)
-            self.logger.info(
-                f"Basket context loaded: {basket_context['active_blocks_count']} blocks, "
-                f"{basket_context['active_context_items_count']} context items"
-            )
-
-            # Extract using focused approach WITH basket context
+            # Extract using focused approach (NO basket context - anchor-blind)
             extraction_result = await self._extract_focused(
                 content,
                 content_type,
-                str(dump_id),
-                basket_context  # Pass context for dedup and linking
+                str(dump_id)
             )
             
             # Transform to blocks and context items
@@ -148,87 +140,32 @@ class ImprovedP1SubstrateAgent:
             self.logger.error(f"Failed to get dump content: {e}")
             return None
 
-    async def _get_basket_substrate_context(
-        self,
-        basket_id: UUID,
-        workspace_id: UUID
-    ) -> Dict[str, Any]:
-        """
-        Fetch existing basket substrate for context-aware extraction.
-
-        Returns structured context including:
-        - Existing blocks (with usefulness scores)
-        - Existing context items (entities/concepts)
-        - Goals and constraints from basket
-        """
-        try:
-            # Use the view created in migration
-            response = supabase.from_("basket_substrate_context")\
-                .select("*")\
-                .eq("basket_id", str(basket_id))\
-                .eq("workspace_id", str(workspace_id))\
-                .single().execute()
-
-            if response.data:
-                return {
-                    "blocks_summary": response.data.get("blocks_summary") or [],
-                    "context_items_summary": response.data.get("context_items_summary") or [],
-                    "active_blocks_count": response.data.get("active_blocks_count") or 0,
-                    "active_context_items_count": response.data.get("active_context_items_count") or 0,
-                    "goals_and_constraints": response.data.get("goals_and_constraints") or ""
-                }
-            else:
-                # Empty basket - no context yet
-                return {
-                    "blocks_summary": [],
-                    "context_items_summary": [],
-                    "active_blocks_count": 0,
-                    "active_context_items_count": 0,
-                    "goals_and_constraints": ""
-                }
-
-        except Exception as e:
-            self.logger.warning(f"Failed to get basket context (basket may be empty): {e}")
-            # Return empty context on error - extraction can still proceed
-            return {
-                "blocks_summary": [],
-                "context_items_summary": [],
-                "active_blocks_count": 0,
-                "active_context_items_count": 0,
-                "goals_and_constraints": ""
-            }
-    
     async def _extract_focused(
         self,
         content: str,
         content_type: ContentType,
-        dump_id: str,
-        basket_context: Dict[str, Any]
+        dump_id: str
     ) -> FocusedExtraction:
-        """Extract using focused, context-aware domain-specific approach"""
+        """Extract using focused, domain-specific approach (anchor-blind)"""
 
         # Get appropriate template
         template = EXTRACTION_TEMPLATES[content_type]
 
-        # Build context-aware prompt
+        # Build extraction prompt (no basket context)
         system_prompt = template.system_prompt
 
-        # Add basket context to guidance
-        context_instructions = self._build_context_instructions(basket_context)
-
         user_prompt = f"""{template.extraction_guidance}
-
-{context_instructions}
 
 CONTENT TO ANALYZE:
 {content}
 
 Extract the information above in the specified JSON format. Focus on quality over quantity - better to have fewer high-quality extractions than many low-quality ones.
 
-IMPORTANT DEDUPLICATION:
-- Do NOT extract facts/insights that are already captured in existing blocks above
-- If a concept overlaps with existing substrate, reference it rather than re-extracting
-- Focus on NEW information that extends or contradicts existing knowledge"""
+EXTRACTION GUIDELINES:
+- Extract all significant facts, insights, and context from the content
+- Don't filter based on assumed importance - capture what's actually present
+- P2 normalization will handle deduplication and anchor mapping
+- Focus on accuracy and completeness of extraction"""
         
         # Response format for structured output
         response_format = {
@@ -413,44 +350,6 @@ IMPORTANT DEDUPLICATION:
         
         return blocks, context_items
     
-    def _build_context_instructions(self, basket_context: Dict[str, Any]) -> str:
-        """Build context-aware instructions from existing basket substrate"""
-
-        if basket_context["active_blocks_count"] == 0:
-            return "NOTE: This is the first content in this basket - no existing substrate to consider."
-
-        blocks_summary = basket_context.get("blocks_summary", [])
-        context_items = basket_context.get("context_items_summary", [])
-        goals = basket_context.get("goals_and_constraints", "")
-
-        # Build concise context summary
-        context_lines = ["\n--- EXISTING BASKET CONTEXT (for deduplication and linking) ---"]
-
-        if goals:
-            context_lines.append(f"\nBASKET GOALS/CONSTRAINTS:\n{goals[:500]}...")
-
-        if blocks_summary:
-            top_blocks = blocks_summary[:5]  # Top 5 most useful blocks
-            context_lines.append(f"\nEXISTING BLOCKS ({len(blocks_summary)} total, showing top {len(top_blocks)} by usefulness):")
-            for block in top_blocks:
-                staleness = block.get('staleness_days', 0)
-                usefulness = block.get('usefulness', 0.0)
-                staleness_marker = " [STALE]" if staleness > 30 else ""
-                context_lines.append(
-                    f"  - [{block.get('semantic_type')}] {block.get('title')} "
-                    f"(usefulness: {usefulness:.1f}, staleness: {staleness}d){staleness_marker}"
-                )
-
-        if context_items:
-            top_entities = context_items[:10]  # Top 10 entities
-            entity_labels = [item.get('label') for item in top_entities if item.get('label')]
-            if entity_labels:
-                context_lines.append(f"\nKNOWN ENTITIES/CONCEPTS: {', '.join(entity_labels[:15])}")
-
-        context_lines.append("--- END CONTEXT ---\n")
-
-        return "\n".join(context_lines)
-
     def _generate_semantic_meaning(
         self,
         ctx: ExtractedContext,

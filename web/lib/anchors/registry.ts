@@ -31,88 +31,54 @@ async function ensureAnchorsFromMode(
   basketId: string,
   modeConfig: BasketModeConfig
 ): Promise<void> {
-  const expectedAnchors = [
-    ...modeConfig.anchors.core.map(spec => ({
-      anchor_key: spec.id,
-      scope: 'core' as const,
-      label: spec.label,
-      expected_type: spec.substrateType,
-      required: true,
-      description: spec.description ?? null,
-      metadata: {
-        acceptanceCriteria: spec.acceptanceCriteria ?? null,
-        dependsOn: spec.dependsOn ?? [],
-      },
-    })),
-    ...modeConfig.anchors.brain.map(spec => ({
-      anchor_key: spec.id,
-      scope: 'brain' as const,
-      label: spec.label,
-      expected_type: spec.substrateType,
-      required: spec.required ?? false,
-      description: spec.description ?? null,
-      metadata: {
-        acceptanceCriteria: spec.acceptanceCriteria ?? null,
-        dependsOn: spec.dependsOn ?? [],
-      },
-    })),
-  ];
+  // Phase A: Mode configs are ADVISORY only (not auto-seeded)
+  // Anchors emerge from user-promoted substrate via governance (Phase B)
+  // For now, this function is a no-op to preserve existing call sites
 
-  if (!expectedAnchors.length) return;
+  // Future Phase B: This will become "suggest anchor roles" based on mode config
+  // e.g., create governance proposals to promote substrate to suggested roles
 
-  const { data: existing, error } = await supabase
-    .from('basket_anchors')
-    .select('anchor_key')
-    .eq('basket_id', basketId);
-
-  if (error) {
-    console.error('[anchor-registry] Failed to load existing anchors', error.message);
-    throw new Error(`Failed to load anchors for basket ${basketId}`);
-  }
-
-  const existingKeys = new Set((existing ?? []).map(row => row.anchor_key));
-
-  const inserts = expectedAnchors
-    .filter(anchor => !existingKeys.has(anchor.anchor_key))
-    .map((anchor, index) => ({
-      basket_id: basketId,
-      anchor_key: anchor.anchor_key,
-      label: anchor.label,
-      scope: anchor.scope,
-      expected_type: anchor.expected_type,
-      required: anchor.required,
-      description: anchor.description,
-      ordering: index,
-      metadata: anchor.metadata,
-    }));
-
-  if (inserts.length) {
-    const { error: insertError } = await supabase
-      .from('basket_anchors')
-      .insert(inserts);
-
-    if (insertError && insertError.code !== '23505') {
-      throw new Error(`Failed to seed anchors for basket ${basketId}: ${insertError.message}`);
-    }
-  }
+  return;
 }
 
 async function loadRegistry(
   supabase: SupabaseClient,
   basketId: string
 ): Promise<BasketAnchorRecord[]> {
-  const { data, error } = await supabase
-    .from('basket_anchors')
+  // Phase A: Load anchors from substrate metadata (anchor_role, anchor_status, anchor_confidence)
+  // Query both blocks and context_items for anchored substrate
+
+  const { data: anchoredSubstrate, error } = await supabase
+    .from('anchored_substrate')
     .select('*')
     .eq('basket_id', basketId)
-    .order('ordering', { ascending: true })
+    .eq('anchor_status', 'accepted') // Only load accepted anchors
     .order('created_at', { ascending: true });
 
   if (error) {
     throw new Error(`Failed to load anchor registry: ${error.message}`);
   }
 
-  return data as BasketAnchorRecord[];
+  // Transform anchored substrate to BasketAnchorRecord format
+  // This maintains compatibility with existing code while using new schema
+  return (anchoredSubstrate || []).map((item, index) => ({
+    id: item.substrate_id,
+    basket_id: basketId,
+    anchor_key: item.anchor_role, // role becomes the key
+    label: item.title || item.anchor_role,
+    scope: 'core', // Default scope (can be inferred from metadata if needed)
+    expected_type: item.substrate_type as 'block' | 'context_item',
+    required: false, // Advisory only (Phase A change)
+    description: null,
+    ordering: index,
+    linked_substrate_id: item.substrate_id,
+    status: 'active',
+    metadata: item.metadata || {},
+    last_refreshed_at: item.updated_at,
+    last_relationship_count: 0,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  })) as BasketAnchorRecord[];
 }
 
 function summariseContent(body?: string | null, content?: string | null): string | null {
@@ -140,19 +106,20 @@ async function buildSubstrateMaps(
     .map(anchor => anchor.linked_substrate_id)
     .filter((id): id is string => typeof id === 'string' && id.length > 0);
 
-  const blockKeys = anchorKeys.filter(key => true); // used for metadata fallback
+  const anchorRoles = anchorKeys.filter(key => true); // anchor roles to query
 
+  // Phase A: Query substrate by anchor_role (not metadata->anchor_id)
   const blockQuery = supabase
     .from('blocks')
-    .select('id, title, body_md, content, metadata, semantic_type, state, status, updated_at, created_at')
+    .select('id, title, body_md, content, metadata, semantic_type, state, status, updated_at, created_at, anchor_role')
     .eq('basket_id', basketId)
-    .in('metadata->>anchor_id', blockKeys);
+    .in('anchor_role', anchorRoles);
 
   const contextQuery = supabase
     .from('context_items')
-    .select('id, title, content, metadata, type, semantic_category, state, status, updated_at, created_at')
+    .select('id, title, content, metadata, type, semantic_category, state, status, updated_at, created_at, anchor_role')
     .eq('basket_id', basketId)
-    .in('metadata->>anchor_id', blockKeys);
+    .in('anchor_role', anchorRoles);
 
   const [blockRes, contextRes] = await Promise.all([blockQuery, contextQuery]);
 
@@ -163,21 +130,22 @@ async function buildSubstrateMaps(
     throw new Error(`Failed to load anchor context items: ${contextRes.error.message}`);
   }
 
+  // Phase A: Use anchor_role as key (not metadata.anchor_id)
   const blockMap = new Map<string, any>();
   for (const row of blockRes.data ?? []) {
     blockMap.set(row.id, row);
-    const key = row.metadata?.anchor_id;
-    if (key && !blockMap.has(key)) {
-      blockMap.set(key, row);
+    // Map by anchor_role for lookups by role
+    if (row.anchor_role && !blockMap.has(row.anchor_role)) {
+      blockMap.set(row.anchor_role, row);
     }
   }
 
   const contextMap = new Map<string, any>();
   for (const row of contextRes.data ?? []) {
     contextMap.set(row.id, row);
-    const key = row.metadata?.anchor_id;
-    if (key && !contextMap.has(key)) {
-      contextMap.set(key, row);
+    // Map by anchor_role for lookups by role
+    if (row.anchor_role && !contextMap.has(row.anchor_role)) {
+      contextMap.set(row.anchor_role, row);
     }
   }
 
