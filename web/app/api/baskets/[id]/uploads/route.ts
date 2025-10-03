@@ -13,7 +13,6 @@ type RawDumpRow = {
   file_url: string | null;
   processing_status: string | null;
   source_meta: Record<string, any> | null;
-  metadata: Record<string, any> | null;
   body_md: string | null;
   text_dump: string | null;
 };
@@ -186,7 +185,6 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
           file_url: dump.file_url,
           processing_status: dump.processing_status,
           source_meta: dump.source_meta ?? {},
-          metadata: dump.metadata ?? {},
           body_preview,
         },
         derived_blocks: derivedBlocks,
