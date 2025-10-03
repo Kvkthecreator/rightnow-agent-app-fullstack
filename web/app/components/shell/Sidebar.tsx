@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Package2, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield } from "lucide-react";
+import { Package2, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield, CloudUpload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
@@ -152,6 +152,7 @@ export default function Sidebar({ className }: SidebarProps) {
   // Map section keys to icons
   const sectionIcons: Record<string, React.ElementType> = {
     memory: BookOpen,
+    uploads: CloudUpload,
     governance: Shield,
     timeline: Clock,
     reflections: Brain,

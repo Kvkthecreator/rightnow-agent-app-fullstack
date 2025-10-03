@@ -56,13 +56,14 @@ interface CaptureSummary {
   work_items: WorkItemSummary[];
 }
 
-interface BuildingBlocksResponse {
-  captures: CaptureSummary[];
+interface UploadsResponse {
+  uploads: CaptureSummary[];
   stats: {
-    captures: number;
-    dumps: number;
-    blocks: number;
-    context_items: number;
+    total_uploads: number;
+    total_blocks: number;
+    total_context_items: number;
+    files: number;
+    text: number;
   };
 }
 
@@ -113,8 +114,8 @@ interface UploadsClientProps {
 }
 
 export default function UploadsClient({ basketId }: UploadsClientProps) {
-  const { data, error, isLoading, mutate } = useSWR<BuildingBlocksResponse>(
-    `/api/baskets/${basketId}/building-blocks`,
+  const { data, error, isLoading, mutate } = useSWR<UploadsResponse>(
+    `/api/baskets/${basketId}/uploads`,
     fetcher,
     { refreshInterval: 60_000 },
   );
@@ -124,8 +125,8 @@ export default function UploadsClient({ basketId }: UploadsClientProps) {
   const [selected, setSelected] = useState<string | null>(null);
 
   const uploads = useMemo(() => {
-    if (!data?.captures) return [] as CaptureSummary[];
-    let captures = data.captures;
+    if (!data?.uploads) return [] as CaptureSummary[];
+    let captures = data.uploads;
     if (typeFilter !== 'all') {
       captures = captures.filter((capture) => uploadType(capture) === typeFilter);
     }
@@ -163,9 +164,9 @@ export default function UploadsClient({ basketId }: UploadsClientProps) {
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4">
-          <Badge variant="secondary" className="bg-slate-100 text-slate-700">{data?.stats.dumps ?? 0} total uploads</Badge>
-          <Badge variant="secondary" className="bg-green-50 text-green-700">{data?.stats.blocks ?? 0} blocks extracted</Badge>
-          <Badge variant="secondary" className="bg-purple-50 text-purple-700">{data?.stats.context_items ?? 0} meanings extracted</Badge>
+          <Badge variant="secondary" className="bg-slate-100 text-slate-700">{data?.stats.total_uploads ?? 0} total uploads</Badge>
+          <Badge variant="secondary" className="bg-green-50 text-green-700">{data?.stats.total_blocks ?? 0} blocks extracted</Badge>
+          <Badge variant="secondary" className="bg-purple-50 text-purple-700">{data?.stats.total_context_items ?? 0} meanings extracted</Badge>
         </CardContent>
       </Card>
 
