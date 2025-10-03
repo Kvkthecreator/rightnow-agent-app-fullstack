@@ -1,9 +1,9 @@
 /**
  * Smart Auto-Approval System - Priority 2 Enhancement
- * 
+ *
  * Intelligent auto-approval rules based on confidence thresholds,
- * operation types, user roles, and basket maturity. Maintains Canon
- * governance integrity while reducing manual review overhead.
+ * operation types, and user roles. Maintains Canon governance integrity
+ * while reducing manual review overhead.
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -13,11 +13,10 @@ import type { Decision } from './policyDecider';
 export interface AutoApprovalRule {
   id: string;
   name: string;
-  condition: 'confidence_threshold' | 'operation_type' | 'user_role' | 'basket_maturity' | 'composite';
+  condition: 'confidence_threshold' | 'operation_type' | 'user_role' | 'composite';
   threshold?: number;
   allowedOperations?: string[];
   requiredRoles?: string[];
-  minBasketLevel?: number;
   exceptions?: string[];
   enabled: boolean;
   priority: number; // Higher number = higher priority
@@ -27,11 +26,6 @@ export interface AutoApprovalContext {
   workspace_id: string;
   basket_id: string;
   actor_id: string;
-  basketMaturity: {
-    level: number;
-    substrateDensity: number;
-    varietyBonus: boolean;
-  };
   userRole?: string;
   recentFailures: number;
 }
@@ -70,18 +64,6 @@ export class SmartAutoApprovalEngine {
         exceptions: ['bulk_operations'],
         enabled: true,
         priority: 90
-      },
-
-      // Mature basket simple operations
-      {
-        id: 'mature-basket-simple',
-        name: 'Mature Basket Simple Operations',
-        condition: 'basket_maturity',
-        minBasketLevel: 3,
-        threshold: 0.7,
-        allowedOperations: ['ReviseBlock', 'UpdateContextItem', 'AttachContextItem'],
-        enabled: true,
-        priority: 80
       },
 
       // Low-risk refinements
@@ -170,19 +152,16 @@ export class SmartAutoApprovalEngine {
     switch (rule.condition) {
       case 'confidence_threshold':
         return this.evaluateConfidenceThreshold(rule, cd, validatorReport);
-      
+
       case 'operation_type':
         return this.evaluateOperationType(rule, cd, validatorReport);
-      
-      case 'basket_maturity':
-        return this.evaluateBasketMaturity(rule, cd, context);
-      
+
       case 'user_role':
         return this.evaluateUserRole(rule, cd, context);
-      
+
       case 'composite':
         return this.evaluateComposite(rule, cd, context, validatorReport);
-      
+
       default:
         return {
           approved: false,
@@ -286,60 +265,6 @@ export class SmartAutoApprovalEngine {
   }
 
   /**
-   * Evaluate basket maturity rule
-   */
-  private evaluateBasketMaturity(
-    rule: AutoApprovalRule,
-    cd: ChangeDescriptor,
-    context: AutoApprovalContext
-  ): AutoApprovalResult {
-    const minLevel = rule.minBasketLevel || 2;
-    
-    if (context.basketMaturity.level < minLevel) {
-      return {
-        approved: false,
-        reason: `Basket maturity level ${context.basketMaturity.level} below required ${minLevel}`,
-        confidence: 0,
-        requiresTracking: false
-      };
-    }
-
-    // Check operation types if specified
-    if (rule.allowedOperations) {
-      const opTypes = new Set(cd.ops.map(op => op.type));
-      const hasOnlyAllowedOps = Array.from(opTypes).every(type => rule.allowedOperations!.includes(type));
-      
-      if (!hasOnlyAllowedOps) {
-        return {
-          approved: false,
-          reason: `Operations not allowed for mature basket rule`,
-          confidence: 0,
-          requiresTracking: false
-        };
-      }
-    }
-
-    const confidence = this.calculateOperationConfidence(cd.ops);
-    const threshold = rule.threshold || 0.7;
-
-    if (confidence >= threshold) {
-      return {
-        approved: true,
-        reason: `Mature basket (level ${context.basketMaturity.level}) with sufficient confidence`,
-        confidence: confidence,
-        requiresTracking: true // Track mature basket auto-approvals
-      };
-    }
-
-    return {
-      approved: false,
-      reason: `Confidence below threshold for mature basket rule`,
-      confidence: confidence,
-      requiresTracking: false
-    };
-  }
-
-  /**
    * Evaluate user role rule
    */
   private evaluateUserRole(
@@ -416,19 +341,10 @@ export class SmartAutoApprovalEngine {
       totalChecks++;
       const opTypes = new Set(cd.ops.map(op => op.type));
       const hasOnlyAllowedOps = Array.from(opTypes).every(type => rule.allowedOperations!.includes(type));
-      
+
       if (hasOnlyAllowedOps) {
         passedChecks++;
         reasons.push(`operations: ${Array.from(opTypes).join(', ')}`);
-      }
-    }
-
-    // Check basket maturity if specified
-    if (rule.minBasketLevel) {
-      totalChecks++;
-      if (context.basketMaturity.level >= rule.minBasketLevel) {
-        passedChecks++;
-        reasons.push(`maturity: level ${context.basketMaturity.level}`);
       }
     }
 
@@ -517,7 +433,6 @@ export class SmartAutoApprovalEngine {
     // Always track high-priority or role-based rules
     if (rule.priority >= 90) return true;
     if (rule.condition === 'user_role') return true;
-    if (rule.condition === 'basket_maturity') return true;
 
     // Track if operations count is significant
     if (cd.ops.length >= 3) return true;

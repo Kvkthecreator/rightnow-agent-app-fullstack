@@ -98,13 +98,11 @@ export async function routeChange(
     
     if (isHybridMode) {
       console.log(`Smart auto-approval enabled for entry point: ${processedCd.entry_point}`);
-      
-      const basketMaturity = await calculateBasketMaturity(supabase, processedCd);
+
       const autoApprovalContext: AutoApprovalContext = {
         workspace_id: processedCd.workspace_id,
         basket_id: processedCd.basket_id!,
         actor_id: processedCd.actor_id,
-        basketMaturity,
         recentFailures: await getRecentFailures(supabase, processedCd.workspace_id)
       };
 
@@ -714,50 +712,6 @@ async function emitCommitFailureEvent(
     p_workspace_id: cd.workspace_id,
     p_actor_id: cd.actor_id
   });
-}
-
-/**
- * Calculate basket maturity for auto-approval context
- */
-async function calculateBasketMaturity(
-  supabase: SupabaseClient,
-  cd: ChangeDescriptor
-): Promise<{ level: number; substrateDensity: number; varietyBonus: boolean }> {
-  try {
-    if (!cd.basket_id) {
-      return { level: 1, substrateDensity: 0, varietyBonus: false };
-    }
-
-    // Get substrate counts
-    const { data: stats } = await supabase.rpc('fn_get_basket_substrate_stats', {
-      p_basket_id: cd.basket_id,
-      p_workspace_id: cd.workspace_id
-    });
-
-    if (!stats) {
-      return { level: 1, substrateDensity: 0, varietyBonus: false };
-    }
-
-    const totalSubstrate = (stats.blocks_count || 0) + (stats.context_items_count || 0) + (stats.raw_dumps_count || 0);
-    const substrateDensity = totalSubstrate / 100; // Normalize per 100 items
-    
-    // Calculate maturity level based on substrate density and variety
-    let level = 1;
-    if (totalSubstrate >= 10) level = 2;
-    if (totalSubstrate >= 50) level = 3;
-    if (totalSubstrate >= 100) level = 4;
-    if (totalSubstrate >= 200) level = 5;
-
-    // Variety bonus for diverse substrate types
-    const varietyTypes = [stats.blocks_count, stats.context_items_count, stats.raw_dumps_count]
-      .filter(count => (count || 0) > 0).length;
-    const varietyBonus = varietyTypes >= 2;
-
-    return { level, substrateDensity, varietyBonus };
-  } catch (error) {
-    console.error('Failed to calculate basket maturity:', error);
-    return { level: 1, substrateDensity: 0, varietyBonus: false };
-  }
 }
 
 /**

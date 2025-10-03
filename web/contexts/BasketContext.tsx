@@ -3,10 +3,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useUniversalChanges } from '@/lib/hooks/useUniversalChanges';
-import { useBasketMaturity } from '@/lib/hooks/useBasketMaturity';
 import type { DocumentDTO } from '@/shared/contracts/documents';
-import type { BasketStats, BasketMaturity } from '@/lib/basket/maturity';
-import { getMaturityGuidance } from '@/lib/basket/maturity';
 
 // Think of this as a "shared data store" that all components can access
 // Like having a central database that updates everywhere at once
@@ -27,13 +24,9 @@ interface Basket {
 interface BasketContextType {
   basket: Basket | null;
   documents: DocumentDTO[];
-  stats: BasketStats | null;
-  maturity: BasketMaturity | null;
-  maturityGuidance: ReturnType<typeof getMaturityGuidance> | null;
   updateBasketName: (newName: string) => Promise<void>;
   setBasket: (basket: Basket) => void;
   setDocuments: (docs: DocumentDTO[]) => void;
-  refreshMaturity: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -58,14 +51,6 @@ export function BasketProvider({
 
   // Get universal changes hook for this basket
   const changeManager = useUniversalChanges(basket?.id || '');
-  
-  // Get basket maturity data
-  const { 
-    stats, 
-    maturity, 
-    guidance: maturityGuidance,
-    refresh: refreshMaturity
-  } = useBasketMaturity(basket?.id || '');
 
   // Function to update basket name using Universal Change System
   const updateBasketName = useCallback(async (newName: string) => {
@@ -104,13 +89,9 @@ export function BasketProvider({
     <BasketContext.Provider value={{
       basket,
       documents,
-      stats,
-      maturity,
-      maturityGuidance,
       updateBasketName,
       setBasket,
       setDocuments,
-      refreshMaturity,
       isLoading,
       error
     }}>

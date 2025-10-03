@@ -173,53 +173,43 @@ export async function POST(
           p_actor_id: user.id
         });
 
-        // Trigger P2 Graph mapping for substrate connections if basket is mature enough
+        // Trigger P2 Graph mapping for substrate connections
         try {
-          const { calculateMaturity } = await import('@/lib/basket/maturity');
-          
-          // Get current basket stats for maturity check
+          // Get current substrate counts
           const [
             { count: blocks_count },
-            { count: raw_dumps_count },
-            { count: context_items_count }, 
-            { count: timeline_events_count },
-            { count: documents_count }
+            { count: context_items_count }
           ] = await Promise.all([
-            supabase.from('blocks').select('*', { count: 'exact', head: true }).eq('basket_id', basketId),
-            supabase.from('raw_dumps').select('*', { count: 'exact', head: true }).eq('basket_id', basketId),
-            supabase.from('context_items').select('*', { count: 'exact', head: true }).eq('basket_id', basketId),
-            supabase.from('timeline_events').select('*', { count: 'exact', head: true }).eq('basket_id', basketId),
-            supabase.from('documents').select('*', { count: 'exact', head: true }).eq('basket_id', basketId)
+            supabase.from('blocks')
+              .select('*', { count: 'exact', head: true })
+              .eq('basket_id', basketId)
+              .neq('status', 'archived'),
+            supabase.from('context_items')
+              .select('*', { count: 'exact', head: true })
+              .eq('basket_id', basketId)
+              .eq('state', 'ACTIVE')
           ]);
 
-          const stats = {
-            blocks_count: blocks_count || 0,
-            raw_dumps_count: raw_dumps_count || 0,
-            context_items_count: context_items_count || 0,
-            timeline_events_count: timeline_events_count || 0,
-            documents_count: documents_count || 0
-          };
-
-          const maturity = calculateMaturity(stats);
-          const hasNewSubstrate = executionLog.some((e: any) => 
+          const totalSubstrate = (blocks_count || 0) + (context_items_count || 0);
+          const hasNewSubstrate = executionLog.some((e: any) =>
             e.success && ['CreateBlock', 'CreateContextItem', 'ReviseBlock', 'UpdateContextItem'].includes(e.operation_type)
           );
-          
-          // P2 Graph: Map relationships if basket is mature enough (level 2+) and substrate was created/updated
-          if (maturity.level >= 2 && hasNewSubstrate && maturity.substrateDensity >= 5) {
+
+          // P2 Graph: Map relationships if basket has enough substrate (10+) and substrate was created/updated
+          if (totalSubstrate >= 10 && hasNewSubstrate) {
             const { routeWork } = await import('@/lib/governance/universalWorkRouter');
-            
+
             // Trigger P2 Graph via universal work orchestration
             await routeWork(supabase, {
               work_type: 'P2_GRAPH',
               work_payload: {
-                operations: [{ 
-                  type: 'MapRelationships', 
-                  data: { 
+                operations: [{
+                  type: 'MapRelationships',
+                  data: {
                     basket_id: basketId,
                     trigger: 'post_substrate_commit',
-                    substrate_count: maturity.substrateDensity 
-                  } 
+                    substrate_count: totalSubstrate
+                  }
                 }],
                 basket_id: basketId,
                 confidence_score: 0.8, // High confidence for post-approval P2
@@ -229,8 +219,8 @@ export async function POST(
               user_id: user.id,
               priority: 'normal'
             });
-            
-            console.log(`P2 Graph triggered: basket_id=${basketId}, maturity_level=${maturity.level}, substrate_count=${maturity.substrateDensity}`);
+
+            console.log(`P2 Graph triggered: basket_id=${basketId}, substrate_count=${totalSubstrate}`);
           }
         } catch (e) {
           console.warn('P2 graph trigger skipped:', e);

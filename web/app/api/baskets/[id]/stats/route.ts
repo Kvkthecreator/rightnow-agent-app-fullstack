@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getTestAwareAuth } from '@/lib/auth/testHelpers';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { calculateMaturity, type BasketStats } from '@/lib/basket/maturity';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
+}
+
+export interface BasketStats {
+  blocks_count: number;
+  raw_dumps_count: number;
+  context_items_count: number;
+  timeline_events_count: number;
+  documents_count: number;
 }
 
 // GET /api/baskets/[id]/stats
@@ -37,7 +44,7 @@ export async function GET(
     const [
       { count: blocks_count },
       { count: raw_dumps_count },
-      { count: context_items_count }, 
+      { count: context_items_count },
       { count: timeline_events_count },
       { count: documents_count }
     ] = await Promise.all([
@@ -72,13 +79,9 @@ export async function GET(
       documents_count: documents_count || 0
     };
 
-    // Calculate maturity
-    const maturity = calculateMaturity(stats);
-
-    return NextResponse.json({ 
-      stats, 
-      maturity,
-      basket_id: id 
+    return NextResponse.json({
+      stats,
+      basket_id: id
     }, { status: 200 });
 
   } catch (error) {
