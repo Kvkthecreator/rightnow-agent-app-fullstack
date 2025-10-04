@@ -6,6 +6,7 @@ import { WizardProgress } from './WizardProgress';
 import { WizardStep } from './WizardStep';
 import { Card } from '@/components/ui/Card';
 import { Upload, FileText, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { UploadComparison } from './UploadComparison';
 
 interface UploadWizardProps {
   basketId: string;
@@ -387,24 +388,45 @@ export function UploadWizard({
     </div>
   );
 
-  const renderComparisonStep = () => (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-900 mb-2">
-          Transformation Preview
-        </h2>
-        <p className="text-slate-600">
-          This feature will show side-by-side comparison in the next milestone
-        </p>
-      </div>
+  const renderComparisonStep = () => {
+    const completedFiles = files.filter((f) => f.status === 'completed');
 
-      <div className="bg-slate-100 border border-slate-300 rounded-lg p-8 text-center">
-        <p className="text-slate-600">
-          Side-by-side comparison component (Milestone 2.2)
-        </p>
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-900 mb-2">
+            Transformation Preview
+          </h2>
+          <p className="text-slate-600">
+            See how YARNNN transforms your documents into renewable knowledge
+          </p>
+        </div>
+
+        {completedFiles.length > 0 && completedFiles[0].rawDumpId ? (
+          <UploadComparison
+            basketId={basketId}
+            rawDumpId={completedFiles[0].rawDumpId}
+            fileName={completedFiles[0].file.name}
+          />
+        ) : (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <p className="text-sm text-amber-900">
+              No completed documents available for comparison
+            </p>
+          </div>
+        )}
+
+        {completedFiles.length > 1 && (
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <p className="text-xs text-slate-600">
+              Showing preview for first document. All {completedFiles.length}{' '}
+              documents will be available in Building Blocks.
+            </p>
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderCompleteStep = () => (
     <div className="space-y-6 text-center">
