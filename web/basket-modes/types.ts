@@ -83,4 +83,31 @@ export type BasketModeConfig = {
   progress: {
     checklist: ProgressRule[];
   };
+  // Wizard configurations
+  wizards?: {
+    setup?: {
+      enabled: boolean;
+      steps: SetupWizardStepSpec[];
+      immediateArtifacts: string[]; // Deliverable IDs
+      queuedArtifacts: string[]; // Deliverable IDs
+    };
+    upload?: {
+      enabled: boolean;
+      maxDocuments: number;
+      transformationMessage: string;
+    };
+  };
+};
+
+export type SetupWizardStepSpec = {
+  id: string;
+  field: string;
+  question: string;
+  prompt: string;
+  placeholder: string;
+  inputType: 'text' | 'textarea';
+  optional?: boolean;
+  anchorRefs?: string[];
+  minLength?: number;
+  maxLength?: number;
 };
