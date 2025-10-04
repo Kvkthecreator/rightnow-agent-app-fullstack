@@ -1904,15 +1904,15 @@ CREATE TABLE public.document_versions (
     parent_version_hash character varying(64),
     composition_contract jsonb DEFAULT '{}'::jsonb,
     composition_signature character varying(64),
+    version_trigger text,
     CONSTRAINT non_empty_content CHECK ((length(content) > 0)),
-    CONSTRAINT valid_version_hash CHECK (((version_hash)::text ~ '^doc_v[a-f0-9]{58}$'::text))
+    CONSTRAINT valid_version_hash CHECK (((version_hash)::text ~ '^doc_v[a-f0-9]{58}$'::text)),
+    CONSTRAINT valid_version_trigger CHECK (((version_trigger IS NULL) OR (version_trigger = ANY (ARRAY['initial'::text, 'substrate_update'::text, 'user_requested'::text, 'instruction_change'::text, 'upload_composition'::text, 'migrated'::text]))))
 );
 CREATE TABLE public.documents (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
     title text NOT NULL,
-    content_raw text NOT NULL,
-    content_rendered text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     created_by uuid,
@@ -1921,8 +1921,33 @@ CREATE TABLE public.documents (
     document_type text DEFAULT 'general'::text NOT NULL,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     current_version_hash character varying(64),
-    status text DEFAULT 'draft'::text
+    composition_instructions jsonb DEFAULT '{}'::jsonb,
+    substrate_filter jsonb DEFAULT '{}'::jsonb,
+    source_raw_dump_id uuid
 );
+CREATE VIEW public.document_heads AS
+ SELECT d.id AS document_id,
+    d.basket_id,
+    d.workspace_id,
+    d.title,
+    d.document_type,
+    d.composition_instructions,
+    d.substrate_filter,
+    d.source_raw_dump_id,
+    d.current_version_hash,
+    d.created_at AS document_created_at,
+    d.created_by AS document_created_by,
+    d.updated_at AS document_updated_at,
+    d.metadata AS document_metadata,
+    dv.content,
+    dv.metadata_snapshot AS version_metadata,
+    dv.substrate_refs_snapshot,
+    dv.created_at AS version_created_at,
+    dv.created_by AS version_created_by,
+    dv.version_trigger,
+    dv.version_message
+   FROM (public.documents d
+     LEFT JOIN public.document_versions dv ON (((dv.version_hash)::text = (d.current_version_hash)::text)));
 CREATE TABLE public.raw_dumps (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid NOT NULL,
@@ -2287,21 +2312,6 @@ CREATE VIEW public.v_kpi_basket_recent AS
    FROM public.pipeline_metrics
   WHERE (pipeline_metrics.ts > (now() - '7 days'::interval))
   ORDER BY pipeline_metrics.ts DESC;
-CREATE VIEW public.v_narrative_documents AS
- SELECT d.id,
-    d.basket_id,
-    d.title,
-    d.content_raw,
-    d.content_rendered,
-    d.created_at,
-    d.updated_at,
-    d.created_by,
-    d.updated_by,
-    d.workspace_id,
-    d.document_type,
-    d.metadata
-   FROM public.documents d
-  WHERE (d.document_type = 'narrative'::text);
 CREATE TABLE public.workspace_memberships (
     id bigint NOT NULL,
     workspace_id uuid,
@@ -2662,6 +2672,8 @@ ALTER TABLE ONLY public.document_versions
     ADD CONSTRAINT document_versions_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.documents
+    ADD CONSTRAINT documents_source_raw_dump_id_fkey FOREIGN KEY (source_raw_dump_id) REFERENCES public.raw_dumps(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.events
