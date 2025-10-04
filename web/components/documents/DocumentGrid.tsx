@@ -3,10 +3,9 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { 
-  FileText, 
-  MoreVertical, 
-  Edit3,
+import {
+  FileText,
+  MoreVertical,
   Share,
   Archive,
   Copy,
@@ -83,16 +82,9 @@ export function DocumentGrid({ documents, onDocumentClick, onDocumentAction }: D
                   <MoreVertical className="h-4 w-4" />
                 </Button>
                 
-                {/* Simple dropdown menu */}
+                {/* Document actions - Canon v3.0: No edit option */}
                 {activeMenu === document.id && (
                   <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-10 min-w-32">
-                    <button
-                      onClick={(e) => handleAction(document, 'edit', e)}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                      Edit
-                    </button>
                     <button
                       onClick={(e) => handleAction(document, 'duplicate', e)}
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -126,16 +118,16 @@ export function DocumentGrid({ documents, onDocumentClick, onDocumentAction }: D
               </div>
             </div>
 
-            {/* Document Preview */}
+            {/* Document Preview - Canon v3.0: content from current version, not metadata */}
             <p className="text-sm text-gray-600 mb-4 leading-relaxed line-clamp-3">
-              {getPreview((document.metadata as any)?.content_raw) || "No content yet..."}
+              {getPreview((document as any).content) || "No content yet - click to compose from substrate"}
             </p>
 
             {/* Document Metadata */}
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>{formatDate(document.updated_at)}</span>
               <Badge variant="outline" className="text-xs">
-                {(((document.metadata as any)?.content_raw || "").split(/\s+/).filter((word: string) => word.length > 0).length).toLocaleString()} words
+                {(((document as any).content || "").split(/\s+/).filter((word: string) => word.length > 0).length).toLocaleString()} words
               </Badge>
             </div>
           </CardContent>

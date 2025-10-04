@@ -665,11 +665,11 @@ function createInventoryFromIntelligence(intelligence: any) {
     averageWords: 0
   };
   
-  // Count documents with content and calculate word counts
+  // Count documents with content and calculate word counts (Canon v3.0: use 'content' from versions)
   documents.forEach((doc: any) => {
-    if (doc.content_raw && typeof doc.content_raw === 'string' && doc.content_raw.trim().length > 0) {
+    if (doc.content && typeof doc.content === 'string' && doc.content.trim().length > 0) {
       documentStats.withContent++;
-      const wordCount = doc.content_raw.split(/\s+/).filter((word: string) => word.length > 0).length;
+      const wordCount = doc.content.split(/\s+/).filter((word: string) => word.length > 0).length;
       documentStats.totalWords += wordCount;
     }
   });
@@ -726,12 +726,12 @@ function createInventoryFromIntelligence(intelligence: any) {
 
 function calculateRealWordCount(intelligence: any): number {
   let totalWords = 0;
-  
-  // Count words from documents if available
+
+  // Count words from documents if available (Canon v3.0: use 'content' from versions)
   if (intelligence.documents && Array.isArray(intelligence.documents)) {
     totalWords += intelligence.documents.reduce((sum: number, doc: any) => {
-      if (doc.content_raw && typeof doc.content_raw === 'string') {
-        return sum + doc.content_raw.split(/\s+/).filter((word: string) => word.length > 0).length;
+      if (doc.content && typeof doc.content === 'string') {
+        return sum + doc.content.split(/\s+/).filter((word: string) => word.length > 0).length;
       }
       return sum;
     }, 0);
