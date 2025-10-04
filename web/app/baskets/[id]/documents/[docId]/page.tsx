@@ -20,11 +20,11 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   const { userId } = await getAuthenticatedUser(supabase);
   const workspace = await ensureWorkspaceForUser(userId, supabase);
 
-  // Validate document exists and user has access
+  // Validate document exists and user has access (Canon v3.0: use document_heads for content)
   const { data: document, error: documentError } = await supabase
-    .from('documents')
-    .select('id, basket_id, title, content_raw, created_at, updated_at, metadata, workspace_id')
-    .eq('id', docId)
+    .from('document_heads')
+    .select('document_id, basket_id, title, content, document_created_at, document_updated_at, document_metadata, workspace_id')
+    .eq('document_id', docId)
     .maybeSingle();
 
   if (documentError || !document) {
@@ -61,11 +61,23 @@ export default async function DocumentDetailPage({ params }: PageProps) {
     (basket.mode ?? 'default') as BasketModeId,
   );
 
+  // Map document_heads view fields to DocumentPage expected format
+  const documentForPage = {
+    id: document.document_id,
+    basket_id: document.basket_id,
+    workspace_id: document.workspace_id,
+    title: document.title,
+    content: document.content,
+    created_at: document.document_created_at,
+    updated_at: document.document_updated_at,
+    metadata: document.document_metadata
+  };
+
   return (
     <BasketWrapper basket={basket} modeConfig={modeConfig}>
       <div className="space-y-6">
         <ModeDeliverablesPanel />
-        <DocumentPage document={document} basketId={basketId} />
+        <DocumentPage document={documentForPage} basketId={basketId} />
       </div>
     </BasketWrapper>
   );

@@ -16,7 +16,7 @@ interface DocumentRow {
   basket_id: string;
   workspace_id: string;
   title: string;
-  content_raw?: string | null;
+  content?: string | null; // Canon v3.0: content from current version
   metadata?: Record<string, any> | null;
   updated_at: string;
   created_at: string;
@@ -34,8 +34,6 @@ interface DocumentPageProps {
 }
 
 type ComposeState = 'idle' | 'running' | 'success' | 'failed';
-
-type DocumentMode = 'read' | 'edit';
 
 const DEFAULT_WINDOW_DAYS = 30;
 const POLL_INTERVAL_MS = 5000;
@@ -63,7 +61,6 @@ function relativeTime(value?: string | null) {
 
 export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const router = useRouter();
-  const [mode, setMode] = useState<DocumentMode>('read');
   const [composition, setComposition] = useState<CompositionPayload | null>(null);
   const [references, setReferences] = useState<Array<{ reference: any; substrate: any }>>([]);
   const [versions, setVersions] = useState<any[]>([]);
@@ -73,9 +70,6 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const [composeMessage, setComposeMessage] = useState<string | null>(null);
   const [composeError, setComposeError] = useState<string | null>(null);
   const [composeStartedAt, setComposeStartedAt] = useState<Date | null>(null);
-  const [editTitle, setEditTitle] = useState<string>(document.title);
-  const [editProse, setEditProse] = useState<string>(document.content_raw || '');
-  const [saving, setSaving] = useState<boolean>(false);
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState<string | null>(null);
 
@@ -213,8 +207,9 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   };
 
   const handleExtractToMemory = async () => {
-    if (!composition?.document?.content_raw) {
-      notificationAPI.emitActionResult('document.extract', 'Add content before extracting to memory', { severity: 'warning' });
+    const content = composition?.document?.content || document.content;
+    if (!content) {
+      notificationAPI.emitActionResult('document.extract', 'Document has no content to extract', { severity: 'warning' });
       return;
     }
     try {
@@ -226,11 +221,11 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
         body: JSON.stringify({
           basket_id: basketId,
           dump_request_id,
-          text_dump: `${composition.document.title}\n\n${composition.document.content_raw}`,
+          text_dump: `${composition?.document?.title || document.title}\n\n${content}`,
           meta: {
             source: 'document_extract',
-            document_id: composition.document.id,
-            document_title: composition.document.title,
+            document_id: composition?.document?.id || document.id,
+            document_title: composition?.document?.title || document.title,
             extraction_timestamp: new Date().toISOString()
           }
         })
@@ -247,7 +242,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const handleDocumentInsights = async () => {
     setInsightLoading(true);
     setInsightError(null);
-    await notificationAPI.emitJobStarted('document.reflection', `Analyzing “${document.title}”`, {
+    await notificationAPI.emitJobStarted('document.reflection', `Analyzing "${document.title}"`, {
       basketId,
       correlationId: document.id,
     });
@@ -280,25 +275,6 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
       });
     } finally {
       setInsightLoading(false);
-    }
-  };
-
-  const handleSaveEdits = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/documents/${document.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: editTitle.trim(), content_raw: editProse })
-      });
-      if (!res.ok) throw new Error('Save failed');
-      notificationAPI.emitActionResult('document.save', 'Document saved successfully');
-      await fetchComposition();
-      setMode('read');
-    } catch (err) {
-      notificationAPI.emitActionResult('document.save', err instanceof Error ? err.message : 'Save failed', { severity: 'error' });
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -449,7 +425,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
     );
   };
 
-  const currentContent = composition?.document?.content_raw || document.content_raw || '';
+  const currentContent = composition?.document?.content || document.content || '';
 
   return (
     <div className="flex flex-col gap-6">
@@ -480,14 +456,11 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
             </Button>
             <Button variant="default" size="sm" onClick={handleCompose} disabled={composeState === 'running'}>
               <Sparkles className="mr-2 h-4 w-4" />
-              {composeState === 'running' ? 'Composing…' : 'Compose From Memory'}
+              {composeState === 'running' ? 'Composing…' : 'Regenerate from Substrate'}
             </Button>
             <Button variant="outline" size="sm" onClick={handleExtractToMemory} disabled={composeState === 'running'}>
               <Download className="mr-2 h-4 w-4" />
               Extract to Memory
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setMode(mode === 'read' ? 'edit' : 'read')}>
-              {mode === 'read' ? 'Edit' : 'Cancel'}
             </Button>
           </div>
         </div>
@@ -520,37 +493,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
         <p className="text-xs text-red-600">{composeError}</p>
       )}
 
-      {mode === 'edit' ? (
-        <div className="grid gap-4">
-          <Card className="p-6 space-y-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700">Title</label>
-              <input
-                className="mt-2 w-full rounded border border-slate-200 px-3 py-2 text-sm"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700">Prose</label>
-              <textarea
-                className="mt-2 w-full rounded border border-slate-200 px-3 py-2 text-sm h-[360px]"
-                value={editProse}
-                onChange={(e) => setEditProse(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setMode('read')}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleSaveEdits} disabled={saving}>
-                {saving ? 'Saving…' : 'Save Changes'}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6">
           <Card className="p-0 overflow-hidden">
             {loading ? (
               <div className="p-6 text-sm text-slate-500">Loading document…</div>
@@ -596,7 +539,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
               </div>
             ) : (
               <div className="p-12 text-center text-sm text-slate-500">
-                No content yet. Compose from memory or switch to edit mode to begin writing.
+                No content yet. Click "Regenerate from Substrate" to compose document from your memory.
               </div>
             )}
           </Card>
@@ -612,7 +555,6 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
             )}
           </div>
         </div>
-      )}
     </div>
   );
 }
