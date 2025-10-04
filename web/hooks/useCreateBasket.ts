@@ -95,15 +95,10 @@ export function useCreateBasket() {
         const basketResponse = await apiClient.request<{
           id: string;
           mode: string | null;
+          has_setup_wizard?: boolean;
         }>(`/api/baskets/${basketId}`, { method: 'GET' });
 
-        const mode = basketResponse.mode ?? 'default';
-
-        // Dynamically import mode config to check for wizard
-        const { loadBasketModeConfig } = await import('@/basket-modes/loader');
-        const modeConfig = await loadBasketModeConfig(mode as any);
-
-        if (modeConfig.wizards?.setup?.enabled) {
+        if (basketResponse.has_setup_wizard) {
           router.push(`/baskets/${basketId}/setup-wizard`);
           return;
         }
