@@ -43,11 +43,11 @@ export async function analyzeBasketIntelligence(
 
     console.log(`[SharedAnalysis] Found basket: ${basketData.name}`);
 
-    // Now fetch related data separately for better error handling
+    // Now fetch related data separately for better error handling (Canon v3.0: use document_heads for content)
     const [documentsResult, blocksResult, contextResult, rawDumpsResult] = await Promise.all([
       supabase
-        .from("documents")
-        .select("id, title, content_raw, created_at")
+        .from("document_heads")
+        .select("document_id, title, content, document_created_at")
         .eq("basket_id", basketId)
         .eq("workspace_id", workspaceId),
       supabase
@@ -67,10 +67,17 @@ export async function analyzeBasketIntelligence(
         .eq("workspace_id", workspaceId)
     ]);
 
-    // Combine the data
+    // Combine the data (Canon v3.0: map document_heads fields)
+    const documents = (documentsResult.data || []).map((doc: any) => ({
+      id: doc.document_id,
+      title: doc.title,
+      content: doc.content,
+      created_at: doc.document_created_at
+    }));
+
     const basket = {
       ...basketData,
-      documents: documentsResult.data || [],
+      documents,
       blocks: blocksResult.data || [],
       context_items: contextResult.data || [],
       rawDumps: rawDumpsResult.data || []
@@ -337,8 +344,8 @@ function extractThemesFromContent(documents: any[], blocks: any[], contextItems:
       titleWords.forEach((word: string) => themes.add(capitalizeWord(word)));
     }
     
-    if (doc.content_raw) {
-      const contentWords = extractKeywords(doc.content_raw);
+    if (doc.content) {
+      const contentWords = extractKeywords(doc.content);
       contentWords.forEach((word: string) => themes.add(word));
     }
   });
@@ -411,8 +418,8 @@ function calculateRealConfidenceScore(documents: any[], blocks: any[], contextIt
   // Calculate actual content words
   let totalContentWords = 0;
   documents.forEach(doc => {
-    if (doc.content_raw && typeof doc.content_raw === 'string') {
-      totalContentWords += doc.content_raw.split(/\s+/).filter((word: string) => word.length > 0).length;
+    if (doc.content && typeof doc.content === 'string') {
+      totalContentWords += doc.content.split(/\s+/).filter((word: string) => word.length > 0).length;
     }
   });
   
@@ -476,8 +483,8 @@ function capitalizeWord(word: string): string {
 // Helper functions for honest content analysis
 function calculateTotalContentWords(documents: any[]): number {
   return documents.reduce((total, doc) => {
-    if (doc.content_raw && typeof doc.content_raw === 'string') {
-      return total + doc.content_raw.split(/\s+/).filter((word: string) => word.length > 0).length;
+    if (doc.content && typeof doc.content === 'string') {
+      return total + doc.content.split(/\s+/).filter((word: string) => word.length > 0).length;
     }
     return total;
   }, 0);
@@ -486,8 +493,8 @@ function calculateTotalContentWords(documents: any[]): number {
 function countThemeWords(theme: string, documents: any[]): number {
   const themeLower = theme.toLowerCase();
   return documents.reduce((count, doc) => {
-    if (doc.content_raw && typeof doc.content_raw === 'string') {
-      const content = doc.content_raw.toLowerCase();
+    if (doc.content && typeof doc.content === 'string') {
+      const content = doc.content.toLowerCase();
       const matches = (content.match(new RegExp(themeLower, 'g')) || []).length;
       return count + matches;
     }
@@ -500,8 +507,8 @@ function validatePatternInContent(pattern: string, documents: any[]): boolean {
   let documentMatches = 0;
   
   documents.forEach(doc => {
-    if (doc.content_raw && typeof doc.content_raw === 'string') {
-      const content = doc.content_raw.toLowerCase();
+    if (doc.content && typeof doc.content === 'string') {
+      const content = doc.content.toLowerCase();
       const hasAllWords = patternWords.every(word => content.includes(word));
       if (hasAllWords) documentMatches++;
     }

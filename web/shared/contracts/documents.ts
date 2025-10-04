@@ -56,9 +56,11 @@ export const CreateDocumentResponseSchema = z.object({
 });
 export type CreateDocumentResponse = z.infer<typeof CreateDocumentResponseSchema>;
 
+// Canon v3.0: Documents are composition definitions, not editable content
 export const UpdateDocumentRequestSchema = z.object({
   title: z.string().optional(),
-  content_raw: z.string().optional(),
+  composition_instructions: z.record(z.any()).optional(),
+  substrate_filter: z.record(z.any()).optional(),
   metadata: z.record(z.any()).optional(),
 });
 export type UpdateDocumentRequest = z.infer<typeof UpdateDocumentRequestSchema>;
@@ -99,12 +101,14 @@ export const GetGraphResponseSchema = z.object({
 });
 export type GetGraphResponse = z.infer<typeof GetGraphResponseSchema>;
 
-// Legacy types (keep for backward compatibility during transition)
+// Canon v3.0: Document type reflects composition model
 export type Document = {
   id: string;
   title: string;
   basket_id: string;
-  content_raw?: string;
+  content?: string; // Read-only content from current version
+  composition_instructions?: Record<string, any>;
+  substrate_filter?: Record<string, any>;
   document_type?: string;
   workspace_id?: string;
   created_at?: string;
