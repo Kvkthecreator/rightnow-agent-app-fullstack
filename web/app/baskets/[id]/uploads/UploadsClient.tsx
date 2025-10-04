@@ -15,6 +15,7 @@ import {
   Search,
   Sparkles,
   Layers,
+  ArrowRight,
 } from 'lucide-react';
 import SubstrateDetailModal from '@/components/substrate/SubstrateDetailModal';
 
@@ -50,6 +51,7 @@ interface CaptureSummary {
     processing_status: string | null;
     created_at: string;
     source_meta: Record<string, any> | null;
+    document_id: string | null; // Upload Wizard: link to composed document
   };
   derived_blocks: DerivedBlock[];
   derived_context_items: DerivedContextItem[];
@@ -248,6 +250,17 @@ export default function UploadsClient({ basketId }: UploadsClientProps) {
                         <p className="text-xs text-slate-500">Captured {formatTimestamp(capture.dump.created_at)}</p>
                       </div>
                       <div className="flex items-center gap-2">
+                        {capture.dump.document_id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.location.href = `/baskets/${basketId}/documents/${capture.dump.document_id}`}
+                            className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                          >
+                            <ArrowRight className="h-3.5 w-3.5 mr-1" />
+                            View Composed Document
+                          </Button>
+                        )}
                         {derivedCount > 0 ? (
                           <Badge variant="secondary" className="bg-green-50 text-green-700">
                             <Sparkles className="h-3.5 w-3.5" /> {derivedCount} substrate extracted

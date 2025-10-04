@@ -132,15 +132,10 @@ export async function POST(
     }
 
     // Update raw_dump with document_id (reverse link)
-    // Note: This requires schema migration in Milestone 2.3
-    // For now, we store in source_meta
     await supabase
       .from('raw_dumps')
       .update({
-        source_meta: {
-          ...rawDump.source_meta,
-          composed_document_id: document.id,
-        },
+        document_id: document.id,
       })
       .eq('id', raw_dump_id);
 
