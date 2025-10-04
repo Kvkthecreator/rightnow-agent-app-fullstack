@@ -102,7 +102,7 @@ export async function GET(
       return NextResponse.json({ error: 'Workspace access required' }, { status: 403 });
     }
 
-    // Fetch comprehensive data from database
+    // Fetch comprehensive data from database (Canon v3.0: use document_heads for content)
     const [basketResult, documentsResult, rawDumpsResult, contextItemsResult, blocksResult] = await Promise.all([
       supabase
         .from('baskets')
@@ -111,7 +111,7 @@ export async function GET(
         .eq('workspace_id', workspace.id)
         .single(),
       supabase
-        .from('documents')
+        .from('document_heads')
         .select('*')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id),
@@ -202,12 +202,12 @@ function calculateContentInventory(
   contextItems: any[],
   blocks: any[]
 ): ContentInventory {
-  // Analyze documents
-  const docsWithContent = documents.filter(doc => 
-    doc.content_raw && doc.content_raw.trim().length > 0
+  // Analyze documents (Canon v3.0: use 'content' from versions instead of 'content_raw')
+  const docsWithContent = documents.filter(doc =>
+    doc.content && doc.content.trim().length > 0
   );
-  const docTotalWords = documents.reduce((sum, doc) => 
-    sum + countWords(doc.content_raw || ''), 0
+  const docTotalWords = documents.reduce((sum, doc) =>
+    sum + countWords(doc.content || ''), 0
   );
 
   // Analyze raw dumps
@@ -260,7 +260,7 @@ function analyzeProcessingResults(documents: any[], rawDumps: any[], basket: any
   const realThemes = new Set<string>();
   const themeOccurrences: Record<string, number> = {};
 
-  // Analyze document titles and content
+  // Analyze document titles and content (Canon v3.0: use 'content' instead of 'content_raw')
   documents.forEach(doc => {
     if (doc.title) {
       const words = extractKeywords(doc.title);
@@ -269,8 +269,8 @@ function analyzeProcessingResults(documents: any[], rawDumps: any[], basket: any
         themeOccurrences[word] = (themeOccurrences[word] || 0) + 1;
       });
     }
-    if (doc.content_raw) {
-      const words = extractKeywords(doc.content_raw).slice(0, 5); // Top 5 keywords
+    if (doc.content) {
+      const words = extractKeywords(doc.content).slice(0, 5); // Top 5 keywords
       words.forEach(word => {
         realThemes.add(word);
         themeOccurrences[word] = (themeOccurrences[word] || 0) + 1;
@@ -314,8 +314,8 @@ function analyzeProcessingResults(documents: any[], rawDumps: any[], basket: any
     });
   }
 
-  // Analyze intent
-  const totalContent = documents.map(d => d.content_raw || '').join(' ') + 
+  // Analyze intent (Canon v3.0: use 'content' instead of 'content_raw')
+  const totalContent = documents.map(d => d.content || '').join(' ') +
                       rawDumps.map(d => d.body_md || '').join(' ');
   
   let extractedIntent = null;
@@ -337,9 +337,9 @@ function analyzeProcessingResults(documents: any[], rawDumps: any[], basket: any
     intentReason = "No clear themes detected";
   }
 
-  // Analyze document alignment
-  const docsWithContent = documents.filter(doc => 
-    doc.content_raw && doc.content_raw.trim().length > 50
+  // Analyze document alignment (Canon v3.0: use 'content' instead of 'content_raw')
+  const docsWithContent = documents.filter(doc =>
+    doc.content && doc.content.trim().length > 50
   );
   const realAlignment = documents.length > 0 ? docsWithContent.length / documents.length : 0;
   
@@ -471,8 +471,8 @@ function compareTruthVsFiction(
   const oldDashboardThemes = Math.max(3, results.themesDetected.filter(t => t.source === 'real').length);
   const oldDashboardIntent = "Building strategic understanding and documentation for sustainable growth";
 
-  // NEW honest dashboard behavior (post-fix)
-  const totalContentLength = documents.reduce((sum, doc) => sum + (doc.content_raw?.length || 0), 0);
+  // NEW honest dashboard behavior (post-fix) (Canon v3.0: use 'content' instead of 'content_raw')
+  const totalContentLength = documents.reduce((sum, doc) => sum + (doc.content?.length || 0), 0);
   const realThemes = results.themesDetected.filter(t => t.source === 'real');
   
   // Calculate what the new honest dashboard shows

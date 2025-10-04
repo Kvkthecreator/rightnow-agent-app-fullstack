@@ -356,11 +356,11 @@ export async function POST(
     const rawDumps = rawDumpsResult.data || [];
     const contextItems = contextItemsResult.data || [];
 
-    // Generate content hash for change detection
+    // Generate content hash for change detection (Canon v3.0: use content from versions)
     const currentHash = await generateContentHash({
       documents: documents.map(doc => ({
         id: doc.id,
-        content_raw: doc.content || '',
+        content: doc.content || '',
         updated_at: doc.updated_at
       })),
       rawDumps: rawDumps.map(dump => ({

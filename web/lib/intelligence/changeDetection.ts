@@ -33,16 +33,17 @@ export interface IntelligenceEvent {
 
 /**
  * Generate SHA-256 hash of basket content for change detection
+ * Canon v3.0: Uses 'content' field (from document versions) instead of 'content_raw'
  */
 export async function generateContentHash(basketData: {
-  documents: Array<{ id: string; content_raw: string; updated_at: string }>;
+  documents: Array<{ id: string; content: string; updated_at: string }>;
   rawDumps: Array<{ id: string; body_md: string; created_at: string }>;
   basketId: string;
 }): Promise<ContentHash> {
   // Sort documents by ID for consistent hashing
   const sortedDocs = basketData.documents
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map(doc => `${doc.id}:${doc.content_raw}:${doc.updated_at}`)
+    .map(doc => `${doc.id}:${doc.content}:${doc.updated_at}`)
     .join('|');
 
   // Sort raw dumps by creation time

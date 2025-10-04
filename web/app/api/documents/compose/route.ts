@@ -11,10 +11,11 @@ import { apiFetch } from "@/lib/server/http";
 import { z } from "zod";
 
 /**
- * Canon-Pure Document Composition API
- * 
- * Direct artifact operations - NO governance required per YARNNN Canon v2.3
- * Creates new documents from memory substrate without governance overhead
+ * Canon v3.0 Document Composition API
+ *
+ * Creates document composition definitions (not editable content)
+ * Documents are read-only composed views of substrate
+ * P4 agent generates content from substrate based on composition instructions
  */
 
 const ComposeRequestSchema = z.object({
@@ -59,10 +60,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Basket not found or access denied" }, { status: 404 });
     }
 
-    // Canon-Pure: Direct document creation (artifact operation)
+    // Canon v3.0: Create document as composition definition
     const document_id = crypto.randomUUID();
-    
-    // Create document record directly (no governance)
+
+    // Create document record with composition instructions (no content_raw)
     const { data: document, error: docError } = await serviceSupabase
       .from('documents')
       .insert({
@@ -70,15 +71,21 @@ export async function POST(req: NextRequest) {
         basket_id,
         workspace_id: workspace.id,
         title,
-        content_raw: intent ? `# ${title}\n\n${intent}\n\n_Composing from your memory..._` : `# ${title}\n\n_Composing from your memory..._`,
-        content_rendered: `<h1>${title}</h1>${intent ? `<p>${intent}</p>` : ''}<p><em>Composing from your memory...</em></p>`,
-        status: 'composing',
-        metadata: {
-          composition_intent: intent,
-          composition_source: 'memory',
-          creation_method: 'compose_new',
+        document_type: 'narrative',
+        composition_instructions: {
+          intent: intent || '',
+          style: 'memory_composition',
           window_days,
           pinned_ids: pinned_ids || []
+        },
+        substrate_filter: {
+          window_days,
+          pinned_ids: pinned_ids || []
+        },
+        metadata: {
+          composition_source: 'memory',
+          creation_method: 'compose_new',
+          composition_intent: intent
         }
       })
       .select()
@@ -121,9 +128,8 @@ export async function POST(req: NextRequest) {
       success: true,
       document_id,
       title,
-      status: 'composing',
       composition_started: true,
-      message: 'Document created and composition started'
+      message: 'Document composition definition created. P4 agent will generate content from substrate.'
     }, { status: 201 });
 
   } catch (error) {

@@ -146,14 +146,19 @@ export async function POST(request: NextRequest) {
 
     const createdDocuments = [];
     for (const docSuggestion of documentsToCreate) {
+      // Canon v3.0: Create document as composition definition, not editable content
       const { data: document, error: docError } = await supabase
         .from("documents")
         .insert({
           title: docSuggestion.title,
-          content_raw: docSuggestion.initial_content,
           document_type: docSuggestion.type,
           basket_id: basket.id,
           workspace_id: workspace.id,
+          composition_instructions: {
+            initial_content: docSuggestion.initial_content,
+            generated_via: 'universal_intelligence'
+          },
+          substrate_filter: {},
           metadata: {
             created_via: 'universal_intelligence',
             description: docSuggestion.description,

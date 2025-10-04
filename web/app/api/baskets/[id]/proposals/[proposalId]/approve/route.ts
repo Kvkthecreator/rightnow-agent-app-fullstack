@@ -408,11 +408,11 @@ async function breakdownDocument(supabase: any, op: any, basketId: string, works
   const documentId = op.document_id || op.doc_id;
   if (!documentId) throw new Error('BreakdownDocument requires document_id');
 
-  // Load the document artifact
+  // Load the document artifact (Canon v3.0: use document_heads for current version content)
   const { data: doc, error: docErr } = await supabase
-    .from('documents')
-    .select('id, title, content_raw, workspace_id, basket_id')
-    .eq('id', documentId)
+    .from('document_heads')
+    .select('document_id, title, content, workspace_id, basket_id')
+    .eq('document_id', documentId)
     .maybeSingle();
 
   if (docErr) throw new Error(`Failed to load document: ${docErr.message}`);
@@ -420,7 +420,7 @@ async function breakdownDocument(supabase: any, op: any, basketId: string, works
   if (doc.workspace_id !== workspaceId) throw new Error('Forbidden: document not in workspace');
   if (doc.basket_id !== basketId) throw new Error('Forbidden: document not in basket');
 
-  const text = [doc.title, doc.content_raw].filter(Boolean).join('\n\n').trim();
+  const text = [doc.title, doc.content].filter(Boolean).join('\n\n').trim();
   if (!text) throw new Error('Document is empty; nothing to breakdown');
 
   // Create a raw_dump to trigger P1 asynchronously (P0 capture)
