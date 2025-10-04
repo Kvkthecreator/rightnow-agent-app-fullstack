@@ -89,6 +89,28 @@ export function useCreateBasket() {
       }
 
       setState(EMPTY_STATE);
+
+      // Check if basket mode has setup wizard enabled
+      try {
+        const basketResponse = await apiClient.request<{
+          id: string;
+          mode: string | null;
+        }>(`/api/baskets/${basketId}`, { method: 'GET' });
+
+        const mode = basketResponse.mode ?? 'default';
+
+        // Dynamically import mode config to check for wizard
+        const { loadBasketModeConfig } = await import('@/basket-modes/loader');
+        const modeConfig = await loadBasketModeConfig(mode as any);
+
+        if (modeConfig.wizards?.setup?.enabled) {
+          router.push(`/baskets/${basketId}/setup-wizard`);
+          return;
+        }
+      } catch (error) {
+        console.warn('Could not check wizard config, defaulting to memory', error);
+      }
+
       router.push(`/baskets/${basketId}/memory`);
     } finally {
       setSubmitting(false);

@@ -219,7 +219,58 @@ export function AdminDashboard({
                       <span className="rounded-full bg-slate-100 px-2 py-1">Anchors: {config.anchors.core.length + config.anchors.brain.length}</span>
                       <span className="rounded-full bg-slate-100 px-2 py-1">Capture recipes: {config.captureRecipes.length}</span>
                       <span className="rounded-full bg-slate-100 px-2 py-1">Deliverables: {config.deliverables.length}</span>
+                      {config.wizards?.setup?.enabled && (
+                        <span className="rounded-full bg-indigo-100 px-2 py-1 text-indigo-700">
+                          Setup Wizard: {config.wizards.setup.steps.length} steps
+                        </span>
+                      )}
+                      {config.wizards?.upload?.enabled && (
+                        <span className="rounded-full bg-indigo-100 px-2 py-1 text-indigo-700">
+                          Upload Wizard: max {config.wizards.upload.maxDocuments} docs
+                        </span>
+                      )}
                     </div>
+                    {config.wizards?.setup?.enabled && (
+                      <details className="mt-3 rounded-md border border-indigo-100 bg-indigo-50/50 p-3">
+                        <summary className="cursor-pointer text-xs font-medium text-indigo-900">
+                          Setup Wizard Preview ({config.wizards.setup.steps.length} steps)
+                        </summary>
+                        <div className="mt-3 space-y-2">
+                          {config.wizards.setup.steps.map((step, idx) => (
+                            <div key={step.id} className="rounded border border-indigo-200 bg-white p-2 text-xs">
+                              <p className="font-semibold text-slate-900">
+                                Step {idx + 1}: {step.question}
+                              </p>
+                              <p className="mt-1 text-slate-600">{step.prompt}</p>
+                              {step.anchorRefs && step.anchorRefs.length > 0 && (
+                                <p className="mt-1 text-indigo-700">
+                                  → Anchors: {step.anchorRefs.join(', ')}
+                                </p>
+                              )}
+                              {step.optional && (
+                                <span className="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">
+                                  Optional
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                          {config.wizards.setup.immediateArtifacts && (
+                            <div className="rounded border border-green-200 bg-green-50 p-2 text-xs">
+                              <p className="font-semibold text-green-900">
+                                Immediate artifacts: {config.wizards.setup.immediateArtifacts.join(', ')}
+                              </p>
+                            </div>
+                          )}
+                          {config.wizards.setup.queuedArtifacts && (
+                            <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs">
+                              <p className="font-semibold text-amber-900">
+                                Queued artifacts: {config.wizards.setup.queuedArtifacts.join(', ')}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </details>
+                    )}
                   </div>
                   <div className="flex gap-2 self-start">
                     <button
