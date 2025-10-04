@@ -6,12 +6,13 @@
 
 Yarnnn is a **memory-first cognitive system** that captures human thought as immutable substrate, allows it to evolve through agent interpretation, and presents it back through deliberate narrative composition.
 
-### The Four Sacred Principles
+### The Five Sacred Principles
 
 1. **Capture is Sacred** - All user input becomes an immutable `raw_dump`
-2. **All Substrates are Peers** - No substrate type is privileged over another  
-3. **Narrative is Deliberate** - Documents compose substrate references plus authored prose
+2. **All Substrates are Peers** - No substrate type is privileged over another
+3. **Narrative is Deliberate** - Documents are composed views of substrate, not editable artifacts
 4. **Agent Intelligence is Mandatory** - Substrate cannot exist without agent interpretation
+5. **Substrate Management Replaces Document Editing** - Users curate substrate and direct composition instead of editing prose
 
 ### The Three Governance Principles (v2.2)
 
@@ -28,12 +29,12 @@ Yarnnn is a **memory-first cognitive system** that captures human thought as imm
 - `timeline_events` (system controlled)
 
 **INDEPENDENT (Artifact Layer - Expression):**
-- `documents` - Direct CRUD, free user editing
+- `documents` - Read-only composed views, regenerated from substrate (v3.0)
 - `reflections` - Direct computation from substrate
 - `substrate_references` - Document-substrate metadata linking
 - All artifact analytics and composition stats
 
-**Canon Violation**: Forcing artifacts through substrate governance breaks the sacred substrate/artifact separation.
+**Canon v3.0 Revolution**: Documents are no longer editable. They are composed views of substrate state that regenerate when substrate changes or composition instructions are refined. Users manage substrate, not prose.
 
 ## 🎯 Conceptual Model
 
@@ -57,10 +58,12 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 
 ### Two Artifact Types (Expression Layer)
 
-1. **documents** - Deliberate narrative compositions FROM substrate + authored prose
+1. **documents** - Read-only composed views FROM substrate (v3.0: no direct editing)
 2. **reflections** - Computed insights and observations ABOUT substrate patterns
 
 **Critical**: Artifacts are derived FROM substrates, never the reverse. No artifact recursion.
+
+**v3.0 Revolution**: Documents are **composition definitions** that generate versioned snapshots. Content lives in immutable `document_versions`, not editable `documents` table. Users curate substrate and refine composition instructions—they never edit prose directly.
 
 ## 🔄 The Five Pipelines (Substrate → Artifacts)
 
@@ -243,18 +246,100 @@ PROPOSED → ACCEPTED → LOCKED → CONSTANT
 - Substrate ingredients remain immutable; documents evolve independently
 - P4 agent creates initial composition, users freely edit afterward
 
+## 📝 Sacred Principle #5: Substrate Management Replaces Document Editing (v3.0)
+
+### Philosophy
+
+**Documents are read-only composed views of substrate state. Users do not edit documents—they manage substrate and direct composition.**
+
+This is YARNNN's revolutionary stance: fundamentally different from Notion, Google Docs, and traditional note-taking apps.
+
+### What Users Do Instead of Editing
+
+**1. Curate Substrate** (replaces: "editing content")
+- Approve/reject/merge blocks via governance
+- Add/remove substrate references from documents
+- Update context_items, blocks through proposals
+
+**2. Direct Composition** (replaces: "formatting and structure")
+- Define composition instructions ("make section 2 more technical")
+- Select which substrate to include/exclude
+- Request regeneration with updated parameters
+
+**3. Govern Substrate Mutations** (replaces: "revising drafts")
+- Review proposals for block updates
+- Approve substrate merges and refinements
+- Validate agent-extracted substrate
+
+**4. Manage Versions** (replaces: "save and track changes")
+- Freeze versions as final snapshots
+- Compare versions to see substrate evolution
+- Accept/reject regenerated compositions
+
+### The Fundamental Shift
+
+**Traditional (Notion/Docs):**
+```
+User types prose → saves → document updated
+```
+
+**YARNNN (Revolutionary):**
+```
+User curates substrate → requests composition → document regenerated
+```
+
+### Expected Time Allocation
+
+- **80%** substrate curation (governance, building-blocks management)
+- **20%** composition refinement (document regeneration, instruction tuning)
+
+**Substrate management IS the primary user activity.** Documents are downstream artifacts of well-managed substrate.
+
+### Three-Layer Mental Model
+
+**Layer 1: RAW_DUMPS** (Immutable Capture)
+- Purpose: Preserve original input exactly as received
+- User interaction: View original (read-only reference)
+- Location: `/baskets/[id]/uploads`
+
+**Layer 2: SUBSTRATE** (Governed Knowledge)
+- Purpose: Structured, validated knowledge atoms
+- User interaction: Curate, approve, merge (governance)
+- Location: `/baskets/[id]/building-blocks`
+
+**Layer 3: DOCUMENTS** (Composed Artifacts)
+- Purpose: Narrative compositions from substrate
+- User interaction: Manage substrate, refine composition
+- Location: `/baskets/[id]/documents/[doc-id]`
+
+### Upload Wizard Transformation
+
+When users upload existing documents (e.g., `product-spec.docx`):
+
+1. **P0:** Create raw_dump with original text (preserved exactly)
+2. **P1:** Extract substrate → Create proposals
+3. **User:** Review and approve substrate (governance)
+4. **P4:** Compose NEW document from extracted substrate
+5. **Show:** Side-by-side diff (original vs YARNNN version)
+6. **User:** Accept transformation or cancel upload
+
+**Key Insight:** We don't "migrate" documents. We **transform** them into substrate-backed knowledge.
+
+**Trust Model:** Transparency through side-by-side comparison builds confidence in substrate extraction quality.
+
 ## 💡 Key Insights from Canon
 
 1. **Substrate Equality** - The four substrate types (dumps, blocks, context_items, events) are peers
 2. **Substrate vs Artifacts** - Clear separation between memory (substrate) and expressions (artifacts)
-3. **Artifact Independence** - Documents and reflections evolve separately from substrate
+3. **Read-Only Documents** - Documents are composed views, never directly edited (v3.0)
 4. **Pipeline Discipline** - P0-P1 create substrate via governance, P2 links substrate, P3-P4 create artifacts
-5. **Memory Permanence** - Substrate is immutable; artifacts can be edited freely
-6. **Document Versioning** - Git-inspired versioning for stable artifact references
+5. **Memory Permanence** - Substrate is immutable; documents regenerate from substrate changes
+6. **Document Versioning** - Git-inspired immutable snapshots for stable artifact references
 7. **Workspace Isolation** - Complete data isolation between workspaces
 8. **Agent Necessity** - Substrate cannot exist without agent processing
 9. **Async Intelligence** - User feedback is instant, intelligence processing happens asynchronously
 10. **Governance-Mediated Creation** - All substrate mutations flow through proposals, enabling review and atomic execution
+11. **Supervisory Work Model** - Users direct and govern; agents research and compose (v3.0)
 
 ## 🚀 Implementation Guidelines
 
@@ -410,9 +495,18 @@ interface WorkTypePolicy {
 
 ## Version Lock
 
-- Canon version: **v2.3**  
-- Frozen as of: **2025-01-19**  
+- Canon version: **v3.0**
+- Frozen as of: **2025-10-04**
 - Update policy: Do not edit in place. Amendments require a new canon version.
+
+### v3.0.0 Changes (Revolutionary - Substrate-First Documents)
+- **Sacred Principle #5 Added**: Substrate Management Replaces Document Editing
+- **Document Model Revolution**: Documents are read-only composed views, never directly edited
+- **Upload Wizard Transformation**: Uploaded documents transformed via substrate extraction, not preserved as-is
+- **Three-Layer Mental Model**: raw_dumps (capture) → substrate (knowledge) → documents (compositions)
+- **Schema Evolution**: Documents table becomes composition definitions; content lives in immutable versions
+- **Supervisory Work Model**: Users curate substrate 80%, refine compositions 20%
+- **Fundamental Differentiation**: YARNNN is not Notion—it's substrate-first intelligence platform
 
 ### v2.3.0 Changes (Clarification & Canon Purity)
 - **Substrate/Artifact Separation**: Clarified governance applies ONLY to substrate layer
