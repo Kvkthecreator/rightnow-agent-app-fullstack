@@ -11,6 +11,7 @@
  * - Provides 4 tools: create_memory, get_substrate, add_substrate, validate
  */
 
+import { createServer } from 'node:http';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
@@ -122,16 +123,111 @@ async function main() {
       // HTTP+SSE transport for cloud deployment
       console.log(`[SERVER] Starting MCP server in HTTP mode on port ${config.port}...`);
 
-      // Note: SSE transport implementation may need verification
-      // MCP SDK SSE transport is for cloud/remote connections
-      // Endpoint should be accessible by MCP clients
-      const transport = new SSEServerTransport('/sse', {
-        endpoint: `http://0.0.0.0:${config.port}`,
+      // Map to track active SSE transports by session ID
+      const sseTransports = new Map<string, SSEServerTransport>();
+
+      // Create HTTP server for SSE transport
+      const httpServer = createServer(async (req, res) => {
+        const url = req.url || '';
+
+        // CORS headers for cross-origin requests
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+        // Handle OPTIONS preflight
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204);
+          res.end();
+          return;
+        }
+
+        // GET /sse - Establish SSE connection
+        if (req.method === 'GET' && url === '/sse') {
+          const transport = new SSEServerTransport('/message', res);
+
+          // Store transport by session ID for routing POST messages
+          sseTransports.set(transport.sessionId, transport);
+
+          // Cleanup on close
+          transport.onclose = () => {
+            sseTransports.delete(transport.sessionId);
+            console.log(`[SSE] Session closed: ${transport.sessionId}`);
+          };
+
+          try {
+            await transport.start();
+            await server.connect(transport);
+            console.log(`[SSE] Session established: ${transport.sessionId}`);
+          } catch (error) {
+            console.error('[SSE] Connection failed:', error);
+            if (!res.headersSent) {
+              res.writeHead(500, { 'Content-Type': 'text/plain' });
+              res.end('SSE connection failed');
+            }
+          }
+          return;
+        }
+
+        // POST /message - Handle incoming messages from client
+        if (req.method === 'POST' && url.startsWith('/message')) {
+          // Extract session ID from query parameter or header
+          const sessionId = new URL(url, `http://${req.headers.host}`).searchParams.get('sessionId');
+
+          if (!sessionId) {
+            res.writeHead(400, { 'Content-Type': 'text/plain' });
+            res.end('Missing sessionId parameter');
+            return;
+          }
+
+          const transport = sseTransports.get(sessionId);
+          if (!transport) {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Session not found');
+            return;
+          }
+
+          try {
+            await transport.handlePostMessage(req, res);
+          } catch (error) {
+            console.error('[SSE] Message handling failed:', error);
+            if (!res.headersSent) {
+              res.writeHead(500, { 'Content-Type': 'text/plain' });
+              res.end('Message processing failed');
+            }
+          }
+          return;
+        }
+
+        // Health check endpoint
+        if (req.method === 'GET' && url === '/health') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            status: 'ok',
+            server: 'yarnnn-mcp-server',
+            version: '1.0.0',
+            activeSessions: sseTransports.size,
+          }));
+          return;
+        }
+
+        // 404 for unknown routes
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
       });
 
-      await server.connect(transport);
-      console.log(`[SERVER] MCP server running on http://0.0.0.0:${config.port}`);
-      console.log(`[SERVER] SSE endpoint: http://0.0.0.0:${config.port}/sse`);
+      // Start HTTP server
+      await new Promise<void>((resolve) => {
+        httpServer.listen(config.port, '0.0.0.0', () => {
+          console.log(`[SERVER] MCP server running on http://0.0.0.0:${config.port}`);
+          console.log(`[SERVER] SSE endpoint: http://0.0.0.0:${config.port}/sse`);
+          console.log(`[SERVER] Health check: http://0.0.0.0:${config.port}/health`);
+          resolve();
+        });
+      });
+
+      // Store server reference for graceful shutdown
+      (server as any)._httpServer = httpServer;
     }
 
     /**
@@ -139,6 +235,18 @@ async function main() {
      */
     const shutdown = async () => {
       console.log('[SERVER] Shutting down gracefully...');
+
+      // Close HTTP server if running
+      const httpServer = (server as any)._httpServer;
+      if (httpServer) {
+        await new Promise<void>((resolve) => {
+          httpServer.close(() => {
+            console.log('[SERVER] HTTP server closed');
+            resolve();
+          });
+        });
+      }
+
       await server.close();
       process.exit(0);
     };

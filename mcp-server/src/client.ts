@@ -56,7 +56,7 @@ export class YARNNNClient {
         const errorData = await response.json().catch(() => ({
           code: 'HTTP_ERROR',
           message: `HTTP ${response.status}: ${response.statusText}`,
-        }));
+        })) as YARNNNError;
 
         throw new YARNNNAPIError(
           errorData.code || 'API_ERROR',
@@ -66,7 +66,7 @@ export class YARNNNClient {
       }
 
       // Parse successful response
-      return await response.json();
+      return await response.json() as T;
     } catch (error) {
       if (error instanceof YARNNNAPIError) {
         throw error;

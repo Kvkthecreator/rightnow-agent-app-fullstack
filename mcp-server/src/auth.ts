@@ -29,7 +29,7 @@ export async function validateAuth(userToken: string): Promise<UserContext> {
       throw new Error(`Auth validation failed: ${response.status} ${errorText}`);
     }
 
-    const data: AuthValidationResponse = await response.json();
+    const data = await response.json() as AuthValidationResponse;
 
     if (!data.valid || !data.user_id || !data.workspace_id) {
       throw new Error('Invalid authentication response from backend');
