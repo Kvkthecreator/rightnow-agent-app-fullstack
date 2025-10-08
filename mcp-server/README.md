@@ -1,11 +1,16 @@
 # YARNNN MCP Server
 
-Model Context Protocol server that exposes YARNNN substrate memory to LLM hosts (ChatGPT, Claude, etc.)
+Model Context Protocol server that exposes YARNNN substrate memory to **Claude** and other MCP-compatible AI assistants.
+
+> **⚠️ Platform Compatibility:**
+> - ✅ **Claude (Anthropic)**: Full native support via MCP protocol
+> - ❌ **ChatGPT (OpenAI)**: Not supported - OpenAI uses a different protocol (Apps SDK)
+> - 📅 **Future**: OpenAI adopted MCP in March 2025, not available in 2024
 
 ## Architecture
 
 ```
-LLM Host (ChatGPT/Claude)
+Claude Desktop / Claude.ai
     ↓ MCP Protocol (stdio or HTTP+SSE)
 YARNNN MCP Server (THIS)
     ↓ HTTP REST API
@@ -13,6 +18,18 @@ YARNNN Backend (FastAPI)
     ↓ PostgreSQL
 Supabase Database
 ```
+
+## What is MCP?
+
+**Model Context Protocol (MCP)** is an open standard created by Anthropic for connecting AI assistants to data sources. It enables:
+- Secure, two-way connections between AI and external systems
+- Standardized tool exposure and execution
+- Context preservation across different data sources
+
+**Key Difference from OpenAI Apps SDK:**
+- **MCP** (this repo): Anthropic's protocol for Claude
+- **Apps SDK**: OpenAI's separate protocol for ChatGPT
+- They are **not interchangeable**
 
 ## Features
 

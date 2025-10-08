@@ -121,11 +121,17 @@ async function main() {
     } else {
       // HTTP+SSE transport for cloud deployment
       console.log(`[SERVER] Starting MCP server in HTTP mode on port ${config.port}...`);
+
+      // Note: SSE transport implementation may need verification
+      // MCP SDK SSE transport is for cloud/remote connections
+      // Endpoint should be accessible by MCP clients
       const transport = new SSEServerTransport('/sse', {
         endpoint: `http://0.0.0.0:${config.port}`,
       });
+
       await server.connect(transport);
       console.log(`[SERVER] MCP server running on http://0.0.0.0:${config.port}`);
+      console.log(`[SERVER] SSE endpoint: http://0.0.0.0:${config.port}/sse`);
     }
 
     /**
