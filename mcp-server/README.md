@@ -16,6 +16,9 @@ mcp-server/
 └── README.md                 # This file
 ```
 
+> See `docs/MCP_INTEGRATION_ARCHITECTURE.md` for a quick visual of how the core
+> and adapters fit together.
+
 The **core** package is protocol-agnostic: it defines tool schemas, orchestration logic, and the HTTP client used to talk to the YARNNN backend. Each adapter wires that core logic into a specific platform surface:
 
 - `@yarnnn/anthropic-mcp` runs as a classical MCP server (stdio or HTTP+SSE) for Claude.
