@@ -11,13 +11,18 @@
                   \                        /
                    \                      /
                     v                    v
-             +-------------------------------+
-             |   @yarnnn/integration-core     |
-             |  (tool schemas + HTTP client)  |
-             +-------------------------------+
-                             |
-                             v
+            +-------------------------------+
+            |   @yarnnn/integration-core     |
+            |  (tool schemas + HTTP client)  |
+            +-------------------------------+
+                            |
+                            v
                     YARNNN Backend API
+
+**Management Principle:** The YARNNN web application remains the source of
+truth for basket management (anchors, naming, governance). MCP adapters are
+ambient extensions—they may offer convenience actions (confirm basket, switch,
+create new) but should redirect to the web UI for any deeper intervention.
 ```
 
 - The **core** package owns protocol-neutral logic: tool schemas, input validation, 

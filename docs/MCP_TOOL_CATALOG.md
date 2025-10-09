@@ -55,6 +55,11 @@ OpenAI Apps, etc.). It should stay in sync with the tool implementations.
 - Writes auto-confirm only when score ≥0.80; otherwise prompt with “Change basket”.
 - Tie-break (Δ<0.06) triggers secondary reflection check or multi-choice UI.
 
+> **Management Scope:** Basket creation/renaming/anchor editing remains in the
+> YARNNN web app. MCP adapters MAY offer lightweight controls (e.g., “switch to
+> another basket” or “create new basket for this chat”) but MUST redirect users
+> to YARNNN for deeper management. This keeps governance UX centralized.
+
 ## 4. Auth & Onboarding Expectations
 - Users must have a YARNNN account + workspace (Supabase auth).  
 - Claude/Cursor: user pastes integration token into client (generated in web UI).  
