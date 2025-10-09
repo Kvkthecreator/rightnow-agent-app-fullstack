@@ -50,6 +50,8 @@ from .routes.health import router as health_router
 from .routes.inputs import router as inputs_router
 from .routes.narrative_intelligence import router as narrative_intelligence_router
 from .routes.narrative_jobs import router as narrative_jobs_router
+from .routes.integration_tokens import router as integration_tokens_router
+from .routes.auth_validate import router as auth_validate_router
 from .routes.phase1_routes import router as phase1_router
 from .routes.projection import router as projection_router
 from .routes.work_status import router as work_status_router
@@ -121,6 +123,8 @@ routers = (
     work_status_router,
     p4_composition_router,
     validator_router,
+    integration_tokens_router,
+    auth_validate_router,
 )
 
 # Add correlation middleware

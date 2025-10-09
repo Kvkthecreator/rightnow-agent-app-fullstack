@@ -66,7 +66,8 @@ export class YARNNNClient {
         throw new YARNNNAPIError(
           errorData.code || 'API_ERROR',
           errorData.message || 'Request failed',
-          errorData.details
+          errorData.details,
+          response.status
         );
       }
 
@@ -124,12 +125,14 @@ export class YARNNNClient {
 export class YARNNNAPIError extends Error implements YARNNNError {
   code: string;
   details?: any;
+  status?: number;
 
-  constructor(code: string, message: string, details?: any) {
+  constructor(code: string, message: string, details?: any, status?: number) {
     super(message);
     this.name = 'YARNNNAPIError';
     this.code = code;
     this.details = details;
+    this.status = status;
 
     // Maintain proper stack trace in V8
     if (Error.captureStackTrace) {

@@ -8,6 +8,7 @@ import DisplayBox from "@/components/settings/DisplayBox";
 import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
+import IntegrationTokensPanel from "@/components/settings/IntegrationTokensPanel";
 
 export default async function SettingsPage() {
   const supabase = createServerComponentClient<Database>({ cookies });
@@ -70,6 +71,8 @@ export default async function SettingsPage() {
           </div>
         )}
       </SettingsSection>
+
+      <IntegrationTokensPanel />
     </div>
   );
 }

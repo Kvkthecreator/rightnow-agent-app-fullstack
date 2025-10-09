@@ -33,6 +33,7 @@ import {
   type BasketSelection,
   type BasketCandidate,
   type SessionFingerprint,
+  YARNNNAPIError,
 } from '@yarnnn/integration-core';
 
 /**
@@ -117,6 +118,13 @@ async function main() {
         };
       } catch (error) {
         console.error(`[ERROR] Tool execution failed:`, error);
+
+        if (error instanceof YARNNNAPIError && error.status === 401) {
+          throw new McpError(
+            ErrorCode.InvalidRequest,
+            'Authentication required. Visit https://yarnnn.com/connect to link your YARNNN workspace.'
+          );
+        }
 
         if (error instanceof Error) {
           throw new McpError(

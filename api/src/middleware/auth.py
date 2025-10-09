@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from auth.jwt_verifier import verify_jwt  # your verifier
+from auth.integration_tokens import verify_integration_token
 
 log = logging.getLogger("uvicorn.error")
 
@@ -47,26 +48,39 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Verify (return rich detail in debug mode)
         try:
             claims = verify_jwt(token)
-            # Attach to request for handlers
             request.state.user_id = claims.get("sub")
             request.state.jwt_payload = claims
             return await call_next(request)
-        except HTTPException as e:
-            if not dbg:
-                log.debug(
-                    "AuthMiddleware: token verification failed for %s (%s)",
-                    path,
-                    e.detail,
-                )
+        except HTTPException as jwt_error:
+            try:
+                info = verify_integration_token(token)
+                request.state.user_id = info["user_id"]
+                request.state.workspace_id = info["workspace_id"]
+                request.state.integration_token_id = info["id"]
+                request.state.integration_token = True
+                return await call_next(request)
+            except HTTPException as token_error:
+                if not dbg:
+                    log.debug(
+                        "AuthMiddleware: token verification failed for %s (jwt=%s; integration=%s)",
+                        path,
+                        jwt_error.detail,
+                        token_error.detail,
+                    )
+                    return JSONResponse(
+                        status_code=token_error.status_code,
+                        content={"error": "invalid_token"},
+                    )
                 return JSONResponse(
-                    status_code=e.status_code,
-                    content={"error": "invalid_token"},
+                    status_code=token_error.status_code,
+                    content={
+                        "error": "invalid_token",
+                        "detail": {
+                            "jwt": jwt_error.detail,
+                            "integration": token_error.detail,
+                        },
+                    },
                 )
-            # Verifier will have logged details; expose a concise failure reason
-            return JSONResponse(
-                status_code=e.status_code,
-                content={"error": "invalid_token", "detail": e.detail},
-            )
 
 
 __all__ = ["AuthMiddleware"]
