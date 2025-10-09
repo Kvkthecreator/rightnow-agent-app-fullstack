@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@/lib/supabase/clients";
-import type { Database } from "@/lib/dbTypes";
 
 const API_BASE_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
 
 async function getSessionToken() {
-  const supabase = createRouteHandlerClient<Database>({ cookies });
+  const supabase = createRouteHandlerClient({ cookies });
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error || !session) {
     return null;
