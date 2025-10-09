@@ -4,6 +4,8 @@ package-lock.json
 
 # Build output
 dist/
+adapters/*/dist/
+packages/*/dist/
 *.tsbuildinfo
 
 # Environment

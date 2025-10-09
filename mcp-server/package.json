@@ -1,22 +1,19 @@
 {
-  "name": "yarnnn-mcp-server",
-  "version": "1.0.0",
-  "description": "YARNNN MCP Server - Expose substrate memory to LLM hosts via Model Context Protocol",
-  "main": "dist/server.js",
-  "type": "module",
+  "name": "yarnnn-integrations",
+  "private": true,
+  "workspaces": [
+    "packages/core",
+    "adapters/anthropic",
+    "adapters/openai-apps"
+  ],
   "scripts": {
-    "dev": "tsx src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit"
-  },
-  "keywords": ["mcp", "yarnnn", "context-os", "substrate"],
-  "author": "YARNNN Team",
-  "license": "MIT",
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.5.0",
-    "zod": "^3.22.4",
-    "dotenv": "^16.3.1"
+    "build": "npm run build -w @yarnnn/integration-core && npm run build -w @yarnnn/anthropic-mcp && npm run build -w @yarnnn/openai-apps",
+    "build:core": "npm run build -w @yarnnn/integration-core",
+    "build:anthropic": "npm run build -w @yarnnn/anthropic-mcp",
+    "build:openai": "npm run build -w @yarnnn/openai-apps",
+    "dev:anthropic": "npm run dev -w @yarnnn/anthropic-mcp",
+    "dev:openai": "npm run dev -w @yarnnn/openai-apps",
+    "typecheck": "npm run build:core && npm run typecheck -w @yarnnn/integration-core && npm run typecheck -w @yarnnn/anthropic-mcp && npm run typecheck -w @yarnnn/openai-apps"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

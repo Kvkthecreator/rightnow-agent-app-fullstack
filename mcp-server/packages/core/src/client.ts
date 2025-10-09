@@ -1,4 +1,3 @@
-import { config } from './config.js';
 import type { UserContext, YARNNNError } from './types/index.js';
 
 /**
@@ -16,15 +15,21 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
+export interface YARNNNClientOptions {
+  baseUrl: string;
+  userContext: UserContext;
+  userToken: string;
+}
+
 export class YARNNNClient {
   private baseUrl: string;
   private userContext: UserContext;
   private userToken: string;
 
-  constructor(userContext: UserContext, userToken: string) {
-    this.baseUrl = config.backendUrl;
-    this.userContext = userContext;
-    this.userToken = userToken;
+  constructor(options: YARNNNClientOptions) {
+    this.baseUrl = options.baseUrl;
+    this.userContext = options.userContext;
+    this.userToken = options.userToken;
   }
 
   /**

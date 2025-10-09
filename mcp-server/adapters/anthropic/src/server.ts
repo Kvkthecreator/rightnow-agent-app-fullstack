@@ -23,9 +23,13 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { config, validateConfig } from './config.js';
-import { validateAuth, extractToken } from './auth.js';
-import { YARNNNClient } from './client.js';
-import { getToolsList, executeTool } from './tools/index.js';
+import {
+  validateAuth,
+  extractToken,
+  YARNNNClient,
+  getToolsList,
+  executeTool,
+} from '@yarnnn/integration-core';
 
 /**
  * Initialize MCP Server
@@ -64,7 +68,7 @@ async function main() {
       try {
         // Extract and validate auth token
         const userToken = extractToken(request.params._meta);
-        const userContext = await validateAuth(userToken);
+        const userContext = await validateAuth(config.backendUrl, userToken);
 
         console.log(`[AUTH] User authenticated:`, {
           userId: userContext.userId,
@@ -73,7 +77,11 @@ async function main() {
         });
 
         // Create YARNNN client
-        const client = new YARNNNClient(userContext, userToken);
+        const client = new YARNNNClient({
+          baseUrl: config.backendUrl,
+          userContext,
+          userToken,
+        });
 
         // Execute tool
         const toolName = request.params.name;

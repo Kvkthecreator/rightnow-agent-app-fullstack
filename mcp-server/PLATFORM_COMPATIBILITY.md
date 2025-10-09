@@ -4,9 +4,9 @@
 
 | Platform | Protocol | Status | Implementation |
 |----------|----------|--------|----------------|
-| **Claude (Anthropic)** | MCP (Model Context Protocol) | ✅ Supported | `/mcp-server` (this repo) |
-| **ChatGPT (OpenAI)** | Apps SDK | ❌ Not Supported | Requires `/openai-apps-server` (not built) |
-| **Other AI Assistants** | MCP | ✅ Supported | `/mcp-server` (if MCP-compatible) |
+| **Claude (Anthropic)** | MCP (Model Context Protocol) | ✅ Supported | `adapters/anthropic` |
+| **ChatGPT (OpenAI)** | Apps SDK | 🚧 In Progress | `adapters/openai-apps` (scaffold) |
+| **Other AI Assistants** | MCP | ✅ Supported | `adapters/anthropic` (if MCP-compatible) |
 
 ## Protocol Differences
 
@@ -19,7 +19,7 @@
 - Tool definition via SDK with Zod schemas
 - Request/response via JSON-RPC
 
-**What we built:** ✅ Complete (`/mcp-server`)
+**What we built:** ✅ Complete (`adapters/anthropic`)
 
 **Example Tool Registration:**
 ```typescript
@@ -47,7 +47,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 - OAuth 2.1 authentication required
 - Returns `structuredContent` + HTML component templates
 
-**What we need:** ❌ Not built yet
+**What we have:** 🚧 Scaffolding ready (`adapters/openai-apps`)
 
 **Example Tool Registration:**
 ```typescript
@@ -105,20 +105,11 @@ The backend is **protocol-agnostic** - it just receives HTTP requests.
 
 ## Architecture Comparison
 
-### Current (Claude Only)
+### Current (Claude + Scaffold)
 ```
-Claude Desktop
-    ↓ MCP (stdio)
-/mcp-server
-    ↓ HTTP REST
-YARNNN Backend
-```
-
-### Future (Claude + ChatGPT)
-```
-Claude Desktop                ChatGPT Desktop
+Claude Desktop                 ChatGPT Desktop
     ↓ MCP (stdio)                 ↓ Apps SDK (HTTPS)
-/mcp-server                   /openai-apps-server
+adapters/anthropic         adapters/openai-apps (stub)
     ↓ HTTP REST                   ↓ HTTP REST
            ↓                       ↓
         YARNNN Backend (Shared)

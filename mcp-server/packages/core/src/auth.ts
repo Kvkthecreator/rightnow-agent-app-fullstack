@@ -1,4 +1,3 @@
-import { config } from './config.js';
 import type { UserContext, AuthValidationResponse } from './types/index.js';
 
 /**
@@ -9,14 +8,14 @@ import type { UserContext, AuthValidationResponse } from './types/index.js';
  * - Workspace-scoped security (single workspace per user)
  * - All access via RLS policies on workspace_memberships
  */
-export async function validateAuth(userToken: string): Promise<UserContext> {
+export async function validateAuth(baseUrl: string, userToken: string): Promise<UserContext> {
   if (!userToken) {
     throw new Error('Missing user_token in MCP context');
   }
 
   try {
     // Call YARNNN backend auth validation endpoint
-    const response = await fetch(`${config.backendUrl}/api/auth/validate`, {
+    const response = await fetch(`${baseUrl}/api/auth/validate`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${userToken}`,

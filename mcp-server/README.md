@@ -1,87 +1,60 @@
-# YARNNN MCP Server
+# YARNNN AI Integrations Workspace
 
-Model Context Protocol server that exposes YARNNN substrate memory to **Claude** and other MCP-compatible AI assistants.
+This package hosts the reusable integration core and platform-specific adapters that expose YARNNN substrate memory to AI assistants.
 
-> **⚠️ Platform Compatibility:**
-> - ✅ **Claude (Anthropic)**: Full native support via MCP protocol
-> - ❌ **ChatGPT (OpenAI)**: Not supported - OpenAI uses a different protocol (Apps SDK)
-> - 📅 **Future**: OpenAI adopted MCP in March 2025, not available in 2024
-
-## Architecture
+## Directory Layout
 
 ```
-Claude Desktop / Claude.ai
-    ↓ MCP Protocol (stdio or HTTP+SSE)
-YARNNN MCP Server (THIS)
-    ↓ HTTP REST API
-YARNNN Backend (FastAPI)
-    ↓ PostgreSQL
-Supabase Database
+mcp-server/
+├── packages/
+│   └── core/                 # Shared tool logic, auth helpers, backend client
+├── adapters/
+│   ├── anthropic/            # Claude / MCP adapter (production-ready)
+│   └── openai-apps/          # ChatGPT Apps SDK adapter (scaffold)
+├── tsconfig.base.json
+├── package.json              # npm workspace definition
+└── README.md                 # This file
 ```
 
-## What is MCP?
+The **core** package is protocol-agnostic: it defines tool schemas, orchestration logic, and the HTTP client used to talk to the YARNNN backend. Each adapter wires that core logic into a specific platform surface:
 
-**Model Context Protocol (MCP)** is an open standard created by Anthropic for connecting AI assistants to data sources. It enables:
-- Secure, two-way connections between AI and external systems
-- Standardized tool exposure and execution
-- Context preservation across different data sources
+- `@yarnnn/anthropic-mcp` runs as a classical MCP server (stdio or HTTP+SSE) for Claude.
+- `@yarnnn/openai-apps` is a scaffold that will host the OpenAI Apps SDK integration once OAuth and UI wiring are complete.
 
-**Key Difference from OpenAI Apps SDK:**
-- **MCP** (this repo): Anthropic's protocol for Claude
-- **Apps SDK**: OpenAI's separate protocol for ChatGPT
-- They are **not interchangeable**
+## Prerequisites
 
-## Features
+- Node.js 18+
+- npm 9+ (workspaces enabled)
+- Access to the YARNNN backend (`BACKEND_URL`)
 
-### 4 MCP Tools
-
-1. **create_memory_from_chat** - Create YARNNN basket from conversation
-2. **get_substrate** - Query substrate memory (blocks, items, raw_dumps)
-3. **add_to_substrate** - Add new content with governance
-4. **validate_against_substrate** - Check alignment with existing substrate
-
-### Two Transport Modes
-
-- **stdio** (default): For local Claude Desktop integration
-- **http**: For cloud deployment via Server-Sent Events
-
-### YARNNN Canon v3.0 Compliant
-
-- Respects P0-P4 pipeline flow
-- Honors governance settings (auto/manual/confidence)
-- Substrate-first architecture
-- Workspace-scoped security
-
-## Quick Start
-
-### Local Development (stdio mode)
+## Install Dependencies
 
 ```bash
-# 1. Install dependencies
+cd mcp-server
 npm install
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env:
-# BACKEND_URL=http://localhost:10000
-# MCP_TRANSPORT=stdio
-
-# 3. Run server
-npm run dev
 ```
 
-### Claude Desktop Integration
+> npm will install root dev tooling plus each workspace package.
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+## Anthropic (Claude) Adapter
+
+### Local Development (stdio)
+
+```bash
+# Run the Anthropic adapter in stdio mode
+npm run dev:anthropic
+```
+
+Configure Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "yarnnn": {
       "command": "node",
-      "args": ["/path/to/mcp-server/dist/server.js"],
+      "args": ["/absolute/path/to/mcp-server/node_modules/.bin/yarnnn-mcp-anthropic"],
       "env": {
-        "BACKEND_URL": "https://rightnow-api.onrender.com",
+        "BACKEND_URL": "https://api.yarnnn.com",
         "MCP_TRANSPORT": "stdio"
       }
     }
@@ -89,252 +62,79 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### Cloud Deployment (HTTP mode)
+### Cloud Deployment (HTTP + SSE)
 
 ```bash
-# Deploy to Render
-render deploy
+# Build the core and Anthropic packages
+npm run build:core
+npm run build:anthropic
 
-# Or manually:
-npm run build
-MCP_TRANSPORT=http PORT=3000 npm start
+# Start in HTTP mode
+MCP_TRANSPORT=http PORT=3000 BACKEND_URL=https://api.yarnnn.com npm run start -w @yarnnn/anthropic-mcp
 ```
 
-## Environment Variables
+The HTTP service exposes:
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `BACKEND_URL` | Yes | `http://localhost:10000` | YARNNN backend API URL |
-| `NODE_ENV` | No | `development` | Node environment |
-| `MCP_TRANSPORT` | No | `stdio` | Transport mode (`stdio` or `http`) |
-| `PORT` | No | `3000` | HTTP server port (http mode only) |
-| `LOG_LEVEL` | No | `info` | Log level |
+- `GET /sse` for MCP SSE sessions
+- `POST /message?sessionId=...` for inbound messages
+- `GET /health` for uptime checks
 
-## Authentication
+### Environment Variables
 
-MCP requests must include `user_token` in request metadata:
+| Variable | Required | Default | Notes |
+|----------|----------|---------|-------|
+| `BACKEND_URL` | ✅ | `http://localhost:10000` | YARNNN backend root |
+| `MCP_TRANSPORT` | ❌ | `stdio` | `stdio` or `http` |
+| `PORT` | ❌ | `3000` | Required when `MCP_TRANSPORT=http` |
+| `LOG_LEVEL` | ❌ | `info` | Logging verbosity |
 
-```typescript
-{
-  "_meta": {
-    "user_token": "eyJhbGc..."  // Supabase JWT token
-  }
-}
-```
+## OpenAI Apps Adapter (Scaffold)
 
-The server validates tokens against YARNNN backend (`/api/auth/validate`) and extracts:
-- `user_id`
-- `workspace_id`
-- `basket_id` (optional)
-
-## Tool Usage
-
-### create_memory_from_chat
-
-Create a new basket from conversation history.
-
-**Input:**
-```json
-{
-  "conversation_history": "User: I want to build...\nAssistant: Great idea!...",
-  "basket_name_suggestion": "Product Vision Q4 2024",
-  "anchor_suggestions": {
-    "core_problem": "Users struggle with context management",
-    "product_vision": "Build a context OS"
-  }
-}
-```
-
-**Output:**
-```json
-{
-  "status": "success",
-  "basket_id": "uuid",
-  "basket_name": "Product Vision Q4 2024",
-  "blocks_created": 12,
-  "visualization": "# Substrate Overview\n...",
-  "actions": ["Review 12 substrate proposals in governance"]
-}
-```
-
-### get_substrate
-
-Query substrate memory.
-
-**Input:**
-```json
-{
-  "basket_id": "uuid (optional)",
-  "keywords": ["authentication", "user flow"],
-  "anchors": ["core_problem", "product_vision"],
-  "format": "structured",
-  "limit": 50
-}
-```
-
-**Output:**
-```json
-{
-  "substrate": [
-    {
-      "type": "block",
-      "id": "uuid",
-      "content": "Users need seamless authentication",
-      "semantic_type": "goal",
-      "confidence": 0.95
-    }
-  ],
-  "total_count": 42,
-  "substrate_snapshot_id": "uuid"
-}
-```
-
-### add_to_substrate
-
-Add new content with governance.
-
-**Input:**
-```json
-{
-  "basket_id": "uuid (optional)",
-  "content": "New feature: Social login with OAuth",
-  "metadata": {
-    "source": "chat",
-    "topic": "authentication"
-  },
-  "governance": {
-    "confidence": 0.9,
-    "require_approval": false
-  }
-}
-```
-
-**Output:**
-```json
-{
-  "status": "success",
-  "raw_dump_id": "uuid",
-  "proposed_blocks": 3,
-  "governance_mode": "auto"
-}
-```
-
-### validate_against_substrate
-
-Check alignment with existing substrate.
-
-**Input:**
-```json
-{
-  "basket_id": "uuid (optional)",
-  "new_idea": "Add email/password authentication",
-  "focus_areas": ["core_problem", "technical_constraints"],
-  "return_evidence": true
-}
-```
-
-**Output:**
-```json
-{
-  "alignment_score": 0.85,
-  "conflicts": [
-    {
-      "existing_substrate_id": "uuid",
-      "conflict_type": "overlap",
-      "description": "Similar auth method already proposed",
-      "severity": "medium"
-    }
-  ],
-  "recommendation": "Consider merging with existing auth proposal",
-  "analysis": "High alignment overall, one overlap detected"
-}
-```
-
-## Development
+The OpenAI adapter is intentionally minimal today—it exposes health/tool discovery routes but returns `501 Not Implemented` for tool execution. It exists so the OAuth + Apps SDK integration can be layered in without touching the shared core.
 
 ```bash
-# Run in dev mode with auto-reload
-npm run dev
+# Launch the scaffold
+npm run dev:openai
 
-# Type checking
+# Verify placeholder endpoints
+curl http://localhost:4000/health
+curl http://localhost:4000/tools
+```
+
+Configure the following environment variables before wiring in OAuth:
+
+| Variable | Purpose |
+|----------|---------|
+| `BACKEND_URL` | YARNNN backend root |
+| `OPENAI_CLIENT_ID` | OAuth client id (optional until full implementation) |
+| `OPENAI_CLIENT_SECRET` | OAuth secret |
+| `OPENAI_REDIRECT_URI` | Callback URL registered with OpenAI |
+| `PORT` | Adapter HTTP port (default `4000`) |
+
+## Shared Tooling
+
+Common scripts run across the workspace:
+
+```bash
+# Typecheck every package
 npm run typecheck
 
-# Build for production
+# Build all packages (core + adapters)
 npm run build
-
-# Run production build
-npm start
 ```
 
-## Backend Integration
+## Rendering Architecture
 
-### Required Backend Endpoints
+Both adapters reuse the same backend contracts:
 
-The MCP server expects these endpoints on YARNNN backend:
-
-1. `GET /api/auth/validate` - Validate JWT token
-2. `POST /api/mcp/onboarding/create-from-chat` - Create basket from chat
-3. `GET /api/mcp/substrate` - Query substrate
-4. `POST /api/mcp/substrate` - Add to substrate
-5. `POST /api/mcp/validate` - Validate against substrate
-
-See [Backend Implementation Guide](./docs/BACKEND_INTEGRATION.md) for details.
-
-## Deployment
-
-### Render (Recommended)
-
-```bash
-# 1. Create Render service
-render services create
-
-# 2. Deploy
-git push origin main  # Auto-deploy via render.yaml
+```
+AI Assistant → Adapter (Anthropic or OpenAI) → @yarnnn/integration-core → YARNNN Backend REST API
 ```
 
-### Manual Deployment
+As additional platforms adopt MCP or other protocols, create a new adapter that consumes the core package instead of duplicating tool logic.
 
-```bash
-# Build
-npm run build
+## Next Steps
 
-# Set environment
-export BACKEND_URL=https://rightnow-api.onrender.com
-export MCP_TRANSPORT=http
-export PORT=3000
-
-# Start
-npm start
-```
-
-## Troubleshooting
-
-### "Missing user_token in request context"
-
-Ensure MCP host is passing authentication token in request metadata.
-
-### "Authentication failed"
-
-- Check `BACKEND_URL` is correct
-- Verify backend `/api/auth/validate` endpoint exists
-- Ensure token is valid Supabase JWT
-
-### "Tool execution failed"
-
-- Check backend endpoint exists and returns expected format
-- Review server logs for detailed error messages
-- Verify network connectivity to backend
-
-## YARNNN Canon Compliance
-
-This MCP server follows YARNNN Canon v3.0:
-
-✅ **Sacred Capture (P0)** - All content creates immutable raw_dumps
-✅ **Governed Evolution (P1)** - Substrate mutations via proposals
-✅ **Substrate Peers** - No hierarchy between substrate types
-✅ **Workspace Security** - All requests workspace-scoped
-✅ **Event-Driven** - Timeline events for all mutations
-
-## License
-
-MIT
+- Implement OAuth + Apps SDK wiring inside `adapters/openai-apps`.
+- Add automated smoke tests for both adapters.
+- Publish `@yarnnn/integration-core` if external partners need the shared tool definitions.
