@@ -2,6 +2,11 @@
  * YARNNN MCP Tools Index
  *
  * Exports all MCP tools with their schemas and handlers
+ *
+ * Basket inference and confidence handling follow
+ * docs/BASKET_INFERENCE_SPEC.md. Adapters SHOULD call the basket-selection
+ * helper before invoking these handlers and surface the appropriate UX state
+ * (auto, confirm, pick-list) based on the returned score.
  */
 
 import {

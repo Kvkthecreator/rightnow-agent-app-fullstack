@@ -14,6 +14,9 @@ import type { Request, Response } from 'express';
 
 import {
   getToolsList,
+  selectBasket,
+  type SessionFingerprint,
+  type BasketCandidate,
 } from '@yarnnn/integration-core';
 
 import { config, logConfigSummary } from './config.js';
@@ -46,6 +49,7 @@ app.get('/tools', (_req: Request, res: Response) => {
  * callers know the adapter is scaffolded but incomplete.
  */
 app.post('/tools/:name', (req: Request, res: Response) => {
+  void logBasketSelectionPlaceholder(req.body);
   res.status(501).json({
     status: 'not_implemented',
     tool: req.params.name,
@@ -58,3 +62,28 @@ app.listen(config.port, () => {
   console.log(`[SERVER] OpenAI Apps adapter listening on http://0.0.0.0:${config.port}`);
 });
 
+async function logBasketSelectionPlaceholder(payload: any) {
+  const fingerprint = extractFingerprint(payload);
+  if (!fingerprint) {
+    return;
+  }
+  const selection = selectBasket(fingerprint, [] as BasketCandidate[]);
+  console.log('[BASKET] OpenAI placeholder selection', selection.decision);
+}
+
+function extractFingerprint(payload: any): SessionFingerprint | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const fp = payload.session_fingerprint;
+  if (!fp || !Array.isArray(fp.embedding)) {
+    return null;
+  }
+  return {
+    embedding: fp.embedding,
+    summary: fp.summary,
+    intent: fp.intent,
+    entities: fp.entities,
+    keywords: fp.keywords,
+  };
+}

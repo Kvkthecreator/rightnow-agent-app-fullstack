@@ -24,3 +24,15 @@ export type {
   ConflictItem,
   YARNNNError,
 } from './types/index.js';
+export {
+  selectBasket,
+  cosineSimilarity,
+} from './basketSelector.js';
+export type {
+  BasketCandidate,
+  BasketSelection,
+  BasketSignature,
+  BasketScore,
+  SessionFingerprint,
+  BasketConfidence,
+} from './basketSelector.js';

@@ -29,6 +29,10 @@ import {
   YARNNNClient,
   getToolsList,
   executeTool,
+  selectBasket,
+  type BasketSelection,
+  type BasketCandidate,
+  type SessionFingerprint,
 } from '@yarnnn/integration-core';
 
 /**
@@ -89,7 +93,17 @@ async function main() {
 
         console.log(`[TOOL] Executing: ${toolName}`, toolInput);
 
+        const selection = await resolveBasketSelection(
+          toolName,
+          toolInput,
+          client
+        );
+
         const result = await executeTool(toolName, toolInput, client);
+
+        if (selection) {
+          (result as any)._basket_selection = selection;
+        }
 
         console.log(`[TOOL] Success: ${toolName}`, result);
 
@@ -265,6 +279,56 @@ async function main() {
     console.error('[FATAL] Server initialization failed:', error);
     process.exit(1);
   }
+}
+
+async function resolveBasketSelection(
+  toolName: string,
+  toolInput: any,
+  client: YARNNNClient
+): Promise<BasketSelection | null> {
+  const fingerprint = extractFingerprint(toolInput);
+  if (!fingerprint) {
+    return null;
+  }
+
+  try {
+    const response = await client.post<BasketInferenceResponse>(
+      '/api/mcp/baskets/infer',
+      {
+        tool: toolName,
+        fingerprint,
+      }
+    );
+    const candidates = response?.candidates ?? [];
+    return selectBasket(fingerprint, candidates);
+  } catch (error) {
+    console.warn('[BASKET] inference unavailable; proceeding without selection', error);
+    return null;
+  }
+}
+
+function extractFingerprint(payload: any): SessionFingerprint | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  if (!payload.session_fingerprint) {
+    return null;
+  }
+  const fp = payload.session_fingerprint;
+  if (!Array.isArray(fp.embedding)) {
+    return null;
+  }
+  return {
+    embedding: fp.embedding,
+    summary: fp.summary,
+    intent: fp.intent,
+    entities: fp.entities,
+    keywords: fp.keywords,
+  };
+}
+
+interface BasketInferenceResponse {
+  candidates: BasketCandidate[];
 }
 
 // Start server
