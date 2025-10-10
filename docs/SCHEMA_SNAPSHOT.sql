@@ -2082,6 +2082,18 @@ CREATE TABLE public.narrative (
     updated_at timestamp with time zone DEFAULT now()
 );
 ALTER TABLE ONLY public.narrative REPLICA IDENTITY FULL;
+CREATE TABLE public.openai_app_tokens (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    workspace_id uuid NOT NULL,
+    install_id text,
+    access_token text NOT NULL,
+    refresh_token text,
+    expires_at timestamp with time zone,
+    scope text,
+    provider_metadata jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
 CREATE TABLE public.pipeline_metrics (
     id bigint NOT NULL,
     ts timestamp with time zone DEFAULT now() NOT NULL,
@@ -2467,6 +2479,8 @@ ALTER TABLE ONLY public.knowledge_timeline
     ADD CONSTRAINT knowledge_timeline_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.openai_app_tokens
+    ADD CONSTRAINT openai_app_tokens_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.pipeline_metrics
     ADD CONSTRAINT pipeline_metrics_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.pipeline_offsets
@@ -2576,6 +2590,8 @@ CREATE INDEX idx_knowledge_timeline_basket_time ON public.knowledge_timeline USI
 CREATE INDEX idx_knowledge_timeline_significance ON public.knowledge_timeline USING btree (significance, created_at DESC);
 CREATE INDEX idx_knowledge_timeline_workspace_time ON public.knowledge_timeline USING btree (workspace_id, created_at DESC);
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
+CREATE INDEX idx_openai_app_tokens_expires ON public.openai_app_tokens USING btree (expires_at);
+CREATE UNIQUE INDEX idx_openai_app_tokens_workspace ON public.openai_app_tokens USING btree (workspace_id);
 CREATE INDEX idx_proposal_executions_executed_at ON public.proposal_executions USING btree (executed_at DESC);
 CREATE INDEX idx_proposal_executions_proposal ON public.proposal_executions USING btree (proposal_id, operation_index);
 CREATE INDEX idx_proposal_executions_proposal_id ON public.proposal_executions USING btree (proposal_id);
@@ -2636,6 +2652,7 @@ CREATE TRIGGER basket_anchors_set_updated_at BEFORE UPDATE ON public.basket_anch
 CREATE TRIGGER basket_signatures_set_updated_at BEFORE UPDATE ON public.basket_signatures FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER enforce_single_workspace_per_user BEFORE INSERT OR UPDATE ON public.workspace_memberships FOR EACH ROW EXECUTE FUNCTION public.check_single_workspace_per_user();
 CREATE TRIGGER ensure_text_dump_columns BEFORE INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.ensure_raw_dump_text_columns();
+CREATE TRIGGER openai_app_tokens_set_updated_at BEFORE UPDATE ON public.openai_app_tokens FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER proposals_validation_gate BEFORE UPDATE ON public.proposals FOR EACH ROW EXECUTE FUNCTION public.proposal_validation_check();
 CREATE TRIGGER reflection_cache_updated_at_trigger BEFORE UPDATE ON public.reflections_artifact FOR EACH ROW EXECUTE FUNCTION public.update_reflection_cache_updated_at();
 CREATE TRIGGER sync_text_dump_columns BEFORE UPDATE ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.sync_raw_dump_text_columns();
@@ -2737,6 +2754,8 @@ ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
+ALTER TABLE ONLY public.openai_app_tokens
+    ADD CONSTRAINT openai_app_tokens_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.proposal_executions
     ADD CONSTRAINT proposal_executions_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id);
 ALTER TABLE ONLY public.proposals
@@ -3124,6 +3143,8 @@ CREATE POLICY narrative_update_workspace_member ON public.narrative FOR UPDATE T
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((b.id = narrative.basket_id) AND (wm.user_id = auth.uid())))));
+ALTER TABLE public.openai_app_tokens ENABLE ROW LEVEL SECURITY;
+CREATE POLICY openai_app_tokens_service_access ON public.openai_app_tokens USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
 ALTER TABLE public.proposal_executions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY proposal_executions_insert ON public.proposal_executions FOR INSERT WITH CHECK ((proposal_id IN ( SELECT proposals.id
    FROM public.proposals
