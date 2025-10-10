@@ -9,6 +9,7 @@ import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 import IntegrationTokensPanel from "@/components/settings/IntegrationTokensPanel";
+import { formatDistanceToNow } from "date-fns";
 
 export default async function SettingsPage() {
   const supabase = createServerComponentClient<Database>({ cookies });
@@ -27,6 +28,30 @@ export default async function SettingsPage() {
 
   const workspace = await ensureWorkspaceServer(supabase);
   const workspaceId = workspace?.id ?? null;
+
+  const { data: integrationTokens } = await supabase
+    .from('integration_tokens')
+    .select('id, last_used_at, created_at')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  const { data: openaiToken } = await supabase
+    .from('openai_app_tokens')
+    .select('install_id, updated_at, expires_at')
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  const claudeConnected = Boolean(integrationTokens?.length);
+  const chatgptConnected = Boolean(openaiToken);
+
+  const claudeLastUsed = integrationTokens?.[0]?.last_used_at
+    ? formatDistanceToNow(new Date(integrationTokens[0].last_used_at), { addSuffix: true })
+    : 'Never';
+
+  const chatgptLastUpdated = openaiToken?.updated_at
+    ? formatDistanceToNow(new Date(openaiToken.updated_at), { addSuffix: true })
+    : 'Awaiting launch';
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 px-6 py-8">
@@ -72,7 +97,80 @@ export default async function SettingsPage() {
         )}
       </SettingsSection>
 
+      <SettingsSection
+        title="Integrations"
+        description="Connect Claude and ChatGPT to Yarnnn’s ambient memory."
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <IntegrationStatusCard
+            host="Claude"
+            description="Remote MCP connector for Claude and Claude Desktop"
+            connected={claudeConnected}
+            metaLabel="Last activity"
+            metaValue={claudeLastUsed}
+            docsHref="/docs/integrations/claude"
+          />
+          <IntegrationStatusCard
+            host="ChatGPT"
+            description="OpenAI Apps SDK connector (preview)"
+            connected={chatgptConnected}
+            metaLabel={chatgptConnected ? 'Linked' : 'Status'}
+            metaValue={chatgptConnected ? chatgptLastUpdated : 'Waiting for public Apps SDK'}
+            docsHref="/docs/integrations/chatgpt"
+          />
+        </div>
+      </SettingsSection>
+
       <IntegrationTokensPanel />
+    </div>
+  );
+}
+
+function IntegrationStatusCard({
+  host,
+  description,
+  connected,
+  metaLabel,
+  metaValue,
+  docsHref,
+}: {
+  host: string;
+  description: string;
+  connected: boolean;
+  metaLabel: string;
+  metaValue: string;
+  docsHref: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{host}</h2>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        <span
+          className={
+            connected
+              ? 'rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700'
+              : 'rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700'
+          }
+        >
+          {connected ? 'Connected' : 'Not connected'}
+        </span>
+      </div>
+      <div className="text-xs text-muted-foreground">
+        {metaLabel}: {metaValue}
+      </div>
+      <div className="flex gap-3 text-sm">
+        <Link href={docsHref} className="text-primary hover:underline">
+          View guide
+        </Link>
+        {host === 'Claude' && (
+          <Link href="/memory/unassigned" className="text-muted-foreground hover:text-foreground">
+            View unassigned queue
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

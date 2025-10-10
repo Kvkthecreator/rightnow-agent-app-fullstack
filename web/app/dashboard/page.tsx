@@ -43,6 +43,19 @@ export default async function DashboardPage() {
     .eq('workspace_id', workspace.id)
     .eq('status', 'pending');
 
+  const {
+    data: pendingProposals,
+    count: pendingProposalCount,
+  } = await supabase
+    .from('proposals')
+    .select('id, basket_id, proposal_kind, origin, metadata, created_at', { count: 'exact' })
+    .eq('workspace_id', workspace.id)
+    .eq('status', 'PROPOSED')
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  const basketName = new Map(baskets?.map((basket) => [basket.id, basket.name || 'Untitled basket']));
+
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-12">
       <header className="space-y-3">
@@ -89,10 +102,48 @@ export default async function DashboardPage() {
           <QueueCard
             title="Pending proposals"
             description="Substrate changes awaiting approval."
-            count={0}
+            count={pendingProposalCount ?? 0}
             href="/governance/settings"
             cta="Review governance"
           />
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase text-muted-foreground">Recent governance activity</h2>
+          <Link href="/governance/settings" className="text-sm text-muted-foreground hover:text-foreground">
+            Open governance
+          </Link>
+        </div>
+        <div className="mt-4 space-y-2">
+          {pendingProposals && pendingProposals.length > 0 ? (
+            pendingProposals.map((proposal: any) => (
+              <div
+                key={proposal.id}
+                className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm"
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium">
+                    {formatProposalKind(proposal.proposal_kind)} · {basketName.get(proposal.basket_id) || 'Unknown basket'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatTimestamp(proposal.created_at)} · {proposal.origin === 'agent' ? 'Ambient agent' : 'Human review'}
+                  </span>
+                </div>
+                <Link
+                  href={`/baskets/${proposal.basket_id}/governance`}
+                  className="text-primary hover:underline"
+                >
+                  Review
+                </Link>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+              No pending governance proposals.
+            </div>
+          )}
         </div>
       </section>
 
@@ -209,4 +260,12 @@ function statusBadgeClass(status: string) {
     return 'bg-emerald-100 text-emerald-700';
   }
   return 'bg-muted text-foreground';
+}
+
+function formatProposalKind(kind: string) {
+  return kind
+    .toLowerCase()
+    .split('_')
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(' ');
 }

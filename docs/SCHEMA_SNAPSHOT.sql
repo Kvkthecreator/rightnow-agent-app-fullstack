@@ -2069,6 +2069,22 @@ CREATE TABLE public.knowledge_timeline (
     CONSTRAINT knowledge_timeline_description_length CHECK ((length(description) <= 1000)),
     CONSTRAINT knowledge_timeline_title_length CHECK (((length(title) >= 1) AND (length(title) <= 200)))
 );
+CREATE TABLE public.mcp_unassigned_captures (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    workspace_id uuid NOT NULL,
+    requested_by uuid,
+    tool text NOT NULL,
+    summary text,
+    payload jsonb,
+    fingerprint jsonb,
+    candidates jsonb,
+    status text DEFAULT 'pending'::text NOT NULL,
+    assigned_basket_id uuid,
+    resolved_at timestamp with time zone,
+    resolved_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
 CREATE TABLE public.narrative (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
@@ -2477,6 +2493,8 @@ ALTER TABLE ONLY public.idempotency_keys
     ADD CONSTRAINT idempotency_keys_pkey PRIMARY KEY (request_id);
 ALTER TABLE ONLY public.knowledge_timeline
     ADD CONSTRAINT knowledge_timeline_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.mcp_unassigned_captures
+    ADD CONSTRAINT mcp_unassigned_captures_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.openai_app_tokens
@@ -2589,6 +2607,8 @@ CREATE INDEX idx_idempotency_keys_delta_id ON public.idempotency_keys USING btre
 CREATE INDEX idx_knowledge_timeline_basket_time ON public.knowledge_timeline USING btree (basket_id, created_at DESC);
 CREATE INDEX idx_knowledge_timeline_significance ON public.knowledge_timeline USING btree (significance, created_at DESC);
 CREATE INDEX idx_knowledge_timeline_workspace_time ON public.knowledge_timeline USING btree (workspace_id, created_at DESC);
+CREATE INDEX idx_mcp_unassigned_status ON public.mcp_unassigned_captures USING btree (status);
+CREATE INDEX idx_mcp_unassigned_workspace ON public.mcp_unassigned_captures USING btree (workspace_id);
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
 CREATE INDEX idx_openai_app_tokens_expires ON public.openai_app_tokens USING btree (expires_at);
 CREATE UNIQUE INDEX idx_openai_app_tokens_workspace ON public.openai_app_tokens USING btree (workspace_id);
@@ -2652,6 +2672,7 @@ CREATE TRIGGER basket_anchors_set_updated_at BEFORE UPDATE ON public.basket_anch
 CREATE TRIGGER basket_signatures_set_updated_at BEFORE UPDATE ON public.basket_signatures FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER enforce_single_workspace_per_user BEFORE INSERT OR UPDATE ON public.workspace_memberships FOR EACH ROW EXECUTE FUNCTION public.check_single_workspace_per_user();
 CREATE TRIGGER ensure_text_dump_columns BEFORE INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.ensure_raw_dump_text_columns();
+CREATE TRIGGER mcp_unassigned_set_updated_at BEFORE UPDATE ON public.mcp_unassigned_captures FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER openai_app_tokens_set_updated_at BEFORE UPDATE ON public.openai_app_tokens FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER proposals_validation_gate BEFORE UPDATE ON public.proposals FOR EACH ROW EXECUTE FUNCTION public.proposal_validation_check();
 CREATE TRIGGER reflection_cache_updated_at_trigger BEFORE UPDATE ON public.reflections_artifact FOR EACH ROW EXECUTE FUNCTION public.update_reflection_cache_updated_at();
@@ -2750,6 +2771,14 @@ ALTER TABLE ONLY public.knowledge_timeline
     ADD CONSTRAINT knowledge_timeline_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.knowledge_timeline
     ADD CONSTRAINT knowledge_timeline_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.mcp_unassigned_captures
+    ADD CONSTRAINT mcp_unassigned_captures_assigned_basket_id_fkey FOREIGN KEY (assigned_basket_id) REFERENCES public.baskets(id);
+ALTER TABLE ONLY public.mcp_unassigned_captures
+    ADD CONSTRAINT mcp_unassigned_captures_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.mcp_unassigned_captures
+    ADD CONSTRAINT mcp_unassigned_captures_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.mcp_unassigned_captures
+    ADD CONSTRAINT mcp_unassigned_captures_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.narrative
@@ -3123,6 +3152,17 @@ ALTER TABLE public.knowledge_timeline ENABLE ROW LEVEL SECURITY;
 CREATE POLICY knowledge_timeline_workspace_read ON public.knowledge_timeline FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
+ALTER TABLE public.mcp_unassigned_captures ENABLE ROW LEVEL SECURITY;
+CREATE POLICY mcp_unassigned_select ON public.mcp_unassigned_captures FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships wm
+  WHERE ((wm.workspace_id = mcp_unassigned_captures.workspace_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY mcp_unassigned_service_delete ON public.mcp_unassigned_captures FOR DELETE USING ((auth.role() = 'service_role'::text));
+CREATE POLICY mcp_unassigned_service_insert ON public.mcp_unassigned_captures FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
+CREATE POLICY mcp_unassigned_update ON public.mcp_unassigned_captures FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships wm
+  WHERE ((wm.workspace_id = mcp_unassigned_captures.workspace_id) AND (wm.user_id = auth.uid()))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships wm
+  WHERE ((wm.workspace_id = mcp_unassigned_captures.workspace_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY member_self_crud ON public.workspace_memberships USING ((user_id = auth.uid()));
 CREATE POLICY member_self_insert ON public.workspace_memberships FOR INSERT TO authenticated WITH CHECK ((auth.uid() = user_id));
 ALTER TABLE public.narrative ENABLE ROW LEVEL SECURITY;
