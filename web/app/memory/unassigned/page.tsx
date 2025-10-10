@@ -1,33 +1,38 @@
-import Link from 'next/link';
+import { cookies } from 'next/headers';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import type { Database } from '@/lib/dbTypes';
+import { ensureSingleWorkspace } from '@/lib/canon/WorkspaceResolver';
+import { listBasketsByWorkspace } from '@/lib/baskets/listBasketsByWorkspace';
+import UnassignedQueueClient, { type UnassignedCapture } from '@/components/memory/UnassignedQueueClient';
 
-export default function UnassignedQueuePage() {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function UnassignedQueuePage() {
+  const supabase = createServerComponentClient<Database>({ cookies });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const workspace = await ensureSingleWorkspace(user.id, supabase);
+
+  const { data: captures } = await supabase
+    .from('mcp_unassigned_captures')
+    .select('id, tool, summary, payload, fingerprint, candidates, status, assigned_basket_id, created_at')
+    .eq('workspace_id', workspace.id)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  const { data: baskets } = await listBasketsByWorkspace(workspace.id);
+
   return (
-    <div className="mx-auto max-w-3xl space-y-6 py-12">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold">Unassigned Captures</h1>
-        <p className="text-sm text-muted-foreground">
-          Low-confidence captures from MCP integrations will land here so you can
-          route them to the correct basket. This queue will light up once basket
-          inference is enabled for your workspace.
-        </p>
-      </header>
-
-      <section className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-        <p>No unassigned captures yet.</p>
-        <p className="mt-1">
-          Continue working inside Claude or ChatGPT. When YARNNN is uncertain
-          about where to store a capture, you&apos;ll be asked to confirm the target
-          basket and the item will appear here until it&apos;s resolved.
-        </p>
-      </section>
-
-      <footer className="text-sm text-muted-foreground">
-        Need to adjust basket anchors or governance?{' '}
-        <Link href="/settings/integrations" className="underline">
-          Manage integrations
-        </Link>
-        .
-      </footer>
-    </div>
+    <UnassignedQueueClient
+      captures={(captures ?? []) as UnassignedCapture[]}
+      baskets={baskets ?? []}
+    />
   );
 }

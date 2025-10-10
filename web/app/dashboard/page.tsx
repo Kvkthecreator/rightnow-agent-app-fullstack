@@ -37,6 +37,12 @@ export default async function DashboardPage() {
   const claudeConnected = Boolean(integrationTokens?.length);
   const chatgptConnected = Boolean(openaiToken);
 
+  const { count: unassignedCount } = await supabase
+    .from('mcp_unassigned_captures')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', workspace.id)
+    .eq('status', 'pending');
+
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-12">
       <header className="space-y-3">
@@ -76,7 +82,7 @@ export default async function DashboardPage() {
           <QueueCard
             title="Unassigned captures"
             description="Low-confidence writes waiting for review."
-            count={0}
+            count={unassignedCount ?? 0}
             href="/memory/unassigned"
             cta="Open queue"
           />
