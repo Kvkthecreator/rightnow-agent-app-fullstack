@@ -2,15 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Package2, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield, CloudUpload } from "lucide-react";
+import { LayoutDashboard, Inbox, Plug, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield, CloudUpload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
 import type { BasketOverview } from "@/lib/baskets/getAllBaskets";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useNavState } from "@/components/nav/useNavState";
-import { useBasketDocuments } from "@/lib/hooks/useBasketDocuments";
-import { getBasket } from "@/lib/api/baskets";
 import SidebarItem from "@/components/nav/SidebarItem";
 import { SECTION_ORDER } from "@/components/features/baskets/sections";
 
@@ -19,6 +17,24 @@ interface SidebarProps {
 }
 
 const supabase = createBrowserClient();
+
+const PRIMARY_LINKS = [
+  {
+    href: '/dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+  },
+  {
+    href: '/memory/unassigned',
+    label: 'Unassigned',
+    icon: Inbox,
+  },
+  {
+    href: '/dashboard/settings',
+    label: 'Integrations',
+    icon: Plug,
+  },
+];
 
 export default function Sidebar({ className }: SidebarProps) {
   const { open, setOpen, toggle } = useNavState();
@@ -56,31 +72,24 @@ export default function Sidebar({ className }: SidebarProps) {
           data: { user },
         } = await supabase.auth.getUser();
         setUserEmail(user?.email || null);
-        // Determine basket from path if possible; fallback to first
+
+        const data = await getAllBaskets();
+        setBasketList(data);
+
         const idFromPath = pathname?.match(/^\/baskets\/([^/]+)/)?.[1];
         if (idFromPath) {
-          try {
-            const b = await getBasket(idFromPath);
-            setBasket({ id: b.id, name: b.name } as BasketOverview);
-            setBasketList([]);
-          } catch {
-            const data = await getAllBaskets();
-            setBasketList(data);
-            const fallback = data.find((item) => item.id === idFromPath);
-            if (fallback) {
-              setBasket(fallback);
-            } else {
-              setBasket({
-                id: idFromPath,
-                name: 'Untitled Basket',
-                created_at: new Date().toISOString(),
-                mode: 'default',
-              } as BasketOverview);
-            }
+          const fallback = data.find((item) => item.id === idFromPath);
+          if (fallback) {
+            setBasket(fallback);
+          } else {
+            setBasket({
+              id: idFromPath,
+              name: 'Untitled Basket',
+              created_at: new Date().toISOString(),
+              mode: 'default',
+            } as BasketOverview);
           }
         } else {
-          const data = await getAllBaskets();
-          setBasketList(data);
           setBasket(null);
         }
       } catch (err) {
@@ -120,17 +129,6 @@ export default function Sidebar({ className }: SidebarProps) {
   };
 
 
-  const handleSectionNavigate = (href: string) => {
-    try {
-      router.push(href);
-      if (isMobile) {
-        setOpen(false);
-      }
-    } catch (error) {
-      console.error("❌ Sidebar: Failed to navigate to section:", error);
-    }
-  };
-
   const handleNavigateToSettings = () => {
     try {
       router.push("/dashboard/settings");
@@ -143,11 +141,9 @@ export default function Sidebar({ className }: SidebarProps) {
     }
   };
 
-  const showHint = /^\/baskets\/[^/]+/.test(pathname || "");
   const activeBasketId = pathname?.match(/^\/baskets\/([^/]+)/)?.[1] || null;
   const basketId = activeBasketId || basket?.id;
   const isBasketDetail = Boolean(activeBasketId);
-  const { documents: docList, isLoading: docsLoading } = useBasketDocuments(basketId || "");
 
   // Map section keys to icons
   const sectionIcons: Record<string, React.ElementType> = {
@@ -206,155 +202,102 @@ export default function Sidebar({ className }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-3">
-          {isBasketDetail && basket ? (
-            <div>
-              {/* Basket section with merged icon and name */}
-              <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                🧺 {basket.name || "Untitled Basket"}
-              </div>
-              <div className="flex flex-col gap-2">
-                {/* Memory Group */}
-                <div>
-                  <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Memory
-                  </div>
-                  <div className="ml-4 flex flex-col gap-0.5">
-                    {SECTION_ORDER.slice(0, 3).map((section) => {
-                      const href = section.href(basket.id);
-                      const Icon = sectionIcons[section.key];
-                      return (
-                        <SidebarItem
-                          key={section.key}
-                          href={href}
-                          onClick={() => {
-                            if (isMobile) {
-                              setOpen(false);
-                            }
-                          }}
-                        >
-                          <span className="flex items-center gap-2">
-                            {Icon && <Icon size={14} />}
-                            {section.label}
-                          </span>
-                        </SidebarItem>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Insights Group */}
-                <div>
-                  <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Insights
-                  </div>
-                  <div className="ml-4 flex flex-col gap-0.5">
-                    {SECTION_ORDER.slice(3, 6).map((section) => {
-                      const href = section.href(basket.id);
-                      const Icon = sectionIcons[section.key];
-                      return (
-                        <SidebarItem
-                          key={section.key}
-                          href={href}
-                          onClick={() => {
-                            if (isMobile) {
-                              setOpen(false);
-                            }
-                          }}
-                        >
-                          <span className="flex items-center gap-2">
-                            {Icon && <Icon size={14} />}
-                            {section.label}
-                          </span>
-                        </SidebarItem>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Settings Group */}
-                <div>
-                  <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Settings
-                  </div>
-                  <div className="ml-4 flex flex-col gap-0.5">
-                    {SECTION_ORDER.slice(6, 7).filter((s) => s.key !== "documents").map((section) => {
-                      const href = section.href(basket.id);
-                      const Icon = sectionIcons[section.key];
-                      return (
-                        <SidebarItem
-                          key={section.key}
-                          href={href}
-                          onClick={() => {
-                            if (isMobile) {
-                              setOpen(false);
-                            }
-                          }}
-                        >
-                          <span className="flex items-center gap-2">
-                            {Icon && <Icon size={14} />}
-                            {section.label}
-                          </span>
-                        </SidebarItem>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              {/* Documents section */}
-              <div className="mt-4">
-                <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                  📄 Documents  
-                </div>
-                <div className="ml-4 space-y-1">
-                  {docsLoading && (
-                    <p className="text-sm text-muted-foreground px-2 py-1">Loading...</p>
-                  )}
-                  {!docsLoading && docList?.length === 0 && (
-                    <p className="text-sm text-muted-foreground px-2 py-1">No documents</p>
-                  )}
-                  {!docsLoading && docList?.map((doc: any) => {
-                    const href = `/baskets/${basket.id}/documents/${doc.id}`;
-                    return (
-                      <SidebarItem
-                        key={doc.id}
-                        href={href}
-                        onClick={() => {
-                          if (isMobile) setOpen(false);
-                        }}
-                      >
-                        {doc.title || "Untitled"}
-                      </SidebarItem>
-                    );
-                  })}
-                </div>
-              </div>
+        <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-6">
+          <section>
+            <div className="px-2 pt-3 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Control Tower
             </div>
-          ) : (
-            <div>
-              <div className="px-2 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Baskets
+            <div className="ml-2 flex flex-col gap-0.5">
+              {PRIMARY_LINKS.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <SidebarItem
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => {
+                      if (isMobile) setOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Icon size={14} />
+                      {link.label}
+                    </span>
+                  </SidebarItem>
+                );
+              })}
+            </div>
+          </section>
+
+          <section>
+            <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Baskets
+            </div>
+            <div className="ml-4 flex flex-col gap-0.5">
+              {basketList.length === 0 ? (
+                <p className="text-sm text-muted-foreground px-2 py-1">No baskets yet</p>
+              ) : (
+                basketList.slice(0, 6).map((item) => (
+                  <SidebarItem
+                    key={item.id}
+                    href={`/baskets/${item.id}/memory`}
+                    onClick={() => {
+                      if (isMobile) setOpen(false);
+                    }}
+                  >
+                    {item.name || 'Untitled Basket'}
+                  </SidebarItem>
+                ))
+              )}
+              {basketList.length > 6 && (
+                <SidebarItem
+                  href="/baskets"
+                  onClick={() => {
+                    if (isMobile) setOpen(false);
+                  }}
+                  className="text-muted-foreground"
+                >
+                  View all baskets
+                </SidebarItem>
+              )}
+            </div>
+          </section>
+
+          {isBasketDetail && basket && (
+            <section>
+              <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {basket.name || 'Current basket'}
               </div>
               <div className="ml-4 flex flex-col gap-0.5">
-                {basketList.length === 0 ? (
-                  <p className="text-sm text-muted-foreground px-2 py-1">No baskets yet</p>
-                ) : (
-                  basketList.map((item) => (
+                {SECTION_ORDER.filter((section) => section.key !== 'documents').map((section) => {
+                  const href = section.href(basket.id);
+                  const Icon = sectionIcons[section.key];
+                  return (
                     <SidebarItem
-                      key={item.id}
-                      href={`/baskets/${item.id}/memory`}
+                      key={section.key}
+                      href={href}
                       onClick={() => {
-                        if (isMobile) {
-                          setOpen(false);
-                        }
+                        if (isMobile) setOpen(false);
                       }}
                     >
-                      {item.name || 'Untitled Basket'}
+                      <span className="flex items-center gap-2">
+                        {Icon && <Icon size={14} />}
+                        {section.label}
+                      </span>
                     </SidebarItem>
-                  ))
-                )}
+                  );
+                })}
+                <SidebarItem
+                  href={`/baskets/${basket.id}/documents`}
+                  onClick={() => {
+                    if (isMobile) setOpen(false);
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <FileText size={14} /> Documents
+                  </span>
+                </SidebarItem>
               </div>
-            </div>
+            </section>
           )}
         </div>
 
