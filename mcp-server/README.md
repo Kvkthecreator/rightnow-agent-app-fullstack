@@ -93,7 +93,9 @@ The HTTP service exposes:
 
 ## OpenAI Apps Adapter (Scaffold)
 
-The OpenAI adapter is intentionally minimal today—it exposes health/tool discovery routes but returns `501 Not Implemented` for tool execution. It exists so the OAuth + Apps SDK integration can be layered in without touching the shared core.
+The OpenAI adapter now includes a placeholder OAuth flow, a static tool registry
+endpoint, and a minimal Apps UI bundle scaffold. Tool execution still returns
+`501 Not Implemented` until the Apps SDK wiring is finalized.
 
 ```bash
 # Launch the scaffold
@@ -102,6 +104,8 @@ npm run dev:openai
 # Verify placeholder endpoints
 curl http://localhost:4000/health
 curl http://localhost:4000/tools
+curl http://localhost:4000/tool-registry
+curl http://localhost:4000/oauth/start?workspace_id=test
 ```
 
 Configure the following environment variables before wiring in OAuth:
@@ -112,7 +116,21 @@ Configure the following environment variables before wiring in OAuth:
 | `OPENAI_CLIENT_ID` | OAuth client id (optional until full implementation) |
 | `OPENAI_CLIENT_SECRET` | OAuth secret |
 | `OPENAI_REDIRECT_URI` | Callback URL registered with OpenAI |
+| `MCP_SHARED_SECRET` | Shared secret used to persist tokens to the YARNNN backend |
 | `PORT` | Adapter HTTP port (default `4000`) |
+
+### Building the Apps UI bundle
+
+The adapter serves a simple React UI that allows ChatGPT to render Yarnnn
+components. Build it whenever you change files under `adapters/openai-apps/ui`:
+
+```bash
+npm run build:ui -w @yarnnn/openai-apps
+```
+
+The build outputs to `adapters/openai-apps/static/` and is served via
+`GET /ui-shell`. ChatGPT will eventually embed these assets inside its Apps
+runtime.
 
 ## Shared Tooling
 
@@ -141,3 +159,4 @@ As additional platforms adopt MCP or other protocols, create a new adapter that 
 - Implement OAuth + Apps SDK wiring inside `adapters/openai-apps`.
 - Add automated smoke tests for both adapters.
 - Publish `@yarnnn/integration-core` if external partners need the shared tool definitions.
+- Review `docs/MCP_LAUNCH_CHECKLIST.md` for the operational gate before public pilots.

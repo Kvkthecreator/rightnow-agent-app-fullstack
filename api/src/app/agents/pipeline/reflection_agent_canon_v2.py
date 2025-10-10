@@ -19,6 +19,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.services.basket_signatures import (
+    build_signature_payload,
+    upsert_basket_signature,
+)
 from app.utils.supabase_client import supabase_admin_client as supabase
 from services.llm import get_llm
 
@@ -144,6 +148,21 @@ class CanonP3ReflectionAgent:
             if batch.get("usage"):
                 meta_payload["llm_usage"] = batch["usage"]
 
+            try:
+                self._update_basket_signature(
+                    request=request,
+                    summary=meta_payload.get("summary") or sample_text or "",
+                    reflections=batch.get("reflections", []),
+                    text_window=text_window,
+                    source_reflection_id=created_ids[0] if created_ids else None,
+                )
+            except Exception as exc:  # noqa: BLE001
+                self.logger.warning(
+                    "Failed to update basket signature for %s: %s",
+                    request.basket_id,
+                    exc,
+                )
+
             return ReflectionComputationResult(
                 workspace_id=str(request.workspace_id),
                 basket_id=str(request.basket_id),
@@ -156,7 +175,33 @@ class CanonP3ReflectionAgent:
         except Exception as e:
             self.logger.error(f"Canon P3 Reflection failed for basket {request.basket_id}: {e}")
             raise
-    
+
+    def _update_basket_signature(
+        self,
+        *,
+        request: ReflectionComputationRequest,
+        summary: Optional[str],
+        reflections: List[Dict[str, Any]],
+        text_window: List[Dict[str, Any]],
+        source_reflection_id: Optional[str],
+    ) -> None:
+        if not request.workspace_id or not request.basket_id:
+            return
+
+        payload = build_signature_payload(
+            workspace_id=str(request.workspace_id),
+            basket_id=str(request.basket_id),
+            summary=summary or "",
+            reflections=reflections,
+            text_window=text_window,
+            source_reflection_id=source_reflection_id,
+        )
+
+        if not payload:
+            return
+
+        upsert_basket_signature(payload)
+
     def _get_text_window(self, basket_id: UUID, window_hours: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:
         """Canon: Text window = last N raw_dumps in basket with optional time constraint"""
         try:

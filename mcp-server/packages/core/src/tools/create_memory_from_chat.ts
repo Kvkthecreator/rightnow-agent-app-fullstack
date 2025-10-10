@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { YARNNNClient } from '../client.js';
 import type { CreateMemoryResponse } from '../types/index.js';
+import { sessionFingerprintSchema } from '../utils/sessionFingerprint.js';
 
 /**
  * Tool: create_memory_from_chat
@@ -28,6 +29,9 @@ export const createMemoryFromChatSchema = z.object({
   anchor_suggestions: z.record(z.string()).optional().describe(
     'Key concepts to seed as anchors (e.g., {"core_problem": "Users struggle with context management", "product_vision": "Build context OS"})'
   ),
+  session_fingerprint: sessionFingerprintSchema.describe(
+    'Session fingerprint used for basket inference (embedding + summary/intent metadata). Required for canon compliance.'
+  ),
 });
 
 export type CreateMemoryFromChatInput = z.infer<typeof createMemoryFromChatSchema>;
@@ -49,6 +53,7 @@ export async function createMemoryFromChat(
         conversation_history: input.conversation_history,
         basket_name: input.basket_name_suggestion,
         anchor_seeds: input.anchor_suggestions,
+        session_fingerprint: input.session_fingerprint,
       }
     );
 

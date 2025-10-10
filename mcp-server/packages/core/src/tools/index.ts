@@ -34,6 +34,7 @@ import {
 } from './validate_against_substrate.js';
 
 import type { YARNNNClient } from '../client.js';
+import type { SessionFingerprintInput } from '../utils/sessionFingerprint.js';
 
 /**
  * Tool registry for MCP server
@@ -79,6 +80,8 @@ export async function executeTool(
   input: any,
   client: YARNNNClient
 ): Promise<any> {
+  enforceSessionFingerprint(toolName, input);
+
   const handler = toolHandlers[toolName];
   if (!handler) {
     throw new Error(`Unknown tool: ${toolName}`);
@@ -90,4 +93,23 @@ export async function executeTool(
 
   // Execute handler
   return await handler(validatedInput, client);
+}
+
+const WRITE_TOOLS_REQUIRING_FINGERPRINT = new Set([
+  'create_memory_from_chat',
+  'add_to_substrate',
+]);
+
+function enforceSessionFingerprint(toolName: string, input: any) {
+  if (!WRITE_TOOLS_REQUIRING_FINGERPRINT.has(toolName)) {
+    return;
+  }
+
+  const fingerprint: SessionFingerprintInput | undefined = input?.session_fingerprint;
+  if (!fingerprint || !Array.isArray(fingerprint.embedding) || fingerprint.embedding.length === 0) {
+    throw new Error(
+      `Tool "${toolName}" requires session_fingerprint.embedding per YARNNN canon. ` +
+      'Provide session_fingerprint with an embedding vector before invoking this tool.'
+    );
+  }
 }

@@ -24,6 +24,7 @@ export interface OpenAIConfig extends BaseConfig {
   clientId?: string;
   clientSecret?: string;
   redirectUri?: string;
+  sharedSecret?: string;
 }
 
 export const config: OpenAIConfig = {
@@ -33,6 +34,7 @@ export const config: OpenAIConfig = {
   clientId: getOptionalEnv('OPENAI_CLIENT_ID'),
   clientSecret: getOptionalEnv('OPENAI_CLIENT_SECRET'),
   redirectUri: getOptionalEnv('OPENAI_REDIRECT_URI'),
+  sharedSecret: getOptionalEnv('MCP_SHARED_SECRET'),
 };
 
 export function logConfigSummary(): void {
@@ -43,11 +45,16 @@ export function logConfigSummary(): void {
     hasClientId: Boolean(config.clientId),
     hasClientSecret: Boolean(config.clientSecret),
     hasRedirectUri: Boolean(config.redirectUri),
+    hasSharedSecret: Boolean(config.sharedSecret),
   });
 
   if (!config.clientId || !config.clientSecret || !config.redirectUri) {
     console.warn(
       '[CONFIG] OAuth credentials are not fully configured. The adapter will run in stub mode until they are provided.'
     );
+  }
+
+  if (!config.sharedSecret) {
+    console.warn('[CONFIG] MCP_SHARED_SECRET not set; token persistence endpoint cannot be called.');
   }
 }

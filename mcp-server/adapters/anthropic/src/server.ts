@@ -104,6 +104,7 @@ async function main() {
 
         if (selection) {
           (result as any)._basket_selection = selection;
+          (result as any).selection_summary = summarizeSelection(selection);
         }
 
         console.log(`[TOOL] Success: ${toolName}`, result);
@@ -337,6 +338,24 @@ function extractFingerprint(payload: any): SessionFingerprint | null {
 
 interface BasketInferenceResponse {
   candidates: BasketCandidate[];
+}
+
+function summarizeSelection(selection: BasketSelection): string {
+  const primary = selection.primary;
+  if (!primary) {
+    return 'Basket inference pending user selection.';
+  }
+
+  const basketName = primary.basket.name || 'Unnamed basket';
+  const score = primary.score.toFixed(2);
+  switch (selection.decision) {
+    case 'auto':
+      return `🔗 Using ${basketName} (high confidence, score ${score}).`;
+    case 'confirm':
+      return `🤔 Likely ${basketName} (score ${score})—confirm before writing.`;
+    default:
+      return `📚 No confident match (top score ${score}). Pick a basket or create a new one.`;
+  }
 }
 
 // Start server

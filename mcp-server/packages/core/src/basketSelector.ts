@@ -1,4 +1,9 @@
-import type { UserContext } from './types/index.js';
+import type {
+  SessionFingerprint as SessionFingerprintType,
+  UserContext,
+} from './types/index.js';
+
+export type SessionFingerprint = SessionFingerprintType;
 
 const HIGH_THRESHOLD = 0.80;
 const MEDIUM_THRESHOLD = 0.55;
@@ -19,14 +24,6 @@ export interface BasketCandidate {
   recencyBoost?: number; // 0..1
   userAffinity?: number; // 0..1
   conflict?: boolean;
-}
-
-export interface SessionFingerprint {
-  embedding: number[];
-  summary?: string;
-  intent?: string;
-  entities?: string[];
-  keywords?: string[];
 }
 
 export interface BasketScore {

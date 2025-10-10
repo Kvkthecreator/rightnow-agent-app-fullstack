@@ -7,6 +7,14 @@ export interface UserContext {
   basketId?: string;
 }
 
+export interface SessionFingerprint {
+  embedding: number[];
+  summary?: string;
+  intent?: string;
+  entities?: string[];
+  keywords?: string[];
+}
+
 export interface AuthValidationResponse {
   valid: boolean;
   user_id?: string;

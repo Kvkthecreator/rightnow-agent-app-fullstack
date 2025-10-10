@@ -49,11 +49,21 @@ OpenAI Apps, etc.). It should stay in sync with the tool implementations.
 
 ## 3. Basket Inference & Confidence UX
 - Follows `docs/BASKET_INFERENCE_SPEC.md`.  
+- Adapters call `/api/mcp/baskets/infer` with the session fingerprint; the
+  backend responds with scored candidates derived from `basket_signatures`.
 - Both adapters call `selectBasket()` before tool execution using the provided
   `session_fingerprint`.  
 - Confidence states: `auto` (≥0.80), `confirm` (0.55–0.79), `pick` (<0.55).  
 - Writes auto-confirm only when score ≥0.80; otherwise prompt with “Change basket”.
 - Tie-break (Δ<0.06) triggers secondary reflection check or multi-choice UI.
+
+### 3.1 Implementation Rules (Canon)
+- Substrate-writing tools (`create_memory_from_chat`, `add_to_substrate`) **must**
+  receive a `session_fingerprint` (embedding + summary metadata). Requests without
+  embeddings are rejected at the core layer.
+- Adapters must validate auth (JWT or integration token) before invoking any tool.
+- The fingerprint used for inference should be forwarded to the backend payload for
+  auditability.
 
 > **Management Scope:** Basket creation/renaming/anchor editing remains in the
 > YARNNN web app. MCP adapters MAY offer lightweight controls (e.g., “switch to

@@ -23,6 +23,7 @@ export type {
   ValidationResponse,
   ConflictItem,
   YARNNNError,
+  SessionFingerprint,
 } from './types/index.js';
 export {
   selectBasket,
@@ -33,6 +34,5 @@ export type {
   BasketSelection,
   BasketSignature,
   BasketScore,
-  SessionFingerprint,
   BasketConfidence,
 } from './basketSelector.js';

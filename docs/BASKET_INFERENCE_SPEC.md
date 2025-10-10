@@ -26,6 +26,8 @@ For each conversation/request before a tool call:
   - `intent`: enum (`ask`, `create`, `validate`, `recall`).
   - `entities[]`, `keywords[]` extracted from the session.
   - `embedding`: vector built from `summary + entities`.
+- Tools that mutate substrate (`create_memory_from_chat`, `add_to_substrate`) reject
+  invocations without a populated `session_fingerprint.embedding` to enforce this canon.
 
 ## 3. Scoring & Selection
 For each candidate basket `b`:

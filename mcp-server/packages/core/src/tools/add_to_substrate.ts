@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { YARNNNClient } from '../client.js';
 import type { AddSubstrateResponse } from '../types/index.js';
+import { sessionFingerprintSchema } from '../utils/sessionFingerprint.js';
 
 /**
  * Tool: add_to_substrate
@@ -38,6 +39,9 @@ export const addToSubstrateSchema = z.object({
   }).optional().describe(
     'Governance options for substrate evolution'
   ),
+  session_fingerprint: sessionFingerprintSchema.describe(
+    'Session fingerprint used for basket inference (embedding + summary/intent metadata). Required for canon compliance.'
+  ),
 });
 
 export type AddToSubstrateInput = z.infer<typeof addToSubstrateSchema>;
@@ -59,6 +63,7 @@ export async function addToSubstrate(
         content: input.content,
         metadata: input.metadata,
         governance: input.governance,
+        session_fingerprint: input.session_fingerprint,
       }
     );
 

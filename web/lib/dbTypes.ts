@@ -30,6 +30,22 @@ export interface Database {
           mode: 'default' | 'product_brain' | 'campaign_brain';
         };
       };
+      basket_signatures: {
+        Row: {
+          basket_id: string;
+          workspace_id: string;
+          summary: string | null;
+          anchors: Json | null;
+          entities: string[] | null;
+          keywords: string[] | null;
+          embedding: number[] | null;
+          last_refreshed: string;
+          ttl_hours: number;
+          source_reflection_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+      };
       events: {
         Row: {
           id: string;

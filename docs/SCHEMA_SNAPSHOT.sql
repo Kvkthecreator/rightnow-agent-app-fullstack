@@ -1536,6 +1536,14 @@ begin
   end if;
   return new;
 end $$;
+CREATE FUNCTION public.set_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      NEW.updated_at := now();
+      RETURN NEW;
+    END;
+    $$;
 CREATE FUNCTION public.sql(query text) RETURNS json
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$ BEGIN RETURN to_json(query); END; $$;
@@ -1820,6 +1828,20 @@ CREATE TABLE public.basket_mode_configs (
     config jsonb NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_by text
+);
+CREATE TABLE public.basket_signatures (
+    basket_id uuid NOT NULL,
+    workspace_id uuid NOT NULL,
+    summary text,
+    anchors jsonb DEFAULT '[]'::jsonb,
+    entities text[] DEFAULT ARRAY[]::text[],
+    keywords text[] DEFAULT ARRAY[]::text[],
+    embedding double precision[] DEFAULT ARRAY[]::double precision[],
+    last_refreshed timestamp with time zone DEFAULT now() NOT NULL,
+    ttl_hours integer DEFAULT 336 NOT NULL,
+    source_reflection_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 CREATE TABLE public.baskets (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2411,6 +2433,8 @@ ALTER TABLE ONLY public.basket_mode_configs
     ADD CONSTRAINT basket_mode_configs_pkey PRIMARY KEY (mode_id);
 ALTER TABLE ONLY public.reflections_artifact
     ADD CONSTRAINT basket_reflections_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.basket_signatures
+    ADD CONSTRAINT basket_signatures_pkey PRIMARY KEY (basket_id);
 ALTER TABLE public.baskets
     ADD CONSTRAINT baskets_idem_is_uuid CHECK (((idempotency_key IS NULL) OR ((idempotency_key)::text ~* '^[0-9a-f-]{36}$'::text))) NOT VALID;
 ALTER TABLE ONLY public.baskets
@@ -2506,6 +2530,8 @@ CREATE INDEX idx_basket_deltas_unapplied ON public.basket_deltas USING btree (ba
 CREATE INDEX idx_basket_events_created ON public.basket_events USING btree (created_at DESC);
 CREATE INDEX idx_basket_events_created_at ON public.basket_events USING btree (created_at DESC);
 CREATE INDEX idx_basket_events_event_type ON public.basket_events USING btree (event_type);
+CREATE INDEX idx_basket_signatures_updated ON public.basket_signatures USING btree (last_refreshed DESC);
+CREATE INDEX idx_basket_signatures_workspace ON public.basket_signatures USING btree (workspace_id);
 CREATE INDEX idx_baskets_workspace ON public.baskets USING btree (workspace_id);
 CREATE INDEX idx_block_revisions_basket_ts ON public.block_revisions USING btree (workspace_id, created_at DESC);
 CREATE INDEX idx_block_usage_last_used ON public.block_usage USING btree (last_used_at DESC NULLS LAST);
@@ -2607,6 +2633,7 @@ CREATE UNIQUE INDEX uq_substrate_rel_directed ON public.substrate_relationships 
 CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (basket_id, ingest_trace_id) WHERE (ingest_trace_id IS NOT NULL);
 CREATE TRIGGER after_dump_insert AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.queue_agent_processing();
 CREATE TRIGGER basket_anchors_set_updated_at BEFORE UPDATE ON public.basket_anchors FOR EACH ROW EXECUTE FUNCTION public.fn_set_basket_anchor_updated_at();
+CREATE TRIGGER basket_signatures_set_updated_at BEFORE UPDATE ON public.basket_signatures FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER enforce_single_workspace_per_user BEFORE INSERT OR UPDATE ON public.workspace_memberships FOR EACH ROW EXECUTE FUNCTION public.check_single_workspace_per_user();
 CREATE TRIGGER ensure_text_dump_columns BEFORE INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.ensure_raw_dump_text_columns();
 CREATE TRIGGER proposals_validation_gate BEFORE UPDATE ON public.proposals FOR EACH ROW EXECUTE FUNCTION public.proposal_validation_check();
@@ -2634,6 +2661,10 @@ ALTER TABLE ONLY public.basket_anchors
     ADD CONSTRAINT basket_anchors_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.reflections_artifact
     ADD CONSTRAINT basket_reflections_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.basket_signatures
+    ADD CONSTRAINT basket_signatures_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.basket_signatures
+    ADD CONSTRAINT basket_signatures_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.block_links
     ADD CONSTRAINT block_links_block_id_fkey FOREIGN KEY (block_id) REFERENCES public.blocks(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.block_links
@@ -2914,6 +2945,12 @@ CREATE POLICY basket_member_update ON public.baskets FOR UPDATE USING ((workspac
   WHERE (workspace_memberships.user_id = auth.uid()))));
 ALTER TABLE public.basket_mode_configs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY basket_mode_configs_service_role_full ON public.basket_mode_configs TO service_role USING (true) WITH CHECK (true);
+ALTER TABLE public.basket_signatures ENABLE ROW LEVEL SECURITY;
+CREATE POLICY basket_signatures_select ON public.basket_signatures FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships wm
+  WHERE ((wm.workspace_id = basket_signatures.workspace_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY basket_signatures_service_insert ON public.basket_signatures FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
+CREATE POLICY basket_signatures_service_update ON public.basket_signatures FOR UPDATE USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
 ALTER TABLE public.baskets ENABLE ROW LEVEL SECURITY;
 CREATE POLICY baskets_insert_members ON public.baskets FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
