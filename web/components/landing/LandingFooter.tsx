@@ -36,6 +36,17 @@ export default function LandingFooter() {
                             contactus@yarnnn.com
                         </div>
                     </div>
+                    <div>
+                        <div className="font-medium mb-1">Integrations</div>
+                        <div className="flex flex-col text-neutral-700">
+                            <Link href="/docs/integrations/claude" className="hover:underline">
+                                Claude MCP Guide
+                            </Link>
+                            <Link href="/docs/integrations/chatgpt" className="hover:underline">
+                                ChatGPT Apps Preview
+                            </Link>
+                        </div>
+                    </div>
                 </div>
             </div>
         </footer>
