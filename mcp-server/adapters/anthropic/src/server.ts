@@ -279,16 +279,12 @@ async function main() {
         }
 
         if (req.method === 'POST' && url === '/register') {
-          const host = req.headers.host || 'mcp.yarnnn.com';
-          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.writeHead(501, { 'Content-Type': 'application/json' });
           res.end(
             JSON.stringify(
               {
-                version: '2024-10-01',
-                auth: { type: 'bearer' },
-                transports: {
-                  sse: { url: `https://${host}/sse` },
-                },
+                error: 'registration_not_supported',
+                hint: 'Yarnnn uses bearer tokens. Provide Authorization: Bearer <token> when invoking tools.',
               },
               null,
               2
