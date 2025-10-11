@@ -1,7 +1,7 @@
 # MCP Observability + Notification Roadmap
 
 ## Goals
-- Track ambient MCP activity end-to-end (per host, per tool) with auditable metrics.
+- Track ambient MCP activity end-to-end (per host, per tool) with auditable metrics. *(Raw activity logging landed in `mcp_activity_logs`; next step is structured exports.)*
 - Surface service health in the Control Tower dashboard and a public status page.
 - Replace the legacy notification plumbing with an ambient-first alert loop (queues → notifications → governance).
 

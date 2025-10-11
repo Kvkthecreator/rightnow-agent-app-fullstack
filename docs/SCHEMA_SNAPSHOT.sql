@@ -2069,6 +2069,33 @@ CREATE TABLE public.knowledge_timeline (
     CONSTRAINT knowledge_timeline_description_length CHECK ((length(description) <= 1000)),
     CONSTRAINT knowledge_timeline_title_length CHECK (((length(title) >= 1) AND (length(title) <= 200)))
 );
+CREATE TABLE public.mcp_activity_logs (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    workspace_id uuid NOT NULL,
+    user_id uuid,
+    tool text NOT NULL,
+    host text NOT NULL,
+    result text NOT NULL,
+    latency_ms integer,
+    basket_id uuid,
+    selection_decision text,
+    selection_score numeric,
+    error_code text,
+    session_id text,
+    fingerprint_summary text,
+    metadata jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE VIEW public.mcp_activity_host_recent AS
+ SELECT mcp_activity_logs.workspace_id,
+    mcp_activity_logs.host,
+    max(mcp_activity_logs.created_at) AS last_seen_at,
+    count(*) FILTER (WHERE (mcp_activity_logs.created_at >= (now() - '01:00:00'::interval))) AS calls_last_hour,
+    count(*) FILTER (WHERE ((mcp_activity_logs.result = 'error'::text) AND (mcp_activity_logs.created_at >= (now() - '01:00:00'::interval)))) AS errors_last_hour,
+    percentile_cont((0.95)::double precision) WITHIN GROUP (ORDER BY ((COALESCE(mcp_activity_logs.latency_ms, 0))::double precision)) AS p95_latency_ms
+   FROM public.mcp_activity_logs
+  WHERE (mcp_activity_logs.created_at >= (now() - '7 days'::interval))
+  GROUP BY mcp_activity_logs.workspace_id, mcp_activity_logs.host;
 CREATE TABLE public.mcp_unassigned_captures (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
     workspace_id uuid NOT NULL,
@@ -2499,6 +2526,8 @@ ALTER TABLE ONLY public.idempotency_keys
     ADD CONSTRAINT idempotency_keys_pkey PRIMARY KEY (request_id);
 ALTER TABLE ONLY public.knowledge_timeline
     ADD CONSTRAINT knowledge_timeline_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.mcp_activity_logs
+    ADD CONSTRAINT mcp_activity_logs_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.mcp_unassigned_captures
     ADD CONSTRAINT mcp_unassigned_captures_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.narrative
@@ -2613,6 +2642,9 @@ CREATE INDEX idx_idempotency_keys_delta_id ON public.idempotency_keys USING btre
 CREATE INDEX idx_knowledge_timeline_basket_time ON public.knowledge_timeline USING btree (basket_id, created_at DESC);
 CREATE INDEX idx_knowledge_timeline_significance ON public.knowledge_timeline USING btree (significance, created_at DESC);
 CREATE INDEX idx_knowledge_timeline_workspace_time ON public.knowledge_timeline USING btree (workspace_id, created_at DESC);
+CREATE INDEX idx_mcp_activity_host ON public.mcp_activity_logs USING btree (host, created_at DESC);
+CREATE INDEX idx_mcp_activity_result ON public.mcp_activity_logs USING btree (result);
+CREATE INDEX idx_mcp_activity_workspace ON public.mcp_activity_logs USING btree (workspace_id, created_at DESC);
 CREATE INDEX idx_mcp_unassigned_status ON public.mcp_unassigned_captures USING btree (status);
 CREATE INDEX idx_mcp_unassigned_workspace ON public.mcp_unassigned_captures USING btree (workspace_id);
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
@@ -2777,6 +2809,12 @@ ALTER TABLE ONLY public.knowledge_timeline
     ADD CONSTRAINT knowledge_timeline_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.knowledge_timeline
     ADD CONSTRAINT knowledge_timeline_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.mcp_activity_logs
+    ADD CONSTRAINT mcp_activity_logs_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.mcp_activity_logs
+    ADD CONSTRAINT mcp_activity_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.mcp_activity_logs
+    ADD CONSTRAINT mcp_activity_logs_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.mcp_unassigned_captures
     ADD CONSTRAINT mcp_unassigned_captures_assigned_basket_id_fkey FOREIGN KEY (assigned_basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.mcp_unassigned_captures
@@ -3158,6 +3196,12 @@ ALTER TABLE public.knowledge_timeline ENABLE ROW LEVEL SECURITY;
 CREATE POLICY knowledge_timeline_workspace_read ON public.knowledge_timeline FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
+ALTER TABLE public.mcp_activity_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY mcp_activity_select ON public.mcp_activity_logs FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.workspace_memberships wm
+  WHERE ((wm.workspace_id = mcp_activity_logs.workspace_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY mcp_activity_service_delete ON public.mcp_activity_logs FOR DELETE USING ((auth.role() = 'service_role'::text));
+CREATE POLICY mcp_activity_service_insert ON public.mcp_activity_logs FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
 ALTER TABLE public.mcp_unassigned_captures ENABLE ROW LEVEL SECURITY;
 CREATE POLICY mcp_unassigned_select ON public.mcp_unassigned_captures FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships wm

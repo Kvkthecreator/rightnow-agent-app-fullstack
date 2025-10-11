@@ -12,6 +12,7 @@
  */
 
 import { createServer } from 'node:http';
+import { performance } from 'node:perf_hooks';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
@@ -81,6 +82,8 @@ async function main() {
           basketId: userContext.basketId || 'none',
         });
 
+        const startedAt = performance.now();
+
         // Create YARNNN client
         const client = new YARNNNClient({
           baseUrl: config.backendUrl,
@@ -91,12 +94,14 @@ async function main() {
         // Execute tool
         const toolName = request.params.name;
         const toolInput = request.params.arguments || {};
+        const fingerprint = extractFingerprint(toolInput);
+        const session = extractSessionId(request.params._meta);
 
         console.log(`[TOOL] Executing: ${toolName}`, toolInput);
 
         const selection = await resolveBasketSelection(
           toolName,
-          toolInput,
+          fingerprint,
           client
         );
 
@@ -105,10 +110,20 @@ async function main() {
             client,
             toolName,
             toolInput,
-            fingerprint: extractFingerprint(toolInput),
+            fingerprint,
             selection,
             userContext,
-            session: extractSessionId(request.params._meta),
+            session,
+          });
+
+          await recordActivityLog({
+            userContext,
+            toolName,
+            result: 'queued',
+            selection,
+            fingerprint,
+            session,
+            latencyMs: Math.round(performance.now() - startedAt),
           });
 
           const queuedResult = {
@@ -136,6 +151,16 @@ async function main() {
 
         console.log(`[TOOL] Success: ${toolName}`, result);
 
+        await recordActivityLog({
+          userContext,
+          toolName,
+          result: 'success',
+          selection,
+          fingerprint,
+          session,
+          latencyMs: Math.round(performance.now() - startedAt),
+        });
+
         return {
           content: [
             {
@@ -146,6 +171,17 @@ async function main() {
         };
       } catch (error) {
         console.error(`[ERROR] Tool execution failed:`, error);
+
+        await recordActivityLog({
+          userContext,
+          toolName: request.params.name,
+          result: 'error',
+          selection: undefined,
+          fingerprint,
+          session: extractSessionId(request.params._meta),
+          latencyMs: Math.round(performance.now() - startedAt),
+          error,
+        });
 
         if (error instanceof YARNNNAPIError && error.status === 401) {
           throw new McpError(
@@ -319,10 +355,9 @@ async function main() {
 
 async function resolveBasketSelection(
   toolName: string,
-  toolInput: any,
+  fingerprint: SessionFingerprint | null,
   client: YARNNNClient
 ): Promise<BasketSelection | null> {
-  const fingerprint = extractFingerprint(toolInput);
   if (!fingerprint) {
     return null;
   }
@@ -396,6 +431,68 @@ async function createUnassignedCapture(params: {
 function extractSessionId(meta: any): string | null {
   if (!meta || typeof meta !== 'object') return null;
   return meta.sessionId || meta.session_id || meta.session || null;
+}
+
+async function recordActivityLog(params: {
+  userContext: any;
+  toolName: string;
+  result: 'success' | 'queued' | 'error';
+  selection?: BasketSelection | null;
+  fingerprint?: SessionFingerprint | null;
+  session?: string | null;
+  latencyMs?: number;
+  error?: unknown;
+}) {
+  if (!config.sharedSecret) {
+    return;
+  }
+
+  const primaryBasket = params.selection?.primary?.basket?.id;
+  const selectionScore = params.selection?.primary?.score ?? null;
+  const errorCode = params.error instanceof YARNNNAPIError
+    ? params.error.code
+    : params.error instanceof McpError
+    ? params.error.code
+    : params.error instanceof Error
+    ? params.error.name
+    : undefined;
+
+  const body = {
+    workspace_id: params.userContext.workspaceId,
+    user_id: params.userContext.userId,
+    tool: params.toolName,
+    host: 'claude',
+    result: params.result,
+    latency_ms: params.latencyMs,
+    basket_id: primaryBasket || params.userContext.basketId || null,
+    selection_decision: params.selection?.decision,
+    selection_score: selectionScore,
+    error_code: errorCode,
+    session_id: params.session,
+    fingerprint_summary: params.fingerprint?.summary,
+    metadata: params.selection
+      ? {
+          ranked: params.selection.ranked?.slice(0, 3).map((candidate) => ({
+            id: candidate.basket.id,
+            score: candidate.score,
+          })),
+          needsTieBreak: params.selection.needsTieBreak,
+        }
+      : undefined,
+  };
+
+  try {
+    await fetch(`${config.backendUrl}/api/mcp/activity`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-yarnnn-mcp-secret': config.sharedSecret,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    console.error('[ACTIVITY] Failed to record log', error);
+  }
 }
 
 function extractFingerprint(payload: any): SessionFingerprint | null {

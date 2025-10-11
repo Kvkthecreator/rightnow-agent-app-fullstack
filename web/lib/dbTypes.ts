@@ -66,6 +66,45 @@ export interface Database {
           updated_at: string;
         };
       };
+      mcp_activity_logs: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          user_id: string | null;
+          tool: string;
+          host: string;
+          result: string;
+          latency_ms: number | null;
+          basket_id: string | null;
+          selection_decision: string | null;
+          selection_score: number | null;
+          error_code: string | null;
+          session_id: string | null;
+          fingerprint_summary: string | null;
+          metadata: Json | null;
+          created_at: string;
+        };
+      };
+      mcp_unassigned_captures: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          requested_by: string | null;
+          tool: string;
+          summary: string | null;
+          payload: Json | null;
+          fingerprint: Json | null;
+          candidates: Json | null;
+          status: string;
+          assigned_basket_id: string | null;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          created_at: string;
+          updated_at: string;
+          source_host?: string | null;
+          source_session?: string | null;
+        };
+      };
     };
     Views: {
       v_basket_overview: {
@@ -74,6 +113,16 @@ export interface Database {
           name: string | null;
           raw_dump_body: string | null;
           created_at: string | null;
+        };
+      };
+      mcp_activity_host_recent: {
+        Row: {
+          workspace_id: string;
+          host: string;
+          last_seen_at: string | null;
+          calls_last_hour: number | null;
+          errors_last_hour: number | null;
+          p95_latency_ms: number | null;
         };
       };
     };

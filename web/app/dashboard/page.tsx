@@ -37,6 +37,17 @@ export default async function DashboardPage() {
   const claudeConnected = Boolean(integrationTokens?.length);
   const chatgptConnected = Boolean(openaiToken);
 
+  const { data: hostSummaries } = await supabase
+    .from('mcp_activity_host_recent')
+    .select('host, last_seen_at, calls_last_hour, errors_last_hour, p95_latency_ms')
+    .eq('workspace_id', workspace.id);
+
+  const claudeSummary = hostSummaries?.find((row) => row.host === 'claude');
+  const chatgptSummary = hostSummaries?.find((row) => row.host === 'chatgpt');
+
+  const claudeStatus = deriveHostStatus(claudeConnected, claudeSummary);
+  const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
+
   const { count: unassignedCount } = await supabase
     .from('mcp_unassigned_captures')
     .select('id', { count: 'exact', head: true })
@@ -75,8 +86,8 @@ export default async function DashboardPage() {
           <StatusCard
             title="Claude"
             description="Remote MCP connector for Claude and Claude Desktop."
-            status={claudeConnected ? 'Connected' : 'Not linked'}
-            meta={formatTimestamp(integrationTokens?.[0]?.last_used_at)}
+            status={claudeStatus.badge}
+            meta={claudeStatus.meta}
             actionLabel={claudeConnected ? 'Manage tokens' : 'Connect Claude'}
             actionHref="/dashboard/settings"
             docsHref="/docs/integrations/claude"
@@ -84,8 +95,8 @@ export default async function DashboardPage() {
           <StatusCard
             title="ChatGPT"
             description="OpenAI Apps SDK integration (preview)."
-            status={chatgptConnected ? 'Connected' : 'Waiting'}
-            meta={chatgptConnected ? formatTimestamp(openaiToken?.updated_at) : 'Join the waitlist'}
+            status={chatgptStatus.badge}
+            meta={chatgptStatus.meta}
             actionLabel={chatgptConnected ? 'View connection' : 'Preview details'}
             actionHref="/dashboard/settings"
             docsHref="/docs/integrations/chatgpt"
@@ -217,7 +228,7 @@ function StatusCard({
           {status}
         </span>
       </div>
-      <div className="text-xs text-muted-foreground">Last activity: {meta}</div>
+      <div className="text-xs text-muted-foreground">{meta}</div>
       <div className="flex items-center gap-3 text-sm">
         <Link href={actionHref} className="text-primary hover:underline">
           {actionLabel}
@@ -311,10 +322,13 @@ function QueueCard({
 
 function statusBadgeClass(status: string) {
   const normalized = status.toLowerCase();
-  if (normalized.includes('not') || normalized.includes('waiting')) {
+  if (normalized.includes('error')) {
+    return 'bg-rose-100 text-rose-700';
+  }
+  if (normalized.includes('dormant') || normalized.includes('waiting') || normalized.includes('pending')) {
     return 'bg-amber-100 text-amber-700';
   }
-  if (normalized.includes('connected') || normalized.includes('linked')) {
+  if (normalized.includes('healthy') || normalized.includes('connected') || normalized.includes('linked')) {
     return 'bg-emerald-100 text-emerald-700';
   }
   return 'bg-muted text-foreground';
@@ -326,4 +340,52 @@ function formatProposalKind(kind: string) {
     .split('_')
     .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
     .join(' ');
+}
+
+function deriveHostStatus(
+  connected: boolean,
+  summary?: {
+    last_seen_at: string | null;
+    calls_last_hour: number | null;
+    errors_last_hour: number | null;
+    p95_latency_ms: number | null;
+  }
+) {
+  if (!connected) {
+    return {
+      badge: 'Not linked',
+      meta: 'Waiting for first connection',
+    };
+  }
+
+  if (!summary) {
+    return {
+      badge: 'Pending activity',
+      meta: 'No MCP traffic yet',
+    };
+  }
+
+  const calls = summary.calls_last_hour ?? 0;
+  const errors = summary.errors_last_hour ?? 0;
+  const lastSeen = summary.last_seen_at ? formatTimestamp(summary.last_seen_at) : 'Never';
+  const p95 = summary.p95_latency_ms ? `${Math.round(summary.p95_latency_ms)}ms p95` : 'Latency pending';
+
+  if (errors > 0) {
+    return {
+      badge: 'Errors detected',
+      meta: `${errors} errors in last hour · Last call ${lastSeen}`,
+    };
+  }
+
+  if (calls === 0) {
+    return {
+      badge: 'Dormant',
+      meta: `No calls in last hour · Last call ${lastSeen}`,
+    };
+  }
+
+  return {
+    badge: 'Healthy',
+    meta: `${calls} calls in last hour · ${p95}`,
+  };
 }

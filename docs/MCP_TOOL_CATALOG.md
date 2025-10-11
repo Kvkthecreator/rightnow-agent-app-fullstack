@@ -96,6 +96,7 @@ OpenAI Apps, etc.). It should stay in sync with the tool implementations.
 - Add “unassigned inbox” flow for low-confidence writes.  
 - Ensure captures/proposals/timeline events carry `source_host` metadata so the UI
   surfaces which platform (Claude, ChatGPT, web, or agents) triggered them.
+- Track per-host observability via `mcp_activity_logs` (dashboard status badges rely on the `mcp_activity_host_recent` view).
 - Capture user confirmations to improve affinity scoring.
 
 This catalog acts as the canonical reference for tool behaviour regardless of
