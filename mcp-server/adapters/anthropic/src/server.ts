@@ -375,13 +375,33 @@ async function main() {
         }
 
         if (url === '/' && (req.method === 'GET' || req.method === 'POST')) {
-          console.log('[HTTP] responding with readiness note');
+          console.log('[HTTP] Root endpoint hit:', {
+            method: req.method,
+            headers: req.headers,
+            userAgent: req.headers['user-agent'],
+          });
+
+          // If it's a POST from Claude, log the body
+          if (req.method === 'POST') {
+            let body = '';
+            for await (const chunk of req) {
+              body += chunk.toString();
+            }
+            console.log('[HTTP] POST body:', body);
+          }
+
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(
             JSON.stringify(
               {
                 status: 'ok',
-                message: 'Yarnnn MCP server ready. Include Authorization: Bearer <token> when calling tool endpoints.',
+                message: 'Yarnnn MCP server ready.',
+                oauth_enabled: oauthConfig.enabled,
+                endpoints: {
+                  authorize: `https://${req.headers.host}/authorize`,
+                  token: `https://${req.headers.host}/token`,
+                  sse: `https://${req.headers.host}/sse`,
+                },
               },
               null,
               2
