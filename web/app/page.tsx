@@ -62,6 +62,43 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Integration Highlights */}
+      <section className="w-full max-w-[1200px] mx-auto px-4 py-16">
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="rounded-2xl border border-black bg-white p-6 md:p-8 flex flex-col gap-4">
+            <span className="text-xs uppercase tracking-wide text-neutral-500">Available now</span>
+            <h2 className="text-2xl md:text-3xl font-semibold">Claude + Yarnnn</h2>
+            <p className="text-base md:text-lg text-neutral-800">
+              Connect Yarnnn to Claude Desktop or claude.ai and watch ambient captures flow straight into governed baskets. Triage from the Control Tower, keep context fresh, and let Yarnnn remember every insight.
+            </p>
+            <div>
+              <a
+                href="/docs/integrations/claude"
+                className="inline-flex items-center justify-center rounded-lg bg-black px-5 py-2 text-sm font-medium text-white hover:bg-neutral-800 transition"
+              >
+                Follow the Claude setup guide
+              </a>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-dashed border-neutral-400 bg-neutral-50 p-6 md:p-8 flex flex-col gap-4">
+            <span className="text-xs uppercase tracking-wide text-neutral-500">Coming soon</span>
+            <h2 className="text-2xl md:text-3xl font-semibold">ChatGPT Apps (preview)</h2>
+            <p className="text-base md:text-lg text-neutral-800">
+              OpenAI&apos;s Apps SDK is in developer preview. We&apos;re building a dedicated Yarnnn adapter so you can bring the same governed memory to ChatGPT as soon as the public beta opens.
+            </p>
+            <div className="flex items-center gap-3 text-sm text-neutral-700">
+              <a
+                href="/docs/integrations/chatgpt"
+                className="inline-flex items-center justify-center rounded-lg border border-neutral-400 px-5 py-2 font-medium hover:bg-white transition"
+              >
+                See the ChatGPT preview plan
+              </a>
+              <span>Waitlist launching with the beta.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Why Yarnnn Section */}
       <section className="w-full max-w-[1200px] mx-auto px-4 py-16">
         {/* Divider */}

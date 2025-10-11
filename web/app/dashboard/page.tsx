@@ -6,6 +6,7 @@ import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 import { listBasketsByWorkspace } from '@/lib/baskets/listBasketsByWorkspace';
 import { cn } from '@/lib/utils';
+import { apiGet } from '@/lib/server/http';
 
 function formatTimestamp(value: string | null | undefined) {
   if (!value) return '—';
@@ -42,11 +43,29 @@ export default async function DashboardPage() {
     .select('host, last_seen_at, calls_last_hour, errors_last_hour, p95_latency_ms')
     .eq('workspace_id', workspace.id);
 
+  const { data: recentActivity } = await supabase
+    .from('mcp_activity_logs')
+    .select('id, host, tool, result, latency_ms, error_code, fingerprint_summary, created_at')
+    .eq('workspace_id', workspace.id)
+    .order('created_at', { ascending: false })
+    .limit(8);
+
+  let alerts: DashboardAlert[] = [];
+  try {
+    const response = await apiGet('/api/alerts/current');
+    if (response.ok) {
+      const payload = (await response.json()) as { alerts?: DashboardAlert[] };
+      alerts = payload.alerts ?? [];
+    }
+  } catch (error) {
+    console.error('[Dashboard] Failed to load alerts', error);
+  }
+
   const claudeSummary = hostSummaries?.find((row) => row.host === 'claude');
   const chatgptSummary = hostSummaries?.find((row) => row.host === 'chatgpt');
 
-  const claudeStatus = deriveHostStatus(claudeConnected, claudeSummary);
-  const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
+const claudeStatus = deriveHostStatus(claudeConnected, claudeSummary);
+const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
 
   const { count: unassignedCount } = await supabase
     .from('mcp_unassigned_captures')
@@ -75,6 +94,14 @@ export default async function DashboardPage() {
           Monitor ambient activity, triage captures, and keep integrations healthy.
         </p>
       </header>
+
+      {alerts.length > 0 && (
+        <section className="space-y-2">
+          {alerts.map((alert) => (
+            <AlertBanner key={alert.id} alert={alert} />
+          ))}
+        </section>
+      )}
 
       {(!claudeConnected || !chatgptConnected) && (
         <GettingStartedCard claudeConnected={claudeConnected} chatgptConnected={chatgptConnected} />
@@ -196,6 +223,58 @@ export default async function DashboardPage() {
           )}
         </div>
       </section>
+
+      <section>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase text-muted-foreground">MCP activity</h2>
+          <Link href="/dashboard/settings" className="text-sm text-muted-foreground hover:text-foreground">
+            Manage integrations
+          </Link>
+        </div>
+        <div className="mt-4 space-y-2">
+          {recentActivity && recentActivity.length > 0 ? (
+            recentActivity.map((event) => (
+              <div
+                key={event.id}
+                className={cn(
+                  'flex items-start justify-between rounded-lg border px-4 py-3 text-sm',
+                  event.result === 'error' ? 'border-rose-200 bg-rose-50' : 'border-border'
+                )}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium capitalize">{event.host}</span>
+                    <span className={cn('rounded-full px-2 py-0.5 text-xs', statusBadgeClass(event.result))}>
+                      {event.result}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    <span className="font-medium">{event.tool}</span>
+                    <span className="mx-1">·</span>
+                    <span>{formatTimestamp(event.created_at)}</span>
+                    {event.latency_ms ? (
+                      <>
+                        <span className="mx-1">·</span>
+                        <span>{event.latency_ms}ms</span>
+                      </>
+                    ) : null}
+                  </div>
+                  {event.fingerprint_summary ? (
+                    <p className="text-xs text-muted-foreground line-clamp-2">{event.fingerprint_summary}</p>
+                  ) : null}
+                  {event.error_code ? (
+                    <p className="text-xs text-rose-700">Error code: {event.error_code}</p>
+                  ) : null}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+              No recent MCP calls yet. Once Claude or ChatGPT run tools, activity will appear here.
+            </div>
+          )}
+        </div>
+      </section>
     </main>
   );
 }
@@ -237,6 +316,40 @@ function StatusCard({
         <Link href={docsHref} className="text-muted-foreground hover:text-foreground">
           Docs
         </Link>
+      </div>
+    </div>
+  );
+}
+
+type DashboardAlert = {
+  id: string;
+  severity: 'warning' | 'error';
+  title: string;
+  message: string;
+  action_href?: string;
+  action_label?: string;
+};
+
+function AlertBanner({ alert }: { alert: DashboardAlert }) {
+  const severityClass = alert.severity === 'error'
+    ? 'border-rose-200 bg-rose-50 text-rose-900'
+    : 'border-amber-200 bg-amber-50 text-amber-900';
+
+  return (
+    <div className={cn('flex flex-col gap-2 rounded-lg border px-4 py-3 text-sm', severityClass)}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="font-semibold">{alert.title}</h3>
+          <p className="text-sm">{alert.message}</p>
+        </div>
+        {alert.action_href ? (
+          <Link
+            href={alert.action_href}
+            className="shrink-0 rounded-md border border-current px-3 py-1 text-xs font-medium hover:bg-white/20"
+          >
+            {alert.action_label || 'Review'}
+          </Link>
+        ) : null}
       </div>
     </div>
   );
@@ -325,11 +438,17 @@ function statusBadgeClass(status: string) {
   if (normalized.includes('error')) {
     return 'bg-rose-100 text-rose-700';
   }
+  if (normalized.includes('success') || normalized.includes('healthy') || normalized.includes('connected') || normalized.includes('linked')) {
+    return 'bg-emerald-100 text-emerald-700';
+  }
+  if (normalized.includes('warning')) {
+    return 'bg-amber-100 text-amber-700';
+  }
   if (normalized.includes('dormant') || normalized.includes('waiting') || normalized.includes('pending')) {
     return 'bg-amber-100 text-amber-700';
   }
-  if (normalized.includes('healthy') || normalized.includes('connected') || normalized.includes('linked')) {
-    return 'bg-emerald-100 text-emerald-700';
+  if (normalized.includes('queued')) {
+    return 'bg-amber-100 text-amber-700';
   }
   return 'bg-muted text-foreground';
 }
@@ -351,6 +470,10 @@ function deriveHostStatus(
     p95_latency_ms: number | null;
   }
 ) {
+  const STALE_MINUTES = 60;
+  const ERROR_THRESHOLD = 2;
+  const P95_THRESHOLD = 800;
+
   if (!connected) {
     return {
       badge: 'Not linked',
@@ -368,19 +491,30 @@ function deriveHostStatus(
   const calls = summary.calls_last_hour ?? 0;
   const errors = summary.errors_last_hour ?? 0;
   const lastSeen = summary.last_seen_at ? formatTimestamp(summary.last_seen_at) : 'Never';
+  const minutesSinceLastSeen = summary.last_seen_at
+    ? Math.floor((Date.now() - new Date(summary.last_seen_at).getTime()) / 60000)
+    : Number.POSITIVE_INFINITY;
+  const p95Value = summary.p95_latency_ms ?? null;
   const p95 = summary.p95_latency_ms ? `${Math.round(summary.p95_latency_ms)}ms p95` : 'Latency pending';
 
-  if (errors > 0) {
+  if (errors >= ERROR_THRESHOLD) {
     return {
       badge: 'Errors detected',
       meta: `${errors} errors in last hour · Last call ${lastSeen}`,
     };
   }
 
-  if (calls === 0) {
+  if (calls === 0 || minutesSinceLastSeen > STALE_MINUTES) {
     return {
       badge: 'Dormant',
       meta: `No calls in last hour · Last call ${lastSeen}`,
+    };
+  }
+
+  if (p95Value && p95Value > P95_THRESHOLD) {
+    return {
+      badge: 'Warning: slow',
+      meta: `${calls} calls in last hour · ${p95}`,
     };
   }
 

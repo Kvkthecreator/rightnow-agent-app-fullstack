@@ -56,6 +56,7 @@ from .routes.openai_apps import router as openai_apps_router
 from .routes.mcp_inference import router as mcp_inference_router
 from .routes.memory_unassigned import router as memory_unassigned_router
 from .routes.mcp_activity import router as mcp_activity_router
+from .routes.alerts import router as alerts_router
 from .routes.phase1_routes import router as phase1_router
 from .routes.projection import router as projection_router
 from .routes.work_status import router as work_status_router
@@ -128,8 +129,9 @@ routers = (
     p4_composition_router,
     validator_router,
     mcp_inference_router,
-        memory_unassigned_router,
-        mcp_activity_router,
+    memory_unassigned_router,
+    mcp_activity_router,
+    alerts_router,
     integration_tokens_router,
     auth_validate_router,
     openai_apps_router,
