@@ -381,13 +381,42 @@ async function main() {
             userAgent: req.headers['user-agent'],
           });
 
-          // If it's a POST from Claude, log the body
-          if (req.method === 'POST') {
+          // If it's a POST from Claude-User, this might be a connection attempt
+          if (req.method === 'POST' && req.headers['user-agent']?.includes('Claude')) {
             let body = '';
             for await (const chunk of req) {
               body += chunk.toString();
             }
             console.log('[HTTP] POST body:', body);
+
+            // Parse the body to see what Claude is sending
+            let parsedBody: any = {};
+            try {
+              if (body) {
+                parsedBody = JSON.parse(body);
+              }
+            } catch (e) {
+              console.log('[HTTP] Failed to parse body as JSON');
+            }
+
+            // If OAuth is enabled and this looks like a connection request,
+            // return a response that indicates OAuth should be used
+            if (oauthConfig.enabled) {
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(
+                JSON.stringify({
+                  status: 'ready',
+                  message: 'OAuth 2.0 authentication required',
+                  auth: {
+                    type: 'oauth2',
+                    authorization_endpoint: `https://${req.headers.host}/authorize`,
+                    token_endpoint: `https://${req.headers.host}/token`,
+                  },
+                  next_step: 'authorization_required',
+                })
+              );
+              return;
+            }
           }
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
