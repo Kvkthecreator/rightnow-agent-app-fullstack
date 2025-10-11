@@ -64,17 +64,28 @@ async def create_token(
         "created_at": _now_iso(),
     }
 
-    resp = (
+    insert_resp = (
         sb.table("integration_tokens")
         .insert(insert_payload)
-        .select("id, description, created_at")
         .execute()
     )
 
-    if not resp.data:
+    if getattr(insert_resp, "error", None):
         raise HTTPException(status_code=500, detail="Failed to create token")
 
-    record = resp.data[0]
+    record_resp = (
+        sb.table("integration_tokens")
+        .select("id, description, created_at")
+        .eq("token_hash", token_hash)
+        .limit(1)
+        .execute()
+    )
+
+    record_data = record_resp.data or []
+    if not record_data:
+        raise HTTPException(status_code=500, detail="Failed to load new token")
+
+    record = record_data[0]
     return {
         "token": raw_token,
         "token_id": record["id"],

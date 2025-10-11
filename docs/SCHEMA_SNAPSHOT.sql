@@ -2055,6 +2055,16 @@ CREATE TABLE public.idempotency_keys (
     delta_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+CREATE TABLE public.integration_tokens (
+    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
+    token_hash text NOT NULL,
+    user_id uuid NOT NULL,
+    workspace_id uuid NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    revoked_at timestamp with time zone,
+    last_used_at timestamp with time zone
+);
 CREATE TABLE public.knowledge_timeline (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
     basket_id uuid NOT NULL,
@@ -2524,6 +2534,10 @@ ALTER TABLE ONLY public.extraction_quality_metrics
     ADD CONSTRAINT extraction_quality_metrics_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.idempotency_keys
     ADD CONSTRAINT idempotency_keys_pkey PRIMARY KEY (request_id);
+ALTER TABLE ONLY public.integration_tokens
+    ADD CONSTRAINT integration_tokens_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.integration_tokens
+    ADD CONSTRAINT integration_tokens_token_hash_key UNIQUE (token_hash);
 ALTER TABLE ONLY public.knowledge_timeline
     ADD CONSTRAINT knowledge_timeline_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.mcp_activity_logs
@@ -2688,6 +2702,8 @@ CREATE INDEX idx_user_alerts_actionable ON public.user_alerts USING btree (user_
 CREATE INDEX idx_user_alerts_user_active ON public.user_alerts USING btree (user_id, created_at DESC) WHERE (dismissed_at IS NULL);
 CREATE INDEX idx_user_alerts_workspace_active ON public.user_alerts USING btree (workspace_id, created_at DESC) WHERE (dismissed_at IS NULL);
 CREATE INDEX idx_workspace_governance_settings_workspace_id ON public.workspace_governance_settings USING btree (workspace_id);
+CREATE INDEX integration_tokens_user_id_idx ON public.integration_tokens USING btree (user_id);
+CREATE INDEX integration_tokens_workspace_id_idx ON public.integration_tokens USING btree (workspace_id);
 CREATE INDEX ix_block_links_doc_block ON public.block_links USING btree (document_id, block_id);
 CREATE INDEX ix_events_kind_ts ON public.events USING btree (kind, ts);
 CREATE INDEX ix_pipeline_metrics_basket ON public.pipeline_metrics USING btree (basket_id, ts DESC);
@@ -2805,6 +2821,10 @@ ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT fk_rawdump_document FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT fk_rawdump_workspace FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.integration_tokens
+    ADD CONSTRAINT integration_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.integration_tokens
+    ADD CONSTRAINT integration_tokens_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.knowledge_timeline
     ADD CONSTRAINT knowledge_timeline_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.knowledge_timeline
