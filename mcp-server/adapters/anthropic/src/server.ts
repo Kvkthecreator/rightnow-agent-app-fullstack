@@ -262,6 +262,42 @@ async function main() {
           return;
         }
 
+        // Standard OAuth 2.0 Authorization Server Metadata (RFC 8414)
+        if (req.method === 'GET' && url === '/.well-known/oauth-authorization-server') {
+          if (oauthConfig.enabled) {
+            const metadata = {
+              issuer: `https://${req.headers.host}`,
+              authorization_endpoint: `https://${req.headers.host}/authorize`,
+              token_endpoint: `https://${req.headers.host}/token`,
+              response_types_supported: ['code'],
+              grant_types_supported: ['authorization_code'],
+              token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
+            };
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(metadata, null, 2));
+          } else {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'oauth_not_enabled' }));
+          }
+          return;
+        }
+
+        // OAuth 2.0 Protected Resource Metadata
+        if (req.method === 'GET' && url === '/.well-known/oauth-protected-resource') {
+          if (oauthConfig.enabled) {
+            const metadata = {
+              resource: `https://${req.headers.host}`,
+              authorization_servers: [`https://${req.headers.host}`],
+            };
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(metadata, null, 2));
+          } else {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'oauth_not_enabled' }));
+          }
+          return;
+        }
+
         // Discovery document for remote MCP clients
         if (req.method === 'GET' && url === '/.well-known/mcp.json') {
           const discovery: any = {
