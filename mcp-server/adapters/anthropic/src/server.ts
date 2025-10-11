@@ -381,8 +381,8 @@ async function main() {
             userAgent: req.headers['user-agent'],
           });
 
-          // If it's a POST from Claude-User, this is an MCP JSON-RPC request
-          if (req.method === 'POST' && req.headers['user-agent']?.includes('Claude')) {
+          // If it's a POST, try to parse it as MCP JSON-RPC request
+          if (req.method === 'POST') {
             let body = '';
             for await (const chunk of req) {
               body += chunk.toString();
@@ -402,30 +402,37 @@ async function main() {
               return;
             }
 
-            // Handle MCP initialize request
-            if (rpcRequest.method === 'initialize') {
+            // Check if this is a JSON-RPC request (has jsonrpc field)
+            if (rpcRequest.jsonrpc === '2.0' && rpcRequest.method === 'initialize') {
               console.log('[MCP] Received initialize request');
 
               // Check for OAuth token in Authorization header
               const authHeader = req.headers['authorization'];
               if (oauthConfig.enabled && (!authHeader || !authHeader.startsWith('Bearer '))) {
-                // Return 401 Unauthorized with WWW-Authenticate header
+                console.log('[MCP] No OAuth token, returning 401 with OAuth challenge');
+
+                // Return 401 Unauthorized with proper OAuth challenge
+                const authzEndpoint = `https://${req.headers.host}/authorize`;
+                const tokenEndpoint = `https://${req.headers.host}/token`;
+
                 res.writeHead(401, {
                   'Content-Type': 'application/json',
-                  'WWW-Authenticate': 'Bearer realm="YARNNN MCP", error="invalid_token"'
+                  'WWW-Authenticate': `Bearer realm="YARNNN MCP", authorization_uri="${authzEndpoint}", token_uri="${tokenEndpoint}"`
                 });
                 res.end(JSON.stringify({
                   jsonrpc: '2.0',
                   error: {
                     code: -32001,
-                    message: 'Authentication required. Please authorize via OAuth.',
+                    message: 'Authentication required',
                     data: {
-                      authorization_endpoint: `https://${req.headers.host}/authorize`,
-                      token_endpoint: `https://${req.headers.host}/token`,
+                      type: 'oauth2',
+                      authorization_endpoint: authzEndpoint,
+                      token_endpoint: tokenEndpoint,
                     }
                   },
                   id: rpcRequest.id
                 }));
+                console.log('[MCP] Sent 401 with OAuth endpoints:', { authzEndpoint, tokenEndpoint });
                 return;
               }
 
@@ -450,17 +457,21 @@ async function main() {
               return;
             }
 
-            // For other MCP requests, return error (should use SSE)
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-              jsonrpc: '2.0',
-              error: {
-                code: -32600,
-                message: 'Use SSE transport for MCP requests. Connect to /sse endpoint.',
-              },
-              id: rpcRequest.id,
-            }));
-            return;
+            // For other JSON-RPC MCP methods, return error (should use SSE)
+            if (rpcRequest.jsonrpc === '2.0' && rpcRequest.method) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                jsonrpc: '2.0',
+                error: {
+                  code: -32600,
+                  message: 'Use SSE transport for MCP requests. Connect to /sse endpoint.',
+                },
+                id: rpcRequest.id,
+              }));
+              return;
+            }
+
+            // Not a recognized MCP request, fall through to status response
           }
 
           res.writeHead(200, { 'Content-Type': 'application/json' });
