@@ -20,12 +20,17 @@ connector for Claude (chatanthropic.com + Claude Desktop).
 5. Save to make the connector available to users.
 
 ## User Enablement
-- Users open the **Search and tools** menu, locate the Yarnnn connector, and
-  click **Connect** to pass their integration token (or other auth prompt).
-- After connecting, users toggle individual tools; disable anything unrelated
-  before running Research (Claude’s autonomous mode).
+- Open Claude chat, click the **Search & tools** icon (bottom-right).
+- Under the **Custom** section, toggle Yarnnn → Claude prompts for the bearer
+  token. Paste the integration token created in Yarnnn and save.
+- After the toggle succeeds, Settings → Connectors shows Yarnnn as Connected.
 
-## Security Reminders (from Anthropic guidance)
+## Troubleshooting
+- **No Connect panel:** Claude must reach the server over WebSocket (`wss://...`). Use the browser console to look for `WebSocket connection failed` errors; check the response headers at `https://mcp.yarnnn.com/sse` to ensure `Upgrade: websocket` and `Access-Control-Allow-Origin: *` are present.
+- **Bearer prompt missing:** sign out/in, or try Claude Desktop. Occasionally the web client fails to render the dialog until a new chat is created.
+- **Token rejected:** the MCP server logs `401` errors if the integration token is invalid or revoked; confirm the exact token matches the one in Yarnnn.
+
+## Security Reminders (Anthropic guidance)
 - Remote MCP servers are unverified; remind users to only connect to Yarnnn’s
   official endpoint and to review tool invocation prompts before approving.
 - Write-capable tools should remain disabled unless the user intends to use
@@ -34,12 +39,12 @@ connector for Claude (chatanthropic.com + Claude Desktop).
   disable write actions during Research sessions).
 
 ## Removal / Editing
-- Users can remove or edit the connector from **Settings → Connectors** via
-  the three-dot menu next to Yarnnn.
+- Remove or edit the connector from **Settings → Connectors** via the menu
+  next to Yarnnn.
 
 ## Support Playbook
-- Publish a short "Add Yarnnn to Claude" guide pointing to the production MCP
-  URL, token generation instructions, and smoke tests (`get_substrate`).
+- Publish an “Add Yarnnn to Claude” guide linking to the production MCP URL and
+  showing where to locate the token prompt (Search & tools → Yarnnn toggle).
 - Provide contact details for suspicious-activity reports; Anthropic recommends
   filing through their VDP if something malicious is detected.
 
