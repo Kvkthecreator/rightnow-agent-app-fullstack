@@ -42,9 +42,9 @@ export default function AuthCallbackPage() {
       }
 
       // Get stored redirect path or default to baskets index
-      const redirectPath = 
-        (typeof window !== "undefined" && localStorage.getItem("redirectPath")) || 
-        "/baskets";
+      const redirectPath =
+        (typeof window !== "undefined" && localStorage.getItem("redirectPath")) ||
+        "/dashboard";
       
       if (typeof window !== "undefined") {
         localStorage.removeItem("redirectPath");
