@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from ..utils.jwt import verify_jwt
 from ..utils.supabase import supabase_admin
 from ..utils.workspace import get_or_create_workspace
+from ..services.events import EventService
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -61,15 +62,25 @@ async def get_current_alerts(user=Depends(verify_jwt)):
         )
         pending_count = pending_resp.count or 0
         if pending_count >= UNASSIGNED_THRESHOLD:
+            severity = 'warning' if pending_count < UNASSIGNED_THRESHOLD * 2 else 'error'
             alerts.append(
                 AlertModel(
                     id="unassigned_queue",
-                    severity="warning" if pending_count < UNASSIGNED_THRESHOLD * 2 else "error",
+                    severity=severity,
                     title="Triage ambient captures",
                     message=f"{pending_count} low-confidence captures need basket assignment.",
                     action_href="/memory/unassigned",
                     action_label="Open queue",
                 )
+            )
+            EventService.emit_app_event(
+                workspace_id=workspace_id,
+                type='system_alert',
+                name='dashboard.unassigned_queue',
+                message=f"{pending_count} captures waiting in the unassigned queue.",
+                severity=severity,
+                dedupe_key='alert:unassigned_queue',
+                ttl_ms=3600_000,
             )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"alert_unassigned_failed: {exc}") from exc
@@ -105,6 +116,15 @@ async def get_current_alerts(user=Depends(verify_jwt)):
                     action_label="Review integrations",
                 )
             )
+            EventService.emit_app_event(
+                workspace_id=workspace_id,
+                type='system_alert',
+                name=f'dashboard.{host}.errors',
+                message=f"{errors} {host} failures in the last hour.",
+                severity='error',
+                dedupe_key=f'alert:{host}:errors',
+                ttl_ms=1800_000,
+            )
         elif minutes_since is not None and minutes_since > STALE_MINUTES:
             alerts.append(
                 AlertModel(
@@ -116,6 +136,15 @@ async def get_current_alerts(user=Depends(verify_jwt)):
                     action_label="Check setup",
                 )
             )
+            EventService.emit_app_event(
+                workspace_id=workspace_id,
+                type='system_alert',
+                name=f'dashboard.{host}.dormant',
+                message=f"No {host} calls for {minutes_since} minutes.",
+                severity='warning',
+                dedupe_key=f'alert:{host}:dormant',
+                ttl_ms=3600_000,
+            )
         elif latency and latency > LATENCY_THRESHOLD_MS:
             alerts.append(
                 AlertModel(
@@ -126,6 +155,15 @@ async def get_current_alerts(user=Depends(verify_jwt)):
                     action_href="/dashboard",
                     action_label="Monitor",
                 )
+            )
+            EventService.emit_app_event(
+                workspace_id=workspace_id,
+                type='system_alert',
+                name=f'dashboard.{host}.latency',
+                message=f"{host} p95 latency is {int(latency)}ms.",
+                severity='warning',
+                dedupe_key=f'alert:{host}:latency',
+                ttl_ms=1800_000,
             )
 
     return AlertsResponse(alerts=alerts)

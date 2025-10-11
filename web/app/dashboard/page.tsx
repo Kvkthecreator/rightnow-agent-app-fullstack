@@ -7,6 +7,7 @@ import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 import { listBasketsByWorkspace } from '@/lib/baskets/listBasketsByWorkspace';
 import { cn } from '@/lib/utils';
 import { apiGet } from '@/lib/server/http';
+import AlertAnnouncer, { DashboardAlert as AnnouncerAlert } from '@/components/dashboard/AlertAnnouncer';
 
 function formatTimestamp(value: string | null | undefined) {
   if (!value) return '—';
@@ -50,7 +51,7 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: false })
     .limit(8);
 
-  let alerts: DashboardAlert[] = [];
+  let alerts: AnnouncerAlert[] = [];
   try {
     const response = await apiGet('/api/alerts/current');
     if (response.ok) {
@@ -97,6 +98,7 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
 
       {alerts.length > 0 && (
         <section className="space-y-2">
+          <AlertAnnouncer alerts={alerts} />
           {alerts.map((alert) => (
             <AlertBanner key={alert.id} alert={alert} />
           ))}
@@ -321,16 +323,7 @@ function StatusCard({
   );
 }
 
-type DashboardAlert = {
-  id: string;
-  severity: 'warning' | 'error';
-  title: string;
-  message: string;
-  action_href?: string;
-  action_label?: string;
-};
-
-function AlertBanner({ alert }: { alert: DashboardAlert }) {
+function AlertBanner({ alert }: { alert: AnnouncerAlert }) {
   const severityClass = alert.severity === 'error'
     ? 'border-rose-200 bg-rose-50 text-rose-900'
     : 'border-amber-200 bg-amber-50 text-amber-900';
