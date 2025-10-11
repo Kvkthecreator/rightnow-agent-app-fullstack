@@ -56,6 +56,7 @@ from .routes.openai_apps import router as openai_apps_router
 from .routes.mcp_inference import router as mcp_inference_router
 from .routes.memory_unassigned import router as memory_unassigned_router
 from .routes.mcp_activity import router as mcp_activity_router
+from .routes.mcp_auth import router as mcp_auth_router
 from .routes.events import router as events_router
 from .routes.alerts import router as alerts_router
 from .routes.phase1_routes import router as phase1_router
@@ -100,7 +101,7 @@ app = FastAPI(title="RightNow Agent Server", lifespan=lifespan)
 # Require JWT auth on API routes
 app.add_middleware(
     AuthMiddleware,
-    exempt_paths={"/", "/health", "/health/db", "/docs", "/openapi.json", "/favicon.ico", "/robots.txt", "/index.html", "/api/agents/p4-composition"},
+    exempt_paths={"/", "/health", "/health/db", "/docs", "/openapi.json", "/favicon.ico", "/robots.txt", "/index.html", "/api/agents/p4-composition", "/api/mcp/auth/sessions/validate"},
     exempt_prefixes={"/health"},
 )
 
@@ -132,6 +133,7 @@ routers = (
     mcp_inference_router,
     memory_unassigned_router,
     mcp_activity_router,
+    mcp_auth_router,
     alerts_router,
     events_router,
     integration_tokens_router,

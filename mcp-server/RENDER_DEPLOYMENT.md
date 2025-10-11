@@ -23,14 +23,19 @@ The workspace now ships two deployable adapters that reuse the same `@yarnnn/int
 8. Instance: Starter ($7/mo) or Free for testing
 
 ### Environment Variables
-| Key | Value |
-|-----|-------|
-| `BACKEND_URL` | `https://api.yarnnn.com` |
-| `MCP_TRANSPORT` | `http` *(use `stdio` only for CLI testing)* |
-| `PORT` | `3000` |
-| `LOG_LEVEL` | `info` |
+| Key | Value | Required |
+|-----|-------|----------|
+| `BACKEND_URL` | `https://api.yarnnn.com` | ✅ |
+| `MCP_TRANSPORT` | `http` *(use `stdio` only for CLI testing)* | ✅ |
+| `PORT` | `3000` | ✅ |
+| `LOG_LEVEL` | `info` | ❌ |
+| `OAUTH_ENABLED` | `true` *(for Claude.ai remote connector)* | ❌ |
+| `OAUTH_CLIENT_ID` | `<optional>` | ❌ |
+| `OAUTH_CLIENT_SECRET` | `<optional>` | ❌ |
 
-> The service automatically exposes `/sse`, `/message`, and `/health` routes.
+> **OAuth Setup**: For Claude.ai remote connector support, set `OAUTH_ENABLED=true`. See `docs/OAUTH_SETUP.md` for complete OAuth configuration guide.
+
+> The service automatically exposes `/sse`, `/message`, `/health`, and (when OAuth enabled) `/authorize`, `/token`, `/oauth/callback` routes.
 
 ### Resulting URLs
 - Service: `https://yarnnn-mcp-server.onrender.com`

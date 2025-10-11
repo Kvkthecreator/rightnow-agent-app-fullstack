@@ -37,6 +37,13 @@ import {
   type UserContext,
   YARNNNAPIError,
 } from '@yarnnn/integration-core';
+import {
+  getOAuthConfig,
+  handleAuthorize,
+  handleOAuthCallback,
+  handleTokenExchange,
+  validateOAuthToken,
+} from './oauth.js';
 
 /**
  * Initialize MCP Server
@@ -45,6 +52,12 @@ async function main() {
   try {
     // Validate configuration
     validateConfig();
+
+    // Initialize OAuth configuration
+    const oauthConfig = getOAuthConfig(config.backendUrl);
+    if (oauthConfig.enabled) {
+      console.log('[OAuth] OAuth enabled for Claude.ai remote connector');
+    }
 
     // Create MCP server instance
     const server = new Server(
@@ -251,30 +264,46 @@ async function main() {
 
         // Discovery document for remote MCP clients
         if (req.method === 'GET' && url === '/.well-known/mcp.json') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify(
-              {
-                version: '2024-10-01',
-                transports: {
-                  sse: {
-                    url: `https://${req.headers.host}/sse`,
-                  },
-                },
-                auth: {
-                  type: 'bearer',
-                },
+          const discovery: any = {
+            version: '2024-10-01',
+            transports: {
+              sse: {
+                url: `https://${req.headers.host}/sse`,
               },
-              null,
-              2
-            )
-          );
+            },
+            auth: {
+              type: oauthConfig.enabled ? 'oauth2' : 'bearer',
+            },
+          };
+
+          // Add OAuth endpoints if enabled
+          if (oauthConfig.enabled) {
+            discovery.auth.oauth2 = {
+              authorization_endpoint: `https://${req.headers.host}/authorize`,
+              token_endpoint: `https://${req.headers.host}/token`,
+            };
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(discovery, null, 2));
           return;
         }
 
-        if (req.method === 'GET' && url.startsWith('/.well-known/oauth-')) {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'oauth_not_supported' }));
+        // OAuth authorization endpoint
+        if (req.method === 'GET' && url.startsWith('/authorize')) {
+          await handleAuthorize(req, res, oauthConfig);
+          return;
+        }
+
+        // OAuth callback endpoint
+        if (req.method === 'GET' && url.startsWith('/oauth/callback')) {
+          await handleOAuthCallback(req, res, oauthConfig);
+          return;
+        }
+
+        // OAuth token exchange endpoint
+        if (req.method === 'POST' && url === '/token') {
+          await handleTokenExchange(req, res, oauthConfig);
           return;
         }
 
@@ -319,6 +348,30 @@ async function main() {
 
         // GET /sse - Establish SSE connection
         if (req.method === 'GET' && url === '/sse') {
+          // If OAuth is enabled, validate the token before establishing SSE
+          if (oauthConfig.enabled) {
+            const authHeader = req.headers['authorization'];
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+              res.writeHead(401, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'missing_authorization' }));
+              return;
+            }
+
+            const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+            const session = await validateOAuthToken(token, oauthConfig);
+
+            if (!session) {
+              res.writeHead(401, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'invalid_token' }));
+              return;
+            }
+
+            console.log('[OAuth] SSE connection authorized:', {
+              userId: session.userId,
+              workspaceId: session.workspaceId,
+            });
+          }
+
           const transport = new SSEServerTransport('/message', res);
 
           // Store transport by session ID for routing POST messages
