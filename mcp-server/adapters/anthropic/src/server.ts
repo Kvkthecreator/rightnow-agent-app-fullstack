@@ -298,12 +298,18 @@ async function main() {
         }
 
         if (url === '/' && (req.method === 'GET' || req.method === 'POST')) {
-          console.log('[HTTP] responding with bearer challenge');
-          res.writeHead(401, {
-            'Content-Type': 'application/json',
-            'WWW-Authenticate': 'Bearer realm="Yarnnn MCP"',
-          });
-          res.end(JSON.stringify({ status: 'unauthorized', hint: 'include Authorization: Bearer <token>' }));
+          console.log('[HTTP] responding with readiness note');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify(
+              {
+                status: 'ok',
+                message: 'Yarnnn MCP server ready. Include Authorization: Bearer <token> when calling tool endpoints.',
+              },
+              null,
+              2
+            )
+          );
           return;
         }
 
