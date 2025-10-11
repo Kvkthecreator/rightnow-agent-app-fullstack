@@ -13,7 +13,7 @@ export default async function BasketsPage() {
 
   const { data: baskets, error } = await supabase
     .from('baskets')
-    .select('id,name,status,created_at,mode')
+    .select('id,name,status,created_at,updated_at,mode')
     .eq('workspace_id', workspace.id)
     .order('created_at', { ascending: false });
 
@@ -22,12 +22,31 @@ export default async function BasketsPage() {
     throw error;
   }
 
+  const { data: pendingProposals } = await supabase
+    .from('proposals')
+    .select('id,basket_id,created_at,origin')
+    .eq('workspace_id', workspace.id)
+    .eq('status', 'PROPOSED');
+
+  const proposalsByBasket = new Map<string, { count: number; lastCreatedAt: string | null; origin: string | null }>();
+  (pendingProposals ?? []).forEach((proposal) => {
+    const entry = proposalsByBasket.get(proposal.basket_id) ?? { count: 0, lastCreatedAt: null, origin: null };
+    entry.count += 1;
+    if (!entry.lastCreatedAt || (proposal.created_at && proposal.created_at > entry.lastCreatedAt)) {
+      entry.lastCreatedAt = proposal.created_at ?? entry.lastCreatedAt;
+      entry.origin = proposal.origin ?? entry.origin;
+    }
+    proposalsByBasket.set(proposal.basket_id, entry);
+  });
+
   const summaries = (baskets ?? []).map((basket) => ({
     id: basket.id,
     name: basket.name,
     status: basket.status,
     created_at: basket.created_at,
+    updated_at: basket.updated_at,
     mode: basket.mode,
+    pendingProposals: proposalsByBasket.get(basket.id) ?? { count: 0, lastCreatedAt: null, origin: null },
   }));
 
   return <BasketsIndexClient baskets={summaries} />;

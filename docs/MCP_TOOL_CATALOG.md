@@ -34,6 +34,8 @@ OpenAI Apps, etc.). It should stay in sync with the tool implementations.
 - Flow: create raw dump (P0) → propose substrate updates → return governance state.  
 - Response: `raw_dump_id`, `proposed_blocks`, `governance_mode`.
 - Adapters: must show confirmation chip if basket score < 0.80.
+- If basket inference returns `pick`, Yarnnn surfaces the capture in the
+  Unassigned queue so a human can assign a basket before proposals run.
 
 ### 2.4 `validate_against_substrate`
 - Input: new idea text, optional focus list/keywords.  
