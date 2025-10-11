@@ -28,10 +28,10 @@ export default function LandingPage() {
           <div className="max-w-[1200px] mx-auto px-4 py-24 flex flex-col items-start">
             <h1 className="font-brand text-4xl md:text-7xl mb-4">yarnnn</h1>
             <p className="text-xl md:text-2xl max-w-[800px]">
-              Control your memory. Control your world.
+              Ambient memory for Claude and ChatGPT.
             </p>
             <p className="mt-6 text-md md:text-lg max-w-[800px]">
-              Finally organize your AI chaos. Build a memory system that evolves with your ideas.
+              Connect Yarnnn to your AI hosts and get governed, persistent context without leaving the chat. Review, triage, and curate from the web control tower whenever you need oversight.
             </p>
 
             {/* Optional demo section */}
@@ -44,12 +44,18 @@ export default function LandingPage() {
                 href="/login"
                 onClick={() => {
                   if (typeof window !== 'undefined') {
-                localStorage.setItem('redirectPath', '/baskets');
+                    localStorage.setItem('redirectPath', '/dashboard');
                   }
                 }}
                 className="inline-block bg-black text-white rounded-xl px-6 py-3 text-lg hover:bg-neutral-800 transition"
               >
-                try yarnnn - Start with your name
+                Connect Yarnnn to your AI hosts
+              </a>
+              <a
+                href="/docs/integrations/claude"
+                className="ml-4 inline-block border border-black rounded-xl px-6 py-3 text-lg hover:bg-neutral-100 transition"
+              >
+                Read the Claude guide
               </a>
             </div>
           </div>

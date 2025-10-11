@@ -65,6 +65,15 @@ export default async function DashboardPage() {
         </p>
       </header>
 
+      {!claudeConnected && (
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+          Claude isn&apos;t connected yet. Generate an integration token and add Yarnnn as a remote MCP connector inside Claude.
+          <Link href="/dashboard/settings" className="ml-2 underline">
+            Open integrations settings
+          </Link>
+        </div>
+      )}
+
       <section>
         <h2 className="text-sm font-semibold uppercase text-muted-foreground">Integrations</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
