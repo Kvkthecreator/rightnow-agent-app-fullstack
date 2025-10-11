@@ -7,7 +7,7 @@ from pydantic import BaseModel, field_validator
 
 from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace
-from ..services.events import EventService
+from ...services.events import EventService
 
 router = APIRouter(prefix="/events", tags=["events"])
 
