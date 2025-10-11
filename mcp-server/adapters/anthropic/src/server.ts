@@ -297,6 +297,15 @@ async function main() {
           return;
         }
 
+        if (url === '/' && (req.method === 'GET' || req.method === 'POST')) {
+          res.writeHead(401, {
+            'Content-Type': 'application/json',
+            'WWW-Authenticate': 'Bearer realm="Yarnnn MCP"',
+          });
+          res.end(JSON.stringify({ status: 'unauthorized', hint: 'include Authorization: Bearer <token>' }));
+          return;
+        }
+
         // GET /sse - Establish SSE connection
         if (req.method === 'GET' && url === '/sse') {
           const transport = new SSEServerTransport('/message', res);
