@@ -55,7 +55,7 @@ export default async function DashboardPage() {
   try {
     const response = await apiGet('/api/alerts/current');
     if (response.ok) {
-      const payload = (await response.json()) as { alerts?: DashboardAlert[] };
+      const payload = (await response.json()) as { alerts?: AnnouncerAlert[] };
       alerts = payload.alerts ?? [];
     }
   } catch (error) {
