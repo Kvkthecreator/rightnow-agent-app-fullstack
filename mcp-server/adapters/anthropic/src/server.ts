@@ -272,6 +272,31 @@ async function main() {
           return;
         }
 
+        if (req.method === 'GET' && url.startsWith('/.well-known/oauth-')) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'oauth_not_supported' }));
+          return;
+        }
+
+        if (req.method === 'POST' && url === '/register') {
+          const host = req.headers.host || 'mcp.yarnnn.com';
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify(
+              {
+                version: '2024-10-01',
+                auth: { type: 'bearer' },
+                transports: {
+                  sse: { url: `https://${host}/sse` },
+                },
+              },
+              null,
+              2
+            )
+          );
+          return;
+        }
+
         // GET /sse - Establish SSE connection
         if (req.method === 'GET' && url === '/sse') {
           const transport = new SSEServerTransport('/message', res);
