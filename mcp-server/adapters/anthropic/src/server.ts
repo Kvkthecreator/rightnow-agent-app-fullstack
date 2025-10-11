@@ -34,6 +34,7 @@ import {
   type BasketSelection,
   type BasketCandidate,
   type SessionFingerprint,
+  type UserContext,
   YARNNNAPIError,
 } from '@yarnnn/integration-core';
 
@@ -71,18 +72,22 @@ async function main() {
      * Handle tool execution request
      */
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const startedAt = performance.now();
+      let userContext: UserContext | null = null;
+      let fingerprint: SessionFingerprint | null = null;
+      let session: string | null = null;
+      const toolName = request.params.name;
+
       try {
         // Extract and validate auth token
         const userToken = extractToken(request.params._meta);
-        const userContext = await validateAuth(config.backendUrl, userToken);
+        userContext = await validateAuth(config.backendUrl, userToken);
 
         console.log(`[AUTH] User authenticated:`, {
           userId: userContext.userId,
           workspaceId: userContext.workspaceId,
           basketId: userContext.basketId || 'none',
         });
-
-        const startedAt = performance.now();
 
         // Create YARNNN client
         const client = new YARNNNClient({
@@ -92,10 +97,9 @@ async function main() {
         });
 
         // Execute tool
-        const toolName = request.params.name;
         const toolInput = request.params.arguments || {};
-        const fingerprint = extractFingerprint(toolInput);
-        const session = extractSessionId(request.params._meta);
+        fingerprint = extractFingerprint(toolInput);
+        session = extractSessionId(request.params._meta);
 
         console.log(`[TOOL] Executing: ${toolName}`, toolInput);
 
@@ -172,16 +176,18 @@ async function main() {
       } catch (error) {
         console.error(`[ERROR] Tool execution failed:`, error);
 
-        await recordActivityLog({
-          userContext,
-          toolName: request.params.name,
-          result: 'error',
-          selection: undefined,
-          fingerprint,
-          session: extractSessionId(request.params._meta),
-          latencyMs: Math.round(performance.now() - startedAt),
-          error,
-        });
+        if (userContext) {
+          await recordActivityLog({
+            userContext,
+            toolName,
+            result: 'error',
+            selection: undefined,
+            fingerprint,
+            session,
+            latencyMs: Math.round(performance.now() - startedAt),
+            error,
+          });
+        }
 
         if (error instanceof YARNNNAPIError && error.status === 401) {
           throw new McpError(
