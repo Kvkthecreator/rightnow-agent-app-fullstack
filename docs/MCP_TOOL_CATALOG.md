@@ -94,6 +94,8 @@ OpenAI Apps, etc.). It should stay in sync with the tool implementations.
 - Implement `config_settings` tool once governance API endpoints are exposed.  
 - After Apps SDK OAuth work, surface the same tool catalogue with component-based UI.  
 - Add “unassigned inbox” flow for low-confidence writes.  
+- Ensure captures/proposals/timeline events carry `source_host` metadata so the UI
+  surfaces which platform (Claude, ChatGPT, web, or agents) triggered them.
 - Capture user confirmations to improve affinity scoring.
 
 This catalog acts as the canonical reference for tool behaviour regardless of

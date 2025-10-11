@@ -2083,7 +2083,9 @@ CREATE TABLE public.mcp_unassigned_captures (
     resolved_at timestamp with time zone,
     resolved_by uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    source_host text,
+    source_session text
 );
 CREATE TABLE public.narrative (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2174,6 +2176,8 @@ CREATE TABLE public.proposals (
     validation_required boolean DEFAULT true,
     validation_bypassed boolean DEFAULT false,
     bypass_reason text,
+    source_host text,
+    source_session text,
     CONSTRAINT proposals_origin_check CHECK ((origin = ANY (ARRAY['agent'::text, 'human'::text])))
 );
 CREATE TABLE public.reflections_artifact (
@@ -2262,6 +2266,8 @@ CREATE TABLE public.timeline_events (
     preview text,
     payload jsonb,
     workspace_id uuid NOT NULL,
+    source_host text,
+    source_session text,
     CONSTRAINT timeline_events_kind_check CHECK ((kind = ANY (ARRAY['dump'::text, 'reflection'::text, 'narrative'::text, 'system_note'::text, 'block'::text, 'dump.created'::text, 'dump.queued'::text, 'block.created'::text, 'block.updated'::text, 'block.state_changed'::text, 'context_item.created'::text, 'context_item.updated'::text, 'context_item.archived'::text, 'relationship.created'::text, 'relationship.deleted'::text, 'reflection.computed'::text, 'reflection.cached'::text, 'document.created'::text, 'document.updated'::text, 'document.composed'::text, 'narrative.authored'::text, 'document.block.attached'::text, 'document.block.detached'::text, 'document.dump.attached'::text, 'document.dump.detached'::text, 'document.context_item.attached'::text, 'document.context_item.detached'::text, 'document.reflection.attached'::text, 'document.reflection.detached'::text, 'document.timeline_event.attached'::text, 'document.timeline_event.detached'::text, 'proposal.submitted'::text, 'proposal.approved'::text, 'proposal.rejected'::text, 'substrate.committed'::text, 'basket.created'::text, 'workspace.member_added'::text, 'delta.applied'::text, 'delta.rejected'::text, 'cascade.completed'::text, 'work.initiated'::text, 'work.routed'::text, 'pipeline.cascade_triggered'::text, 'pipeline.cascade_completed'::text, 'pipeline.cascade_failed'::text, 'queue.entry_created'::text, 'queue.processing_started'::text, 'queue.processing_completed'::text, 'queue.processing_failed'::text])))
 );
 CREATE SEQUENCE public.timeline_events_id_seq
