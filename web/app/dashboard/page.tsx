@@ -7,7 +7,7 @@ import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 import { listBasketsByWorkspace } from '@/lib/baskets/listBasketsByWorkspace';
 import { cn } from '@/lib/utils';
 import { apiGet } from '@/lib/server/http';
-import AlertAnnouncer, { DashboardAlert as AnnouncerAlert } from '@/components/dashboard/AlertAnnouncer';
+import AlertAnnouncer, { type DashboardAlert as AnnouncerAlert } from '@/components/dashboard/AlertAnnouncer';
 
 function formatTimestamp(value: string | null | undefined) {
   if (!value) return '—';
