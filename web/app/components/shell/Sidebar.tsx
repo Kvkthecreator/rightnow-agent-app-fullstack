@@ -30,7 +30,7 @@ const PRIMARY_LINKS = [
     icon: Inbox,
   },
   {
-    href: '/dashboard/settings',
+    href: '/dashboard/integrations',
     label: 'Integrations',
     icon: Plug,
   },
