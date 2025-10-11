@@ -242,6 +242,29 @@ async function main() {
           return;
         }
 
+        // Discovery document for remote MCP clients
+        if (req.method === 'GET' && url === '/.well-known/mcp.json') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify(
+              {
+                version: '2024-10-01',
+                transports: {
+                  sse: {
+                    url: `https://${req.headers.host}/sse`,
+                  },
+                },
+                auth: {
+                  type: 'bearer',
+                },
+              },
+              null,
+              2
+            )
+          );
+          return;
+        }
+
         // GET /sse - Establish SSE connection
         if (req.method === 'GET' && url === '/sse') {
           const transport = new SSEServerTransport('/message', res);

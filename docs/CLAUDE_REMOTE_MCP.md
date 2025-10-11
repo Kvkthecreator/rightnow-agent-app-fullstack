@@ -26,8 +26,8 @@ connector for Claude (chatanthropic.com + Claude Desktop).
 - After the toggle succeeds, Settings → Connectors shows Yarnnn as Connected.
 
 ## Troubleshooting
-- **No Connect panel:** Claude must reach the server over WebSocket (`wss://...`). Use the browser console to look for `WebSocket connection failed` errors; check the response headers at `https://mcp.yarnnn.com/sse` to ensure `Upgrade: websocket` and `Access-Control-Allow-Origin: *` are present.
-- **Bearer prompt missing:** sign out/in, or try Claude Desktop. Occasionally the web client fails to render the dialog until a new chat is created.
+- **Connector stays disconnected:** Claude fetches `https://<server>/.well-known/mcp.json`. The endpoint must exist and advertise the available transport (Yarnnn returns the SSE URL).
+- **Bearer prompt missing:** Claude must reach Yarnnn from inside a chat. Open a new chat, click **Search & tools**, open Yarnnn under Custom. The prompt appears there (Settings → Connectors does not show the token field).
 - **Token rejected:** the MCP server logs `401` errors if the integration token is invalid or revoked; confirm the exact token matches the one in Yarnnn.
 
 ## Security Reminders (Anthropic guidance)
