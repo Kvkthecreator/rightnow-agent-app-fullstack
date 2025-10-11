@@ -230,6 +230,13 @@ async function main() {
       const httpServer = createServer(async (req, res) => {
         const url = req.url || '';
 
+        console.log('[HTTP] incoming request', {
+          method: req.method,
+          url,
+          userAgent: req.headers['user-agent'],
+          host: req.headers.host,
+        });
+
         // CORS headers for cross-origin requests
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
