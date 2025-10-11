@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -11,6 +12,7 @@ from ..utils.supabase import supabase_admin
 from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(prefix="/memory/unassigned", tags=["memory"])
+logger = logging.getLogger("uvicorn.error")
 
 
 class UnassignedCreateRequest(BaseModel):
@@ -79,6 +81,13 @@ async def create_unassigned(payload: UnassignedCreateRequest, request: Request):
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"unassigned_create_failed: {exc}") from exc
 
+    logger.info(
+        "[unassigned:create] workspace=%s tool=%s summary=%s",
+        payload.workspace_id,
+        payload.tool,
+        (payload.summary or "<empty>")[:120],
+    )
+
     return {"status": "created"}
 
 
@@ -107,6 +116,13 @@ async def resolve_unassigned(capture_id: str, body: UnassignedResolveRequest, us
 
     if not resp.data:
         raise HTTPException(status_code=404, detail="capture_not_found")
+
+    logger.info(
+        "[unassigned:resolve] capture=%s status=%s basket=%s",
+        capture_id,
+        body.status,
+        body.assigned_basket_id,
+    )
 
     return {"status": "updated"}
 
