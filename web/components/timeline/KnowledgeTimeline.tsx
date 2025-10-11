@@ -22,6 +22,7 @@ interface KnowledgeEvent {
   timestamp: string;
   icon: string;
   color: string;
+  sourceHost?: string | null;
 }
 
 interface KnowledgeTimelineProps {
@@ -71,7 +72,8 @@ export default function KnowledgeTimeline({
         relatedIds: { ref_id: item.ref_id },
         timestamp: item.ts,
         icon: getEventIcon(item.type),
-        color: getEventColor(inferSignificance(item.type))
+        color: getEventColor(inferSignificance(item.type)),
+        sourceHost: item.source_host || item.payload?.source_host || null,
       }));
       
       // Apply significance filter on frontend since API doesn't support it
@@ -212,8 +214,13 @@ export default function KnowledgeTimeline({
                   </div>
                   
                   {/* Timestamp */}
-                  <div className="text-xs text-gray-400 ml-4 flex-shrink-0">
-                    {formatTimestamp(event.timestamp)}
+                  <div className="ml-4 flex-shrink-0 flex flex-col items-end gap-1 text-xs text-gray-400">
+                    {event.sourceHost && (
+                      <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-600 font-medium uppercase tracking-wide">
+                        {event.sourceHost}
+                      </span>
+                    )}
+                    <span>{formatTimestamp(event.timestamp)}</span>
                   </div>
                 </div>
                 

@@ -18,6 +18,8 @@ interface Proposal {
   id: string;
   proposal_kind: string;
   origin: string;
+  source_host?: string;
+  source_session?: string;
   status: string;
   ops_summary: string;
   confidence: number;
@@ -326,10 +328,12 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {filteredProposals.slice(0, 5).map((proposal) => (
-                  <div 
-                    key={proposal.id} 
-                    className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 hover:border-gray-200 cursor-pointer transition-all duration-200 group" 
+                {filteredProposals.slice(0, 5).map((proposal) => {
+                  const hostLabel = proposal.source_host || (proposal.origin === 'agent' ? 'ambient' : 'human');
+                  return (
+                  <div
+                    key={proposal.id}
+                    className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 hover:border-gray-200 cursor-pointer transition-all duration-200 group"
                     onClick={() => openProposalDetail(proposal.id)}
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -341,7 +345,10 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-gray-900 truncate">{proposal.ops_summary}</div>
-                        <div className="text-sm text-gray-600 truncate">{proposal.impact_summary}</div>
+                        <div className="text-sm text-gray-600 truncate flex items-center gap-2">
+                          <span>{proposal.impact_summary}</span>
+                          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-indigo-600">{hostLabel}</span>
+                        </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-gray-500">
                             {new Date(proposal.created_at).toLocaleDateString()}
@@ -372,7 +379,8 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
                       <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
                     </div>
                   </div>
-                ))}
+                );
+              })}
                 {filteredProposals.length > 5 && (
                   <Button 
                     variant="ghost" 
@@ -437,6 +445,11 @@ export default function GovernanceClient({ basketId }: GovernanceClientProps) {
                         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                           {proposal.ops.length} operations
                         </Badge>
+                        {(proposal.source_host || proposal.origin) && (
+                          <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                            {proposal.source_host || (proposal.origin === 'agent' ? 'ambient' : 'human')}
+                          </Badge>
+                        )}
                         {proposal.origin === 'agent' ? <Bot className="h-4 w-4 text-purple-600" /> : <User className="h-4 w-4 text-blue-600" />}
                         <span className="text-sm text-gray-500">
                           {new Date(proposal.created_at).toLocaleDateString()}

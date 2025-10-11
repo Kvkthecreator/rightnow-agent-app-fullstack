@@ -69,6 +69,8 @@ export async function GET(
         id: proposal.id,
         proposal_kind: proposal.proposal_kind,
         origin: proposal.origin,
+        source_host: proposal.source_host || proposal.metadata?.source_host,
+        source_session: proposal.source_session || proposal.metadata?.source_session,
         status,
         ops_summary: validator_report.ops_summary || validator_report.impact_summary || generateOpsSummary(ops),
         confidence: typeof validator_report.confidence === 'number' ? validator_report.confidence : 0.5,

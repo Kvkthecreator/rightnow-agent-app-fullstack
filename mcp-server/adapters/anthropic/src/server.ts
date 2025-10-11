@@ -100,6 +100,33 @@ async function main() {
           client
         );
 
+        if (selection?.decision === 'pick') {
+          await createUnassignedCapture({
+            client,
+            toolName,
+            toolInput,
+            fingerprint: extractFingerprint(toolInput),
+            selection,
+            userContext,
+            session: extractSessionId(request.params._meta),
+          });
+
+          const queuedResult = {
+            status: 'queued',
+            message: 'Low-confidence basket selection. Review the capture in Yarnnn to assign a basket.',
+            _basket_selection: selection,
+          };
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(queuedResult, null, 2),
+              },
+            ],
+          };
+        }
+
         const result = await executeTool(toolName, toolInput, client);
 
         if (selection) {
@@ -314,6 +341,61 @@ async function resolveBasketSelection(
     console.warn('[BASKET] inference unavailable; proceeding without selection', error);
     return null;
   }
+}
+
+async function createUnassignedCapture(params: {
+  client: YARNNNClient;
+  toolName: string;
+  toolInput: any;
+  fingerprint: SessionFingerprint | null;
+  selection: BasketSelection;
+  userContext: any;
+  session?: string | null;
+}) {
+  if (!config.sharedSecret) {
+    console.warn('[UNASSIGNED] MCP_SHARED_SECRET not configured; skipping capture creation');
+    return;
+  }
+
+  try {
+    const summary =
+      params.fingerprint?.summary ||
+      (typeof params.toolInput?.content === 'string'
+        ? `${params.toolInput.content.slice(0, 160)}${params.toolInput.content.length > 160 ? '…' : ''}`
+        : `Pending review for ${params.toolName}`);
+
+    const candidates = params.selection.ranked.map((candidate) => ({
+      id: candidate.basket.id,
+      name: candidate.basket.name,
+      score: candidate.score,
+    }));
+
+    await fetch(`${config.backendUrl}/api/memory/unassigned`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-yarnnn-mcp-secret': config.sharedSecret,
+      },
+      body: JSON.stringify({
+        workspace_id: params.userContext.workspaceId,
+        tool: params.toolName,
+        summary,
+        payload: params.toolInput,
+        fingerprint: params.fingerprint,
+        candidates,
+        requested_by: params.userContext.userId,
+        source_host: 'claude',
+        source_session: params.session,
+      }),
+    });
+  } catch (error) {
+    console.error('[UNASSIGNED] Failed to create capture', error);
+  }
+}
+
+function extractSessionId(meta: any): string | null {
+  if (!meta || typeof meta !== 'object') return null;
+  return meta.sessionId || meta.session_id || meta.session || null;
 }
 
 function extractFingerprint(payload: any): SessionFingerprint | null {

@@ -8,6 +8,7 @@ export interface Config {
   mcpTransport: 'stdio' | 'http';
   port: number;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  sharedSecret?: string;
 }
 
 function getEnv(key: string, defaultValue?: string): string {
@@ -18,12 +19,17 @@ function getEnv(key: string, defaultValue?: string): string {
   return value;
 }
 
+function getOptionalEnv(key: string): string | undefined {
+  return process.env[key] || undefined;
+}
+
 export const config: Config = {
   backendUrl: getEnv('BACKEND_URL', 'http://localhost:10000'),
   nodeEnv: (getEnv('NODE_ENV', 'development') as Config['nodeEnv']),
   mcpTransport: (getEnv('MCP_TRANSPORT', 'stdio') as Config['mcpTransport']),
   port: parseInt(getEnv('PORT', '3000'), 10),
   logLevel: (getEnv('LOG_LEVEL', 'info') as Config['logLevel']),
+  sharedSecret: getOptionalEnv('MCP_SHARED_SECRET'),
 };
 
 export function validateConfig(): void {
@@ -40,5 +46,6 @@ export function validateConfig(): void {
     nodeEnv: config.nodeEnv,
     mcpTransport: config.mcpTransport,
     port: config.mcpTransport === 'http' ? config.port : 'N/A (stdio mode)',
+    hasSharedSecret: Boolean(config.sharedSecret),
   });
 }

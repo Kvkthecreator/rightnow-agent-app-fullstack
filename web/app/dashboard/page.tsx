@@ -118,27 +118,32 @@ export default async function DashboardPage() {
         </div>
         <div className="mt-4 space-y-2">
           {pendingProposals && pendingProposals.length > 0 ? (
-            pendingProposals.map((proposal: any) => (
-              <div
-                key={proposal.id}
-                className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm"
-              >
-                <div className="flex flex-col">
-                  <span className="font-medium">
-                    {formatProposalKind(proposal.proposal_kind)} · {basketName.get(proposal.basket_id) || 'Unknown basket'}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatTimestamp(proposal.created_at)} · {proposal.origin === 'agent' ? 'Ambient agent' : 'Human review'}
-                  </span>
-                </div>
-                <Link
-                  href={`/baskets/${proposal.basket_id}/governance`}
-                  className="text-primary hover:underline"
+            pendingProposals.map((proposal: any) => {
+              const hostLabel = proposal.source_host || proposal.metadata?.source_host || (proposal.origin === 'agent' ? 'ambient' : 'human');
+              return (
+                <div
+                  key={proposal.id}
+                  className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm"
                 >
-                  Review
-                </Link>
-              </div>
-            ))
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {formatProposalKind(proposal.proposal_kind)} · {basketName.get(proposal.basket_id) || 'Unknown basket'}
+                    </span>
+                    <span className="text-xs text-muted-foreground flex items-center gap-2">
+                      <span>{formatTimestamp(proposal.created_at)}</span>
+                      <span>·</span>
+                      <span>{hostLabel}</span>
+                    </span>
+                  </div>
+                  <Link
+                    href={`/baskets/${proposal.basket_id}/governance`}
+                    className="text-primary hover:underline"
+                  >
+                    Review
+                  </Link>
+                </div>
+              );
+            })
           ) : (
             <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
               No pending governance proposals.

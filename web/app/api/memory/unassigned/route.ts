@@ -21,7 +21,7 @@ export async function GET() {
   const workspace = await ensureSingleWorkspace(user.id, supabase);
   const { data, error: queryError } = await supabase
     .from('mcp_unassigned_captures')
-    .select('id, tool, summary, payload, fingerprint, candidates, status, assigned_basket_id, created_at')
+    .select('id, tool, summary, payload, fingerprint, candidates, status, assigned_basket_id, source_host, source_session, created_at')
     .eq('workspace_id', workspace.id)
     .eq('status', 'pending')
     .order('created_at', { ascending: false });

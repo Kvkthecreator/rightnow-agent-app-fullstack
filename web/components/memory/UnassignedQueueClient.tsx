@@ -16,6 +16,8 @@ export interface UnassignedCapture {
   status: string;
   assigned_basket_id: string | null;
   created_at: string | null;
+  source_host?: string | null;
+  source_session?: string | null;
 }
 
 interface BasketOption {
@@ -65,6 +67,11 @@ export default function UnassignedQueueClient({ captures, baskets }: Props) {
               <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium uppercase tracking-wide">
                 {item.tool}
               </span>
+              {item.source_host && (
+                <span className="rounded-md bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-700">
+                  {item.source_host}
+                </span>
+              )}
               <span className="text-xs text-muted-foreground">
                 {item.created_at ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true }) : '—'}
               </span>

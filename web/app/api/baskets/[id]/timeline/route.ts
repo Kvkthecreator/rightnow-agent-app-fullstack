@@ -24,19 +24,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // Fetch recent timeline events (if table exists)
     const { data: events, error } = await supabase
       .from('timeline_events')
-      .select('ts, kind, ref_id, preview, payload')
+      .select('ts, kind, ref_id, preview, payload, source_host, source_session')
       .eq('basket_id', id)
       .order('ts', { ascending: false })
       .limit(limit);
     if (error) return NextResponse.json({ items: [] }, { status: 200 });
 
-    type Ev = { ts: string; kind: string; ref_id: string | null; preview: string | null; payload: any };
+    type Ev = { ts: string; kind: string; ref_id: string | null; preview: string | null; payload: any; source_host?: string | null; source_session?: string | null };
     const items = ((events || []) as Ev[]).map((ev: Ev) => ({
       ts: ev.ts,
       type: ev.kind,
       summary: ev.preview || ev.kind,
       ref_id: ev.ref_id,
       payload: ev.payload,
+      source_host: ev.source_host,
+      source_session: ev.source_session,
     }));
 
     return NextResponse.json({ items }, { status: 200 });

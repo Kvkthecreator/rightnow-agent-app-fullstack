@@ -17,6 +17,7 @@ export type BasketSummary = {
     count: number;
     lastCreatedAt: string | null;
     origin: string | null;
+    host: string | null;
   };
 };
 
@@ -76,14 +77,14 @@ export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
                 <span className="hidden text-xs text-muted-foreground sm:block">
                   {basket.updated_at ? new Date(basket.updated_at).toLocaleString() : new Date(basket.created_at).toLocaleString()}
                 </span>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {basket.pendingProposals.count}
-                  {basket.pendingProposals.count > 0 && (
-                    <span className="text-muted-foreground">
-                      · {basket.pendingProposals.origin === 'agent' ? 'Ambient' : 'Manual'}
-                    </span>
-                  )}
-                </span>
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          {basket.pendingProposals.count}
+          {basket.pendingProposals.count > 0 && (
+            <span className="text-muted-foreground">
+              · {(basket.pendingProposals.host || (basket.pendingProposals.origin === 'agent' ? 'ambient' : 'manual'))}
+            </span>
+          )}
+        </span>
               </button>
             ))}
           </div>

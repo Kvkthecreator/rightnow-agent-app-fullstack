@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -13,6 +14,7 @@ from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(prefix="/memory/unassigned", tags=["memory"])
 logger = logging.getLogger("uvicorn.error")
+logger = logging.getLogger("uvicorn.error")
 
 
 class UnassignedCreateRequest(BaseModel):
@@ -23,6 +25,8 @@ class UnassignedCreateRequest(BaseModel):
     fingerprint: Optional[dict] = None
     candidates: Optional[list[dict]] = None
     requested_by: Optional[str] = None
+    source_host: Optional[str] = None
+    source_session: Optional[str] = None
 
 
 class UnassignedResolveRequest(BaseModel):
@@ -49,7 +53,7 @@ async def list_unassigned(user=Depends(verify_jwt)):
     try:
         resp = (
             sb.table("mcp_unassigned_captures")
-            .select("id, tool, summary, payload, fingerprint, candidates, status, assigned_basket_id, created_at")
+            .select("id, tool, summary, payload, fingerprint, candidates, status, assigned_basket_id, source_host, source_session, created_at")
             .eq("workspace_id", workspace_id)
             .eq("status", "pending")
             .order("created_at", desc=True)
@@ -74,6 +78,8 @@ async def create_unassigned(payload: UnassignedCreateRequest, request: Request):
         "fingerprint": payload.fingerprint,
         "candidates": payload.candidates,
         "requested_by": payload.requested_by,
+        "source_host": payload.source_host,
+        "source_session": payload.source_session,
     }
 
     try:
