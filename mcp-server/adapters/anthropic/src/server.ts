@@ -345,24 +345,32 @@ async function main() {
 
         if (req.method === 'POST' && url === '/register') {
           const host = req.headers.host || 'mcp.yarnnn.com';
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify(
-              {
-                success: true,
-                message: 'Yarnnn MCP ready. Use bearer tokens for auth.',
-                body: {
-                  version: '2024-10-01',
-                  auth: { type: 'bearer' },
-                  transports: {
-                    sse: { url: `https://${host}/sse` },
-                  },
-                },
+          const registerResponse: any = {
+            success: true,
+            message: oauthConfig.enabled
+              ? 'Yarnnn MCP ready with OAuth 2.0 support.'
+              : 'Yarnnn MCP ready. Use bearer tokens for auth.',
+            body: {
+              version: '2024-10-01',
+              auth: {
+                type: oauthConfig.enabled ? 'oauth2' : 'bearer',
               },
-              null,
-              2
-            )
-          );
+              transports: {
+                sse: { url: `https://${host}/sse` },
+              },
+            },
+          };
+
+          // Add OAuth endpoints if enabled
+          if (oauthConfig.enabled) {
+            registerResponse.body.auth.oauth2 = {
+              authorization_endpoint: `https://${host}/authorize`,
+              token_endpoint: `https://${host}/token`,
+            };
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(registerResponse, null, 2));
           return;
         }
 
