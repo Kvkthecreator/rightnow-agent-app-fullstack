@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from ..utils.jwt import verify_jwt
 from ..utils.supabase import supabase_admin
 from ..utils.workspace import get_or_create_workspace
-from ..services.events import EventService
+from ...services.events import EventService
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
