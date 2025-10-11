@@ -298,6 +298,7 @@ async function main() {
         }
 
         if (url === '/' && (req.method === 'GET' || req.method === 'POST')) {
+          console.log('[HTTP] responding with bearer challenge');
           res.writeHead(401, {
             'Content-Type': 'application/json',
             'WWW-Authenticate': 'Bearer realm="Yarnnn MCP"',
