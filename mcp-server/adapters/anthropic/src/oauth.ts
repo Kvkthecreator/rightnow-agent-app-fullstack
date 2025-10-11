@@ -114,6 +114,7 @@ export async function handleAuthorize(
   const consentPageUrl = `https://yarnnn.com/mcp/authorize?` +
     `redirect_uri=${encodeURIComponent(params.redirect_uri)}&` +
     `state=${encodeURIComponent(params.state)}&` +
+    `scope=${encodeURIComponent(params.scope || 'mcp:*')}&` +
     `mcp_callback=${encodeURIComponent(`https://${req.headers.host}/oauth/callback`)}`;
 
   const html = `

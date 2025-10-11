@@ -272,6 +272,7 @@ async function main() {
               response_types_supported: ['code'],
               grant_types_supported: ['authorization_code'],
               token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
+              scopes_supported: ['mcp:*'],
             };
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(metadata, null, 2));
@@ -282,12 +283,14 @@ async function main() {
           return;
         }
 
-        // OAuth 2.0 Protected Resource Metadata
+        // OAuth 2.0 Protected Resource Metadata (RFC 9728)
         if (req.method === 'GET' && url === '/.well-known/oauth-protected-resource') {
           if (oauthConfig.enabled) {
             const metadata = {
               resource: `https://${req.headers.host}`,
               authorization_servers: [`https://${req.headers.host}`],
+              scopes_supported: ['mcp:*'],
+              bearer_methods_supported: ['header'],
             };
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(metadata, null, 2));
@@ -411,13 +414,13 @@ async function main() {
               if (oauthConfig.enabled && (!authHeader || !authHeader.startsWith('Bearer '))) {
                 console.log('[MCP] No OAuth token, returning 401 with OAuth challenge');
 
-                // Return 401 Unauthorized with proper OAuth challenge
+                // Return 401 Unauthorized with proper OAuth challenge (RFC 6750 + MCP spec)
                 const authzEndpoint = `https://${req.headers.host}/authorize`;
                 const tokenEndpoint = `https://${req.headers.host}/token`;
 
                 res.writeHead(401, {
                   'Content-Type': 'application/json',
-                  'WWW-Authenticate': `Bearer realm="YARNNN MCP", authorization_uri="${authzEndpoint}", token_uri="${tokenEndpoint}"`
+                  'WWW-Authenticate': `Bearer realm="YARNNN MCP", authorization_uri="${authzEndpoint}", token_uri="${tokenEndpoint}", scope="mcp:*"`
                 });
                 res.end(JSON.stringify({
                   jsonrpc: '2.0',
