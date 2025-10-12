@@ -311,7 +311,7 @@ async function main() {
         // Discovery document for remote MCP clients
         if (req.method === 'GET' && url === '/.well-known/mcp.json') {
           const discovery: any = {
-            version: '2024-11-05',  // Match Claude's expected protocol version
+            version: '2025-06-18',  // Match Claude's current protocol version
             transports: {
               sse: {
                 url: `https://${req.headers.host}/sse`,
@@ -367,7 +367,7 @@ async function main() {
               ? 'Yarnnn MCP ready with OAuth 2.0 support.'
               : 'Yarnnn MCP ready. Use bearer tokens for auth.',
             body: {
-              version: '2024-11-05',  // Match Claude's expected protocol version
+              version: '2025-06-18',  // Match Claude's current protocol version
               auth: {
                 type: oauthConfig.enabled ? 'oauth2' : 'bearer',
               },
@@ -459,7 +459,7 @@ async function main() {
               const initResponse = {
                 jsonrpc: '2.0',
                 result: {
-                  protocolVersion: '2024-11-05',
+                  protocolVersion: '2025-06-18',
                   capabilities: {
                     tools: {},
                   },
