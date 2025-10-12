@@ -464,7 +464,9 @@ async function main() {
                 result: {
                   protocolVersion: '2025-06-18',
                   capabilities: {
-                    tools: {},
+                    tools: {
+                      listChanged: false,
+                    },
                   },
                   serverInfo: {
                     name: 'yarnnn-mcp-server',
