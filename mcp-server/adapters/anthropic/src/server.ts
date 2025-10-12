@@ -77,8 +77,13 @@ async function main() {
      * Handle tool list request
      */
     server.setRequestHandler(ListToolsRequestSchema, async () => {
+      const toolsList = getToolsList();
+      console.log('[MCP] Returning tools list:', {
+        count: toolsList.length,
+        tools: toolsList.map(t => t.name)
+      });
       return {
-        tools: getToolsList(),
+        tools: toolsList,
       };
     });
 
