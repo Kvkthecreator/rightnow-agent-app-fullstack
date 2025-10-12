@@ -452,7 +452,9 @@ async function main() {
                 return;
               }
 
-              // If we have auth (or OAuth not required), return initialize response
+              // If we have auth, return successful initialize for non-SSE clients
+              // However, this should not happen - clients should use /sse
+              console.log('[MCP] WARNING: Client sent initialize to POST instead of connecting to /sse');
               const initResponse = {
                 jsonrpc: '2.0',
                 result: {
@@ -512,10 +514,17 @@ async function main() {
 
         // GET /sse - Establish SSE connection
         if (req.method === 'GET' && url === '/sse') {
+          console.log('[SSE] Connection attempt:', {
+            hasAuth: !!req.headers['authorization'],
+            userAgent: req.headers['user-agent'],
+            accept: req.headers['accept']
+          });
+
           // If OAuth is enabled, validate the token before establishing SSE
           if (oauthConfig.enabled) {
             const authHeader = req.headers['authorization'];
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
+              console.log('[SSE] Rejected: missing authorization header');
               res.writeHead(401, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: 'missing_authorization' }));
               return;
@@ -525,6 +534,7 @@ async function main() {
             const session = await validateOAuthToken(token, oauthConfig);
 
             if (!session) {
+              console.log('[SSE] Rejected: invalid token');
               res.writeHead(401, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: 'invalid_token' }));
               return;
