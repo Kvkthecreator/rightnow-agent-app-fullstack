@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { Button } from "@/components/ui/Button";
 import Brand from "@/components/Brand";
@@ -10,11 +10,20 @@ const supabase = createBrowserClient();
 
 export default function LoginClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const showDevMagicLogin = process.env.NODE_ENV === "development";
+
+  // Store returnUrl in localStorage if present (for MCP OAuth flow)
+  useEffect(() => {
+    const returnUrl = searchParams.get('returnUrl');
+    if (returnUrl) {
+      localStorage.setItem('redirectPath', returnUrl);
+    }
+  }, [searchParams]);
 
   const resolveRedirectUrl = () => {
     if (typeof window !== "undefined") {
