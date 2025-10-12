@@ -313,11 +313,8 @@ async function main() {
           const discovery: any = {
             version: '2025-06-18',  // Match Claude's current protocol version
             transports: {
-              http: {
-                url: `https://${req.headers.host}/`,
-              },
               sse: {
-                url: `https://${req.headers.host}/sse`,
+                url: `https://${req.headers.host}/`,
               },
             },
             auth: {
