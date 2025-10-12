@@ -45,12 +45,15 @@ export default function AuthCallbackPage() {
       const redirectPath =
         (typeof window !== "undefined" && localStorage.getItem("redirectPath")) ||
         "/dashboard";
-      
+
+      console.log('[Auth Callback] Redirect path from localStorage:', redirectPath);
+
       if (typeof window !== "undefined") {
         localStorage.removeItem("redirectPath");
       }
-      
+
       // Full page redirect ensures cookies are sent with the request
+      console.log('[Auth Callback] Redirecting to:', redirectPath);
       window.location.href = redirectPath;
     };
 

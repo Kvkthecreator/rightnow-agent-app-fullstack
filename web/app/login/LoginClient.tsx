@@ -20,7 +20,9 @@ export default function LoginClient() {
   // Store returnUrl in localStorage if present (for MCP OAuth flow)
   useEffect(() => {
     const returnUrl = searchParams.get('returnUrl');
+    console.log('[Login] returnUrl from query params:', returnUrl);
     if (returnUrl) {
+      console.log('[Login] Storing redirectPath in localStorage:', returnUrl);
       localStorage.setItem('redirectPath', returnUrl);
     }
   }, [searchParams]);

@@ -42,19 +42,27 @@ export default function MCPAuthorizePage() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       );
 
+      console.log('[MCP Auth] Checking authentication...');
       const { data, error } = await supabase.auth.getUser();
+      console.log('[MCP Auth] Auth check result:', {
+        hasUser: !!data?.user,
+        error: error?.message,
+        userId: data?.user?.id
+      });
 
       if (error || !data?.user) {
         // Not authenticated - redirect to login with return URL
         const returnUrl = `/mcp/authorize?${searchParams.toString()}`;
+        console.log('[MCP Auth] Not authenticated, redirecting to login with returnUrl:', returnUrl);
         router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
         return;
       }
 
+      console.log('[MCP Auth] User authenticated:', data.user.email);
       setUser(data.user);
       setLoading(false);
     } catch (err) {
-      console.error('Auth check failed:', err);
+      console.error('[MCP Auth] Auth check failed:', err);
       setError('Failed to check authentication status');
       setLoading(false);
     }
