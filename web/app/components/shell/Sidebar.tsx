@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Inbox, Plug, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield, CloudUpload } from "lucide-react";
+import { LayoutDashboard, Inbox, Plug, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield, CloudUpload, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
@@ -21,7 +21,7 @@ const supabase = createBrowserClient();
 const GLOBAL_LINKS = [
   {
     href: '/dashboard',
-    label: 'Control Tower',
+    label: 'Control tower',
     icon: LayoutDashboard,
   },
   {
@@ -36,7 +36,7 @@ const GLOBAL_LINKS = [
   },
   {
     href: '/baskets',
-    label: 'Context library',
+    label: 'Context baskets',
     icon: BookOpen,
   },
 ];
@@ -207,75 +207,26 @@ export default function Sidebar({ className }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <div className="flex flex-1 flex-col overflow-y-auto">
-          <nav className="flex flex-1 flex-col gap-6 px-4 py-6">
-            <section className="space-y-1">
-              <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Workspace
-              </p>
-              <div className="flex flex-col gap-0.5">
-                {GLOBAL_LINKS.map((item) => (
-                  <SidebarItem
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => {
-                      if (isMobile) setOpen(false);
-                    }}
-                  >
-                    <span className="flex items-center gap-2">
-                      <item.icon size={14} />
-                      {item.label}
-                    </span>
-                  </SidebarItem>
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-1">
-              <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Recent baskets
-              </p>
-              <div className="flex flex-col gap-0.5">
-                {basketList.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-muted-foreground">No baskets yet</p>
-                ) : (
-                  basketList.slice(0, 6).map((item) => (
-                    <SidebarItem
-                      key={item.id}
-                      href={`/baskets/${item.id}/memory`}
-                      onClick={() => {
-                        if (isMobile) setOpen(false);
-                      }}
-                    >
-                      {item.name || 'Untitled Basket'}
-                    </SidebarItem>
-                  ))
-                )}
-                {basketList.length > 6 && (
-                  <SidebarItem
-                    href="/baskets"
-                    onClick={() => {
-                      if (isMobile) setOpen(false);
-                    }}
-                    className="text-muted-foreground"
-                  >
-                    View all baskets
-                  </SidebarItem>
-                )}
-              </div>
-            </section>
-
-            {isBasketDetail && basket && (
-              <section className="space-y-1">
-                <div className="flex items-center justify-between px-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Active basket
-                  </p>
-                  <span className="max-w-[9rem] truncate text-xs text-muted-foreground">
-                    {basket.name || 'Untitled Basket'}
-                  </span>
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {isBasketDetail && basket ? (
+            <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
+              <button
+                onClick={() => {
+                  router.push('/baskets');
+                  if (isMobile) setOpen(false);
+                }}
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft size={14} /> Exit context basket
+              </button>
+              <section className="space-y-2">
+                <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Active context basket
                 </div>
-                <div className="flex flex-col gap-0.5">
+                <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground">
+                  {basket.name || 'Untitled Basket'}
+                </div>
+                <div className="flex flex-col gap-0.5 pt-2">
                   {SECTION_ORDER.filter((section) => section.key !== 'documents').map((section) => {
                     const href = section.href(basket.id);
                     const Icon = sectionIcons[section.key];
@@ -306,8 +257,66 @@ export default function Sidebar({ className }: SidebarProps) {
                   </SidebarItem>
                 </div>
               </section>
-            )}
-          </nav>
+            </nav>
+          ) : (
+            <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
+              <section className="space-y-1">
+                <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Workspace
+                </p>
+                <div className="flex flex-col gap-0.5">
+                  {GLOBAL_LINKS.map((item) => (
+                    <SidebarItem
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => {
+                        if (isMobile) setOpen(false);
+                      }}
+                    >
+                      <span className="flex items-center gap-2">
+                        <item.icon size={14} />
+                        {item.label}
+                      </span>
+                    </SidebarItem>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-1">
+                <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Recent context baskets
+                </p>
+                <div className="flex flex-col gap-0.5">
+                  {basketList.length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">No context baskets yet</p>
+                  ) : (
+                    basketList.slice(0, 6).map((item) => (
+                      <SidebarItem
+                        key={item.id}
+                        href={`/baskets/${item.id}/memory`}
+                        onClick={() => {
+                          if (isMobile) setOpen(false);
+                        }}
+                      >
+                        {item.name || 'Untitled Basket'}
+                      </SidebarItem>
+                    ))
+                  )}
+                  {basketList.length > 6 && (
+                    <SidebarItem
+                      href="/baskets"
+                      onClick={() => {
+                        if (isMobile) setOpen(false);
+                      }}
+                      className="text-muted-foreground"
+                    >
+                      View all context baskets
+                    </SidebarItem>
+                  )}
+                </div>
+              </section>
+            </nav>
+          )}
         </div>
 
         {/* Footer + Dropdown */}
