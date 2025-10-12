@@ -476,14 +476,123 @@ async function main() {
               return;
             }
 
-            // For other JSON-RPC MCP methods, return error (should use SSE)
+            // Handle other JSON-RPC MCP methods via HTTP POST
             if (rpcRequest.jsonrpc === '2.0' && rpcRequest.method) {
+              // Validate OAuth token
+              const authHeader = req.headers['authorization'];
+              if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  jsonrpc: '2.0',
+                  error: { code: -32001, message: 'Authentication required' },
+                  id: rpcRequest.id,
+                }));
+                return;
+              }
+
+              const token = authHeader.substring(7);
+              const session = await validateOAuthToken(token, oauthConfig);
+
+              if (!session) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  jsonrpc: '2.0',
+                  error: { code: -32001, message: 'Invalid token' },
+                  id: rpcRequest.id,
+                }));
+                return;
+              }
+
+              console.log('[MCP HTTP] Handling method:', rpcRequest.method, 'for user:', session.userId);
+
+              // Handle tools/list
+              if (rpcRequest.method === 'tools/list') {
+                const toolsList = getToolsList();
+                console.log('[MCP HTTP] Returning tools list:', {
+                  count: toolsList.length,
+                  tools: toolsList.map(t => t.name)
+                });
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  jsonrpc: '2.0',
+                  result: {
+                    tools: toolsList,
+                  },
+                  id: rpcRequest.id,
+                }));
+                return;
+              }
+
+              // Handle tools/call
+              if (rpcRequest.method === 'tools/call') {
+                try {
+                  const { name, arguments: args } = rpcRequest.params;
+                  console.log('[MCP HTTP] Calling tool:', name, 'with args:', args);
+
+                  // Create user context from session
+                  const userContext: UserContext = {
+                    userId: session.userId,
+                    workspaceId: session.workspaceId,
+                  };
+
+                  // Create YARNNN client with OAuth session context
+                  const yarnnnClient = new YARNNNClient({
+                    baseUrl: config.backendUrl,
+                    userContext,
+                    userToken: session.supabaseToken,
+                  });
+
+                  // Execute tool
+                  const result = await executeTool(name, args || {}, yarnnnClient);
+
+                  console.log('[MCP HTTP] Tool executed successfully:', name);
+
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({
+                    jsonrpc: '2.0',
+                    result: {
+                      content: [
+                        {
+                          type: 'text',
+                          text: JSON.stringify(result, null, 2),
+                        },
+                      ],
+                    },
+                    id: rpcRequest.id,
+                  }));
+                  return;
+                } catch (err: any) {
+                  console.error('[MCP HTTP] Tool execution failed:', err);
+
+                  res.writeHead(500, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({
+                    jsonrpc: '2.0',
+                    error: {
+                      code: -32603,
+                      message: err.message || 'Tool execution failed',
+                    },
+                    id: rpcRequest.id,
+                  }));
+                  return;
+                }
+              }
+
+              // Handle notifications/initialized (no response needed)
+              if (rpcRequest.method === 'notifications/initialized') {
+                console.log('[MCP HTTP] Client initialized');
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ jsonrpc: '2.0', result: {} }));
+                return;
+              }
+
+              // Unknown method
               res.writeHead(400, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({
                 jsonrpc: '2.0',
                 error: {
-                  code: -32600,
-                  message: 'Use SSE transport for MCP requests. Connect to /sse endpoint.',
+                  code: -32601,
+                  message: `Method not found: ${rpcRequest.method}`,
                 },
                 id: rpcRequest.id,
               }));
