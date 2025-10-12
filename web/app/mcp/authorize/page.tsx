@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { createBrowserClient } from '@/lib/supabase/clients';
 
 export default function MCPAuthorizePage() {
   const router = useRouter();
@@ -37,10 +37,7 @@ export default function MCPAuthorizePage() {
 
   async function checkAuth() {
     try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+      const supabase = createBrowserClient();
 
       console.log('[MCP Auth] Checking authentication...');
       const { data, error } = await supabase.auth.getUser();
@@ -78,10 +75,7 @@ export default function MCPAuthorizePage() {
     setError(null);
 
     try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+      const supabase = createBrowserClient();
 
       // Get fresh session token
       const { data: sessionData } = await supabase.auth.getSession();
