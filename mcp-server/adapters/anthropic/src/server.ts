@@ -311,7 +311,7 @@ async function main() {
         // Discovery document for remote MCP clients
         if (req.method === 'GET' && url === '/.well-known/mcp.json') {
           const discovery: any = {
-            version: '2024-10-01',
+            version: '2024-11-05',  // Match Claude's expected protocol version
             transports: {
               sse: {
                 url: `https://${req.headers.host}/sse`,
@@ -367,7 +367,7 @@ async function main() {
               ? 'Yarnnn MCP ready with OAuth 2.0 support.'
               : 'Yarnnn MCP ready. Use bearer tokens for auth.',
             body: {
-              version: '2024-10-01',
+              version: '2024-11-05',  // Match Claude's expected protocol version
               auth: {
                 type: oauthConfig.enabled ? 'oauth2' : 'bearer',
               },
@@ -454,7 +454,8 @@ async function main() {
 
               // If we have auth, return successful initialize for non-SSE clients
               // However, this should not happen - clients should use /sse
-              console.log('[MCP] WARNING: Client sent initialize to POST instead of connecting to /sse');
+              console.log('[MCP] Client authenticated with Bearer token via POST');
+              console.log('[MCP] WARNING: Expected SSE connection, got HTTP POST instead');
               const initResponse = {
                 jsonrpc: '2.0',
                 result: {
