@@ -337,9 +337,11 @@ export async function handleTokenExchange(
     return;
   }
 
-  // Generate access token
+  // Generate access token with long expiration for MCP servers
+  // MCP servers should have long-lived tokens (90 days) since they're not browser-based
+  // and users don't want to re-authenticate frequently for AI assistants
   const accessToken = generateToken('yat'); // yat = YARNNN access token
-  const tokenExpiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+  const tokenExpiresAt = Date.now() + (90 * 24 * 60 * 60 * 1000); // 90 days
 
   // Store access token mapping
   accessTokens.set(accessToken, {
@@ -349,7 +351,7 @@ export async function handleTokenExchange(
     expiresAt: tokenExpiresAt,
   });
 
-  // Store in backend for persistence
+  // Store in backend for persistence with 90-day expiration
   try {
     await fetch(`${config.backendUrl}/api/mcp/auth/sessions`, {
       method: 'POST',
@@ -361,6 +363,7 @@ export async function handleTokenExchange(
         mcp_token: accessToken,
         supabase_token: authData.supabaseToken,
         user_id: authData.userId,
+        expires_in_days: 90,
       }),
     });
   } catch (error) {
@@ -371,14 +374,14 @@ export async function handleTokenExchange(
   // Delete authorization code (one-time use)
   authCodes.delete(params.code);
 
-  console.log('[OAuth] Access token issued:', accessToken.substring(0, 10) + '...');
+  console.log('[OAuth] Access token issued (90-day expiration):', accessToken.substring(0, 10) + '...');
 
   // Return token response
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
     access_token: accessToken,
     token_type: 'Bearer',
-    expires_in: 86400, // 24 hours in seconds
+    expires_in: 7776000, // 90 days in seconds
     scope: params.scope || 'full_access',
   }));
 }

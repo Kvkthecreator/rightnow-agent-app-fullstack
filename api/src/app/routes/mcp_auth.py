@@ -18,6 +18,7 @@ class StoreSessionRequest(BaseModel):
     mcp_token: str
     supabase_token: str
     user_id: str
+    expires_in_days: int = 90  # Default to 90 days for MCP tokens
 
 
 class ValidateSessionRequest(BaseModel):
@@ -62,7 +63,8 @@ async def store_session(
         .execute()
     )
 
-    expires_at = _expires_at(24)
+    # Use configurable expiration (default 90 days for MCP)
+    expires_at = _expires_at(payload.expires_in_days)
 
     if existing.data:
         # Update existing session
@@ -129,19 +131,29 @@ async def validate_session(payload: ValidateSessionRequest):
     session = resp.data[0]
     expires_at = session.get("expires_at")
 
-    # Check expiration
+    # Check expiration and auto-renew if close to expiry
+    should_renew = False
     if expires_at:
         try:
             exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-            if datetime.now(timezone.utc) > exp_dt:
+            now = datetime.now(timezone.utc)
+
+            if now > exp_dt:
                 raise HTTPException(status_code=401, detail="MCP token expired")
+
+            # Auto-renew if within 7 days of expiration (rolling window)
+            days_until_expiry = (exp_dt - now).days
+            if days_until_expiry < 7:
+                should_renew = True
         except ValueError:
             pass  # Invalid date format, allow through
 
-    # Update last_used_at
-    sb.table("mcp_oauth_sessions").update({
-        "last_used_at": _now_iso(),
-    }).eq("mcp_token", payload.mcp_token).execute()
+    # Update last_used_at and optionally renew expiration
+    update_data = {"last_used_at": _now_iso()}
+    if should_renew:
+        update_data["expires_at"] = _expires_at(90)  # Extend by another 90 days
+
+    sb.table("mcp_oauth_sessions").update(update_data).eq("mcp_token", payload.mcp_token).execute()
 
     return SessionResponse(
         supabase_token=session["supabase_token"],
