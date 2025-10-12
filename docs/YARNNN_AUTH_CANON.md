@@ -285,3 +285,50 @@ P0 capture (raw dumps) is always direct insert. Governance applies to substrate 
 - [ ] Logs include user_id + workspace_id
 - [ ] Middleware does not perform authentication decisions
 - [ ] No code selects or orders by `baskets.updated_at`
+
+---
+
+## MCP OAuth Integration
+
+### Overview
+MCP servers (Claude.ai remote connectors) use OAuth 2.1 with Dynamic Client Registration to access YARNNN workspaces.
+
+### Authentication Flow
+1. **Discovery**: Claude fetches OAuth metadata from `/.well-known/oauth-authorization-server`
+2. **Dynamic Registration**: Claude registers via `POST /oauth/register` (RFC 7591)
+3. **Authorization**: User redirected to `/mcp/authorize` → YARNNN login → consent page
+4. **Token Exchange**: Claude exchanges authorization code for 90-day access token
+5. **MCP Connection**: Claude uses Bearer token for all MCP requests
+
+### Key Components
+
+**MCP Server** (`mcp-server/adapters/anthropic/src/oauth.ts`):
+- Issues 90-day access tokens (auto-renew within 7 days of expiry)
+- Stores token mappings in `mcp_oauth_sessions` table
+- Validates tokens against backend `/api/mcp/auth/sessions/validate`
+
+**Web App** (`web/app/mcp/authorize/page.tsx`):
+- Ensures user authenticated via Supabase (uses centralized `createBrowserClient()`)
+- Shows consent UI with workspace context
+- Redirects to MCP server callback with Supabase token
+
+**Backend** (`api/src/app/routes/mcp_auth.py`):
+- Stores MCP token → Supabase token + workspace mappings
+- Auto-renews tokens within 7 days of expiry (rolling 90-day window)
+- Validates tokens on every MCP request
+
+### Critical Implementation Details
+
+1. **Session Cookies**: MCP authorize page MUST use `createBrowserClient()` from `@/lib/supabase/clients` (not direct `@supabase/ssr`) to properly read session cookies after OAuth redirect
+
+2. **Return URL Handling**: Login page stores `returnUrl` query param in `localStorage` before OAuth, auth callback reads it to redirect back to MCP authorize page
+
+3. **Token Longevity**: 90-day expiration with auto-renewal for active connections; inactive tokens expire after 90 days
+
+4. **Workspace Scoping**: All MCP tokens are scoped to user's canonical workspace via `mcp_oauth_sessions.workspace_id`
+
+### Security Model
+- MCP tokens are workspace-scoped via RLS on `mcp_oauth_sessions`
+- Underlying Supabase tokens enforce RLS on all data access
+- Token validation updates `last_used_at` for audit trail
+- Tokens can be revoked via `DELETE /api/mcp/auth/sessions/{token}`

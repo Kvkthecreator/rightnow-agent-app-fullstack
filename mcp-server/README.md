@@ -154,6 +154,14 @@ AI Assistant → Adapter (Anthropic or OpenAI) → @yarnnn/integration-core → 
 
 As additional platforms adopt MCP or other protocols, create a new adapter that consumes the core package instead of duplicating tool logic.
 
+## Documentation
+
+- **[OAuth Implementation](docs/OAUTH_IMPLEMENTATION_SUMMARY.md)** - Architecture overview
+- **[OAuth Setup Guide](docs/OAUTH_SETUP.md)** - Environment variables and deployment
+- **[OAuth Troubleshooting](docs/OAUTH_TROUBLESHOOTING.md)** - Common issues and debugging tips
+- **[MCP Integration Architecture](docs/MCP_INTEGRATION_ARCHITECTURE.md)** - Core and adapter design
+- **[Auth Canon](../docs/YARNNN_AUTH_CANON.md#mcp-oauth-integration)** - MCP OAuth in canonical auth model
+
 ## Next Steps
 
 - Implement OAuth + Apps SDK wiring inside `adapters/openai-apps`.
