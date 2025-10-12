@@ -400,6 +400,47 @@ async function main() {
             userAgent: req.headers['user-agent'],
           });
 
+          // If it's a GET with SSE accept header, redirect to SSE endpoint
+          if (req.method === 'GET') {
+            const acceptHeader = req.headers['accept'] || '';
+            if (acceptHeader.includes('text/event-stream')) {
+              console.log('[SSE] Client requesting SSE at root, establishing SSE connection');
+
+              // Validate OAuth token before establishing SSE
+              if (oauthConfig.enabled) {
+                const authHeader = req.headers['authorization'];
+                if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                  console.log('[SSE] Rejected: missing authorization header');
+                  res.writeHead(401, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: 'missing_authorization' }));
+                  return;
+                }
+
+                const token = authHeader.substring(7);
+                const session = await validateOAuthToken(token, oauthConfig);
+
+                if (!session) {
+                  console.log('[SSE] Rejected: invalid token');
+                  res.writeHead(401, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: 'invalid_token' }));
+                  return;
+                }
+
+                console.log('[OAuth] SSE connection authorized at root:', {
+                  userId: session.userId,
+                  workspaceId: session.workspaceId,
+                });
+              }
+
+              // Establish SSE connection
+              const transport = new SSEServerTransport('/message', res);
+              await transport.start();
+              await server.connect(transport);
+              console.log(`[SSE] Session established at root: ${transport.sessionId}`);
+              return;
+            }
+          }
+
           // If it's a POST, try to parse it as MCP JSON-RPC request
           if (req.method === 'POST') {
             let body = '';
