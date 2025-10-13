@@ -91,7 +91,7 @@ export default function Sidebar({ className }: SidebarProps) {
               id: idFromPath,
               name: 'Untitled Basket',
               created_at: new Date().toISOString(),
-              mode: 'default',
+              status: 'active',
             } as BasketOverview);
           }
         } else {
