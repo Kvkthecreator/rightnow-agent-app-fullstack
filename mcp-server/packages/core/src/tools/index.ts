@@ -64,15 +64,21 @@ export const toolHandlers: Record<string, ToolHandler> = {
 /**
  * Get tool list for MCP server registration
  * Converts Zod schemas to JSON Schema format required by MCP
+ * Extracts first line of description for UI compatibility
  */
 export async function getToolsList() {
   const { zodToJsonSchema } = await import('zod-to-json-schema');
 
-  return Object.entries(tools).map(([name, tool]) => ({
-    name,
-    description: tool.description,
-    inputSchema: zodToJsonSchema(tool.inputSchema, { $refStrategy: 'none' }),
-  }));
+  return Object.entries(tools).map(([name, tool]) => {
+    // Extract first line for UI (Claude.ai Configure modal expects single-line descriptions)
+    const firstLine = tool.description.split('\n')[0].trim();
+
+    return {
+      name,
+      description: firstLine,
+      inputSchema: zodToJsonSchema(tool.inputSchema, { $refStrategy: 'none' }),
+    };
+  });
 }
 
 /**
