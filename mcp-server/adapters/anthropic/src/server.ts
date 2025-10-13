@@ -313,7 +313,7 @@ async function main() {
           const discovery: any = {
             version: '2025-06-18',  // Match Claude's current protocol version
             transports: {
-              sse: {
+              streamableHttp: {
                 url: `https://${req.headers.host}/`,
               },
             },
@@ -497,6 +497,10 @@ async function main() {
               // However, this should not happen - clients should use /sse
               console.log('[MCP] Client authenticated with Bearer token via POST');
               console.log('[MCP] WARNING: Expected SSE connection, got HTTP POST instead');
+              // Generate session ID for Streamable HTTP transport
+              const sessionId = `mcp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+              console.log('[MCP] Generated session ID:', sessionId);
+
               const initResponse = {
                 jsonrpc: '2.0',
                 result: {
@@ -514,7 +518,10 @@ async function main() {
                 id: rpcRequest.id,
               };
 
-              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Mcp-Session-Id': sessionId,
+              });
               res.end(JSON.stringify(initResponse));
               return;
             }

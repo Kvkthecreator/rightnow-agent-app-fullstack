@@ -11,25 +11,34 @@ export default async function BasketsPage() {
   const { userId } = await getAuthenticatedUser(supabase);
   const workspace = await ensureWorkspaceForUser(userId, supabase);
 
-  const { data: baskets, error } = await supabase
-    .from('baskets')
-    .select('id,name,status,created_at,updated_at,mode')
-    .eq('workspace_id', workspace.id)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('[baskets/page] Failed to load baskets', error.message);
-    throw error;
+  let baskets: any[] = [];
+  try {
+    const { data, error } = await supabase
+      .from('baskets')
+      .select('id,name,status,created_at,updated_at,mode')
+      .eq('workspace_id', workspace.id)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    baskets = data ?? [];
+  } catch (err) {
+    console.error('[baskets/page] Failed to load baskets', err);
   }
 
-  const { data: pendingProposals } = await supabase
-    .from('proposals')
-    .select('id,basket_id,created_at,origin,metadata,source_host,source_session')
-    .eq('workspace_id', workspace.id)
-    .eq('status', 'PROPOSED');
+  let pendingProposals: any[] = [];
+  try {
+    const { data, error } = await supabase
+      .from('proposals')
+      .select('id,basket_id,created_at,origin,metadata,source_host,source_session')
+      .eq('workspace_id', workspace.id)
+      .eq('status', 'PROPOSED');
+    if (error) throw error;
+    pendingProposals = data ?? [];
+  } catch (err) {
+    console.error('[baskets/page] Failed to load pending proposals', err);
+  }
 
   const proposalsByBasket = new Map<string, { count: number; lastCreatedAt: string | null; origin: string | null; host: string | null }>();
-  (pendingProposals ?? []).forEach((proposal) => {
+  pendingProposals.forEach((proposal) => {
     const entry = proposalsByBasket.get(proposal.basket_id) ?? { count: 0, lastCreatedAt: null, origin: null, host: null };
     entry.count += 1;
     if (!entry.lastCreatedAt || (proposal.created_at && proposal.created_at > entry.lastCreatedAt)) {
