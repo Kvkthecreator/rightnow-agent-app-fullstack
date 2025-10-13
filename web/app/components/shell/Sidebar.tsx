@@ -217,7 +217,7 @@ export default function Sidebar({ className }: SidebarProps) {
                 }}
                 className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
               >
-                <ArrowLeft size={14} /> Back to control tower
+                <ArrowLeft size={14} /> Back to dashboard
               </button>
               <section className="space-y-2">
                 <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

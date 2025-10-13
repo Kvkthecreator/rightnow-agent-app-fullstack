@@ -429,9 +429,8 @@ async function main() {
                 });
               }
 
-              // Establish SSE connection
+              // Establish SSE connection (server.connect() calls transport.start() automatically)
               const transport = new SSEServerTransport('/message', res);
-              await transport.start();
               await server.connect(transport);
               console.log(`[SSE] Session established at root: ${transport.sessionId}`);
               return;
@@ -718,7 +717,6 @@ async function main() {
           };
 
           try {
-            await transport.start();
             await server.connect(transport);
             console.log(`[SSE] Session established: ${transport.sessionId}`);
           } catch (error) {
