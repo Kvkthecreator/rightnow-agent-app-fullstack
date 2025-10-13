@@ -3,16 +3,9 @@
 /**
  * MCP OAuth Authorization Page
  *
- * Single-step modal-style authorization matching /login page design.
- * Auto-authorizes if user is already authenticated, shows Google login if not.
- *
- * Flow:
- * 1. User clicks "Connect YARNNN" in Claude.ai
- * 2. Claude redirects to MCP server /authorize
- * 3. MCP server redirects here with state/redirect_uri params
- * 4. If logged in: auto-authorize and redirect back to Claude
- * 5. If not logged in: show Google login button in modal
- * 6. After login: auto-authorize and redirect back to Claude
+ * Shows consent screen for Claude.ai MCP connection.
+ * If not logged in, shows Google login button.
+ * If logged in, shows user info and Authorize button.
  */
 
 import { useEffect, useState } from 'react';
@@ -26,17 +19,19 @@ export default function MCPAuthorizePage() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
 
   const redirectUri = searchParams.get('redirect_uri');
   const state = searchParams.get('state');
   const mcpCallback = searchParams.get('mcp_callback');
 
   useEffect(() => {
-    checkAuthAndAutoAuthorize();
+    checkAuth();
   }, []);
 
-  async function checkAuthAndAutoAuthorize() {
+  async function checkAuth() {
     try {
       const supabase = createBrowserClient();
 
@@ -50,9 +45,10 @@ export default function MCPAuthorizePage() {
         return;
       }
 
-      // User is authenticated - auto-authorize
-      console.log('[MCP Auth] User authenticated, auto-authorizing:', data.user.email);
-      await authorize(supabase, data.user);
+      // User is authenticated - show consent screen
+      console.log('[MCP Auth] User authenticated:', data.user.email);
+      setUser(data.user);
+      setLoading(false);
     } catch (err) {
       console.error('[MCP Auth] Auth check failed:', err);
       setError('Failed to check authentication status');
@@ -60,21 +56,24 @@ export default function MCPAuthorizePage() {
     }
   }
 
-  async function authorize(supabase: any, user: any) {
+  async function handleAuthorize() {
     if (!redirectUri || !state || !mcpCallback) {
       setError('Missing required OAuth parameters');
-      setLoading(false);
       return;
     }
 
+    setIsAuthorizing(true);
+
     try {
+      const supabase = createBrowserClient();
+
       // Get fresh session token
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
 
       if (!token) {
         setError('No active session found');
-        setLoading(false);
+        setIsAuthorizing(false);
         return;
       }
 
@@ -87,7 +86,7 @@ export default function MCPAuthorizePage() {
 
       if (!workspace) {
         setError('No workspace found. Please create a workspace first.');
-        setLoading(false);
+        setIsAuthorizing(false);
         return;
       }
 
@@ -104,7 +103,7 @@ export default function MCPAuthorizePage() {
     } catch (err) {
       console.error('[MCP Auth] Authorization failed:', err);
       setError('Failed to authorize. Please try again.');
-      setLoading(false);
+      setIsAuthorizing(false);
     }
   }
 
@@ -148,7 +147,7 @@ export default function MCPAuthorizePage() {
         <div className="w-full max-w-sm bg-card border rounded-xl shadow-sm px-6 py-8">
           <div className="flex flex-col items-center space-y-4">
             <Brand width={120} height={34} />
-            <p className="text-sm text-muted-foreground">Connecting to Claude...</p>
+            <p className="text-sm text-muted-foreground">Loading...</p>
           </div>
         </div>
       </div>
@@ -179,7 +178,67 @@ export default function MCPAuthorizePage() {
     );
   }
 
-  // Not authenticated - show login UI (matches /login page design)
+  // User is logged in - show consent screen
+  if (user) {
+    return (
+      <div className="min-h-screen w-full flex flex-col justify-center items-center px-4">
+        <div className="w-full max-w-sm bg-card border rounded-xl shadow-sm px-6 py-8 space-y-6">
+          {/* Header */}
+          <div className="flex flex-col items-center space-y-3">
+            <Brand width={120} height={34} />
+            <div className="text-center space-y-1.5">
+              <h2 className="text-2xl font-semibold tracking-tight">Connect to Claude</h2>
+              <p className="text-sm text-muted-foreground">
+                Authorize <span className="font-medium">Claude.ai</span> to access your YARNNN workspace
+              </p>
+            </div>
+          </div>
+
+          {/* User info */}
+          <div className="bg-muted/50 border rounded-lg p-4">
+            <p className="text-xs text-muted-foreground mb-1">Logged in as</p>
+            <p className="text-sm font-medium">{user.email}</p>
+          </div>
+
+          {/* Permissions info */}
+          <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
+            <p className="text-xs font-medium text-foreground">Claude will be able to:</p>
+            <ul className="text-xs text-muted-foreground space-y-1.5 ml-4 list-disc">
+              <li>Create memories from chat conversations</li>
+              <li>Read substrate from your baskets</li>
+              <li>Add context to existing baskets</li>
+              <li>Validate substrate structure</li>
+            </ul>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-3">
+            <Button
+              onClick={() => router.push('/baskets')}
+              variant="outline"
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAuthorize}
+              disabled={isAuthorizing}
+              className="flex-1"
+            >
+              {isAuthorizing ? 'Authorizing...' : 'Authorize'}
+            </Button>
+          </div>
+
+          {/* Footer */}
+          <p className="text-xs text-center text-muted-foreground leading-relaxed">
+            You can revoke this connection anytime from your YARNNN settings.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated - show login UI
   return (
     <div className="min-h-screen w-full flex flex-col justify-center items-center px-4">
       <div className="w-full max-w-sm bg-card border rounded-xl shadow-sm px-6 py-8 space-y-6">
@@ -216,7 +275,7 @@ export default function MCPAuthorizePage() {
 
         {/* Footer */}
         <p className="text-xs text-center text-muted-foreground leading-relaxed">
-          After signing in, you'll be automatically connected to Claude. You can revoke access anytime from your YARNNN settings.
+          After signing in, you'll need to authorize Claude's connection to your workspace.
         </p>
       </div>
     </div>
