@@ -28,11 +28,18 @@ This document consolidates governance architecture, workspace settings policy, a
 - `document_composition_stats` - Analytics and metrics
 
 ### CANON-BREAKING PATTERNS TO ELIMINATE
-❌ **Document creation through governance** - Documents are artifacts
-❌ **Document editing through proposals** - User edits are free per canon
-❌ **Reflection creation through governance** - Reflections are computed artifacts
-❌ **Universal governance for all operations** - Violates substrate/artifact separation  
+❌ **P3/P4 regeneration through governance** - Insights/Documents are artifacts, regenerated directly
+❌ **Document editing** - Documents are immutable, evolution via regeneration only
+❌ **Reflection creation through proposals** - Reflections computed directly from substrate
+❌ **Universal governance for all operations** - Violates substrate/artifact separation
 ❌ **Anchor CRUD that bypasses Decision Gateway** - Capture/revise/delete must be expressed as block/context operations. Registry metadata may be edited, but substrate mutations route through governance.
+
+### P3/P4 ARTIFACT OPERATIONS (NOT GOVERNED)
+✅ **P3 Insight Regeneration** - Direct POST endpoints, context-driven freshness checks
+✅ **P4 Document Composition** - Direct POST endpoints, regenerate from P3 + substrate
+✅ **Lineage Tracking** - All artifacts link previous versions (previous_id)
+✅ **Provenance Recording** - All artifacts record derived_from sources
+✅ **Policy Controls** - Auto-regeneration flags, workspace synthesis permissions (not governance proposals)
 
 ## 🏛️ Governance Architecture
 

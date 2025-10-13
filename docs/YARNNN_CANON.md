@@ -29,10 +29,16 @@ Yarnnn is a **memory-first cognitive system** that captures human thought as imm
 - `timeline_events` (system controlled)
 
 **INDEPENDENT (Artifact Layer - Expression):**
-- `documents` - Read-only composed views, regenerated from substrate (v3.0)
-- `reflections` - Direct computation from substrate
+- **P3 Insights** - Direct regeneration from substrate state (insight_canon, doc_insight, timeboxed_insight)
+- **P4 Documents** - Direct composition from P3 + substrate (document_canon, starter_prompt)
 - `substrate_references` - Document-substrate metadata linking
 - All artifact analytics and composition stats
+- **Review insights** - Computed ephemeral (cached in proposals table for audit)
+
+**P3/P4 Governance Boundary**:
+- Regeneration is **DIRECT** (not governed proposals) - artifacts derived from substrate, don't mutate it
+- Policy controls: Auto-regeneration flags, workspace synthesis permissions, throttling
+- Freshness computed from context (substrate_hash, graph_signature), not time thresholds
 
 **Canon v3.0 Revolution**: Documents are no longer editable. They are composed views of substrate state that regenerate when substrate changes or composition instructions are refined. Users manage substrate, not prose.
 
@@ -58,12 +64,27 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 
 ### Two Artifact Types (Expression Layer)
 
-1. **documents** - Read-only composed views FROM substrate (v3.0: no direct editing)
-2. **reflections** - Computed insights and observations ABOUT substrate patterns
+**P3: Insights** - Immutable interpretations of substrate (understanding what matters)
+- `insight_canon` - Basket-level "what matters now" (one current per basket)
+- `doc_insight` - Document-scoped interpretations (one per document)
+- `timeboxed_insight` - Temporal window understanding (many per basket)
+- `review_insight` - Proposal evaluation intelligence (ephemeral, computed)
+- Cross-basket insights - Workspace-level synthesis (one current per workspace)
+
+**P4: Documents** - Immutable governed views of substrate (activation surfaces)
+- `document_canon` - Basket Context Canon (mandatory: one per basket)
+- `starter_prompt` - Reasoning capsules for external hosts (many per basket)
+- `artifact_other` - Future document types (extensible)
 
 **Critical**: Artifacts are derived FROM substrates, never the reverse. No artifact recursion.
 
-**v3.0 Revolution**: Documents are **composition definitions** that generate versioned snapshots. Content lives in immutable `document_versions`, not editable `documents` table. Users curate substrate and refine composition instructions—they never edit prose directly.
+**P3/P4 Revolution**:
+- **Insights (P3)** = Interpretive intelligence layer - "what matters now"
+- **Documents (P4)** = Composition definitions generating versioned snapshots
+- **Immutability**: Content never edited in place - evolution via regeneration only
+- **Lineage**: Every artifact tracks previous versions via `previous_id`
+- **Provenance**: Every artifact records `derived_from` (blocks, reflections, proposals)
+- **Context-Driven Freshness**: Staleness computed from substrate_hash + graph_signature changes, not time
 
 ## 🔄 The Five Pipelines (Substrate → Artifacts)
 
@@ -72,8 +93,8 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 | **P0: Capture** | Substrate | Ingest raw memory | Only writes raw_dumps, never interprets (always direct, no proposals) |
 | **P1: Governed Evolution (Propose → Commit)** | Substrate | Propose and (upon approval) evolve basket substrate | **All Create/Revise/Merge occur only via approved governance proposals (no direct writes)** |
 | **P2: Connect** | Substrate | Link existing substrates semantically | Creates relationships only, never creates new substrate |
-| **P3: Reflect** | Artifact | Compute insights about substrates | Creates reflections only, never modifies substrate |
-| **P4: Compose** | Artifact | Create narrative compositions | Creates documents only, consumes substrate |
+| **P3: Insights** | Artifact | Generate interpretive intelligence | Creates P3 insights (insight_canon, doc_insight, timeboxed_insight), never modifies substrate |
+| **P4: Documents** | Artifact | Generate narrative compositions | Creates P4 documents (document_canon, starter_prompt), consumes substrate + P3 insights |
 
 ### Pipeline Detail: P0→P1 Substrate Scaffolding
 
@@ -100,6 +121,73 @@ New raw_dumps + Existing substrate → Agent Analysis → Governance Proposal �
 ```
 
 **Critical Insight**: P1 is a **substrate evolution agent**, not just creation. Early baskets see mostly CREATE operations, mature baskets see mostly UPDATE/MERGE operations as conceptual space fills out.
+
+### Pipeline Detail: P3→P4 Artifact Generation
+
+**P3: Insights Phase (Interpretive Intelligence)**
+```
+Substrate State + Reflections → Agent Analysis → P3 Insight Generation → Lineage Tracking
+
+Insight Types:
+1. insight_canon (basket-level): "What matters now in this basket?"
+   - Cardinality: ONE current per basket (health invariant)
+   - Regeneration: Creates new version, marks previous non-current
+   - Freshness: Computed from substrate_hash + graph_signature changes
+
+2. doc_insight (document-level): "What does this document mean?"
+   - Cardinality: ONE per document (many documents = many insights)
+   - Scope: Attached to specific document_id
+   - Freshness: Recomputed when document's substrate_references change
+
+3. timeboxed_insight (temporal): "What mattered in Q3 2025?"
+   - Cardinality: MANY per basket (different time windows)
+   - Scope: Explicit temporal_scope metadata
+   - Freshness: Immutable for historical windows, active for current period
+
+4. review_insight (governance): "Should this proposal be approved?"
+   - Cardinality: ONE per proposal (ephemeral, computed on-demand)
+   - Storage: Cached in proposals.review_insight (not in reflections_artifact)
+   - Purpose: Internal governance intelligence only
+
+5. Cross-basket insights (workspace-level): "What matters across all my contexts?"
+   - Cardinality: ONE current per workspace
+   - Scope: Synthesizes across all basket insight_canons
+   - Policy-gated: Requires workspace_insight_enabled flag
+```
+
+**P4: Documents Phase (Composition & Activation)**
+```
+P3 Insights + Substrate → Agent Composition → P4 Document Generation → Versioning
+
+Document Types:
+1. document_canon (Basket Context Canon):
+   - Cardinality: ONE per basket (mandatory health invariant)
+   - Purpose: Authoritative narrative of basket state
+   - Regeneration: Creates new version when substrate/insights change
+   - Content: Lives in document_versions (immutable)
+
+2. starter_prompt (Reasoning Capsules):
+   - Cardinality: MANY per basket (multiple intents: strategy, marketing, technical)
+   - Purpose: Reusable activation surfaces for external hosts (Claude, ChatGPT)
+   - Composition: Canon + Insights + reasoning metadata (purpose, constraints, continuity)
+   - Portability: Designed for cross-host reuse
+
+3. artifact_other (Extensible):
+   - Cardinality: MANY per basket
+   - Purpose: Future document types without schema changes
+```
+
+**P3/P4 Freshness Model (Context-Driven, Not Time-Driven)**
+```
+Staleness = f(substrate_hash_changed, graph_topology_changed, temporal_scope_invalid)
+
+# NOT time-based
+❌ WRONG: if (now() - last_generated) > 7 days: regenerate()
+
+# Context-based
+✅ RIGHT: if (current_substrate_hash != insight.substrate_hash): regenerate()
+✅ RIGHT: if (current_graph_signature != insight.graph_signature): regenerate()
+```
 
 ## 🏛️ Architectural Pillars
 
@@ -495,9 +583,21 @@ interface WorkTypePolicy {
 
 ## Version Lock
 
-- Canon version: **v3.0**
-- Frozen as of: **2025-10-04**
+- Canon version: **v3.1**
+- Frozen as of: **2025-10-13**
 - Update policy: Do not edit in place. Amendments require a new canon version.
+
+### v3.1.0 Changes (P3/P4 Taxonomy & Immutability Hardening)
+- **P3 Insights Taxonomy Formalized**: insight_canon, doc_insight, timeboxed_insight, review_insight, cross-basket insights
+- **P4 Documents Taxonomy Formalized**: document_canon (mandatory), starter_prompt (many), artifact_other (extensible)
+- **Context-Driven Freshness**: Staleness computed from substrate_hash + graph_signature changes, NOT time-based
+- **Lineage Tracking**: All P3/P4 artifacts link to previous versions via previous_id
+- **Provenance Recording**: All artifacts record derived_from (substrate sources)
+- **Cardinality Clarity**: ONE insight_canon per basket/workspace, MANY doc_insights per basket, MANY starter_prompts
+- **Review Insights Scoped**: Computed ephemeral, cached in proposals table (not in reflections_artifact)
+- **Cross-Basket Synthesis**: Workspace-level insights schema included (policy-gated for future enablement)
+- **Governance Boundary Hardened**: P3/P4 regeneration is DIRECT (not governed), policy-controlled only
+- **Basket Modes Eliminated**: Removed legacy preset/template patterns in favor of emergent P3/P4 intelligence
 
 ### v3.0.0 Changes (Revolutionary - Substrate-First Documents)
 - **Sacred Principle #5 Added**: Substrate Management Replaces Document Editing
