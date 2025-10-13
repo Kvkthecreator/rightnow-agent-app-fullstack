@@ -868,83 +868,6 @@ BEGIN
   END LOOP;
   RETURN v_results;
 END $$;
-CREATE FUNCTION public.fn_persist_reflection(p_basket_id uuid, p_pattern text, p_tension text, p_question text) RETURNS uuid
-    LANGUAGE plpgsql
-    AS $$
-DECLARE 
-  v_id uuid;
-  v_workspace_id uuid;
-  v_reflection_text text;
-  v_substrate_hash text;
-BEGIN
-  -- Get workspace_id from basket
-  SELECT workspace_id INTO v_workspace_id FROM public.baskets WHERE id = p_basket_id;
-  IF v_workspace_id IS NULL THEN
-    RAISE EXCEPTION 'Basket % not found', p_basket_id;
-  END IF;
-  -- Compose reflection_text from pattern, tension, question
-  v_reflection_text := COALESCE(
-    CASE 
-      WHEN p_pattern IS NOT NULL AND p_tension IS NOT NULL AND p_question IS NOT NULL 
-      THEN 'Pattern: ' || p_pattern || E'\n\nTension: ' || p_tension || E'\n\nQuestion: ' || p_question
-      WHEN p_pattern IS NOT NULL AND p_tension IS NOT NULL
-      THEN 'Pattern: ' || p_pattern || E'\n\nTension: ' || p_tension
-      WHEN p_pattern IS NOT NULL
-      THEN p_pattern
-      WHEN p_tension IS NOT NULL  
-      THEN p_tension
-      WHEN p_question IS NOT NULL
-      THEN p_question
-      ELSE 'Empty reflection'
-    END, 
-    'Empty reflection'
-  );
-  -- Generate substrate hash from inputs
-  v_substrate_hash := 'reflection-' || encode(sha256((COALESCE(p_pattern, '') || COALESCE(p_tension, '') || COALESCE(p_question, ''))::bytea), 'hex');
-  -- Insert into canonical schema
-  INSERT INTO public.reflection_cache (
-    basket_id, 
-    workspace_id,
-    substrate_hash,
-    reflection_text,
-    substrate_window_start,
-    substrate_window_end,
-    computation_timestamp,
-    last_accessed_at,
-    meta,
-    created_at,
-    updated_at
-  )
-  VALUES (
-    p_basket_id, 
-    v_workspace_id,
-    v_substrate_hash,
-    v_reflection_text,
-    NOW(),
-    NOW(),
-    NOW(),
-    NOW(),
-    jsonb_build_object('legacy_migration', true, 'pattern', p_pattern, 'tension', p_tension, 'question', p_question),
-    NOW(),
-    NOW()
-  )
-  ON CONFLICT (basket_id, substrate_hash) DO UPDATE SET
-    reflection_text = EXCLUDED.reflection_text,
-    computation_timestamp = EXCLUDED.computation_timestamp,
-    last_accessed_at = NOW(),
-    updated_at = NOW(),
-    meta = EXCLUDED.meta
-  RETURNING id INTO v_id;
-  -- Emit timeline event
-  PERFORM public.fn_timeline_emit(
-    p_basket_id,
-    'reflection',
-    v_id,
-    LEFT(v_reflection_text, 140),
-    jsonb_build_object('source','reflection_job','actor_id', auth.uid())
-  );
-  RETURN v_id;
-END $$;
 CREATE FUNCTION public.fn_queue_health() RETURNS TABLE(processing_state public.processing_state, count bigint, avg_age_seconds numeric, max_age_seconds numeric)
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
@@ -992,113 +915,6 @@ BEGIN
   RETURN v_tomb_id;
 END;
 $$;
-CREATE FUNCTION public.fn_reflection_cache_upsert(p_basket_id uuid, p_pattern text, p_tension text, p_question text, p_meta_hash text) RETURNS boolean
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare
-  v_last text;
-  v_changed boolean := false;
-begin
-  select meta_derived_from into v_last
-  from public.basket_reflections
-  where basket_id = p_basket_id
-  order by computed_at desc
-  limit 1;
-  if v_last is distinct from p_meta_hash then
-    insert into public.basket_reflections (id, basket_id, pattern, tension, question, meta_derived_from)
-    values (gen_random_uuid(), p_basket_id, p_pattern, p_tension, p_question, p_meta_hash);
-    -- Emit machine event to events table
-    insert into public.events (id, basket_id, kind, payload, workspace_id, origin)
-    values (gen_random_uuid(), p_basket_id, 'reflection.computed',
-            jsonb_build_object('basket_id', p_basket_id, 'meta_derived_from', p_meta_hash),
-            null, 'system');
-    -- Optional: surface a small note to timeline
-    insert into public.timeline_events (basket_id, kind, preview, payload)
-    values (p_basket_id, 'system_note', 'Reflections updated', jsonb_build_object('meta_derived_from', p_meta_hash));
-    v_changed := true;
-  end if;
-  return v_changed;
-end;
-$$;
-CREATE FUNCTION public.fn_reflection_create_from_document(p_basket_id uuid, p_document_id uuid, p_reflection_text text) RETURNS uuid
-    LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-DECLARE
-  v_reflection_id uuid;
-  v_workspace_id uuid;
-  v_version_hash varchar(64);
-BEGIN
-  -- Get workspace and current document version
-  SELECT d.workspace_id, d.current_version_hash
-  INTO v_workspace_id, v_version_hash
-  FROM documents d WHERE d.id = p_document_id;
-  
-  -- Create document-focused reflection
-  INSERT INTO reflections_artifact (
-    basket_id,
-    workspace_id,
-    reflection_text,
-    substrate_hash,
-    reflection_target_type,
-    reflection_target_id,
-    reflection_target_version,
-    computation_timestamp
-  ) VALUES (
-    p_basket_id,
-    v_workspace_id,
-    p_reflection_text,
-    'document_' || COALESCE(v_version_hash, 'current'),
-    'document',
-    p_document_id,
-    v_version_hash,
-    now()
-  ) RETURNING id INTO v_reflection_id;
-  
-  RETURN v_reflection_id;
-END $$;
-CREATE FUNCTION public.fn_reflection_create_from_substrate(p_basket_id uuid, p_reflection_text text) RETURNS uuid
-    LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-DECLARE
-  v_reflection_id uuid;
-  v_workspace_id uuid;
-  v_substrate_hash varchar(64);
-BEGIN
-  -- Get workspace
-  SELECT workspace_id INTO v_workspace_id FROM baskets WHERE id = p_basket_id;
-  
-  -- Generate substrate hash for this basket's current state
-  v_substrate_hash := 'substrate_' || encode(sha256((p_basket_id || now())::text::bytea), 'hex');
-  
-  -- Insert substrate-focused reflection
-  INSERT INTO reflections_artifact (
-    basket_id,
-    workspace_id,
-    reflection_text,
-    substrate_hash,
-    reflection_target_type,
-    computation_timestamp
-  ) VALUES (
-    p_basket_id,
-    v_workspace_id,
-    p_reflection_text,
-    v_substrate_hash,
-    'substrate',
-    now()
-  ) RETURNING id INTO v_reflection_id;
-  
-  -- Emit timeline event
-  PERFORM fn_timeline_emit(
-    p_basket_id,
-    'reflection.computed',
-    v_reflection_id,
-    left(p_reflection_text, 140),
-    jsonb_build_object('target_type', 'substrate')
-  );
-  
-  RETURN v_reflection_id;
-END $$;
 CREATE FUNCTION public.fn_relationship_upsert(p_basket_id uuid, p_from_type text, p_from_id uuid, p_to_type text, p_to_id uuid, p_relationship_type text, p_description text DEFAULT NULL::text, p_strength double precision DEFAULT 0.5) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
@@ -1441,17 +1257,17 @@ BEGIN
     last_used_at = now();
 END;
 $$;
-CREATE FUNCTION public.log_extraction_metrics(p_dump_id uuid, p_basket_id uuid, p_workspace_id uuid, p_agent_version text, p_extraction_method text, p_blocks_created integer, p_context_items_created integer, p_avg_confidence real, p_processing_time_ms integer) RETURNS uuid
+CREATE FUNCTION public.log_extraction_metrics(p_dump_id uuid, p_basket_id uuid, p_workspace_id uuid, p_agent_version text, p_blocks_created integer, p_context_items_created integer, p_avg_confidence real, p_processing_time_ms integer) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
 DECLARE
   v_metric_id uuid;
 BEGIN
   INSERT INTO extraction_quality_metrics (
-    dump_id, basket_id, workspace_id, agent_version, extraction_method,
+    dump_id, basket_id, workspace_id, agent_version,
     blocks_created, context_items_created, avg_confidence, processing_time_ms
   ) VALUES (
-    p_dump_id, p_basket_id, p_workspace_id, p_agent_version, p_extraction_method,
+    p_dump_id, p_basket_id, p_workspace_id, p_agent_version,
     p_blocks_created, p_context_items_created, p_avg_confidence, p_processing_time_ms
   )
   RETURNING id INTO v_metric_id;
@@ -1706,9 +1522,6 @@ CREATE TABLE public.blocks (
     proposal_id uuid,
     approved_at timestamp with time zone,
     approved_by uuid,
-    extraction_method text DEFAULT 'legacy_text_chunks'::text,
-    provenance_validated boolean DEFAULT false,
-    ingredient_version text DEFAULT '1.0'::text,
     normalized_label text,
     updated_at timestamp with time zone DEFAULT now(),
     last_validated_at timestamp with time zone DEFAULT now(),
@@ -2078,7 +1891,6 @@ CREATE TABLE public.extraction_quality_metrics (
     basket_id uuid,
     workspace_id uuid NOT NULL,
     agent_version text NOT NULL,
-    extraction_method text NOT NULL,
     blocks_created integer DEFAULT 0,
     context_items_created integer DEFAULT 0,
     duplicates_detected integer DEFAULT 0,
@@ -2290,9 +2102,6 @@ CREATE TABLE public.reflections_artifact (
     meta jsonb DEFAULT '{}'::jsonb,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    reflection_target_type character varying(20) DEFAULT 'legacy'::character varying,
-    reflection_target_id uuid,
-    reflection_target_version character varying(64),
     insight_type text,
     is_current boolean DEFAULT false,
     previous_id uuid,
@@ -2301,8 +2110,7 @@ CREATE TABLE public.reflections_artifact (
     scope_level text DEFAULT 'basket'::text,
     CONSTRAINT insight_scope_consistency CHECK ((((scope_level = 'basket'::text) AND (basket_id IS NOT NULL)) OR ((scope_level <> 'basket'::text) AND (basket_id IS NULL)))),
     CONSTRAINT reflections_artifact_insight_type_check CHECK ((insight_type = ANY (ARRAY['insight_canon'::text, 'doc_insight'::text, 'timeboxed_insight'::text, 'review_insight'::text]))),
-    CONSTRAINT reflections_artifact_scope_level_check CHECK ((scope_level = ANY (ARRAY['basket'::text, 'workspace'::text, 'org'::text, 'global'::text]))),
-    CONSTRAINT valid_reflection_target CHECK (((reflection_target_type)::text = ANY ((ARRAY['substrate'::character varying, 'document'::character varying, 'legacy'::character varying])::text[])))
+    CONSTRAINT reflections_artifact_scope_level_check CHECK ((scope_level = ANY (ARRAY['basket'::text, 'workspace'::text, 'org'::text, 'global'::text])))
 );
 CREATE TABLE public.revisions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2312,20 +2120,6 @@ CREATE TABLE public.revisions (
     diff_json jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
-CREATE VIEW public.structured_ingredient_blocks AS
- SELECT blocks.id,
-    blocks.basket_id,
-    blocks.title,
-    blocks.semantic_type,
-    blocks.confidence_score,
-    blocks.extraction_method,
-    blocks.provenance_validated,
-    blocks.ingredient_version,
-    (blocks.metadata -> 'knowledge_ingredients'::text) AS ingredients,
-    (blocks.metadata -> 'transformation_hints'::text) AS transformation_hints,
-    blocks.created_at
-   FROM public.blocks
-  WHERE ((blocks.extraction_method = 'llm_structured_v2'::text) AND (blocks.provenance_validated = true));
 CREATE TABLE public.substrate_relationships (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
@@ -2692,8 +2486,6 @@ CREATE INDEX idx_block_usage_score ON public.block_usage USING btree (usefulness
 CREATE INDEX idx_blocks_anchor_confidence ON public.blocks USING btree (basket_id, anchor_confidence DESC) WHERE ((anchor_role IS NOT NULL) AND (anchor_confidence IS NOT NULL));
 CREATE INDEX idx_blocks_anchor_role ON public.blocks USING btree (basket_id, anchor_role, anchor_status) WHERE (anchor_role IS NOT NULL);
 CREATE INDEX idx_blocks_basket ON public.blocks USING btree (basket_id);
-CREATE INDEX idx_blocks_extraction_method ON public.blocks USING btree (extraction_method);
-CREATE INDEX idx_blocks_provenance_validated ON public.blocks USING btree (provenance_validated);
 CREATE INDEX idx_blocks_raw_dump ON public.blocks USING btree (raw_dump_id);
 CREATE INDEX idx_blocks_semantic_type ON public.blocks USING btree (semantic_type);
 CREATE INDEX idx_blocks_staleness ON public.blocks USING btree (last_validated_at DESC NULLS LAST);
@@ -2761,7 +2553,6 @@ CREATE INDEX idx_reflection_cache_basket_computation ON public.reflections_artif
 CREATE INDEX idx_reflection_cache_computation_timestamp ON public.reflections_artifact USING btree (computation_timestamp DESC);
 CREATE INDEX idx_reflections_basket ON public.reflections_artifact USING btree (basket_id);
 CREATE INDEX idx_reflections_lineage ON public.reflections_artifact USING btree (previous_id) WHERE (previous_id IS NOT NULL);
-CREATE INDEX idx_reflections_target ON public.reflections_artifact USING btree (reflection_target_type, reflection_target_id);
 CREATE INDEX idx_reflections_workspace_scope ON public.reflections_artifact USING btree (workspace_id, scope_level, is_current) WHERE (scope_level = 'workspace'::text);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
 CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
