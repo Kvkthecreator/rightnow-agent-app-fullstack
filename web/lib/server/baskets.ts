@@ -9,7 +9,7 @@ export async function getBasketServer(
   const supabase = createServerComponentClient({ cookies });
   const { data, error } = await supabase
     .from("baskets")
-    .select("id, name, status, created_at, mode")
+    .select("id, name, status, created_at")
     .eq("id", id)
     .eq("workspace_id", workspaceId)
     .single();
