@@ -149,6 +149,18 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE FUNCTION public.cleanup_expired_mcp_sessions() RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM public.mcp_oauth_sessions
+    WHERE expires_at < NOW();
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$;
 CREATE FUNCTION public.create_basket_with_dump(dump_body text, file_urls jsonb, user_id uuid, workspace_id uuid) RETURNS TABLE(basket_id uuid)
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
@@ -1335,6 +1347,42 @@ BEGIN
   );
 END;
 $$;
+CREATE FUNCTION public.get_current_insight_canon(p_basket_id uuid) RETURNS TABLE(id uuid, reflection_text text, substrate_hash text, graph_signature text, derived_from jsonb, created_at timestamp with time zone)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    ra.id,
+    ra.reflection_text,
+    ra.substrate_hash,
+    ra.graph_signature,
+    ra.derived_from,
+    ra.created_at
+  FROM public.reflections_artifact ra
+  WHERE ra.basket_id = p_basket_id
+    AND ra.insight_type = 'insight_canon'
+    AND ra.is_current = true
+  LIMIT 1;
+END;
+$$;
+CREATE FUNCTION public.get_document_canon(p_basket_id uuid) RETURNS TABLE(id uuid, title text, current_version_hash text, composition_instructions jsonb, derived_from jsonb)
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    d.id,
+    d.title,
+    d.current_version_hash,
+    d.composition_instructions,
+    d.derived_from
+  FROM public.documents d
+  WHERE d.basket_id = p_basket_id
+    AND d.doc_type = 'document_canon'
+  LIMIT 1;
+END;
+$$;
 CREATE FUNCTION public.get_workspace_governance_flags(p_workspace_id uuid) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
@@ -1933,7 +1981,11 @@ CREATE TABLE public.documents (
     current_version_hash character varying(64),
     composition_instructions jsonb DEFAULT '{}'::jsonb,
     substrate_filter jsonb DEFAULT '{}'::jsonb,
-    source_raw_dump_id uuid
+    source_raw_dump_id uuid,
+    doc_type text DEFAULT 'artifact_other'::text,
+    previous_id uuid,
+    derived_from jsonb DEFAULT '{}'::jsonb,
+    CONSTRAINT documents_doc_type_check CHECK ((doc_type = ANY (ARRAY['document_canon'::text, 'starter_prompt'::text, 'artifact_other'::text])))
 );
 CREATE VIEW public.document_heads AS
  SELECT d.id AS document_id,
@@ -2094,6 +2146,16 @@ CREATE VIEW public.mcp_activity_host_recent AS
    FROM public.mcp_activity_logs
   WHERE (mcp_activity_logs.created_at >= (now() - '7 days'::interval))
   GROUP BY mcp_activity_logs.workspace_id, mcp_activity_logs.host;
+CREATE TABLE public.mcp_oauth_sessions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    mcp_token text NOT NULL,
+    supabase_token text NOT NULL,
+    user_id uuid NOT NULL,
+    workspace_id uuid NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_used_at timestamp with time zone DEFAULT now() NOT NULL
+);
 CREATE TABLE public.mcp_unassigned_captures (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
     workspace_id uuid NOT NULL,
@@ -2136,6 +2198,16 @@ CREATE TABLE public.openai_app_tokens (
     provider_metadata jsonb DEFAULT '{}'::jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE TABLE public.p3_p4_regeneration_policy (
+    workspace_id uuid NOT NULL,
+    insight_canon_auto_regenerate boolean DEFAULT true,
+    document_canon_auto_regenerate boolean DEFAULT true,
+    workspace_insight_enabled boolean DEFAULT false,
+    workspace_insight_min_baskets integer DEFAULT 3,
+    workspace_insight_throttle_hours integer DEFAULT 24,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
 );
 CREATE TABLE public.pipeline_metrics (
     id bigint NOT NULL,
@@ -2207,7 +2279,7 @@ CREATE TABLE public.proposals (
 );
 CREATE TABLE public.reflections_artifact (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    basket_id uuid NOT NULL,
+    basket_id uuid,
     workspace_id uuid NOT NULL,
     substrate_hash text NOT NULL,
     reflection_text text NOT NULL,
@@ -2221,6 +2293,15 @@ CREATE TABLE public.reflections_artifact (
     reflection_target_type character varying(20) DEFAULT 'legacy'::character varying,
     reflection_target_id uuid,
     reflection_target_version character varying(64),
+    insight_type text,
+    is_current boolean DEFAULT false,
+    previous_id uuid,
+    derived_from jsonb DEFAULT '[]'::jsonb,
+    graph_signature text,
+    scope_level text DEFAULT 'basket'::text,
+    CONSTRAINT insight_scope_consistency CHECK ((((scope_level = 'basket'::text) AND (basket_id IS NOT NULL)) OR ((scope_level <> 'basket'::text) AND (basket_id IS NULL)))),
+    CONSTRAINT reflections_artifact_insight_type_check CHECK ((insight_type = ANY (ARRAY['insight_canon'::text, 'doc_insight'::text, 'timeboxed_insight'::text, 'review_insight'::text]))),
+    CONSTRAINT reflections_artifact_scope_level_check CHECK ((scope_level = ANY (ARRAY['basket'::text, 'workspace'::text, 'org'::text, 'global'::text]))),
     CONSTRAINT valid_reflection_target CHECK (((reflection_target_type)::text = ANY ((ARRAY['substrate'::character varying, 'document'::character varying, 'legacy'::character varying])::text[])))
 );
 CREATE TABLE public.revisions (
@@ -2528,12 +2609,18 @@ ALTER TABLE ONLY public.knowledge_timeline
     ADD CONSTRAINT knowledge_timeline_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.mcp_activity_logs
     ADD CONSTRAINT mcp_activity_logs_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.mcp_oauth_sessions
+    ADD CONSTRAINT mcp_oauth_sessions_mcp_token_key UNIQUE (mcp_token);
+ALTER TABLE ONLY public.mcp_oauth_sessions
+    ADD CONSTRAINT mcp_oauth_sessions_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.mcp_unassigned_captures
     ADD CONSTRAINT mcp_unassigned_captures_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.openai_app_tokens
     ADD CONSTRAINT openai_app_tokens_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.p3_p4_regeneration_policy
+    ADD CONSTRAINT p3_p4_regeneration_policy_pkey PRIMARY KEY (workspace_id);
 ALTER TABLE ONLY public.pipeline_metrics
     ADD CONSTRAINT pipeline_metrics_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.pipeline_offsets
@@ -2626,6 +2713,7 @@ CREATE INDEX idx_document_versions_document ON public.document_versions USING bt
 CREATE INDEX idx_document_versions_hash ON public.document_versions USING btree (version_hash);
 CREATE INDEX idx_documents_basket ON public.documents USING btree (basket_id);
 CREATE INDEX idx_documents_current_version ON public.documents USING btree (current_version_hash) WHERE (current_version_hash IS NOT NULL);
+CREATE INDEX idx_documents_lineage ON public.documents USING btree (previous_id) WHERE (previous_id IS NOT NULL);
 CREATE INDEX idx_documents_meta_comp_sig ON public.documents USING btree (((metadata ->> 'composition_signature'::text)));
 CREATE INDEX idx_documents_workspace ON public.documents USING btree (workspace_id);
 CREATE INDEX idx_events_agent_type ON public.events USING btree (agent_type);
@@ -2644,6 +2732,10 @@ CREATE INDEX idx_knowledge_timeline_workspace_time ON public.knowledge_timeline 
 CREATE INDEX idx_mcp_activity_host ON public.mcp_activity_logs USING btree (host, created_at DESC);
 CREATE INDEX idx_mcp_activity_result ON public.mcp_activity_logs USING btree (result);
 CREATE INDEX idx_mcp_activity_workspace ON public.mcp_activity_logs USING btree (workspace_id, created_at DESC);
+CREATE INDEX idx_mcp_oauth_sessions_expires_at ON public.mcp_oauth_sessions USING btree (expires_at);
+CREATE INDEX idx_mcp_oauth_sessions_mcp_token ON public.mcp_oauth_sessions USING btree (mcp_token);
+CREATE INDEX idx_mcp_oauth_sessions_user_id ON public.mcp_oauth_sessions USING btree (user_id);
+CREATE INDEX idx_mcp_oauth_sessions_workspace_id ON public.mcp_oauth_sessions USING btree (workspace_id);
 CREATE INDEX idx_mcp_unassigned_status ON public.mcp_unassigned_captures USING btree (status);
 CREATE INDEX idx_mcp_unassigned_workspace ON public.mcp_unassigned_captures USING btree (workspace_id);
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
@@ -2668,7 +2760,9 @@ CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
 CREATE INDEX idx_reflection_cache_basket_computation ON public.reflections_artifact USING btree (basket_id, computation_timestamp DESC);
 CREATE INDEX idx_reflection_cache_computation_timestamp ON public.reflections_artifact USING btree (computation_timestamp DESC);
 CREATE INDEX idx_reflections_basket ON public.reflections_artifact USING btree (basket_id);
+CREATE INDEX idx_reflections_lineage ON public.reflections_artifact USING btree (previous_id) WHERE (previous_id IS NOT NULL);
 CREATE INDEX idx_reflections_target ON public.reflections_artifact USING btree (reflection_target_type, reflection_target_id);
+CREATE INDEX idx_reflections_workspace_scope ON public.reflections_artifact USING btree (workspace_id, scope_level, is_current) WHERE (scope_level = 'workspace'::text);
 CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
 CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
 CREATE INDEX idx_substrate_references_created ON public.substrate_references USING btree (created_at);
@@ -2699,8 +2793,11 @@ CREATE INDEX timeline_events_basket_ts_idx ON public.timeline_events USING btree
 CREATE UNIQUE INDEX uq_basket_anchors_key ON public.basket_anchors USING btree (basket_id, anchor_key);
 CREATE UNIQUE INDEX uq_baskets_user_idem ON public.baskets USING btree (user_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
 CREATE UNIQUE INDEX uq_ctx_items_norm_label_by_type ON public.context_items USING btree (basket_id, type, normalized_label) WHERE (normalized_label IS NOT NULL);
+CREATE UNIQUE INDEX uq_current_insight_canon_per_basket ON public.reflections_artifact USING btree (basket_id) WHERE ((insight_type = 'insight_canon'::text) AND (is_current = true) AND (basket_id IS NOT NULL));
+CREATE UNIQUE INDEX uq_current_insight_canon_per_workspace ON public.reflections_artifact USING btree (workspace_id) WHERE ((insight_type = 'insight_canon'::text) AND (is_current = true) AND (scope_level = 'workspace'::text));
 CREATE UNIQUE INDEX uq_doc_ctx_item ON public.document_context_items USING btree (document_id, context_item_id);
 CREATE UNIQUE INDEX uq_doc_version_signature ON public.document_versions USING btree (document_id, composition_signature) WHERE (composition_signature IS NOT NULL);
+CREATE UNIQUE INDEX uq_document_canon_per_basket ON public.documents USING btree (basket_id) WHERE ((doc_type = 'document_canon'::text) AND (basket_id IS NOT NULL));
 CREATE UNIQUE INDEX uq_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
 CREATE UNIQUE INDEX uq_raw_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
 CREATE UNIQUE INDEX uq_relationship_identity ON public.substrate_relationships USING btree (basket_id, from_type, from_id, to_type, to_id, relationship_type);
@@ -2781,6 +2878,8 @@ ALTER TABLE ONLY public.document_versions
 ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.documents
+    ADD CONSTRAINT documents_previous_id_fkey FOREIGN KEY (previous_id) REFERENCES public.documents(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_source_raw_dump_id_fkey FOREIGN KEY (source_raw_dump_id) REFERENCES public.raw_dumps(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.documents
     ADD CONSTRAINT documents_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
@@ -2820,6 +2919,10 @@ ALTER TABLE ONLY public.mcp_activity_logs
     ADD CONSTRAINT mcp_activity_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.mcp_activity_logs
     ADD CONSTRAINT mcp_activity_logs_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.mcp_oauth_sessions
+    ADD CONSTRAINT mcp_oauth_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.mcp_oauth_sessions
+    ADD CONSTRAINT mcp_oauth_sessions_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.mcp_unassigned_captures
     ADD CONSTRAINT mcp_unassigned_captures_assigned_basket_id_fkey FOREIGN KEY (assigned_basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.mcp_unassigned_captures
@@ -2834,6 +2937,8 @@ ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
 ALTER TABLE ONLY public.openai_app_tokens
     ADD CONSTRAINT openai_app_tokens_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.p3_p4_regeneration_policy
+    ADD CONSTRAINT p3_p4_regeneration_policy_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.proposal_executions
     ADD CONSTRAINT proposal_executions_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id);
 ALTER TABLE ONLY public.proposals
@@ -2844,6 +2949,8 @@ ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.reflections_artifact
     ADD CONSTRAINT reflection_cache_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.reflections_artifact
+    ADD CONSTRAINT reflections_artifact_previous_id_fkey FOREIGN KEY (previous_id) REFERENCES public.reflections_artifact(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.substrate_references
@@ -2931,6 +3038,7 @@ CREATE POLICY "Users can read blocks in their workspaces" ON public.blocks FOR S
 CREATE POLICY "Users can read documents in their workspaces" ON public.documents FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = documents.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
+CREATE POLICY "Users can revoke own MCP sessions" ON public.mcp_oauth_sessions FOR DELETE USING ((user_id = auth.uid()));
 CREATE POLICY "Users can update proposals in their workspace" ON public.proposals FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -2970,6 +3078,7 @@ CREATE POLICY "Users can view narrative in their workspace" ON public.narrative 
   WHERE ((baskets.id = narrative.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view own MCP sessions" ON public.mcp_oauth_sessions FOR SELECT USING ((user_id = auth.uid()));
 CREATE POLICY "Users can view proposals in their workspace" ON public.proposals FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -3205,6 +3314,7 @@ CREATE POLICY mcp_activity_select ON public.mcp_activity_logs FOR SELECT USING (
   WHERE ((wm.workspace_id = mcp_activity_logs.workspace_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY mcp_activity_service_delete ON public.mcp_activity_logs FOR DELETE USING ((auth.role() = 'service_role'::text));
 CREATE POLICY mcp_activity_service_insert ON public.mcp_activity_logs FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
+ALTER TABLE public.mcp_oauth_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mcp_unassigned_captures ENABLE ROW LEVEL SECURITY;
 CREATE POLICY mcp_unassigned_select ON public.mcp_unassigned_captures FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships wm
@@ -3238,6 +3348,10 @@ CREATE POLICY narrative_update_workspace_member ON public.narrative FOR UPDATE T
   WHERE ((b.id = narrative.basket_id) AND (wm.user_id = auth.uid())))));
 ALTER TABLE public.openai_app_tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY openai_app_tokens_service_access ON public.openai_app_tokens USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
+CREATE POLICY p3_p4_policy_workspace_access ON public.p3_p4_regeneration_policy USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+ALTER TABLE public.p3_p4_regeneration_policy ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.proposal_executions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY proposal_executions_insert ON public.proposal_executions FOR INSERT WITH CHECK ((proposal_id IN ( SELECT proposals.id
    FROM public.proposals
