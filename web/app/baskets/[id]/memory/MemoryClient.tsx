@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PenTool, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
+import { PenTool, RefreshCw, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent } from '@/components/ui/Card';
