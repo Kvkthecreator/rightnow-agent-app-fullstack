@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { createServerComponentClient } from '@/lib/supabase/clients';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
+import { listBasketsByWorkspace } from '@/lib/baskets/listBasketsByWorkspace';
 import { BasketsIndexClient } from './BasketsIndexClient';
 
 export const dynamic = 'force-dynamic';
@@ -11,17 +12,9 @@ export default async function BasketsPage() {
   const { userId } = await getAuthenticatedUser(supabase);
   const workspace = await ensureWorkspaceForUser(userId, supabase);
 
-  let baskets: any[] = [];
-  try {
-    const { data, error } = await supabase
-      .from('baskets')
-      .select('id,name,status,created_at,updated_at,mode')
-      .eq('workspace_id', workspace.id)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    baskets = data ?? [];
-  } catch (err) {
-    console.error('[baskets/page] Failed to load baskets', err);
+  const { data: baskets = [], error: basketsError } = await listBasketsByWorkspace(workspace.id);
+  if (basketsError) {
+    console.error('[baskets/page] Failed to load baskets', basketsError);
   }
 
   let pendingProposals: any[] = [];
@@ -49,12 +42,11 @@ export default async function BasketsPage() {
     proposalsByBasket.set(proposal.basket_id, entry);
   });
 
-  const summaries = (baskets ?? []).map((basket) => ({
+  const summaries = baskets.map((basket) => ({
     id: basket.id,
     name: basket.name,
     status: basket.status,
     created_at: basket.created_at,
-    updated_at: basket.updated_at,
     mode: basket.mode,
     pendingProposals: proposalsByBasket.get(basket.id) ?? { count: 0, lastCreatedAt: null, origin: null, host: null },
   }));

@@ -31,12 +31,12 @@ const GLOBAL_LINKS = [
   },
   {
     href: '/memory/unassigned',
-    label: 'Unassigned queue',
+    label: 'Unassigned Queue',
     icon: Inbox,
   },
   {
     href: '/baskets',
-    label: 'Context baskets',
+    label: 'Context Baskets',
     icon: BookOpen,
   },
 ];
@@ -221,7 +221,7 @@ export default function Sidebar({ className }: SidebarProps) {
               </button>
               <section className="space-y-2">
                 <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Active context basket
+                  Active Context Basket
                 </div>
                 <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground">
                   {basket.name || 'Untitled Basket'}
@@ -284,7 +284,7 @@ export default function Sidebar({ className }: SidebarProps) {
 
               <section className="space-y-1">
                 <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Recent context baskets
+                  Recent Context Baskets
                 </p>
                 <div className="flex flex-col gap-0.5">
                   {basketList.length === 0 ? (
@@ -310,7 +310,7 @@ export default function Sidebar({ className }: SidebarProps) {
                       }}
                       className="text-muted-foreground"
                     >
-                      View all context baskets
+                      View all Context Baskets
                     </SidebarItem>
                   )}
                 </div>
