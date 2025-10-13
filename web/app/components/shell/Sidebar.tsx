@@ -21,7 +21,7 @@ const supabase = createBrowserClient();
 const GLOBAL_LINKS = [
   {
     href: '/dashboard',
-    label: 'Control tower',
+    label: 'Control Tower',
     icon: LayoutDashboard,
   },
   {

@@ -77,7 +77,7 @@ async function main() {
      * Handle tool list request
      */
     server.setRequestHandler(ListToolsRequestSchema, async () => {
-      const toolsList = getToolsList();
+      const toolsList = await getToolsList();
       console.log('[MCP] Returning tools list:', {
         count: toolsList.length,
         tools: toolsList.map(t => t.name)
@@ -556,7 +556,7 @@ async function main() {
 
               // Handle tools/list
               if (rpcRequest.method === 'tools/list') {
-                const toolsList = getToolsList();
+                const toolsList = await getToolsList();
                 console.log('[MCP HTTP] Returning tools list:', {
                   count: toolsList.length,
                   tools: toolsList.map(t => t.name)

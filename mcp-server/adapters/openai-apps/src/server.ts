@@ -57,8 +57,9 @@ app.get('/tools', (_req: Request, res: Response) => {
   });
 });
 
-app.get('/tool-registry', (_req: Request, res: Response) => {
-  const registry = getToolsList().map((tool) => ({
+app.get('/tool-registry', async (_req: Request, res: Response) => {
+  const toolsList = await getToolsList();
+  const registry = toolsList.map((tool) => ({
     name: tool.name,
     description: tool.description.split('\n')[0],
     schema_note: 'See @yarnnn/integration-core tool definitions for full schema',

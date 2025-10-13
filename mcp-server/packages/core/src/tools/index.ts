@@ -63,12 +63,15 @@ export const toolHandlers: Record<string, ToolHandler> = {
 
 /**
  * Get tool list for MCP server registration
+ * Converts Zod schemas to JSON Schema format required by MCP
  */
-export function getToolsList() {
+export async function getToolsList() {
+  const { zodToJsonSchema } = await import('zod-to-json-schema');
+
   return Object.entries(tools).map(([name, tool]) => ({
     name,
     description: tool.description,
-    inputSchema: tool.inputSchema,
+    inputSchema: zodToJsonSchema(tool.inputSchema, { $refStrategy: 'none' }),
   }));
 }
 
