@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PenTool, RefreshCw, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
+import { PenTool, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -11,8 +11,6 @@ import { SubpageHeader } from '@/components/basket/SubpageHeader';
 import { DocumentCreateButton } from '@/components/documents/DocumentCreateButton';
 import AddMemoryModal from '@/components/memory/AddMemoryModal';
 import OnboardingPanel from '@/components/memory/OnboardingPanel';
-import { useReflectionNotifications } from '@/lib/hooks/useReflectionNotifications';
-import type { GetReflectionsResponse, ReflectionDTO } from '@/shared/contracts/reflections';
 import type { BasketStats } from '@/app/api/baskets/[id]/stats/route';
 
 interface Props {
@@ -26,10 +24,6 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
 
   const [stats, setStats] = useState<BasketStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-
-  const [latestReflection, setLatestReflection] = useState<ReflectionDTO | null>(null);
-  const [reflectionLoading, setReflectionLoading] = useState(true);
-  const [reflectionError, setReflectionError] = useState<string | null>(null);
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
@@ -45,56 +39,12 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
     }
   }, [basketId]);
 
-  const loadLatestReflection = useCallback(async () => {
-    try {
-      setReflectionLoading(true);
-      setReflectionError(null);
-
-      const url = new URL(`/api/baskets/${basketId}/reflections`, window.location.origin);
-      url.searchParams.set('limit', '1');
-
-      const response = await fetchWithToken(url.toString());
-      if (!response.ok) {
-        throw new Error('Failed to load reflection');
-      }
-
-      const data: GetReflectionsResponse = await response.json();
-      setLatestReflection(data.reflections[0] || null);
-    } catch (err) {
-      setReflectionError(err instanceof Error ? err.message : 'Failed to load reflection');
-    } finally {
-      setReflectionLoading(false);
-    }
-  }, [basketId]);
-
   useEffect(() => {
     loadStats();
-    loadLatestReflection();
-  }, [loadStats, loadLatestReflection]);
-
-  useReflectionNotifications(basketId);
+  }, [loadStats]);
 
   const refreshDocuments = () => {
     try { router.refresh(); } catch (error) { console.warn('Refresh failed', error); }
-  };
-
-  const refreshReflection = async () => {
-    try {
-      await fetchWithToken('/api/reflections/trigger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          basket_id: basketId,
-          force_refresh: true,
-          scope: 'window',
-          substrate_window_hours: 24 * 7,
-        }),
-      });
-    } catch (err) {
-      console.error('Failed to trigger reflection refresh:', err);
-    }
-
-    setTimeout(loadLatestReflection, 1000);
   };
 
   return (
@@ -118,52 +68,6 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
       {needsOnboarding && (
         <OnboardingPanel basketId={basketId} onComplete={() => window.location.reload()} />
       )}
-
-      {/* Latest Insight - Basket-level reflection */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Latest insight</h2>
-          <Button onClick={refreshReflection} variant="ghost" size="sm">
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
-          </Button>
-        </div>
-        <Card>
-          <CardContent className="p-6">
-            {reflectionLoading && (
-              <p className="text-sm text-slate-500">Loading latest insight…</p>
-            )}
-            {reflectionError && (
-              <p className="text-sm text-rose-600">{reflectionError}</p>
-            )}
-            {!reflectionLoading && !latestReflection && (
-              <div className="text-center py-6">
-                <p className="text-sm text-slate-500 mb-2">No reflections yet.</p>
-                <p className="text-xs text-slate-400">Add knowledge to your basket to unlock AI-generated insights.</p>
-              </div>
-            )}
-            {latestReflection && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs uppercase tracking-wide text-slate-400">
-                    {latestReflection.reflection_target_type === 'document'
-                      ? 'Document insight'
-                      : latestReflection.reflection_target_type === 'substrate'
-                        ? 'Substrate insight'
-                        : 'Basket insight'}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {new Date(latestReflection.computation_timestamp).toLocaleDateString()}
-                  </p>
-                </div>
-                <p className="text-sm text-slate-700 leading-relaxed">
-                  {latestReflection.reflection_text}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
 
       {/* Dashboard-like metrics */}
       <section className="space-y-3">
