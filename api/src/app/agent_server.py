@@ -63,6 +63,9 @@ from .routes.phase1_routes import router as phase1_router
 from .routes.projection import router as projection_router
 from .routes.work_status import router as work_status_router
 from .routes.p4_composition import router as p4_composition_router
+from .routes.p3_insights import router as p3_insights_router
+from .routes.p4_canon import router as p4_canon_router
+from .routes.p3_p4_health import router as p3_p4_health_router
 from .api.validator.validate_proposal import router as validator_router
 
 
@@ -129,6 +132,9 @@ routers = (
     health_router,
     work_status_router,
     p4_composition_router,
+    p3_insights_router,
+    p4_canon_router,
+    p3_p4_health_router,
     validator_router,
     mcp_inference_router,
     memory_unassigned_router,
