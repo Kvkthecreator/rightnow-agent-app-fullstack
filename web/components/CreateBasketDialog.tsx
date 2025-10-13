@@ -50,7 +50,7 @@ export default function CreateBasketDialog({ open, onOpenChange }: CreateBasketD
         <DialogHeader>
           <DialogTitle>Create a basket</DialogTitle>
           <DialogDescription>
-            Name your basket and capture the core truths behind it. Yarnnn uses these anchors to shape Product and Campaign brains.
+            Name your basket and capture the core truths behind it. Yarnnn uses these anchors to ground reflections and composed documents.
           </DialogDescription>
         </DialogHeader>
 

@@ -18,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: basket, error: bErr } = await supabase
     .from('baskets')
-    .select('id,name,status,created_at,mode')
+    .select('id,name,status,created_at')
     .eq('id', id)
     .eq('workspace_id', ws.id)
     .maybeSingle()
@@ -34,5 +34,5 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .limit(1)
 
   const last_activity_ts = events?.[0]?.ts ?? basket.created_at
-  return NextResponse.json({ id: basket.id, name: basket.name, status: basket.status, last_activity_ts, mode: basket.mode })
+  return NextResponse.json({ id: basket.id, name: basket.name, status: basket.status, last_activity_ts })
 }

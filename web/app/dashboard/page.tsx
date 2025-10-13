@@ -215,8 +215,8 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
                   <span className="font-medium">{basket.name || 'Untitled basket'}</span>
                   <span className="text-muted-foreground">Created {formatTimestamp(basket.created_at)}</span>
                 </div>
-                <span className="text-muted-foreground">Mode: {basket.mode}</span>
-              </Link>
+                <span className="text-muted-foreground">{basket.status ?? 'Active'}</span>
+             </Link>
             ))
           ) : (
             <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">

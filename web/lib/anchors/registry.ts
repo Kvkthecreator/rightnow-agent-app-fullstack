@@ -1,6 +1,4 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { loadBasketModeConfig } from '@/basket-modes/loader';
-import type { BasketModeConfig } from '@/basket-modes/types';
 import type { AnchorStatusSummary, BasketAnchorRecord, AnchorExpectedType, AnchorScope } from './types';
 
 const MAX_ANCHOR_STALE_DAYS = 21;
@@ -24,21 +22,6 @@ function anchorScopeOrder(scope: AnchorScope): number {
     default:
       return 2;
   }
-}
-
-async function ensureAnchorsFromMode(
-  supabase: SupabaseClient,
-  basketId: string,
-  modeConfig: BasketModeConfig
-): Promise<void> {
-  // Phase A: Mode configs are ADVISORY only (not auto-seeded)
-  // Anchors emerge from user-promoted substrate via governance (Phase B)
-  // For now, this function is a no-op to preserve existing call sites
-
-  // Future Phase B: This will become "suggest anchor roles" based on mode config
-  // e.g., create governance proposals to promote substrate to suggested roles
-
-  return;
 }
 
 async function loadRegistry(
@@ -230,22 +213,17 @@ function deriveLifecycle(
 
 export async function listAnchorsWithStatus(
   supabase: SupabaseClient,
-  basketId: string,
-  options?: { modeConfig?: BasketModeConfig }
+  basketId: string
 ): Promise<AnchorStatusSummary[]> {
   const { data: basketRow, error: basketError } = await supabase
     .from('baskets')
-    .select('id, mode')
+    .select('id')
     .eq('id', basketId)
     .maybeSingle();
 
   if (basketError || !basketRow) {
     throw new Error(`Basket not found: ${basketError?.message || basketId}`);
   }
-
-  const modeConfig = options?.modeConfig ?? await loadBasketModeConfig(basketRow.mode ?? 'default');
-
-  await ensureAnchorsFromMode(supabase, basketId, modeConfig);
 
   const registry = await loadRegistry(supabase, basketId);
   const anchorKeys = registry.map(anchor => anchor.anchor_key);

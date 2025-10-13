@@ -4,14 +4,12 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import CreateBasketDialog from '@/components/CreateBasketDialog';
-import type { BasketMode } from '@/shared/contracts/baskets';
 
 export type BasketSummary = {
   id: string;
   name: string | null;
   status: string | null;
   created_at: string | null;
-  mode: BasketMode;
   pendingProposals: {
     count: number;
     lastCreatedAt: string | null;
@@ -74,7 +72,7 @@ export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-medium">{basket.name || 'Untitled basket'}</h3>
-                    <p className="text-sm text-muted-foreground">Mode · {basket.mode.replace(/_/g, ' ')}</p>
+                    <p className="text-sm text-muted-foreground">Curated knowledge hub</p>
                   </div>
                   <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
                     {basket.status ?? 'Active'}
@@ -94,4 +92,3 @@ export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
     </div>
   );
 }
-

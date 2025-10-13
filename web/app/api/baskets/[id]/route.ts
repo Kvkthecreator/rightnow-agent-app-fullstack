@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { loadBasketModeConfig } from '@/basket-modes/loader';
-import type { BasketModeId } from '@/basket-modes/types';
 
 interface RouteContext { params: Promise<{ id: string }> }
 
@@ -17,7 +15,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 
     const { data: basket, error } = await supabase
       .from('baskets')
-      .select('id,name,workspace_id,status,created_at,mode')
+      .select('id,name,workspace_id,status,created_at')
       .eq('id', id)
       .maybeSingle();
 
@@ -27,23 +25,12 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: 'forbidden' }, { status: 403 });
     }
 
-    // Check if mode has setup wizard enabled
-    let hasSetupWizard = false;
-    try {
-      const modeId = (basket.mode ?? 'default') as BasketModeId;
-      const modeConfig = await loadBasketModeConfig(modeId);
-      hasSetupWizard = modeConfig.wizards?.setup?.enabled ?? false;
-    } catch (error) {
-      console.warn('Could not load mode config for wizard check', error);
-    }
-
     return NextResponse.json({
       id: basket.id,
       name: basket.name,
       status: basket.status,
       created_at: basket.created_at,
-      mode: basket.mode,
-      has_setup_wizard: hasSetupWizard,
+      has_setup_wizard: false,
     }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: 'internal server error' }, { status: 500 });

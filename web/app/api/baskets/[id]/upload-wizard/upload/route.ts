@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { loadBasketModeConfig } from '@/basket-modes/loader';
-import type { BasketModeId } from '@/basket-modes/types';
 
 /**
  * Upload Wizard - File Upload API
@@ -28,7 +26,7 @@ export async function POST(
     // Validate basket access
     const { data: basket, error: basketError } = await supabase
       .from('baskets')
-      .select('id, workspace_id, name, mode')
+      .select('id, workspace_id, name')
       .eq('id', basketId)
       .maybeSingle();
 
@@ -40,16 +38,6 @@ export async function POST(
     }
 
     // Load mode config
-    const modeId = (basket.mode ?? 'default') as BasketModeId;
-    const modeConfig = await loadBasketModeConfig(modeId);
-
-    if (!modeConfig.wizards?.upload?.enabled) {
-      return NextResponse.json(
-        { error: 'Upload wizard not enabled for this basket mode' },
-        { status: 400 }
-      );
-    }
-
     const body = await req.json();
     const { fileName, content } = body as { fileName: string; content: string };
 
@@ -69,7 +57,6 @@ export async function POST(
         body_md: content.trim(),
         source_meta: {
           wizard_type: 'upload',
-          basket_mode: modeId,
           original_filename: fileName,
           upload_timestamp: new Date().toISOString(),
         },
@@ -97,7 +84,6 @@ export async function POST(
         input_refs: { raw_dump_id: raw_dump.id },
         metadata: {
           source: 'upload_wizard',
-          mode_id: modeId,
           original_filename: fileName,
         },
       })

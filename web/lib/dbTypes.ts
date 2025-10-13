@@ -22,13 +22,12 @@ export interface Database {
         Row: {
           id: string;
           name: string | null;
-          status: string;
-          created_at: string;
-          user_id: string;
-          raw_dump_id: string;
-          workspace_id: string;
-          mode: 'default' | 'product_brain' | 'campaign_brain';
-        };
+      status: string;
+      created_at: string;
+      user_id: string;
+      raw_dump_id: string;
+      workspace_id: string;
+    };
       };
       basket_signatures: {
         Row: {

@@ -10,7 +10,6 @@ export const BasketSchema = z.object({
   name: z.string(),
   status: z.enum(['INIT', 'ACTIVE', 'ARCHIVED', 'DEPRECATED']),
   workspace_id: UUIDSchema,
-  mode: z.enum(['default', 'product_brain', 'campaign_brain']).optional(),
   raw_dump_id: UUIDSchema.nullable().optional(),
   origin_template: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),

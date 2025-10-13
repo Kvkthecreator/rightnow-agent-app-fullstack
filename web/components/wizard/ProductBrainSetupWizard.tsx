@@ -2,12 +2,23 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import type { SetupWizardStepSpec } from '@/basket-modes/types';
 import { WizardProgress } from './WizardProgress';
 import { WizardStep } from './WizardStep';
 import { Textarea } from '@/components/ui/Textarea';
 import { Card } from '@/components/ui/Card';
 import { Sparkles, Lightbulb } from 'lucide-react';
+
+export type SetupWizardStepSpec = {
+  id: string;
+  field: string;
+  question: string;
+  prompt: string;
+  placeholder?: string;
+  optional?: boolean;
+  minLength?: number;
+  inputType?: 'textarea' | 'short';
+  anchorRefs?: string[];
+};
 
 interface ProductBrainSetupWizardProps {
   basketId: string;

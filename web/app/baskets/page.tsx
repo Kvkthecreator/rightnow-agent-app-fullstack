@@ -47,7 +47,6 @@ export default async function BasketsPage() {
     name: basket.name,
     status: basket.status,
     created_at: basket.created_at,
-    mode: basket.mode,
     pendingProposals: proposalsByBasket.get(basket.id) ?? { count: 0, lastCreatedAt: null, origin: null, host: null },
   }));
 

@@ -23,9 +23,6 @@ class CreateBasketReq(BaseModel):
     idempotency_key: str
     basket: Optional[dict] = None
 
-ALLOWED_MODES = {"default", "product_brain", "campaign_brain"}
-
-
 @router.post("/new", status_code=201)
 async def create_basket(
     request: Request,
@@ -43,14 +40,12 @@ async def create_basket(
         idempotency_key = payload.idempotency_key
         basket_payload = payload.basket or {}
         basket_name = basket_payload.get("name") or "Untitled Basket"
-        requested_mode = basket_payload.get("mode")
-        basket_mode = requested_mode if requested_mode in ALLOWED_MODES else "default"
 
         # Check for replay using idempotency key
         sb = supabase_admin()
         existing = (
             sb.table("baskets")
-            .select("id,name,mode")
+            .select("id,name")
             .eq("user_id", user["user_id"])
             .eq("idempotency_key", idempotency_key)
             .execute()
@@ -74,7 +69,6 @@ async def create_basket(
                 "basket_id": basket_id,
                 "id": basket_id,
                 "name": name,
-                "mode": existing.data[0].get("mode") or "default",
             }, status_code=200)
 
         # Insert new basket with generated ID
@@ -87,7 +81,6 @@ async def create_basket(
             "name": basket_name,
             "idempotency_key": idempotency_key,
             "status": "INIT",
-            "mode": basket_mode,
         }
         # Insert and return the created basket
         try:
@@ -131,7 +124,6 @@ async def create_basket(
             "basket_id": basket_id,
             "id": basket_id,
             "name": basket_name,
-            "mode": basket_mode,
         }, status_code=201)
         
     except Exception as e:

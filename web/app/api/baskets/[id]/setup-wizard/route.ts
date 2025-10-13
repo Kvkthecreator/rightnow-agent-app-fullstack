@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { loadBasketModeConfig } from '@/basket-modes/loader';
-import type { BasketModeId } from '@/basket-modes/types';
 
 /**
  * Setup Wizard Submission API
@@ -28,7 +26,7 @@ export async function POST(
     // Validate basket access
     const { data: basket, error: basketError } = await supabase
       .from('baskets')
-      .select('id, workspace_id, name, mode')
+      .select('id, workspace_id, name')
       .eq('id', basketId)
       .maybeSingle();
 
@@ -40,16 +38,6 @@ export async function POST(
     }
 
     // Load wizard config
-    const modeId = (basket.mode ?? 'default') as BasketModeId;
-    const modeConfig = await loadBasketModeConfig(modeId);
-
-    if (!modeConfig.wizards?.setup?.enabled) {
-      return NextResponse.json(
-        { error: 'Setup wizard not enabled for this basket mode' },
-        { status: 400 }
-      );
-    }
-
     const body = await req.json();
     const { inputs } = body as { inputs: Record<string, string> };
 
@@ -60,30 +48,22 @@ export async function POST(
       );
     }
 
-    // Validate required inputs
-    const wizardSteps = modeConfig.wizards.setup.steps;
-    for (const step of wizardSteps) {
-      if (!step.optional && !inputs[step.field]?.trim()) {
-        return NextResponse.json(
-          { error: `Required field missing: ${step.field}` },
-          { status: 400 }
-        );
-      }
+    const sanitizedEntries = Object.entries(inputs).filter(([, value]) => typeof value === 'string' && value.trim().length);
+    if (!sanitizedEntries.length) {
+      return NextResponse.json(
+        { error: 'No valid inputs provided' },
+        { status: 400 }
+      );
     }
 
-    // P0: Create raw_dumps for each input
-    const raw_dump_inserts = wizardSteps
-      .filter((step) => inputs[step.field]?.trim())
-      .map((step) => ({
+    // P0: Create raw_dumps for each provided input
+    const raw_dump_inserts = sanitizedEntries.map(([field, value]) => ({
         basket_id: basketId,
         workspace_id: workspace.id,
-        body_md: inputs[step.field].trim(),
+        body_md: value.trim(),
         source_meta: {
-          wizard_step: step.id,
-          wizard_field: step.field,
+          wizard_field: field,
           wizard_type: 'setup',
-          basket_mode: modeId,
-          anchor_refs: step.anchorRefs || [],
         },
         created_by: userId,
       }));
@@ -110,7 +90,6 @@ export async function POST(
       input_refs: { raw_dump_id: dump.id },
       metadata: {
         source: 'setup_wizard',
-        mode_id: modeId,
       },
     }));
 

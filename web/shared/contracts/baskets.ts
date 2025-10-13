@@ -1,7 +1,4 @@
 // Basket core types and API contracts
-
-export type BasketMode = 'default' | 'product_brain' | 'campaign_brain';
-
 export type Basket = {
   id: string;
   name: string;
@@ -12,7 +9,6 @@ export type Basket = {
   tags?: string[];
   created_at: string;
   updated_at?: string;
-  mode?: BasketMode;
   // Aggregate counts for dashboard metrics
   blocks?: number;
   raw_dumps?: number;
@@ -24,7 +20,6 @@ export type CreateBasketReq = {
   idempotency_key: string;
   basket?: {
     name?: string;
-    mode?: BasketMode;
   };
 };
 
@@ -32,7 +27,6 @@ export type CreateBasketRes = {
   basket_id: string;
   id: string;
   name: string;
-  mode?: BasketMode;
 };
 
 // Basket change operations

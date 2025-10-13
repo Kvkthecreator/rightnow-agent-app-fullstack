@@ -8,7 +8,6 @@ export interface BasketAccessResult {
     id: string;
     name: string | null;
     workspace_id: string;
-    mode: string | null;
   };
   workspace: {
     id: string;
@@ -41,7 +40,7 @@ export async function checkBasketAccess(
 
   const { data: basket, error: basketError } = await supabase
     .from('baskets')
-    .select('id, name, workspace_id, mode')
+    .select('id, name, workspace_id')
     .eq('id', basketId)
     .eq('workspace_id', workspace.id)
     .maybeSingle()
@@ -72,7 +71,7 @@ export async function tryCheckBasketAccess(
 
     const { data: basket } = await supabase
       .from('baskets')
-    .select('id, name, workspace_id, mode')
+      .select('id, name, workspace_id')
       .eq('id', basketId)
       .eq('workspace_id', workspace.id)
       .maybeSingle()

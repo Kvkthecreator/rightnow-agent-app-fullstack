@@ -6,7 +6,7 @@
  */
 import { apiClient, timeoutSignal } from './http';
 import { BasketSchema, PaginatedSchema, type Basket, type Paginated } from './contracts';
-import type { BasketMode, CreateBasketReq, CreateBasketRes } from '@/shared/contracts/baskets';
+import type { CreateBasketReq, CreateBasketRes } from '@/shared/contracts/baskets';
 
 // Get single basket
 export async function getBasket(basketId: string): Promise<Basket> {
@@ -72,20 +72,6 @@ export async function updateBasket(
     signal: timeoutSignal(10000),
   });
   
-  return BasketSchema.parse(response);
-}
-
-export async function updateBasketMode(
-  basketId: string,
-  mode: BasketMode,
-): Promise<Basket> {
-  const response = await apiClient({
-    url: `/api/baskets/${basketId}/mode`,
-    method: 'PATCH',
-    body: { mode },
-    signal: timeoutSignal(10000),
-  });
-
   return BasketSchema.parse(response);
 }
 

@@ -15,9 +15,6 @@ import { BasketWrapper } from "@/components/basket/BasketWrapper";
 import MemoryClient from "./MemoryClient";
 import { hasIdentityGenesis, isBlankBasket } from "@/lib/server/onboarding";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
-import { ModeOnboardingPanel } from "@/components/basket-mode/ModeOnboardingPanel";
-import { loadBasketModeConfig } from "@/basket-modes/loader";
-import type { BasketModeId } from "@/basket-modes/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -37,7 +34,7 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
   // Fetch full basket data for context (extending the access check data)
   const { data: basketDetails } = await supabase
     .from('baskets')
-    .select('description, status, created_at, last_activity_ts, tags, origin_template, mode, name')
+    .select('description, status, created_at, last_activity_ts, tags, origin_template, name')
     .eq('id', id)
     .maybeSingle();
 
@@ -52,12 +49,7 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
     last_activity_ts: basketDetails?.last_activity_ts || null,
     tags: basketDetails?.tags || null,
     origin_template: basketDetails?.origin_template || null,
-    mode: (basketDetails?.mode ?? basketAccess.mode ?? 'default') as string,
   };
-
-  const modeConfig = await loadBasketModeConfig(
-    (basket.mode ?? 'default') as BasketModeId,
-  );
 
   // Check if user needs onboarding (only if basket blank AND no identity genesis)
   const { userId } = await getAuthenticatedUser(supabase);
@@ -68,9 +60,8 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
   const needsOnboarding = blank && !hasGenesis;
 
   return (
-    <BasketWrapper basket={basket} modeConfig={modeConfig}>
+    <BasketWrapper basket={basket}>
       <div className="space-y-6 pb-8">
-        <ModeOnboardingPanel />
         {onboarded && (
           <div className="rounded-lg border bg-green-50 p-4 text-sm text-green-700 flex justify-between">
             <span>Memory initialized from your First Mirror.</span>

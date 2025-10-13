@@ -94,7 +94,6 @@ export function useCreateBasket() {
       try {
         const basketResponse = await apiClient.request<{
           id: string;
-          mode: string | null;
           has_setup_wizard?: boolean;
         }>(`/api/baskets/${basketId}`, { method: 'GET' });
 

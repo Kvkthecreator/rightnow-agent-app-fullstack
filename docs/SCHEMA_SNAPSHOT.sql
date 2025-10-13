@@ -19,11 +19,6 @@ CREATE TYPE public.alert_type AS ENUM (
     'system.security',
     'system.storage'
 );
-CREATE TYPE public.basket_mode AS ENUM (
-    'default',
-    'product_brain',
-    'campaign_brain'
-);
 CREATE TYPE public.basket_state AS ENUM (
     'INIT',
     'ACTIVE',
@@ -1823,12 +1818,6 @@ CREATE SEQUENCE public.basket_events_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.basket_events_id_seq OWNED BY public.basket_events.id;
-CREATE TABLE public.basket_mode_configs (
-    mode_id text NOT NULL,
-    config jsonb NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_by text
-);
 CREATE TABLE public.basket_signatures (
     basket_id uuid NOT NULL,
     workspace_id uuid NOT NULL,
@@ -1853,8 +1842,7 @@ CREATE TABLE public.baskets (
     workspace_id uuid NOT NULL,
     origin_template text,
     tags text[] DEFAULT '{}'::text[],
-    idempotency_key uuid,
-    mode public.basket_mode DEFAULT 'default'::public.basket_mode NOT NULL
+    idempotency_key uuid
 );
 CREATE TABLE public.block_links (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2500,8 +2488,6 @@ ALTER TABLE ONLY public.basket_deltas
     ADD CONSTRAINT basket_deltas_pkey PRIMARY KEY (delta_id);
 ALTER TABLE ONLY public.basket_events
     ADD CONSTRAINT basket_events_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.basket_mode_configs
-    ADD CONSTRAINT basket_mode_configs_pkey PRIMARY KEY (mode_id);
 ALTER TABLE ONLY public.reflections_artifact
     ADD CONSTRAINT basket_reflections_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.basket_signatures
@@ -2586,7 +2572,6 @@ ALTER TABLE ONLY public.workspace_notification_settings
     ADD CONSTRAINT workspace_notification_settings_pkey PRIMARY KEY (workspace_id);
 ALTER TABLE ONLY public.workspaces
     ADD CONSTRAINT workspaces_pkey PRIMARY KEY (id);
-CREATE INDEX baskets_mode_idx ON public.baskets USING btree (mode);
 CREATE INDEX baskets_user_idx ON public.baskets USING btree (user_id);
 CREATE INDEX blk_doc_idx ON public.block_links USING btree (block_id, document_id);
 CREATE UNIQUE INDEX docs_basket_title_idx ON public.documents USING btree (basket_id, title);
@@ -3055,8 +3040,6 @@ CREATE POLICY basket_member_read ON public.baskets FOR SELECT USING (((auth.uid(
 CREATE POLICY basket_member_update ON public.baskets FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
-ALTER TABLE public.basket_mode_configs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY basket_mode_configs_service_role_full ON public.basket_mode_configs TO service_role USING (true) WITH CHECK (true);
 ALTER TABLE public.basket_signatures ENABLE ROW LEVEL SECURITY;
 CREATE POLICY basket_signatures_select ON public.basket_signatures FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships wm

@@ -556,7 +556,7 @@ Document: Auto-regenerated with new section
 ### Risk 4: Learning Curve Too Steep
 
 **Mitigation:**
-- Gradual introduction via basket mode wizards
+- Gradual introduction via guided capture wizards
 - Interactive tutorials on substrate management
 - FAB evolution path (buttons → conversational agent)
 

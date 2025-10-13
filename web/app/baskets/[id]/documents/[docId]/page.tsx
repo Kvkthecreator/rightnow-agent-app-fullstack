@@ -4,9 +4,6 @@ import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser'
 import { notFound } from 'next/navigation';
 import { BasketWrapper } from '@/components/basket/BasketWrapper';
 import { DocumentPage } from '@/components/documents/DocumentPage';
-import { ModeDeliverablesPanel } from '@/components/basket-mode/ModeDeliverablesPanel';
-import { loadBasketModeConfig } from '@/basket-modes/loader';
-import type { BasketModeId } from '@/basket-modes/types';
 
 interface PageProps {
   params: Promise<{ id: string; docId: string }>;
@@ -39,7 +36,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   // Fetch additional basket data for context
   const { data: basketDetails } = await supabase
     .from('baskets')
-    .select('name, description, status, created_at, last_activity_ts, tags, origin_template, mode')
+    .select('name, description, status, created_at, last_activity_ts, tags, origin_template')
     .eq('id', basketId)
     .maybeSingle();
 
@@ -54,12 +51,7 @@ export default async function DocumentDetailPage({ params }: PageProps) {
     last_activity_ts: basketDetails?.last_activity_ts || null,
     tags: basketDetails?.tags || null,
     origin_template: basketDetails?.origin_template || null,
-    mode: (basketDetails?.mode ?? 'default') as string,
   };
-
-  const modeConfig = await loadBasketModeConfig(
-    (basket.mode ?? 'default') as BasketModeId,
-  );
 
   // Map document_heads view fields to DocumentPage expected format
   const documentForPage = {
@@ -74,11 +66,8 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   };
 
   return (
-    <BasketWrapper basket={basket} modeConfig={modeConfig}>
-      <div className="space-y-6">
-        <ModeDeliverablesPanel />
-        <DocumentPage document={documentForPage} basketId={basketId} />
-      </div>
+    <BasketWrapper basket={basket}>
+      <DocumentPage document={documentForPage} basketId={basketId} />
     </BasketWrapper>
   );
 }
