@@ -51,13 +51,25 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: false })
     .limit(8);
 
+  // Fetch alerts directly from Supabase (server-side)
   let alerts: AnnouncerAlert[] = [];
   try {
-    const response = await apiGet('/api/alerts/current');
-    if (response.ok) {
-      const payload = (await response.json()) as { alerts?: AnnouncerAlert[] };
-      alerts = payload.alerts ?? [];
-    }
+    const { data: alertsData } = await supabase
+      .from('user_alerts')
+      .select('*')
+      .eq('user_id', userId)
+      .is('dismissed_at', null)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    alerts = (alertsData || []).map((alert) => ({
+      id: alert.id,
+      type: alert.alert_type,
+      severity: alert.severity,
+      title: alert.title,
+      message: alert.message,
+      created_at: alert.created_at,
+    }));
   } catch (error) {
     console.error('[Dashboard] Failed to load alerts', error);
   }
