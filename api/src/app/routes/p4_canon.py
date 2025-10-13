@@ -405,43 +405,67 @@ async def _compose_document_canon(
     composition_mode: Optional[str]
 ) -> str:
     """
-    Compose document canon content from insight + substrate.
-
-    TODO: Integrate with LLM service for intelligent composition.
-    For now, returns structured placeholder.
+    Compose document canon content from insight + substrate using LLM.
     """
-    # Placeholder implementation
-    blocks_count = len(substrate.get('blocks', []))
-    items_count = len(substrate.get('context_items', []))
-    dumps_count = len(substrate.get('dumps', []))
-    events_count = len(substrate.get('events', []))
+    from services.llm import get_llm
 
-    canon_content = f"""# {basket_name} - Context Canon
+    # Format substrate
+    blocks = substrate.get('blocks', [])
+    context_items = substrate.get('context_items', [])
+    dumps = substrate.get('dumps', [])
+    events = substrate.get('events', [])
 
-## Current Understanding (Insight Canon)
+    # Build prompt for document canon
+    prompt = f"""You are composing a Basket Context Canon - a comprehensive document that captures the complete state and understanding of a knowledge basket.
+
+**Basket**: {basket_name}
+
+**Current Insight Canon** (Core Understanding):
+{insight_canon.get('reflection_text', 'No insight available')}
+
+**Substrate Available**:
+- {len(blocks)} blocks (structured knowledge)
+- {len(context_items)} context items (markers and labels)
+- {len(dumps)} raw dumps (original captures)
+- {len(events)} timeline events (temporal markers)
+
+**Composition Mode**: {composition_mode or 'comprehensive'}
+
+**Your Task**: Create a {composition_mode or 'comprehensive'} Basket Context Canon document that:
+
+1. **Synthesizes the Insight Canon** - Use it as the foundation
+2. **Weaves in Key Substrate** - Include relevant examples from blocks, context items
+3. **Provides Structure** - Organize into clear sections
+4. **Captures Context** - Help someone understand this basket deeply
+
+{"**Style**: Comprehensive and detailed. Include all major themes, blocks, and connections." if composition_mode == 'comprehensive' else ""}
+{"**Style**: Concise and focused. Highlight only the most essential points." if composition_mode == 'concise' else ""}
+{"**Style**: Narrative and engaging. Tell the story of this knowledge." if composition_mode == 'narrative' else ""}
+
+Write the Document Canon in markdown format (500-1500 words depending on mode)."""
+
+    llm = get_llm()
+    response = await llm.get_text_response(prompt, temperature=0.6, max_tokens=2500)
+
+    if not response.success:
+        # Fallback to structured format
+        return f"""# {basket_name} - Context Canon
+
+## Insight Canon
 
 {insight_canon.get('reflection_text', 'No insight available')}
 
-## Substrate Overview
+## Substrate Summary
 
-- **Blocks**: {blocks_count} active knowledge components
-- **Context Items**: {items_count} active context markers
-- **Raw Dumps**: {dumps_count} source captures
-- **Timeline Events**: {events_count} temporal markers
+- {len(blocks)} blocks
+- {len(context_items)} context items
+- {len(dumps)} dumps
+- {len(events)} events
 
-## Composition Mode
-
-{composition_mode or 'comprehensive'}
-
----
-
-*Generated: {datetime.utcnow().isoformat()}*
-*Substrate Hash: {insight_canon.get('substrate_hash', 'N/A')}*
-
-[TODO: Full LLM-powered composition pending]
+*LLM composition failed: {response.error}*
 """
 
-    return canon_content
+    return response.content
 
 
 async def _compose_starter_prompt(
@@ -452,28 +476,61 @@ async def _compose_starter_prompt(
     prompt_style: Optional[str]
 ) -> str:
     """
-    Compose starter prompt for target host.
-
-    TODO: Integrate with LLM service and host-specific templates.
+    Compose starter prompt for target host using LLM.
     """
-    # Placeholder implementation
-    prompt_content = f"""You are working on: {basket_name}
+    from services.llm import get_llm
 
-**Current Context:**
+    # Host-specific instructions
+    host_instructions = {
+        'claude_ai': 'Optimize for Claude.ai chat - provide context that helps Claude understand the basket deeply and respond helpfully.',
+        'chatgpt': 'Optimize for ChatGPT - provide clear, structured context that GPT can use to assist effectively.',
+        'cursor': 'Optimize for Cursor IDE - provide technical context that helps with coding tasks.',
+        'windsurf': 'Optimize for Windsurf editor - provide project context for intelligent code assistance.'
+    }.get(target_host, 'Provide clear context for AI assistance.')
+
+    prompt = f"""Create a Starter Prompt for {target_host} that encapsulates this knowledge basket's context.
+
+**Basket**: {basket_name}
+
+**Core Understanding** (Insight Canon):
 {insight_canon.get('reflection_text', 'No insight available')}
 
-**Available Knowledge:**
-- {len(substrate.get('blocks', []))} structured blocks
+**Available Knowledge**:
+- {len(substrate.get('blocks', []))} blocks
 - {len(substrate.get('context_items', []))} context items
-- {len(substrate.get('dumps', []))} raw captures
+- {len(substrate.get('dumps', []))} dumps
 
-**Style:** {prompt_style or 'concise'}
-**Host:** {target_host}
+**Target Host**: {target_host}
+{host_instructions}
 
-[TODO: Host-specific prompt engineering pending]
-"""
+**Style**: {prompt_style or 'concise'}
 
-    return prompt_content
+**Your Task**: Write a starter prompt (200-400 words) that:
+1. Captures the essence of this basket's knowledge
+2. Provides necessary context for the AI host
+3. Enables productive interaction
+4. Is formatted appropriately for {target_host}
+
+{"Keep it brief and focused." if prompt_style == 'concise' else ""}
+{"Provide thorough detail and background." if prompt_style == 'detailed' else ""}
+{"Use creative, engaging language." if prompt_style == 'creative' else ""}
+
+Write the starter prompt now:"""
+
+    llm = get_llm()
+    response = await llm.get_text_response(prompt, temperature=0.7, max_tokens=800)
+
+    if not response.success:
+        # Fallback
+        return f"""Working on: {basket_name}
+
+Context: {insight_canon.get('reflection_text', 'No insight available')[:300]}
+
+Available: {len(substrate.get('blocks', []))} blocks, {len(substrate.get('context_items', []))} context items
+
+*LLM generation failed: {response.error}*"""
+
+    return response.content
 
 
 def _build_substrate_refs(substrate: Dict[str, Any]) -> Dict[str, List[str]]:

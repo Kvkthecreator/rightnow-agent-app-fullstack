@@ -405,26 +405,112 @@ async def _generate_insight_text(
     agent_context: Optional[Dict[str, Any]] = None
 ) -> str:
     """
-    Generate insight text via AI.
-
-    TODO: Integrate with your LLM service (OpenAI, Anthropic, etc.)
-    For now, returns placeholder.
+    Generate insight text via AI using existing LLM service.
     """
-    # Placeholder implementation
-    # In production, format substrate and call LLM API
+    from services.llm import get_llm
 
-    prompt_prefix = {
-        'insight_canon': 'Analyze this basket and summarize what matters now:',
-        'doc_insight': 'Interpret this document\'s meaning and purpose:',
-        'timeboxed_insight': f'Analyze what happened during this time window:'
-    }.get(insight_type, 'Analyze this context:')
+    # Format substrate for LLM
+    blocks = substrate.get('blocks', [])
+    context_items = substrate.get('context_items', [])
+    dumps = substrate.get('dumps', [])
+    events = substrate.get('events', [])
+    relationships = substrate.get('relationships', [])
 
-    # TODO: Call LLM API with substrate + prompt
-    # For now, return placeholder
-    block_count = len(substrate.get('blocks', []))
-    item_count = len(substrate.get('context_items', []))
+    # Build context string
+    substrate_text = "# Substrate Context\n\n"
 
-    return f"[PLACEHOLDER INSIGHT - {insight_type}] This basket contains {block_count} blocks and {item_count} context items. AI generation pending."
+    if blocks:
+        substrate_text += f"## Blocks ({len(blocks)} items)\n"
+        for block in blocks[:20]:  # Limit to avoid token overflow
+            substrate_text += f"- {block.get('semantic_type', 'unknown')}: {block.get('content', '')[:200]}\n"
+        substrate_text += "\n"
+
+    if context_items:
+        substrate_text += f"## Context Items ({len(context_items)} items)\n"
+        for item in context_items[:15]:
+            substrate_text += f"- {item.get('label', 'unlabeled')}: {item.get('content', '')[:150]}\n"
+        substrate_text += "\n"
+
+    if dumps:
+        substrate_text += f"## Raw Dumps ({len(dumps)} items)\n"
+        for dump in dumps[:5]:
+            substrate_text += f"- {dump.get('body_md', '')[:300]}\n"
+        substrate_text += "\n"
+
+    if events:
+        substrate_text += f"## Timeline Events ({len(events)} items)\n"
+        for event in events[:10]:
+            substrate_text += f"- {event.get('event_type', 'unknown')}: {event.get('summary', '')[:100]}\n"
+        substrate_text += "\n"
+
+    if relationships:
+        substrate_text += f"## Relationships ({len(relationships)} connections)\n"
+        for rel in relationships[:10]:
+            substrate_text += f"- {rel.get('relationship_type', 'unknown')}: {rel.get('from_type', '')} → {rel.get('to_type', '')}\n"
+        substrate_text += "\n"
+
+    # Build prompt based on insight type
+    if insight_type == 'insight_canon':
+        prompt = f"""You are analyzing a knowledge basket to create an Insight Canon - the core understanding of "what matters now".
+
+{substrate_text}
+
+**Task**: Synthesize this substrate into a cohesive insight canon that captures:
+1. The central themes and patterns
+2. Key tensions or questions emerging
+3. What matters most right now in this basket
+4. Connections between different pieces of knowledge
+
+Write a clear, direct insight canon (300-500 words) that someone could read to quickly understand what this basket is about."""
+
+    elif insight_type == 'doc_insight':
+        doc_title = substrate.get('document_title', 'Untitled')
+        doc_content = substrate.get('document_content', '')
+        prompt = f"""You are analyzing a document to create a doc_insight - understanding its meaning and purpose.
+
+**Document**: {doc_title}
+
+**Content Preview**:
+{doc_content[:1000]}
+
+**Task**: Provide insight into:
+1. The document's main purpose and message
+2. Key themes or ideas
+3. How this fits into the broader knowledge context
+
+Write a concise doc insight (150-300 words)."""
+
+    elif insight_type == 'timeboxed_insight':
+        window_start = agent_context.get('window_start') if agent_context else 'unknown'
+        window_end = agent_context.get('window_end') if agent_context else 'unknown'
+        prompt = f"""You are analyzing a time-boxed window of activity: {window_start} to {window_end}
+
+{substrate_text}
+
+**Task**: Summarize what happened during this time window:
+1. What was added or changed
+2. Patterns of activity
+3. Progress or evolution
+4. Notable events or milestones
+
+Write a temporal insight (200-400 words) focused on this specific timeframe."""
+
+    else:
+        prompt = f"""Analyze the following context and provide insight:
+
+{substrate_text}
+
+Write a clear insight (200-400 words)."""
+
+    # Call LLM
+    llm = get_llm()
+    response = await llm.get_text_response(prompt, temperature=0.7, max_tokens=1000)
+
+    if not response.success:
+        # Fallback to structured summary if LLM fails
+        return f"Analysis of basket with {len(blocks)} blocks, {len(context_items)} context items, and {len(dumps)} dumps. LLM generation failed: {response.error}"
+
+    return response.content
 
 
 def _build_substrate_provenance(substrate: Dict[str, Any]) -> List[Dict[str, Any]]:
