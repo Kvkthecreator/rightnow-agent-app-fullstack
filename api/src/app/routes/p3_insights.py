@@ -22,7 +22,7 @@ from lib.freshness import (
     compute_basket_substrate_hash,
     compute_graph_signature
 )
-from middleware.service_role_middleware import verify_service_role
+from middleware.service_auth import verify_service_role
 
 router = APIRouter(prefix="/p3", tags=["p3-insights"])
 

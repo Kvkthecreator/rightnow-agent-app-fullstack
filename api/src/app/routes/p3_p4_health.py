@@ -16,7 +16,7 @@ from lib.freshness import (
     should_regenerate_insight_canon,
     should_regenerate_document_canon
 )
-from middleware.service_role_middleware import verify_service_role
+from middleware.service_auth import verify_service_role
 
 router = APIRouter(prefix="/health", tags=["p3-p4-health"])
 

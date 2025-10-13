@@ -20,7 +20,7 @@ from lib.freshness import (
     should_regenerate_document_canon,
     compute_basket_substrate_hash
 )
-from middleware.service_role_middleware import verify_service_role
+from middleware.service_auth import verify_service_role
 
 router = APIRouter(prefix="/p4", tags=["p4-documents"])
 
