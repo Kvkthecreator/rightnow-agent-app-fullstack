@@ -160,7 +160,6 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
         onClose={() => setShowAddMemory(false)}
         onSuccess={() => {
           loadStats();
-          loadLatestReflection();
         }}
       />
     </div>
