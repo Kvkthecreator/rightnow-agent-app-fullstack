@@ -34,17 +34,6 @@ const nextConfig = {
         destination: 'https://www.yarnnn.com/:path*',
         permanent: true,
       },
-      // Redirect /docs to external GitBook hosted URL (free tier)
-      {
-        source: '/docs',
-        destination: 'https://yarnnn.gitbook.io/docs',
-        permanent: false,
-      },
-      {
-        source: '/docs/:path*',
-        destination: 'https://yarnnn.gitbook.io/docs/:path*',
-        permanent: false,
-      },
     ]
   },
 

@@ -13,9 +13,14 @@ export default function LandingFooter() {
                         <div className="font-brand mb-1">yarnnn</div>
                     </div>
                     <div className="flex gap-4 text-sm">
-                        <Link href="/docs" className="hover:underline">
+                        <a
+                            href="https://yarnnn.gitbook.io/docs"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline"
+                        >
                             Documentation
-                        </Link>
+                        </a>
                         <Link href="/privacy" className="hover:underline">
                             Privacy
                         </Link>
