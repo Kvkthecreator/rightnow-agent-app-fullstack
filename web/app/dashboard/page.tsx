@@ -117,10 +117,6 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
         </section>
       )}
 
-      {(!claudeConnected || !chatgptConnected) && (
-        <GettingStartedCard claudeConnected={claudeConnected} chatgptConnected={chatgptConnected} />
-      )}
-
       <section>
         <h2 className="text-sm font-semibold uppercase text-muted-foreground">Integrations</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -130,8 +126,8 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
             status={claudeStatus.badge}
             meta={claudeStatus.meta}
             actionLabel={claudeConnected ? 'Manage tokens' : 'Connect Claude'}
-            actionHref="/dashboard/settings"
-            docsHref="/docs/integrations/claude"
+            actionHref="/dashboard/integrations"
+            docsHref="https://yarnnn.gitbook.io/docs/integrations-3rd-party/integrations"
           />
           <StatusCard
             title="ChatGPT"
@@ -139,8 +135,8 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
             status={chatgptStatus.badge}
             meta={chatgptStatus.meta}
             actionLabel={chatgptConnected ? 'View connection' : 'Preview details'}
-            actionHref="/dashboard/settings"
-            docsHref="/docs/integrations/chatgpt"
+            actionHref="/dashboard/integrations"
+            docsHref="https://yarnnn.gitbook.io/docs/integrations-3rd-party/integrations"
           />
         </div>
       </section>
@@ -241,7 +237,7 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
       <section>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase text-muted-foreground">MCP activity</h2>
-          <Link href="/dashboard/settings" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/dashboard/integrations" className="text-sm text-muted-foreground hover:text-foreground">
             Manage integrations
           </Link>
         </div>
@@ -327,9 +323,14 @@ function StatusCard({
           {actionLabel}
         </Link>
         <span className="text-muted-foreground">·</span>
-        <Link href={docsHref} className="text-muted-foreground hover:text-foreground">
+        <a
+          href={docsHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-muted-foreground hover:text-foreground"
+        >
           Docs
-        </Link>
+        </a>
       </div>
     </div>
   );
@@ -357,55 +358,6 @@ function AlertBanner({ alert }: { alert: AnnouncerAlert }) {
         ) : null}
       </div>
     </div>
-  );
-}
-
-function GettingStartedCard({
-  claudeConnected,
-  chatgptConnected,
-}: {
-  claudeConnected: boolean;
-  chatgptConnected: boolean;
-}) {
-  return (
-    <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-5 text-sm text-indigo-900">
-      <h2 className="text-base font-semibold text-indigo-900">Getting started</h2>
-      <p className="mt-2 max-w-3xl">
-        Connect Yarnnn to your AI hosts so ambient captures land in governed baskets. Start with Claude, then stay ready for the ChatGPT preview.
-      </p>
-      <ol className="mt-4 list-decimal space-y-2 pl-5">
-        <li>
-          <Link href="/dashboard/settings" className="underline">
-            Generate an integration token
-          </Link>{' '}
-          for your workspace.
-        </li>
-        <li>
-          Add <span className="font-medium">https://mcp.yarnnn.com</span> as a remote MCP connector inside Claude using that token.
-        </li>
-        <li>
-          Triage low-confidence captures from the{' '}
-          <Link href="/memory/unassigned" className="underline">
-            Unassigned queue
-          </Link>{' '}
-          as they appear.
-        </li>
-        {!chatgptConnected && (
-          <li>
-            Review the{' '}
-            <Link href="/docs/integrations/chatgpt" className="underline">
-              ChatGPT Apps preview guide
-            </Link>{' '}
-            so you can link ChatGPT when the beta opens.
-          </li>
-        )}
-      </ol>
-      {!claudeConnected && (
-        <p className="mt-4 text-xs text-indigo-800">
-          Once Claude is connected this card will disappear. You can revisit the setup steps anytime from Integrations settings.
-        </p>
-      )}
-    </section>
   );
 }
 

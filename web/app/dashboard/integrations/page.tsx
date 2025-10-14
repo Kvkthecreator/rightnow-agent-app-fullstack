@@ -92,10 +92,15 @@ export default async function IntegrationsPage() {
           </div>
 
           <div className="mt-4 text-sm text-muted-foreground">
-            Need help? Follow the{' '}
-            <Link href="/docs/integrations/claude" className="underline hover:text-foreground">
-              Claude integration guide
-            </Link>
+            Need help?{' '}
+            <a
+              href="https://yarnnn.gitbook.io/docs/integrations-3rd-party/integrations"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-foreground"
+            >
+              View integration guide
+            </a>
             .
           </div>
         </section>
@@ -112,9 +117,14 @@ export default async function IntegrationsPage() {
                 Status:{' '}
                 {chatgptConnected ? `Connected · last updated ${chatgptUpdated}` : 'Waiting for public Apps SDK'}
               </div>
-              <Link href="/docs/integrations/chatgpt" className="inline-flex w-fit items-center text-sm font-medium text-primary hover:underline">
-                View ChatGPT preview notes
-              </Link>
+              <a
+                href="https://yarnnn.gitbook.io/docs/integrations-3rd-party/integrations"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-fit items-center text-sm font-medium text-primary hover:underline"
+              >
+                View integration guide
+              </a>
             </div>
           </div>
         </section>
