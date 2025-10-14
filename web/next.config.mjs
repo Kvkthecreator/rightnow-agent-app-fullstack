@@ -34,18 +34,16 @@ const nextConfig = {
         destination: 'https://www.yarnnn.com/:path*',
         permanent: true,
       },
-    ]
-  },
-
-  async rewrites() {
-    return [
+      // Redirect /docs to external GitBook hosted URL (free tier)
       {
         source: '/docs',
-        destination: 'https://proxy.gitbook.site/sites/site_k5Zot',
+        destination: 'https://yarnnn.gitbook.io/docs',
+        permanent: false,
       },
       {
         source: '/docs/:path*',
-        destination: 'https://proxy.gitbook.site/sites/site_k5Zot/:path*',
+        destination: 'https://yarnnn.gitbook.io/docs/:path*',
+        permanent: false,
       },
     ]
   },
