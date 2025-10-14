@@ -37,6 +37,19 @@ const nextConfig = {
     ]
   },
 
+  async rewrites() {
+    return [
+      {
+        source: '/docs',
+        destination: 'https://proxy.gitbook.site/sites/site_k5Zot',
+      },
+      {
+        source: '/docs/:path*',
+        destination: 'https://proxy.gitbook.site/sites/site_k5Zot/:path*',
+      },
+    ]
+  },
+
   experimental: {
     externalDir: true,
   },

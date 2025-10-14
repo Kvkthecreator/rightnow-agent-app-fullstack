@@ -13,6 +13,9 @@ export default function LandingFooter() {
                         <div className="font-brand mb-1">yarnnn</div>
                     </div>
                     <div className="flex gap-4 text-sm">
+                        <Link href="/docs" className="hover:underline">
+                            Documentation
+                        </Link>
                         <Link href="/privacy" className="hover:underline">
                             Privacy
                         </Link>
@@ -34,17 +37,6 @@ export default function LandingFooter() {
                         <div className="font-medium mb-1">Contact</div>
                         <div className="text-neutral-700">
                             contactus@yarnnn.com
-                        </div>
-                    </div>
-                    <div>
-                        <div className="font-medium mb-1">Integrations</div>
-                        <div className="flex flex-col text-neutral-700">
-                            <Link href="/docs/integrations/claude" className="hover:underline">
-                                Claude MCP Guide
-                            </Link>
-                            <Link href="/docs/integrations/chatgpt" className="hover:underline">
-                                ChatGPT Apps Preview
-                            </Link>
                         </div>
                     </div>
                 </div>
