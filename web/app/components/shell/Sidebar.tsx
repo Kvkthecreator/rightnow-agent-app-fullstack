@@ -156,7 +156,7 @@ export default function Sidebar({ className }: SidebarProps) {
     uploads: CloudUpload,
     governance: Shield,
     timeline: Clock,
-    reflections: Brain,
+    insights: Brain,
     graph: Network,
     "building-blocks": Layers,
     documents: FileText,

@@ -1,5 +1,5 @@
 export type BasketSection = {
-  key: "memory" | "uploads" | "timeline" | "reflections" | "graph" | "building-blocks" | "documents" | "governance" | "settings";
+  key: "memory" | "uploads" | "timeline" | "insights" | "graph" | "building-blocks" | "documents" | "governance" | "settings";
   label: string;
   href: (id: string) => string;
 };
@@ -11,12 +11,12 @@ export const SECTION_ORDER: BasketSection[] = [
   { key: "uploads", label: "Uploads", href: (id) => `/baskets/${id}/uploads` },
   { key: "building-blocks", label: "Building Blocks", href: (id) => `/baskets/${id}/building-blocks` },
   { key: "governance", label: "Change Requests", href: (id) => `/baskets/${id}/governance` },
-  
+
   // Insights
-  { key: "reflections", label: "Reflections", href: (id) => `/baskets/${id}/reflections` },
+  { key: "insights", label: "Insights", href: (id) => `/baskets/${id}/insights` },
   { key: "graph", label: "Graph", href: (id) => `/baskets/${id}/graph` },
   { key: "timeline", label: "Timeline", href: (id) => `/baskets/${id}/timeline` },
-  
+
   // Settings
   { key: "settings", label: "Settings", href: (id) => `/baskets/${id}/settings` },
   { key: "documents", label: "Documents", href: (id) => `/baskets/${id}/documents` },
