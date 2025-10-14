@@ -11,12 +11,12 @@ from typing import Optional, Dict, Any, List
 from uuid import UUID
 
 from app.utils.supabase import supabase_admin
+from app.utils.jwt import verify_jwt
 from lib.freshness import (
     get_basket_canons_health,
     should_regenerate_insight_canon,
     should_regenerate_document_canon
 )
-from middleware.auth import get_current_user
 
 router = APIRouter(prefix="/health", tags=["p3-p4-health"])
 
@@ -52,7 +52,7 @@ class WorkspaceCanonsHealthResponse(BaseModel):
 @router.get("/basket/{basket_id}", response_model=BasketCanonsHealthResponse)
 async def check_basket_health(
     basket_id: str,
-    current_user: dict = Depends(get_current_user)
+    user: dict = Depends(verify_jwt)
 ):
     """
     Check health of required P3/P4 canons for a basket.
@@ -84,7 +84,7 @@ async def check_basket_health(
 @router.get("/workspace/{workspace_id}", response_model=WorkspaceCanonsHealthResponse)
 async def check_workspace_health(
     workspace_id: str,
-    current_user: dict = Depends(get_current_user)
+    user: dict = Depends(verify_jwt)
 ):
     """
     Check health of P3/P4 canons across all baskets in a workspace.
@@ -145,7 +145,7 @@ async def check_workspace_health(
 @router.get("/insight-canon/{basket_id}/staleness")
 async def check_insight_canon_staleness(
     basket_id: str,
-    current_user: dict = Depends(get_current_user)
+    user: dict = Depends(verify_jwt)
 ):
     """
     Detailed staleness check for insight_canon.
@@ -183,7 +183,7 @@ async def check_insight_canon_staleness(
 @router.get("/document-canon/{basket_id}/staleness")
 async def check_document_canon_staleness(
     basket_id: str,
-    current_user: dict = Depends(get_current_user)
+    user: dict = Depends(verify_jwt)
 ):
     """
     Detailed staleness check for document_canon.

@@ -22,7 +22,7 @@ from lib.freshness import (
     compute_basket_substrate_hash,
     compute_graph_signature
 )
-from middleware.auth import get_current_user
+from app.utils.jwt import verify_jwt
 
 router = APIRouter(prefix="/p3", tags=["p3-insights"])
 
@@ -89,7 +89,7 @@ class GenerateTimeboxedInsightResponse(BaseModel):
 async def generate_insight_canon(
     request: GenerateInsightCanonRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user)
+    user: dict = Depends(verify_jwt)
 ):
     """
     Generate or regenerate insight_canon for a basket.
@@ -195,7 +195,7 @@ async def generate_insight_canon(
 @router.post("/doc-insight", response_model=GenerateDocInsightResponse)
 async def generate_doc_insight(
     request: GenerateDocInsightRequest,
-    current_user: dict = Depends(get_current_user)
+    user: dict = Depends(verify_jwt)
 ):
     """
     Generate doc_insight for a specific document.
@@ -278,7 +278,7 @@ async def generate_doc_insight(
 @router.post("/timeboxed-insight", response_model=GenerateTimeboxedInsightResponse)
 async def generate_timeboxed_insight(
     request: GenerateTimeboxedInsightRequest,
-    current_user: dict = Depends(get_current_user)
+    user: dict = Depends(verify_jwt)
 ):
     """
     Generate timeboxed_insight for a temporal window.
