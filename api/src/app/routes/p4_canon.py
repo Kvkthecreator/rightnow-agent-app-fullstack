@@ -20,7 +20,7 @@ from lib.freshness import (
     should_regenerate_document_canon,
     compute_basket_substrate_hash
 )
-from middleware.service_auth import verify_service_role
+from middleware.auth import get_current_user
 
 router = APIRouter(prefix="/p4", tags=["p4-documents"])
 
@@ -80,7 +80,7 @@ class GenerateStarterPromptResponse(BaseModel):
 async def generate_document_canon(
     request: GenerateDocumentCanonRequest,
     background_tasks: BackgroundTasks,
-    service_role_verified: bool = Depends(verify_service_role)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Generate or regenerate document_canon (Basket Context Canon).
@@ -253,7 +253,7 @@ async def generate_document_canon(
 @router.post("/starter-prompt", response_model=GenerateStarterPromptResponse)
 async def generate_starter_prompt(
     request: GenerateStarterPromptRequest,
-    service_role_verified: bool = Depends(verify_service_role)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Generate starter_prompt for external AI host.
