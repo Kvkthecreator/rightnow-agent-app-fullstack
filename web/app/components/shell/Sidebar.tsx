@@ -217,13 +217,13 @@ export default function Sidebar({ className }: SidebarProps) {
                 }}
                 className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
               >
-                <ArrowLeft size={14} /> Back to dashboard
+                <ArrowLeft size={14} /> Back to Dashboard
               </button>
               <section className="space-y-2">
                 <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Active Context Basket
+                  Current Basket
                 </div>
-                <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm font-medium text-foreground">
+                <div className="rounded-md border-2 border-primary/40 bg-primary/5 px-3 py-2.5 text-sm font-semibold text-foreground shadow-sm">
                   {basket.name || 'Untitled Basket'}
                 </div>
                 <div className="flex flex-col gap-0.5 pt-2">
@@ -262,7 +262,7 @@ export default function Sidebar({ className }: SidebarProps) {
             <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
               <section className="space-y-1">
                 <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Workspace
+                  Dashboard
                 </p>
                 <div className="flex flex-col gap-0.5">
                   {GLOBAL_LINKS.map((item) => (
@@ -284,7 +284,7 @@ export default function Sidebar({ className }: SidebarProps) {
 
               <section className="space-y-1">
                 <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Recent Context Baskets
+                  Context Baskets
                 </p>
                 <div className="flex flex-col gap-0.5">
                   {basketList.length === 0 ? (

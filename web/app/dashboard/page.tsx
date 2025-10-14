@@ -163,71 +163,35 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
 
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase text-muted-foreground">Recent governance activity</h2>
-          <Link href="/governance/settings" className="text-sm text-muted-foreground hover:text-foreground">
-            Open governance
-          </Link>
-        </div>
-        <div className="mt-4 space-y-2">
-          {pendingProposals && pendingProposals.length > 0 ? (
-            pendingProposals.map((proposal: any) => {
-              const hostLabel = proposal.source_host || proposal.metadata?.source_host || (proposal.origin === 'agent' ? 'ambient' : 'human');
-              return (
-                <div
-                  key={proposal.id}
-                  className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {formatProposalKind(proposal.proposal_kind)} · {basketName.get(proposal.basket_id) || 'Unknown basket'}
-                    </span>
-                    <span className="text-xs text-muted-foreground flex items-center gap-2">
-                      <span>{formatTimestamp(proposal.created_at)}</span>
-                      <span>·</span>
-                      <span>{hostLabel}</span>
-                    </span>
-                  </div>
-                  <Link
-                    href={`/baskets/${proposal.basket_id}/governance`}
-                    className="text-primary hover:underline"
-                  >
-                    Review
-                  </Link>
-                </div>
-              );
-            })
-          ) : (
-            <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-              No pending governance proposals.
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section>
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase text-muted-foreground">Active baskets</h2>
+          <h2 className="text-sm font-semibold uppercase text-muted-foreground">Context Baskets</h2>
           <Link href="/baskets" className="text-sm text-muted-foreground hover:text-foreground">
             View all
           </Link>
         </div>
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           {baskets && baskets.length > 0 ? (
-            baskets.slice(0, 5).map((basket) => (
+            baskets.slice(0, 6).map((basket) => (
               <Link
                 key={basket.id}
                 href={`/baskets/${basket.id}/memory`}
-                className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm transition hover:border-primary"
+                className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-sm"
               >
-                <div className="flex flex-col">
-                  <span className="font-medium">{basket.name || 'Untitled basket'}</span>
-                  <span className="text-muted-foreground">Created {formatTimestamp(basket.created_at)}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-medium">{basket.name || 'Untitled basket'}</h3>
+                    <p className="text-sm text-muted-foreground">Curated knowledge hub</p>
+                  </div>
+                  <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
+                    {basket.status ?? 'Active'}
+                  </span>
                 </div>
-                <span className="text-muted-foreground">{basket.status ?? 'Active'}</span>
-             </Link>
+                <div className="text-sm text-muted-foreground">
+                  Created {formatTimestamp(basket.created_at)}
+                </div>
+              </Link>
             ))
           ) : (
-            <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+            <div className="col-span-2 rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
               No baskets yet. Ambient captures will appear here once your AI hosts are connected.
             </div>
           )}
