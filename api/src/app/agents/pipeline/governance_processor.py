@@ -1,6 +1,8 @@
 """
 Governance Dump Processor - Canonical Implementation
 Integrates ImprovedP1SubstrateAgent with governance workflow for quality substrate extraction.
+
+V3.1: Semantic duplicate detection integrated into block creation workflow.
 """
 
 import logging
@@ -12,6 +14,13 @@ from uuid import UUID, uuid4
 from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
 from app.utils.supabase_client import supabase_admin_client as supabase
 from services.enhanced_cascade_manager import canonical_cascade_manager
+from services.semantic_primitives import (
+    semantic_search,
+    SemanticSearchFilters,
+    DUPLICATE_HIGH_CONFIDENCE,
+    DUPLICATE_MEDIUM_CONFIDENCE
+)
+from jobs.embedding_generator import queue_embedding_generation
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -667,7 +676,45 @@ class GovernanceDumpProcessor:
                         
                         body = content if isinstance(content, str) else str(content)
 
+                        # V3.1: Semantic duplicate detection before block creation
+                        duplicate_check_result = await self._check_semantic_duplicate(
+                            basket_id=str(basket_id),
+                            title=title,
+                            content=body,
+                            semantic_type=semantic_type
+                        )
+
+                        # If high confidence duplicate found, skip creation and log merge suggestion
+                        if duplicate_check_result and duplicate_check_result['is_duplicate']:
+                            self.logger.info(
+                                f"V3.1 Semantic duplicate detected: similarity={duplicate_check_result['similarity']:.2f}, "
+                                f"existing_block={duplicate_check_result['existing_block_id']}. "
+                                f"Skipping creation of '{title[:50]}...'"
+                            )
+
+                            # Record as skipped operation (future: could create MERGE proposal)
+                            executed_operations.append({
+                                "type": "CreateBlock",
+                                "success": True,
+                                "skipped": True,
+                                "reason": "semantic_duplicate",
+                                "duplicate_of": duplicate_check_result['existing_block_id'],
+                                "similarity_score": duplicate_check_result['similarity']
+                            })
+                            continue  # Skip to next operation
+
                         # V3.0: Canon-compliant block creation with emergent anchors
+                        # V3.1: Enhanced with duplicate detection metadata
+                        block_metadata = metadata.copy() if metadata else {}
+                        if duplicate_check_result and duplicate_check_result.get('similar_blocks'):
+                            block_metadata['v3_1_similar_blocks'] = [
+                                {
+                                    'block_id': sb['id'],
+                                    'similarity': sb['similarity']
+                                }
+                                for sb in duplicate_check_result['similar_blocks']
+                            ]
+
                         block_payload = _sanitize_for_json({
                             "basket_id": str(basket_id),
                             "workspace_id": str(workspace_id),
@@ -675,7 +722,7 @@ class GovernanceDumpProcessor:
                             "content": body,
                             "semantic_type": semantic_type,
                             "confidence_score": confidence_value,
-                            "metadata": metadata,
+                            "metadata": block_metadata,
                             "state": "ACCEPTED",
                             "status": "accepted",
                             # V3.0: Emergent anchor fields
@@ -716,6 +763,14 @@ class GovernanceDumpProcessor:
 
                         if not created_id:
                             raise RuntimeError("block insert returned no id")
+
+                        # V3.1: Queue embedding generation for newly created ACCEPTED block
+                        try:
+                            await queue_embedding_generation(str(created_id))
+                            self.logger.debug(f"V3.1: Queued embedding generation for block {created_id}")
+                        except Exception as embed_error:
+                            # Non-blocking: log error but continue
+                            self.logger.warning(f"V3.1: Failed to queue embedding for block {created_id}: {embed_error}")
 
                         if self._timeline_enabled:
                             try:
@@ -827,7 +882,96 @@ class GovernanceDumpProcessor:
         except Exception as e:
             self.logger.error(f"Failed to execute proposal operations: {e}")
             raise
-    
+
+    async def _check_semantic_duplicate(
+        self,
+        basket_id: str,
+        title: str,
+        content: str,
+        semantic_type: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        V3.1: Check for semantic duplicates before creating a new block.
+
+        Uses semantic search to find similar existing blocks and determines if
+        the new block is a high-confidence duplicate.
+
+        Args:
+            basket_id: Basket to search within
+            title: Block title
+            content: Block content
+            semantic_type: Block semantic type
+
+        Returns:
+            {
+                'is_duplicate': bool,  # True if similarity > 0.85
+                'similarity': float,
+                'existing_block_id': str,
+                'similar_blocks': List[Dict]  # All similar blocks found
+            }
+            or None if no similar blocks found or error occurs
+        """
+        try:
+            # Combine title + content for richer semantic matching
+            query_text = f"{title} {content}".strip()
+
+            if not query_text:
+                return None
+
+            # Search for semantically similar blocks
+            similar_blocks = await semantic_search(
+                supabase=supabase,
+                basket_id=basket_id,
+                query_text=query_text,
+                filters=SemanticSearchFilters(
+                    semantic_types=[semantic_type],  # Same semantic type only
+                    states=['ACCEPTED', 'LOCKED', 'CONSTANT'],
+                    min_similarity=DUPLICATE_MEDIUM_CONFIDENCE  # 0.70
+                ),
+                limit=5
+            )
+
+            if not similar_blocks:
+                return None
+
+            # Get highest similarity match
+            top_match = similar_blocks[0]
+
+            # High confidence duplicate (>0.85)
+            is_duplicate = top_match.similarity_score >= DUPLICATE_HIGH_CONFIDENCE
+
+            result = {
+                'is_duplicate': is_duplicate,
+                'similarity': top_match.similarity_score,
+                'existing_block_id': top_match.id,
+                'similar_blocks': [
+                    {
+                        'id': block.id,
+                        'similarity': block.similarity_score,
+                        'title': block.content[:100]  # Preview
+                    }
+                    for block in similar_blocks
+                ]
+            }
+
+            if is_duplicate:
+                self.logger.info(
+                    f"V3.1 Duplicate detection: similarity={top_match.similarity_score:.2f}, "
+                    f"existing_block={top_match.id}"
+                )
+            elif top_match.similarity_score >= DUPLICATE_MEDIUM_CONFIDENCE:
+                self.logger.debug(
+                    f"V3.1 Similar block found (not duplicate): similarity={top_match.similarity_score:.2f}, "
+                    f"existing_block={top_match.id}"
+                )
+
+            return result
+
+        except Exception as exc:
+            # Non-blocking: log error and return None (allow block creation)
+            self.logger.warning(f"V3.1 Semantic duplicate check failed: {exc}")
+            return None
+
     async def _log_extraction_metrics(
         self,
         dump_id: UUID,
