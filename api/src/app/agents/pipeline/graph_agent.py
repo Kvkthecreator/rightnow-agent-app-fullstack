@@ -1,5 +1,5 @@
 """
-P2 Graph Agent - YARNNN Canon v2.1 Compliant
+P2 Graph Agent - YARNNN Canon v3.0 Compliant
 
 Sacred Rule: Creates relationships, never modifies substrate content
 Pipeline: P2_GRAPH
@@ -7,6 +7,11 @@ Pipeline: P2_GRAPH
 This agent connects existing substrate elements without modifying
 their content or creating new substrate. Integrates with enhanced
 cascade manager for P2→P3 pipeline flow.
+
+V3.0 Changes:
+- Query unified blocks table (no context_items)
+- All from_type/to_type are "block"
+- Entity blocks identified by semantic_type='entity'
 """
 
 import logging
@@ -31,9 +36,9 @@ class RelationshipMappingRequest(BaseModel):
 
 class RelationshipProposal(BaseModel):
     """A proposed relationship between substrate elements."""
-    from_type: str  # block, context_item, raw_dump
+    from_type: str  # V3.0: Always "block" (unified substrate)
     from_id: UUID
-    to_type: str
+    to_type: str  # V3.0: Always "block"
     to_id: UUID
     relationship_type: str  # related_content, semantic_similarity, temporal_sequence, causal_relationship, enablement_chain, impact_relationship, conditional_logic
     strength: float = Field(ge=0.0, le=1.0)
@@ -141,75 +146,63 @@ class P2GraphAgent:
             raise
     
     async def _get_substrate_elements(
-        self, 
-        workspace_id: UUID, 
+        self,
+        workspace_id: UUID,
         basket_id: UUID,
         substrate_ids: List[UUID]
     ) -> List[Dict[str, Any]]:
-        """Get substrate elements for relationship analysis - Canon compliant."""
+        """
+        V3.0: Get substrate elements for relationship analysis from unified blocks table.
+
+        All substrate is now stored in blocks table with semantic_type differentiation:
+        - Knowledge types: fact, metric, event, insight, action, finding, quote, summary
+        - Meaning types: intent, objective, rationale, principle, assumption, context, constraint
+        - Structural types: entity, classification, reference
+        """
         try:
             substrate_elements = []
-            
-            # Get blocks (exclude archived) - Canon: use canonical fields only
+
+            # V3.0: Get all blocks from unified table (includes entities)
             blocks_response = supabase.table("blocks").select(
-                "id,title,content,semantic_type,state,confidence_score"
+                "id,title,content,semantic_type,state,confidence_score,anchor_role"
             ).eq("basket_id", str(basket_id)).neq("state", "REJECTED").execute()
-            
+
             if blocks_response.data:
                 for block in blocks_response.data:
                     substrate_elements.append({
                         "id": block["id"],
-                        "type": "block",
-                        "title": block.get("title", "Untitled Block"),  # Canon: title is authoritative
-                        "content": block.get("content", ""),  # Canon: content is authoritative
+                        "type": "block",  # V3.0: All substrate is blocks
+                        "title": block.get("title", "Untitled Block"),
+                        "content": block.get("content", ""),
                         "semantic_type": block.get("semantic_type", "concept"),
-                        "confidence": block.get("confidence_score", 0.7)  # Use actual confidence field
+                        "anchor_role": block.get("anchor_role"),  # V3.0: Emergent anchor
+                        "confidence": block.get("confidence_score", 0.7)
                     })
-            
-            # Get context items (exclude archived) - Canon: handle semantic meanings properly
-            # HOTFIX: Use type field if kind doesn't exist yet (pre-migration)
-            try:
-                context_response = supabase.table("context_items").select(
-                    "id,kind,content,title,state,semantic_meaning,semantic_category"
-                ).eq("basket_id", str(basket_id)).neq("state", "REJECTED").execute()
-            except Exception:
-                # Fallback for pre-migration schema
-                context_response = supabase.table("context_items").select(
-                    "id,type,content,title,state,metadata"
-                ).eq("basket_id", str(basket_id)).neq("state", "REJECTED").execute()
-            
-            if context_response.data:
-                for item in context_response.data:
-                    # Canon: title is entity label, content is semantic meaning
-                    # HOTFIX: Handle missing title field in pre-migration schema
-                    entity_label = item.get("title") or item.get("content", "Unknown Entity")[:50]
-                    semantic_meaning = item.get("content", "") or item.get("semantic_meaning", "")
-                    
-                    # HOTFIX: Handle both kind (new) and type (old) fields
-                    item_kind = item.get("kind") or item.get("type", "entity")
-                    
-                    substrate_elements.append({
-                        "id": item["id"],
-                        "type": "context_item", 
-                        "title": entity_label,  # Canon: entity name/label
-                        "content": semantic_meaning,  # Canon: semantic interpretation
-                        "semantic_type": item_kind,  # Canon: use kind field with fallback
-                        "semantic_category": item.get("semantic_category", "concept"),
-                        "confidence": 0.8  # Context items are generally high confidence
-                    })
-            
+
+            # V3.0: No context_items table - entities are blocks with semantic_type='entity'
+
             # Filter by requested substrate_ids if specified
             if substrate_ids:
                 substrate_id_strs = [str(sid) for sid in substrate_ids]
                 substrate_elements = [
-                    elem for elem in substrate_elements 
+                    elem for elem in substrate_elements
                     if elem["id"] in substrate_id_strs
                 ]
-            
-            self.logger.info(f"P2 Graph: Retrieved {len(substrate_elements)} substrate elements "
-                           f"({len([e for e in substrate_elements if e['type'] == 'block'])} blocks, "
-                           f"{len([e for e in substrate_elements if e['type'] == 'context_item'])} context items)")
-            
+
+            # V3.0: Count by semantic category for logging
+            knowledge_count = len([e for e in substrate_elements if e['semantic_type'] in [
+                'fact', 'metric', 'event', 'insight', 'action', 'finding', 'quote', 'summary'
+            ]])
+            meaning_count = len([e for e in substrate_elements if e['semantic_type'] in [
+                'intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint'
+            ]])
+            entity_count = len([e for e in substrate_elements if e['semantic_type'] == 'entity'])
+
+            self.logger.info(
+                f"P2 Graph: Retrieved {len(substrate_elements)} blocks "
+                f"({knowledge_count} knowledge, {meaning_count} meaning, {entity_count} entities)"
+            )
+
             return substrate_elements
             
         except Exception as e:
@@ -306,8 +299,8 @@ class P2GraphAgent:
         return 0.2  # Base similarity for all elements
     
     def _calculate_content_overlap(self, elem1: Dict[str, Any], elem2: Dict[str, Any]) -> float:
-        """Calculate content overlap between two substrate elements - Canon compliant."""
-        # Canon: Use proper analyzable content (includes semantic meanings for context_items)
+        """V3.0: Calculate content overlap between two substrate blocks."""
+        # V3.0: All substrate is blocks with title + content
         content1 = self._get_analyzable_content(elem1).lower()
         content2 = self._get_analyzable_content(elem2).lower()
         
@@ -369,12 +362,14 @@ class P2GraphAgent:
     
     def _analyze_causal_relationships(self, elem1: Dict[str, Any], elem2: Dict[str, Any]) -> List[RelationshipProposal]:
         """
-        CRITICAL: Analyze causal relationships between substrate elements - Canon compliant.
+        CRITICAL: Analyze causal relationships between substrate elements.
         This enables real intelligence by detecting HOW concepts connect and influence each other.
+
+        V3.0: All substrate is blocks with title + content.
         """
         causal_relationships = []
-        
-        # Canon: Use proper content for analysis - blocks have content, context_items have semantic meaning
+
+        # V3.0: All blocks have title + content for analysis
         content1 = self._get_analyzable_content(elem1).lower()
         content2 = self._get_analyzable_content(elem2).lower()
         
@@ -472,26 +467,31 @@ class P2GraphAgent:
         return analyzable if analyzable else ""
 
     def _detect_context_reference(self, elem1: Dict[str, Any], elem2: Dict[str, Any]) -> Optional[RelationshipProposal]:
-        """Detect explicit block → context_item references via entity label mention - Canon compliant."""
+        """
+        V3.0: Detect explicit block → entity block references via entity label mention.
+
+        Detects when a knowledge/meaning block references an entity block by name.
+        """
 
         def build_relationship(src: Dict[str, Any], dst: Dict[str, Any]) -> Optional[RelationshipProposal]:
-            if src.get("type") != "block" or dst.get("type") != "context_item":
+            # V3.0: Both are blocks, but check if dst is entity type
+            if dst.get("semantic_type") != "entity":
                 return None
 
-            # Canon: context_item title is the entity label
+            # V3.0: Entity block title is the entity label
             entity_label = dst.get("title", "").lower().strip()
             if not entity_label:
                 return None
 
-            # Check if block content/title mentions the entity
-            block_text = (src.get("content", "") + " " + src.get("title", "")).lower()
-            if entity_label in block_text:
+            # Check if source block content/title mentions the entity
+            src_text = (src.get("content", "") + " " + src.get("title", "")).lower()
+            if entity_label in src_text:
                 return RelationshipProposal(
-                    from_type="block",
+                    from_type="block",  # V3.0: Always block
                     from_id=UUID(src["id"]),
-                    to_type="context_item",
+                    to_type="block",  # V3.0: Always block
                     to_id=UUID(dst["id"]),
-                    relationship_type="context_reference",
+                    relationship_type="entity_reference",  # V3.0: Renamed from context_reference
                     strength=0.75,
                     description=f"Block '{src.get('title', 'Unknown')[:30]}' references entity '{dst.get('title', 'Unknown')[:30]}'"
                 )

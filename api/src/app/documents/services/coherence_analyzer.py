@@ -19,6 +19,11 @@ logger = logging.getLogger("uvicorn.error")
 
 class CoherenceAnalyzerService:
     """Service for analyzing document coherence and context alignment."""
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
     
     @classmethod
     async def analyze_document_context_alignment(

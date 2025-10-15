@@ -199,9 +199,9 @@ class GovernanceDumpProcessor:
             })
             substrate_result = _sanitize_for_json(substrate_result)
 
-            # Log extraction quality metrics for monitoring
-            blocks_created = len(substrate_result.get("block_ingredients", []))
-            context_items_created = len(substrate_result.get("context_item_ingredients", []))
+            # V3.0: Log extraction quality metrics for unified substrate
+            substrate_ingredients = substrate_result.get("substrate_ingredients", [])
+            extraction_summary = substrate_result.get("extraction_summary", {})
             avg_confidence = substrate_result.get("agent_confidence", 0.0)
             processing_time = substrate_result.get("processing_time_ms", 0)
 
@@ -210,18 +210,18 @@ class GovernanceDumpProcessor:
                     dump_id=dump_id,
                     basket_id=basket_id,
                     workspace_id=workspace_id,
-                    agent_version="improved_p1_v2_context_aware",
+                    agent_version="improved_p1_v3_unified_substrate",
                     extraction_method=substrate_result.get("extraction_method", "focused_extraction"),
-                    blocks_created=blocks_created,
-                    context_items_created=context_items_created,
+                    blocks_created=extraction_summary.get("total_blocks", len(substrate_ingredients)),
+                    context_items_created=0,  # V3.0: No separate context_items
                     avg_confidence=avg_confidence,
                     processing_time_ms=processing_time
                 )
             except Exception as metrics_error:
                 self.logger.warning(f"Failed to log extraction metrics: {metrics_error}")
-            
-            # Prefer non-persisted ingredients in strict mode; fall back to persisted blocks
-            blocks_source = substrate_result.get("block_ingredients") or substrate_result.get("blocks_created", [])
+
+            # V3.0: Single unified substrate source
+            blocks_source = substrate_ingredients or substrate_result.get("blocks_created", [])
 
             # Sort by confidence desc and cap to max_blocks for signal density
             def _conf(b: Dict[str, Any]) -> float:
@@ -234,15 +234,9 @@ class GovernanceDumpProcessor:
             except Exception:
                 blocks_source = blocks_source[: max(1, int(max_blocks))]
 
-            # Sparse, high-confidence context items only
-            allowed_entity_types = {"project", "goal", "task", "endpoint", "concept", "person"}
-            created_ci_labels: set[str] = set()
-            max_context_items_total = max(4, min(12, len(blocks_source)))
-            context_items_added = 0
-
+            # V3.0: All substrate is blocks (no separate context_items processing)
             ops_accum: List[Dict[str, Any]] = []
             block_confidences: List[float] = []
-            ingredient_summary_bits: List[str] = []
 
             for block_data in blocks_source:
                 confidence = block_data.get("confidence") if isinstance(block_data, dict) else None
@@ -263,90 +257,21 @@ class GovernanceDumpProcessor:
                     # Fallback to title if no content (shouldn't happen with new P1 agent)
                     content = title
 
+                # V3.0: Create unified block with emergent anchors
                 ops_accum.append({
                     "type": "CreateBlock",
                     "data": {
                         "title": title,
-                        "content": content,  # CRITICAL FIX: Include the actual content
+                        "content": content,
                         "semantic_type": semantic_type,
                         "metadata": metadata,
-                        "confidence": confidence
-                    }
-                })
-
-                try:
-                    if context_items_added < max_context_items_total:
-                        entities = metadata.get("knowledge_ingredients", {}).get("entities", [])
-
-                        def _econf(e: Dict[str, Any]) -> float:
-                            try:
-                                return float(e.get("confidence", 0.0))
-                            except Exception:
-                                return 0.0
-
-                        entities = sorted(entities, key=_econf, reverse=True)
-                        for ent in entities:
-                            label = (ent.get("name") or ent.get("title") or "").strip()
-                            etype = (ent.get("type") or "").lower()
-                            econf = _econf(ent)
-                            if not label or econf < 0.8 or etype not in allowed_entity_types or label.lower() in created_ci_labels:
-                                continue
-                            ops_accum.append({
-                                "type": "CreateContextItem",
-                                "data": {
-                                    "label": label,
-                                    "content": ent.get("description") or label,
-                                    "kind": etype or "concept",
-                                    "confidence": econf
-                                }
-                            })
-                            created_ci_labels.add(label.lower())
-                            context_items_added += 1
-                            break
-                except Exception:
-                    pass
-
-                ingredient_counts = metadata.get("knowledge_ingredients", {})
-                if ingredient_counts:
-                    for key in ("goals", "constraints", "metrics", "entities"):
-                        items = ingredient_counts.get(key, [])
-                        if isinstance(items, list) and items:
-                            ingredient_summary_bits.append(f"{len(items)} {key}")
-
-            # Merge explicit context item ingredients from agent output
-            context_ingredients = substrate_result.get("context_item_ingredients") or []
-            for ctx in context_ingredients:
-                if context_items_added >= max_context_items_total:
-                    break
-                metadata = _sanitize_for_json(ctx.get("metadata", {}))
-                label = (ctx.get("label") or ctx.get("title") or "").strip()
-                if not label:
-                    continue
-                label_key = label.lower()
-                if label_key in created_ci_labels:
-                    continue
-                kind = (ctx.get("kind") or ctx.get("type") or metadata.get("kind") or "concept").lower()
-                confidence = ctx.get("confidence") or metadata.get("confidence") or 0.8
-                summary_text = metadata.get("content") or metadata.get("summary") or ctx.get("description") or label
-
-                metadata.setdefault("kind", kind)
-                metadata.setdefault("label", label)
-                metadata.setdefault("source", "agent_context_ingredient")
-
-                ops_accum.append({
-                    "type": "CreateContextItem",
-                    "data": {
-                        "label": label,
-                        "content": summary_text,
-                        "kind": kind,
                         "confidence": confidence,
-                        "metadata": metadata
+                        # V3.0: Include emergent anchor data
+                        "anchor_role": block_data.get("anchor_role"),
+                        "anchor_status": block_data.get("anchor_status"),
+                        "anchor_confidence": block_data.get("anchor_confidence")
                     }
                 })
-                created_ci_labels.add(label_key)
-                context_items_added += 1
-
-            context_items_total = len(created_ci_labels)
 
             if not ops_accum:
                 return {
@@ -357,9 +282,8 @@ class GovernanceDumpProcessor:
 
             avg_confidence = sum(block_confidences) / len(block_confidences) if block_confidences else 0.0
             impact_summary = ", ".join(ingredient_summary_bits) if ingredient_summary_bits else f"{len(ops_accum)} operations"
-            if context_items_total:
-                impact_summary = impact_summary + f"; {context_items_total} context items" if impact_summary else f"{context_items_total} context items"
 
+            # V3.0: All substrate is blocks (no context_items_total needed)
             proposal_payload = {
                 "basket_id": str(basket_id),
                 "workspace_id": str(workspace_id),
@@ -371,7 +295,7 @@ class GovernanceDumpProcessor:
                 "validator_report": {
                     "confidence": avg_confidence,
                     "method": "structured_knowledge_extraction",
-                    "ingredients_count": context_items_total,
+                    "ingredients_count": len(ops_accum),  # V3.0: Total operations count
                     "extraction_quality": "high" if avg_confidence > 0.7 else "medium",
                     "impact_summary": impact_summary
                 },
@@ -480,7 +404,7 @@ class GovernanceDumpProcessor:
                 "dump_id": str(dump_id),
                 "proposals_created": 0,  # No proposals, direct creation
                 "blocks_created": len(result.get("blocks_created", [])),
-                "context_items_created": len(result.get("context_items_created", [])),
+                "context_items_created": 0,  # V3.0: No separate context_items
                 "processing_time_ms": result.get("processing_time_ms"),
                 "confidence": result.get("agent_confidence"),
                 "method": "direct_quality_extraction"
@@ -627,12 +551,12 @@ class GovernanceDumpProcessor:
 
                 created_substrate_ids = execution_result.get("created_substrate_ids", {}) if execution_result else {}
                 blocks_created = len(created_substrate_ids.get("blocks", []))
-                context_items_created = len(created_substrate_ids.get("context_items", []))
 
+                # V3.0: No separate context_items (all substrate is blocks)
                 basket_id = proposal.get("basket_id")
                 workspace_id = proposal.get("workspace_id")
 
-                if blocks_created or context_items_created:
+                if blocks_created:
                     if not basket_id or not workspace_id:
                         self.logger.warning(
                             "Skipping cascade trigger for proposal %s due to missing basket/workspace",
@@ -658,15 +582,14 @@ class GovernanceDumpProcessor:
                                 workspace_id=str(workspace_id),
                                 user_id=str(cascade_user_id),
                                 substrate_created={
-                                    "blocks": blocks_created,
-                                    "context_items": context_items_created
+                                    "blocks": blocks_created
+                                    # V3.0: No context_items field
                                 }
                             )
                             self.logger.info(
-                                "Triggered P1→P2 cascade for proposal %s (blocks=%s, context_items=%s)",
+                                "Triggered P1→P2 cascade for proposal %s (blocks=%s)",
                                 proposal_id,
-                                blocks_created,
-                                context_items_created
+                                blocks_created
                             )
                         except Exception as cascade_error:
                             self.logger.warning(
@@ -702,8 +625,8 @@ class GovernanceDumpProcessor:
 
             executed_operations = []
             created_substrate_ids: Dict[str, List[str]] = {
-                "blocks": [],
-                "context_items": []
+                "blocks": []
+                # V3.0: No context_items (all substrate is blocks)
             }
 
             for i, op in enumerate(ops):
@@ -744,19 +667,21 @@ class GovernanceDumpProcessor:
                         
                         body = content if isinstance(content, str) else str(content)
 
-                        # Canon-compliant block creation with proper title/content separation
+                        # V3.0: Canon-compliant block creation with emergent anchors
                         block_payload = _sanitize_for_json({
                             "basket_id": str(basket_id),
                             "workspace_id": str(workspace_id),
-                            "title": title,                    # Canon: Short descriptive title
-                            "content": body,                   # Canon: Primary knowledge content
-                            "body_md": body,                   # DEPRECATED: Will be removed
+                            "title": title,
+                            "content": body,
                             "semantic_type": semantic_type,
                             "confidence_score": confidence_value,
                             "metadata": metadata,
                             "state": "ACCEPTED",
                             "status": "accepted",
-                            "extraction_method": metadata.get("extraction_method") or "structured_knowledge_ingredients"
+                            # V3.0: Emergent anchor fields
+                            "anchor_role": op_data.get("anchor_role"),
+                            "anchor_status": op_data.get("anchor_status") or ("proposed" if op_data.get("anchor_role") else None),
+                            "anchor_confidence": op_data.get("anchor_confidence")
                         })
 
                         insert_resp = (
@@ -826,128 +751,8 @@ class GovernanceDumpProcessor:
                         })
                         created_substrate_ids["blocks"].append(str(created_id))
 
-                    elif op_type == "CreateContextItem":
-                        metadata = _sanitize_for_json(op_data.get("metadata") or {})
-                        synonyms = op_data.get("synonyms") or metadata.get("synonyms") or []
-                        label = op_data.get("label") or op_data.get("title") or "Untitled context"
-                        normalized_label = label.lower()
-                        confidence = op_data.get("confidence") or metadata.get("confidence") or 0.7
-                        try:
-                            confidence_value = float(confidence)
-                        except Exception:
-                            confidence_value = 0.7
-                        summary = metadata.get("summary")
-                        summary_text = summary if isinstance(summary, str) or summary is None else str(summary)
-                        kind_value = (op_data.get("kind") or metadata.get("kind") or "concept").lower()
+                    # V3.0: CreateContextItem removed - all substrate is blocks now
 
-                        metadata["synonyms"] = synonyms
-                        metadata.setdefault("kind", kind_value)
-                        metadata.setdefault("label", label)
-
-                        # Canon-compliant context item should have semantic meaning
-                        semantic_meaning = metadata.get("semantic_meaning") or summary_text
-                        if not semantic_meaning or semantic_meaning == label:
-                            # If no real semantic meaning, create one from context
-                            semantic_meaning = f"{kind_value}: {label} - {metadata.get('role', 'related entity')}"
-                        
-                        context_payload = _sanitize_for_json({
-                            "basket_id": str(basket_id),
-                            "type": kind_value,
-                            "title": label,                       # Canon: Entity/concept name
-                            "content": semantic_meaning,          # Canon: Semantic interpretation
-                            "description": metadata.get("description") or summary_text,
-                            "confidence_score": confidence_value,
-                            "metadata": metadata,
-                            "normalized_label": normalized_label,
-                            "state": "ACTIVE",
-                            "status": "active"
-                        })
-
-                        context_id: Optional[str] = None
-                        duplicate_detected = False
-
-                        try:
-                            insert_resp = (
-                                supabase
-                                .table("context_items")
-                                .insert(context_payload)
-                                .execute()
-                            )
-
-                            if getattr(insert_resp, "error", None):
-                                error_payload = insert_resp.error
-                                error_text = str(error_payload)
-                                error_code = (
-                                    error_payload.get("code")
-                                    if isinstance(error_payload, dict)
-                                    else getattr(error_payload, "code", "")
-                                )
-                                if (error_code == "23505" or "duplicate key value" in error_text):
-                                    duplicate_detected = True
-                                else:
-                                    raise RuntimeError(f"context item insert failed: {error_payload}")
-
-                            if not duplicate_detected and insert_resp.data:
-                                if isinstance(insert_resp.data, list):
-                                    context_id = insert_resp.data[0].get("id")
-                                else:
-                                    context_id = insert_resp.data.get("id")
-
-                        except Exception as insert_error:
-                            error_code = getattr(insert_error, "code", "")
-                            error_text = str(insert_error)
-                            if "23505" in error_text or "duplicate key value" in error_text or error_code == "23505":
-                                duplicate_detected = True
-                            else:
-                                raise
-
-                        if not context_id:
-                            lookup_resp = (
-                                supabase
-                                .table("context_items")
-                                .select("id", "status")
-                                .eq("basket_id", str(basket_id))
-                                .eq("type", kind_value)
-                                .eq("normalized_label", normalized_label)
-                                .order("updated_at", desc=True)
-                                .limit(1)
-                                .execute()
-                            )
-                            if getattr(lookup_resp, "data", None):
-                                row = lookup_resp.data[0]
-                                context_id = row.get("id")
-                                # Treat lookup result as duplicate
-                                duplicate_detected = True
-
-                        if not context_id:
-                            raise RuntimeError("context item insert returned no id")
-
-                        if duplicate_detected:
-                            try:
-                                supabase.table("context_items").update({
-                                    "status": "active",
-                                    "state": "ACTIVE",
-                                    "updated_at": datetime.utcnow().isoformat()
-                                }).eq("id", context_id).execute()
-                                supabase.table("substrate_tombstones").delete().eq(
-                                    "substrate_id", context_id
-                                ).eq("substrate_type", "context_item").execute()
-                            except Exception as reactivating_error:
-                                self.logger.warning(
-                                    "Context item %s reactivation failed: %s",
-                                    context_id,
-                                    reactivating_error
-                                )
-
-                        executed_operations.append({
-                            "type": "CreateContextItem",
-                            "success": True,
-                            "created_id": context_id,
-                            "duplicate": duplicate_detected
-                        })
-                        if context_id and not duplicate_detected:
-                            created_substrate_ids["context_items"].append(str(context_id))
-                    
                     else:
                         self.logger.warning(f"Unsupported operation type: {op_type}")
                         
@@ -1031,11 +836,16 @@ class GovernanceDumpProcessor:
         agent_version: str,
         extraction_method: str,
         blocks_created: int,
-        context_items_created: int,
+        context_items_created: int,  # V3.0: Kept for DB compatibility, always 0
         avg_confidence: float,
         processing_time_ms: int
     ):
-        """Log extraction quality metrics for continuous monitoring"""
+        """
+        V3.0: Log extraction quality metrics for continuous monitoring
+
+        Note: context_items_created parameter kept for DB function compatibility
+        but will always be 0 in v3.0 (all substrate is blocks).
+        """
         try:
             result = supabase.rpc(
                 'log_extraction_metrics',
@@ -1046,7 +856,7 @@ class GovernanceDumpProcessor:
                     'p_agent_version': agent_version,
                     'p_extraction_method': extraction_method,
                     'p_blocks_created': blocks_created,
-                    'p_context_items_created': context_items_created,
+                    'p_context_items_created': 0,  # V3.0: Always 0 (legacy field)
                     'p_avg_confidence': avg_confidence,
                     'p_processing_time_ms': processing_time_ms
                 }

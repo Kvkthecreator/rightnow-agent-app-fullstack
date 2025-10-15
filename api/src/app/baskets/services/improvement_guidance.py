@@ -22,6 +22,11 @@ logger = logging.getLogger("uvicorn.error")
 
 class ImprovementGuidanceService:
     """Service for providing gentle, non-enforcing guidance for basket improvement."""
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
     
     # Improvement opportunity templates
     IMPROVEMENT_TEMPLATES = {

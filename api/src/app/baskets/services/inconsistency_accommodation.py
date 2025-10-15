@@ -19,6 +19,11 @@ logger = logging.getLogger("uvicorn.error")
 
 class InconsistencyAccommodationService:
     """Service for accommodating human context inconsistency as a feature, not a bug."""
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
     
     # Inconsistency accommodation strategies
     ACCOMMODATION_STRATEGIES = {

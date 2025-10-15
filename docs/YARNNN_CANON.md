@@ -1,6 +1,11 @@
-# YARNNN Canon v2.2 — The Authoritative Reference
+# YARNNN Canon v3.0 — The Authoritative Reference
 
 **The Single Source of Truth for Yarnnn Service Philosophy and Implementation**
+
+**🚨 MAJOR UPDATE (2025-01-15)**: Substrate architecture upgraded to v3.0
+- **See**: [YARNNN_SUBSTRATE_CANON_V3.md](./YARNNN_SUBSTRATE_CANON_V3.md) for complete substrate reference
+- **Breaking change**: `context_items` merged into unified `blocks` table
+- **New paradigm**: Emergent anchors, universal versioning, scope elevation
 
 ## 🌊 Core Philosophy: Memory-First, Substrate-Equal
 
@@ -24,8 +29,7 @@ Yarnnn is a **memory-first cognitive system** that captures human thought as imm
 
 **GOVERNED (Substrate Layer - Memory):**
 - `raw_dumps` creation (P0 - direct only, no proposals)
-- `context_blocks` mutations (P1 - via proposals)
-- `context_items` mutations (P1 - via proposals)
+- `blocks` mutations (P1 - via proposals, all semantic_types)
 - `timeline_events` (system controlled)
 
 **INDEPENDENT (Artifact Layer - Expression):**
@@ -53,14 +57,23 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 
 ## 📚 Substrate vs Artifact Distinction
 
-### Four Substrate Types (Memory Layer)
+### Three Substrate Types (Memory Layer) — v3.0
 
 1. **raw_dumps** - Immutable user input (text, files, captures) - Sacred capture
-2. **context_blocks** - Structured knowledge ingredients extracted from raw input (goals, constraints, metrics, entities) - Building blocks
-3. **context_items** - Semantic connective tissue between substrates - Linking layer
-4. **timeline_events** - Append-only activity stream - System memory
+2. **blocks** - ALL structured substrate (knowledge, meaning, structural) - Unified memory
+   - `semantic_type` differentiates: `fact`, `intent`, `entity`, `metric`, etc.
+   - Emergent `anchor_role` for strategic categorization
+   - Universal versioning via `parent_block_id` chains
+   - Scope elevation for cross-basket memory (`WORKSPACE`, `ORG`, `GLOBAL`)
+3. **timeline_events** - Append-only activity stream - System memory
 
-**Critical**: These are PEERS. No hierarchy between substrates.
+**Critical v3.0 change**: `context_items` merged into `blocks` table for unified substrate architecture.
+
+**See**: [YARNNN_SUBSTRATE_CANON_V3.md](./YARNNN_SUBSTRATE_CANON_V3.md) for complete details on:
+- Semantic types (knowledge vs meaning vs structural)
+- Emergent anchor system (no predefined roles)
+- Universal versioning (all blocks version identically)
+- Scope levels (basket → workspace → org → global memory)
 
 ### Two Artifact Types (Expression Layer)
 
@@ -106,19 +119,21 @@ User Input → Collection of raw_dumps (unstructured)
 - No interpretation, pure capture
 ```
 
-**P1: Governed Evolution Phase (Propose → Commit)** 
+**P1: Governed Evolution Phase (Propose → Commit)**
 ```
 New raw_dumps + Existing substrate → Agent Analysis → Governance Proposal → Approval → Substrate Evolution
 
-1. Agent reads new raw_dumps collectively 
-2. Agent reads existing substrate in basket (blocks, context_items)
+1. Agent reads new raw_dumps collectively
+2. Agent reads existing substrate in basket (unified blocks with all semantic_types)
 3. Agent determines evolution needed:
-   - Novel concepts → CREATE new substrate
-   - Refined understanding → UPDATE existing substrate  
-   - Duplicate concepts → MERGE substrate
-   - Contradictions → REVISE substrate
+   - Novel concepts → CREATE new blocks
+   - Refined understanding → UPDATE existing blocks (versioning via parent_block_id)
+   - Duplicate concepts → MERGE blocks
+   - Contradictions → REVISE blocks
 4. Proposal approval → Operations executed atomically → Substrate evolved
 ```
+
+**V3.0 Note**: All substrate is now unified blocks. Entity blocks identified by `semantic_type='entity'`.
 
 **Critical Insight**: P1 is a **substrate evolution agent**, not just creation. Early baskets see mostly CREATE operations, mature baskets see mostly UPDATE/MERGE operations as conceptual space fills out.
 
@@ -193,7 +208,7 @@ Staleness = f(substrate_hash_changed, graph_topology_changed, temporal_scope_inv
 
 ### 1. Memory-First Architecture
 - User thoughts emerge from captured substrate, not imposed structure
-- **Substrate Layer**: Immutable memory (raw_dumps, context_blocks, context_items, timeline_events)
+- **Substrate Layer**: Immutable memory (raw_dumps, blocks, timeline_events) — V3.0 unified
 - **Artifact Layer**: Derived expressions (documents, reflections) that never become substrate
 - Unidirectional flow: Substrate → Artifacts
 
@@ -242,46 +257,51 @@ interface Proposal {
 }
 ```
 
-**Operation Schema** (P1 Evolution Agent Output):
+**Operation Schema** (P1 Evolution Agent Output) — V3.0:
 ```typescript
 // Creation operations - novel concepts
 {
   type: "CreateBlock",
+  title: "Project Strategy",
   content: "New insight from dumps...",
-  semantic_type: "insight" | "fact" | "plan" | "reflection", 
+  semantic_type: "insight" | "fact" | "entity" | "intent" | "metric",
+  anchor_role: "strategy",  // V3.0: Emergent anchor (optional)
+  anchor_status: "proposed",
+  anchor_confidence: 0.85,
   confidence: 0.8
-}
-
-{
-  type: "CreateContextItem",
-  label: "New Project Beta", 
-  kind: "project" | "person" | "concept" | "goal",
-  synonyms: ["Project β", "Beta"],
-  confidence: 0.9
 }
 
 // Evolution operations - refining existing substrate
 {
   type: "ReviseBlock",
   block_id: "existing-uuid",
+  title: "Updated Project Strategy",
   content: "Updated content with new information...",
+  parent_block_id: "existing-uuid",  // V3.0: Versioning chain
   confidence: 0.85
 }
 
 {
-  type: "MergeContextItems", 
+  type: "MergeBlocks",  // V3.0: Unified merge
   from_ids: ["uuid1", "uuid2"],
   canonical_id: "uuid1",
-  merged_synonyms: ["all", "combined", "labels"]
+  merged_content: "Combined understanding..."
 }
 
 {
-  type: "UpdateContextItem",
-  context_item_id: "existing-uuid", 
-  label: "Updated label",
-  additional_synonyms: ["new", "aliases"]
+  type: "UpdateBlock",
+  block_id: "existing-uuid",
+  title: "Refined Title",
+  anchor_role: "updated-anchor",  // V3.0: Emergent anchors evolve
+  confidence: 0.9
 }
 ```
+
+**V3.0 Changes**:
+- No more `CreateContextItem` / `UpdateContextItem` / `MergeContextItems`
+- All operations now target unified `blocks` table
+- Emergent `anchor_role` replaces fixed categories
+- Versioning via `parent_block_id` chains
 
 **Approval Criteria**:
 - Agent-generated proposals: Auto-approve if confidence > 0.7
@@ -347,7 +367,7 @@ This is YARNNN's revolutionary stance: fundamentally different from Notion, Goog
 **1. Curate Substrate** (replaces: "editing content")
 - Approve/reject/merge blocks via governance
 - Add/remove substrate references from documents
-- Update context_items, blocks through proposals
+- Update blocks through proposals (V3.0: unified substrate)
 
 **2. Direct Composition** (replaces: "formatting and structure")
 - Define composition instructions ("make section 2 more technical")
@@ -417,7 +437,7 @@ When users upload existing documents (e.g., `product-spec.docx`):
 
 ## 💡 Key Insights from Canon
 
-1. **Substrate Equality** - The four substrate types (dumps, blocks, context_items, events) are peers
+1. **Substrate Equality** - The three substrate types (dumps, blocks, events) are peers — V3.0 unified
 2. **Substrate vs Artifacts** - Clear separation between memory (substrate) and expressions (artifacts)
 3. **Read-Only Documents** - Documents are composed views, never directly edited (v3.0)
 4. **Pipeline Discipline** - P0-P1 create substrate via governance, P2 links substrate, P3-P4 create artifacts
@@ -475,8 +495,8 @@ When users upload existing documents (e.g., `product-spec.docx`):
 - **YARNNN_MONOREPO_ARCHITECTURE.md**  
   Deployment and substrate-level architecture of the monorepo.  
 
-- **YARNNN_RELATIONAL_MODEL.md**  
-  Semantic roles and flows across substrates (raw_dump, block, document, context_item, event).  
+- **YARNNN_RELATIONAL_MODEL.md**
+  Semantic roles and flows across substrates (raw_dump, block, document, event). V3.0: unified blocks.  
 
 - **YARNNN_CREATE_CANON.md**  
   The one sacred write path for capture.
@@ -493,10 +513,10 @@ When users upload existing documents (e.g., `product-spec.docx`):
 **Key Evolution**: Governance as first-class workflow
 - All substrate mutations flow through governed proposals
 - Agent validation mandatory for all proposals (agent + human origin)
-- Context_items gain governance states: `PROVISIONAL → PROPOSED → ACTIVE`
+- V3.0: All blocks have governance states: `PROPOSED → ACCEPTED → LOCKED → CONSTANT`
 - Unified governance preserves sacred capture path while enabling manual substrate curation
 
-**Breaking Changes**: Requires context_items schema evolution and proposal table addition
+**V3.0 Changes**: Unified blocks table with emergent anchors replaces context_items
 
 ---
 
@@ -629,9 +649,17 @@ interface WorkTypePolicy {
 - **Schema Enhancement**: Extended canonical_queue with cascade metadata and universal work support
 - **Sacred Principle Preservation**: All changes maintain strict canon compliance
 
+### v3.0.0 Changes (Breaking) — 2025-01-15
+- **Unified Substrate Architecture**: `context_items` merged into `blocks` table
+- **Three Pure Substrates**: raw_dumps, blocks (unified), timeline_events
+- **Emergent Anchors**: Free-text `anchor_role` replaces fixed categorization
+- **Universal Versioning**: All blocks version identically via `parent_block_id` chains
+- **Scope Elevation**: Cross-basket memory via WORKSPACE/ORG/GLOBAL scopes
+- **Semantic Types**: Knowledge (fact, metric), Meaning (intent, objective), Structural (entity)
+- **See**: [YARNNN_SUBSTRATE_CANON_V3.md](./YARNNN_SUBSTRATE_CANON_V3.md) for complete details
+
 ### v2.0.0 Changes (Breaking)
 - **Substrate/Artifact Separation**: Clear distinction between memory (substrate) and expressions (artifacts)
-- **Four Pure Substrates**: raw_dumps, context_blocks, context_items, timeline_events
 - **Two Artifact Types**: documents (versioned), reflections (computed)
 - **Document Versioning**: Git-inspired versioning for stable artifact references
 - **Legacy Table Removal**: Eliminated block_links, document_context_items, basket_events, revisions

@@ -10,6 +10,11 @@ Canon Compliance:
 - Shows substrate impact metrics for memory-first architecture
 - Includes cascade flow visualization for pipeline operations
 """
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
 
 from datetime import datetime
 from typing import Optional, Dict, Any, List, Literal, Union

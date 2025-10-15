@@ -7,6 +7,11 @@ Pipeline: P1_SUBSTRATE (Governance Extension)
 This agent validates proposals from both agent and human origins,
 providing mandatory intelligence for governance decisions.
 """
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
 
 import logging
 from datetime import datetime

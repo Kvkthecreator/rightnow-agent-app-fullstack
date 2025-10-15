@@ -1,15 +1,20 @@
 """
-P4 Composition Agent - YARNNN Canon v2.1 Compliant
+P4 Composition Agent - YARNNN Canon v3.0 Compliant
 
 Implements intelligent document composition from substrate memory.
 Sacred Principle #3: "Narrative is Deliberate" - Documents compose substrate references + authored prose.
 
 This agent:
 1. Analyzes intent to understand document purpose
-2. Queries substrate comprehensively across all types
+2. Queries substrate comprehensively from unified blocks table
 3. Scores relevance based on semantic similarity, recency, relationships
 4. Generates thoughtful narrative structure
 5. Composes document with clear reasoning
+
+V3.0 Changes:
+- Query unified blocks table (no context_items)
+- All substrate types: knowledge, meaning, structural (entity)
+- Emergent anchors for semantic organization
 """
 
 import asyncio
@@ -36,18 +41,25 @@ class AgentResponse:
 
 @dataclass
 class RetrievalBudget:
-    """Phase 1: Retrieval budget configuration"""
+    """
+    V3.0: Phase 1: Retrieval budget configuration
+
+    All substrate is now blocks (no context_items).
+    Increased block budget since entities are now blocks.
+    """
     total_budget: int = 120
     type_weights: Dict[str, float] = None
     per_type_caps: Dict[str, int] = None
     recency_days: int = 90
     mmr_lambda: float = 0.7  # Diversity vs relevance balance
-    
+
     def __post_init__(self):
         if self.type_weights is None:
-            self.type_weights = {"blocks": 0.45, "context_items": 0.30, "relationships": 0.25, "dumps": 0.00}
+            # V3.0: Only blocks and relationships (no context_items)
+            self.type_weights = {"blocks": 0.75, "relationships": 0.25, "dumps": 0.00}
         if self.per_type_caps is None:
-            self.per_type_caps = {"blocks": 80, "context_items": 60, "relationships": 40, "dumps": 0}
+            # V3.0: Increased block cap (includes entities now)
+            self.per_type_caps = {"blocks": 100, "relationships": 40, "dumps": 0}
 
 @dataclass
 class CompositionMetrics:
@@ -92,11 +104,11 @@ class CompositionRequest:
 
 class P4CompositionAgent:
     """
-    P4 Composition Agent - Thoughtful document composition from substrate
-    
+    V3.0: P4 Composition Agent - Thoughtful document composition from substrate
+
     Canon Compliance:
     - P4 consumes substrate, never creates it
-    - Respects substrate equality (blocks, dumps, context_items, timeline_events)
+    - V3.0: Unified blocks (knowledge, meaning, structural types)
     - Creates document artifacts with clear reasoning
     - Emits proper timeline events
     """
@@ -178,10 +190,9 @@ Basket Context: Document being composed from memory in basket {request.basket_id
 Provide a JSON strategy with:
 1. document_type: The type of document (e.g., "summary", "analysis", "plan", "reflection", "report")
 2. key_themes: List of 3-5 key themes or topics to focus on
-3. substrate_priorities: What types of substrate to prioritize
-   - blocks: true/false (structured insights)
+3. substrate_priorities: What types of substrate to prioritize (V3.0: blocks include all semantic types)
+   - blocks: true/false (knowledge, meaning, entities - unified substrate)
    - dumps: true/false (raw memories)
-   - context_items: true/false (entities, concepts)
    - relationships: true/false (connections between substrate)
 4. organization: How to organize the document ("chronological", "thematic", "priority", "categorical")
 5. tone: The appropriate tone ("analytical", "narrative", "instructional", "reflective")
@@ -195,7 +206,6 @@ Example response:
   "substrate_priorities": {{
     "blocks": true,
     "dumps": false,
-    "context_items": true,
     "relationships": true
   }},
   "organization": "thematic",
@@ -263,36 +273,8 @@ Example response:
                     "freshness_score": self._calculate_freshness(block["created_at"], recency_cutoff)
                 })
         
-        # Query context items with budget constraints - Canon: proper field handling
-        if strategy["substrate_priorities"].get("context_items", True) and budget.per_type_caps["context_items"] > 0:
-            items_query = supabase.table("context_items").select("*")\
-                .eq("basket_id", request.basket_id)\
-                .gte("created_at", recency_cutoff.isoformat())\
-                .limit(budget.per_type_caps["context_items"])
-            
-            items_response = items_query.execute()
-            metrics.candidates_found["context_items"] = len(items_response.data or [])
-            
-            for item in items_response.data or []:
-                # Canon: title is entity label, content is semantic meaning
-                # HOTFIX: Handle missing fields in pre-migration schema
-                entity_label = item.get("title") or item.get("content", "Unknown Entity")[:50]
-                semantic_meaning = item.get("content", "") or item.get("semantic_meaning", "")
-                
-                # HOTFIX: Handle both kind (new) and type (old) fields
-                item_kind = item.get("kind") or item.get("type", "entity")
-                
-                candidates.append({
-                    "type": "context_item",
-                    "id": item["id"],
-                    "content": semantic_meaning,  # Canon: semantic interpretation 
-                    "title": entity_label,       # Canon: entity name/label
-                    "kind": item_kind,           # HOTFIX: with fallback
-                    "semantic_category": item.get("semantic_category", "concept"),
-                    "created_at": item["created_at"],
-                    "metadata": item,
-                    "freshness_score": self._calculate_freshness(item["created_at"], recency_cutoff)
-                })
+        # V3.0: No context_items table - entities are blocks with semantic_type='entity'
+        # Entity blocks already included in blocks query above
         
         # Phase 1: Raw dumps only for gaps-only policy (controlled by feature flag)
         use_raw_gaps = os.getenv("USE_RAW_GAPS_ONLY", "false").lower() == "true"
@@ -622,56 +604,76 @@ Example:
     
     def _prepare_substrate_with_relationships(self, selected_substrate: List[Dict[str, Any]]) -> Tuple[str, Dict[str, Any]]:
         """
-        Analyze substrate relationships and prepare enhanced context for narrative generation
+        V3.0: Analyze substrate relationships and prepare enhanced context for narrative generation
+
+        All substrate is now blocks with semantic_type differentiation.
         """
-        # Separate substrate by type
+        # V3.0: Separate substrate by type (all blocks)
         blocks = [s for s in selected_substrate if s['type'] == 'block']
-        context_items = [s for s in selected_substrate if s['type'] == 'context_item']
         dumps = [s for s in selected_substrate if s['type'] == 'dump']
         relationships = [s for s in selected_substrate if s['type'] == 'relationship']
-        
-        # Build relationship map - Canon: use proper field names
+
+        # V3.0: Categorize blocks by semantic_type for better organization
+        knowledge_blocks = [b for b in blocks if b.get('semantic_type') in [
+            'fact', 'metric', 'event', 'insight', 'action', 'finding', 'quote', 'summary'
+        ]]
+        meaning_blocks = [b for b in blocks if b.get('semantic_type') in [
+            'intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint'
+        ]]
+        entity_blocks = [b for b in blocks if b.get('semantic_type') == 'entity']
+
+        # Build relationship map
         relationship_map = {}
         for rel in relationships:
             rel_type = rel.get('relationship_type', 'related')
-            from_id = rel.get('from_id')  # Canon: direct field access
-            to_id = rel.get('to_id')      # Canon: direct field access
-            
+            from_id = rel.get('from_id')
+            to_id = rel.get('to_id')
+
             if from_id and to_id:
                 if from_id not in relationship_map:
                     relationship_map[from_id] = []
                 relationship_map[from_id].append({
                     'to': to_id,
                     'type': rel_type,
-                    'strength': rel.get('strength', 0.7)  # Canon: use strength field
+                    'strength': rel.get('strength', 0.7)
                 })
-        
+
         # Generate enhanced substrate summary
         summary_parts = []
-        
-        # Add blocks with their relationships
-        if blocks:
+
+        # V3.0: Add knowledge blocks with their relationships
+        if knowledge_blocks:
             summary_parts.append("=== KNOWLEDGE BLOCKS ===")
-            for block in blocks:
+            for block in knowledge_blocks:
                 block_id = block['id']
-                block_content = f"[BLOCK] {block.get('title', block.get('content', '')[:100])}..."
-                
+                semantic_type = block.get('semantic_type', 'concept')
+                anchor = block.get('anchor_role', '')
+                anchor_text = f" [{anchor}]" if anchor else ""
+                block_content = f"[{semantic_type.upper()}]{anchor_text} {block.get('title', block.get('content', '')[:100])}..."
+
                 # Add relationships for this block
                 if block_id in relationship_map:
                     relations = relationship_map[block_id]
                     rel_text = "; ".join([f"{r['type']} → {r['to']}" for r in relations[:3]])
                     block_content += f" (Connected: {rel_text})"
-                
+
                 summary_parts.append(block_content)
-        
-        # Add context items - Canon: use proper semantic meanings
-        if context_items:
-            summary_parts.append("\n=== CONTEXT ENTITIES ===")
-            for item in context_items:
-                entity_label = item.get('title', 'Unknown Entity')
-                semantic_meaning = item.get('content', '')
-                kind = item.get('kind', 'unknown')
-                summary_parts.append(f"[ENTITY] {entity_label}: {semantic_meaning} ({kind})")
+
+        # V3.0: Add meaning blocks
+        if meaning_blocks:
+            summary_parts.append("\n=== MEANING & INTENT ===")
+            for block in meaning_blocks:
+                semantic_type = block.get('semantic_type', 'context')
+                title = block.get('title', 'Untitled')
+                summary_parts.append(f"[{semantic_type.upper()}] {title}")
+
+        # V3.0: Add entity blocks (structural type)
+        if entity_blocks:
+            summary_parts.append("\n=== ENTITIES ===")
+            for block in entity_blocks:
+                entity_label = block.get('title', 'Unknown Entity')
+                content = block.get('content', '')
+                summary_parts.append(f"[ENTITY] {entity_label}: {content[:150]}")
         
         # Add relationships summary
         if relationships:
@@ -875,16 +877,16 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                 raise RuntimeError("Failed to update document with composition: empty response")
             updated_metadata = base_metadata
 
-            # Canon-Pure: Create substrate references in dedicated table
+            # V3.0: Canon-Pure: Create substrate references in dedicated table
             substrate_refs_created = []
-            allowed_substrate_types = {"block", "dump", "context_item", "timeline_event"}
+            # V3.0: No context_item type (all substrate is blocks)
+            allowed_substrate_types = {"block", "dump", "timeline_event"}
 
             for idx, substrate in enumerate(selected_substrate):
                 try:
-                    # Map substrate type to canonical enum
+                    # V3.0: Map substrate type to canonical enum
                     substrate_type_map = {
                         "block": "block",
-                        "context_item": "context_item", 
                         "dump": "dump",
                         "raw_dump": "dump",
                         "timeline_event": "timeline_event"

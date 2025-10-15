@@ -7,6 +7,11 @@ NOT time-based thresholds (per YARNNN Canon v3.1).
 Freshness Model:
   Staleness = f(substrate_hash_changed, graph_topology_changed, temporal_scope_invalid)
 """
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
 
 import hashlib
 from typing import Optional, Dict, Any, List

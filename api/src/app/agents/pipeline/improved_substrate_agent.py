@@ -83,36 +83,50 @@ class ImprovedP1SubstrateAgent:
                 str(dump_id)
             )
             
-            # Transform to blocks and context items
-            blocks, context_items = self._transform_to_substrate(
+            # V3.0: Transform to unified blocks (all semantic_types)
+            substrate_blocks = self._transform_to_substrate(
                 extraction_result, dump_id, content_type
             )
-            
+
             # Calculate metrics
             processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-            
+
+            # Categorize blocks by type for logging
+            knowledge_blocks = [b for b in substrate_blocks if b.get('semantic_type') in [
+                'fact', 'metric', 'event', 'insight', 'action', 'finding', 'quote', 'summary'
+            ]]
+            meaning_blocks = [b for b in substrate_blocks if b.get('semantic_type') in [
+                'intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint'
+            ]]
+            structural_blocks = [b for b in substrate_blocks if b.get('semantic_type') in [
+                'entity', 'classification', 'reference'
+            ]]
+
             self.logger.info(
-                f"Improved P1 completed: dump_id={dump_id}, "
-                f"blocks={len(blocks)}, context_items={len(context_items)}, "
+                f"Improved P1 v3.0 completed: dump_id={dump_id}, "
+                f"total_blocks={len(substrate_blocks)} "
+                f"(knowledge={len(knowledge_blocks)}, meaning={len(meaning_blocks)}, structural={len(structural_blocks)}), "
                 f"content_type={content_type}, processing_time_ms={processing_time_ms}"
             )
-            
+
             return {
                 "primary_dump_id": str(dump_id),
                 "processed_dump_ids": [str(dump_id)],
                 "batch_mode": False,
                 "blocks_created": [],  # Empty for governance compliance
-                "context_items_created": [],  # Empty for governance compliance
                 "processing_time_ms": processing_time_ms,
                 "agent_confidence": extraction_result.extraction_confidence,
                 "extraction_method": f"focused_{content_type}",
                 "content_type": content_type,
-                # Provide ingredients for governance
-                "block_ingredients": blocks,
-                "context_item_ingredients": context_items,
+                # V3.0: Single substrate_ingredients (unified blocks)
+                "substrate_ingredients": substrate_blocks,
                 "extraction_summary": {
+                    "total_blocks": len(substrate_blocks),
+                    "knowledge_blocks": len(knowledge_blocks),
+                    "meaning_blocks": len(meaning_blocks),
+                    "structural_blocks": len(structural_blocks),
                     "facts_count": len(extraction_result.facts),
-                    "insights_count": len(extraction_result.insights), 
+                    "insights_count": len(extraction_result.insights),
                     "actions_count": len(extraction_result.actions),
                     "context_count": len(extraction_result.context),
                     "primary_theme": extraction_result.primary_theme
@@ -236,18 +250,29 @@ EXTRACTION GUIDELINES:
         extraction: FocusedExtraction,
         dump_id: UUID,
         content_type: ContentType
-    ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Transform focused extraction to blocks and context items"""
-        
-        blocks = []
-        context_items = []
-        
+    ) -> List[Dict[str, Any]]:
+        """
+        V3.0: Transform focused extraction to unified substrate blocks
+
+        Returns single list of blocks with all semantic_types:
+        - Knowledge types (fact, metric, event, insight, action, etc.)
+        - Meaning types (intent, objective, rationale, etc.)
+        - Structural types (entity, classification, reference)
+
+        Emergent anchors proposed based on content semantics.
+        """
+
+        substrate_blocks = []
+
         # Create summary block
-        blocks.append({
+        substrate_blocks.append({
             "semantic_type": "summary",
             "title": f"Summary - {extraction.primary_theme}",
             "content": extraction.summary,
             "confidence_score": extraction.extraction_confidence,
+            "anchor_role": None,  # Summaries typically don't need anchors
+            "anchor_status": None,
+            "anchor_confidence": None,
             "metadata": {
                 "content_type": content_type,
                 "source_dump_id": str(dump_id),
@@ -266,14 +291,21 @@ EXTRACTION GUIDELINES:
             "milestone": "event"
         }
 
-        # Transform facts to blocks
+        # Transform facts to knowledge blocks with emergent anchors
         for i, fact in enumerate(extraction.facts[:10]):  # Limit to 10 best facts
             semantic_type = fact_type_map.get(fact.type.lower() if isinstance(fact.type, str) else "", "finding")
-            blocks.append({
+
+            # V3.0: Emergent anchor inference
+            anchor_role, anchor_confidence = self._infer_anchor_from_fact(fact)
+
+            substrate_blocks.append({
                 "semantic_type": semantic_type,
                 "title": f"{fact.type.title()}: {fact.text[:50]}...",
                 "content": fact.text,
                 "confidence_score": fact.confidence,
+                "anchor_role": anchor_role,  # Emergent
+                "anchor_status": "proposed" if anchor_role else None,
+                "anchor_confidence": anchor_confidence if anchor_role else None,
                 "metadata": {
                     "fact_type": fact.type,
                     "source_hint": fact.source_hint,
@@ -282,14 +314,17 @@ EXTRACTION GUIDELINES:
                     "extraction_method": "focused_fact"
                 }
             })
-        
-        # Transform insights to blocks
+
+        # Transform insights to blocks (insights semantic_type)
         for i, insight in enumerate(extraction.insights[:8]):  # Limit to 8 best insights
-            blocks.append({
+            substrate_blocks.append({
                 "semantic_type": "insight",
                 "title": f"Insight: {insight.insight[:50]}...",
                 "content": insight.insight,
                 "confidence_score": insight.confidence,
+                "anchor_role": "insight",  # Insights often anchored as "insight"
+                "anchor_status": "proposed",
+                "anchor_confidence": insight.confidence,
                 "metadata": {
                     "supporting_facts": insight.supporting_facts,
                     "content_type": content_type,
@@ -297,14 +332,17 @@ EXTRACTION GUIDELINES:
                     "extraction_method": "focused_insight"
                 }
             })
-        
-        # Transform actions to blocks
+
+        # Transform actions to blocks (action semantic_type)
         for i, action in enumerate(extraction.actions[:6]):  # Limit to 6 best actions
-            blocks.append({
+            substrate_blocks.append({
                 "semantic_type": "action",
                 "title": f"Action ({action.priority}): {action.action[:50]}...",
                 "content": action.action,
                 "confidence_score": 0.8,  # Actions are typically high confidence
+                "anchor_role": "solution" if action.priority == "high" else None,  # High-priority actions = solutions
+                "anchor_status": "proposed" if action.priority == "high" else None,
+                "anchor_confidence": 0.85 if action.priority == "high" else None,
                 "metadata": {
                     "priority": action.priority,
                     "timeline": action.timeline,
@@ -314,41 +352,48 @@ EXTRACTION GUIDELINES:
                     "extraction_method": "focused_action"
                 }
             })
-        
-        # Transform context to context items with proper semantic meaning
+
+        # V3.0: Transform context to ENTITY blocks (structural type)
         for ctx in extraction.context[:15]:  # Limit to 15 best context items
             # Generate semantic meaning based on entity role and context
             semantic_meaning = self._generate_semantic_meaning(ctx, content_type, extraction)
-            
-            context_items.append({
-                "label": ctx.entity,
+
+            substrate_blocks.append({
+                "semantic_type": "entity",  # V3.0: Structural type
+                "title": ctx.entity,
                 "content": semantic_meaning,  # Canon: Semantic interpretation
-                "kind": "entity",
+                "confidence_score": 0.7,  # Entities generally medium confidence
+                "anchor_role": None,  # Entities typically don't need anchors (just references)
+                "anchor_status": None,
+                "anchor_confidence": None,
                 "metadata": {
-                    "role": ctx.role,
-                    "details": ctx.details,
-                    "semantic_meaning": semantic_meaning,  # Store for governance processor
+                    "entity_role": ctx.role,
+                    "entity_details": ctx.details,
                     "content_type": content_type,
                     "source_dump_id": str(dump_id),
                     "extraction_method": "focused_context"
                 }
             })
-        
-        # Add content type as context item
-        context_items.append({
-            "label": f"Content Type: {content_type}",
-            "content": f"This content was classified as {content_type} type",
-            "kind": "classification",
+
+        # V3.0: Add content type as CLASSIFICATION block (structural type)
+        substrate_blocks.append({
+            "semantic_type": "classification",  # V3.0: Structural type
+            "title": f"Content Type: {content_type}",
+            "content": f"This content was classified as {content_type} type, focusing on {extraction.primary_theme}",
+            "confidence_score": extraction.extraction_confidence,
+            "anchor_role": None,  # Classifications don't need anchors
+            "anchor_status": None,
+            "anchor_confidence": None,
             "metadata": {
-                "content_type": content_type,
+                "classification_type": "content_type",
                 "primary_theme": extraction.primary_theme,
                 "extraction_confidence": extraction.extraction_confidence,
                 "source_dump_id": str(dump_id),
                 "extraction_method": "content_classification"
             }
         })
-        
-        return blocks, context_items
+
+        return substrate_blocks  # V3.0: Single list
     
     def _generate_semantic_meaning(
         self,
@@ -388,7 +433,66 @@ EXTRACTION GUIDELINES:
         # Default semantic interpretation
         theme = extraction.primary_theme
         return f"{entity} plays the role of {role} in the context of {theme}. {details or 'This entity shapes the narrative and outcomes described.'}"
-    
+
+    def _infer_anchor_from_fact(self, fact: ExtractedFact) -> tuple[Optional[str], Optional[float]]:
+        """
+        V3.0: Emergent anchor inference from fact content
+
+        Returns (anchor_role, anchor_confidence) or (None, None)
+
+        Common emergent anchors:
+        - problem: Issues, bugs, pain points
+        - metric: Measurements, KPIs, targets
+        - customer: User needs, feedback
+        - solution: Fixes, improvements
+        - feature: Capabilities, functionality
+        - constraint: Limitations, requirements
+        - vision: Goals, aspirations
+        """
+        content_lower = fact.text.lower()
+
+        # Problem indicators
+        if any(word in content_lower for word in [
+            'issue', 'problem', 'bug', 'error', 'fail', 'struggle', 'difficulty',
+            'pain point', 'complaint', 'drop-off', 'abandon', 'friction'
+        ]):
+            return ("problem", min(fact.confidence + 0.1, 1.0))
+
+        # Metric indicators
+        if fact.type.lower() == 'metric' or any(char in fact.text for char in ['%', '$', '#']):
+            return ("metric", fact.confidence)
+
+        # Customer indicators
+        if any(word in content_lower for word in [
+            'user', 'customer', 'client', 'feedback', 'review', 'satisfaction',
+            'request', 'need', 'want', 'prefer'
+        ]):
+            return ("customer", fact.confidence)
+
+        # Feature indicators
+        if any(word in content_lower for word in [
+            'feature', 'capability', 'functionality', 'integration', 'api',
+            'release', 'launch', 'deploy'
+        ]):
+            return ("feature", fact.confidence)
+
+        # Constraint indicators
+        if any(word in content_lower for word in [
+            'limit', 'constraint', 'requirement', 'must', 'comply', 'regulation',
+            'budget', 'deadline', 'restriction'
+        ]):
+            return ("constraint", fact.confidence)
+
+        # Vision indicators
+        if any(word in content_lower for word in [
+            'goal', 'target', 'objective', 'aim', 'aspire', 'vision',
+            'become', 'achieve', 'reach'
+        ]):
+            return ("vision", fact.confidence)
+
+        # No clear anchor
+        return (None, None)
+
     def get_agent_info(self) -> Dict[str, str]:
         """Get agent information"""
         return {

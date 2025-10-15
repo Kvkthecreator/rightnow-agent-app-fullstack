@@ -12,6 +12,11 @@ Canon v2.3 Pipeline Processing Sequence:
 (P3 Reflection: Direct artifact operations via /api/reflections)
 (P4 Document Composition: Direct artifact operations via /api/documents)
 """
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
 
 import asyncio
 import logging

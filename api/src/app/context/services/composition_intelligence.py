@@ -27,6 +27,11 @@ logger = logging.getLogger("uvicorn.error")
 
 class CompositionIntelligenceService:
     """Core service for composition intelligence analysis and management."""
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
     
     # Intent detection patterns
     INTENT_PATTERNS = {

@@ -211,10 +211,10 @@ class RelationshipDiscoveryService:
         
         contents = {
             "documents": [],
-            "blocks": [],
-            "context_items": []
+            "blocks": []
+            # V3.0: No context_items (merged into blocks)
         }
-        
+
         try:
             # Get documents with full content
             docs_resp = (
@@ -225,27 +225,17 @@ class RelationshipDiscoveryService:
                 .execute()
             )
             contents["documents"] = docs_resp.data or []
-            
-            # Get related blocks for context
+
+            # V3.0: Get blocks (includes all substrate types: knowledge, meaning, entities)
             blocks_resp = (
                 supabase.table("blocks")
-                .select("id,content,semantic_type,document_id")
+                .select("id,content,semantic_type,anchor_role,document_id")
                 .eq("basket_id", str(basket_id))
                 .eq("workspace_id", workspace_id)
                 .neq("state", "REJECTED")
                 .execute()
             )
             contents["blocks"] = blocks_resp.data or []
-            
-            # Get context items for relationship context
-            contexts_resp = (
-                supabase.table("context_items")
-                .select("id,content,type,document_id,block_id")
-                .eq("basket_id", str(basket_id))
-                .eq("status", "active")
-                .execute()
-            )
-            contents["context_items"] = contexts_resp.data or []
             
         except Exception as e:
             logger.exception(f"Failed to get basket contents for relationships: {e}")

@@ -38,15 +38,6 @@ CREATE TYPE public.block_state AS ENUM (
     'SUPERSEDED',
     'REJECTED'
 );
-CREATE TYPE public.context_item_state AS ENUM (
-    'PROVISIONAL',
-    'PROPOSED',
-    'UNDER_REVIEW',
-    'ACTIVE',
-    'DEPRECATED',
-    'MERGED',
-    'REJECTED'
-);
 CREATE TYPE public.event_significance AS ENUM (
     'low',
     'medium',
@@ -101,8 +92,8 @@ CREATE TYPE public.scope_level AS ENUM (
 CREATE TYPE public.substrate_type AS ENUM (
     'block',
     'dump',
-    'context_item',
-    'timeline_event'
+    'event',
+    'document'
 );
 CREATE FUNCTION public.auto_increment_block_usage_on_reference() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
@@ -626,55 +617,6 @@ begin
   return v_id;
 end;
 $$;
-CREATE FUNCTION public.fn_document_attach_substrate(p_document_id uuid, p_substrate_type public.substrate_type, p_substrate_id uuid, p_role text DEFAULT NULL::text, p_weight numeric DEFAULT NULL::numeric, p_snippets jsonb DEFAULT '[]'::jsonb, p_metadata jsonb DEFAULT '{}'::jsonb) RETURNS uuid
-    LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-DECLARE
-  v_reference_id uuid;
-  v_workspace_id uuid;
-BEGIN
-  -- Get document workspace
-  SELECT d.workspace_id INTO v_workspace_id
-  FROM documents d WHERE d.id = p_document_id;
-  
-  -- Insert or update reference
-  INSERT INTO substrate_references (
-    document_id,
-    substrate_type, 
-    substrate_id,
-    role,
-    weight,
-    snippets,
-    metadata,
-    created_by
-  ) VALUES (
-    p_document_id,
-    p_substrate_type,
-    p_substrate_id,
-    p_role,
-    p_weight,
-    p_snippets,
-    p_metadata,
-    auth.uid()
-  ) ON CONFLICT (document_id, substrate_type, substrate_id) 
-  DO UPDATE SET
-    role = EXCLUDED.role,
-    weight = EXCLUDED.weight,
-    snippets = EXCLUDED.snippets,
-    metadata = EXCLUDED.metadata
-  RETURNING id INTO v_reference_id;
-  
-  -- Emit timeline event
-  PERFORM fn_timeline_emit(
-    (SELECT basket_id FROM documents WHERE id = p_document_id),
-    'document.' || p_substrate_type || '.attached',
-    v_reference_id,
-    'Attached ' || p_substrate_type || ' to document',
-    jsonb_build_object('substrate_id', p_substrate_id, 'substrate_type', p_substrate_type)
-  );
-  
-  RETURN v_reference_id;
-END $$;
 CREATE FUNCTION public.fn_document_create(p_basket_id uuid, p_workspace_id uuid, p_title text, p_content_raw text) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
@@ -764,35 +706,6 @@ BEGIN
   RETURN v_version_hash;
 END;
 $$;
-CREATE FUNCTION public.fn_document_detach_substrate(p_document_id uuid, p_substrate_type public.substrate_type, p_substrate_id uuid) RETURNS boolean
-    LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-DECLARE
-  v_deleted_count int;
-BEGIN
-  -- Delete the reference
-  DELETE FROM substrate_references
-  WHERE document_id = p_document_id
-    AND substrate_type = p_substrate_type
-    AND substrate_id = p_substrate_id;
-    
-  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
-  
-  IF v_deleted_count > 0 THEN
-    -- Emit timeline event
-    PERFORM fn_timeline_emit(
-      (SELECT basket_id FROM documents WHERE id = p_document_id),
-      'document.' || p_substrate_type || '.detached',
-      p_substrate_id,
-      'Detached ' || p_substrate_type || ' from document',
-      jsonb_build_object('substrate_id', p_substrate_id, 'substrate_type', p_substrate_type)
-    );
-    
-    RETURN true;
-  END IF;
-  
-  RETURN false;
-END $$;
 CREATE FUNCTION public.fn_document_update(p_doc_id uuid, p_title text, p_content_raw text, p_metadata jsonb DEFAULT NULL::jsonb) RETURNS uuid
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
@@ -1163,6 +1076,94 @@ BEGIN
   );
 END;
 $$;
+CREATE FUNCTION public.get_basket_anchor_vocabulary(p_basket_id uuid) RETURNS TABLE(anchor_role text, usage_count bigint, accepted_count bigint, avg_confidence numeric, semantic_types text[])
+    LANGUAGE plpgsql STABLE
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        b.anchor_role,
+        COUNT(*) as usage_count,
+        COUNT(*) FILTER (WHERE b.anchor_status = 'accepted') as accepted_count,
+        ROUND(AVG(b.anchor_confidence)::numeric, 2) as avg_confidence,
+        ARRAY_AGG(DISTINCT b.semantic_type ORDER BY b.semantic_type) as semantic_types
+    FROM blocks b
+    WHERE b.basket_id = p_basket_id
+        AND b.anchor_role IS NOT NULL
+    GROUP BY b.anchor_role
+    ORDER BY accepted_count DESC, usage_count DESC;
+END;
+$$;
+CREATE FUNCTION public.get_basket_substrate_categorized(p_basket_id uuid) RETURNS TABLE(category text, block_count bigint, semantic_types jsonb)
+    LANGUAGE plpgsql STABLE
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        CASE
+            WHEN semantic_type IN ('fact', 'metric', 'event', 'insight', 'action', 'finding', 'quote', 'summary')
+                THEN 'knowledge'
+            WHEN semantic_type IN ('intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint')
+                THEN 'meaning'
+            WHEN semantic_type IN ('entity', 'classification', 'reference')
+                THEN 'structural'
+            ELSE 'other'
+        END as category,
+        COUNT(*) as block_count,
+        jsonb_object_agg(
+            semantic_type,
+            COUNT(*)
+        ) as semantic_types
+    FROM blocks
+    WHERE basket_id = p_basket_id
+        AND state = 'ACCEPTED'
+    GROUP BY category;
+END;
+$$;
+CREATE FUNCTION public.get_block_version_history(p_block_id uuid) RETURNS TABLE(id uuid, version integer, title text, content text, state public.block_state, created_at timestamp with time zone, updated_at timestamp with time zone)
+    LANGUAGE plpgsql STABLE
+    AS $$
+BEGIN
+    RETURN QUERY
+    WITH RECURSIVE version_chain AS (
+        -- Start with the given block
+        SELECT
+            b.id,
+            b.parent_block_id,
+            b.version,
+            b.title,
+            b.content,
+            b.state,
+            b.created_at,
+            b.updated_at
+        FROM blocks b
+        WHERE b.id = p_block_id
+        UNION ALL
+        -- Recursively get parent versions
+        SELECT
+            b.id,
+            b.parent_block_id,
+            b.version,
+            b.title,
+            b.content,
+            b.state,
+            b.created_at,
+            b.updated_at
+        FROM blocks b
+        INNER JOIN version_chain vc ON b.id = vc.parent_block_id
+    )
+    SELECT
+        vc.id,
+        vc.version,
+        vc.title,
+        vc.content,
+        vc.state,
+        vc.created_at,
+        vc.updated_at
+    FROM version_chain vc
+    ORDER BY vc.version DESC;
+END;
+$$;
 CREATE FUNCTION public.get_current_insight_canon(p_basket_id uuid) RETURNS TABLE(id uuid, reflection_text text, substrate_hash text, graph_signature text, derived_from jsonb, created_at timestamp with time zone)
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     AS $$
@@ -1197,6 +1198,26 @@ BEGIN
   WHERE d.basket_id = p_basket_id
     AND d.doc_type = 'document_canon'
   LIMIT 1;
+END;
+$$;
+CREATE FUNCTION public.get_workspace_constants(p_workspace_id uuid) RETURNS TABLE(id uuid, semantic_type text, title text, content text, anchor_role text, scope public.scope_level, created_at timestamp with time zone)
+    LANGUAGE plpgsql STABLE
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        b.id,
+        b.semantic_type,
+        b.title,
+        b.content,
+        b.anchor_role,
+        b.scope,
+        b.created_at
+    FROM blocks b
+    WHERE b.workspace_id = p_workspace_id
+        AND b.state = 'CONSTANT'
+        AND b.scope IN ('WORKSPACE', 'ORG', 'GLOBAL')
+    ORDER BY b.scope DESC, b.created_at DESC;
 END;
 $$;
 CREATE FUNCTION public.get_workspace_governance_flags(p_workspace_id uuid) RETURNS jsonb
@@ -1529,84 +1550,34 @@ CREATE TABLE public.blocks (
     anchor_status text DEFAULT 'proposed'::text,
     anchor_confidence real,
     CONSTRAINT blocks_anchor_confidence_check CHECK (((anchor_confidence >= (0.0)::double precision) AND (anchor_confidence <= (1.0)::double precision))),
-    CONSTRAINT blocks_anchor_role_check CHECK ((anchor_role = ANY (ARRAY['problem'::text, 'customer'::text, 'solution'::text, 'feature'::text, 'constraint'::text, 'metric'::text, 'insight'::text, 'vision'::text]))),
-    CONSTRAINT blocks_anchor_status_check CHECK ((anchor_status = ANY (ARRAY['proposed'::text, 'accepted'::text, 'rejected'::text, 'n/a'::text]))),
-    CONSTRAINT blocks_check CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state))),
+    CONSTRAINT blocks_anchor_confidence_v3_check CHECK (((anchor_confidence IS NULL) OR ((anchor_confidence >= (0.0)::double precision) AND (anchor_confidence <= (1.0)::double precision)))),
+    CONSTRAINT blocks_anchor_status_v3_check CHECK (((anchor_status IS NULL) OR (anchor_status = ANY (ARRAY['proposed'::text, 'accepted'::text, 'rejected'::text])))),
+    CONSTRAINT blocks_constant_requires_scope CHECK ((((state = 'CONSTANT'::public.block_state) AND (scope IS NOT NULL)) OR (state <> 'CONSTANT'::public.block_state))),
     CONSTRAINT blocks_content_not_empty CHECK (((content IS NOT NULL) AND (content <> ''::text))),
     CONSTRAINT blocks_title_not_empty CHECK (((title IS NOT NULL) AND (title <> ''::text))),
     CONSTRAINT check_structured_ingredient_metadata CHECK (public.validate_structured_ingredient_metadata(metadata))
 )
 WITH (autovacuum_enabled='true');
 ALTER TABLE ONLY public.blocks REPLICA IDENTITY FULL;
-CREATE TABLE public.context_items (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    basket_id uuid NOT NULL,
-    document_id uuid,
-    type text NOT NULL,
-    content text,
-    status text DEFAULT 'active'::text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    raw_dump_id uuid,
-    title text,
-    description text,
-    confidence_score double precision DEFAULT 0.5,
-    metadata jsonb DEFAULT '{}'::jsonb,
-    updated_at timestamp with time zone DEFAULT now(),
-    normalized_label text,
-    origin_ref jsonb,
-    equivalence_class uuid,
-    state public.context_item_state DEFAULT 'ACTIVE'::public.context_item_state,
-    proposal_id uuid,
-    approved_at timestamp with time zone,
-    approved_by uuid,
-    semantic_meaning text,
-    semantic_category character varying(50),
-    anchor_role text,
-    anchor_status text DEFAULT 'proposed'::text,
-    anchor_confidence real,
-    CONSTRAINT context_items_anchor_confidence_check CHECK (((anchor_confidence >= (0.0)::double precision) AND (anchor_confidence <= (1.0)::double precision))),
-    CONSTRAINT context_items_anchor_role_check CHECK ((anchor_role = ANY (ARRAY['problem'::text, 'customer'::text, 'solution'::text, 'feature'::text, 'constraint'::text, 'metric'::text, 'insight'::text, 'vision'::text]))),
-    CONSTRAINT context_items_anchor_status_check CHECK ((anchor_status = ANY (ARRAY['proposed'::text, 'accepted'::text, 'rejected'::text, 'n/a'::text]))),
-    CONSTRAINT context_items_label_not_empty CHECK (((title IS NOT NULL) AND (title <> ''::text))),
-    CONSTRAINT context_items_status_check CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
-);
-ALTER TABLE ONLY public.context_items REPLICA IDENTITY FULL;
 CREATE VIEW public.anchored_substrate AS
  SELECT 'block'::text AS substrate_type,
-    blocks.id AS substrate_id,
-    blocks.basket_id,
-    blocks.anchor_role,
-    blocks.anchor_status,
-    blocks.anchor_confidence,
-    blocks.title,
-    blocks.content,
-    blocks.semantic_type,
-    (blocks.state)::text AS state,
-    blocks.status,
-    blocks.created_at,
-    blocks.updated_at,
-    blocks.last_validated_at,
-    blocks.metadata
-   FROM public.blocks
-  WHERE (blocks.anchor_role IS NOT NULL)
-UNION ALL
- SELECT 'context_item'::text AS substrate_type,
-    context_items.id AS substrate_id,
-    context_items.basket_id,
-    context_items.anchor_role,
-    context_items.anchor_status,
-    context_items.anchor_confidence,
-    context_items.title,
-    context_items.semantic_meaning AS content,
-    context_items.semantic_category AS semantic_type,
-    (context_items.state)::text AS state,
-    context_items.status,
-    context_items.created_at,
-    context_items.updated_at,
-    NULL::timestamp with time zone AS last_validated_at,
-    context_items.metadata
-   FROM public.context_items
-  WHERE (context_items.anchor_role IS NOT NULL);
+    b.id AS substrate_id,
+    b.basket_id,
+    b.workspace_id,
+    b.anchor_role,
+    b.anchor_status,
+    b.anchor_confidence,
+    b.title,
+    b.content,
+    b.semantic_type,
+    (b.state)::text AS state,
+    b.scope,
+    b.created_at,
+    b.updated_at,
+    b.last_validated_at,
+    b.metadata
+   FROM public.blocks b
+  WHERE (b.anchor_role IS NOT NULL);
 CREATE TABLE public.app_events (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     v integer DEFAULT 1 NOT NULL,
@@ -1733,28 +1704,6 @@ CASE
 END) STORED,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
-CREATE TABLE public.substrate_references (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    document_id uuid NOT NULL,
-    substrate_type public.substrate_type NOT NULL,
-    substrate_id uuid NOT NULL,
-    role text,
-    weight numeric(3,2),
-    snippets jsonb DEFAULT '[]'::jsonb,
-    metadata jsonb DEFAULT '{}'::jsonb,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    created_by uuid,
-    CONSTRAINT substrate_references_weight_check CHECK (((weight >= (0)::numeric) AND (weight <= (1)::numeric)))
-);
-CREATE VIEW public.document_composition_stats AS
- SELECT substrate_references.document_id,
-    count(*) FILTER (WHERE (substrate_references.substrate_type = 'block'::public.substrate_type)) AS blocks_count,
-    count(*) FILTER (WHERE (substrate_references.substrate_type = 'dump'::public.substrate_type)) AS dumps_count,
-    count(*) FILTER (WHERE (substrate_references.substrate_type = 'context_item'::public.substrate_type)) AS context_items_count,
-    count(*) FILTER (WHERE (substrate_references.substrate_type = 'timeline_event'::public.substrate_type)) AS timeline_events_count,
-    count(*) AS total_substrate_references
-   FROM public.substrate_references
-  GROUP BY substrate_references.document_id;
 CREATE TABLE public.document_context_items (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     document_id uuid NOT NULL,
@@ -1823,55 +1772,6 @@ CREATE VIEW public.document_heads AS
     dv.version_message
    FROM (public.documents d
      LEFT JOIN public.document_versions dv ON (((dv.version_hash)::text = (d.current_version_hash)::text)));
-CREATE TABLE public.raw_dumps (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    basket_id uuid NOT NULL,
-    body_md text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    workspace_id uuid NOT NULL,
-    file_url text,
-    document_id uuid,
-    fragments jsonb DEFAULT '[]'::jsonb,
-    processing_status text DEFAULT 'unprocessed'::text,
-    processed_at timestamp with time zone,
-    source_meta jsonb DEFAULT '{}'::jsonb,
-    ingest_trace_id text,
-    dump_request_id uuid,
-    text_dump text
-);
-ALTER TABLE ONLY public.raw_dumps REPLICA IDENTITY FULL;
-CREATE VIEW public.document_staleness AS
- WITH latest_times AS (
-         SELECT d.id AS document_id,
-            dv.version_hash,
-            dv.created_at AS version_created_at,
-            GREATEST(COALESCE(max(
-                CASE
-                    WHEN (sr.substrate_type = 'dump'::public.substrate_type) THEN rd.created_at
-                    ELSE NULL::timestamp with time zone
-                END), '1970-01-01 00:00:00+00'::timestamp with time zone), COALESCE(max(
-                CASE
-                    WHEN (sr.substrate_type = 'block'::public.substrate_type) THEN cb.created_at
-                    ELSE NULL::timestamp with time zone
-                END), '1970-01-01 00:00:00+00'::timestamp with time zone), COALESCE(max(
-                CASE
-                    WHEN (sr.substrate_type = 'context_item'::public.substrate_type) THEN ci.updated_at
-                    ELSE NULL::timestamp with time zone
-                END), '1970-01-01 00:00:00+00'::timestamp with time zone)) AS last_substrate_updated_at
-           FROM (((((public.documents d
-             LEFT JOIN public.document_versions dv ON (((dv.version_hash)::text = (d.current_version_hash)::text)))
-             LEFT JOIN public.substrate_references sr ON ((sr.document_id = d.id)))
-             LEFT JOIN public.raw_dumps rd ON (((rd.id = sr.substrate_id) AND (sr.substrate_type = 'dump'::public.substrate_type))))
-             LEFT JOIN public.blocks cb ON (((cb.id = sr.substrate_id) AND (sr.substrate_type = 'block'::public.substrate_type))))
-             LEFT JOIN public.context_items ci ON (((ci.id = sr.substrate_id) AND (sr.substrate_type = 'context_item'::public.substrate_type))))
-          GROUP BY d.id, dv.version_hash, dv.created_at
-        )
- SELECT latest_times.document_id,
-    latest_times.version_hash,
-    latest_times.version_created_at,
-    latest_times.last_substrate_updated_at,
-    (latest_times.last_substrate_updated_at > latest_times.version_created_at) AS is_stale
-   FROM latest_times;
 CREATE TABLE public.events (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
@@ -2089,6 +1989,23 @@ CREATE TABLE public.proposals (
     source_session text,
     CONSTRAINT proposals_origin_check CHECK ((origin = ANY (ARRAY['agent'::text, 'human'::text])))
 );
+CREATE TABLE public.raw_dumps (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid NOT NULL,
+    body_md text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    workspace_id uuid NOT NULL,
+    file_url text,
+    document_id uuid,
+    fragments jsonb DEFAULT '[]'::jsonb,
+    processing_status text DEFAULT 'unprocessed'::text,
+    processed_at timestamp with time zone,
+    source_meta jsonb DEFAULT '{}'::jsonb,
+    ingest_trace_id text,
+    dump_request_id uuid,
+    text_dump text
+);
+ALTER TABLE ONLY public.raw_dumps REPLICA IDENTITY FULL;
 CREATE TABLE public.reflections_artifact (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
@@ -2120,12 +2037,25 @@ CREATE TABLE public.revisions (
     diff_json jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+CREATE TABLE public.substrate_references (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    document_id uuid NOT NULL,
+    substrate_type public.substrate_type NOT NULL,
+    substrate_id uuid NOT NULL,
+    role text,
+    weight numeric(3,2),
+    snippets jsonb DEFAULT '[]'::jsonb,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    CONSTRAINT substrate_references_weight_check CHECK (((weight >= (0)::numeric) AND (weight <= (1)::numeric)))
+);
 CREATE TABLE public.substrate_relationships (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
-    from_type text NOT NULL,
+    from_type public.substrate_type NOT NULL,
     from_id uuid NOT NULL,
-    to_type text NOT NULL,
+    to_type public.substrate_type NOT NULL,
     to_id uuid NOT NULL,
     relationship_type text NOT NULL,
     description text,
@@ -2279,27 +2209,6 @@ CREATE VIEW public.v_user_workspaces AS
  SELECT wm.user_id,
     wm.workspace_id
    FROM public.workspace_memberships wm;
-CREATE VIEW public.vw_document_analyze_lite AS
- SELECT d.id AS document_id,
-    d.title,
-    d.basket_id,
-    d.workspace_id,
-    d.current_version_hash,
-    d.updated_at AS document_updated_at,
-    stats.blocks_count,
-    stats.dumps_count,
-    stats.context_items_count,
-    stats.timeline_events_count,
-    stats.total_substrate_references,
-    round(COALESCE(avg(sr.weight), (0)::numeric), 2) AS avg_reference_weight,
-    st.version_created_at,
-    st.last_substrate_updated_at,
-    st.is_stale
-   FROM (((public.documents d
-     LEFT JOIN public.document_composition_stats stats ON ((stats.document_id = d.id)))
-     LEFT JOIN public.substrate_references sr ON ((sr.document_id = d.id)))
-     LEFT JOIN public.document_staleness st ON ((st.document_id = d.id)))
-  GROUP BY d.id, d.title, d.basket_id, d.workspace_id, d.current_version_hash, d.updated_at, stats.blocks_count, stats.dumps_count, stats.context_items_count, stats.timeline_events_count, stats.total_substrate_references, st.version_created_at, st.last_substrate_updated_at, st.is_stale;
 CREATE TABLE public.workspace_governance_settings (
     workspace_id uuid NOT NULL,
     governance_enabled boolean DEFAULT false NOT NULL,
@@ -2379,8 +2288,6 @@ ALTER TABLE ONLY public.block_usage
     ADD CONSTRAINT block_usage_pkey PRIMARY KEY (block_id);
 ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.context_items
-    ADD CONSTRAINT context_items_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.document_context_items
     ADD CONSTRAINT document_context_items_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.document_versions
@@ -2483,22 +2390,19 @@ CREATE INDEX idx_baskets_workspace ON public.baskets USING btree (workspace_id);
 CREATE INDEX idx_block_revisions_basket_ts ON public.block_revisions USING btree (workspace_id, created_at DESC);
 CREATE INDEX idx_block_usage_last_used ON public.block_usage USING btree (last_used_at DESC NULLS LAST);
 CREATE INDEX idx_block_usage_score ON public.block_usage USING btree (usefulness_score DESC);
-CREATE INDEX idx_blocks_anchor_confidence ON public.blocks USING btree (basket_id, anchor_confidence DESC) WHERE ((anchor_role IS NOT NULL) AND (anchor_confidence IS NOT NULL));
+CREATE INDEX idx_blocks_anchor_confidence ON public.blocks USING btree (basket_id, anchor_confidence DESC) WHERE ((anchor_role IS NOT NULL) AND (anchor_status = 'accepted'::text));
 CREATE INDEX idx_blocks_anchor_role ON public.blocks USING btree (basket_id, anchor_role, anchor_status) WHERE (anchor_role IS NOT NULL);
-CREATE INDEX idx_blocks_basket ON public.blocks USING btree (basket_id);
+CREATE INDEX idx_blocks_anchor_vocabulary ON public.blocks USING btree (basket_id, anchor_role, anchor_status) WHERE (anchor_role IS NOT NULL);
+CREATE INDEX idx_blocks_basket_state_time ON public.blocks USING btree (basket_id, state, last_validated_at DESC) WHERE (state = 'ACCEPTED'::public.block_state);
+CREATE INDEX idx_blocks_constants ON public.blocks USING btree (workspace_id, state, scope) WHERE (state = 'CONSTANT'::public.block_state);
 CREATE INDEX idx_blocks_raw_dump ON public.blocks USING btree (raw_dump_id);
-CREATE INDEX idx_blocks_semantic_type ON public.blocks USING btree (semantic_type);
+CREATE INDEX idx_blocks_recent_validated ON public.blocks USING btree (basket_id, last_validated_at DESC) WHERE (state = 'ACCEPTED'::public.block_state);
+CREATE INDEX idx_blocks_semantic_type ON public.blocks USING btree (basket_id, semantic_type, state);
 CREATE INDEX idx_blocks_staleness ON public.blocks USING btree (last_validated_at DESC NULLS LAST);
 CREATE INDEX idx_blocks_updated_at ON public.blocks USING btree (updated_at);
+CREATE INDEX idx_blocks_version_chain ON public.blocks USING btree (parent_block_id, version) WHERE (parent_block_id IS NOT NULL);
 CREATE INDEX idx_blocks_workspace ON public.blocks USING btree (workspace_id);
-CREATE INDEX idx_context_basket ON public.context_items USING btree (basket_id);
-CREATE INDEX idx_context_doc ON public.context_items USING btree (document_id);
-CREATE INDEX idx_context_items_anchor_confidence ON public.context_items USING btree (basket_id, anchor_confidence DESC) WHERE ((anchor_role IS NOT NULL) AND (anchor_confidence IS NOT NULL));
-CREATE INDEX idx_context_items_anchor_role ON public.context_items USING btree (basket_id, anchor_role, anchor_status) WHERE (anchor_role IS NOT NULL);
-CREATE INDEX idx_context_items_basket ON public.context_items USING btree (basket_id);
-CREATE INDEX idx_context_items_basket_id ON public.context_items USING btree (basket_id);
-CREATE INDEX idx_context_items_semantic_category ON public.context_items USING btree (semantic_category);
-CREATE INDEX idx_context_items_state ON public.context_items USING btree (state);
+CREATE INDEX idx_blocks_workspace_scope ON public.blocks USING btree (workspace_id, scope, state) WHERE (scope IS NOT NULL);
 CREATE INDEX idx_doc_versions_signature ON public.document_versions USING btree (composition_signature) WHERE (composition_signature IS NOT NULL);
 CREATE INDEX idx_document_versions_created ON public.document_versions USING btree (created_at DESC);
 CREATE INDEX idx_document_versions_document ON public.document_versions USING btree (document_id);
@@ -2583,7 +2487,6 @@ CREATE UNIQUE INDEX timeline_dump_unique ON public.timeline_events USING btree (
 CREATE INDEX timeline_events_basket_ts_idx ON public.timeline_events USING btree (basket_id, ts DESC);
 CREATE UNIQUE INDEX uq_basket_anchors_key ON public.basket_anchors USING btree (basket_id, anchor_key);
 CREATE UNIQUE INDEX uq_baskets_user_idem ON public.baskets USING btree (user_id, idempotency_key) WHERE (idempotency_key IS NOT NULL);
-CREATE UNIQUE INDEX uq_ctx_items_norm_label_by_type ON public.context_items USING btree (basket_id, type, normalized_label) WHERE (normalized_label IS NOT NULL);
 CREATE UNIQUE INDEX uq_current_insight_canon_per_basket ON public.reflections_artifact USING btree (basket_id) WHERE ((insight_type = 'insight_canon'::text) AND (is_current = true) AND (basket_id IS NOT NULL));
 CREATE UNIQUE INDEX uq_current_insight_canon_per_workspace ON public.reflections_artifact USING btree (workspace_id) WHERE ((insight_type = 'insight_canon'::text) AND (is_current = true) AND (scope_level = 'workspace'::text));
 CREATE UNIQUE INDEX uq_doc_ctx_item ON public.document_context_items USING btree (document_id, context_item_id);
@@ -2650,16 +2553,6 @@ ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id);
 ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
-ALTER TABLE ONLY public.context_items
-    ADD CONSTRAINT context_items_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.context_items
-    ADD CONSTRAINT context_items_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.context_items
-    ADD CONSTRAINT context_items_proposal_id_fkey FOREIGN KEY (proposal_id) REFERENCES public.proposals(id);
-ALTER TABLE ONLY public.context_items
-    ADD CONSTRAINT context_items_raw_dump_id_fkey FOREIGN KEY (raw_dump_id) REFERENCES public.raw_dumps(id);
-ALTER TABLE ONLY public.document_context_items
-    ADD CONSTRAINT document_context_items_context_item_id_fkey FOREIGN KEY (context_item_id) REFERENCES public.context_items(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.document_context_items
     ADD CONSTRAINT document_context_items_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.document_versions
@@ -2851,11 +2744,6 @@ CREATE POLICY "Users can view blocks in their workspace" ON public.blocks FOR SE
   WHERE ((baskets.id = blocks.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
-CREATE POLICY "Users can view context_items in their workspace" ON public.context_items FOR SELECT USING ((EXISTS ( SELECT 1
-   FROM public.baskets
-  WHERE ((baskets.id = context_items.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
-           FROM public.workspace_memberships
-          WHERE (workspace_memberships.user_id = auth.uid())))))));
 CREATE POLICY "Users can view executions in their workspace" ON public.proposal_executions FOR SELECT USING ((proposal_id IN ( SELECT proposals.id
    FROM public.proposals
   WHERE (proposals.workspace_id IN ( SELECT workspace_memberships.workspace_id
@@ -2994,59 +2882,6 @@ CREATE POLICY br_select_workspace_member ON public.reflections_artifact FOR SELE
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((b.id = reflections_artifact.basket_id) AND (wm.user_id = auth.uid())))));
-ALTER TABLE public.context_items ENABLE ROW LEVEL SECURITY;
-CREATE POLICY context_items_delete ON public.context_items FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY context_items_delete_workspace_member ON public.context_items FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY context_items_insert ON public.context_items FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY context_items_insert_workspace_member ON public.context_items FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY context_items_select ON public.context_items FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY context_items_select_workspace_member ON public.context_items FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY context_items_service_role_all ON public.context_items TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY context_items_update ON public.context_items FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid()))))) WITH CHECK ((EXISTS ( SELECT 1
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY context_items_update_workspace_member ON public.context_items FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE ((b.id = context_items.basket_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY ctx_member_delete ON public.context_items FOR DELETE USING ((basket_id IN ( SELECT b.id
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE (wm.user_id = auth.uid()))));
-CREATE POLICY ctx_member_insert ON public.context_items FOR INSERT WITH CHECK ((basket_id IN ( SELECT b.id
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE (wm.user_id = auth.uid()))));
-CREATE POLICY ctx_member_read ON public.context_items FOR SELECT USING ((basket_id IN ( SELECT b.id
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE (wm.user_id = auth.uid()))));
-CREATE POLICY ctx_member_update ON public.context_items FOR UPDATE USING ((basket_id IN ( SELECT b.id
-   FROM (public.baskets b
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
-  WHERE (wm.user_id = auth.uid()))));
 CREATE POLICY "debug insert bypass" ON public.workspaces FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "delete history by service role" ON public.timeline_events FOR DELETE USING ((auth.role() = 'service_role'::text));
 CREATE POLICY "delete reflections by service role" ON public.reflections_artifact FOR DELETE USING ((auth.role() = 'service_role'::text));

@@ -128,7 +128,7 @@ class SubstrateOps:
         return {
             "blocks": {b["id"]: b for b in (blocks_resp.data or [])},
             "documents": {d["id"]: d for d in (docs_resp.data or [])},
-            "context_items": {}  # TODO: Load context items if needed
+            # V3.0: No context_items table (merged into blocks)
         }
 
     @staticmethod

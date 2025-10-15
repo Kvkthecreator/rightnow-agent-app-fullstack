@@ -18,6 +18,11 @@ logger = logging.getLogger("uvicorn.error")
 
 class IntentAnalyzerService:
     """Service for analyzing composition intent from memory substrate."""
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
     
     # Enhanced intent pattern library
     INTENT_TAXONOMY = {

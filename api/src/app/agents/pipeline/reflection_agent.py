@@ -272,49 +272,8 @@ Return JSON with deep analysis, not surface observations.""",
                             "updated_at": block.get("updated_at")
                         })
             
-            # Get context items - Canon: include title and semantic fields
-            # HOTFIX: Handle missing fields in pre-migration schema
-            try:
-                context_query = supabase.table("context_items").select(
-                    "id,basket_id,kind,content,title,semantic_meaning,semantic_category,state,created_at"
-                )
-            except Exception:
-                # Fallback for pre-migration schema
-                context_query = supabase.table("context_items").select(
-                    "id,basket_id,type,content,metadata,created_at"
-                )
-            
-            if basket_filter:
-                context_query = context_query.eq("basket_id", basket_filter)
-            else:
-                # Get all context items in workspace
-                if basket_ids:
-                    context_query = context_query.in_("basket_id", basket_ids)
-            
-            context_response = context_query.execute()
-            
-            if context_response.data and len(context_response.data) > 0:
-                for item in context_response.data:
-                    if item and isinstance(item, dict) and "id" in item:
-                        # Canon: title is entity label, content is semantic meaning
-                        # HOTFIX: Handle missing fields in pre-migration schema
-                        entity_label = item.get("title") or item.get("content", "Unknown Entity")[:50]
-                        semantic_meaning = item.get("content", "") or item.get("semantic_meaning", "")
-                        
-                        # HOTFIX: Handle both kind (new) and type (old) fields
-                        item_kind = item.get("kind") or item.get("type", "entity")
-                        
-                        substrate_data.append({
-                            "id": item["id"],
-                            "type": "context_item",
-                            "basket_id": item.get("basket_id"),
-                            "title": entity_label,  # Canon: entity name/label
-                            "content": semantic_meaning,  # Canon: semantic interpretation
-                            "semantic_type": item_kind,  # Canon: use kind field with fallback
-                            "semantic_category": item.get("semantic_category", "concept"),
-                            "state": item.get("state", "ACTIVE"),
-                            "created_at": item.get("created_at")
-                        })
+            # V3.0: No context_items table - entities are blocks with semantic_type='entity'
+            # Entity blocks already included in blocks query above
             
             # Get relationships for pattern analysis
             relationships_query = supabase.table("substrate_relationships").select(
@@ -356,13 +315,12 @@ Return JSON with deep analysis, not surface observations.""",
         """Compute patterns from substrate data through read-only analysis."""
         patterns = []
         
-        # Filter blocks and context items for pattern analysis
+        # V3.0: Filter blocks (all substrate) for pattern analysis
         blocks = [item for item in substrate_data if item["type"] == "block"]
-        context_items = [item for item in substrate_data if item["type"] == "context_item"]
         relationships = [item for item in substrate_data if item["type"] == "relationship"]
-        
-        # Thematic patterns
-        thematic_patterns = self._analyze_thematic_patterns(blocks, context_items)
+
+        # Thematic patterns (V3.0: only blocks, no separate context_items)
+        thematic_patterns = self._analyze_thematic_patterns(blocks)
         patterns.extend(thematic_patterns)
         
         # Structural patterns
@@ -404,23 +362,23 @@ Return JSON with deep analysis, not surface observations.""",
         gaps = []
         
         blocks = [item for item in substrate_data if item["type"] == "block"]
-        context_items = [item for item in substrate_data if item["type"] == "context_item"]
-        
-        # Missing context gaps
-        context_gaps = self._identify_missing_context(blocks, context_items)
+
+        # V3.0: Missing context gaps (blocks only, no separate context_items)
+        context_gaps = self._identify_missing_context(blocks)
         gaps.extend(context_gaps)
         
         # Incomplete analysis gaps
         analysis_gaps = self._identify_incomplete_analysis(blocks)
         gaps.extend(analysis_gaps)
         
-        # Unanswered questions gaps
-        question_gaps = self._identify_unanswered_questions(blocks, context_items)
+        # V3.0: Unanswered questions gaps (blocks only)
+        question_gaps = self._identify_unanswered_questions(blocks)
         gaps.extend(question_gaps)
         
         return gaps
     
-    def _analyze_thematic_patterns(self, blocks: List[Dict[str, Any]], context_items: List[Dict[str, Any]]) -> List[PatternReflection]:
+    def _analyze_thematic_patterns(self, blocks: List[Dict[str, Any]]) -> List[PatternReflection]:
+        """V3.0: Analyze thematic patterns from unified blocks."""
         """Analyze thematic patterns across substrate."""
         patterns = []
         
@@ -579,17 +537,24 @@ Return JSON with deep analysis, not surface observations.""",
         
         return insights
     
-    def _identify_missing_context(self, blocks: List[Dict[str, Any]], context_items: List[Dict[str, Any]]) -> List[GapReflection]:
-        """Identify missing context gaps."""
+    def _identify_missing_context(self, blocks: List[Dict[str, Any]]) -> List[GapReflection]:
+        """V3.0: Identify missing context gaps from unified blocks."""
         gaps = []
-        
-        # Simple heuristic: if we have many blocks but few context items
-        if len(blocks) >= 5 and len(context_items) < 3:
+
+        # V3.0: Count entity blocks (structural type)
+        entity_blocks = [b for b in blocks if b.get('semantic_type') == 'entity']
+
+        # Simple heuristic: if we have many knowledge blocks but few entities
+        knowledge_blocks = [b for b in blocks if b.get('semantic_type') in [
+            'fact', 'metric', 'event', 'insight', 'action', 'finding', 'quote', 'summary'
+        ]]
+
+        if len(knowledge_blocks) >= 5 and len(entity_blocks) < 3:
             gaps.append(GapReflection(
                 gap_type="missing_context",
-                description=f"Rich substrate ({len(blocks)} blocks) with limited context ({len(context_items)} items)",
+                description=f"Rich knowledge substrate ({len(knowledge_blocks)} blocks) with limited entities ({len(entity_blocks)} blocks)",
                 suggested_actions=[
-                    "Add more context items to enrich understanding",
+                    "Add more entity blocks to enrich understanding",
                     "Tag existing blocks with relevant themes",
                     "Identify key stakeholders and entities"
                 ],
@@ -619,15 +584,14 @@ Return JSON with deep analysis, not surface observations.""",
         
         return gaps
     
-    def _identify_unanswered_questions(self, blocks: List[Dict[str, Any]], context_items: List[Dict[str, Any]]) -> List[GapReflection]:
-        """Identify unanswered questions gaps."""
+    def _identify_unanswered_questions(self, blocks: List[Dict[str, Any]]) -> List[GapReflection]:
+        """V3.0: Identify unanswered questions gaps from unified blocks."""
         gaps = []
-        
-        # Look for question-type blocks and context items
-        question_blocks = [b for b in blocks if b.get("semantic_type") == "question"]
-        question_items = [c for c in context_items if c.get("semantic_type") == "question" or "?" in c.get("content", "")]
-        
-        total_questions = len(question_blocks) + len(question_items)
+
+        # V3.0: Look for question-type blocks (all blocks unified)
+        question_blocks = [b for b in blocks if b.get("semantic_type") == "question" or "?" in b.get("content", "")]
+
+        total_questions = len(question_blocks)
         
         if total_questions >= 2:
             gaps.append(GapReflection(
@@ -706,20 +670,17 @@ Return JSON with deep analysis, not surface observations.""",
         }
 
     def _build_digest(self, substrate_data: List[Dict[str, Any]]) -> str:
-        """Build a compact digest from substrate data for LLM input (size-capped) - Canon compliant."""
+        """V3.0: Build a compact digest from substrate data for LLM input (size-capped)."""
         lines: List[str] = []
         for item in substrate_data[:50]:  # cap
             t = item.get('type')
             if t == 'block':
                 title = (item.get('title') or '')[:80]
-                content = (item.get('content') or '')[:200]  # Canon: proper content field
+                content = (item.get('content') or '')[:200]
                 st = item.get('semantic_type')
-                lines.append(f"BLOCK[{st}]: {title}\n{content}")
-            elif t == 'context_item':
-                entity_label = (item.get('title') or '')[:40]  # Canon: entity name
-                semantic_meaning = (item.get('content') or '')[:120]  # Canon: semantic interpretation
-                st = item.get('semantic_type') or 'entity'
-                lines.append(f"CONTEXT[{st}]: {entity_label} - {semantic_meaning}")
+                anchor = item.get('anchor_role', '')
+                anchor_text = f"[{anchor}]" if anchor else ""
+                lines.append(f"BLOCK[{st}]{anchor_text}: {title}\n{content}")
             elif t == 'relationship':
                 rtype = item.get('relationship_type')
                 lines.append(f"REL[{rtype}]: {item.get('from_id')} -> {item.get('to_id')}")

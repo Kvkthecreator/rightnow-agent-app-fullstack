@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """
-Canon-Compliant P3 Reflection Agent
+Canon-Compliant P3 Reflection Agent - V3.0
 Implements YARNNN_REFLECTION_READMODEL.md specification exactly
 
 Sacred Rules:
-1. Input: Text window (raw_dumps) + Graph window (context_items + relationships)
+1. Input: Text window (raw_dumps) + Graph window (blocks + relationships)
 2. Scope: Basket-scoped only (no workspace-wide queries)
 3. Output: Artifacts only, never substrate mutations
 4. Pure read-only substrate analysis
+
+V3.0 Changes:
+- Query unified blocks table (no context_items)
+- Entity blocks identified by semantic_type='entity'
+- All substrate is blocks with knowledge/meaning/structural types
 """
 
 import hashlib
@@ -54,18 +59,20 @@ class CanonP3ReflectionAgent:
         
     async def compute_reflections(self, request: ReflectionComputationRequest) -> ReflectionComputationResult:
         """
-        Canon-compliant reflection computation:
+        V3.0: Canon-compliant reflection computation:
         - Text window: last N raw_dumps in basket
-        - Graph window: context_items + substrate_relationships touching those dumps
+        - Graph window: blocks + substrate_relationships touching those dumps
         - Output: Reflection artifacts only
+
+        All substrate is now unified blocks (no context_items).
         """
         if not request.basket_id:
             raise ValueError("P3 Reflection requires basket_id - canon mandates basket-scoped analysis")
-            
+
         try:
             # CANON STEP 1: Get text window (raw_dumps in basket) with optional time constraint
             text_window = self._get_text_window(request.basket_id, request.substrate_window_hours)
-            
+
             if not text_window:
                 self.logger.info(f"P3 Reflection: No raw_dumps found in basket {request.basket_id}")
                 return ReflectionComputationResult(
@@ -76,8 +83,8 @@ class CanonP3ReflectionAgent:
                     reflection_text="No memory substrate available for reflection",
                     meta={"substrate_dump_count": 0, "canon_compliant": True}
                 )
-            
-            # CANON STEP 2: Get graph window (context_items + relationships touching text window)
+
+            # CANON STEP 2: Get graph window (V3.0: blocks + relationships touching text window)
             graph_window = self._get_graph_window(request.basket_id, text_window)
             
             # Canon: Collect substrate ids for idempotent storage
@@ -234,38 +241,42 @@ class CanonP3ReflectionAgent:
             return []
     
     def _get_graph_window(self, basket_id: UUID, text_window: List[Dict]) -> List[Dict[str, Any]]:
-        """Canon: Graph window = context_items + relationships touching text window"""
+        """
+        V3.0: Graph window = blocks + relationships touching text window
+
+        Queries unified blocks table for all substrate (knowledge, meaning, structural types).
+        """
         try:
             graph_elements: List[Dict[str, Any]] = []
             dump_ids = {str(dump.get("id")) for dump in text_window if dump.get("id")}
 
-            # Collect context_items linked to the dump window
-            context_query = supabase.table("context_items").select(
-                "id,basket_id,type,title,content,semantic_category,raw_dump_id,metadata,created_at"
-            ).eq("basket_id", str(basket_id))
+            # V3.0: Collect blocks linked to the dump window
+            blocks_query = supabase.table("blocks").select(
+                "id,basket_id,semantic_type,title,content,anchor_role,confidence_score,raw_dump_id,metadata,created_at"
+            ).eq("basket_id", str(basket_id)).neq("state", "REJECTED")
 
             if dump_ids:
                 try:
-                    context_query = context_query.in_("raw_dump_id", list(dump_ids))
+                    blocks_query = blocks_query.in_("raw_dump_id", list(dump_ids))
                 except Exception:
-                    # Some contexts may not track raw_dump_id; fall back to basket scope
+                    # Some blocks may not track raw_dump_id; fall back to basket scope
                     pass
 
-            context_response = context_query.limit(40).execute()
+            blocks_response = blocks_query.limit(50).execute()
 
-            context_ids: List[str] = []
-            if context_response.data:
-                for item in context_response.data:
-                    element = {**item, "element_type": "context_item"}
+            block_ids: List[str] = []
+            if blocks_response.data:
+                for block in blocks_response.data:
+                    element = {**block, "element_type": "block"}  # V3.0: All substrate is blocks
                     graph_elements.append(element)
-                    ctx_id = str(item.get("id")) if item.get("id") else None
-                    if ctx_id:
-                        context_ids.append(ctx_id)
+                    block_id = str(block.get("id")) if block.get("id") else None
+                    if block_id:
+                        block_ids.append(block_id)
 
             relevant_ids = set(dump_ids)
-            relevant_ids.update(context_ids)
+            relevant_ids.update(block_ids)
 
-            # Collect relationships that touch either dumps or derived context items
+            # Collect relationships that touch either dumps or derived blocks
             relationships_response = supabase.table("substrate_relationships").select(
                 "id,basket_id,from_type,from_id,to_type,to_id,relationship_type,strength,description,created_at"
             ).eq("basket_id", str(basket_id)).limit(200).execute()
@@ -337,27 +348,29 @@ class CanonP3ReflectionAgent:
                     "created_at": dump.get("created_at"),
                 }
 
-        context_items = [item for item in graph_window if item.get("element_type") == "context_item"]
-        for item in context_items[:20]:
-            ctx_id = str(item.get("id")) if item.get("id") else None
-            content = item.get("content") or item.get("semantic_meaning") or ""
+        # V3.0: Blocks (all substrate types: knowledge, meaning, structural)
+        blocks = [item for item in graph_window if item.get("element_type") == "block"]
+        for block in blocks[:30]:
+            block_id = str(block.get("id")) if block.get("id") else None
+            content = block.get("content") or ""
             snippet = self._clean_snippet(content, limit=280)
             entry = {
-                "id": ctx_id,
-                "kind": "context_item",
-                "title": item.get("title") or item.get("content", "")[:80],
-                "category": item.get("semantic_category") or item.get("type"),
+                "id": block_id,
+                "kind": "block",  # V3.0: All substrate is blocks
+                "title": block.get("title") or "Untitled Block",
+                "semantic_type": block.get("semantic_type"),  # V3.0: knowledge/meaning/structural
+                "anchor_role": block.get("anchor_role"),  # V3.0: Emergent anchor
                 "snippet": snippet,
-                "raw_dump_id": item.get("raw_dump_id"),
+                "raw_dump_id": block.get("raw_dump_id"),
             }
             payload.append(entry)
-            if ctx_id:
-                evidence_lookup[ctx_id] = {
-                    "id": ctx_id,
-                    "kind": "context_item",
+            if block_id:
+                evidence_lookup[block_id] = {
+                    "id": block_id,
+                    "kind": "block",  # V3.0
                     "label": entry["title"],
                     "snippet": snippet,
-                    "raw_dump_id": item.get("raw_dump_id"),
+                    "raw_dump_id": block.get("raw_dump_id"),
                 }
 
         relationships = [item for item in graph_window if item.get("element_type") == "relationship"]

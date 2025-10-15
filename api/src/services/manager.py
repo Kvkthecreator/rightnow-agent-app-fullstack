@@ -12,7 +12,8 @@ from services.worker_adapter import WorkerAgentAdapter, WorkerOutputAggregator
 from services.substrate_diff import compute_deltas, apply_deltas
 from services.substrate_ops import SubstrateOps
 from services.interpretation_adapter import extract_graph_from_worker_output
-from services.upserts import upsert_context_items, upsert_relationships, upsert_blocks
+# V3.0: upsert_context_items removed (table merged into blocks)
+from services.upserts import upsert_relationships, upsert_blocks
 
 # Import the new schema
 try:
@@ -34,7 +35,7 @@ async def run_manager_plan(
     if isinstance(req, dict) and req.get("focus") == "interpretation":
         out = await WorkerAgentAdapter.call_basket_analyzer(basket_id=basket_id, workspace_id=workspace_id, focus_dump_id=req.get("dump_id"))
         ci, rel, bl = extract_graph_from_worker_output(out)
-        await upsert_context_items(db, ci)
+        # V3.0: No context_items upsert (entities are blocks now)
         await upsert_relationships(db, rel)
         if bl:
             await upsert_blocks(db, bl)

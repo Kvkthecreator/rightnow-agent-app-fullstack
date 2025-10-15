@@ -18,6 +18,11 @@ logger = logging.getLogger("uvicorn.error")
 
 class CoherenceSuggestionsService:
     """Service for generating gentle, non-enforcing coherence suggestions."""
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
     
     # Gentle suggestion templates that emphasize user choice
     SUGGESTION_TEMPLATES = {

@@ -3,6 +3,11 @@ Narrative job management service.
 
 Handles async narrative generation jobs with from_scaffold and refresh_full modes.
 """
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
 
 import json
 from uuid import uuid4

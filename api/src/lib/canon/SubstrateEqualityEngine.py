@@ -2,6 +2,11 @@
 Substrate Equality Engine - YARNNN Canon v1.4.0 Compliant
 Ensures all substrate types are treated as peers per Sacred Principle #2
 """
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
 
 from __future__ import annotations
 

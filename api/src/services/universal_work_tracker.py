@@ -11,6 +11,11 @@ Canon Compliance:
 - Sacred Principle #3: Memory-first architecture with substrate/artifact separation
 - Sacred Principle #4: Event-driven consistency via timeline_events
 """
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
 
 import asyncio
 import logging

@@ -43,7 +43,7 @@ from .routes.blocks import router as blocks_router
 from .routes.change_queue import router as change_queue_router
 from .routes.commits import router as commits_router
 from .routes.context_intelligence import router as context_intelligence_router
-from .routes.context_items import router as context_items_router
+# V3.0: context_items route removed (table merged into blocks)
 from .routes.debug import router as debug_router
 from .routes.dump_new import router as dump_new_router
 from .routes.health import router as health_router
@@ -122,7 +122,7 @@ routers = (
     agent_run_router,
     agents_router,
     phase1_router,
-    context_items_router,
+    # V3.0: context_items_router removed (table merged into blocks)
     block_lifecycle_router,
     agent_memory_router,
     template_router,

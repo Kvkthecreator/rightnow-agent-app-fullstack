@@ -9,6 +9,11 @@ Implements P3 taxonomy:
 Note: review_insight is computed ephemeral (stored in proposals.review_insight)
 Note: workspace insights require policy enablement (p3_p4_regeneration_policy.workspace_insight_enabled)
 """
+# V3.0 DEPRECATION NOTICE:
+# This file contains references to context_items table which was merged into blocks table.
+# Entity blocks are now identified by semantic_type='entity'.
+# This file is legacy/supporting code - update if actively maintained.
+
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
