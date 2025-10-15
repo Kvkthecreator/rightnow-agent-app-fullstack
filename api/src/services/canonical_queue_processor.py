@@ -362,19 +362,16 @@ class CanonicalQueueProcessor:
             # Get all substrate IDs for this basket for relationship analysis
             substrate_ids = []
             
-            # Get blocks
+            # V3.0: Get all blocks (entities are now blocks with semantic_type='entity')
             blocks_response = supabase.table("blocks").select("id").eq(
                 "basket_id", basket_id
             ).in_("state", ["ACCEPTED", "LOCKED", "CONSTANT"]).execute()
             substrate_ids.extend([UUID(b['id']) for b in (blocks_response.data or [])])
-            
-            # Get context items  
-            context_response = supabase.table("context_items").select("id").eq(
-                "basket_id", basket_id
-            ).eq("state", "ACTIVE").execute()
-            substrate_ids.extend([UUID(c['id']) for c in (context_response.data or [])])
-            
-            # CANON COMPLIANCE: P2 connects substrate only (blocks + context_items)
+
+            # V3.0: No context_items table - all substrate is in blocks table
+            # Entities/context are blocks with semantic_type='entity', 'reference', etc.
+
+            # CANON COMPLIANCE: P2 connects substrate only (blocks)
             # Raw dumps are NOT part of relationship mapping per Sacred Principles
             
             if len(substrate_ids) < 2:
