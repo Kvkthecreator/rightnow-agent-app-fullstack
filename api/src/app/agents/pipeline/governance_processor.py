@@ -290,7 +290,7 @@ class GovernanceDumpProcessor:
                 }
 
             avg_confidence = sum(block_confidences) / len(block_confidences) if block_confidences else 0.0
-            impact_summary = ", ".join(ingredient_summary_bits) if ingredient_summary_bits else f"{len(ops_accum)} operations"
+            impact_summary = f"{len(ops_accum)} substrate operations"
 
             # V3.0: All substrate is blocks (no context_items_total needed)
             proposal_payload = {
