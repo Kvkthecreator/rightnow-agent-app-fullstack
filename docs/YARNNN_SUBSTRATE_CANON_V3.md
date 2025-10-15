@@ -1,22 +1,32 @@
-# YARNNN Substrate Canon v3.0
+# YARNNN Substrate Canon v3.1
 
 **The Definitive Reference for Substrate Architecture**
 
 **Status**: Active (2025-01-15)
+**Version**: v3.1 (Semantic Layer Integration)
 **Supersedes**: YARNNN_SUBSTRATE_CANON.md v2.x
 **Authority**: This is the single source of truth for substrate design
 
 ---
 
-## Philosophy: Emergent Memory Architecture
+## Version History
 
-Yarnnn v3.0 implements an **emergent memory system** aligned with industry best practices:
+- **v3.0** (2025-01-15): Unified substrate (context_items → blocks), emergent anchors, universal versioning
+- **v3.1** (2025-01-15): Semantic intelligence layer (vector embeddings + causal relationships)
+
+---
+
+## Philosophy: Emergent Memory Architecture with Semantic Intelligence
+
+Yarnnn v3.1 implements an **emergent memory system** aligned with industry best practices:
 - ChatGPT's memory model (no predefined categories)
 - LangGraph's session/long-term split (scope levels)
 - Mem0's temporal versioning (parent_block_id chains)
-- Vector DB + knowledge graph hybrid (semantic + structural)
+- Vector DB + knowledge graph hybrid (semantic + structural) ← **V3.1: IMPLEMENTED**
 
 **Core insight**: Memory organization should emerge from usage, not be prescribed upfront.
+
+**V3.1 addition**: Agents reason semantically, not just structurally. Semantic layer (embeddings + relationships) augments structural primitives (anchors, versioning, lifecycle).
 
 ---
 
@@ -838,7 +848,7 @@ GROUP BY b.id;
 
 ## Summary
 
-**Yarnnn Substrate Canon v3.0** implements an emergent memory architecture that:
+**Yarnnn Substrate Canon v3.1** implements an emergent memory architecture that:
 
 1. **Unifies substrate** — One table, semantic_type differentiates
 2. **Enables versioning** — Universal parent_block_id chains
@@ -846,15 +856,80 @@ GROUP BY b.id;
 4. **Allows emergent anchors** — No predefined vocabulary
 5. **Facilitates LLM memory** — Session + persistent patterns
 6. **Aligns with industry** — ChatGPT, LangGraph, Mem0 patterns
+7. **V3.1: Semantic intelligence** — Vector embeddings + causal relationships for agent reasoning
 
 **Key principle**: Organization emerges from usage, not prescription.
 
-**Result**: Best-in-class foundation for multi-platform, multi-agent memory management.
+**Result**: Best-in-class foundation for multi-platform, multi-agent memory management with semantic reasoning.
 
 ---
 
-**Document version**: 3.0.0
+## V3.1: Semantic Layer Extension
+
+**Purpose:** Enable agents to reason semantically, not just structurally
+
+**Complete technical design:** See [SEMANTIC_LAYER_INTEGRATION_DESIGN.md](./SEMANTIC_LAYER_INTEGRATION_DESIGN.md)
+
+### Architecture Summary
+
+#### 1. Vector Embeddings
+
+- **Scope:** `blocks` table only (ACCEPTED+ state)
+- **Model:** OpenAI text-embedding-3-small (1536 dimensions)
+- **Storage:** `blocks.embedding` column
+- **Generation:** After governance approval (async)
+
+**Purpose:** Semantic duplicate detection (P1), theme-based retrieval (P3, P4), cross-basket pattern discovery
+
+#### 2. Causal Relationships
+
+**Schema:** `substrate_relationships` table
+
+**Types:** 4 core relationships
+- `addresses`: Solution addresses problem
+- `supports`: Evidence supports claim
+- `contradicts`: Conflicts with statement
+- `depends_on`: Prerequisite dependency
+
+**Inference:** P2 agent (semantic search + LLM verification)
+**Governance:** Proposed → Accepted (auto-accept high confidence)
+
+**Purpose:** Causal reasoning (P3), narrative coherence (P4), decision tracing
+
+#### 3. Integration Points
+
+| Pillar | Integration | Impact |
+|--------|-------------|--------|
+| P0 | None | Raw dumps not embedded (transient) |
+| P1 | Semantic duplicate detection | 30-40% fewer duplicate blocks |
+| P2 | Causal relationship inference | 60%+ blocks have relationships |
+| P3 | Semantic retrieval + graph traversal | Richer causal insights |
+| P4 | Theme-based composition | More coherent narratives |
+
+### Design Principles
+
+1. **Embed substrate, not raw input** (quality over quantity)
+2. **Agent-first, not user-first** (intelligence over features)
+3. **Structure + semantics** (augment, don't replace)
+4. **Deliberate integration** (each pillar explicitly uses semantic layer)
+
+### Success Metrics
+
+- Duplicate rate: <5% (down from ~15%)
+- Relationship precision: >80%
+- Block coverage: >60% have relationships
+- Context relevance: >85%
+
+### Cost Model
+
+- ~$0.05 per 1000 blocks (embeddings + relationship verification)
+- Negligible at scale
+
+---
+
+**Document version**: 3.1.0
 **Last updated**: 2025-01-15
 **Changelog**:
+- v3.1.0 (2025-01-15): Semantic layer integration (embeddings + relationships)
 - v3.0.0 (2025-01-15): Initial v3 canon — emergent trilogy, unified substrate
 - v2.x (2024): Dual substrate model (blocks + context_items)

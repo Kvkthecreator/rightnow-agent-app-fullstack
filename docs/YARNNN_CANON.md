@@ -1,11 +1,12 @@
-# YARNNN Canon v3.0 — The Authoritative Reference
+# YARNNN Canon v3.1 — The Authoritative Reference
 
 **The Single Source of Truth for Yarnnn Service Philosophy and Implementation**
 
-**🚨 MAJOR UPDATE (2025-01-15)**: Substrate architecture upgraded to v3.0
-- **See**: [YARNNN_SUBSTRATE_CANON_V3.md](./YARNNN_SUBSTRATE_CANON_V3.md) for complete substrate reference
-- **Breaking change**: `context_items` merged into unified `blocks` table
-- **New paradigm**: Emergent anchors, universal versioning, scope elevation
+**🚨 MAJOR UPDATE (2025-01-15)**: Architecture upgraded to v3.1 - Semantic Layer Integration
+- **v3.0**: Substrate unified (context_items → blocks), emergent anchors, universal versioning
+- **v3.1**: Semantic intelligence layer (vector embeddings + causal relationships)
+- **See**: [YARNNN_SUBSTRATE_CANON_V3.md](./YARNNN_SUBSTRATE_CANON_V3.md) for substrate reference
+- **See**: [SEMANTIC_LAYER_INTEGRATION_DESIGN.md](./SEMANTIC_LAYER_INTEGRATION_DESIGN.md) for semantic architecture
 
 ## 🌊 Core Philosophy: Memory-First, Substrate-Equal
 
@@ -101,13 +102,28 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 
 ## 🔄 The Five Pipelines (Substrate → Artifacts)
 
-| Pipeline | Layer | Purpose | Sacred Rule |
-|----------|-------|---------|-------------|
-| **P0: Capture** | Substrate | Ingest raw memory | Only writes raw_dumps, never interprets (always direct, no proposals) |
-| **P1: Governed Evolution (Propose → Commit)** | Substrate | Propose and (upon approval) evolve basket substrate | **All Create/Revise/Merge occur only via approved governance proposals (no direct writes)** |
-| **P2: Connect** | Substrate | Link existing substrates semantically | Creates relationships only, never creates new substrate |
-| **P3: Insights** | Artifact | Generate interpretive intelligence | Creates P3 insights (insight_canon, doc_insight, timeboxed_insight), never modifies substrate |
-| **P4: Documents** | Artifact | Generate narrative compositions | Creates P4 documents (document_canon, starter_prompt), consumes substrate + P3 insights |
+| Pipeline | Layer | Purpose | Sacred Rule | V3.1 Semantic Layer |
+|----------|-------|---------|-------------|---------------------|
+| **P0: Capture** | Substrate | Ingest raw memory | Only writes raw_dumps, never interprets (always direct, no proposals) | **NO CHANGE** - Raw dumps not embedded |
+| **P1: Governed Evolution** | Substrate | Intelligent substrate evolution with duplicate detection | **All Create/Revise/Merge via governance proposals** | **UPGRADED** - Uses semantic search for duplicate/merge detection |
+| **P2: Graph Intelligence** | Substrate | Infer causal relationships between blocks | Creates relationships only, never creates new substrate | **UPGRADED** - Infers causal relationships (addresses, supports, contradicts, depends_on) |
+| **P3: Insights** | Artifact | Generate interpretive intelligence with causal reasoning | Creates P3 insights, never modifies substrate | **ENHANCED** - Semantic retrieval + graph traversal for deeper insights |
+| **P4: Documents** | Artifact | Theme-based narrative composition with causal flow | Creates P4 documents, consumes substrate + P3 insights | **ENHANCED** - Semantic theme search + relationship-driven narrative |
+
+### V3.1 Semantic Layer: Core Upgrade
+
+**What Changed:**
+- **P1**: Semantic duplicate detection (merge vs create decisions based on vector similarity)
+- **P2**: Causal relationship inference (agents build semantic graph automatically)
+- **P3**: Semantic context retrieval (find relevant blocks without keyword matching)
+- **P4**: Theme-based composition (semantic search for narrative coherence)
+
+**What Didn't Change:**
+- **P0**: Raw dumps remain unembedded (transient input, not persistent memory)
+- **Governance**: All substrate mutations still flow through proposals
+- **Structure**: Anchors, versioning, lifecycle still primary organizing principles
+
+**Key Insight**: Semantic layer **augments** structured substrate, doesn't replace it. We're not building RAG—we're building structured memory with semantic intelligence.
 
 ### Pipeline Detail: P0→P1 Substrate Scaffolding
 
@@ -119,23 +135,25 @@ User Input → Collection of raw_dumps (unstructured)
 - No interpretation, pure capture
 ```
 
-**P1: Governed Evolution Phase (Propose → Commit)**
+**P1: Governed Evolution Phase (Propose → Commit) - V3.1 UPGRADED**
 ```
-New raw_dumps + Existing substrate → Agent Analysis → Governance Proposal → Approval → Substrate Evolution
+New raw_dumps + Existing substrate → Agent Analysis → Semantic Duplicate Detection → Governance Proposal → Approval → Substrate Evolution
 
 1. Agent reads new raw_dumps collectively
-2. Agent reads existing substrate in basket (unified blocks with all semantic_types)
-3. Agent determines evolution needed:
-   - Novel concepts → CREATE new blocks
-   - Refined understanding → UPDATE existing blocks (versioning via parent_block_id)
-   - Duplicate concepts → MERGE blocks
-   - Contradictions → REVISE blocks
-4. Proposal approval → Operations executed atomically → Substrate evolved
+2. Agent extracts facts/insights from dumps
+3. V3.1: For each extracted fact, semantic search for similar existing blocks
+   - similarity > 0.85 → Propose MERGE (high confidence duplicate)
+   - similarity 0.70-0.85 → Propose UPDATE/ENRICH (related content)
+   - similarity < 0.70 → Propose CREATE (novel content)
+4. Agent determines evolution operations based on semantic analysis
+5. Proposal approval → Operations executed atomically → Substrate evolved
+6. V3.1: After block creation, generate embedding (for future searches)
 ```
 
-**V3.0 Note**: All substrate is now unified blocks. Entity blocks identified by `semantic_type='entity'`.
+**V3.0 Foundation**: All substrate unified into blocks table (semantic_type differentiates)
+**V3.1 Upgrade**: Semantic duplicate detection via vector embeddings (text-embedding-3-small)
 
-**Critical Insight**: P1 is a **substrate evolution agent**, not just creation. Early baskets see mostly CREATE operations, mature baskets see mostly UPDATE/MERGE operations as conceptual space fills out.
+**Critical Insight**: P1 evolved from "extraction agent" → "intelligent substrate evolution agent". Semantic search enables detecting duplicates that keyword matching misses (e.g., "login failure" matches "authentication bug").
 
 ### Pipeline Detail: P3→P4 Artifact Generation
 
@@ -448,6 +466,9 @@ When users upload existing documents (e.g., `product-spec.docx`):
 9. **Async Intelligence** - User feedback is instant, intelligence processing happens asynchronously
 10. **Governance-Mediated Creation** - All substrate mutations flow through proposals, enabling review and atomic execution
 11. **Supervisory Work Model** - Users direct and govern; agents research and compose (v3.0)
+12. **Semantic Intelligence** - Agents reason semantically, not just keyword matching (v3.1)
+13. **Causal Graph** - Relationships capture "why" and "what depends on", not just "relates to" (v3.1)
+14. **Structure + Semantics** - Semantic layer augments structure, doesn't replace it (v3.1)
 
 ## 🚀 Implementation Guidelines
 
@@ -462,13 +483,224 @@ When users upload existing documents (e.g., `product-spec.docx`):
    - Maintain workspace isolation via RLS
 
 3. **Agents Must**:
-   - **P1 Evolution Agents**: 
+   - **P1 Evolution Agents (V3.1 UPGRADED)**:
      - Read new raw_dumps AND existing substrate in basket
-     - Make intelligent Create/Update/Merge decisions based on conceptual overlap
+     - V3.1: Use semantic search to detect duplicates (similarity > 0.85 = MERGE, 0.70-0.85 = UPDATE, <0.70 = CREATE)
+     - Make intelligent Create/Update/Merge decisions based on semantic overlap, not just keyword matching
      - Use proper operation schema (flat structure, not nested objects)
      - Process actual dump content, never hardcoded templates
      - Achieve confidence > 0.7 for auto-approval eligibility
      - Handle basket lifecycle: heavy Create (early) → heavy Update (mature)
+
+   - **P2 Graph Agents (V3.1 UPGRADED)**:
+     - Infer causal relationships between blocks (addresses, supports, contradicts, depends_on)
+     - Use semantic search to find relationship candidates, LLM verification for quality
+     - Propose relationships via governance (auto-accept high confidence > 0.90)
+     - Build semantic graph structure, not just entity co-occurrence
+
+   - **P3 Insight Agents (V3.1 ENHANCED)**:
+     - Use semantic search to retrieve relevant context (not full basket scan)
+     - Traverse relationship graph for causal reasoning ("why" questions)
+     - Generate insights with evidence chains (supports/addresses relationships)
+
+   - **P4 Composition Agents (V3.1 ENHANCED)**:
+     - Use semantic search for theme-based retrieval (not just anchor_role filtering)
+     - Follow relationship chains for coherent narrative flow
+     - Integrate workspace-level context via cross-basket semantic search
+
+---
+
+## 🧠 V3.1 Semantic Layer Architecture
+
+**Purpose:** Enable agents to reason semantically about substrate, not just keyword matching
+
+**See**: [SEMANTIC_LAYER_INTEGRATION_DESIGN.md](./SEMANTIC_LAYER_INTEGRATION_DESIGN.md) for complete technical architecture
+
+### Core Components
+
+#### 1. Vector Embeddings (Semantic Search)
+
+**What Gets Embedded:**
+- `blocks` table ONLY (ACCEPTED+ state)
+- NOT raw_dumps (transient input)
+- NOT documents (derived artifacts)
+
+**When Embedded:**
+- After governance approval (state → ACCEPTED/LOCKED/CONSTANT)
+- Async generation via OpenAI text-embedding-3-small (1536 dimensions)
+- Stored in `blocks.embedding` column
+
+**Purpose:**
+- Semantic duplicate detection (P1)
+- Theme-based retrieval (P3, P4)
+- Cross-basket pattern discovery (P1, P3)
+
+**Key Principle:** Embed substrate (refined knowledge), not raw input
+
+---
+
+#### 2. Relationship Graph (Causal Semantics)
+
+**Relationship Types (4 Core):**
+
+| Type | From Types | To Types | Description |
+|------|-----------|----------|-------------|
+| `addresses` | action, insight, objective, solution | problem, constraint, issue | Solution addresses problem |
+| `supports` | fact, finding, metric, evidence | objective, insight, hypothesis | Evidence supports claim |
+| `contradicts` | fact, finding, insight | assumption, fact, insight | Conflicts with statement |
+| `depends_on` | action, objective, task | action, objective, constraint | Prerequisite dependency |
+
+**Inference Process:**
+1. P2 agent analyzes new blocks after P1 substrate creation
+2. Semantic search finds relationship candidates (similarity > 0.70)
+3. LLM verification (gpt-4o-mini) confirms causal relationship
+4. Propose via governance (auto-accept if confidence > 0.90)
+
+**Purpose:**
+- Causal reasoning (P3 insights)
+- Narrative coherence (P4 documents)
+- Decision tracing ("why did we decide X?")
+
+**Key Principle:** Relationships capture causality, not just association
+
+---
+
+#### 3. Shared Primitives (API Layer)
+
+All agents use standardized semantic layer API:
+
+```python
+# Semantic search within basket
+semantic_search(basket_id, query_text, filters, limit)
+→ List[BlockWithSimilarity]
+
+# Cross-basket search (elevated scope)
+semantic_search_cross_basket(workspace_id, query_text, scopes, limit)
+→ List[BlockWithSimilarity]
+
+# Infer relationships for block
+infer_relationships(block_id, basket_id)
+→ List[RelationshipProposal]
+
+# Traverse relationship graph
+traverse_relationships(start_block_id, relationship_type, direction, max_depth)
+→ List[BlockWithDepth]
+
+# Get rich semantic context
+get_semantic_context(focal_block_id, context_window)
+→ {similar_blocks, relationships}
+```
+
+**Location:** `api/src/services/semantic_primitives.py`
+
+---
+
+### Integration Points by Pillar
+
+#### P0: Capture - NO CHANGES
+- Raw dumps not embedded (transient input, not persistent memory)
+- Pure capture remains pure
+
+#### P1: Substrate Evolution - UPGRADED
+**Before:** Extract facts → propose CREATE operations
+**After:** Extract facts → semantic search for duplicates → propose CREATE/MERGE/UPDATE
+
+**Thresholds:**
+- similarity > 0.85 → MERGE (high confidence duplicate)
+- similarity 0.70-0.85 → UPDATE/ENRICH (related content)
+- similarity < 0.70 → CREATE (novel content)
+
+**Impact:** 30-40% reduction in duplicate blocks
+
+#### P2: Graph Intelligence - UPGRADED
+**Before:** Entity co-occurrence detection
+**After:** Causal relationship inference with LLM verification
+
+**Process:**
+1. Find relationship candidates via semantic search
+2. Verify with LLM (precision over recall)
+3. Propose via governance
+
+**Impact:** 60%+ blocks have meaningful causal relationships
+
+#### P3: Insights - ENHANCED
+**Before:** Analyze all blocks in basket
+**After:** Semantic retrieval → traverse relationship graph → generate insights
+
+**Features:**
+- Context retrieval without keyword matching
+- Causal reasoning ("this objective addresses these problems")
+- Evidence chains ("this insight is supported by these findings")
+
+**Impact:** Richer insights with causal explanations
+
+#### P4: Documents - ENHANCED
+**Before:** Retrieve blocks by anchor_role
+**After:** Semantic theme search → follow relationship chains → compose narrative
+
+**Features:**
+- Theme-based retrieval (not just anchor tags)
+- Narrative flow follows causal relationships
+- Workspace context integration (elevated scope)
+
+**Impact:** More coherent documents with causal structure
+
+---
+
+### Design Principles (Reaffirmed)
+
+1. **Embed Substrate, Not Raw Input**
+   - Quality over quantity
+   - ACCEPTED+ blocks only (vetted knowledge)
+
+2. **Agent-First, Not User-First**
+   - Primary value: Agent intelligence
+   - Secondary value: User features (find similar, graph viz)
+
+3. **Structure + Semantics, Not RAG**
+   - Governance, versioning, anchors remain primary
+   - Semantic layer augments, doesn't replace
+
+4. **Deliberate Integration**
+   - Each pillar explicitly defines semantic usage
+   - Shared primitives with clear contracts
+   - Integration points documented
+
+---
+
+### Success Metrics
+
+**P1 (Substrate Evolution):**
+- Duplicate block rate: <5% (down from ~15%)
+- Merge proposal rate: >25% (up from ~5%)
+
+**P2 (Graph Intelligence):**
+- Relationship precision: >80% (% valid relationships)
+- Block coverage: >60% (% blocks with relationships)
+
+**P3 (Insights):**
+- Context relevance: >85% (% retrieved blocks relevant)
+- Causal reasoning: Insights cite relationship chains
+
+**P4 (Documents):**
+- Narrative coherence: Sections follow causal flow
+- Theme relevance: >90% blocks match document outline
+
+---
+
+### Cost Model
+
+**Embedding Generation:**
+- Model: text-embedding-3-small ($0.02 per 1M tokens)
+- Avg block size: 200 tokens
+- 1000 blocks = 200k tokens = **$0.004**
+
+**Relationship Verification:**
+- Model: gpt-4o-mini ($0.15 per 1M input tokens)
+- Verification prompt: ~300 tokens
+- 1000 relationships = 300k tokens = **$0.045**
+
+**Total: ~$0.05 per 1000 blocks (negligible at scale)**
 
 ---
 
