@@ -1,17 +1,23 @@
 """
-P2 Graph Agent - YARNNN Canon v3.0 Compliant
+P2 Graph Agent - YARNNN Canon v3.1 Compatibility Layer
 
 Sacred Rule: Creates relationships, never modifies substrate content
 Pipeline: P2_GRAPH
 
-This agent connects existing substrate elements without modifying
-their content or creating new substrate. Integrates with enhanced
-cascade manager for P2→P3 pipeline flow.
+V3.1 TEMPORARY STATUS:
+- This is a compatibility layer for v3.1 schema migration
+- Legacy relationship logic preserved but adapted to new schema
+- Week 2: Will be replaced with semantic inference engine
 
 V3.0 Changes:
 - Query unified blocks table (no context_items)
 - All from_type/to_type are "block"
 - Entity blocks identified by semantic_type='entity'
+
+V3.1 Changes:
+- Adapted to new substrate_relationships schema (blocks-only)
+- Maps legacy relationship types to v3.1 causal types
+- Uses confidence_score instead of strength
 """
 
 import logging
@@ -40,9 +46,9 @@ class RelationshipProposal(BaseModel):
     from_id: UUID
     to_type: str  # V3.0: Always "block"
     to_id: UUID
-    relationship_type: str  # related_content, semantic_similarity, temporal_sequence, causal_relationship, enablement_chain, impact_relationship, conditional_logic
-    strength: float = Field(ge=0.0, le=1.0)
-    description: str
+    relationship_type: str  # V3.1: Will be mapped to causal types
+    strength: float = Field(ge=0.0, le=1.0)  # V3.1: Maps to confidence_score
+    description: str  # V3.1: Stored in metadata
 
 
 class RelationshipResult(BaseModel):
@@ -579,45 +585,76 @@ class P2GraphAgent:
             return []
         
         try:
-            # Prepare relationship data
+            # V3.1: Map legacy relationship types to causal types
+            def map_to_causal_type(legacy_type: str) -> str:
+                """Map legacy relationship types to v3.1 causal types."""
+                mapping = {
+                    'causal_relationship': 'addresses',
+                    'enablement_chain': 'depends_on',
+                    'impact_relationship': 'addresses',
+                    'related_content': 'supports',
+                    'semantic_similarity': 'supports',
+                    'temporal_sequence': 'depends_on',
+                    'conditional_logic': 'depends_on'
+                }
+                return mapping.get(legacy_type, 'supports')  # Default to 'supports'
+
+            # Prepare relationship data for v3.1 schema
             relationship_data = []
             for proposal in proposals:
+                # V3.1: Only blocks (skip if not block-to-block)
+                if proposal.from_type != 'block' or proposal.to_type != 'block':
+                    self.logger.warning(f"V3.1: Skipping non-block relationship: {proposal.from_type} -> {proposal.to_type}")
+                    continue
+
+                causal_type = map_to_causal_type(proposal.relationship_type)
+
                 relationship_data.append({
-                    "basket_id": str(basket_id),
-                    "from_type": proposal.from_type,
-                    "from_id": str(proposal.from_id),
-                    "to_type": proposal.to_type,
-                    "to_id": str(proposal.to_id),
-                    "relationship_type": proposal.relationship_type,
-                    "strength": proposal.strength,
-                    "description": proposal.description,
+                    "from_block_id": str(proposal.from_id),
+                    "to_block_id": str(proposal.to_id),
+                    "relationship_type": causal_type,
+                    "confidence_score": proposal.strength,  # Maps strength to confidence
+                    "inference_method": "agent_inferred",
+                    "state": "PROPOSED",  # Will be auto-accepted if high confidence
+                    "metadata": {
+                        "description": proposal.description,
+                        "legacy_relationship_type": proposal.relationship_type,
+                        "agent_id": agent_id
+                    }
                 })
-            
-            # Use relationship RPC if available, otherwise direct insert
-            try:
-                # Try bulk upsert if RPC exists
-                response = supabase.rpc('fn_relationship_upsert_bulk', {
-                    'p_basket_id': str(basket_id),
-                    'p_relationships': relationship_data,
-                    'p_idem_key': f"graph_processing_{agent_id}_{datetime.utcnow().timestamp()}"
-                }).execute()
-                return response.data if response.data else []
-                
-            except Exception:
-                # FIXED: Split insert and select calls for Supabase client compatibility
-                response = supabase.table("substrate_relationships").upsert(
-                    relationship_data,
-                    on_conflict="basket_id,from_type,from_id,relationship_type,to_type,to_id"
-                ).execute()
-                if response.data:
-                    # Get the inserted records with all fields
-                    inserted_ids = [record["id"] for record in response.data]
-                    select_response = supabase.table("substrate_relationships").select("*").in_("id", inserted_ids).execute()
-                    return select_response.data if select_response.data else []
+
+            if not relationship_data:
+                self.logger.warning("V3.1: No valid block relationships to create")
                 return []
-                
+
+            # V3.1: Direct insert to substrate_relationships (new schema)
+            # Note: RPC functions were for legacy schema
+            response = supabase.table("substrate_relationships").upsert(
+                relationship_data,
+                on_conflict="from_block_id,to_block_id,relationship_type"
+            ).execute()
+
+            if response.data:
+                # Get the inserted records with all fields
+                inserted_ids = [record["id"] for record in response.data]
+                select_response = supabase.table("substrate_relationships").select("*").in_("id", inserted_ids).execute()
+
+                # Auto-accept high confidence relationships (>0.80)
+                for rel in select_response.data or []:
+                    if rel.get('confidence_score', 0) > 0.80 and rel.get('state') == 'PROPOSED':
+                        try:
+                            supabase.table("substrate_relationships").update({
+                                'state': 'ACCEPTED'
+                            }).eq('id', rel['id']).execute()
+                            self.logger.info(f"V3.1: Auto-accepted high confidence relationship {rel['id']}")
+                        except Exception as accept_error:
+                            self.logger.warning(f"V3.1: Failed to auto-accept relationship: {accept_error}")
+
+                return select_response.data if select_response.data else []
+            return []
+
         except Exception as e:
-            self.logger.error(f"Failed to create relationships: {e}")
+            self.logger.error(f"V3.1: Failed to create relationships: {e}")
             return []
     
     async def _trigger_p2_cascade(
