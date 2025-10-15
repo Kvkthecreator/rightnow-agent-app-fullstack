@@ -411,8 +411,157 @@ async def traverse_relationships(
 
 
 # ============================================================================
-# P2 Relationship Inference (Stub for Week 2)
+# P2 Relationship Inference (Week 2 Implementation)
 # ============================================================================
+
+# Relationship Ontology: Valid type pairs for each relationship
+RELATIONSHIP_ONTOLOGY = {
+    'addresses': {
+        'from_types': ['action', 'insight', 'objective', 'solution', 'finding', 'decision'],
+        'to_types': ['problem', 'constraint', 'issue', 'challenge', 'risk', 'gap'],
+        'description': 'Solution/action addresses problem/constraint',
+        'verification_prompt': '''Does "{from_text}" directly address, solve, or mitigate the problem described in "{to_text}"?
+
+Criteria:
+- FROM must describe an action/solution/approach
+- TO must describe a problem/constraint/undesirable state
+- There must be a clear causal link (implementing FROM reduces TO)
+
+Respond in JSON format:
+{{
+    "exists": true/false,
+    "confidence_score": 0.0-1.0,
+    "reasoning": "Brief explanation (1-2 sentences)"
+}}'''
+    },
+    'supports': {
+        'from_types': ['fact', 'finding', 'metric', 'evidence', 'quote', 'data', 'observation'],
+        'to_types': ['objective', 'insight', 'hypothesis', 'principle', 'decision', 'conclusion'],
+        'description': 'Evidence/finding supports claim/objective',
+        'verification_prompt': '''Does the evidence/data in "{from_text}" logically support or validate the claim in "{to_text}"?
+
+Criteria:
+- FROM must describe factual evidence, data, or observations
+- TO must describe a claim, hypothesis, or conclusion
+- FROM must strengthen the credibility of TO (not just relate to it)
+
+Respond in JSON format:
+{{
+    "exists": true/false,
+    "confidence_score": 0.0-1.0,
+    "reasoning": "Brief explanation (1-2 sentences)"
+}}'''
+    },
+    'contradicts': {
+        'from_types': ['fact', 'finding', 'insight', 'observation', 'metric', 'evidence'],
+        'to_types': ['assumption', 'fact', 'insight', 'principle', 'hypothesis', 'conclusion'],
+        'description': 'Conflicts with existing statement',
+        'verification_prompt': '''Does "{from_text}" logically contradict or conflict with "{to_text}"?
+
+Criteria:
+- FROM must describe factual information or validated findings
+- TO must describe a statement, assumption, or belief
+- FROM and TO cannot both be true simultaneously
+- There must be a logical conflict, not just different perspectives
+
+Respond in JSON format:
+{{
+    "exists": true/false,
+    "confidence_score": 0.0-1.0,
+    "reasoning": "Brief explanation (1-2 sentences)"
+}}'''
+    },
+    'depends_on': {
+        'from_types': ['action', 'objective', 'task', 'milestone', 'feature', 'decision'],
+        'to_types': ['action', 'objective', 'constraint', 'principle', 'prerequisite', 'capability'],
+        'description': 'Prerequisite dependency (X requires Y first)',
+        'verification_prompt': '''Does "{from_text}" require "{to_text}" to be completed or satisfied first?
+
+Criteria:
+- FROM must describe an action, task, or objective
+- TO must describe a prerequisite condition or prior action
+- FROM cannot be successfully completed without TO
+- The dependency must be meaningful (not trivial/obvious)
+
+Respond in JSON format:
+{{
+    "exists": true/false,
+    "confidence_score": 0.0-1.0,
+    "reasoning": "Brief explanation (1-2 sentences)"
+}}'''
+    }
+}
+
+
+async def verify_relationship_with_llm(
+    from_block: Dict[str, Any],
+    to_block: Dict[str, Any],
+    relationship_type: str
+) -> Dict[str, Any]:
+    """
+    Use LLM to verify if a causal relationship exists between two blocks.
+
+    Args:
+        from_block: Source block (dict with id, content, semantic_type)
+        to_block: Target block (dict with id, content, semantic_type)
+        relationship_type: Type of relationship to verify
+
+    Returns:
+        {
+            'exists': bool,
+            'confidence_score': float (0.0-1.0),
+            'reasoning': str
+        }
+    """
+    try:
+        ontology = RELATIONSHIP_ONTOLOGY.get(relationship_type)
+        if not ontology:
+            logger.error(f"Unknown relationship type: {relationship_type}")
+            return {'exists': False, 'confidence_score': 0.0, 'reasoning': 'Unknown relationship type'}
+
+        # Build verification prompt
+        from_text = from_block['content'][:500]  # Truncate for prompt efficiency
+        to_text = to_block['content'][:500]
+
+        prompt = ontology['verification_prompt'].format(
+            from_text=from_text,
+            to_text=to_text
+        )
+
+        # Call LLM for verification
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            logger.warning("OPENAI_API_KEY not set, skipping LLM verification")
+            return {'exists': False, 'confidence_score': 0.0, 'reasoning': 'API key not set'}
+
+        client = OpenAI(api_key=api_key)
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.1,  # Low temperature for consistent verification
+            max_tokens=150
+        )
+
+        import json
+        result = json.loads(response.choices[0].message.content)
+
+        # Validate response format
+        if 'exists' not in result or 'confidence_score' not in result:
+            logger.warning(f"Invalid LLM response format: {result}")
+            return {'exists': False, 'confidence_score': 0.0, 'reasoning': 'Invalid response'}
+
+        return {
+            'exists': bool(result['exists']),
+            'confidence_score': float(result.get('confidence_score', 0.0)),
+            'reasoning': result.get('reasoning', 'No reasoning provided')
+        }
+
+    except Exception as exc:
+        logger.error(f"LLM verification failed: {exc}")
+        return {'exists': False, 'confidence_score': 0.0, 'reasoning': f'Error: {str(exc)}'}
+
 
 async def infer_relationships(
     supabase: Client,
@@ -420,13 +569,13 @@ async def infer_relationships(
     basket_id: str
 ) -> List[RelationshipProposal]:
     """
-    Infer causal relationships for a block.
+    Infer causal relationships for a block using semantic search + LLM verification.
 
-    This is implemented in Week 2 as part of P2 graph agent upgrade.
-    Process:
-    1. Semantic search to find relationship candidates
-    2. LLM verification to confirm causal relationship
-    3. Return high-confidence proposals
+    Week 2 Implementation Process:
+    1. Fetch source block and determine relationship types to search for
+    2. For each relationship type, semantic search for candidate target blocks
+    3. LLM verification for each candidate (confirm causal relationship)
+    4. Return high-confidence proposals (>0.70)
 
     Args:
         supabase: Supabase client (service role)
@@ -436,14 +585,103 @@ async def infer_relationships(
     Returns:
         List of relationship proposals with confidence scores
 
-    Week 2 Implementation:
-        - P2 graph agent calls this for new ACCEPTED blocks
-        - High confidence (>0.90) proposals auto-accepted
-        - Medium confidence (0.70-0.90) proposed for user review
+    Usage (P2 graph agent):
+        proposals = await infer_relationships(supabase, block_id, basket_id)
+        for proposal in proposals:
+            if proposal.confidence_score > 0.90:
+                # Auto-accept high confidence
+                create_relationship(proposal, state='ACCEPTED')
+            elif proposal.confidence_score > 0.70:
+                # Propose for user review
+                create_relationship(proposal, state='PROPOSED')
     """
-    # TODO: Week 2 implementation
-    logger.info(f"infer_relationships stub called for block {block_id}")
-    return []
+    try:
+        # Fetch source block
+        response = supabase.table('blocks').select('id, content, semantic_type').eq(
+            'id', str(block_id)
+        ).single().execute()
+
+        if not response.data:
+            logger.error(f"Block {block_id} not found")
+            return []
+
+        source_block = response.data
+
+        # Determine which relationship types to search for based on semantic_type
+        relationship_types_to_search = []
+
+        for rel_type, ontology in RELATIONSHIP_ONTOLOGY.items():
+            if source_block['semantic_type'] in ontology['from_types']:
+                relationship_types_to_search.append((rel_type, ontology))
+
+        if not relationship_types_to_search:
+            logger.debug(f"No applicable relationship types for semantic_type={source_block['semantic_type']}")
+            return []
+
+        logger.info(f"Inferring relationships for block {block_id}: {len(relationship_types_to_search)} types")
+
+        proposals = []
+
+        # For each relationship type, search for candidates and verify
+        for rel_type, ontology in relationship_types_to_search:
+            try:
+                # Semantic search for candidate target blocks
+                candidates = await semantic_search(
+                    supabase=supabase,
+                    basket_id=basket_id,
+                    query_text=source_block['content'],
+                    filters=SemanticSearchFilters(
+                        semantic_types=ontology['to_types'],
+                        states=['ACCEPTED', 'LOCKED', 'CONSTANT'],
+                        min_similarity=0.65  # Lower threshold for relationship discovery
+                    ),
+                    limit=5  # Limit to top 5 candidates per type
+                )
+
+                if not candidates:
+                    logger.debug(f"No candidates found for {rel_type}")
+                    continue
+
+                logger.info(f"Found {len(candidates)} candidates for {rel_type}, verifying with LLM...")
+
+                # Verify each candidate with LLM (limit to top 3 for cost efficiency)
+                for candidate in candidates[:3]:
+                    verification = await verify_relationship_with_llm(
+                        from_block=source_block,
+                        to_block={
+                            'id': candidate.id,
+                            'content': candidate.content,
+                            'semantic_type': candidate.semantic_type
+                        },
+                        relationship_type=rel_type
+                    )
+
+                    # Only include if LLM confirms and confidence >= 0.70
+                    if verification['exists'] and verification['confidence_score'] >= RELATIONSHIP_MEDIUM_CONFIDENCE:
+                        proposals.append(RelationshipProposal(
+                            from_block_id=block_id,
+                            to_block_id=candidate.id,
+                            relationship_type=rel_type,
+                            confidence_score=verification['confidence_score'],
+                            inference_method='llm_verification',
+                            reasoning=verification['reasoning']
+                        ))
+
+                        logger.info(
+                            f"Relationship proposal: {rel_type} "
+                            f"(confidence={verification['confidence_score']:.2f})"
+                        )
+
+            except Exception as rel_error:
+                logger.warning(f"Failed to process relationship type {rel_type}: {rel_error}")
+                continue
+
+        logger.info(f"Inferred {len(proposals)} relationship proposals for block {block_id}")
+        return proposals
+
+    except Exception as exc:
+        logger.error(f"infer_relationships failed for block {block_id}: {exc}")
+        return []
 
 
 # ============================================================================
@@ -519,6 +757,7 @@ __all__ = [
     'semantic_search_cross_basket',
     'traverse_relationships',
     'infer_relationships',
+    'verify_relationship_with_llm',
     # Helpers
     'generate_and_store_embedding',
     # Constants
@@ -526,4 +765,5 @@ __all__ = [
     'DUPLICATE_MEDIUM_CONFIDENCE',
     'RELATIONSHIP_HIGH_CONFIDENCE',
     'RELATIONSHIP_MEDIUM_CONFIDENCE',
+    'RELATIONSHIP_ONTOLOGY',
 ]
