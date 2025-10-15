@@ -7,15 +7,25 @@ export interface Database {
         Row: {
           id: string;
           basket_id: string | null;
-          parent_block_id: string | null;
+          workspace_id: string | null;
+          parent_block_id: string | null;  // V3.0: Universal versioning
           semantic_type: string;
           content: string | null;
+          title: string | null;
           version: number;
           state: string;
-          scope: string | null;
+          scope: string | null;  // V3.0: WORKSPACE | ORG | GLOBAL
+          anchor_role: string | null;  // V3.0: Emergent anchor (free-text)
+          anchor_status: string | null;  // V3.0: proposed | accepted | locked
+          anchor_confidence: number | null;  // V3.0: 0.0-1.0
+          confidence_score: number | null;
           canonical_value: string | null;
           origin_ref: string | null;
+          raw_dump_id: string | null;
+          metadata: Json | null;
           created_at: string;
+          updated_at: string | null;
+          last_validated_at: string | null;
         };
       };
       baskets: {

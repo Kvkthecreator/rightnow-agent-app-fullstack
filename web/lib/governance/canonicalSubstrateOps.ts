@@ -46,10 +46,14 @@ export async function createBlockCanonical(
     throw new Error('fn_block_create returned no block id');
   }
 
+  // V3.0: Include anchor fields
   const updates = {
     semantic_type: semanticType,
     metadata,
     confidence_score: confidence,
+    anchor_role: op.anchor_role ?? null,
+    anchor_status: op.anchor_status ?? 'proposed',
+    anchor_confidence: op.anchor_confidence ?? null,
     state: 'ACCEPTED',
   };
 
@@ -67,46 +71,83 @@ export async function createBlockCanonical(
   return { created_id: updateData.id, type: 'block' };
 }
 
+// V3.0: CreateContextItem now creates blocks with semantic_type
 export async function createContextItemCanonical(
   supabase: AnySupabase,
   op: any,
   basketId: string,
   workspaceId: string
 ): Promise<OperationResult> {
+  // Map legacy "kind" to v3.0 semantic_type
+  const semanticTypeMap: Record<string, string> = {
+    'concept': 'entity',
+    'entity': 'entity',
+    'intent': 'intent',
+    'objective': 'objective',
+    'rationale': 'rationale',
+    'principle': 'principle',
+    'constraint': 'constraint',
+    'assumption': 'assumption',
+    'context': 'context',
+  };
+
   const metadata = { ...(op.metadata || {}) };
   const label = op.label || op.title || metadata.title || 'Untitled context';
-  const normalizedLabel = label.toLowerCase();
   const synonyms = coerceArray(op.synonyms ?? metadata.synonyms);
   const confidence = op.confidence ?? metadata.confidence ?? 0.7;
-  const contentSource = op.content ?? metadata.summary ?? null;
-  const content = typeof contentSource === 'string' || contentSource === null
-    ? contentSource
-    : JSON.stringify(contentSource);
+  const contentSource = op.content ?? metadata.summary ?? '';
+  const content = typeof contentSource === 'string' ? contentSource : JSON.stringify(contentSource);
+
+  const kind = op.kind || metadata.kind || 'concept';
+  const semanticType = semanticTypeMap[kind] || 'entity';
 
   metadata.synonyms = synonyms;
+  metadata.legacy_kind = kind;  // Preserve original kind for reference
 
-  const { data, error } = await supabase
-    .from('context_items')
-    .insert({
-      basket_id: basketId,
-      type: op.kind || metadata.kind || 'concept',
-      title: label,
-      content,
-      description: metadata.description || null,
-      metadata,
-      normalized_label: normalizedLabel,
-      confidence_score: confidence,
-      state: 'ACTIVE',
-      status: 'active',
-    })
+  // Create block via RPC
+  const { data, error } = await supabase.rpc('fn_block_create', {
+    p_basket_id: basketId,
+    p_workspace_id: workspaceId,
+    p_title: label,
+    p_body_md: content,
+  });
+
+  if (error) {
+    throw new Error(`fn_block_create failed: ${error.message}`);
+  }
+
+  let blockId = Array.isArray(data) ? data[0] : data;
+  if (blockId && typeof blockId === 'object') {
+    const values = Object.values(blockId);
+    blockId = values[0] as string | undefined;
+  }
+  if (!blockId) {
+    throw new Error('fn_block_create returned no block id');
+  }
+
+  // V3.0: Update with semantic_type and anchor fields
+  const updates = {
+    semantic_type: semanticType,
+    metadata,
+    confidence_score: confidence,
+    anchor_role: op.anchor_role ?? null,
+    anchor_status: op.anchor_status ?? 'proposed',
+    anchor_confidence: op.anchor_confidence ?? confidence,
+    state: 'ACCEPTED',
+  };
+
+  const { data: updateData, error: updateError } = await supabase
+    .from('blocks')
+    .update(updates)
+    .eq('id', blockId)
     .select('*')
     .single();
 
-  if (error || !data) {
-    throw new Error(`context_items insert failed: ${error?.message ?? 'unknown error'}`);
+  if (updateError) {
+    throw new Error(`Failed to finalize block ${blockId}: ${updateError.message}`);
   }
 
-  return { created_id: data.id, type: 'context_item' };
+  return { created_id: updateData.id, type: 'block' };
 }
 
 function sanitizeForJson<T>(value: T): T {
@@ -203,31 +244,46 @@ export async function reviseBlockCanonical(
   return { updated_id: updated.id, type: 'block' };
 }
 
+// V3.0: UpdateContextItem now updates blocks with semantic_type
 export async function updateContextItemCanonical(
   supabase: AnySupabase,
   op: any,
   basketId: string,
   workspaceId: string
 ): Promise<OperationResult> {
-  const contextItemId = op.context_item_id;
-  if (!contextItemId) {
-    throw new Error('updateContextItem requires context_item_id');
+  const blockId = op.context_item_id || op.block_id;
+  if (!blockId) {
+    throw new Error('updateContextItem requires context_item_id or block_id');
   }
 
+  // Map legacy "kind" to v3.0 semantic_type
+  const semanticTypeMap: Record<string, string> = {
+    'concept': 'entity',
+    'entity': 'entity',
+    'intent': 'intent',
+    'objective': 'objective',
+    'rationale': 'rationale',
+    'principle': 'principle',
+    'constraint': 'constraint',
+    'assumption': 'assumption',
+    'context': 'context',
+  };
+
   const { data: existing, error: fetchError } = await supabase
-    .from('context_items')
-    .select('id, title, content, description, metadata, confidence_score, type, normalized_label')
-    .eq('id', contextItemId)
-    .eq('basket_id', basketId)
+    .from('blocks')
+    .select('id, title, content, body_md, metadata, confidence_score, semantic_type')
+    .eq('id', blockId)
+    .eq('workspace_id', workspaceId)
     .single();
 
   if (fetchError || !existing) {
-    throw new Error(fetchError?.message || `Context item ${contextItemId} not found`);
+    throw new Error(fetchError?.message || `Block ${blockId} not found`);
   }
 
-  const label = op.label ?? existing.title ?? '';
-  const normalizedLabel = label ? label.toLowerCase() : existing['normalized_label'] ?? existing.title?.toLowerCase() ?? null;
-  const content = op.content ?? existing.content ?? existing.description ?? null;
+  const label = op.label ?? op.title ?? existing.title ?? '';
+  const contentSource = op.content ?? existing.body_md ?? existing.content ?? '';
+  const content = typeof contentSource === 'string' ? contentSource : JSON.stringify(contentSource);
+
   const synonymsInput = op.synonyms ?? op.additional_synonyms ?? existing.metadata?.synonyms ?? [];
   const synonyms = Array.isArray(synonymsInput)
     ? synonymsInput
@@ -235,32 +291,35 @@ export async function updateContextItemCanonical(
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
+
   const metadata = sanitizeForJson({
     ...(existing.metadata || {}),
     ...(op.metadata || {}),
     synonyms,
   });
 
+  const kind = op.kind ?? existing.metadata?.legacy_kind;
+  const semanticType = kind ? (semanticTypeMap[kind] || existing.semantic_type) : existing.semantic_type;
+
   const { data: updated, error: updateError } = await supabase
-    .from('context_items')
+    .from('blocks')
     .update({
       title: label || existing.title,
-      normalized_label: normalizedLabel,
-      content,
-      description: op.description ?? existing.description ?? content,
-      type: op.kind ?? existing['type'],
+      body_md: content,
+      content: content,
+      semantic_type: semanticType,
       confidence_score: op.confidence ?? existing.confidence_score ?? 0.7,
       metadata,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', contextItemId)
-    .eq('basket_id', basketId)
+    .eq('id', blockId)
+    .eq('workspace_id', workspaceId)
     .select('*')
     .single();
 
   if (updateError || !updated) {
-    throw new Error(updateError?.message || `Failed to update context item ${contextItemId}`);
+    throw new Error(updateError?.message || `Failed to update block ${blockId}`);
   }
 
-  return { updated_id: updated.id, type: 'context_item' };
+  return { updated_id: updated.id, type: 'block' };
 }

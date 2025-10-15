@@ -58,27 +58,38 @@ export function buildAnchorOperations(
     }];
   }
 
+  // V3.0: All anchors create blocks with appropriate semantic_type
+  // Map legacy "kind" to semantic_type
   const kind = anchor.metadata?.kind || CONTEXT_KIND_DEFAULTS[anchor.anchor_key] || 'concept';
+  const semanticTypeMap: Record<string, string> = {
+    'constraint': 'constraint',
+    'insight': 'insight',
+    'milestone': 'fact',
+    'concept': 'entity',
+  };
+  const semanticType = semanticTypeMap[kind] || 'entity';
 
   if (anchor.linked_substrate_id) {
     return [{
-      type: 'EditContextItem',
+      type: 'ReviseBlock',
       data: {
-        context_item_id: anchor.linked_substrate_id,
-        label: title,
+        block_id: anchor.linked_substrate_id,
         content,
-        edit_reason: revisionReason || 'Anchor revision',
+        semantic_type: semanticType,
+        title,
+        metadata: { ...metadataBase, legacy_kind: kind },
+        revision_reason: revisionReason || 'Anchor revision',
       },
     }];
   }
 
   return [{
-    type: 'CreateContextItem',
+    type: 'CreateBlock',
     data: {
-      label: title,
       content,
-      kind,
-      metadata: { ...metadataBase },
+      semantic_type: semanticType,
+      title,
+      metadata: { ...metadataBase, legacy_kind: kind },
       confidence: 0.8,
     },
   }];

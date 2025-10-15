@@ -54,24 +54,16 @@ interface BlockWithMetrics {
   last_validated_at: string | null;
 }
 
-interface ContextItemWithMetrics {
-  id: string;
-  title: string | null;
-  semantic_category: string | null;
-  semantic_meaning: string | null;
-  created_at: string;
-  metadata?: Record<string, any> | null;
-}
+// V3.0: Removed ContextItemWithMetrics - all semantic types in blocks
 
 interface BuildingBlocksResponse {
   blocks: BlockWithMetrics[];
-  context_items: ContextItemWithMetrics[];
   stats: {
     total_blocks: number;
-    total_context_items: number;
     anchored_blocks: number;
     stale_blocks: number;
     unused_blocks: number;
+    meaning_blocks: number;  // V3.0: Blocks with meaning semantic_types
   };
 }
 
@@ -99,7 +91,8 @@ function usefulnessBadge(score: number) {
   return { label: 'Unused', className: 'bg-slate-50 text-slate-600 border-slate-200', icon: Clock };
 }
 
-type FilterMode = 'all' | 'anchored' | 'free' | 'stale' | 'unused' | 'context_items';
+// V3.0: Changed context_items filter to meaning_blocks filter
+type FilterMode = 'all' | 'anchored' | 'free' | 'stale' | 'unused' | 'meaning_blocks';
 type SortMode = 'usefulness' | 'recency' | 'confidence' | 'staleness';
 
 interface BuildingBlocksClientProps {
@@ -121,7 +114,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
   const [query, setQuery] = useState('');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [sortMode, setSortMode] = useState<SortMode>('usefulness');
-  const [selected, setSelected] = useState<{ id: string; type: 'block' | 'context_item' } | null>(null);
+  const [selected, setSelected] = useState<{ id: string; type: 'block' } | null>(null);
 
   // Build anchor map for quick lookup
   const anchorMap = useMemo(() => {
@@ -141,6 +134,8 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
     let filtered = data.blocks;
 
     // Apply filter mode
+    const meaningSemanticTypes = ['intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint'];
+
     if (filterMode === 'anchored') {
       filtered = filtered.filter(b => anchorMap.has(b.id));
     } else if (filterMode === 'free') {
@@ -149,6 +144,9 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
       filtered = filtered.filter(b => b.staleness_days !== null && b.staleness_days > 30);
     } else if (filterMode === 'unused') {
       filtered = filtered.filter(b => b.times_referenced === 0);
+    } else if (filterMode === 'meaning_blocks') {
+      // V3.0: Filter to meaning semantic_types (was context_items)
+      filtered = filtered.filter(b => b.semantic_type && meaningSemanticTypes.includes(b.semantic_type));
     }
 
     // Apply search query
@@ -185,18 +183,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
   const anchoredBlocks = processedBlocks.filter(b => anchorMap.has(b.id));
   const freeBlocks = processedBlocks.filter(b => !anchorMap.has(b.id));
 
-  // Filter context items
-  const filteredContextItems = useMemo(() => {
-    if (!data?.context_items) return [];
-    if (!query.trim()) return data.context_items;
-
-    const q = query.toLowerCase();
-    return data.context_items.filter((item) => {
-      const title = item.title?.toLowerCase() ?? '';
-      const meaning = item.semantic_meaning?.toLowerCase() ?? '';
-      return title.includes(q) || meaning.includes(q);
-    });
-  }, [data?.context_items, query]);
+  // V3.0: Removed filteredContextItems - all semantic types in blocks now
 
   // Calculate stats including anchored count
   const stats = useMemo(() => {
@@ -256,7 +243,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
           </Badge>
           <Badge variant="secondary" className="bg-purple-50 text-purple-700">
             <Brain className="h-3 w-3 mr-1" />
-            {stats?.total_context_items ?? 0} entities
+            {stats?.meaning_blocks ?? 0} meaning
           </Badge>
         </CardContent>
       </Card>
@@ -305,11 +292,11 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
             </Button>
             <Button
               size="sm"
-              variant={filterMode === 'context_items' ? 'default' : 'outline'}
-              onClick={() => setFilterMode('context_items')}
+              variant={filterMode === 'meaning_blocks' ? 'default' : 'outline'}
+              onClick={() => setFilterMode('meaning_blocks')}
             >
               <Brain className="h-3 w-3 mr-1" />
-              Entities
+              Meaning
             </Button>
           </div>
 
@@ -325,7 +312,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
               />
             </div>
 
-            {filterMode !== 'context_items' && (
+            {filterMode !== 'meaning_blocks' && (
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-slate-400" />
                 <select
@@ -357,54 +344,56 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
           {/* Content based on filter mode */}
           {!isLoading && !error && (
             <div className="space-y-6">
-              {filterMode === 'context_items' ? (
-                // Context Items View
+              {/* V3.0: All blocks rendered the same way, filter determines which semantic_types shown */}
+              {filterMode === 'meaning_blocks' ? (
+                // Meaning Blocks View (intent, objective, rationale, etc.)
                 <section className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-semibold text-slate-900">Entities & Concepts</h2>
+                    <h2 className="text-lg font-semibold text-slate-900">Meaning & Context Blocks</h2>
                     <Badge variant="secondary" className="bg-purple-50 text-purple-700">
-                      {filteredContextItems.length}
+                      {processedBlocks.length}
                     </Badge>
                   </div>
-                  {filteredContextItems.length > 0 ? (
+                  {processedBlocks.length > 0 ? (
                     <div className="grid gap-4 lg:grid-cols-2">
-                      {filteredContextItems.map((item) => (
-                        <Card key={item.id} className="border-slate-200 hover:border-indigo-300 transition-colors">
+                      {processedBlocks.map((block) => (
+                        <Card key={block.id} className="border-slate-200 hover:border-indigo-300 transition-colors cursor-pointer"
+                          onClick={() => setSelected({ id: block.id, type: 'block' })}>
                           <CardContent className="space-y-3 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
                                 <h3 className="text-base font-semibold text-slate-900">
-                                  {item.title || 'Unnamed entity'}
+                                  {block.title || 'Unnamed block'}
                                 </h3>
                                 <p className="text-xs text-slate-500">
-                                  {formatTimestamp(item.created_at)}
+                                  {formatTimestamp(block.created_at)}
                                 </p>
                               </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setSelected({ id: item.id, type: 'context_item' })}
-                              >
-                                <FileText className="h-4 w-4" />
-                              </Button>
                             </div>
-                            {item.semantic_meaning && (
-                              <p className="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                                {item.semantic_meaning}
+                            {block.content && (
+                              <p className="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 line-clamp-3">
+                                {block.content}
                               </p>
                             )}
-                            {item.semantic_category && (
-                              <Badge variant="outline" className="border-slate-200 text-slate-600">
-                                {item.semantic_category}
-                              </Badge>
-                            )}
+                            <div className="flex flex-wrap items-center gap-2">
+                              {block.semantic_type && (
+                                <Badge variant="outline" className="border-purple-200 text-purple-700">
+                                  {block.semantic_type}
+                                </Badge>
+                              )}
+                              {block.confidence_score !== null && confidenceBadge(block.confidence_score) && (
+                                <Badge variant="outline" className={confidenceBadge(block.confidence_score)!.className}>
+                                  {confidenceBadge(block.confidence_score)!.label}
+                                </Badge>
+                              )}
+                            </div>
                           </CardContent>
                         </Card>
                       ))}
                     </div>
                   ) : (
                     <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 text-center">
-                      No entities found matching your search.
+                      No meaning blocks found matching your search.
                     </div>
                   )}
                 </section>

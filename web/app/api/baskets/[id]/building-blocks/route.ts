@@ -40,21 +40,14 @@ interface BlockWithMetrics {
   last_validated_at: string | null;
 }
 
-interface ContextItemWithMetrics {
-  id: string;
-  title: string | null;
-  semantic_category: string | null;
-  semantic_meaning: string | null;
-  created_at: string;
-  metadata?: Record<string, any> | null;
-}
+// V3.0: Removed ContextItemWithMetrics - context items merged into blocks
 
 interface BuildingBlocksStats {
   total_blocks: number;
-  total_context_items: number;
   anchored_blocks: number;
   stale_blocks: number;
   unused_blocks: number;
+  meaning_blocks: number;  // V3.0: Blocks with semantic_type in meaning category
 }
 
 export async function GET(
@@ -110,19 +103,7 @@ export async function GET(
       (usageData ?? []).map(u => [u.block_id, u])
     );
 
-    // Context items with semantic meaning
-    const { data: contextItemsData, error: contextItemsError } = await supabase
-      .from('context_items')
-      .select('id, title, semantic_meaning, semantic_category, created_at, metadata, status, state')
-      .eq('basket_id', basketId)
-      .eq('state', 'ACTIVE')
-      .order('created_at', { ascending: false })
-      .limit(200);
-
-    if (contextItemsError) {
-      console.error('Context items query error:', contextItemsError);
-      return NextResponse.json({ error: 'Failed to fetch context items' }, { status: 500 });
-    }
+    // V3.0: No separate context_items query - all semantic types in blocks table
 
     // Transform blocks with quality metrics
     const blocks: BlockWithMetrics[] = (blocksData ?? []).map(block => {
@@ -157,33 +138,24 @@ export async function GET(
       };
     });
 
-    // Transform context items
-    const contextItems: ContextItemWithMetrics[] = (contextItemsData ?? []).map(item => ({
-      id: item.id,
-      title: item.title || null,
-      semantic_category: item.semantic_category || null,
-      semantic_meaning: item.semantic_meaning || null,
-      created_at: item.created_at,
-      metadata: item.metadata || null,
-    }));
-
-    // Calculate stats for filtering
+    // V3.0: Calculate stats for filtering
+    const meaningSemanticTypes = ['intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint'];
     const stale_blocks = blocks.filter(b => b.staleness_days !== null && b.staleness_days > 30).length;
     const unused_blocks = blocks.filter(b => b.times_referenced === 0).length;
+    const meaning_blocks = blocks.filter(b => b.semantic_type && meaningSemanticTypes.includes(b.semantic_type)).length;
 
     // Note: anchored_blocks count requires anchor registry query (done in client via separate endpoint)
 
     const stats: BuildingBlocksStats = {
       total_blocks: blocks.length,
-      total_context_items: contextItems.length,
       anchored_blocks: 0, // Calculated client-side from anchors endpoint
       stale_blocks,
       unused_blocks,
+      meaning_blocks,
     };
 
     return NextResponse.json({
       blocks,
-      context_items: contextItems,
       stats,
     }, { status: 200 });
 

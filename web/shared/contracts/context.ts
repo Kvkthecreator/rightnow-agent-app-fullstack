@@ -1,11 +1,13 @@
 // Context items and related types
+// V3.0 DEPRECATED: context_items merged into blocks table
+// Use Block type from blocks.ts with semantic_type instead
 
 export type ContextItem = {
   id: string;
   basket_id: string;
   document_id?: string;
-  type: string;                    // Required: 'entity' | 'topic' | 'intent' | 'source_ref' | 'cue' | 'task' 
-  content?: string;                // Main content/label
+  type: string;                    // DEPRECATED: Use semantic_type on Block instead
+  content?: string;
   title?: string;
   description?: string;
   confidence_score?: number;
@@ -18,11 +20,12 @@ export type ContextItem = {
 };
 
 // For creating context items
+// V3.0 DEPRECATED: Use CreateBlock operations with semantic_type instead
 export type CreateContextItemPayload = {
   basket_id: string;
   type: string;
   content?: string;
-  title?: string;  
+  title?: string;
   description?: string;
   metadata?: Record<string, any>;
 };
