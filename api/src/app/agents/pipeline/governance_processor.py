@@ -998,7 +998,7 @@ class GovernanceDumpProcessor:
                     'p_basket_id': str(basket_id),
                     'p_workspace_id': str(workspace_id),
                     'p_agent_version': agent_version,
-                    'p_extraction_method': extraction_method,
+                    # 'p_extraction_method': extraction_method,  # Removed - DB function doesn't have this param
                     'p_blocks_created': blocks_created,
                     'p_context_items_created': 0,  # V3.0: Always 0 (legacy field)
                     'p_avg_confidence': avg_confidence,

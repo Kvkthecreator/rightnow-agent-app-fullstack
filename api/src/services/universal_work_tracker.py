@@ -432,10 +432,10 @@ class UniversalWorkTracker:
                     'work_id': work_id,
                     **metadata
                 },
-                'user_id': context.user_id,
-                'created_at': datetime.now(timezone.utc).isoformat()
+                'user_id': context.user_id
+                # 'created_at': removed - table doesn't have this column, will use DB default
             }
-            
+
             supabase.table("timeline_events").insert(event_data).execute()
             logger.debug(f"Timeline event emitted: {event_type} for work {work_id}")
             
