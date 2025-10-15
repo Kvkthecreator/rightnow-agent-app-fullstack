@@ -80,14 +80,9 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
           onSuccess?.(dump);
           setText("");
           setImages([]);
-          
-          // Show immediate acknowledgment
+
+          // No notification here - modal will show processing status
           console.log(`Memory with files submitted: ${dump.dump_id || dump.proposal_id}`);
-          await notificationAPI.emitActionResult(
-            'memory.submit',
-            'Memory with files submitted ✓',
-            { severity: 'success', ttlMs: 2500 }
-          );
         } else {
           console.error("Failed to upload", await res.text());
           await notificationAPI.emitActionResult(
@@ -119,15 +114,10 @@ export default function AddMemoryComposer({ basketId, disabled, onSuccess }: Add
           console.log("Dump response:", dump);
           onSuccess?.(dump);
           setText("");
-          
-          // Show immediate acknowledgment only
+
+          // No notification here - modal will show processing status
           console.log(`Memory submitted (${dump.route}): ${dump.dump_id || dump.proposal_id}`);
-          await notificationAPI.emitActionResult(
-            'memory.submit',
-            'Memory submitted ✓',
-            { severity: 'success', ttlMs: 2500 } // Short toast - quick acknowledgment
-          );
-          
+
           // Backend will handle job progress and completion notifications
         } else {
           console.error("Failed to create dump", await res.text());

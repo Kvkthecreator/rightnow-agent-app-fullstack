@@ -159,7 +159,9 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
         open={showAddMemory}
         onClose={() => setShowAddMemory(false)}
         onSuccess={() => {
+          // Refresh stats and documents after processing
           loadStats();
+          refreshDocuments();
         }}
       />
     </div>
