@@ -93,7 +93,7 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
             </CardContent>
           </Card>
 
-          {/* Context Items */}
+          {/* Relationships */}
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
@@ -101,15 +101,15 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
                   <div className="p-2 rounded-lg bg-purple-50">
                     <LinkIcon className="h-4 w-4 text-purple-600" />
                   </div>
-                  <span className="text-sm font-medium text-slate-600">Links</span>
+                  <span className="text-sm font-medium text-slate-600">Relationships</span>
                 </div>
                 {!statsLoading && (
                   <span className="text-2xl font-semibold text-slate-900">
-                    {stats?.context_items_count ?? 0}
+                    {stats?.relationships_count ?? 0}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500">Connections and tags</p>
+              <p className="text-xs text-slate-500">Causal connections</p>
             </CardContent>
           </Card>
 

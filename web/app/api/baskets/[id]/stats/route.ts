@@ -10,8 +10,7 @@ interface RouteContext {
 export interface BasketStats {
   blocks_count: number;
   raw_dumps_count: number;
-  context_items_count: number;
-  timeline_events_count: number;
+  relationships_count: number;  // V3.1: Changed from context_items_count
   documents_count: number;
 }
 
@@ -40,12 +39,20 @@ export async function GET(
       return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
     }
 
-    // Gather substrate statistics - aligned with building blocks filtering
+    // V3.1: Get block IDs for relationship counting
+    const { data: blocks } = await supabase.from('blocks')
+      .select('id')
+      .eq('basket_id', id)
+      .eq('workspace_id', workspace.id)
+      .neq('status', 'archived');
+
+    const blockIds = (blocks || []).map((b: any) => b.id);
+
+    // Gather substrate statistics - V3.0/V3.1 aligned
     const [
       { count: blocks_count },
       { count: raw_dumps_count },
-      { count: context_items_count },
-      { count: timeline_events_count },
+      { count: relationships_count },
       { count: documents_count }
     ] = await Promise.all([
       supabase.from('blocks')
@@ -58,13 +65,12 @@ export async function GET(
         .eq('basket_id', id)
         .eq('workspace_id', workspace.id)
         .neq('processing_status', 'redacted'),
-      supabase.from('context_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('basket_id', id)
-        .eq('state', 'ACTIVE'),
-      supabase.from('timeline_events')
-        .select('*', { count: 'exact', head: true })
-        .eq('basket_id', id),
+      // V3.1: Count relationships for this basket's blocks
+      blockIds.length > 0
+        ? supabase.from('substrate_relationships')
+            .select('*', { count: 'exact', head: true })
+            .or(`from_block_id.in.(${blockIds.join(',')}),to_block_id.in.(${blockIds.join(',')})`)
+        : Promise.resolve({ count: 0 }),
       supabase.from('documents')
         .select('*', { count: 'exact', head: true })
         .eq('basket_id', id)
@@ -74,8 +80,7 @@ export async function GET(
     const stats: BasketStats = {
       blocks_count: blocks_count || 0,
       raw_dumps_count: raw_dumps_count || 0,
-      context_items_count: context_items_count || 0,
-      timeline_events_count: timeline_events_count || 0,
+      relationships_count: relationships_count || 0,
       documents_count: documents_count || 0
     };
 
