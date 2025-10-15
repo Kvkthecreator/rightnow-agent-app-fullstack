@@ -1,13 +1,14 @@
 """
-P2 Graph Agent - YARNNN Canon v3.1 Compatibility Layer
+P2 Graph Agent - YARNNN Canon v3.1 Semantic Inference
 
 Sacred Rule: Creates relationships, never modifies substrate content
 Pipeline: P2_GRAPH
 
-V3.1 TEMPORARY STATUS:
-- This is a compatibility layer for v3.1 schema migration
-- Legacy relationship logic preserved but adapted to new schema
-- Week 2: Will be replaced with semantic inference engine
+V3.1 SEMANTIC INFERENCE:
+- Uses semantic search to find relationship candidates
+- LLM verification (gpt-4o-mini) confirms causal relationships
+- 4 causal types: addresses, supports, contradicts, depends_on
+- Auto-accepts high confidence (>0.90), proposes medium (0.70-0.90)
 
 V3.0 Changes:
 - Query unified blocks table (no context_items)
@@ -15,9 +16,10 @@ V3.0 Changes:
 - Entity blocks identified by semantic_type='entity'
 
 V3.1 Changes:
-- Adapted to new substrate_relationships schema (blocks-only)
-- Maps legacy relationship types to v3.1 causal types
-- Uses confidence_score instead of strength
+- Semantic relationship inference (not keyword-based)
+- Causal ontology (not generic associations)
+- Governance integration (PROPOSED→ACCEPTED)
+- Confidence-based auto-approval
 """
 
 import logging
@@ -28,6 +30,11 @@ from pydantic import BaseModel, Field
 
 from app.utils.supabase_client import supabase_admin_client as supabase
 from services.enhanced_cascade_manager import canonical_cascade_manager
+from services.semantic_primitives import (
+    infer_relationships,
+    RELATIONSHIP_HIGH_CONFIDENCE,
+    RELATIONSHIP_MEDIUM_CONFIDENCE
+)
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -76,77 +83,103 @@ class P2GraphAgent:
         
     async def map_relationships(self, request: RelationshipMappingRequest) -> RelationshipResult:
         """
-        Map relationships between existing substrate elements.
-        
+        V3.1: Map causal relationships using semantic inference.
+
+        Process:
+        1. For each substrate block, call infer_relationships()
+        2. Auto-accept high confidence (>0.90) proposals
+        3. Propose medium confidence (0.70-0.90) for user review
+        4. Create relationships in substrate_relationships table
+
         Operations allowed:
-        - Relationship discovery between substrates
-        - Connection strength analysis
-        - Graph structure optimization
-        - Relationship persistence
-        
+        - Semantic search for relationship candidates
+        - LLM verification of causal relationships
+        - Relationship persistence with confidence scores
+
         Operations forbidden:
         - Substrate content modification (P1 responsibility)
-        - Pattern analysis or reflections (P3 responsibility) 
+        - Pattern analysis or reflections (P3 responsibility)
         - Document composition (P4 responsibility)
         """
         start_time = datetime.utcnow()
-        
+
         try:
-            # Get substrate elements for analysis (P2 operation)
-            substrate_elements = await self._get_substrate_elements(
-                request.workspace_id,
-                request.basket_id,
-                request.substrate_ids
-            )
-            
-            if len(substrate_elements) < 2:
-                self.logger.info(f"P2 Graph: Insufficient substrate elements for relationship mapping")
+            # Get substrate block IDs for analysis
+            if request.substrate_ids:
+                substrate_ids = [str(sid) for sid in request.substrate_ids]
+            else:
+                # Get all accepted/locked blocks in basket
+                blocks_response = supabase.table("blocks").select("id").eq(
+                    "basket_id", str(request.basket_id)
+                ).in_("state", ["ACCEPTED", "LOCKED", "CONSTANT"]).execute()
+                substrate_ids = [block["id"] for block in blocks_response.data]
+
+            if len(substrate_ids) < 2:
+                self.logger.info(f"P2 Graph: Insufficient substrate blocks for relationship mapping")
                 return RelationshipResult(
                     workspace_id=request.workspace_id,
                     relationships_created=[],
                     processing_time_ms=0,
-                    substrate_analyzed=len(substrate_elements),
+                    substrate_analyzed=len(substrate_ids),
                     connection_strength_avg=0.0
                 )
-            
-            # Analyze for relationship proposals (P2 operation)
-            relationship_proposals = self._analyze_for_relationships(substrate_elements)
-            
-            # Filter and validate relationships (P2 operation)
-            validated_proposals = self._validate_relationships(relationship_proposals)
-            
-            # Create relationships via proper RPC (P2 operation)
-            created_relationships = await self._create_relationships(
-                request.basket_id,
-                validated_proposals,
-                request.agent_id
+
+            # V3.1: Use semantic inference for each block
+            all_proposals = []
+            for block_id in substrate_ids:
+                try:
+                    proposals = await infer_relationships(
+                        supabase=supabase,
+                        block_id=block_id,
+                        basket_id=str(request.basket_id)
+                    )
+                    all_proposals.extend(proposals)
+                except Exception as exc:
+                    self.logger.error(f"Failed to infer relationships for block {block_id}: {exc}")
+                    continue
+
+            if not all_proposals:
+                self.logger.info(f"P2 Graph: No relationship proposals found")
+                return RelationshipResult(
+                    workspace_id=request.workspace_id,
+                    relationships_created=[],
+                    processing_time_ms=0,
+                    substrate_analyzed=len(substrate_ids),
+                    connection_strength_avg=0.0
+                )
+
+            # Create relationships with appropriate state based on confidence
+            created_relationships = await self._create_semantic_relationships(
+                basket_id=request.basket_id,
+                proposals=all_proposals,
+                agent_id=request.agent_id
             )
-            
+
             # Calculate metrics
             processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
-            avg_strength = self._calculate_average_strength(validated_proposals)
-            
+            avg_confidence = sum(p.confidence_score for p in all_proposals) / len(all_proposals)
+
             self.logger.info(
                 f"P2 Graph completed: workspace_id={request.workspace_id}, "
-                f"relationships={len(created_relationships)}, substrate_analyzed={len(substrate_elements)}, "
-                f"processing_time_ms={processing_time_ms}"
+                f"relationships={len(created_relationships)}, substrate_analyzed={len(substrate_ids)}, "
+                f"avg_confidence={avg_confidence:.2f}, processing_time_ms={processing_time_ms}"
             )
-            
+
             # Trigger P2→P3 cascade if relationships were created
             await self._trigger_p2_cascade(
                 request=request,
                 relationships_created=len(created_relationships),
                 processing_time_ms=processing_time_ms
             )
-            
+
             return RelationshipResult(
                 workspace_id=request.workspace_id,
                 relationships_created=created_relationships,
                 processing_time_ms=processing_time_ms,
-                substrate_analyzed=len(substrate_elements),
-                connection_strength_avg=avg_strength
+                substrate_analyzed=len(substrate_ids),
+                connection_strength_avg=avg_confidence
             )
-            
+
         except Exception as e:
             self.logger.error(f"P2 Graph failed for workspace {request.workspace_id}: {e}")
             raise
@@ -656,7 +689,73 @@ class P2GraphAgent:
         except Exception as e:
             self.logger.error(f"V3.1: Failed to create relationships: {e}")
             return []
-    
+
+    async def _create_semantic_relationships(
+        self,
+        basket_id: UUID,
+        proposals: List[RelationshipProposal],
+        agent_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        V3.1: Create relationships from semantic inference proposals.
+
+        Auto-accepts high confidence (>0.90) relationships.
+        Proposes medium confidence (0.70-0.90) for user review.
+        """
+        if not proposals:
+            return []
+
+        try:
+            # Prepare relationship data for v3.1 schema
+            relationship_data = []
+            for proposal in proposals:
+                # Determine state based on confidence
+                if proposal.confidence_score >= RELATIONSHIP_HIGH_CONFIDENCE:
+                    state = "ACCEPTED"
+                elif proposal.confidence_score >= RELATIONSHIP_MEDIUM_CONFIDENCE:
+                    state = "PROPOSED"
+                else:
+                    # Skip low confidence proposals
+                    continue
+
+                relationship_data.append({
+                    "from_block_id": str(proposal.from_block_id),
+                    "to_block_id": str(proposal.to_block_id),
+                    "relationship_type": proposal.relationship_type,
+                    "confidence_score": proposal.confidence_score,
+                    "inference_method": proposal.inference_method,
+                    "state": state,
+                    "metadata": {
+                        "reasoning": proposal.reasoning,
+                        "agent_id": agent_id,
+                        "inferred_by": "v3.1_semantic_inference"
+                    }
+                })
+
+            if not relationship_data:
+                self.logger.info("V3.1: No valid semantic relationships to create (all below confidence threshold)")
+                return []
+
+            # Insert to substrate_relationships
+            response = supabase.table("substrate_relationships").upsert(
+                relationship_data,
+                on_conflict="from_block_id,to_block_id,relationship_type"
+            ).execute()
+
+            if response.data:
+                self.logger.info(
+                    f"V3.1: Created {len(response.data)} semantic relationships "
+                    f"(accepted: {len([r for r in relationship_data if r['state'] == 'ACCEPTED'])}, "
+                    f"proposed: {len([r for r in relationship_data if r['state'] == 'PROPOSED'])})"
+                )
+                return response.data
+
+            return []
+
+        except Exception as e:
+            self.logger.error(f"V3.1: Failed to create semantic relationships: {e}")
+            return []
+
     async def _trigger_p2_cascade(
         self,
         request: RelationshipMappingRequest,
