@@ -130,19 +130,10 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
               Your knowledge organized into Knowledge and Meaning blocks
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => mutate()}>
-              <RefreshCw className="h-3.5 w-3.5" />
-              Refresh
-            </Button>
-            <Link
-              href={`/baskets/${basketId}/uploads`}
-              className="text-sm text-slate-600 hover:text-indigo-600 flex items-center gap-1"
-            >
-              <FileText className="h-4 w-4" />
-              Uploads
-            </Link>
-          </div>
+          <Button variant="ghost" size="sm" onClick={() => mutate()}>
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </Button>
         </CardHeader>
 
         {/* Stats */}
@@ -339,6 +330,7 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
           substrateType="block"
           substrateId={selected}
           basketId={basketId}
+          onUpdate={() => mutate()}
         />
       )}
     </div>

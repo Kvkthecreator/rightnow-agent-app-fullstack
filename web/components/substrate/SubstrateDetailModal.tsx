@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { FileText, Database, Link2, Hash, Clock, Copy, ExternalLink, X } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
+import BuildingBlocksActions from './BuildingBlocksActions';
 
 interface SubstrateDetailModalProps {
   substrateType: 'raw_dump' | 'block' | 'context_item' | 'relationship' | 'timeline_event';
@@ -11,6 +12,7 @@ interface SubstrateDetailModalProps {
   basketId: string;
   open: boolean;
   onClose: () => void;
+  onUpdate?: () => void; // Callback after mutations
 }
 
 interface SubstrateDetail {
@@ -29,6 +31,7 @@ interface SubstrateDetail {
   semantic_type?: string;
   state?: string;
   confidence_score?: number;
+  metadata?: Record<string, any>;
   // Context item fields (Canon-compliant)
   label?: string;              // Legacy support
   kind?: string;               // Canon: entity kind/type
@@ -63,7 +66,8 @@ export default function SubstrateDetailModal({
   substrateId,
   basketId,
   open,
-  onClose
+  onClose,
+  onUpdate
 }: SubstrateDetailModalProps) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'content' | 'history'>('content');
@@ -382,15 +386,40 @@ export default function SubstrateDetailModal({
 
         {/* Footer */}
         <div className="border-t border-gray-200 p-4 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => copyToClipboard(substrateId)}
-            className="flex items-center gap-2"
-          >
-            <Copy className="h-3 w-3" />
-            Copy ID
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => copyToClipboard(substrateId)}
+              className="flex items-center gap-2"
+            >
+              <Copy className="h-3 w-3" />
+              Copy ID
+            </Button>
+            {/* Block actions (Edit/Archive/Retag) */}
+            {substrateType === 'block' && substrate && onUpdate && (
+              <BuildingBlocksActions
+                block={{
+                  id: substrate.id,
+                  title: substrate.title || null,
+                  content: substrate.content || null,
+                  semantic_type: substrate.semantic_type || null,
+                  confidence_score: substrate.confidence_score || null,
+                  created_at: substrate.created_at,
+                  updated_at: substrate.updated_at || null,
+                  status: substrate.state || null,
+                  metadata: substrate.metadata || null,
+                  times_referenced: 0,
+                  usefulness_score: 0,
+                }}
+                basketId={basketId}
+                onUpdate={() => {
+                  onUpdate();
+                  onClose(); // Close modal after action
+                }}
+              />
+            )}
+          </div>
           <Button variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>
