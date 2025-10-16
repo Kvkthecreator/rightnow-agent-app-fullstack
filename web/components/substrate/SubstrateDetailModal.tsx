@@ -404,13 +404,12 @@ export default function SubstrateDetailModal({
                   title: substrate.title || null,
                   content: substrate.content || null,
                   semantic_type: substrate.semantic_type || null,
+                  anchor_role: substrate.metadata?.anchor_role || null,
                   confidence_score: substrate.confidence_score || null,
                   created_at: substrate.created_at,
                   updated_at: substrate.updated_at || null,
                   status: substrate.state || null,
                   metadata: substrate.metadata || null,
-                  times_referenced: 0,
-                  usefulness_score: 0,
                 }}
                 basketId={basketId}
                 onUpdate={() => {
