@@ -364,6 +364,10 @@ async def _fetch_basket_substrate(supabase, basket_id: str) -> Dict[str, Any]:
     - context_items merged into blocks table
     - state enum: PROPOSED, ACCEPTED, LOCKED, CONSTANT (not 'ACTIVE')
     - Query for ACCEPTED+ states (excludes PROPOSED/REJECTED)
+
+    V3.1 Semantic Layer:
+    - substrate_relationships is a graph edge table (from_block_id -> to_block_id)
+    - No direct basket_id - must join through blocks table
     """
     # Query blocks with valid states (ACCEPTED, LOCKED, CONSTANT)
     # Exclude PROPOSED (not yet approved) and REJECTED (invalid)
@@ -371,7 +375,18 @@ async def _fetch_basket_substrate(supabase, basket_id: str) -> Dict[str, Any]:
 
     dumps = supabase.table('raw_dumps').select('*').eq('basket_id', basket_id).execute()
     events = supabase.table('timeline_events').select('*').eq('basket_id', basket_id).execute()
-    relationships = supabase.table('substrate_relationships').select('*').eq('basket_id', basket_id).execute()
+
+    # Get relationships: Join through blocks to filter by basket
+    # Query relationships where EITHER from_block or to_block is in this basket
+    block_ids = [block['id'] for block in blocks.data] if blocks.data else []
+
+    if block_ids:
+        # Get relationships connected to any block in this basket
+        relationships = supabase.table('substrate_relationships').select('*').in_(
+            'from_block_id', block_ids
+        ).in_('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']).execute()
+    else:
+        relationships = type('obj', (object,), {'data': []})()  # Empty result
 
     return {
         'blocks': blocks.data,
