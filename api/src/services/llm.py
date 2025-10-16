@@ -51,7 +51,7 @@ class LLMProvider:
         self,
         prompt: str,
         *,
-        temperature: float = 0.7,
+        temperature: float = 1.0,
         max_tokens: int = 4000,
     ) -> LLMResponse:  # pragma: no cover - interface only
         raise NotImplementedError
@@ -364,7 +364,7 @@ class OpenAIProvider(LLMProvider):
         self,
         prompt: str,
         *,
-        temperature: float = 0.7,
+        temperature: float = 1.0,
         max_tokens: int = 4000,
     ) -> LLMResponse:
         try:
@@ -374,9 +374,9 @@ class OpenAIProvider(LLMProvider):
                 "messages": [{"role": "user", "content": prompt}],
                 "max_completion_tokens": max_tokens,
             }
-            
+
             # Only add temperature if it's different from default (1.0)
-            # Some models don't support custom temperature values
+            # Some models (like o1) don't support custom temperature values
             if temperature != 1.0:
                 request_params["temperature"] = temperature
                 
