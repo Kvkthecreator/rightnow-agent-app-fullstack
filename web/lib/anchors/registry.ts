@@ -92,25 +92,17 @@ async function buildSubstrateMaps(
   const anchorRoles = anchorKeys.filter(key => true); // anchor roles to query
 
   // Phase A: Query substrate by anchor_role (not metadata->anchor_id)
+  // V3.0: Only query blocks table (context_items sunset)
   const blockQuery = supabase
     .from('blocks')
     .select('id, title, body_md, content, metadata, semantic_type, state, status, updated_at, created_at, anchor_role')
     .eq('basket_id', basketId)
     .in('anchor_role', anchorRoles);
 
-  const contextQuery = supabase
-    .from('context_items')
-    .select('id, title, content, metadata, type, semantic_category, state, status, updated_at, created_at, anchor_role')
-    .eq('basket_id', basketId)
-    .in('anchor_role', anchorRoles);
-
-  const [blockRes, contextRes] = await Promise.all([blockQuery, contextQuery]);
+  const blockRes = await blockQuery;
 
   if (blockRes.error) {
     throw new Error(`Failed to load anchor blocks: ${blockRes.error.message}`);
-  }
-  if (contextRes.error) {
-    throw new Error(`Failed to load anchor context items: ${contextRes.error.message}`);
   }
 
   // Phase A: Use anchor_role as key (not metadata.anchor_id)
@@ -123,14 +115,8 @@ async function buildSubstrateMaps(
     }
   }
 
+  // V3.0: No context_items map (table sunset)
   const contextMap = new Map<string, any>();
-  for (const row of contextRes.data ?? []) {
-    contextMap.set(row.id, row);
-    // Map by anchor_role for lookups by role
-    if (row.anchor_role && !contextMap.has(row.anchor_role)) {
-      contextMap.set(row.anchor_role, row);
-    }
-  }
 
   const substrateIds = [...new Set([
     ...linkedIds,

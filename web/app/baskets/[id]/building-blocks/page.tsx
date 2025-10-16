@@ -3,7 +3,7 @@ import { SubpageHeader } from '@/components/basket/SubpageHeader';
 import { RequestBoundary } from '@/components/RequestBoundary';
 import dynamic from 'next/dynamic';
 
-const BuildingBlocksClient = dynamic(() => import('./BuildingBlocksClient'), {
+const BuildingBlocksClient = dynamic(() => import('./BuildingBlocksClientV2'), {
   loading: () => (
     <div className="space-y-4">
       <div className="animate-pulse bg-gray-100 h-32 rounded-lg"></div>

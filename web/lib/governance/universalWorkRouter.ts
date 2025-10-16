@@ -307,16 +307,25 @@ async function executeManualEditOps(supabase: SupabaseClient, request: WorkReque
         revisedBlocks++;
       }
 
-      // V3.0: UpdateBlock - In-place metadata update (no versioning)
+      // V3.0: UpdateBlock - METADATA-ONLY update (no versioning, canon-compliant)
+      // Restricted to: semantic_type, anchor_role, confidence_score, metadata
+      // For title/content changes, use ReviseBlock (creates new version)
       else if (t === 'UpdateBlock' && (flatData.block_id || data.block_id)) {
         const blockId = flatData.block_id || data.block_id;
         const updates: any = { updated_at: new Date().toISOString() };
 
-        if (flatData.title || data.title) updates.title = flatData.title || data.title;
-        if (flatData.anchor_role || data.anchor_role) updates.anchor_role = flatData.anchor_role || data.anchor_role;
-        if (flatData.metadata || data.metadata) updates.metadata = flatData.metadata || data.metadata;
+        // ONLY metadata fields allowed (canon compliance)
+        if (flatData.semantic_type || data.semantic_type) {
+          updates.semantic_type = flatData.semantic_type || data.semantic_type;
+        }
+        if (flatData.anchor_role !== undefined || data.anchor_role !== undefined) {
+          updates.anchor_role = flatData.anchor_role ?? data.anchor_role ?? null;
+        }
+        if (flatData.metadata || data.metadata) {
+          updates.metadata = flatData.metadata || data.metadata;
+        }
         if (flatData.confidence !== undefined || data.confidence !== undefined) {
-          updates.confidence_score = flatData.confidence || data.confidence;
+          updates.confidence_score = flatData.confidence ?? data.confidence;
         }
 
         const { error } = await supabase.from('blocks')
