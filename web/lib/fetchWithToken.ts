@@ -23,10 +23,15 @@ export async function fetchWithToken(
     jwt = session.data.session?.access_token ?? "";
   }
 
-  // Prepend API base URL for relative /api paths
+  // Prepend API base URL for backend API paths only
+  // Keep Next.js API routes (like /api/baskets/[id]/stats) on frontend
   let url: string;
   if (typeof input === 'string') {
-    if (input.startsWith('/api/')) {
+    // Only redirect specific backend routes to api.yarnnn.com
+    const backendRoutes = ['/api/p3/', '/api/p4/', '/api/dumps/', '/api/health/', '/api/integrations/'];
+    const isBackendRoute = backendRoutes.some(route => input.startsWith(route));
+
+    if (isBackendRoute) {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
       url = `${apiBase}${input}`;
     } else {
