@@ -22,6 +22,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import SubstrateDetailModal from '@/components/substrate/SubstrateDetailModal';
+import BuildingBlocksActions from '@/components/substrate/BuildingBlocksActions';
 import type { AnchorStatusSummary } from '@/lib/anchors/types';
 
 /**
@@ -357,8 +358,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                   {processedBlocks.length > 0 ? (
                     <div className="grid gap-4 lg:grid-cols-2">
                       {processedBlocks.map((block) => (
-                        <Card key={block.id} className="border-slate-200 hover:border-indigo-300 transition-colors cursor-pointer"
-                          onClick={() => setSelected({ id: block.id, type: 'block' })}>
+                        <Card key={block.id} className="border-slate-200 hover:border-indigo-300 transition-colors">
                           <CardContent className="space-y-3 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1">
@@ -368,6 +368,20 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                                 <p className="text-xs text-slate-500">
                                   {formatTimestamp(block.created_at)}
                                 </p>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setSelected({ id: block.id, type: 'block' })}
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                                <BuildingBlocksActions
+                                  block={block}
+                                  basketId={basketId}
+                                  onUpdate={() => mutate()}
+                                />
                               </div>
                             </div>
                             {block.content && (
@@ -451,13 +465,20 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                                       Updated {formatTimestamp(block.updated_at)}
                                     </p>
                                   </div>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setSelected({ id: block.id, type: 'block' })}
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setSelected({ id: block.id, type: 'block' })}
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                    </Button>
+                                    <BuildingBlocksActions
+                                      block={block}
+                                      basketId={basketId}
+                                      onUpdate={() => mutate()}
+                                    />
+                                  </div>
                                 </div>
 
                                 {/* Quality Metrics */}
@@ -530,13 +551,20 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                                       {formatTimestamp(block.created_at)}
                                     </p>
                                   </div>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setSelected({ id: block.id, type: 'block' })}
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setSelected({ id: block.id, type: 'block' })}
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                    </Button>
+                                    <BuildingBlocksActions
+                                      block={block}
+                                      basketId={basketId}
+                                      onUpdate={() => mutate()}
+                                    />
+                                  </div>
                                 </div>
 
                                 {/* Quality Metrics */}
@@ -633,13 +661,20 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                                     {formatTimestamp(block.created_at)}
                                   </p>
                                 </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setSelected({ id: block.id, type: 'block' })}
-                                >
-                                  <FileText className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setSelected({ id: block.id, type: 'block' })}
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                  </Button>
+                                  <BuildingBlocksActions
+                                    block={block}
+                                    basketId={basketId}
+                                    onUpdate={() => mutate()}
+                                  />
+                                </div>
                               </div>
 
                               {/* Quality Metrics */}
