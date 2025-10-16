@@ -261,8 +261,8 @@ async function executeManualEditOps(supabase: SupabaseClient, request: WorkReque
   for (const op of operations) {
     const t = (op?.type || '').toString();
     const data = op?.data || {};
-    const flatData: Partial<typeof op> = { ...op }; // Support flat operation schema (V3.0)
-    delete (flatData as any).type;
+    const flatData: any = { ...op }; // Support flat operation schema (V3.0)
+    delete flatData.type;
 
     try {
       // V3.0: CreateBlock - Create new substrate block
