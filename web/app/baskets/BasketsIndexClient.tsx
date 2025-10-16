@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import CreateBasketDialog from '@/components/CreateBasketDialog';
+import BasketActions from '@/components/baskets/BasketActions';
 
 export type BasketSummary = {
   id: string;
@@ -21,6 +22,10 @@ export type BasketSummary = {
 export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handleUpdate = () => {
+    router.refresh(); // Refresh server component data
+  };
 
   const sortedBaskets = useMemo(() => {
     return [...baskets].sort((a, b) => {
@@ -67,16 +72,24 @@ export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
                 key={basket.id}
                 type="button"
                 onClick={() => router.push(`/baskets/${basket.id}/memory`)}
-                className="flex w-full flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left transition hover:border-primary hover:shadow-sm"
+                className="group flex w-full flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left transition hover:border-primary hover:shadow-sm"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-lg font-medium">{basket.name || 'Untitled basket'}</h3>
                     <p className="text-sm text-muted-foreground">Curated knowledge hub</p>
                   </div>
-                  <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
-                    {basket.status ?? 'Active'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
+                      {basket.status ?? 'Active'}
+                    </span>
+                    <BasketActions
+                      basketId={basket.id}
+                      basketName={basket.name || 'Untitled basket'}
+                      basketStatus={basket.status}
+                      onUpdate={handleUpdate}
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                   <span>{basket.created_at ? `Created ${new Date(basket.created_at).toLocaleString()}` : 'Creation time unknown'}</span>
