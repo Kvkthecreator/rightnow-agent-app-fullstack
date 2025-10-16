@@ -44,10 +44,8 @@ interface BlockWithMetrics {
 
 interface BuildingBlocksStats {
   total_blocks: number;
-  anchored_blocks: number;
-  stale_blocks: number;
-  unused_blocks: number;
-  meaning_blocks: number;  // V3.0: Blocks with semantic_type in meaning category
+  knowledge_blocks: number;  // V3.0: fact, metric, entity
+  meaning_blocks: number;     // V3.0: intent, objective, rationale, etc.
 }
 
 export async function GET(
@@ -138,19 +136,16 @@ export async function GET(
       };
     });
 
-    // V3.0: Calculate stats for filtering
-    const meaningSemanticTypes = ['intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint'];
-    const stale_blocks = blocks.filter(b => b.staleness_days !== null && b.staleness_days > 30).length;
-    const unused_blocks = blocks.filter(b => b.times_referenced === 0).length;
-    const meaning_blocks = blocks.filter(b => b.semantic_type && meaningSemanticTypes.includes(b.semantic_type)).length;
+    // V3.0: Calculate stats for Knowledge vs Meaning grouping
+    const knowledgeTypes = ['fact', 'metric', 'entity'];
+    const meaningTypes = ['intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint'];
 
-    // Note: anchored_blocks count requires anchor registry query (done in client via separate endpoint)
+    const knowledge_blocks = blocks.filter(b => b.semantic_type && knowledgeTypes.includes(b.semantic_type)).length;
+    const meaning_blocks = blocks.filter(b => b.semantic_type && meaningTypes.includes(b.semantic_type)).length;
 
     const stats: BuildingBlocksStats = {
       total_blocks: blocks.length,
-      anchored_blocks: 0, // Calculated client-side from anchors endpoint
-      stale_blocks,
-      unused_blocks,
+      knowledge_blocks,
       meaning_blocks,
     };
 

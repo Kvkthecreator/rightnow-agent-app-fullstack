@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Blocks, FileText, RefreshCw, Search, Brain, Database } from 'lucide-react';
 import SubstrateDetailModal from '@/components/substrate/SubstrateDetailModal';
-import BuildingBlocksActions from '@/components/substrate/BuildingBlocksActions';
 
 /**
  * BuildingBlocksClientV2 - Simplified substrate management with adaptive layouts
@@ -215,11 +214,15 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
 
           {!isLoading && !error && (
             <>
-              {/* Expanded View (0-10 blocks) */}
+              {/* Expanded View (0-10 blocks) - Cards fully clickable */}
               {viewMode === 'expanded' && (
                 <div className="space-y-3">
                   {filteredBlocks.map(block => (
-                    <Card key={block.id} className="border-slate-200 hover:border-indigo-300 transition-colors">
+                    <Card
+                      key={block.id}
+                      className="border-slate-200 hover:border-indigo-300 transition-colors cursor-pointer"
+                      onClick={() => setSelected(block.id)}
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div className="flex-1">
@@ -229,16 +232,6 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
                             <p className="text-xs text-slate-500 mt-1">
                               Used {block.times_referenced} times • Created {new Date(block.created_at).toLocaleDateString()}
                             </p>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => setSelected(block.id)}>
-                              View
-                            </Button>
-                            <BuildingBlocksActions
-                              block={block}
-                              basketId={basketId}
-                              onUpdate={() => mutate()}
-                            />
                           </div>
                         </div>
                         {block.content && (
@@ -259,11 +252,15 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
                 </div>
               )}
 
-              {/* Compact View (10-50 blocks) */}
+              {/* Compact View (10-50 blocks) - Cards fully clickable */}
               {viewMode === 'compact' && (
                 <div className="grid gap-3 md:grid-cols-2">
                   {filteredBlocks.map(block => (
-                    <Card key={block.id} className="border-slate-200 hover:border-indigo-300 transition-colors">
+                    <Card
+                      key={block.id}
+                      className="border-slate-200 hover:border-indigo-300 transition-colors cursor-pointer"
+                      onClick={() => setSelected(block.id)}
+                    >
                       <CardContent className="p-3">
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex-1 min-w-0">
@@ -273,16 +270,6 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
                             <p className="text-xs text-slate-500">
                               {block.times_referenced}× used
                             </p>
-                          </div>
-                          <div className="flex items-center gap-0.5">
-                            <Button size="sm" variant="ghost" onClick={() => setSelected(block.id)} className="h-7 px-2">
-                              <FileText className="h-3.5 w-3.5" />
-                            </Button>
-                            <BuildingBlocksActions
-                              block={block}
-                              basketId={basketId}
-                              onUpdate={() => mutate()}
-                            />
                           </div>
                         </div>
                         {block.semantic_type && (
@@ -296,7 +283,7 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
                 </div>
               )}
 
-              {/* Dense View (50-150 blocks) */}
+              {/* Dense View (50-150 blocks) - Clickable rows */}
               {viewMode === 'dense' && (
                 <div className="rounded-lg border border-slate-200 overflow-hidden">
                   <table className="w-full text-sm">
@@ -305,19 +292,19 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
                         <th className="text-left px-3 py-2 font-medium text-slate-700">Title</th>
                         <th className="text-left px-3 py-2 font-medium text-slate-700">Type</th>
                         <th className="text-center px-3 py-2 font-medium text-slate-700">Usage</th>
-                        <th className="text-right px-3 py-2 font-medium text-slate-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {filteredBlocks.map(block => (
-                        <tr key={block.id} className="hover:bg-slate-50 transition-colors">
+                        <tr
+                          key={block.id}
+                          className="hover:bg-slate-50 transition-colors cursor-pointer"
+                          onClick={() => setSelected(block.id)}
+                        >
                           <td className="px-3 py-2">
-                            <button
-                              onClick={() => setSelected(block.id)}
-                              className="text-left hover:text-indigo-600 font-medium"
-                            >
+                            <span className="font-medium text-slate-900">
                               {block.title || 'Untitled'}
-                            </button>
+                            </span>
                           </td>
                           <td className="px-3 py-2">
                             <Badge variant="outline" className="text-xs">
@@ -326,15 +313,6 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
                           </td>
                           <td className="px-3 py-2 text-center text-slate-600">
                             {block.times_referenced}×
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="flex items-center justify-end gap-1">
-                              <BuildingBlocksActions
-                                block={block}
-                                basketId={basketId}
-                                onUpdate={() => mutate()}
-                              />
-                            </div>
                           </td>
                         </tr>
                       ))}
