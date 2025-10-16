@@ -355,11 +355,11 @@ export default function CausalGraphView({ basketId, basketTitle, graphData }: Ca
                   ctx.fillStyle = '#1e293b';
                   ctx.fillText(label, node.x, node.y + size + fontSize);
                 }}
-                linkColor={(link: any) => RELATIONSHIP_COLORS[link.type]}
+                linkColor={(link: any) => RELATIONSHIP_COLORS[link.type as keyof typeof RELATIONSHIP_COLORS] || '#94a3b8'}
                 linkWidth={(link: any) => (hoveredLinkId === link.id ? 3 : 1.5)}
                 linkDirectionalArrowLength={6}
                 linkDirectionalArrowRelPos={1}
-                linkLabel={(link: any) => `${RELATIONSHIP_LABELS[link.type]} (${(link.confidence * 100).toFixed(0)}%)`}
+                linkLabel={(link: any) => `${RELATIONSHIP_LABELS[link.type as keyof typeof RELATIONSHIP_LABELS] || link.type} (${(link.confidence * 100).toFixed(0)}%)`}
                 onNodeClick={handleNodeClick}
                 onLinkHover={(link: any) => setHoveredLinkId(link?.id || null)}
                 cooldownTicks={100}
