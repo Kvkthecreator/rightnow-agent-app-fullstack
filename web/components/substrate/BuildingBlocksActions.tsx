@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/DropdownMenu';
-import { Edit2, Archive, Tag, MoreVertical, Loader2 } from 'lucide-react';
+import { Edit2, Archive, Tag, Loader2 } from 'lucide-react';
 
 /**
  * BuildingBlocksActions - CRUD Operations for Substrate Blocks
@@ -230,11 +230,11 @@ export default function BuildingBlocksActions({
 
   return (
     <>
-      {/* Actions Dropdown */}
+      {/* Actions Dropdown - Clear "Actions" button for substrate curation */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="ghost">
-            <MoreVertical className="h-4 w-4" />
+          <Button size="sm" variant="outline">
+            Actions
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

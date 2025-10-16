@@ -340,17 +340,29 @@ export default function SubstrateDetailModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="border-b border-gray-200 p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {getIcon()}
             <h3 className="text-lg font-medium text-gray-900">{getTitle()}</h3>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => copyToClipboard(substrateId)}
+              className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900"
+              title="Copy substrate ID"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              <span className="text-xs">Copy ID</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClose} title="Close modal (or click outside)">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -385,40 +397,29 @@ export default function SubstrateDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => copyToClipboard(substrateId)}
-              className="flex items-center gap-2"
-            >
-              <Copy className="h-3 w-3" />
-              Copy ID
-            </Button>
-            {/* Block actions (Edit/Archive/Retag) */}
-            {substrateType === 'block' && substrate && onUpdate && (
-              <BuildingBlocksActions
-                block={{
-                  id: substrate.id,
-                  title: substrate.title || null,
-                  content: substrate.content || null,
-                  semantic_type: substrate.semantic_type || null,
-                  anchor_role: substrate.metadata?.anchor_role || null,
-                  confidence_score: substrate.confidence_score || null,
-                  created_at: substrate.created_at,
-                  updated_at: substrate.updated_at || null,
-                  status: substrate.state || null,
-                  metadata: substrate.metadata || null,
-                }}
-                basketId={basketId}
-                onUpdate={() => {
-                  onUpdate();
-                  onClose(); // Close modal after action
-                }}
-              />
-            )}
-          </div>
+        <div className="border-t border-gray-200 p-4 flex items-center justify-end gap-2">
+          {/* Block actions (Edit/Archive/Retag) - Visible for substrate curation */}
+          {substrateType === 'block' && substrate && onUpdate && (
+            <BuildingBlocksActions
+              block={{
+                id: substrate.id,
+                title: substrate.title || null,
+                content: substrate.content || null,
+                semantic_type: substrate.semantic_type || null,
+                anchor_role: substrate.metadata?.anchor_role || null,
+                confidence_score: substrate.confidence_score || null,
+                created_at: substrate.created_at,
+                updated_at: substrate.updated_at || null,
+                status: substrate.state || null,
+                metadata: substrate.metadata || null,
+              }}
+              basketId={basketId}
+              onUpdate={() => {
+                onUpdate();
+                onClose(); // Close modal after action
+              }}
+            />
+          )}
           <Button variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>
