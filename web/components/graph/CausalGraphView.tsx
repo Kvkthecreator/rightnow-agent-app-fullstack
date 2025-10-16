@@ -158,8 +158,11 @@ export default function CausalGraphView({ basketId, basketTitle, graphData }: Ca
   const filteredNodes = useMemo(() => {
     const connectedIds = new Set<string>();
     links.forEach(link => {
-      connectedIds.add(typeof link.source === 'string' ? link.source : link.source.id);
-      connectedIds.add(typeof link.target === 'string' ? link.target : link.target.id);
+      // Links are strings before graph rendering
+      const sourceId = typeof link.source === 'string' ? link.source : (link.source as any)?.id || link.source;
+      const targetId = typeof link.target === 'string' ? link.target : (link.target as any)?.id || link.target;
+      connectedIds.add(sourceId);
+      connectedIds.add(targetId);
     });
     return nodes.filter(node => connectedIds.has(node.id));
   }, [nodes, links]);
