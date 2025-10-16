@@ -48,7 +48,7 @@ interface CausalGraphViewProps {
 type GraphNode = {
   id: string;
   label: string;
-  semanticType: string | null;
+  semanticType: string | null | undefined;
   confidence: number;
   contentSnippet: string;
   inDegree: number;
