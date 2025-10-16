@@ -421,8 +421,8 @@ async def _fetch_basket_substrate_timeboxed(
     ).lte('created_at', window_end.isoformat()).execute()
 
     events = supabase.table('timeline_events').select('*').eq('basket_id', basket_id).gte(
-        'timestamp', window_start.isoformat()
-    ).lte('timestamp', window_end.isoformat()).execute()
+        'ts', window_start.isoformat()
+    ).lte('ts', window_end.isoformat()).execute()
 
     return {
         'blocks': blocks.data,
@@ -469,7 +469,7 @@ async def _generate_insight_text(
     if events:
         substrate_text += f"## Timeline Events ({len(events)} items)\n"
         for event in events[:10]:
-            substrate_text += f"- {event.get('event_type', 'unknown')}: {event.get('summary', '')[:100]}\n"
+            substrate_text += f"- {event.get('kind', 'unknown')}: {event.get('preview', '')[:100]}\n"
         substrate_text += "\n"
 
     if relationships:

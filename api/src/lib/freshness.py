@@ -52,9 +52,9 @@ def compute_basket_substrate_hash(supabase: Client, basket_id: str) -> str:
         'basket_id', basket_id
     ).order('created_at').execute()
 
-    events = supabase.table('timeline_events').select('id, event_type, summary').eq(
+    events = supabase.table('timeline_events').select('id, kind, preview').eq(
         'basket_id', basket_id
-    ).order('timestamp').execute()
+    ).order('ts').execute()
 
     # Hash each substrate component
     for block in blocks.data:
@@ -64,7 +64,7 @@ def compute_basket_substrate_hash(supabase: Client, basket_id: str) -> str:
         hasher.update(f"dump:{dump['id']}:{dump.get('body_md', '')}".encode())
 
     for event in events.data:
-        hasher.update(f"event:{event['id']}:{event['event_type']}:{event.get('summary', '')}".encode())
+        hasher.update(f"event:{event['id']}:{event['kind']}:{event.get('preview', '')}".encode())
 
     return hasher.hexdigest()
 
