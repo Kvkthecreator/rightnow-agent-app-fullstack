@@ -49,25 +49,28 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
     }
 
     // V3.1: Fetch blocks and causal relationships only
-    const [blocksResult, relationshipsResult] = await Promise.all([
-      supabase
-        .from('blocks')
-        .select('id, semantic_type, content, title, confidence_score, created_at, metadata, status')
-        .eq('basket_id', basketId)
-        .eq('workspace_id', workspace.id)
-        .neq('status', 'archived')
-        .order('created_at', { ascending: false })
-        .limit(500),
+    const blocksResult = await supabase
+      .from('blocks')
+      .select('id, semantic_type, content, title, confidence_score, created_at, metadata, status')
+      .eq('basket_id', basketId)
+      .eq('workspace_id', workspace.id)
+      .neq('status', 'archived')
+      .order('created_at', { ascending: false })
+      .limit(500);
 
-      supabase
-        .from('substrate_relationships')
-        .select('id, from_block_id, to_block_id, relationship_type, confidence_score, created_at, metadata')
-        .eq('basket_id', basketId)
-        .eq('workspace_id', workspace.id)
-        .neq('status', 'archived')
-        .order('created_at', { ascending: false })
-        .limit(2000)
-    ]);
+    // Get block IDs for filtering relationships
+    const blockIds = (blocksResult.data || []).map(b => b.id);
+
+    // Fetch relationships between these blocks only
+    const relationshipsResult = blockIds.length > 0
+      ? await supabase
+          .from('substrate_relationships')
+          .select('id, from_block_id, to_block_id, relationship_type, confidence_score, created_at, metadata')
+          .eq('state', 'ACCEPTED')
+          .or(`from_block_id.in.(${blockIds.join(',')}),to_block_id.in.(${blockIds.join(',')})`)
+          .order('created_at', { ascending: false })
+          .limit(2000)
+      : { data: [], error: null };
 
     if (blocksResult.error) {
       console.error('Blocks query error:', blocksResult.error);
