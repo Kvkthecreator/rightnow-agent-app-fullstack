@@ -159,7 +159,7 @@ async def generate_insight_canon(
         'basket_id', request.basket_id
     ).eq('insight_type', 'insight_canon').eq(
         'substrate_hash', substrate_hash
-    ).maybeSingle().execute()
+    ).maybe_single().execute()
 
     if existing_insight.data:
         # Reuse cached insight - just mark it as current
