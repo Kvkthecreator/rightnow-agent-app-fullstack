@@ -486,28 +486,48 @@ async def _generate_insight_text(
     # Build context string
     substrate_text = "# Substrate Context\n\n"
 
+    def _snippet(value: Any, length: int = 200) -> str:
+        """Return a safe string snippet for LLM context."""
+        if value is None:
+            return ""
+        text = str(value)
+        return text[:length]
+
     if blocks:
         substrate_text += f"## Blocks ({len(blocks)} items)\n"
         for block in blocks[:30]:  # Increased limit since blocks now include former context_items
-            substrate_text += f"- {block.get('semantic_type', 'unknown')}: {block.get('content', '')[:200]}\n"
+            semantic_type = block.get('semantic_type', 'unknown')
+            content_snippet = _snippet(block.get('content'))
+            if not content_snippet:
+                content_snippet = _snippet(block.get('title'))
+            substrate_text += f"- {semantic_type}: {content_snippet}\n"
         substrate_text += "\n"
 
     if dumps:
         substrate_text += f"## Raw Dumps ({len(dumps)} items)\n"
         for dump in dumps[:5]:
-            substrate_text += f"- {dump.get('body_md', '')[:300]}\n"
+            body_snippet = _snippet(dump.get('body_md'), 300)
+            if not body_snippet:
+                body_snippet = _snippet(dump.get('text_dump'), 300)
+            if not body_snippet and dump.get('meta'):
+                body_snippet = _snippet(dump.get('meta'), 300)
+            substrate_text += f"- {body_snippet}\n"
         substrate_text += "\n"
 
     if events:
         substrate_text += f"## Timeline Events ({len(events)} items)\n"
         for event in events[:10]:
-            substrate_text += f"- {event.get('kind', 'unknown')}: {event.get('preview', '')[:100]}\n"
+            preview_snippet = _snippet(event.get('preview'), 100)
+            substrate_text += f"- {event.get('kind', 'unknown')}: {preview_snippet}\n"
         substrate_text += "\n"
 
     if relationships:
         substrate_text += f"## Relationships ({len(relationships)} connections)\n"
         for rel in relationships[:10]:
-            substrate_text += f"- {rel.get('relationship_type', 'unknown')}: {rel.get('from_type', '')} → {rel.get('to_type', '')}\n"
+            rel_type = rel.get('relationship_type', 'unknown')
+            from_type = rel.get('from_type', '') or rel.get('source_type', '')
+            to_type = rel.get('to_type', '') or rel.get('target_type', '')
+            substrate_text += f"- {rel_type}: {from_type} → {to_type}\n"
         substrate_text += "\n"
 
     # Build prompt based on insight type
