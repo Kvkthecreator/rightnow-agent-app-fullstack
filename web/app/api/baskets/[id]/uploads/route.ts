@@ -28,15 +28,7 @@ type BlockRow = {
   status: string | null;
 };
 
-type ContextItemRow = {
-  id: string;
-  raw_dump_id: string | null;
-  title: string | null;
-  semantic_meaning: string | null;
-  semantic_category: string | null;
-  created_at: string;
-  metadata: Record<string, any> | null;
-};
+// V3.0: context_items merged into blocks - type removed
 
 export async function GET(request: NextRequest, ctx: RouteContext) {
   try {
@@ -88,7 +80,6 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
     const dumpIds = (dumps ?? []).map((dump) => dump.id);
 
     let blocks: BlockRow[] = [];
-    let contextItems: ContextItemRow[] = [];
 
     if (dumpIds.length > 0) {
       const { data: blockRows, error: blocksError } = await supabase
@@ -115,28 +106,7 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
 
       blocks = blockRows ?? [];
 
-      const { data: contextRows, error: contextError } = await supabase
-        .from('context_items')
-        .select(`
-          id,
-          raw_dump_id,
-          title,
-          semantic_meaning,
-          semantic_category,
-          created_at,
-          metadata
-        `)
-        .in('raw_dump_id', dumpIds)
-        .eq('workspace_id', workspace.id)
-        .eq('basket_id', basketId)
-        .order('created_at', { ascending: false });
-
-      if (contextError) {
-        console.error('Uploads API: failed to fetch derived context items', contextError);
-        return NextResponse.json({ error: 'Failed to fetch derived context items' }, { status: 500 });
-      }
-
-      contextItems = contextRows ?? [];
+      // V3.0: context_items merged into blocks - query removed
     }
 
     const blockMap = new Map<string, BlockRow[]>();
@@ -147,13 +117,7 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
       blockMap.set(block.raw_dump_id, existing);
     });
 
-    const contextMap = new Map<string, ContextItemRow[]>();
-    contextItems.forEach((item) => {
-      if (!item.raw_dump_id) return;
-      const existing = contextMap.get(item.raw_dump_id) ?? [];
-      existing.push(item);
-      contextMap.set(item.raw_dump_id, existing);
-    });
+    // V3.0: context_items merged into blocks - contextMap removed
 
     const uploads = (dumps ?? []).map((dump) => {
       const derivedBlocks = (blockMap.get(dump.id) ?? []).map((block) => ({
@@ -166,14 +130,7 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
         state: block.status,
       }));
 
-      const derivedContextItems = (contextMap.get(dump.id) ?? []).map((item) => ({
-        id: item.id,
-        title: item.title,
-        semantic_meaning: item.semantic_meaning,
-        semantic_category: item.semantic_category,
-        created_at: item.created_at,
-        metadata: item.metadata,
-      }));
+      // V3.0: context_items merged into blocks - derivedContextItems removed
 
       const bodyPreviewSource = dump.body_md || dump.text_dump || '';
       const body_preview = bodyPreviewSource ? bodyPreviewSource.slice(0, 280) : null;
@@ -188,7 +145,6 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
           body_preview,
         },
         derived_blocks: derivedBlocks,
-        derived_context_items: derivedContextItems,
         work_items: [] as any[],
       };
     });
@@ -196,7 +152,6 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
     const stats = {
       total_uploads: uploads.length,
       total_blocks: blocks.length,
-      total_context_items: contextItems.length,
       files: uploads.filter((upload) => Boolean(upload.dump.file_url)).length,
       text: uploads.filter((upload) => !upload.dump.file_url).length,
     };

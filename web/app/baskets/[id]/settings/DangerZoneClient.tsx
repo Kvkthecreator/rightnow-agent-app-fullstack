@@ -15,7 +15,7 @@ type Mode = 'archive_all' | 'redact_dumps';
 
 export default function DangerZoneClient({ basketId, basketName }: Props) {
   const [loading, setLoading] = useState(true);
-  const [counts, setCounts] = useState<{ blocks: number; context_items: number; dumps: number } | null>(null);
+  const [counts, setCounts] = useState<{ blocks: number; dumps: number } | null>(null);
   const [mode, setMode] = useState<Mode>('archive_all');
   const [confirm, setConfirm] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -104,7 +104,6 @@ export default function DangerZoneClient({ basketId, basketName }: Props) {
           ) : counts ? (
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant="outline">Blocks {counts.blocks}</Badge>
-              <Badge variant="outline">Context Items {counts.context_items}</Badge>
               <Badge variant="outline">Dumps {counts.dumps}</Badge>
             </div>
           ) : (
@@ -123,7 +122,7 @@ export default function DangerZoneClient({ basketId, basketName }: Props) {
               <input type="radio" name="mode" checked={mode==='archive_all'} onChange={() => setMode('archive_all')} />
               <span>Delete All — Archive + Redact All</span>
             </label>
-            <div className="pl-6 text-xs text-muted-foreground">Archives meaning (blocks & context) and redacts raw dumps. Archived items may be auto‑deleted later by retention policy.</div>
+            <div className="pl-6 text-xs text-muted-foreground">Archives blocks and redacts raw dumps. Archived items may be auto‑deleted later by retention policy.</div>
 
             <label className="flex items-center gap-2 text-sm mt-2">
               <input type="radio" name="mode" checked={mode==='redact_dumps'} onChange={() => setMode('redact_dumps')} />

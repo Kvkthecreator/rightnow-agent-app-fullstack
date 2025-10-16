@@ -31,20 +31,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Admin role check can be added here if needed (owner/admin only)
 
     // Collect IDs to operate on
-    const [blocksRes, itemsRes, dumpsRes] = await Promise.all([
+    const [blocksRes, dumpsRes] = await Promise.all([
       supabase.from('blocks').select('id').eq('basket_id', basket_id).eq('workspace_id', workspace.id).neq('status','archived'),
-      supabase.from('context_items').select('id,status').eq('basket_id', basket_id).neq('status','archived'),
       supabase.from('raw_dumps').select('id,processing_status').eq('basket_id', basket_id).eq('workspace_id', workspace.id).neq('processing_status','redacted')
     ]);
     const blockIds: string[] = (blocksRes.data || []).map((r:any)=>r.id);
-    const itemIds: string[] = (itemsRes.data || []).map((r:any)=>r.id);
     const dumpIds: string[] = (dumpsRes.data || []).map((r:any)=>r.id);
 
     // Build operations per mode
     const ops: any[] = [];
     if (mode === 'archive_all') {
       blockIds.forEach(id => ops.push({ type: 'ArchiveBlock', data: { block_id: id } }));
-      itemIds.forEach(id => ops.push({ type: 'Delete', data: { target_id: id, target_type: 'context_item', delete_reason: 'purge_basket' } }));
+      // V3.0: context_items merged into blocks - item purge removed
       dumpIds.forEach(id => ops.push({ type: 'RedactDump', data: { dump_id: id, scope: 'full', reason: 'purge_basket' } }));
     } else if (mode === 'redact_dumps') {
       dumpIds.forEach(id => ops.push({ type: 'RedactDump', data: { dump_id: id, scope: 'full', reason: 'purge_basket' } }));

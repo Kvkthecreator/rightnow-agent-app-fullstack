@@ -28,13 +28,7 @@ interface DerivedBlock {
   state?: string | null;
 }
 
-interface DerivedContextItem {
-  id: string;
-  title: string | null;
-  semantic_category: string | null;
-  semantic_meaning: string | null;
-  metadata?: Record<string, any> | null;
-}
+// V3.0: context_items merged into blocks - interface removed
 
 interface WorkItemSummary {
   work_id: string;
@@ -54,7 +48,6 @@ interface CaptureSummary {
     document_id: string | null; // Upload Wizard: link to composed document
   };
   derived_blocks: DerivedBlock[];
-  derived_context_items: DerivedContextItem[];
   work_items: WorkItemSummary[];
 }
 
@@ -63,7 +56,6 @@ interface UploadsResponse {
   stats: {
     total_uploads: number;
     total_blocks: number;
-    total_context_items: number;
     files: number;
     text: number;
   };
@@ -168,7 +160,6 @@ export default function UploadsClient({ basketId }: UploadsClientProps) {
         <CardContent className="flex flex-wrap gap-4">
           <Badge variant="secondary" className="bg-slate-100 text-slate-700">{data?.stats.total_uploads ?? 0} total uploads</Badge>
           <Badge variant="secondary" className="bg-green-50 text-green-700">{data?.stats.total_blocks ?? 0} blocks extracted</Badge>
-          <Badge variant="secondary" className="bg-purple-50 text-purple-700">{data?.stats.total_context_items ?? 0} meanings extracted</Badge>
         </CardContent>
       </Card>
 
@@ -232,7 +223,7 @@ export default function UploadsClient({ basketId }: UploadsClientProps) {
             {uploads.map((capture) => {
               const label = uploadLabel(capture);
               const type = uploadType(capture);
-              const derivedCount = capture.derived_blocks.length + capture.derived_context_items.length;
+              const derivedCount = capture.derived_blocks.length;
               return (
                 <Card
                   key={capture.dump.id}
@@ -285,9 +276,6 @@ export default function UploadsClient({ basketId }: UploadsClientProps) {
                     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                       <span className="flex items-center gap-1">
                         <Layers className="h-3 w-3" /> {capture.derived_blocks.length} blocks
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" /> {capture.derived_context_items.length} meanings
                       </span>
                       <span className="flex items-center gap-1">
                         <CloudUpload className="h-3 w-3" /> {capture.dump.processing_status || 'pending'}

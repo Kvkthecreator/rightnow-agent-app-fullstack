@@ -13,13 +13,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!workspace) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id: basket_id } = await params;
-    const [blocks, items, dumps] = await Promise.all([
+    const [blocks, dumps] = await Promise.all([
       supabase.from('blocks')
         .select('id', { count: 'exact', head: true })
         .eq('basket_id', basket_id).eq('workspace_id', workspace.id).neq('status','archived'),
-      supabase.from('context_items')
-        .select('id', { count: 'exact', head: true })
-        .eq('basket_id', basket_id).neq('status','archived'),
       supabase.from('raw_dumps')
         .select('id', { count: 'exact', head: true })
         .eq('basket_id', basket_id).eq('workspace_id', workspace.id).neq('processing_status','redacted')
@@ -27,7 +24,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({
       blocks: blocks.count || 0,
-      context_items: items.count || 0,
       dumps: dumps.count || 0
     });
   } catch (e) {

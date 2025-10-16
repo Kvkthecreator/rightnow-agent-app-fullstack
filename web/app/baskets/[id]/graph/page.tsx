@@ -10,17 +10,19 @@ import { SectionCard } from '@/components/ui/SectionCard';
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   return {
-    description: 'Visual exploration of connections between your knowledge',
+    title: 'Causal Graph',
+    description: 'Explore causal relationships between knowledge blocks',
   };
 }
 
-const GraphView = dynamic(() => import('@/components/graph/GraphView').then(m => m.GraphView), {
-  loading: () => <div className="h-64 animate-pulse" />,
+const CausalGraphView = dynamic(() => import('@/components/graph/CausalGraphView'), {
+  loading: () => <div className="h-64 animate-pulse bg-slate-50 rounded-lg" />,
+  ssr: false,
 });
 
 export default async function GraphPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: basketId } = await params;
-  
+
   try {
     const supabase = createServerSupabaseClient();
     const { userId } = await getAuthenticatedUser(supabase);
@@ -39,90 +41,57 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
     }
 
     // Check access permissions
-    const hasAccess = basket.workspace_id === workspace.id || 
+    const hasAccess = basket.workspace_id === workspace.id ||
       basket.user_id === userId;
 
     if (!hasAccess) {
       notFound();
     }
 
-    // Fetch substrate data only (Canon-compliant graph)
-    const [blocksResult, dumpsResult, contextItemsResult, relationshipsResult] = await Promise.all([
+    // V3.1: Fetch blocks and causal relationships only
+    const [blocksResult, relationshipsResult] = await Promise.all([
       supabase
         .from('blocks')
-        .select('id, semantic_type, content, title, body_md, confidence_score, created_at, meta_agent_notes, state, status, metadata')
+        .select('id, semantic_type, content, title, confidence_score, created_at, metadata, status')
         .eq('basket_id', basketId)
         .eq('workspace_id', workspace.id)
-        .in('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']) // Only approved substrate
+        .neq('status', 'archived')
         .order('created_at', { ascending: false })
-        .limit(250),
-      
-      supabase
-        .from('raw_dumps')
-        .select('id, basket_id, body_md, created_at, processing_status, file_url, source_meta')
-        .eq('basket_id', basketId)
-        .eq('workspace_id', workspace.id)
-        .neq('processing_status', 'redacted')
-        .order('created_at', { ascending: false })
-        .limit(75),
-        
-      supabase
-        .from('context_items')
-        .select('id, title, content, semantic_meaning, semantic_category, type, metadata, created_at, state, status')
-        .eq('basket_id', basketId)
-        .in('state', ['ACTIVE', 'DEPRECATED'])
-        .order('created_at', { ascending: false })
-        .limit(200),
-        
-      // Canon-aligned relationships table
+        .limit(500),
+
       supabase
         .from('substrate_relationships')
-        .select('id, basket_id, from_id, to_id, relationship_type, from_type, to_type, strength, description, created_at')
+        .select('id, from_block_id, to_block_id, relationship_type, confidence_score, created_at, metadata')
         .eq('basket_id', basketId)
+        .eq('workspace_id', workspace.id)
+        .neq('status', 'archived')
         .order('created_at', { ascending: false })
-        .limit(1000)
+        .limit(2000)
     ]);
 
-    // Check for database errors that might cause notFound()
     if (blocksResult.error) {
       console.error('Blocks query error:', blocksResult.error);
       throw new Error(`Blocks query failed: ${blocksResult.error.message}`);
     }
-    if (dumpsResult.error) {
-      console.error('Dumps query error:', dumpsResult.error);
-      throw new Error(`Dumps query failed: ${dumpsResult.error.message}`);
-    }
-    if (contextItemsResult.error) {
-      console.error('Context items query error:', contextItemsResult.error);
-      throw new Error(`Context items query failed: ${contextItemsResult.error.message}`);
-    }
+
     if (relationshipsResult.error) {
       console.error('Relationships query error:', relationshipsResult.error);
       throw new Error(`Relationships query failed: ${relationshipsResult.error.message}`);
     }
 
-    const relationships = (relationshipsResult.data || []).map((r: any) => ({
-      ...r,
-      // Normalize field name for GraphView expectations
-      strength: typeof r.strength === 'number' ? r.strength : r.weight ?? 0.7,
-      description: r.description ?? null,
-    }));
-
     const graphData = {
       blocks: blocksResult.data || [],
-      dumps: dumpsResult.data || [],
-      context_items: contextItemsResult.data || [],
-      relationships,
+      relationships: relationshipsResult.data || [],
     };
 
     return (
       <BasketSubpageLayout
         basketId={basketId}
-        title="Knowledge Connections"
-        description="Visual exploration of connections between your knowledge blocks and meanings"
+        title="Causal Graph"
+        description="Visual exploration of causal relationships between knowledge blocks"
       >
         <SectionCard>
-          <GraphView 
+          <CausalGraphView
             basketId={basketId}
             basketTitle={basket.name}
             graphData={graphData}
