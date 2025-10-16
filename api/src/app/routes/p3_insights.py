@@ -155,22 +155,28 @@ async def generate_insight_canon(
     derived_from = _build_substrate_provenance(substrate)
 
     # Check if insight with this substrate_hash already exists (cache hit)
-    existing_insight = supabase.table('reflections_artifact').select('*').eq(
+    existing_response = supabase.table('reflections_artifact').select('*').eq(
         'basket_id', request.basket_id
     ).eq('insight_type', 'insight_canon').eq(
         'substrate_hash', substrate_hash
     ).maybe_single().execute()
 
-    # If force=True, delete cached insight to allow fresh generation
-    if request.force and existing_insight.data:
-        supabase.table('reflections_artifact').delete().eq(
-            'id', existing_insight.data['id']
-        ).execute()
-        existing_insight = type('obj', (object,), {'data': None})()  # Clear reference
+    existing_insight = None
+    if existing_response is not None:
+        existing_insight = getattr(existing_response, 'data', None)
+        if isinstance(existing_insight, list):
+            existing_insight = existing_insight[0] if existing_insight else None
 
-    if existing_insight.data:
+    # If force=True, delete cached insight to allow fresh generation
+    if request.force and existing_insight:
+        supabase.table('reflections_artifact').delete().eq(
+            'id', existing_insight['id']
+        ).execute()
+        existing_insight = None
+
+    if existing_insight:
         # Reuse cached insight - just mark it as current
-        insight = existing_insight.data
+        insight = existing_insight
 
         # Mark old insight as not current (if different from cached)
         if staleness_check['current_canon'] and staleness_check['current_canon']['id'] != insight['id']:
