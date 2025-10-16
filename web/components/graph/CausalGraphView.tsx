@@ -89,7 +89,7 @@ const SEMANTIC_TYPE_COLORS: Record<string, string> = {
 };
 
 export default function CausalGraphView({ basketId, basketTitle, graphData }: CausalGraphViewProps) {
-  const graphRef = useRef<ForceGraphMethods | null>(null);
+  const graphRef = useRef<any>();
   const [activeNode, setActiveNode] = useState<GraphNode | null>(null);
   const [hoveredLinkId, setHoveredLinkId] = useState<string | null>(null);
   const [relationshipFilter, setRelationshipFilter] = useState<Record<string, boolean>>({
