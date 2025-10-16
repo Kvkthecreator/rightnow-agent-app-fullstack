@@ -251,14 +251,116 @@ async function executeManualEditOps(supabase: SupabaseClient, request: WorkReque
   let archivedBlocks = 0;
   let redactedDumps = 0;
   let deprecatedItems = 0;
+  let createdBlocks = 0;
+  let revisedBlocks = 0;
+  let updatedBlocks = 0;
+  let mergedBlocks = 0;
   let errors: Array<{ type: string; id?: string; error: string }> = [];
 
   // Execute sequentially to keep load predictable
   for (const op of operations) {
     const t = (op?.type || '').toString();
     const data = op?.data || {};
+    const flatData = { ...op }; // Support flat operation schema (V3.0)
+    delete flatData.type;
+
     try {
-      if (t === 'ArchiveBlock' && data.block_id) {
+      // V3.0: CreateBlock - Create new substrate block
+      if (t === 'CreateBlock') {
+        const { data: newBlock, error } = await supabase.from('blocks').insert({
+          basket_id,
+          workspace_id: request.workspace_id,
+          title: flatData.title || data.title,
+          content: flatData.content || data.content,
+          semantic_type: flatData.semantic_type || data.semantic_type,
+          anchor_role: flatData.anchor_role || data.anchor_role,
+          confidence_score: flatData.confidence || data.confidence || 1.0,
+          status: 'active',
+          state: 'ACCEPTED', // Auto-approved
+          created_by: request.user_id,
+          metadata: flatData.metadata || data.metadata || {}
+        }).select('id').single();
+
+        if (error) throw new Error(error.message);
+        createdBlocks++;
+      }
+
+      // V3.0: ReviseBlock - Create versioned update
+      else if (t === 'ReviseBlock' && (flatData.block_id || data.block_id)) {
+        const blockId = flatData.block_id || data.block_id;
+        const { data: newVersion, error } = await supabase.from('blocks').insert({
+          basket_id,
+          workspace_id: request.workspace_id,
+          parent_block_id: blockId, // Versioning chain
+          title: flatData.title || data.title,
+          content: flatData.content || data.content,
+          semantic_type: flatData.semantic_type || data.semantic_type,
+          anchor_role: flatData.anchor_role || data.anchor_role,
+          confidence_score: flatData.confidence || data.confidence || 1.0,
+          status: 'active',
+          state: 'ACCEPTED',
+          created_by: request.user_id,
+          metadata: flatData.metadata || data.metadata || {}
+        }).select('id').single();
+
+        if (error) throw new Error(error.message);
+        revisedBlocks++;
+      }
+
+      // V3.0: UpdateBlock - In-place metadata update (no versioning)
+      else if (t === 'UpdateBlock' && (flatData.block_id || data.block_id)) {
+        const blockId = flatData.block_id || data.block_id;
+        const updates: any = { updated_at: new Date().toISOString() };
+
+        if (flatData.title || data.title) updates.title = flatData.title || data.title;
+        if (flatData.anchor_role || data.anchor_role) updates.anchor_role = flatData.anchor_role || data.anchor_role;
+        if (flatData.metadata || data.metadata) updates.metadata = flatData.metadata || data.metadata;
+        if (flatData.confidence !== undefined || data.confidence !== undefined) {
+          updates.confidence_score = flatData.confidence || data.confidence;
+        }
+
+        const { error } = await supabase.from('blocks')
+          .update(updates)
+          .eq('id', blockId)
+          .eq('basket_id', basket_id);
+
+        if (error) throw new Error(error.message);
+        updatedBlocks++;
+      }
+
+      // V3.0: MergeBlocks - Archive duplicates, keep canonical
+      else if (t === 'MergeBlocks' && (flatData.from_ids || data.from_ids)) {
+        const fromIds = flatData.from_ids || data.from_ids;
+        const canonicalId = flatData.canonical_id || data.canonical_id;
+        const mergedContent = flatData.merged_content || data.merged_content;
+
+        // Archive duplicate blocks
+        for (const dupId of fromIds) {
+          if (dupId !== canonicalId) {
+            await supabase.from('blocks')
+              .update({ status: 'archived', updated_at: new Date().toISOString() })
+              .eq('id', dupId)
+              .eq('basket_id', basket_id);
+          }
+        }
+
+        // Update canonical block with merged content
+        if (mergedContent && canonicalId) {
+          await supabase.from('blocks')
+            .update({
+              content: mergedContent,
+              updated_at: new Date().toISOString(),
+              metadata: { merged_from: fromIds.filter((id: string) => id !== canonicalId) }
+            })
+            .eq('id', canonicalId)
+            .eq('basket_id', basket_id);
+        }
+
+        mergedBlocks++;
+      }
+
+      // ArchiveBlock (existing)
+      else if (t === 'ArchiveBlock' && (flatData.block_id || data.block_id)) {
         const { error } = await supabase.rpc('fn_archive_block', {
           p_basket_id: basket_id,
           p_block_id: data.block_id,
@@ -307,6 +409,10 @@ async function executeManualEditOps(supabase: SupabaseClient, request: WorkReque
     executed: true,
     counts: {
       total: operations.length,
+      createdBlocks,
+      revisedBlocks,
+      updatedBlocks,
+      mergedBlocks,
       archivedBlocks,
       redactedDumps,
       deprecatedItems,
