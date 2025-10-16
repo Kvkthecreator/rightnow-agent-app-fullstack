@@ -531,9 +531,9 @@ Write a temporal insight (200-400 words) focused on this specific timeframe."""
 
 Write a clear insight (200-400 words)."""
 
-    # Call LLM
+    # Call LLM (temperature=1 is default, some models don't support other values)
     llm = get_llm()
-    response = await llm.get_text_response(prompt, temperature=0.7, max_tokens=1000)
+    response = await llm.get_text_response(prompt, max_tokens=1000)
 
     if not response.success:
         # Fallback to structured summary if LLM fails

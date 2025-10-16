@@ -1,16 +1,16 @@
 """
-P3/P4 Context-Driven Freshness Computation
+P3/P4 Context-Driven Freshness Computation (V3.0 Compliant)
 
 Implements staleness detection based on substrate changes and graph topology,
 NOT time-based thresholds (per YARNNN Canon v3.1).
 
 Freshness Model:
   Staleness = f(substrate_hash_changed, graph_topology_changed, temporal_scope_invalid)
+
+V3.0 Migration Completed:
+- Removed context_items references (merged into blocks table)
+- Updated state queries to use V3.0 enum values (ACCEPTED, LOCKED, CONSTANT)
 """
-# V3.0 DEPRECATION NOTICE:
-# This file contains references to context_items table which was merged into blocks table.
-# Entity blocks are now identified by semantic_type='entity'.
-# This file is legacy/supporting code - update if actively maintained.
 
 
 import hashlib
@@ -28,13 +28,16 @@ else:
 
 def compute_basket_substrate_hash(supabase: Client, basket_id: str) -> str:
     """
-    Compute deterministic hash of basket's current substrate state.
+    Compute deterministic hash of basket's current substrate state (V3.0 compliant).
 
     Includes:
-    - All ACTIVE blocks (content + semantic_type)
-    - All ACTIVE context_items (content + label)
+    - All ACCEPTED+ blocks (content + semantic_type)
     - All raw_dumps (body_md)
     - All timeline_events (event_type + summary)
+
+    V3.0 Changes:
+    - context_items removed (merged into blocks)
+    - Query blocks with ACCEPTED, LOCKED, CONSTANT states only
 
     Returns SHA256 hex digest.
     """
@@ -43,11 +46,7 @@ def compute_basket_substrate_hash(supabase: Client, basket_id: str) -> str:
     # Fetch all substrate ordered deterministically
     blocks = supabase.table('blocks').select('id, content, semantic_type').eq(
         'basket_id', basket_id
-    ).eq('state', 'ACTIVE').order('created_at').execute()
-
-    context_items = supabase.table('context_items').select('id, content, label').eq(
-        'basket_id', basket_id
-    ).eq('state', 'ACTIVE').order('created_at').execute()
+    ).in_('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']).order('created_at').execute()
 
     dumps = supabase.table('raw_dumps').select('id, body_md').eq(
         'basket_id', basket_id
@@ -61,9 +60,6 @@ def compute_basket_substrate_hash(supabase: Client, basket_id: str) -> str:
     for block in blocks.data:
         hasher.update(f"block:{block['id']}:{block['semantic_type']}:{block.get('content', '')}".encode())
 
-    for item in context_items.data:
-        hasher.update(f"context_item:{item['id']}:{item.get('label', '')}:{item.get('content', '')}".encode())
-
     for dump in dumps.data:
         hasher.update(f"dump:{dump['id']}:{dump.get('body_md', '')}".encode())
 
@@ -75,23 +71,41 @@ def compute_basket_substrate_hash(supabase: Client, basket_id: str) -> str:
 
 def compute_graph_signature(supabase: Client, basket_id: str) -> str:
     """
-    Compute deterministic signature of basket's relationship graph topology.
+    Compute deterministic signature of basket's relationship graph topology (V3.1 compliant).
 
     Captures:
-    - All substrate_relationships (from_type, from_id, to_type, to_id, relationship_type)
+    - All substrate_relationships (from_block_id, to_block_id, relationship_type)
     - Ordered by creation to ensure determinism
+
+    V3.1 Changes:
+    - substrate_relationships is graph edge table (no basket_id column)
+    - Must join through blocks table to filter by basket
+    - Uses from_block_id/to_block_id (not from_type/from_id)
 
     Returns SHA256 hex digest.
     """
     hasher = hashlib.sha256()
 
+    # Get all blocks in basket first
+    blocks = supabase.table('blocks').select('id').eq('basket_id', basket_id).in_(
+        'state', ['ACCEPTED', 'LOCKED', 'CONSTANT']
+    ).execute()
+
+    block_ids = [block['id'] for block in blocks.data] if blocks.data else []
+
+    if not block_ids:
+        return hasher.hexdigest()  # Empty basket = empty hash
+
+    # Get relationships where from_block is in this basket
     relationships = supabase.table('substrate_relationships').select(
-        'from_type, from_id, to_type, to_id, relationship_type, strength'
-    ).eq('basket_id', basket_id).order('created_at').execute()
+        'from_block_id, to_block_id, relationship_type, confidence_score'
+    ).in_('from_block_id', block_ids).in_(
+        'state', ['ACCEPTED', 'LOCKED', 'CONSTANT']
+    ).order('created_at').execute()
 
     for rel in relationships.data:
         hasher.update(
-            f"rel:{rel['from_type']}:{rel['from_id']}:{rel['to_type']}:{rel['to_id']}:{rel['relationship_type']}:{rel.get('strength', 0.5)}".encode()
+            f"rel:{rel['from_block_id']}:{rel['to_block_id']}:{rel['relationship_type']}:{rel.get('confidence_score', 0.5)}".encode()
         )
 
     return hasher.hexdigest()
@@ -135,14 +149,17 @@ def compute_substrate_diff(
     new_hash: str
 ) -> Optional[Dict[str, Any]]:
     """
-    Compute high-level summary of what changed in substrate.
+    Compute high-level summary of what changed in substrate (V3.0 compliant).
 
     Returns dict with:
-    - blocks_added: int
-    - blocks_removed: int (state changed to non-ACTIVE)
-    - context_items_added: int
-    - dumps_added: int
-    - relationships_added: int
+    - blocks_accepted: int (ACCEPTED, LOCKED, CONSTANT states)
+    - dumps_total: int
+    - relationships_total: int
+
+    V3.0 Changes:
+    - context_items removed (merged into blocks)
+    - Query blocks with ACCEPTED+ states only
+    - substrate_relationships requires join through blocks
 
     (Note: Full diff would require storing substrate snapshot at old_hash time.
      This is a simplified version that shows current counts.)
@@ -155,23 +172,26 @@ def compute_substrate_diff(
 
     blocks_count = supabase.table('blocks').select('id', count='exact').eq(
         'basket_id', basket_id
-    ).eq('state', 'ACTIVE').execute().count
-
-    context_items_count = supabase.table('context_items').select('id', count='exact').eq(
-        'basket_id', basket_id
-    ).eq('state', 'ACTIVE').execute().count
+    ).in_('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']).execute().count
 
     dumps_count = supabase.table('raw_dumps').select('id', count='exact').eq(
         'basket_id', basket_id
     ).execute().count
 
-    relationships_count = supabase.table('substrate_relationships').select('id', count='exact').eq(
-        'basket_id', basket_id
-    ).execute().count
+    # Get relationships: join through blocks
+    blocks = supabase.table('blocks').select('id').eq('basket_id', basket_id).in_(
+        'state', ['ACCEPTED', 'LOCKED', 'CONSTANT']
+    ).execute()
+    block_ids = [block['id'] for block in blocks.data] if blocks.data else []
+
+    relationships_count = 0
+    if block_ids:
+        relationships_count = supabase.table('substrate_relationships').select('id', count='exact').in_(
+            'from_block_id', block_ids
+        ).in_('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']).execute().count
 
     return {
-        "blocks_active": blocks_count,
-        "context_items_active": context_items_count,
+        "blocks_accepted": blocks_count,
         "dumps_total": dumps_count,
         "relationships_total": relationships_count,
         "note": "Full delta requires substrate snapshots (future enhancement)"
