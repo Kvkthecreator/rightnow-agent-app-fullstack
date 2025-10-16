@@ -154,42 +154,67 @@ async def generate_insight_canon(
     # Build derived_from provenance
     derived_from = _build_substrate_provenance(substrate)
 
-    # Mark old insight as not current
-    previous_id = None
-    if staleness_check['current_canon']:
-        previous_id = staleness_check['current_canon']['id']
+    # Check if insight with this substrate_hash already exists (cache hit)
+    existing_insight = supabase.table('reflections_artifact').select('*').eq(
+        'basket_id', request.basket_id
+    ).eq('insight_type', 'insight_canon').eq(
+        'substrate_hash', substrate_hash
+    ).maybeSingle().execute()
+
+    if existing_insight.data:
+        # Reuse cached insight - just mark it as current
+        insight = existing_insight.data
+
+        # Mark old insight as not current (if different from cached)
+        if staleness_check['current_canon'] and staleness_check['current_canon']['id'] != insight['id']:
+            supabase.table('reflections_artifact').update({
+                'is_current': False
+            }).eq('id', staleness_check['current_canon']['id']).execute()
+
+        # Mark cached insight as current
         supabase.table('reflections_artifact').update({
-            'is_current': False
-        }).eq('id', previous_id).execute()
+            'is_current': True
+        }).eq('id', insight['id']).execute()
 
-    # Insert new insight
-    new_insight = supabase.table('reflections_artifact').insert({
-        'basket_id': request.basket_id,
-        'workspace_id': workspace_id,
-        'reflection_text': reflection_text,
-        'substrate_hash': substrate_hash,
-        'graph_signature': graph_signature,
-        'insight_type': 'insight_canon',
-        'is_current': True,
-        'previous_id': previous_id,
-        'derived_from': derived_from,
-        'computation_timestamp': datetime.utcnow().isoformat()
-    }).execute()
+        insight['is_current'] = True  # Update local copy
+    else:
+        # Generate new insight - substrate has changed
+        # Mark old insight as not current
+        previous_id = None
+        if staleness_check['current_canon']:
+            previous_id = staleness_check['current_canon']['id']
+            supabase.table('reflections_artifact').update({
+                'is_current': False
+            }).eq('id', previous_id).execute()
 
-    if not new_insight.data:
-        raise HTTPException(status_code=500, detail="Failed to create insight")
+        # Insert new insight
+        new_insight = supabase.table('reflections_artifact').insert({
+            'basket_id': request.basket_id,
+            'workspace_id': workspace_id,
+            'reflection_text': reflection_text,
+            'substrate_hash': substrate_hash,
+            'graph_signature': graph_signature,
+            'insight_type': 'insight_canon',
+            'is_current': True,
+            'previous_id': previous_id,
+            'derived_from': derived_from,
+            'computation_timestamp': datetime.utcnow().isoformat()
+        }).execute()
 
-    insight = new_insight.data[0]
+        if not new_insight.data:
+            raise HTTPException(status_code=500, detail="Failed to create insight")
+
+        insight = new_insight.data[0]
 
     return GenerateInsightCanonResponse(
         insight_id=insight['id'],
         basket_id=insight['basket_id'],
         is_fresh=True,
-        previous_id=previous_id,
-        substrate_hash=substrate_hash,
-        graph_signature=graph_signature,
-        reflection_text=reflection_text,
-        derived_from=derived_from,
+        previous_id=insight.get('previous_id'),
+        substrate_hash=insight.get('substrate_hash', substrate_hash),
+        graph_signature=insight.get('graph_signature', graph_signature),
+        reflection_text=insight.get('reflection_text', reflection_text),
+        derived_from=insight.get('derived_from', derived_from),
         created_at=insight['created_at']
     )
 
