@@ -1,5 +1,5 @@
 """
-P3 Insights Generation Endpoints
+P3 Insights Generation Endpoints (V3.0 Compliant)
 
 Implements P3 taxonomy:
 - insight_canon: Basket-level "what matters now" (ONE current per basket)
@@ -8,11 +8,12 @@ Implements P3 taxonomy:
 
 Note: review_insight is computed ephemeral (stored in proposals.review_insight)
 Note: workspace insights require policy enablement (p3_p4_regeneration_policy.workspace_insight_enabled)
+
+V3.0 Migration Completed:
+- Removed context_items references (merged into blocks table)
+- Updated state queries to use V3.0 enum values (ACCEPTED, LOCKED, CONSTANT)
+- All substrate queries now canon-compliant
 """
-# V3.0 DEPRECATION NOTICE:
-# This file contains references to context_items table which was merged into blocks table.
-# Entity blocks are now identified by semantic_type='entity'.
-# This file is legacy/supporting code - update if actively maintained.
 
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
@@ -356,16 +357,24 @@ async def generate_timeboxed_insight(
 # =============================================================================
 
 async def _fetch_basket_substrate(supabase, basket_id: str) -> Dict[str, Any]:
-    """Fetch all substrate for basket (blocks, context_items, dumps, events)."""
-    blocks = supabase.table('blocks').select('*').eq('basket_id', basket_id).eq('state', 'ACTIVE').execute()
-    context_items = supabase.table('context_items').select('*').eq('basket_id', basket_id).eq('state', 'ACTIVE').execute()
+    """
+    Fetch all substrate for basket (V3.0 compliant).
+
+    V3.0 Changes:
+    - context_items merged into blocks table
+    - state enum: PROPOSED, ACCEPTED, LOCKED, CONSTANT (not 'ACTIVE')
+    - Query for ACCEPTED+ states (excludes PROPOSED/REJECTED)
+    """
+    # Query blocks with valid states (ACCEPTED, LOCKED, CONSTANT)
+    # Exclude PROPOSED (not yet approved) and REJECTED (invalid)
+    blocks = supabase.table('blocks').select('*').eq('basket_id', basket_id).in_('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']).execute()
+
     dumps = supabase.table('raw_dumps').select('*').eq('basket_id', basket_id).execute()
     events = supabase.table('timeline_events').select('*').eq('basket_id', basket_id).execute()
     relationships = supabase.table('substrate_relationships').select('*').eq('basket_id', basket_id).execute()
 
     return {
         'blocks': blocks.data,
-        'context_items': context_items.data,
         'dumps': dumps.data,
         'events': events.data,
         'relationships': relationships.data
@@ -378,15 +387,19 @@ async def _fetch_basket_substrate_timeboxed(
     window_start: datetime,
     window_end: datetime
 ) -> Dict[str, Any]:
-    """Fetch substrate within time window."""
-    # Filter by created_at within window
-    blocks = supabase.table('blocks').select('*').eq('basket_id', basket_id).gte(
-        'created_at', window_start.isoformat()
-    ).lte('created_at', window_end.isoformat()).execute()
+    """
+    Fetch substrate within time window (V3.0 compliant).
 
-    context_items = supabase.table('context_items').select('*').eq('basket_id', basket_id).gte(
-        'created_at', window_start.isoformat()
-    ).lte('created_at', window_end.isoformat()).execute()
+    V3.0 Changes:
+    - context_items merged into blocks table
+    - Query blocks with ACCEPTED+ states only
+    """
+    # Filter by created_at within window, valid states only
+    blocks = supabase.table('blocks').select('*').eq('basket_id', basket_id).in_(
+        'state', ['ACCEPTED', 'LOCKED', 'CONSTANT']
+    ).gte('created_at', window_start.isoformat()).lte(
+        'created_at', window_end.isoformat()
+    ).execute()
 
     dumps = supabase.table('raw_dumps').select('*').eq('basket_id', basket_id).gte(
         'created_at', window_start.isoformat()
@@ -398,7 +411,6 @@ async def _fetch_basket_substrate_timeboxed(
 
     return {
         'blocks': blocks.data,
-        'context_items': context_items.data,
         'dumps': dumps.data,
         'events': events.data
     }
@@ -410,13 +422,16 @@ async def _generate_insight_text(
     agent_context: Optional[Dict[str, Any]] = None
 ) -> str:
     """
-    Generate insight text via AI using existing LLM service.
+    Generate insight text via AI using existing LLM service (V3.0 compliant).
+
+    V3.0 Changes:
+    - context_items removed (merged into blocks)
+    - All entity/context data now in blocks table
     """
     from services.llm import get_llm
 
     # Format substrate for LLM
     blocks = substrate.get('blocks', [])
-    context_items = substrate.get('context_items', [])
     dumps = substrate.get('dumps', [])
     events = substrate.get('events', [])
     relationships = substrate.get('relationships', [])
@@ -426,14 +441,8 @@ async def _generate_insight_text(
 
     if blocks:
         substrate_text += f"## Blocks ({len(blocks)} items)\n"
-        for block in blocks[:20]:  # Limit to avoid token overflow
+        for block in blocks[:30]:  # Increased limit since blocks now include former context_items
             substrate_text += f"- {block.get('semantic_type', 'unknown')}: {block.get('content', '')[:200]}\n"
-        substrate_text += "\n"
-
-    if context_items:
-        substrate_text += f"## Context Items ({len(context_items)} items)\n"
-        for item in context_items[:15]:
-            substrate_text += f"- {item.get('label', 'unlabeled')}: {item.get('content', '')[:150]}\n"
         substrate_text += "\n"
 
     if dumps:
@@ -513,20 +522,23 @@ Write a clear insight (200-400 words)."""
 
     if not response.success:
         # Fallback to structured summary if LLM fails
-        return f"Analysis of basket with {len(blocks)} blocks, {len(context_items)} context items, and {len(dumps)} dumps. LLM generation failed: {response.error}"
+        return f"Analysis of basket with {len(blocks)} blocks and {len(dumps)} dumps. LLM generation failed: {response.error}"
 
     return response.content
 
 
 def _build_substrate_provenance(substrate: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Build derived_from provenance array from substrate."""
+    """
+    Build derived_from provenance array from substrate (V3.0 compliant).
+
+    V3.0 Changes:
+    - context_items removed (merged into blocks)
+    - All substrate elements now tracked via blocks, dumps, events
+    """
     provenance = []
 
     for block in substrate.get('blocks', []):
         provenance.append({'type': 'block', 'id': block['id']})
-
-    for item in substrate.get('context_items', []):
-        provenance.append({'type': 'context_item', 'id': item['id']})
 
     for dump in substrate.get('dumps', []):
         provenance.append({'type': 'dump', 'id': dump['id']})
