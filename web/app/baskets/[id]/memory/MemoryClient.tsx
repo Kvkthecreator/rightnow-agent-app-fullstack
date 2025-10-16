@@ -11,6 +11,8 @@ import { SubpageHeader } from '@/components/basket/SubpageHeader';
 import { DocumentCreateButton } from '@/components/documents/DocumentCreateButton';
 import AddMemoryModal from '@/components/memory/AddMemoryModal';
 import OnboardingPanel from '@/components/memory/OnboardingPanel';
+import InsightCanonCard from '@/components/insights/InsightCanonCard';
+import InsightDetailModal from '@/components/insights/InsightDetailModal';
 import type { BasketStats } from '@/app/api/baskets/[id]/stats/route';
 
 interface Props {
@@ -21,6 +23,7 @@ interface Props {
 export default function MemoryClient({ basketId, needsOnboarding }: Props) {
   const router = useRouter();
   const [showAddMemory, setShowAddMemory] = useState(false);
+  const [showInsightModal, setShowInsightModal] = useState(false);
 
   const [stats, setStats] = useState<BasketStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -68,6 +71,24 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
       {needsOnboarding && (
         <OnboardingPanel basketId={basketId} onComplete={() => window.location.reload()} />
       )}
+
+      {/* Current Insight Section */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Current Insight</h2>
+          <Button
+            onClick={() => setShowInsightModal(true)}
+            variant="ghost"
+            size="sm"
+            className="text-purple-600 hover:text-purple-700"
+          >
+            View Details
+          </Button>
+        </div>
+        <div onClick={() => setShowInsightModal(true)} className="cursor-pointer">
+          <InsightCanonCard basketId={basketId} compact={true} />
+        </div>
+      </section>
 
       {/* Dashboard-like metrics */}
       <section className="space-y-3">
@@ -163,6 +184,12 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
           loadStats();
           refreshDocuments();
         }}
+      />
+
+      <InsightDetailModal
+        basketId={basketId}
+        open={showInsightModal}
+        onClose={() => setShowInsightModal(false)}
       />
     </div>
   );
