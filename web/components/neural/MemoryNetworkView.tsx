@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Network, Search, Filter, Maximize2, Minimize2 } from 'lucide-react';
+import { Network, Search, Filter, Maximize2, Minimize2, Info } from 'lucide-react';
 
 type Block = {
   id: string;
@@ -23,34 +23,40 @@ interface MemoryNetworkViewProps {
   canEdit: boolean;
 }
 
-// Semantic type colors - YARNNN terminology
+// Futuristic color palette - darker, more vibrant
 const SEMANTIC_COLORS = {
-  // Knowledge
-  fact: '#3b82f6',
-  metric: '#06b6d4',
-  event: '#0891b2',
-  finding: '#059669',
+  // Knowledge - cool blues/cyans
+  fact: '#0EA5E9',
+  metric: '#06B6D4',
+  event: '#14B8A6',
+  finding: '#10B981',
 
-  // Meaning
-  insight: '#8b5cf6',
-  intent: '#a855f7',
-  objective: '#7c3aed',
-  principle: '#6d28d9',
-  rationale: '#9333ea',
+  // Meaning - electric purples/magentas
+  insight: '#A855F7',
+  intent: '#C026D3',
+  objective: '#D946EF',
+  principle: '#E879F9',
+  rationale: '#F0ABFC',
 
-  // Action
-  action: '#10b981',
+  // Action - vibrant greens
+  action: '#22C55E',
 
-  // Observation
-  observation: '#f59e0b',
-  quote: '#d97706',
-  summary: '#ea580c',
+  // Observation - warm oranges/yellows
+  observation: '#F59E0B',
+  quote: '#FBBF24',
+  summary: '#F97316',
 
-  // Structural
-  entity: '#ec4899',
-  reference: '#db2777',
+  // Structural - pinks/reds
+  entity: '#EC4899',
+  reference: '#F43F5E',
 
-  default: '#64748b'
+  // Classification
+  classification: '#8B5CF6',
+
+  // Status
+  status: '#6366F1',
+
+  default: '#94A3B8'
 };
 
 type Node = {
@@ -59,18 +65,28 @@ type Node = {
   y: number;
   vx: number;
   vy: number;
-  radius: number;
+  size: number; // Square side length
   color: string;
   label: string;
   type: string;
   block: Block;
   connections: number;
+  clusterId?: number; // For cluster detection
 };
 
 type Link = {
   source: Node;
   target: Node;
   distance: number;
+  reason: 'same_type' | 'temporal' | 'both';
+};
+
+type Cluster = {
+  id: number;
+  nodes: Node[];
+  centerX: number;
+  centerY: number;
+  label: string;
 };
 
 export default function MemoryNetworkView({ basketId, basketTitle, blocks }: MemoryNetworkViewProps) {
@@ -80,6 +96,9 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'all'>('all');
+  const [hoveredLink, setHoveredLink] = useState<Link | null>(null);
+  const [showClusters, setShowClusters] = useState(true);
 
   // Build force-directed graph
   const { nodes, links } = useMemo(() => {
@@ -88,14 +107,14 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     const width = 1200;
     const height = 700;
 
-    // Create nodes
+    // Create nodes (blocks as squares)
     const nodes: Node[] = blocks.map((block, idx) => ({
       id: block.id,
       x: Math.random() * width,
       y: Math.random() * height,
       vx: 0,
       vy: 0,
-      radius: Math.sqrt((block.confidence_score || 0.5) * 100) + 5,
+      size: Math.sqrt((block.confidence_score || 0.5) * 200) + 12, // Larger base size for squares
       color: SEMANTIC_COLORS[block.semantic_type as keyof typeof SEMANTIC_COLORS] || SEMANTIC_COLORS.default,
       label: block.title || 'Untitled',
       type: block.semantic_type || 'memory',
@@ -122,10 +141,15 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
         const closeInTime = timeDiff < 24 * 60 * 60 * 1000; // Within 24 hours
 
         if (sameType || closeInTime) {
+          const reason: 'same_type' | 'temporal' | 'both' =
+            sameType && closeInTime ? 'both' :
+            sameType ? 'same_type' : 'temporal';
+
           links.push({
             source: node,
             target,
-            distance: sameType ? 80 : 120
+            distance: sameType ? 80 : 120,
+            reason
           });
           node.connections++;
           target.connections++;
@@ -136,10 +160,24 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     return { nodes, links };
   }, [blocks]);
 
-  // Filter nodes based on search and type selection
+  // Filter nodes based on search, type selection, and time
   const filteredNodes = useMemo(() => {
     let filtered = nodes;
 
+    // Time filter
+    if (timeFilter !== 'all') {
+      const now = Date.now();
+      const timeThreshold = timeFilter === 'week'
+        ? 7 * 24 * 60 * 60 * 1000
+        : 30 * 24 * 60 * 60 * 1000;
+
+      filtered = filtered.filter(node => {
+        const createdAt = new Date(node.block.created_at).getTime();
+        return (now - createdAt) <= timeThreshold;
+      });
+    }
+
+    // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(node =>
@@ -148,17 +186,72 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
       );
     }
 
+    // Type filter
     if (selectedTypes.size > 0) {
       filtered = filtered.filter(node => selectedTypes.has(node.type));
     }
 
     return filtered;
-  }, [nodes, searchQuery, selectedTypes]);
+  }, [nodes, searchQuery, selectedTypes, timeFilter]);
 
   const filteredLinks = useMemo(() => {
     const nodeIds = new Set(filteredNodes.map(n => n.id));
     return links.filter(link => nodeIds.has(link.source.id) && nodeIds.has(link.target.id));
   }, [links, filteredNodes]);
+
+  // Detect clusters (groups of 3+ highly connected nodes)
+  const clusters = useMemo(() => {
+    if (!showClusters || filteredNodes.length < 3) return [];
+
+    const detected: Cluster[] = [];
+    const visited = new Set<string>();
+
+    filteredNodes.forEach(node => {
+      if (visited.has(node.id) || node.connections < 2) return;
+
+      // Find connected neighbors
+      const connectedNodes = [node];
+      const queue = [node];
+      visited.add(node.id);
+
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const neighbors = filteredLinks
+          .filter(link =>
+            (link.source.id === current.id || link.target.id === current.id) &&
+            link.reason !== 'temporal' // Only cluster by semantic similarity
+          )
+          .map(link => link.source.id === current.id ? link.target : link.source)
+          .filter(n => !visited.has(n.id) && n.connections >= 2);
+
+        neighbors.forEach(neighbor => {
+          visited.add(neighbor.id);
+          connectedNodes.push(neighbor);
+          queue.push(neighbor);
+        });
+      }
+
+      // Only create cluster if 3+ nodes
+      if (connectedNodes.length >= 3) {
+        const centerX = connectedNodes.reduce((sum, n) => sum + n.x, 0) / connectedNodes.length;
+        const centerY = connectedNodes.reduce((sum, n) => sum + n.y, 0) / connectedNodes.length;
+        const primaryType = connectedNodes[0].type;
+
+        detected.push({
+          id: detected.length,
+          nodes: connectedNodes,
+          centerX,
+          centerY,
+          label: `${primaryType} (${connectedNodes.length})`
+        });
+
+        // Mark nodes as clustered
+        connectedNodes.forEach(n => n.clusterId = detected.length - 1);
+      }
+    });
+
+    return detected;
+  }, [filteredNodes, filteredLinks, showClusters]);
 
   // Force simulation
   useEffect(() => {
@@ -213,11 +306,12 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
         node.vx *= 0.8;
         node.vy *= 0.8;
 
-        // Keep within bounds
+        // Keep within bounds (squares)
         const canvas = canvasRef.current;
         if (canvas) {
-          node.x = Math.max(node.radius, Math.min(canvas.width - node.radius, node.x));
-          node.y = Math.max(node.radius, Math.min(canvas.height - node.radius, node.y));
+          const halfSize = node.size / 2;
+          node.x = Math.max(halfSize, Math.min(canvas.width - halfSize, node.x));
+          node.y = Math.max(halfSize, Math.min(canvas.height - halfSize, node.y));
         }
       });
 
@@ -244,50 +338,144 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     if (!ctx) return;
 
     const render = () => {
-      ctx.fillStyle = '#ffffff';
+      // Dark futuristic background
+      ctx.fillStyle = '#0F172A'; // slate-900
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw links
+      // Draw cluster backgrounds
+      if (showClusters) {
+        clusters.forEach(cluster => {
+          // Calculate cluster radius
+          const distances = cluster.nodes.map(n =>
+            Math.sqrt(Math.pow(n.x - cluster.centerX, 2) + Math.pow(n.y - cluster.centerY, 2))
+          );
+          const radius = Math.max(...distances) + 40;
+
+          // Draw cluster circle with subtle glow
+          ctx.beginPath();
+          ctx.arc(cluster.centerX, cluster.centerY, radius, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(59, 130, 246, 0.08)'; // Very subtle blue
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([5, 5]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Cluster label
+          ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(cluster.label, cluster.centerX, cluster.centerY - radius - 8);
+        });
+      }
+
+      // Draw links with glow effect
       filteredLinks.forEach(link => {
+        const isHighlighted = selectedNode?.id === link.source.id || selectedNode?.id === link.target.id ||
+                              hoveredNode?.id === link.source.id || hoveredNode?.id === link.target.id;
+
         ctx.beginPath();
         ctx.moveTo(link.source.x, link.source.y);
         ctx.lineTo(link.target.x, link.target.y);
-        ctx.strokeStyle = '#e5e7eb';
-        ctx.lineWidth = 1;
+
+        if (isHighlighted) {
+          ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)'; // Bright blue when highlighted
+          ctx.lineWidth = 2;
+        } else {
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)'; // Subtle gray connections
+          ctx.lineWidth = 1;
+        }
         ctx.stroke();
       });
 
-      // Draw nodes
+      // Draw nodes as rounded squares (blocks)
       filteredNodes.forEach(node => {
-        // Node circle
+        const halfSize = node.size / 2;
+        const isHighlighted = selectedNode?.id === node.id || hoveredNode?.id === node.id;
+
+        // Shadow/glow for depth
+        if (isHighlighted) {
+          ctx.shadowColor = node.color;
+          ctx.shadowBlur = 20;
+        } else {
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+          ctx.shadowBlur = 8;
+        }
+
+        // Draw rounded square (block)
+        const cornerRadius = 6;
         ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        ctx.moveTo(node.x - halfSize + cornerRadius, node.y - halfSize);
+        ctx.lineTo(node.x + halfSize - cornerRadius, node.y - halfSize);
+        ctx.quadraticCurveTo(node.x + halfSize, node.y - halfSize, node.x + halfSize, node.y - halfSize + cornerRadius);
+        ctx.lineTo(node.x + halfSize, node.y + halfSize - cornerRadius);
+        ctx.quadraticCurveTo(node.x + halfSize, node.y + halfSize, node.x + halfSize - cornerRadius, node.y + halfSize);
+        ctx.lineTo(node.x - halfSize + cornerRadius, node.y + halfSize);
+        ctx.quadraticCurveTo(node.x - halfSize, node.y + halfSize, node.x - halfSize, node.y + halfSize - cornerRadius);
+        ctx.lineTo(node.x - halfSize, node.y - halfSize + cornerRadius);
+        ctx.quadraticCurveTo(node.x - halfSize, node.y - halfSize, node.x - halfSize + cornerRadius, node.y - halfSize);
+        ctx.closePath();
+
         ctx.fillStyle = node.color;
         ctx.fill();
 
-        // Highlight if selected or hovered
-        if (selectedNode?.id === node.id || hoveredNode?.id === node.id) {
-          ctx.strokeStyle = '#000000';
+        // Border on highlight
+        if (isHighlighted) {
+          ctx.strokeStyle = '#FFFFFF';
           ctx.lineWidth = 3;
           ctx.stroke();
+        }
 
-          // Label
-          ctx.fillStyle = '#000000';
-          ctx.font = 'bold 12px sans-serif';
+        ctx.shadowBlur = 0; // Reset shadow
+
+        // Label on hover/select
+        if (isHighlighted) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(node.label.slice(0, 30), node.x, node.y - node.radius - 10);
+          ctx.textBaseline = 'bottom';
+
+          // Add background to label for readability
+          const labelText = node.label.slice(0, 30);
+          const metrics = ctx.measureText(labelText);
+          const labelPadding = 6;
+
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+          ctx.fillRect(
+            node.x - metrics.width / 2 - labelPadding,
+            node.y - halfSize - 28,
+            metrics.width + labelPadding * 2,
+            20
+          );
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillText(labelText, node.x, node.y - halfSize - 12);
         }
 
         // Connection count badge for highly connected nodes
         if (node.connections > 3) {
-          ctx.fillStyle = '#ffffff';
+          const badgeSize = 18;
+          const badgeX = node.x + halfSize - badgeSize / 2;
+          const badgeY = node.y - halfSize - badgeSize / 2;
+
+          // Badge background
+          ctx.fillStyle = '#EF4444'; // Red for high connectivity
           ctx.beginPath();
-          ctx.arc(node.x + node.radius - 5, node.y - node.radius + 5, 8, 0, Math.PI * 2);
+          ctx.arc(badgeX, badgeY, badgeSize / 2, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = '#000000';
-          ctx.font = 'bold 10px sans-serif';
+
+          // Badge border
+          ctx.strokeStyle = '#0F172A';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Badge text
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 11px sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(node.connections.toString(), node.x + node.radius - 5, node.y - node.radius + 9);
+          ctx.textBaseline = 'middle';
+          ctx.fillText(node.connections.toString(), badgeX, badgeY);
         }
       });
 
@@ -295,9 +483,9 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     };
 
     render();
-  }, [filteredNodes, filteredLinks, selectedNode, hoveredNode]);
+  }, [filteredNodes, filteredLinks, selectedNode, hoveredNode, clusters, showClusters]);
 
-  // Handle canvas interactions
+  // Handle canvas interactions (square hit detection)
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -307,8 +495,10 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     const y = e.clientY - rect.top;
 
     for (const node of filteredNodes) {
-      const distance = Math.sqrt(Math.pow(x - node.x, 2) + Math.pow(y - node.y, 2));
-      if (distance < node.radius) {
+      const halfSize = node.size / 2;
+      // Check if click is within square bounds
+      if (x >= node.x - halfSize && x <= node.x + halfSize &&
+          y >= node.y - halfSize && y <= node.y + halfSize) {
         setSelectedNode(node);
         return;
       }
@@ -326,8 +516,10 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     const y = e.clientY - rect.top;
 
     for (const node of filteredNodes) {
-      const distance = Math.sqrt(Math.pow(x - node.x, 2) + Math.pow(y - node.y, 2));
-      if (distance < node.radius) {
+      const halfSize = node.size / 2;
+      // Check if hover is within square bounds
+      if (x >= node.x - halfSize && x <= node.x + halfSize &&
+          y >= node.y - halfSize && y <= node.y + halfSize) {
         setHoveredNode(node);
         canvas.style.cursor = 'pointer';
         return;
@@ -374,7 +566,10 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Memory Network</h2>
                 <p className="text-sm text-gray-600">
-                  {nodes.length} memories • {links.length} connections
+                  Discover patterns in your thinking. See how your memories naturally cluster and connect over time.
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {nodes.length} memories • {links.length} connections • {clusters.length} patterns
                 </p>
               </div>
             </div>
@@ -394,7 +589,7 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Filter className="h-4 w-4" />
-            Filter Memories
+            Explore Patterns
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -408,6 +603,37 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+          </div>
+
+          {/* Time filter */}
+          <div>
+            <div className="text-sm font-medium text-gray-700 mb-2">Time Range</div>
+            <div className="flex gap-2">
+              <Button
+                variant={timeFilter === 'week' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeFilter('week')}
+                className="flex-1"
+              >
+                Last Week
+              </Button>
+              <Button
+                variant={timeFilter === 'month' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeFilter('month')}
+                className="flex-1"
+              >
+                Last Month
+              </Button>
+              <Button
+                variant={timeFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeFilter('all')}
+                className="flex-1"
+              >
+                All Time
+              </Button>
+            </div>
           </div>
 
           {/* Type filters */}
@@ -445,6 +671,36 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
             onClick={handleCanvasClick}
             onMouseMove={handleCanvasMouseMove}
           />
+        </CardContent>
+      </Card>
+
+      {/* How Connections Work */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            How Patterns Emerge
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-gray-600">
+          <div className="flex items-start gap-2">
+            <div className="w-2 h-2 rounded-full bg-purple-500 mt-1.5" />
+            <div>
+              <span className="font-medium text-gray-900">Same type:</span> Memories with the same classification naturally group together
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
+            <div>
+              <span className="font-medium text-gray-900">Created together:</span> Thoughts captured within 24 hours connect temporally
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <div className="w-2 h-2 rounded-full bg-cyan-500 mt-1.5" />
+            <div>
+              <span className="font-medium text-gray-900">Patterns:</span> Clusters of 3+ connected memories reveal thinking patterns
+            </div>
+          </div>
         </CardContent>
       </Card>
 
