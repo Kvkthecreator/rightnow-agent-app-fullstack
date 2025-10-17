@@ -6,10 +6,10 @@ export async function getDocumentsServer(workspaceId: string): Promise<DocumentD
   const supabase = createServerComponentClient({ cookies });
 
   const { data, error } = await supabase
-    .from("document_heads")
-    .select("document_id, title, basket_id, document_type, current_version_hash, document_metadata, document_updated_at, version_created_at")
+    .from("documents")
+    .select("id, title, basket_id, doc_type, current_version_hash, metadata, updated_at")
     .eq("workspace_id", workspaceId)
-    .order("version_created_at", { ascending: true });
+    .order("updated_at", { ascending: true });
 
   if (error) {
     console.error("[getDocumentsServer]", error.message);
@@ -17,13 +17,13 @@ export async function getDocumentsServer(workspaceId: string): Promise<DocumentD
   }
 
   return (data || []).map((doc: any) => ({
-    id: doc.document_id,
+    id: doc.id,
     basket_id: doc.basket_id,
     title: doc.title,
-    doc_type: doc.document_type || 'artifact_other',
+    doc_type: doc.doc_type || 'artifact_other',
     current_version_hash: doc.current_version_hash,
-    latest_version_created_at: doc.version_created_at || doc.document_updated_at,
-    updated_at: doc.document_updated_at ?? doc.version_created_at,
-    metadata: doc.document_metadata || {},
+    latest_version_created_at: doc.updated_at,
+    updated_at: doc.updated_at,
+    metadata: doc.metadata || {},
   }));
 }

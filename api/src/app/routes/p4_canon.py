@@ -179,7 +179,7 @@ async def generate_document_canon(
         'structured_outline': structured_outline,
     }
 
-    if existing_doc.data:
+    if existing_doc and existing_doc.data:
         document_id = existing_doc.data['id']
         base_metadata = existing_doc.data.get('metadata') or {}
         supabase.table('documents').update({
@@ -444,7 +444,6 @@ async def _compose_document_canon_structured(
     prompt = _build_document_canon_prompt(basket_name, insight_canon, substrate, composition_mode)
     response = await llm.get_json_response(
         prompt,
-        temperature=0.6,
         max_tokens=2200,
         schema_name="p4_document_canon_v1"
     )
@@ -742,7 +741,6 @@ async def _compose_starter_prompt_structured(
     prompt = _build_starter_prompt_context(basket_name, target_host, insight_canon, substrate, prompt_style)
     response = await llm.get_json_response(
         prompt,
-        temperature=0.7,
         max_tokens=900,
         schema_name="p4_prompt_starter_v1"
     )
