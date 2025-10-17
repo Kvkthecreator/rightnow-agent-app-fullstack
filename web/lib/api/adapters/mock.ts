@@ -74,15 +74,18 @@ export function generateMockDocuments(basketId: string, count = 2): DocumentDTO[
   return Array.from({ length: count }, (_, i) => ({
     id: mockId(`doc-${basketId}-${i}`),
     basket_id: basketId,
-    workspace_id: MOCK_WORKSPACE_ID,
     title: `Mock Document ${i + 1}`,
-    content_raw: `# Mock Document ${i + 1}\n\nThis is a mock document with sample content for development.\n\n## Overview\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit.\n\n## Details\n\n- Feature A\n- Feature B\n- Feature C`,
-    document_type: i === 0 ? 'strategic-analysis' : 'research-notes',
+    doc_type: i === 0 ? 'document_canon' : 'artifact_other',
+    current_version_hash: null,
+    latest_version_created_at: mockTimestamp(i),
     metadata: {
-      wordCount: 150 + (i * 50),
       mock: true,
+      preview: 'Mock preview text for development fixtures.',
+      structured_outline: {
+        summary: 'This is a mock outline summary.',
+        themes: ['Mock theme A', 'Mock theme B'],
+      },
     },
-    created_at: mockTimestamp(i + 1),
     updated_at: mockTimestamp(i),
   }));
 }
