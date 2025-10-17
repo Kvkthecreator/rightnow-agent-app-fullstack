@@ -86,7 +86,8 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    const { basket_id, title, metadata } = parseResult.data;
+    const { basket_id, intent, metadata, template_id, target_audience, tone, pinned_ids, window_days } = parseResult.data;
+    const compositionIntent = intent || 'Compose document from latest memory';
 
     // Validate basket belongs to workspace
     const { data: basket, error: basketError } = await supabase
@@ -100,36 +101,28 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: 'basket not found' }, { status: 404 });
     }
 
-    // Use existing fn_document_create RPC for consistency
-    const { data: documentId, error: createError } = await supabase
-      .rpc('fn_document_create', {
-        p_basket_id: basket_id,
-        p_title: title,
-        p_metadata: metadata || {},
-      });
-
-    if (createError) {
-      return NextResponse.json(
-        { error: `Failed to create document: ${createError.message}` },
-        { status: 400 }
-      );
-    }
-
-    // Emit timeline event using new emit_timeline_event function
-    await supabase.rpc('emit_timeline_event', {
-      p_basket_id: basket_id,
-      p_event_type: 'document.created',
-      p_event_data: { 
-        document_id: documentId, 
-        title, 
-        metadata 
-      },
-      p_workspace_id: workspace.id,
-      p_actor_id: userId,
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/documents/compose`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        basket_id,
+        title: `${metadata?.title || 'Document'}`,
+        intent: compositionIntent,
+        template_id,
+        target_audience,
+        tone,
+        pinned_ids,
+        window_days,
+      }),
     });
 
+    const doc = await response.json();
+    if (!response.ok || !doc?.document_id) {
+      return NextResponse.json({ error: doc?.error || 'Failed to compose document' }, { status: 400 });
+    }
+
     return withSchema(CreateDocumentResponseSchema, {
-      document_id: documentId,
+      document_id: doc.document_id,
     }, { status: 201 });
 
   } catch (error) {
