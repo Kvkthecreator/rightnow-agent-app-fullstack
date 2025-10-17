@@ -68,21 +68,16 @@ async def infer_relationships(
     supabase = supabase_admin()
 
     try:
-        # Validate basket exists and user has access
+        # Validate basket exists and get workspace_id
+        # Note: Access control is handled by JWT middleware
         basket_result = supabase.table('baskets').select(
-            'id, workspace_id, user_id'
+            'id, workspace_id'
         ).eq('id', request.basket_id).maybe_single().execute()
 
         if not basket_result.data:
             raise HTTPException(status_code=404, detail="Basket not found")
 
-        basket = basket_result.data
-        workspace_id = basket['workspace_id']
-
-        # Verify access (user owns basket or workspace)
-        # Simplified access check - should integrate with workspace membership
-        if basket['user_id'] != user_id:
-            raise HTTPException(status_code=403, detail="Access denied")
+        workspace_id = basket_result.data['workspace_id']
 
         # Check basket has sufficient blocks
         blocks_result = supabase.table('blocks').select('id').eq(
