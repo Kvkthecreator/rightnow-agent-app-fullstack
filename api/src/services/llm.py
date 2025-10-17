@@ -384,15 +384,25 @@ class OpenAIProvider(LLMProvider):
             choice = resp.choices[0]
             content = choice.message.content or ""
 
+            finish_reason = getattr(choice, "finish_reason", None)
+            prompt_tokens = getattr(getattr(resp, "usage", None), "prompt_tokens", None)
+            completion_tokens = getattr(getattr(resp, "usage", None), "completion_tokens", None)
+
             if not content.strip():
+                refusal = getattr(choice.message, "refusal", None)
                 logger.warning(
-                    "OpenAI chat completion returned empty content",
-                    extra={
-                        "model": self.text_model,
-                        "finish_reason": getattr(choice, "finish_reason", None),
-                        "request_tokens": getattr(getattr(resp, "usage", None), "prompt_tokens", None),
-                        "response_tokens": getattr(getattr(resp, "usage", None), "completion_tokens", None),
-                    },
+                    "OpenAI completion returned empty content (model=%s, finish_reason=%s, prompt_tokens=%s, completion_tokens=%s, refusal=%s)",
+                    self.text_model,
+                    finish_reason,
+                    prompt_tokens,
+                    completion_tokens,
+                    refusal,
+                )
+
+                # Emit a short prompt diagnostic (first 400 chars)
+                logger.debug(
+                    "Insight prompt preview: %s",
+                    (prompt[:400] + "…") if len(prompt) > 400 else prompt,
                 )
 
             return LLMResponse(
@@ -400,8 +410,8 @@ class OpenAIProvider(LLMProvider):
                 content=content,
                 parsed=None,
                 usage={
-                    "input_tokens": getattr(getattr(resp, "usage", None), "prompt_tokens", 0),
-                    "output_tokens": getattr(getattr(resp, "usage", None), "completion_tokens", 0),
+                    "input_tokens": prompt_tokens or 0,
+                    "output_tokens": completion_tokens or 0,
                 },
             )
         except Exception as e:  # noqa: BLE001
