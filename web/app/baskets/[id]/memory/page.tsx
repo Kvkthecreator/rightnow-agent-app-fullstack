@@ -78,6 +78,7 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
 
         <MemoryClient
           basketId={id}
+          basketName={basket.name}
           needsOnboarding={needsOnboarding}
         />
       </div>

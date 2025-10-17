@@ -17,10 +17,11 @@ import type { BasketStats } from '@/app/api/baskets/[id]/stats/route';
 
 interface Props {
   basketId: string;
+  basketName: string;
   needsOnboarding?: boolean;
 }
 
-export default function MemoryClient({ basketId, needsOnboarding }: Props) {
+export default function MemoryClient({ basketId, basketName, needsOnboarding }: Props) {
   const router = useRouter();
   const [showAddMemory, setShowAddMemory] = useState(false);
   const [showInsightModal, setShowInsightModal] = useState(false);
@@ -161,7 +162,7 @@ export default function MemoryClient({ basketId, needsOnboarding }: Props) {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Documents</h2>
           <div className="flex items-center gap-2">
-            <DocumentCreateButton basketId={basketId} />
+            <DocumentCreateButton basketId={basketId} basketName={basketName} />
             <Button onClick={refreshDocuments} variant="outline" size="sm">
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
