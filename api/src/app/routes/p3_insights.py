@@ -17,6 +17,7 @@ V3.0 Migration Completed:
 
 
 import logging
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
@@ -33,6 +34,8 @@ from lib.freshness import (
 from app.utils.jwt import verify_jwt
 
 router = APIRouter(prefix="/p3", tags=["p3-insights"])
+
+logger = logging.getLogger("uvicorn.error")
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -241,6 +244,58 @@ async def generate_insight_canon(
 # DOC INSIGHT ENDPOINTS
 # =============================================================================
 
+
+def _render_doc_insight_from_structured(structured: Dict[str, Any], document_title: str) -> str:
+    lines: List[str] = [f"Document Insight — {document_title}", ""]
+
+    summary = structured.get('summary')
+    if summary:
+        lines.extend([summary.strip(), ""])
+
+    themes = structured.get('themes') or []
+    if themes:
+        lines.append("Key Themes:")
+        for theme in themes[:5]:
+            lines.append(f"- {theme}")
+        lines.append("")
+
+    tensions = structured.get('tensions') or []
+    cleaned_tensions = [t for t in tensions if isinstance(t, dict)]
+    if cleaned_tensions:
+        lines.append("Tensions / Risks:")
+        for entry in cleaned_tensions[:5]:
+            desc = entry.get('description') or entry.get('summary')
+            if not desc:
+                continue
+            impact = entry.get('impact')
+            lines.append(f"- {desc}" + (f" — impact: {impact}" if impact else ""))
+        lines.append("")
+
+    opportunities = structured.get('opportunities') or []
+    if opportunities:
+        lines.append("Opportunities:")
+        for opp in opportunities[:5]:
+            desc = opp.get('description') if isinstance(opp, dict) else opp
+            if desc:
+                lines.append(f"- {desc}")
+        lines.append("")
+
+    actions = structured.get('recommended_actions') or []
+    if actions:
+        lines.append("Recommended Actions:")
+        for action in actions[:5]:
+            if isinstance(action, str):
+                lines.append(f"- {action}")
+                continue
+            desc = action.get('description')
+            if not desc:
+                continue
+            urgency = action.get('urgency')
+            lines.append(f"- {desc}" + (f" (urgency: {urgency})" if urgency else ""))
+        lines.append("")
+
+    return "\n".join(line for line in lines if line).strip()
+
 @router.post("/doc-insight", response_model=GenerateDocInsightResponse)
 async def generate_doc_insight(
     request: GenerateDocInsightRequest,
@@ -263,6 +318,12 @@ async def generate_doc_insight(
 
     document = doc_result.data
 
+    insight_result = supabase.table('reflections_artifact').select('reflection_text').eq(
+        'basket_id', document['basket_id']
+    ).eq('insight_type', 'insight_canon').eq('is_current', True).maybe_single().execute()
+
+    basket_insight_text = insight_result.data['reflection_text'] if insight_result.data else ""
+
     # Check if doc_insight already exists (unless force)
     if not request.force:
         existing = supabase.table('reflections_artifact').select('*').eq(
@@ -283,25 +344,55 @@ async def generate_doc_insight(
 
     doc_content = version_result.data['content']
 
-    # Generate doc-specific insight
-    reflection_text = await _generate_insight_text(
-        substrate={'document_title': document['title'], 'document_content': doc_content},
-        insight_type='doc_insight'
-    )
+    metadata_snapshot = version_result.data.get('metadata_snapshot') or {}
+    structured_outline = metadata_snapshot.get('structured_outline')
 
-    # Compute substrate hash (document-scoped)
+    if structured_outline:
+        reflection_text = _render_doc_insight_from_structured(structured_outline, document['title'])
+        if basket_insight_text:
+            reflection_text = "\n".join([
+                reflection_text,
+                "",
+                "Alignment with Basket Insight:",
+                basket_insight_text[:400]
+            ])
+    else:
+        # Legacy fallback using LLM
+        reflection_text = await _generate_insight_text(
+            substrate={'document_title': document['title'], 'document_content': doc_content},
+            insight_type='doc_insight'
+        )
+        if basket_insight_text:
+            reflection_text = "\n".join([
+                reflection_text,
+                "",
+                "Alignment with Basket Insight:",
+                basket_insight_text[:400]
+            ])
+
     substrate_hash = f"doc_{document['current_version_hash']}"
 
-    # Insert doc_insight
+    try:
+        supabase.table('reflections_artifact').update({
+            'is_current': False
+        }).filter('meta->>document_id', 'eq', document['id']).filter('insight_type', 'eq', 'doc_insight').execute()
+    except Exception:
+        logger.debug("No existing doc insights to retire for document %s", document['id'])
+
     new_insight = supabase.table('reflections_artifact').insert({
         'basket_id': document['basket_id'],
         'workspace_id': document['workspace_id'],
         'reflection_text': reflection_text,
         'substrate_hash': substrate_hash,
         'insight_type': 'doc_insight',
-        'is_current': False,  # doc_insights don't use is_current (many per document over time)
-        'derived_from': [{'type': 'document', 'id': document['id'], 'version': document['current_version_hash']}],
-        'computation_timestamp': datetime.utcnow().isoformat()
+        'is_current': True,
+        'derived_from': [{'type': 'document_version', 'document_id': document['id'], 'version_hash': document['current_version_hash']}],
+        'computation_timestamp': datetime.utcnow().isoformat(),
+        'meta': {
+            'document_id': document['id'],
+            'version_hash': document['current_version_hash'],
+            'structured_outline': structured_outline or {}
+        }
     }).execute()
 
     if not new_insight.data:

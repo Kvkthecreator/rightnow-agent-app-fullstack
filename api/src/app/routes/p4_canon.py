@@ -8,15 +8,17 @@ Implements P4 document taxonomy:
 Note: Separate from existing p4_composition.py which handles general document composition.
       This module focuses specifically on canon generation workflows.
 """
-# V3.0 DEPRECATION NOTICE:
-# This file contains references to context_items table which was merged into blocks table.
-# Entity blocks are now identified by semantic_type='entity'.
-# This file is legacy/supporting code - update if actively maintained.
+# V3.1 NOTICE:
+# Substrate references use the unified blocks table (semantic_type + anchor_role).
+# Entity/anchor metadata is derived from block fields; no context_items access remains.
 
+
+import logging
+from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from uuid import UUID
 from datetime import datetime
 
@@ -28,6 +30,8 @@ from lib.freshness import (
 from app.utils.jwt import verify_jwt
 
 router = APIRouter(prefix="/p4", tags=["p4-documents"])
+
+logger = logging.getLogger("uvicorn.error")
 
 
 # =============================================================================
@@ -144,65 +148,47 @@ async def generate_document_canon(
     # Fetch substrate
     substrate = await _fetch_basket_substrate_for_canon(supabase, request.basket_id)
 
-    # Compose document canon content
-    canon_content = await _compose_document_canon(
+    structured_outline, canon_content = await _compose_document_canon(
         basket_name=basket_name,
         insight_canon=insight_canon,
         substrate=substrate,
         composition_mode=request.composition_mode
     )
 
-    # Compute version hash
+    substrate_hash = compute_basket_substrate_hash(supabase, request.basket_id)
+
     import hashlib
     version_hash = hashlib.sha256(canon_content.encode()).hexdigest()[:64]
 
-    # Compute substrate hash
-    substrate_hash = compute_basket_substrate_hash(supabase, request.basket_id)
-
-    # Build provenance
+    generated_at = datetime.utcnow().isoformat()
     derived_from = {
         'insight_canon_id': insight_canon['id'],
         'substrate_hash': substrate_hash,
         'composition_mode': request.composition_mode,
-        'generated_at': datetime.utcnow().isoformat()
+        'generated_at': generated_at
     }
 
-    # Check if document_canon already exists
-    existing_doc = supabase.table('documents').select('id, current_version_hash').eq(
+    existing_doc = supabase.table('documents').select('id, metadata').eq(
         'basket_id', request.basket_id
-    ).eq('doc_type', 'document_canon').limit(1).execute()
+    ).eq('doc_type', 'document_canon').maybe_single().execute()
 
-    previous_id = None
-    document_id = None
+    metadata_update = {
+        'composition_mode': request.composition_mode,
+        'composition_status': 'completed',
+        'composition_completed_at': generated_at,
+        'structured_outline': structured_outline,
+    }
 
     if existing_doc.data:
-        # Update existing document with new version
-        previous_id = existing_doc.data[0]['id']
-
-        # Create new document record (versioned document evolution)
-        new_doc = supabase.table('documents').insert({
-            'basket_id': request.basket_id,
-            'workspace_id': workspace_id,
-            'title': f"{basket_name} - Context Canon",
-            'document_type': 'basket_context',  # Legacy field
-            'doc_type': 'document_canon',
+        document_id = existing_doc.data['id']
+        base_metadata = existing_doc.data.get('metadata') or {}
+        supabase.table('documents').update({
             'current_version_hash': version_hash,
-            'previous_id': previous_id,
             'derived_from': derived_from,
-            'composition_instructions': {
-                'mode': request.composition_mode,
-                'source': 'p4_canon_generator'
-            }
-        }).execute()
-
-        if not new_doc.data:
-            raise HTTPException(status_code=500, detail="Failed to create document")
-
-        document_id = new_doc.data[0]['id']
-
+            'metadata': {**base_metadata, **metadata_update}
+        }).eq('id', document_id).execute()
     else:
-        # Create new document_canon
-        new_doc = supabase.table('documents').insert({
+        insert_doc = supabase.table('documents').insert({
             'basket_id': request.basket_id,
             'workspace_id': workspace_id,
             'title': f"{basket_name} - Context Canon",
@@ -213,31 +199,45 @@ async def generate_document_canon(
             'composition_instructions': {
                 'mode': request.composition_mode,
                 'source': 'p4_canon_generator'
-            }
+            },
+            'metadata': metadata_update
         }).execute()
 
-        if not new_doc.data:
+        if not insert_doc.data:
             raise HTTPException(status_code=500, detail="Failed to create document")
 
-        document_id = new_doc.data[0]['id']
+        document_id = insert_doc.data[0]['id']
 
-    # Create document_version record
-    version = supabase.table('document_versions').insert({
+    version_insert = supabase.table('document_versions').insert({
         'document_id': document_id,
         'version_hash': version_hash,
         'content': canon_content,
         'metadata_snapshot': {
             'insight_canon_id': insight_canon['id'],
             'substrate_hash': substrate_hash,
-            'composition_mode': request.composition_mode
+            'composition_mode': request.composition_mode,
+            'structured_outline': structured_outline,
         },
         'substrate_refs_snapshot': _build_substrate_refs(substrate),
         'version_trigger': 'p4_canon_regeneration',
         'version_message': 'Generated from current insight_canon and substrate'
     }).execute()
 
-    if not version.data:
+    if not version_insert.data:
         raise HTTPException(status_code=500, detail="Failed to create document version")
+
+    version_row = version_insert.data[0]
+
+    _upsert_doc_insight_for_version(
+        supabase,
+        document_id=document_id,
+        basket_id=request.basket_id,
+        workspace_id=workspace_id,
+        version_hash=version_hash,
+        structured_outline=structured_outline,
+        insight_canon_text=insight_canon.get('reflection_text', ''),
+        document_title=f"{basket_name} - Context Canon"
+    )
 
     return GenerateDocumentCanonResponse(
         document_id=document_id,
@@ -245,9 +245,9 @@ async def generate_document_canon(
         title=f"{basket_name} - Context Canon",
         version_hash=version_hash,
         is_fresh=True,
-        previous_id=previous_id,
+        previous_id=None,
         derived_from=derived_from,
-        created_at=new_doc.data[0]['created_at']
+        created_at=version_row['created_at']
     )
 
 
@@ -304,7 +304,7 @@ async def generate_starter_prompt(
     )
 
     # Compose starter prompt
-    prompt_content = await _compose_starter_prompt(
+    structured_prompt, prompt_content = await _compose_starter_prompt(
         basket_name=basket_name,
         target_host=request.target_host,
         insight_canon=insight_canon,
@@ -333,6 +333,11 @@ async def generate_starter_prompt(
             'target_host': request.target_host,
             'style': request.prompt_style,
             'scope_filter': request.scope_filter
+        },
+        'metadata': {
+            'structured_prompt': structured_prompt,
+            'prompt_style': request.prompt_style,
+            'target_host': request.target_host
         }
     }).execute()
 
@@ -349,7 +354,8 @@ async def generate_starter_prompt(
         'metadata_snapshot': {
             'insight_canon_id': insight_canon['id'],
             'target_host': request.target_host,
-            'style': request.prompt_style
+            'style': request.prompt_style,
+            'structured_prompt': structured_prompt
         },
         'substrate_refs_snapshot': _build_substrate_refs(substrate),
         'version_trigger': 'starter_prompt_generation',
@@ -378,17 +384,19 @@ async def generate_starter_prompt(
 # =============================================================================
 
 async def _fetch_basket_substrate_for_canon(supabase, basket_id: str) -> Dict[str, Any]:
-    """Fetch all substrate for canon composition."""
-    blocks = supabase.table('blocks').select('*').eq('basket_id', basket_id).eq('state', 'ACTIVE').execute()
-    context_items = supabase.table('context_items').select('*').eq('basket_id', basket_id).eq('state', 'ACTIVE').execute()
-    dumps = supabase.table('raw_dumps').select('*').eq('basket_id', basket_id).execute()
-    events = supabase.table('timeline_events').select('*').eq('basket_id', basket_id).order('timestamp').execute()
+    """Fetch substrate snapshot for canon composition (V3-compliant)."""
+    blocks = supabase.table('blocks').select(
+        'id, title, content, semantic_type, anchor_role, state, scope, updated_at'
+    ).eq('basket_id', basket_id).in_('state', ['ACCEPTED', 'LOCKED', 'CONSTANT']).order('updated_at', desc=True).execute()
+
+    dumps = supabase.table('raw_dumps').select('id, created_at, body_md').eq('basket_id', basket_id).order('created_at', desc=True).limit(20).execute()
+
+    events = supabase.table('timeline_events').select('id, ts, kind, preview').eq('basket_id', basket_id).order('ts', desc=True).limit(20).execute()
 
     return {
-        'blocks': blocks.data,
-        'context_items': context_items.data,
-        'dumps': dumps.data,
-        'events': events.data
+        'blocks': blocks.data or [],
+        'dumps': dumps.data or [],
+        'events': events.data or []
     }
 
 
@@ -408,141 +416,435 @@ async def _compose_document_canon(
     insight_canon: Dict[str, Any],
     substrate: Dict[str, Any],
     composition_mode: Optional[str]
-) -> str:
-    """
-    Compose document canon content from insight + substrate using LLM.
-    """
+) -> Tuple[Optional[Dict[str, Any]], str]:
+    structured = await _compose_document_canon_structured(
+        basket_name=basket_name,
+        insight_canon=insight_canon,
+        substrate=substrate,
+        composition_mode=composition_mode
+    )
+
+    if structured:
+        rendered = _render_document_canon(structured, basket_name, insight_canon)
+        return structured, rendered
+
+    fallback = _render_document_canon_fallback(basket_name, insight_canon, substrate)
+    return None, fallback
+
+
+async def _compose_document_canon_structured(
+    basket_name: str,
+    insight_canon: Dict[str, Any],
+    substrate: Dict[str, Any],
+    composition_mode: Optional[str]
+) -> Optional[Dict[str, Any]]:
     from services.llm import get_llm
 
-    # Format substrate
+    llm = get_llm()
+    prompt = _build_document_canon_prompt(basket_name, insight_canon, substrate, composition_mode)
+    response = await llm.get_json_response(
+        prompt,
+        temperature=0.6,
+        max_tokens=2200,
+        schema_name="p4_document_canon_v1"
+    )
+
+    if response.success and response.parsed:
+        return response.parsed
+
+    logger.warning(
+        "Document canon structured compose failed; falling back (%s)",
+        response.error,
+    )
+    return None
+
+
+def _render_document_canon(structured: Dict[str, Any], basket_name: str, insight_canon: Dict[str, Any]) -> str:
+    lines: List[str] = [f"# {basket_name} - Context Canon", ""]
+
+    summary = structured.get("summary")
+    if summary:
+        lines.extend(["## Executive Summary", summary.strip(), ""])
+
+    themes = structured.get("themes") or []
+    if themes:
+        lines.append("## What We Are Focused On")
+        for theme in themes:
+            lines.append(f"- {theme}")
+        lines.append("")
+
+    sections = structured.get("sections") or []
+    for section in sections:
+        title = section.get("title", "Section")
+        narrative = section.get("narrative", "")
+        key_points = section.get("key_points") or []
+        lines.append(f"## {title}")
+        if narrative:
+            lines.append(narrative.strip())
+        if key_points:
+            lines.append("")
+            for point in key_points:
+                lines.append(f"- {point}")
+        lines.append("")
+
+    tensions = structured.get("tensions") or []
+    if tensions:
+        lines.append("## Tensions to Resolve")
+        for tension in tensions:
+            description = tension.get("description", "Unspecified tension")
+            impact = tension.get("impact")
+            lines.append(f"- **{description}**" + (f" — {impact}" if impact else ""))
+        lines.append("")
+
+    opportunities = structured.get("opportunities") or []
+    if opportunities:
+        lines.append("## Opportunities")
+        for opp in opportunities:
+            desc = opp.get("description", "Opportunity")
+            benefit = opp.get("benefit")
+            lines.append(f"- **{desc}**" + (f" — {benefit}" if benefit else ""))
+        lines.append("")
+
+    actions = structured.get("recommended_actions") or []
+    if actions:
+        lines.append("## Recommended Actions")
+        for action in actions:
+            desc = action.get("description", "Action")
+            urgency = action.get("urgency")
+            owner = action.get("owner_hint")
+            suffix = []
+            if urgency:
+                suffix.append(f"urgency: {urgency}")
+            if owner:
+                suffix.append(f"owner: {owner}")
+            suffix_text = f" ({', '.join(suffix)})" if suffix else ""
+            lines.append(f"- {desc}{suffix_text}")
+        lines.append("")
+
+    next_steps = structured.get("next_steps") or []
+    if next_steps:
+        lines.append("## Next Steps")
+        for step in next_steps:
+            lines.append(f"- {step}")
+        lines.append("")
+
+    lines.append("## Reference: Insight Canon")
+    lines.append(insight_canon.get('reflection_text', 'No insight available').strip())
+    lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+def _render_document_canon_fallback(
+    basket_name: str,
+    insight_canon: Dict[str, Any],
+    substrate: Dict[str, Any]
+) -> str:
     blocks = substrate.get('blocks', [])
-    context_items = substrate.get('context_items', [])
     dumps = substrate.get('dumps', [])
     events = substrate.get('events', [])
 
-    # Build prompt for document canon
-    prompt = f"""You are composing a Basket Context Canon - a comprehensive document that captures the complete state and understanding of a knowledge basket.
+    lines = [
+        f"# {basket_name} - Context Canon",
+        "",
+        "## Insight Canon",
+        insight_canon.get('reflection_text', 'No insight available').strip(),
+        "",
+        "## Substrate Summary",
+        f"- {len(blocks)} blocks",
+        f"- {len(dumps)} raw captures",
+        f"- {len(events)} timeline events",
+        "",
+        "*LLM composition failed; showing substrate snapshot instead.*",
+    ]
 
-**Basket**: {basket_name}
+    return "\n".join(lines)
 
-**Current Insight Canon** (Core Understanding):
-{insight_canon.get('reflection_text', 'No insight available')}
 
-**Substrate Available**:
-- {len(blocks)} blocks (structured knowledge)
-- {len(context_items)} context items (markers and labels)
-- {len(dumps)} raw dumps (original captures)
-- {len(events)} timeline events (temporal markers)
+def _build_document_canon_prompt(
+    basket_name: str,
+    insight_canon: Dict[str, Any],
+    substrate: Dict[str, Any],
+    composition_mode: Optional[str]
+) -> str:
+    blocks = substrate.get('blocks', [])
+    dumps = substrate.get('dumps', [])
+    events = substrate.get('events', [])
 
-**Composition Mode**: {composition_mode or 'comprehensive'}
+    anchor_counts = Counter(
+        (block.get('anchor_role') or '').strip().lower()
+        for block in blocks
+        if block.get('anchor_role')
+    )
+    anchor_summary = ", ".join(
+        f"{anchor}: {count}"
+        for anchor, count in anchor_counts.most_common(6)
+    ) or "(no anchors tagged)"
 
-**Your Task**: Create a {composition_mode or 'comprehensive'} Basket Context Canon document that:
+    semantic_counts = Counter(block.get('semantic_type', 'unknown') for block in blocks)
+    semantic_summary = ", ".join(
+        f"{semantic}: {count}"
+        for semantic, count in semantic_counts.most_common(6)
+    )
 
-1. **Synthesizes the Insight Canon** - Use it as the foundation
-2. **Weaves in Key Substrate** - Include relevant examples from blocks, context items
-3. **Provides Structure** - Organize into clear sections
-4. **Captures Context** - Help someone understand this basket deeply
+    block_snippets = []
+    for block in blocks[:15]:
+        title = block.get('title') or ''
+        content = block.get('content') or ''
+        snippet = title if title else content[:160]
+        block_snippets.append(
+            f"- ({block.get('id')}) [{block.get('semantic_type', 'unknown')}] {snippet.strip()}"
+        )
 
-{"**Style**: Comprehensive and detailed. Include all major themes, blocks, and connections." if composition_mode == 'comprehensive' else ""}
-{"**Style**: Concise and focused. Highlight only the most essential points." if composition_mode == 'concise' else ""}
-{"**Style**: Narrative and engaging. Tell the story of this knowledge." if composition_mode == 'narrative' else ""}
+    recent_events = []
+    for event in (events or [])[:10]:
+        preview = event.get('preview') or event.get('description') or ''
+        recent_events.append(f"- {event.get('kind', 'event')}: {preview[:120]}")
 
-Write the Document Canon in markdown format (500-1500 words depending on mode)."""
+    mode = composition_mode or 'comprehensive'
+
+    prompt_parts = [
+        "You are Yarnnn's Document Canon composer.",
+        "Summarise the basket into structured JSON following the provided schema.",
+        "Do not invent blocks that do not exist.",
+        "",
+        f"Basket: {basket_name}",
+        "",
+        "Current Insight Canon (foundation):",
+        insight_canon.get('reflection_text', 'No insight available'),
+        "",
+        "Anchor usage (top):",
+        anchor_summary,
+        "",
+        "Semantic distribution:",
+        semantic_summary,
+        "",
+        "Representative blocks:",
+        "\n".join(block_snippets) or "(no blocks)",
+        "",
+        "Recent timeline events:",
+        "\n".join(recent_events) or "(no events)",
+        "",
+        f"Composition mode: {mode}",
+        "Return JSON that includes summary, sections, themes, tensions, opportunities, recommended_actions, next_steps.",
+    ]
+
+    return "\n".join(prompt_parts)
+
+
+def _upsert_doc_insight_for_version(
+    supabase,
+    *,
+    document_id: str,
+    basket_id: str,
+    workspace_id: str,
+    version_hash: str,
+    structured_outline: Optional[Dict[str, Any]],
+    insight_canon_text: str,
+    document_title: str,
+) -> None:
+    if structured_outline:
+        reflection_text = _render_doc_insight(structured_outline, document_title, insight_canon_text)
+    else:
+        reflection_text = _render_doc_insight_fallback(document_title, insight_canon_text)
+
+    try:
+        supabase.table('reflections_artifact').update({
+            'is_current': False
+        }).filter('meta->>document_id', 'eq', document_id).filter('insight_type', 'eq', 'doc_insight').execute()
+    except Exception:
+        logger.debug("No existing doc insights to retire for document %s", document_id)
+
+    supabase.table('reflections_artifact').insert({
+        'basket_id': basket_id,
+        'workspace_id': workspace_id,
+        'substrate_hash': f"doc_{version_hash}",
+        'reflection_text': reflection_text,
+        'insight_type': 'doc_insight',
+        'is_current': True,
+        'derived_from': [
+            {
+                'type': 'document_version',
+                'document_id': document_id,
+                'version_hash': version_hash,
+            }
+        ],
+        'computation_timestamp': datetime.utcnow().isoformat(),
+        'meta': {
+            'document_id': document_id,
+            'version_hash': version_hash,
+            'structured_outline': structured_outline or {}
+        }
+    }).execute()
+
+
+def _render_doc_insight(structured: Dict[str, Any], document_title: str, insight_canon_text: str) -> str:
+    themes = structured.get('themes') or []
+    tensions = structured.get('tensions') or []
+    actions = structured.get('recommended_actions') or []
+
+    lines = [
+        f"Document Insight — {document_title}",
+        "",
+    ]
+
+    summary = structured.get('summary')
+    if summary:
+        lines.append(summary.strip())
+        lines.append("")
+
+    if themes:
+        lines.append("Key Themes:")
+        for theme in themes[:5]:
+            lines.append(f"- {theme}")
+        lines.append("")
+
+    if tensions:
+        lines.append("Tensions / Risks:")
+        for tension in tensions[:5]:
+            desc = tension.get('description', 'Unspecified tension')
+            impact = tension.get('impact')
+            lines.append(f"- {desc}" + (f" — impact: {impact}" if impact else ""))
+        lines.append("")
+
+    if actions:
+        lines.append("Recommended Actions:")
+        for action in actions[:5]:
+            desc = action.get('description', 'Action')
+            urgency = action.get('urgency')
+            lines.append(f"- {desc}" + (f" (urgency: {urgency})" if urgency else ""))
+        lines.append("")
+
+    lines.append("Alignment with Basket Insight:")
+    lines.append(insight_canon_text[:400].strip())
+
+    return "\n".join(lines).strip()
+
+
+def _render_doc_insight_fallback(document_title: str, insight_canon_text: str) -> str:
+    return (
+        f"Document Insight — {document_title}\n\n"
+        "Unable to compute structured insight. Review alongside the basket insight below:\n\n"
+        f"{insight_canon_text[:400]}"
+    )
+
+
+async def _compose_starter_prompt_structured(
+    basket_name: str,
+    target_host: str,
+    insight_canon: Dict[str, Any],
+    substrate: Dict[str, Any],
+    prompt_style: Optional[str]
+) -> Optional[Dict[str, Any]]:
+    from services.llm import get_llm
 
     llm = get_llm()
-    response = await llm.get_text_response(prompt, temperature=0.6, max_tokens=2500)
+    prompt = _build_starter_prompt_context(basket_name, target_host, insight_canon, substrate, prompt_style)
+    response = await llm.get_json_response(
+        prompt,
+        temperature=0.7,
+        max_tokens=900,
+        schema_name="p4_prompt_starter_v1"
+    )
 
-    if not response.success:
-        # Fallback to structured format
-        return f"""# {basket_name} - Context Canon
+    if response.success and response.parsed:
+        return response.parsed
 
-## Insight Canon
-
-{insight_canon.get('reflection_text', 'No insight available')}
-
-## Substrate Summary
-
-- {len(blocks)} blocks
-- {len(context_items)} context items
-- {len(dumps)} dumps
-- {len(events)} events
-
-*LLM composition failed: {response.error}*
-"""
-
-    return response.content
+    logger.warning(
+        "Starter prompt structured compose failed; falling back (%s)",
+        response.error,
+    )
+    return None
 
 
-async def _compose_starter_prompt(
+def _render_starter_prompt(structured: Dict[str, Any], target_host: str) -> str:
+    opening = structured.get('opening', '')
+    context = structured.get('context', '')
+    instructions = structured.get('instructions', '')
+    call_to_action = structured.get('call_to_action', '')
+    followups = structured.get('suggested_followups') or []
+
+    lines = [opening.strip(), "", context.strip(), "", instructions.strip(), "", call_to_action.strip()]
+    if followups:
+        lines.append("")
+        lines.append("Suggested follow-up questions:")
+        for item in followups[:5]:
+            lines.append(f"- {item}")
+
+    return "\n".join([line for line in lines if line]).strip()
+
+
+def _render_starter_prompt_fallback(
+    basket_name: str,
+    target_host: str,
+    insight_canon: Dict[str, Any],
+    substrate: Dict[str, Any]
+) -> str:
+    return (
+        f"{basket_name} — {target_host} starter prompt\n\n"
+        "Context summary:\n"
+        f"{insight_canon.get('reflection_text', 'No insight available')[:400]}\n\n"
+        f"Structured blocks: {len(substrate.get('blocks', []))}; raw captures: {len(substrate.get('dumps', []))}."
+    )
+
+
+def _build_starter_prompt_context(
     basket_name: str,
     target_host: str,
     insight_canon: Dict[str, Any],
     substrate: Dict[str, Any],
     prompt_style: Optional[str]
 ) -> str:
-    """
-    Compose starter prompt for target host using LLM.
-    """
-    from services.llm import get_llm
+    blocks = substrate.get('blocks', [])
+    top_blocks = []
+    for block in blocks[:10]:
+        semantic = block.get('semantic_type', 'unknown')
+        title = block.get('title') or block.get('content', '')[:160]
+        top_blocks.append(f"- [{semantic}] {title}")
 
-    # Host-specific instructions
-    host_instructions = {
-        'claude_ai': 'Optimize for Claude.ai chat - provide context that helps Claude understand the basket deeply and respond helpfully.',
-        'chatgpt': 'Optimize for ChatGPT - provide clear, structured context that GPT can use to assist effectively.',
-        'cursor': 'Optimize for Cursor IDE - provide technical context that helps with coding tasks.',
-        'windsurf': 'Optimize for Windsurf editor - provide project context for intelligent code assistance.'
-    }.get(target_host, 'Provide clear context for AI assistance.')
+    style = prompt_style or 'concise'
 
-    prompt = f"""Create a Starter Prompt for {target_host} that encapsulates this knowledge basket's context.
+    return "\n".join([
+        "You are generating a Yarnnn Starter Prompt for an external agent.",
+        f"Basket: {basket_name}",
+        f"Target host: {target_host}",
+        f"Desired style: {style}",
+        "",
+        "Insight Canon (core understanding):",
+        insight_canon.get('reflection_text', 'No insight available'),
+        "",
+        "Key knowledge blocks:",
+        "\n".join(top_blocks) or "(no accepted blocks)",
+        "",
+        "Produce JSON fields: opening, context, instructions, call_to_action, suggested_followups.",
+        "Keep the tone helpful and grounded in the provided content.",
+    ])
+async def _compose_starter_prompt(
+    basket_name: str,
+    target_host: str,
+    insight_canon: Dict[str, Any],
+    substrate: Dict[str, Any],
+    prompt_style: Optional[str]
+) -> Tuple[Optional[Dict[str, Any]], str]:
+    """Compose starter prompt for target host using structured LLM output."""
+    structured = await _compose_starter_prompt_structured(
+        basket_name=basket_name,
+        target_host=target_host,
+        insight_canon=insight_canon,
+        substrate=substrate,
+        prompt_style=prompt_style
+    )
 
-**Basket**: {basket_name}
+    if structured:
+        return structured, _render_starter_prompt(structured, target_host)
 
-**Core Understanding** (Insight Canon):
-{insight_canon.get('reflection_text', 'No insight available')}
-
-**Available Knowledge**:
-- {len(substrate.get('blocks', []))} blocks
-- {len(substrate.get('context_items', []))} context items
-- {len(substrate.get('dumps', []))} dumps
-
-**Target Host**: {target_host}
-{host_instructions}
-
-**Style**: {prompt_style or 'concise'}
-
-**Your Task**: Write a starter prompt (200-400 words) that:
-1. Captures the essence of this basket's knowledge
-2. Provides necessary context for the AI host
-3. Enables productive interaction
-4. Is formatted appropriately for {target_host}
-
-{"Keep it brief and focused." if prompt_style == 'concise' else ""}
-{"Provide thorough detail and background." if prompt_style == 'detailed' else ""}
-{"Use creative, engaging language." if prompt_style == 'creative' else ""}
-
-Write the starter prompt now:"""
-
-    llm = get_llm()
-    response = await llm.get_text_response(prompt, temperature=0.7, max_tokens=800)
-
-    if not response.success:
-        # Fallback
-        return f"""Working on: {basket_name}
-
-Context: {insight_canon.get('reflection_text', 'No insight available')[:300]}
-
-Available: {len(substrate.get('blocks', []))} blocks, {len(substrate.get('context_items', []))} context items
-
-*LLM generation failed: {response.error}*"""
-
-    return response.content
+    return None, _render_starter_prompt_fallback(basket_name, target_host, insight_canon, substrate)
 
 
 def _build_substrate_refs(substrate: Dict[str, Any]) -> Dict[str, List[str]]:
     """Build substrate references snapshot."""
     return {
-        'block_ids': [b['id'] for b in substrate.get('blocks', [])],
-        'context_item_ids': [c['id'] for c in substrate.get('context_items', [])],
-        'dump_ids': [d['id'] for d in substrate.get('dumps', [])],
-        'event_ids': [e['id'] for e in substrate.get('events', [])]
+        'block_ids': [b['id'] for b in substrate.get('blocks', []) if b.get('id')],
+        'dump_ids': [d['id'] for d in substrate.get('dumps', []) if d.get('id')],
+        'event_ids': [e['id'] for e in substrate.get('events', []) if e.get('id')]
     }

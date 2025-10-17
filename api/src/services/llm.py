@@ -233,6 +233,82 @@ def _p4_schema(name: str) -> Optional[Dict[str, Any]]:
             "required": ["sections", "summary", "introduction", "composition_notes"],
             "additionalProperties": False,
         }
+    if name == "p4_document_canon_v1":
+        return {
+            "type": "object",
+            "properties": {
+                "summary": {"type": "string"},
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "narrative": {"type": "string"},
+                            "key_points": {"type": "array", "items": {"type": "string"}},
+                            "supporting_blocks": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "required": ["title", "narrative"],
+                        "additionalProperties": False,
+                    },
+                },
+                "themes": {"type": "array", "items": {"type": "string"}},
+                "tensions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "description": {"type": "string"},
+                            "impact": {"type": "string"},
+                            "related_blocks": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "required": ["description"],
+                        "additionalProperties": False,
+                    },
+                },
+                "opportunities": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "description": {"type": "string"},
+                            "benefit": {"type": "string"}
+                        },
+                        "required": ["description"],
+                        "additionalProperties": False,
+                    },
+                },
+                "recommended_actions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "description": {"type": "string"},
+                            "urgency": {"type": "string"},
+                            "owner_hint": {"type": "string"}
+                        },
+                        "required": ["description"],
+                        "additionalProperties": False,
+                    },
+                },
+                "next_steps": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["summary", "sections"],
+            "additionalProperties": False,
+        }
+    if name == "p4_prompt_starter_v1":
+        return {
+            "type": "object",
+            "properties": {
+                "opening": {"type": "string"},
+                "context": {"type": "string"},
+                "instructions": {"type": "string"},
+                "call_to_action": {"type": "string"},
+                "suggested_followups": {"type": "array", "items": {"type": "string"}}
+            },
+            "required": ["opening", "context", "instructions", "call_to_action"],
+            "additionalProperties": False,
+        }
     return None
 
 
