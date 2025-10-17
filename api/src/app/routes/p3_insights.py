@@ -593,11 +593,52 @@ Write a clear insight (200-400 words)."""
     llm = get_llm()
     response = await llm.get_text_response(prompt, max_tokens=1000)
 
-    if not response.success:
-        # Fallback to structured summary if LLM fails
-        return f"Analysis of basket with {len(blocks)} blocks and {len(dumps)} dumps. LLM generation failed: {response.error}"
+    if response.success:
+        content = (response.content or "").strip()
+        if content:
+            return content
 
-    return response.content
+        logger.warning(
+            "LLM returned empty insight canon; using fallback summary",
+        )
+    else:
+        logger.error(
+            "LLM insight canon generation failed; falling back to structured summary: %s",
+            response.error,
+        )
+
+    # Fallback summary derived from substrate when LLM fails or returns empty
+    lines = [
+        "Insight Canon Fallback Summary",
+        "",
+        f"This basket currently contains {len(blocks)} structured blocks, {len(dumps)} raw captures, and {len(events)} timeline events.",
+    ]
+
+    if relationships:
+        lines.append(
+            f"Agents have mapped {len(relationships)} causal connections across your knowledge.",
+        )
+
+    if blocks:
+        top_blocks = [
+            _snippet(block.get("title") or block.get("content"), 120)
+            for block in blocks[:5]
+        ]
+        readable_blocks = [b for b in top_blocks if b]
+        if readable_blocks:
+            lines.append("Key focus areas include:")
+            for snippet in readable_blocks:
+                lines.append(f" - {snippet}")
+
+    if dumps:
+        lines.append(
+            "Recent captures continue to shape this basket; consider adding more detail to deepen insight.",
+        )
+
+    if not blocks and not dumps:
+        lines.append("No substrate available yet—capture thoughts or documents to seed this basket.")
+
+    return "\n".join(lines)
 
 
 def _build_substrate_provenance(substrate: Dict[str, Any]) -> List[Dict[str, Any]]:
