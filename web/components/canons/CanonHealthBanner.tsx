@@ -11,9 +11,10 @@ interface CanonHealthBannerProps {
 interface HealthCheck {
   has_insight_canon: boolean;
   has_document_canon: boolean;
+  has_prompt_starter: boolean;
   insight_canon_stale: boolean;
   document_canon_stale: boolean;
-  ready: boolean;
+  prompt_starter_stale: boolean;
 }
 
 export function CanonHealthBanner({ basketId }: CanonHealthBannerProps) {
@@ -57,6 +58,14 @@ export function CanonHealthBanner({ basketId }: CanonHealthBannerProps) {
 
       if (!docResponse.ok) throw new Error('Failed to generate document canon');
 
+      const promptResponse = await fetchWithToken('/api/p4/starter-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ basket_id: basketId, target_host: 'chatgpt' })
+      });
+
+      if (!promptResponse.ok) throw new Error('Failed to generate prompt starter');
+
       // Reload health
       await loadHealth();
     } catch (err) {
@@ -73,10 +82,11 @@ export function CanonHealthBanner({ basketId }: CanonHealthBannerProps) {
   if (loading || !health) return null;
 
   // Only show banner if canons are missing or stale
-  if (health.ready) return null;
+  const needsGeneration = !health.has_insight_canon || !health.has_document_canon || !health.has_prompt_starter;
+  const needsRegeneration = health.insight_canon_stale || health.document_canon_stale || health.prompt_starter_stale;
+  const ready = !needsGeneration && !needsRegeneration;
 
-  const needsGeneration = !health.has_insight_canon || !health.has_document_canon;
-  const needsRegeneration = health.insight_canon_stale || health.document_canon_stale;
+  if (ready) return null;
 
   return (
     <div className={`
@@ -92,8 +102,8 @@ export function CanonHealthBanner({ basketId }: CanonHealthBannerProps) {
             </h3>
             <p className={`text-xs ${needsGeneration ? 'text-purple-700' : 'text-orange-700'}`}>
               {needsGeneration
-                ? 'Generate Insight and Document Canons to unlock full functionality'
-                : 'Your substrate has changed. Regenerate canons for up-to-date insights.'}
+                ? 'Generate the Insight Canon, Basket Canon, and Prompt Starter to unlock full functionality.'
+                : 'Your substrate has changed. Regenerate to refresh narratives and prompts.'}
             </p>
           </div>
         </div>
@@ -116,7 +126,7 @@ export function CanonHealthBanner({ basketId }: CanonHealthBannerProps) {
                 : 'bg-orange-600 text-white hover:bg-orange-700'}
             `}
           >
-            {generating ? '🔄 Generating...' : needsGeneration ? '✨ Generate Canons' : '🔄 Regenerate'}
+            {generating ? '🔄 Generating…' : needsGeneration ? '✨ Generate Required Artifacts' : '🔄 Regenerate'}
           </button>
         </div>
       </div>

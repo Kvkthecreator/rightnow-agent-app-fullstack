@@ -177,6 +177,14 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
     };
   }, [composition]);
 
+  const structuredOutline = useMemo(() => {
+    return (
+      composition?.document?.metadata?.structured_outline ||
+      document.metadata?.structured_outline ||
+      null
+    );
+  }, [composition, document.metadata]);
+
   const substrateCount = references.length;
   const lastComposedAt = composition?.document?.metadata?.composition_completed_at;
   const hasVersions = versions.length > 0;
@@ -394,6 +402,53 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
     );
   };
 
+  const renderStructuredOutline = () => {
+    if (!structuredOutline) return null;
+    const summary = structuredOutline.summary as string | undefined;
+    const themes = (structuredOutline.themes as string[] | undefined) || [];
+    const tensions = structuredOutline.tensions as Array<{ description?: string; impact?: string }> | undefined;
+    const actions = structuredOutline.recommended_actions as Array<{ description?: string; urgency?: string }> | undefined;
+
+    return (
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center gap-2 text-slate-700 text-sm font-semibold">
+          <Sparkles className="h-4 w-4" /> Outline Snapshot
+        </div>
+        {summary && <p className="text-sm text-slate-700">{summary}</p>}
+        {!!themes.length && (
+          <div>
+            <h4 className="text-xs uppercase tracking-wide text-slate-500 mb-1">Themes</h4>
+            <ul className="list-disc list-inside text-sm text-slate-700">
+              {themes.slice(0, 5).map(theme => (
+                <li key={theme}>{theme}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {!!tensions?.length && (
+          <div>
+            <h4 className="text-xs uppercase tracking-wide text-amber-600 mb-1">Tensions</h4>
+            <ul className="list-disc list-inside text-sm text-amber-800">
+              {tensions.slice(0, 5).map((tension, idx) => (
+                <li key={idx}>{tension.description}{tension.impact ? ` — ${tension.impact}` : ''}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {!!actions?.length && (
+          <div>
+            <h4 className="text-xs uppercase tracking-wide text-emerald-600 mb-1">Recommended Actions</h4>
+            <ul className="list-disc list-inside text-sm text-emerald-800">
+              {actions.slice(0, 5).map((action, idx) => (
+                <li key={idx}>{action.description}{action.urgency ? ` (${action.urgency})` : ''}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Card>
+    );
+  };
+
   const renderMetricsCard = () => {
     if (!metrics && substrateCount === 0) return null;
 
@@ -556,6 +611,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
           </Card>
 
           {renderMetricsCard()}
+          {renderStructuredOutline()}
 
           <div className={`grid gap-6 ${hasVersions ? 'lg:grid-cols-2' : ''}`}>
             <div className="flex flex-col gap-6">

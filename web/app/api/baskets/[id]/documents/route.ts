@@ -35,25 +35,27 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: 'basket not found' }, { status: 404 });
   }
 
-  // Query documents with proper schema
+  // Query document heads (one row per artifact)
   const { data, error } = await supabase
-    .from('documents')
-    .select('id, basket_id, title, created_at, updated_at, metadata')
+    .from('document_heads')
+    .select('document_id, basket_id, title, doc_type, current_version_hash, document_updated_at, latest_version_created_at, document_metadata')
     .eq('basket_id', id)
-    .order('updated_at', { ascending: false });
+    .order('latest_version_created_at', { ascending: false, nullsLast: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
   // Transform to DocumentDTO format
-  const documents: DocumentDTO[] = (data || []).map(doc => ({
-    id: doc.id,
+  const documents: DocumentDTO[] = (data || []).map((doc: any) => ({
+    id: doc.document_id,
     basket_id: doc.basket_id,
     title: doc.title,
-    created_at: doc.created_at,
-    updated_at: doc.updated_at,
-    metadata: doc.metadata || {},
+    doc_type: doc.doc_type,
+    current_version_hash: doc.current_version_hash,
+    latest_version_created_at: doc.latest_version_created_at || doc.document_updated_at,
+    updated_at: doc.document_updated_at,
+    metadata: doc.document_metadata || {},
   }));
 
   return withSchema(GetDocumentsResponseSchema, {

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
-import { FileText, Clock, Layers } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { FileText, Clock, Layers, Sparkles } from 'lucide-react';
 import type { DocumentDTO } from '@/shared/contracts/documents';
 
 interface DocumentsListProps {
@@ -28,8 +29,9 @@ export function DocumentsList({ basketId, limit }: DocumentsListProps) {
         }
         
         const data = await response.json();
-        const docs = data.documents || [];
-        setDocuments(typeof limit === 'number' ? docs.slice(0, limit) : docs);
+        const docs: DocumentDTO[] = data.documents || [];
+        const sorted = typeof limit === 'number' ? docs.slice(0, limit) : docs;
+        setDocuments(sorted);
       } catch (err) {
         console.error('Error fetching documents:', err);
         setError(err instanceof Error ? err.message : 'Failed to load documents');
@@ -41,7 +43,8 @@ export function DocumentsList({ basketId, limit }: DocumentsListProps) {
     fetchDocuments();
   }, [basketId]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return '—';
     const date = new Date(dateString);
     const now = new Date();
     const diffHours = Math.abs(now.getTime() - date.getTime()) / (1000 * 60 * 60);
@@ -54,28 +57,28 @@ export function DocumentsList({ basketId, limit }: DocumentsListProps) {
   };
 
   const getContentPreview = (document: DocumentDTO): string => {
-    // Extract meaningful preview from document
-    // body_md is not guaranteed in DocumentDTO; use metadata fallback
-    const body = (document as any)?.body_md as string | undefined;
-    if (typeof body === 'string' && body.length > 0) {
-      // Strip markdown formatting for cleaner preview
-      const plainText = body
-        .replace(/#{1,6}\s/g, '')  // Remove headers
-        .replace(/[*_~`]/g, '')     // Remove formatting
-        .replace(/\n+/g, ' ')       // Replace newlines with spaces
-        .trim();
-      
-      // Return first 150 chars
-      return plainText.length > 150 
-        ? plainText.substring(0, 150) + '...'
-        : plainText;
+    const metadata = document.metadata || {};
+
+    if (document.doc_type === 'starter_prompt') {
+      const structured = metadata.structured_prompt as Record<string, any> | undefined;
+      if (structured) {
+        return [structured.opening, structured.context, structured.instructions]
+          .filter(Boolean)
+          .join(' ')
+          .slice(0, 160);
+      }
+      return metadata.preview || 'Prompt pack ready to copy into ambient tools.';
     }
-    
-    // Fallback to metadata description if available
-    if (document.metadata?.description) {
-      return document.metadata.description;
+
+    const structured = metadata.structured_outline as Record<string, any> | undefined;
+    if (structured?.summary) {
+      return structured.summary.slice(0, 200);
     }
-    
+
+    if (metadata.description) {
+      return metadata.description;
+    }
+
     return 'No preview available';
   };
 
@@ -114,49 +117,57 @@ export function DocumentsList({ basketId, limit }: DocumentsListProps) {
     );
   }
 
-  return (
-    <div className="space-y-2">
-      {documents.map((document: any) => (
-        <Card
-          key={document.id}
-          className="p-4 hover:shadow-sm transition-shadow cursor-pointer border-gray-100"
-          onClick={() => handleDocumentClick(document)}
-        >
-          <div className="flex items-start gap-3">
-            <FileText className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
-            
-            <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-gray-900 text-base mb-1 truncate">
-                {document.title}
-              </h3>
-              
-              <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                {getContentPreview(document)}
-              </p>
-              
-              <div className="flex items-center gap-4 text-xs text-gray-500">
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatDate(document.updated_at)}
-                </span>
-                
-                {document.metadata?.substrate_count && (
-                  <span className="flex items-center gap-1">
-                    <Layers className="h-3 w-3" />
-                    {document.metadata.substrate_count} memory blocks
-                  </span>
-                )}
-                
-                {document.metadata?.original_filename && (
-                  <span className="truncate max-w-[150px]">
-                    {document.metadata.original_filename}
-                  </span>
-                )}
-              </div>
-            </div>
+  const canonicalOrder = ['document_canon', 'starter_prompt'];
+  const canonicalDocs = documents.filter(doc => canonicalOrder.includes(doc.doc_type));
+  const otherDocs = documents.filter(doc => !canonicalOrder.includes(doc.doc_type));
+
+  const renderCard = (document: DocumentDTO, isCanonical: boolean) => (
+    <Card
+      key={document.id}
+      className={`p-4 hover:shadow-sm transition-shadow cursor-pointer border-gray-100 ${isCanonical ? 'border-purple-200 bg-purple-50/60' : ''}`}
+      onClick={() => handleDocumentClick(document)}
+    >
+      <div className="flex items-start gap-3">
+        <FileText className={`h-5 w-5 mt-0.5 flex-shrink-0 ${isCanonical ? 'text-purple-500' : 'text-gray-400'}`} />
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-medium text-gray-900 text-base truncate">
+              {document.title}
+            </h3>
+            {isCanonical && (
+              <Badge variant="outline" className="border-purple-300 text-purple-700 flex items-center gap-1">
+                <Sparkles className="h-3 w-3" /> Canon
+              </Badge>
+            )}
           </div>
-        </Card>
-      ))}
+
+          <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+            {getContentPreview(document)}
+          </p>
+
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {formatDate(document.latest_version_created_at || undefined)}
+            </span>
+
+            {document.metadata?.substrate_count && (
+              <span className="flex items-center gap-1">
+                <Layers className="h-3 w-3" />
+                {document.metadata.substrate_count} memory blocks
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+
+  return (
+    <div className="space-y-3">
+      {canonicalDocs.map(doc => renderCard(doc, true))}
+      {otherDocs.map(doc => renderCard(doc, false))}
     </div>
   );
 }

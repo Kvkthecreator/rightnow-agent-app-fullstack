@@ -37,7 +37,7 @@ export default async function DocumentsPage({ params }: PageProps) {
       basketId={id}
       title="Documents"
       description="Compose and organize your documents"
-      rightContent={<DocumentCreateButton basketId={id} />}
+      rightContent={<DocumentCreateButton basketId={id} basketName={basket.name} />}
     >
       <CanonHealthBanner basketId={id} />
       <SectionCard>

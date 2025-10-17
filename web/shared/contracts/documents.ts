@@ -19,15 +19,17 @@ export {
   type SubstrateSummary,
 } from './substrate_references';
 
-export const DocumentSchema = z.object({
+export const DocumentHeadSchema = z.object({
   id: z.string().uuid(),
   basket_id: z.string().uuid(),
   title: z.string(),
-  created_at: z.string(),
-  updated_at: z.string(),
+  doc_type: z.string(),
+  current_version_hash: z.string().nullable(),
+  latest_version_created_at: z.string().nullable().optional(),
+  updated_at: z.string().nullable().optional(),
   metadata: z.record(z.any()).default({}),
 });
-export type DocumentDTO = z.infer<typeof DocumentSchema>;
+export type DocumentDTO = z.infer<typeof DocumentHeadSchema>;
 
 export const BlockSchema = z.object({
   id: z.string().uuid(),
@@ -46,7 +48,12 @@ export type BlockDTO = z.infer<typeof BlockSchema>;
 // API Request Schemas
 export const CreateDocumentRequestSchema = z.object({
   basket_id: z.string().uuid(),
-  title: z.string(),
+  intent: z.string().min(1),
+  template_id: z.string().optional(),
+  target_audience: z.string().optional(),
+  tone: z.string().optional(),
+  pinned_ids: z.array(z.string().uuid()).optional(),
+  window_days: z.number().int().optional(),
   metadata: z.record(z.any()).optional(),
 });
 export type CreateDocumentRequest = z.infer<typeof CreateDocumentRequestSchema>;
@@ -68,7 +75,7 @@ export type UpdateDocumentRequest = z.infer<typeof UpdateDocumentRequestSchema>;
 
 // API Response Schemas
 export const GetDocumentsResponseSchema = z.object({
-  documents: z.array(DocumentSchema),
+  documents: z.array(DocumentHeadSchema),
   last_cursor: z.string().optional(),
 });
 export type GetDocumentsResponse = z.infer<typeof GetDocumentsResponseSchema>;

@@ -6,112 +6,151 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { notificationAPI } from '@/lib/api/notifications';
 
-export function DocumentCreateButton({ basketId }: { basketId: string }) {
+type TemplateOption = {
+  id: string;
+  name: string;
+  description: string;
+  defaultIntent: string;
+  defaultTone?: string;
+  defaultTitle?: string;
+};
+
+const templateOptions: TemplateOption[] = [
+  {
+    id: 'prompt_starter',
+    name: 'Prompt Starter',
+    description: 'Generate the canonical prompt pack for ambient agents.',
+    defaultIntent: 'Summarize the basket so ambient agents can assist immediately.',
+  },
+  {
+    id: 'strategy_brief',
+    name: 'Strategy Brief',
+    description: 'Highlight goals, tensions, and next moves from current memory.',
+    defaultIntent: 'Create a strategy brief that explains where we are, risks, and top actions.',
+    defaultTone: 'strategic'
+  },
+  {
+    id: 'custom',
+    name: 'Custom',
+    description: 'Tell Yarnnn what you need and it will compose from memory.',
+    defaultIntent: '',
+  }
+];
+
+export function DocumentCreateButton({ basketId, basketName }: { basketId: string; basketName: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<'blank' | 'memory' | null>(null);
-  const [title, setTitle] = useState('Untitled Document');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption | null>(null);
   const [intent, setIntent] = useState('');
+  const [tone, setTone] = useState('');
+  const [audience, setAudience] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const startBlank = async () => {
-    setCreating(true);
-    try {
-      const res = await fetch('/api/documents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ basket_id: basketId, title })
-      });
-      if (!res.ok) throw new Error('Create failed');
-      const data = await res.json();
-      notificationAPI.emitActionResult('document.create', 'Document created successfully', { severity: 'success' });
-      router.push(`/baskets/${basketId}/documents/${data.document_id}`);
-    } catch (e) {
-      notificationAPI.emitActionResult('document.create', 'Failed to create document', { severity: 'error' });
-    } finally {
-      setCreating(false);
-      setOpen(false);
-    }
+  const resetForm = () => {
+    setSelectedTemplate(null);
+    setIntent('');
+    setTone('');
+    setAudience('');
+    setCreating(false);
   };
 
-  const composeFromMemory = async () => {
-    setCreating(true);
-    // Close the menu immediately to avoid the perception of a stalled modal
-    setOpen(false);
-    try {
-      // Emit canon-compliant job lifecycle notifications so the user sees progress in the center
-      await notificationAPI.emitJobStarted(
-        'document.compose',
-        `Composing “${title || 'Untitled Document'}”`,
-        { basketId }
-      );
+  const handleTemplateSelect = (template: TemplateOption) => {
+    setSelectedTemplate(template);
+    setIntent(template.defaultIntent || '');
+    setTone(template.defaultTone || '');
+  };
 
-      // Canon-Pure: Direct document composition (artifact operation, no governance)
+  const handleCreate = async () => {
+    if (!selectedTemplate) return;
+    setCreating(true);
+    try {
+      const templateTitle = selectedTemplate.defaultTitle
+        || `${basketName} ${selectedTemplate.name}`;
+
+      const submissionIntent = [intent || selectedTemplate.defaultIntent, audience && `Target audience: ${audience}`, tone && `Tone: ${tone}`]
+        .filter(Boolean)
+        .join('\n');
+
       const res = await fetch('/api/documents/compose', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title,
-          intent,
           basket_id: basketId,
-          window_days: 30, // Default to last 30 days
-          pinned_ids: [] // Could be extended for UI pinning
-        })
+          title: templateTitle,
+          intent: submissionIntent,
+          window_days: 30,
+          pinned_ids: [],
+        }),
       });
-      const data = await res.json();
-      if (!res.ok || !data?.document_id) throw new Error(data?.error || 'Compose failed');
-      
-      // Forward users to the new document surface while the background job runs
-      await notificationAPI.emitJobSucceeded(
-        'document.compose',
-        'Composition started. We will notify you once the draft is ready.',
-        { basketId, correlationId: data.document_id }
-      );
 
-      // Navigate directly to the created document
+      const data = await res.json();
+      if (!res.ok || !data?.document_id) {
+        throw new Error(data?.error || 'Failed to create document');
+      }
+
+      await notificationAPI.emitJobStarted('document.compose', 'Document composition started', { basketId });
       router.push(`/baskets/${basketId}/documents/${data.document_id}`);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to compose document';
-      await notificationAPI.emitJobFailed(
-        'document.compose',
-        message,
-        { basketId }
-      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create document';
+      notificationAPI.emitActionResult('document.create', message, { severity: 'error' });
     } finally {
       setCreating(false);
-      setMode(null);
+      setOpen(false);
+      resetForm();
     }
   };
 
   return (
     <div className="relative">
-      <Button onClick={() => setOpen(v => !v)} size="sm" variant="outline">Create Document</Button>
+      <Button onClick={() => { setOpen(v => !v); resetForm(); }} size="sm" variant="outline">Create Document</Button>
       {open && (
-        <div className="absolute right-0 mt-2 w-72 bg-white border rounded shadow-lg z-10 p-3">
-          {!mode && (
+        <div className="absolute right-0 mt-2 w-80 bg-white border rounded shadow-lg z-20 p-4 space-y-4">
+          {!selectedTemplate && (
             <div className="space-y-2">
-              <button className={itemCls()} onClick={() => setMode('blank')}>Start Blank</button>
-              <button className={itemCls()} onClick={() => setMode('memory')}>Compose From Memory</button>
+              <div className="text-sm font-medium text-slate-800">What do you need?</div>
+              {templateOptions.map(option => (
+                <button
+                  key={option.id}
+                  className={itemCls('w-full text-left px-3 py-2 rounded border hover:bg-slate-50')}
+                  onClick={() => handleTemplateSelect(option)}
+                >
+                  <div className="text-sm font-semibold text-slate-900">{option.name}</div>
+                  <div className="text-xs text-slate-600">{option.description}</div>
+                </button>
+              ))}
             </div>
           )}
-          {mode === 'blank' && (
+
+          {selectedTemplate && (
             <div className="space-y-3">
-              <div className="text-sm font-medium">Start Blank</div>
-              <input className="w-full border p-2 text-sm" value={title} onChange={(e) => setTitle(e.target.value)} />
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={() => setMode(null)}>Back</Button>
-                <Button size="sm" onClick={startBlank} disabled={creating}>{creating ? 'Creating...' : 'Create'}</Button>
+              <div className="text-sm font-medium text-slate-800 flex items-center justify-between">
+                <span>{selectedTemplate.name}</span>
+                <button className="text-xs text-slate-500" onClick={resetForm}>Change</button>
               </div>
-            </div>
-          )}
-          {mode === 'memory' && (
-            <div className="space-y-3">
-              <div className="text-sm font-medium">Compose From Memory</div>
-              <input className="w-full border p-2 text-sm" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
-              <textarea className="w-full border p-2 text-sm" value={intent} onChange={(e) => setIntent(e.target.value)} placeholder="Objective/intent (optional)" />
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={() => setMode(null)}>Back</Button>
-                <Button size="sm" onClick={composeFromMemory} disabled={creating}>{creating ? 'Composing...' : 'Compose'}</Button>
+              <div className="text-xs text-slate-500">Basket: {basketName}</div>
+              <textarea
+                className="w-full border rounded p-2 text-sm"
+                value={intent}
+                placeholder="What should Yarnnn compose?"
+                onChange={(e) => setIntent(e.target.value)}
+              />
+              <input
+                className="w-full border rounded p-2 text-sm"
+                value={audience}
+                placeholder="Target audience (optional)"
+                onChange={(e) => setAudience(e.target.value)}
+              />
+              <input
+                className="w-full border rounded p-2 text-sm"
+                value={tone}
+                placeholder="Tone (optional, e.g. strategic, friendly)"
+                onChange={(e) => setTone(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => { resetForm(); setOpen(false); }}>Cancel</Button>
+                <Button size="sm" onClick={handleCreate} disabled={creating}>
+                  {creating ? 'Creating…' : 'Create'}
+                </Button>
               </div>
             </div>
           )}
@@ -121,6 +160,6 @@ export function DocumentCreateButton({ basketId }: { basketId: string }) {
   );
 }
 
-function itemCls() {
-  return cn('w-full text-left px-3 py-2 rounded hover:bg-gray-50 border');
+function itemCls(...classes: string[]) {
+  return cn(...classes);
 }
