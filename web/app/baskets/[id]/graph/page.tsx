@@ -10,15 +10,15 @@ import { SectionCard } from '@/components/ui/SectionCard';
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: 'Neural Map',
-    description: 'Visualize your thinking brain - see how memories cluster into neural patterns',
+    title: 'Memory Network',
+    description: 'Explore how your memories connect and cluster into patterns',
   };
 }
 
-const NeuralMapView = dynamic(() => import('@/components/neural/NeuralMapView'), {
+const MemoryNetworkView = dynamic(() => import('@/components/neural/MemoryNetworkView'), {
   loading: () => (
-    <div className="h-64 animate-pulse bg-gradient-to-br from-purple-900 to-blue-900 rounded-lg flex items-center justify-center">
-      <div className="text-white text-sm">Activating neural pathways...</div>
+    <div className="h-64 animate-pulse bg-slate-50 rounded-lg flex items-center justify-center">
+      <div className="text-slate-600 text-sm">Loading memory network...</div>
     </div>
   ),
   ssr: false,
@@ -71,11 +71,11 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
     return (
       <BasketSubpageLayout
         basketId={basketId}
-        title="Neural Map"
-        description="Your thinking brain - visualize how memories cluster into neural patterns"
+        title="Memory Network"
+        description="Explore connections and patterns across your memories"
       >
         <SectionCard>
-          <NeuralMapView
+          <MemoryNetworkView
             basketId={basketId}
             basketTitle={basket.name}
             blocks={blocksResult.data || []}
