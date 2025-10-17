@@ -171,11 +171,12 @@ async def generate_insight_canon(
         if isinstance(existing_insight, list):
             existing_insight = existing_insight[0] if existing_insight else None
 
-    # If force=True, delete cached insight to allow fresh generation
+    forced_previous_id: Optional[str] = None
     if request.force and existing_insight:
-        supabase.table('reflections_artifact').delete().eq(
-            'id', existing_insight['id']
-        ).execute()
+        forced_previous_id = existing_insight['id']
+        supabase.table('reflections_artifact').update({
+            'is_current': False
+        }).eq('id', forced_previous_id).execute()
         existing_insight = None
 
     if existing_insight:
@@ -196,9 +197,9 @@ async def generate_insight_canon(
         insight['is_current'] = True  # Update local copy
     else:
         # Generate new insight - substrate has changed
-        # Mark old insight as not current
-        previous_id = None
-        if staleness_check['current_canon']:
+        # Mark old insight as not current but keep row for previous_id chain
+        previous_id = forced_previous_id
+        if previous_id is None and staleness_check['current_canon']:
             previous_id = staleness_check['current_canon']['id']
             supabase.table('reflections_artifact').update({
                 'is_current': False
@@ -595,7 +596,7 @@ Write a clear insight (200-400 words)."""
 
     # Call LLM (temperature=1 is default, some models don't support other values)
     llm = get_llm()
-    response = await llm.get_text_response(prompt, max_tokens=1000)
+    response = await llm.get_text_response(prompt, max_tokens=1800)
 
     if response.success:
         content = (response.content or "").strip()

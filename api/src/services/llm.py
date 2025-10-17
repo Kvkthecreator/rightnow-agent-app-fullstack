@@ -379,14 +379,35 @@ class OpenAIProvider(LLMProvider):
             # Some models (like o1) don't support custom temperature values
             if temperature != 1.0:
                 request_params["temperature"] = temperature
-                
+
             resp = self.client.chat.completions.create(**request_params)
             choice = resp.choices[0]
-            content = choice.message.content or ""
+            raw_content = choice.message.content
 
             finish_reason = getattr(choice, "finish_reason", None)
             prompt_tokens = getattr(getattr(resp, "usage", None), "prompt_tokens", None)
             completion_tokens = getattr(getattr(resp, "usage", None), "completion_tokens", None)
+
+            # Handle OpenAI content segments (Responses API compatibility)
+            content = ""
+            if isinstance(raw_content, list):
+                segments = []
+                for segment in raw_content:
+                    if isinstance(segment, dict):
+                        segment_type = segment.get("type")
+                        if segment_type == "text":
+                            text_obj = segment.get("text")
+                            if isinstance(text_obj, dict):
+                                segments.append(text_obj.get("value", ""))
+                        elif segment_type in {"input_text", "output_text"}:
+                            segments.append(segment.get("text", ""))
+                    elif isinstance(segment, str):
+                        segments.append(segment)
+                content = "\n".join([seg for seg in segments if seg])
+            elif isinstance(raw_content, str):
+                content = raw_content
+            else:
+                content = ""
 
             if not content.strip():
                 refusal = getattr(choice.message, "refusal", None)
@@ -399,7 +420,6 @@ class OpenAIProvider(LLMProvider):
                     refusal,
                 )
 
-                # Emit a short prompt diagnostic (first 400 chars)
                 logger.debug(
                     "Insight prompt preview: %s",
                     (prompt[:400] + "…") if len(prompt) > 400 else prompt,
