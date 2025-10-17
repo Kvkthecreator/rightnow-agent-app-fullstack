@@ -16,6 +16,8 @@ V3.0 Migration Completed:
 """
 
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -31,6 +33,8 @@ from lib.freshness import (
 from app.utils.jwt import verify_jwt
 
 router = APIRouter(prefix="/p3", tags=["p3-insights"])
+
+logger = logging.getLogger("uvicorn.error")
 
 
 # =============================================================================

@@ -381,7 +381,20 @@ class OpenAIProvider(LLMProvider):
                 request_params["temperature"] = temperature
                 
             resp = self.client.chat.completions.create(**request_params)
-            content = resp.choices[0].message.content or ""
+            choice = resp.choices[0]
+            content = choice.message.content or ""
+
+            if not content.strip():
+                logger.warning(
+                    "OpenAI chat completion returned empty content",
+                    extra={
+                        "model": self.text_model,
+                        "finish_reason": getattr(choice, "finish_reason", None),
+                        "request_tokens": getattr(getattr(resp, "usage", None), "prompt_tokens", None),
+                        "response_tokens": getattr(getattr(resp, "usage", None), "completion_tokens", None),
+                    },
+                )
+
             return LLMResponse(
                 success=True,
                 content=content,
