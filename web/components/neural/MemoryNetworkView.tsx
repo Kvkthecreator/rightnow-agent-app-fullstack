@@ -497,14 +497,18 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     render();
   }, [filteredNodes, filteredLinks, selectedNode, hoveredNode, clusters, showClusters]);
 
-  // Handle canvas interactions (square hit detection)
+  // Handle canvas interactions (square hit detection with scaling)
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+
+    // Scale mouse coordinates to canvas logical coordinates
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
 
     for (const node of filteredNodes) {
       const halfSize = node.size / 2;
@@ -524,8 +528,12 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+
+    // Scale mouse coordinates to canvas logical coordinates
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
 
     for (const node of filteredNodes) {
       const halfSize = node.size / 2;
