@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     .from('document_heads')
     .select('document_id, basket_id, title, document_type, current_version_hash, document_updated_at, version_created_at, document_metadata')
     .eq('basket_id', id)
-    .order('version_created_at', { ascending: false, nullsLast: false });
+    .order('version_created_at', { ascending: false });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
