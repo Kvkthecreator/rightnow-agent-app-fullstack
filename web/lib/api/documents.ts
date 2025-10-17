@@ -4,7 +4,7 @@ import {
   type Document as LegacyDocument,
   type Paginated,
 } from './contracts';
-import { DocumentSchema, type DocumentDTO } from '@/shared/contracts/documents';
+import { DocumentHeadSchema, type DocumentDTO } from '@/shared/contracts/documents';
 
 /**
  * Document API functions with Zod validation
@@ -18,7 +18,7 @@ export async function getDocument(documentId: string): Promise<DocumentDTO> {
     signal: timeoutSignal(10000),
   });
   
-  return DocumentSchema.parse(response);
+  return DocumentHeadSchema.parse(response);
 }
 
 // List documents for a basket with cursor pagination
@@ -50,7 +50,7 @@ export async function listDocuments(basketId: string, options?: {
     signal: timeoutSignal(10000),
   });
   
-  return PaginatedSchema(DocumentSchema).parse(response);
+  return PaginatedSchema(DocumentHeadSchema).parse(response);
 }
 
 // Update document
@@ -65,7 +65,7 @@ export async function updateDocument(
     signal: timeoutSignal(15000),
   });
   
-  return DocumentSchema.parse(response);
+  return DocumentHeadSchema.parse(response);
 }
 
 // Delete document
