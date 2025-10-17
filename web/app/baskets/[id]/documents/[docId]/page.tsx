@@ -17,20 +17,38 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   const { userId } = await getAuthenticatedUser(supabase);
   const workspace = await ensureWorkspaceForUser(userId, supabase);
 
-  // Validate document exists and user has access (Canon v3.0: use document_heads for content)
-  const { data: document, error: documentError } = await supabase
-    .from('document_heads')
-    .select('document_id, basket_id, title, content, document_created_at, document_updated_at, document_metadata, workspace_id')
-    .eq('document_id', docId)
+  const { data: documentRow, error: documentError } = await supabase
+    .from('documents')
+    .select('id, basket_id, workspace_id, title, current_version_hash, metadata, created_at, updated_at')
+    .eq('id', docId)
     .maybeSingle();
 
-  if (documentError || !document) {
+  if (documentError || !documentRow) {
     notFound();
   }
 
   // Check workspace access and basket match
-  if (document.workspace_id !== workspace.id || document.basket_id !== basketId) {
+  if (documentRow.workspace_id !== workspace.id || documentRow.basket_id !== basketId) {
     notFound();
+  }
+
+  let versionContent: string | null = null;
+  let versionMetadata: Record<string, any> | null = null;
+  let versionCreatedAt: string | null = null;
+
+  if (documentRow.current_version_hash) {
+    const { data: version } = await supabase
+      .from('document_versions')
+      .select('content, metadata_snapshot, created_at')
+      .eq('document_id', docId)
+      .eq('version_hash', documentRow.current_version_hash)
+      .maybeSingle();
+
+    if (version) {
+      versionContent = version.content;
+      versionMetadata = version.metadata_snapshot as Record<string, any> | null;
+      versionCreatedAt = version.created_at;
+    }
   }
 
   // Fetch additional basket data for context
@@ -55,14 +73,18 @@ export default async function DocumentDetailPage({ params }: PageProps) {
 
   // Map document_heads view fields to DocumentPage expected format
   const documentForPage = {
-    id: document.document_id,
-    basket_id: document.basket_id,
-    workspace_id: document.workspace_id,
-    title: document.title,
-    content: document.content,
-    created_at: document.document_created_at,
-    updated_at: document.document_updated_at,
-    metadata: document.document_metadata
+    id: documentRow.id,
+    basket_id: documentRow.basket_id,
+    workspace_id: documentRow.workspace_id,
+    title: documentRow.title,
+    content: versionContent,
+    created_at: documentRow.created_at,
+    updated_at: documentRow.updated_at,
+    metadata: {
+      ...(documentRow.metadata || {}),
+      ...(versionMetadata || {}),
+      composition_completed_at: versionCreatedAt || documentRow.updated_at,
+    },
   };
 
   return (
