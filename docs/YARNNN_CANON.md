@@ -100,23 +100,24 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 - **Provenance**: Every artifact records `derived_from` (blocks, reflections, proposals)
 - **Context-Driven Freshness**: Staleness computed from substrate_hash + graph_signature changes, not time
 
-## 🔄 The Five Pipelines (Substrate → Artifacts)
+## 🔄 The Four Pipelines (Substrate → Artifacts)
 
 | Pipeline | Layer | Purpose | Sacred Rule | V3.1 Semantic Layer |
 |----------|-------|---------|-------------|---------------------|
 | **P0: Capture** | Substrate | Ingest raw memory | Only writes raw_dumps, never interprets (always direct, no proposals) | **NO CHANGE** - Raw dumps not embedded |
 | **P1: Governed Evolution** | Substrate | Intelligent substrate evolution with duplicate detection | **All Create/Revise/Merge via governance proposals** | **UPGRADED** - Uses semantic search for duplicate/merge detection |
-| **P2: Graph Intelligence** | Substrate | Infer causal relationships between blocks | Creates relationships only, never creates new substrate | **UPGRADED** - Infers causal relationships (addresses, supports, contradicts, depends_on) |
-| **P3: Insights** | Artifact | Generate interpretive intelligence with causal reasoning | Creates P3 insights, never modifies substrate | **ENHANCED** - Semantic retrieval + graph traversal for deeper insights |
-| **P4: Documents** | Artifact | Theme-based narrative composition with causal flow | Creates P4 documents, consumes substrate + P3 insights | **ENHANCED** - Semantic theme search + relationship-driven narrative |
+| **P3: Insights** | Artifact | Generate interpretive intelligence | Creates P3 insights, never modifies substrate | **ENHANCED** - Semantic retrieval for deeper insights |
+| **P4: Documents** | Artifact | Theme-based narrative composition | Creates P4 documents, consumes substrate + P3 insights | **ENHANCED** - Semantic theme search for narrative coherence |
+
+**Note:** P2 Graph Intelligence has been replaced by **Neural Map** - a zero-cost client-side visualization that clusters substrate by semantic type into brain regions. See [NEURAL_MAP_ARCHITECTURE.md](./NEURAL_MAP_ARCHITECTURE.md) for details.
 
 ### V3.1 Semantic Layer: Core Upgrade
 
 **What Changed:**
 - **P1**: Semantic duplicate detection (merge vs create decisions based on vector similarity)
-- **P2**: Causal relationship inference (agents build semantic graph automatically)
 - **P3**: Semantic context retrieval (find relevant blocks without keyword matching)
 - **P4**: Theme-based composition (semantic search for narrative coherence)
+- **Visualization**: Neural Map replaces P2 graph inference (zero-cost brain-based clustering)
 
 **What Didn't Change:**
 - **P0**: Raw dumps remain unembedded (transient input, not persistent memory)
@@ -458,7 +459,7 @@ When users upload existing documents (e.g., `product-spec.docx`):
 1. **Substrate Equality** - The three substrate types (dumps, blocks, events) are peers — V3.0 unified
 2. **Substrate vs Artifacts** - Clear separation between memory (substrate) and expressions (artifacts)
 3. **Read-Only Documents** - Documents are composed views, never directly edited (v3.0)
-4. **Pipeline Discipline** - P0-P1 create substrate via governance, P2 links substrate, P3-P4 create artifacts
+4. **Pipeline Discipline** - P0-P1 create substrate via governance, P3-P4 create artifacts
 5. **Memory Permanence** - Substrate is immutable; documents regenerate from substrate changes
 6. **Document Versioning** - Git-inspired immutable snapshots for stable artifact references
 7. **Workspace Isolation** - Complete data isolation between workspaces
@@ -492,20 +493,13 @@ When users upload existing documents (e.g., `product-spec.docx`):
      - Achieve confidence > 0.7 for auto-approval eligibility
      - Handle basket lifecycle: heavy Create (early) → heavy Update (mature)
 
-   - **P2 Graph Agents (V3.1 UPGRADED)**:
-     - Infer causal relationships between blocks (addresses, supports, contradicts, depends_on)
-     - Use semantic search to find relationship candidates, LLM verification for quality
-     - Propose relationships via governance (auto-accept high confidence > 0.90)
-     - Build semantic graph structure, not just entity co-occurrence
-
    - **P3 Insight Agents (V3.1 ENHANCED)**:
      - Use semantic search to retrieve relevant context (not full basket scan)
-     - Traverse relationship graph for causal reasoning ("why" questions)
-     - Generate insights with evidence chains (supports/addresses relationships)
+     - Generate insights with evidence from substrate
 
    - **P4 Composition Agents (V3.1 ENHANCED)**:
      - Use semantic search for theme-based retrieval (not just anchor_role filtering)
-     - Follow relationship chains for coherent narrative flow
+     - Create coherent narrative from substrate + P3 insights
      - Integrate workspace-level context via cross-basket semantic search
 
 ---
@@ -612,38 +606,27 @@ get_semantic_context(focal_block_id, context_window)
 
 **Impact:** 30-40% reduction in duplicate blocks
 
-#### P2: Graph Intelligence - UPGRADED
-**Before:** Entity co-occurrence detection
-**After:** Causal relationship inference with LLM verification
-
-**Process:**
-1. Find relationship candidates via semantic search
-2. Verify with LLM (precision over recall)
-3. Propose via governance
-
-**Impact:** 60%+ blocks have meaningful causal relationships
-
 #### P3: Insights - ENHANCED
 **Before:** Analyze all blocks in basket
-**After:** Semantic retrieval → traverse relationship graph → generate insights
+**After:** Semantic retrieval → analyze patterns → generate insights
 
 **Features:**
 - Context retrieval without keyword matching
-- Causal reasoning ("this objective addresses these problems")
-- Evidence chains ("this insight is supported by these findings")
+- Pattern recognition across substrate types
+- Evidence-based insight generation
 
-**Impact:** Richer insights with causal explanations
+**Impact:** Richer insights with semantic pattern recognition
 
 #### P4: Documents - ENHANCED
 **Before:** Retrieve blocks by anchor_role
-**After:** Semantic theme search → follow relationship chains → compose narrative
+**After:** Semantic theme search → compose coherent narrative
 
 **Features:**
 - Theme-based retrieval (not just anchor tags)
-- Narrative flow follows causal relationships
+- Narrative flow from substrate patterns
 - Workspace context integration (elevated scope)
 
-**Impact:** More coherent documents with causal structure
+**Impact:** More coherent documents with semantic structure
 
 ---
 
@@ -674,17 +657,18 @@ get_semantic_context(focal_block_id, context_window)
 - Duplicate block rate: <5% (down from ~15%)
 - Merge proposal rate: >25% (up from ~5%)
 
-**P2 (Graph Intelligence):**
-- Relationship precision: >80% (% valid relationships)
-- Block coverage: >60% (% blocks with relationships)
-
 **P3 (Insights):**
 - Context relevance: >85% (% retrieved blocks relevant)
-- Causal reasoning: Insights cite relationship chains
+- Pattern recognition: Insights identify emergent themes
 
 **P4 (Documents):**
-- Narrative coherence: Sections follow causal flow
+- Narrative coherence: Sections follow semantic structure
 - Theme relevance: >90% blocks match document outline
+
+**Neural Map (Visualization):**
+- Zero infrastructure cost (no LLM/vector search)
+- Instant render (<1s vs 150s+ for P2 graph)
+- Intuitive brain-based metaphor (neurons, synapses, brain regions)
 
 ---
 
