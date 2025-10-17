@@ -10,13 +10,17 @@ import { SectionCard } from '@/components/ui/SectionCard';
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: 'Causal Graph',
-    description: 'Explore causal relationships between knowledge blocks',
+    title: 'Neural Map',
+    description: 'Visualize your thinking brain - see how memories cluster into neural patterns',
   };
 }
 
-const CausalGraphView = dynamic(() => import('@/components/graph/CausalGraphView'), {
-  loading: () => <div className="h-64 animate-pulse bg-slate-50 rounded-lg" />,
+const NeuralMapView = dynamic(() => import('@/components/neural/NeuralMapView'), {
+  loading: () => (
+    <div className="h-64 animate-pulse bg-gradient-to-br from-purple-900 to-blue-900 rounded-lg flex items-center justify-center">
+      <div className="text-white text-sm">Activating neural pathways...</div>
+    </div>
+  ),
   ssr: false,
 });
 
@@ -48,56 +52,33 @@ export default async function GraphPage({ params }: { params: Promise<{ id: stri
       notFound();
     }
 
-    // V3.1: Fetch blocks and causal relationships only
+    // Fetch blocks for neural map visualization
     const blocksResult = await supabase
       .from('blocks')
       .select('id, semantic_type, content, title, confidence_score, created_at, metadata, status')
       .eq('basket_id', basketId)
       .eq('workspace_id', workspace.id)
+      .in('state', ['ACCEPTED', 'LOCKED', 'CONSTANT'])
       .neq('status', 'archived')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .limit(500);
-
-    // Get block IDs for filtering relationships
-    const blockIds = (blocksResult.data || []).map(b => b.id);
-
-    // Fetch relationships between these blocks only
-    const relationshipsResult = blockIds.length > 0
-      ? await supabase
-          .from('substrate_relationships')
-          .select('id, from_block_id, to_block_id, relationship_type, confidence_score, created_at, metadata')
-          .eq('state', 'ACCEPTED')
-          .or(`from_block_id.in.(${blockIds.join(',')}),to_block_id.in.(${blockIds.join(',')})`)
-          .order('created_at', { ascending: false })
-          .limit(2000)
-      : { data: [], error: null };
 
     if (blocksResult.error) {
       console.error('Blocks query error:', blocksResult.error);
       throw new Error(`Blocks query failed: ${blocksResult.error.message}`);
     }
 
-    if (relationshipsResult.error) {
-      console.error('Relationships query error:', relationshipsResult.error);
-      throw new Error(`Relationships query failed: ${relationshipsResult.error.message}`);
-    }
-
-    const graphData = {
-      blocks: blocksResult.data || [],
-      relationships: relationshipsResult.data || [],
-    };
-
     return (
       <BasketSubpageLayout
         basketId={basketId}
-        title="Causal Graph"
-        description="Visual exploration of causal relationships between knowledge blocks"
+        title="Neural Map"
+        description="Your thinking brain - visualize how memories cluster into neural patterns"
       >
         <SectionCard>
-          <CausalGraphView
+          <NeuralMapView
             basketId={basketId}
             basketTitle={basket.name}
-            graphData={graphData}
+            blocks={blocksResult.data || []}
             canEdit={basket.user_id === userId}
           />
         </SectionCard>
