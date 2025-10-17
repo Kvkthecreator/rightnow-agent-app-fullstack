@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { GitBranch, Filter, ZoomIn, ZoomOut, Maximize2, Info, Network, Sparkles, Loader2 } from 'lucide-react';
+import { fetchWithToken } from '@/lib/fetchWithToken';
 
 // ForceGraph relies on window, so load on client only
 const ForceGraph2D = dynamic(async () => {
@@ -218,15 +219,14 @@ export default function CausalGraphView({ basketId, basketTitle, graphData }: Ca
     setInferenceError(null);
 
     try {
-      const response = await fetch('/api/p2/infer-relationships', {
+      const response = await fetchWithToken('/api/p2/infer-relationships', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ basket_id: basketId }),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to trigger relationship inference');
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(error.detail || error.error || 'Failed to trigger relationship inference');
       }
 
       const result = await response.json();
