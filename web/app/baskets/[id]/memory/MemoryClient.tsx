@@ -7,12 +7,13 @@ import { fetchWithToken } from '@/lib/fetchWithToken';
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { SubpageHeader } from '@/components/basket/SubpageHeader';
 import { DocumentCreateButton } from '@/components/documents/DocumentCreateButton';
 import AddMemoryModal from '@/components/memory/AddMemoryModal';
 import OnboardingPanel from '@/components/memory/OnboardingPanel';
 import InsightCanonCard from '@/components/insights/InsightCanonCard';
 import InsightDetailModal from '@/components/insights/InsightDetailModal';
+import EditableBasketTitle from '@/components/baskets/EditableBasketTitle';
+import BasketMenu from '@/components/baskets/BasketMenu';
 import type { BasketStats } from '@/app/api/baskets/[id]/stats/route';
 
 interface Props {
@@ -51,23 +52,62 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
     try { router.refresh(); } catch (error) { console.warn('Refresh failed', error); }
   };
 
+  const handleRename = async (newName: string) => {
+    const response = await fetchWithToken(`/api/baskets/${basketId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to rename basket');
+    }
+
+    router.refresh();
+  };
+
+  const handleArchive = async () => {
+    const response = await fetchWithToken(`/api/baskets/${basketId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'archived' }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to archive basket');
+    }
+
+    router.push('/baskets');
+  };
+
   return (
     <div className="space-y-6">
-      <SubpageHeader
-        title="Memory"
-        basketId={basketId}
-        description="Your basket's collective knowledge and latest insights."
-        rightContent={
-          <Button
-            onClick={() => setShowAddMemory(true)}
-            variant="primary"
-            size="sm"
-          >
-            <PenTool className="h-3.5 w-3.5" />
-            Add thought
-          </Button>
-        }
-      />
+      {/* Basket Header with Editable Title and Menu */}
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <EditableBasketTitle
+              basketId={basketId}
+              currentName={basketName}
+              onUpdate={handleRename}
+            />
+            <BasketMenu
+              basketId={basketId}
+              basketName={basketName}
+              onArchive={handleArchive}
+            />
+          </div>
+          <p className="text-sm text-gray-600">Your basket's collective knowledge and latest insights.</p>
+        </div>
+        <Button
+          onClick={() => setShowAddMemory(true)}
+          variant="primary"
+          size="sm"
+        >
+          <PenTool className="h-3.5 w-3.5" />
+          Add thought
+        </Button>
+      </div>
 
       {needsOnboarding && (
         <OnboardingPanel basketId={basketId} onComplete={() => window.location.reload()} />
