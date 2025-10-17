@@ -163,37 +163,53 @@ export function getMockDocuments(): DocumentDTO[] {
       id: 'doc-1',
       title: 'Project Strategy Overview',
       basket_id: 'mock-basket-id',
-      created_at: new Date(Date.now() - 172800000).toISOString(),
-      updated_at: new Date(Date.now() - 86400000).toISOString(),
+      doc_type: 'document_canon',
+      current_version_hash: null,
+      latest_version_created_at: new Date(Date.now() - 86400000).toISOString(),
       metadata: {
         wordCount: 1247,
         document_type: 'strategic-analysis',
-        content_raw: '# Project Strategy\n\nThis document outlines our strategic approach...'
-      }
+        content_raw: '# Project Strategy\n\nThis document outlines our strategic approach...',
+        structured_outline: {
+          summary: 'Strategic overview of project goals and approach.',
+          themes: ['Vision alignment', 'Execution readiness']
+        }
+      },
+      updated_at: new Date(Date.now() - 86400000).toISOString(),
     },
     {
       id: 'doc-2',
       title: 'Market Research Findings',
       basket_id: 'mock-basket-id',
-      created_at: new Date(Date.now() - 259200000).toISOString(),
-      updated_at: new Date(Date.now() - 172800000).toISOString(),
+      doc_type: 'starter_prompt',
+      current_version_hash: null,
+      latest_version_created_at: new Date(Date.now() - 172800000).toISOString(),
       metadata: {
         wordCount: 892,
         document_type: 'research-notes',
-        content_raw: '# Market Research\n\nKey findings from our market analysis...'
-      }
+        content_raw: '# Market Research\n\nKey findings from our market analysis...',
+        structured_prompt: {
+          opening: 'You are Yarnnn, helping with market analysis.',
+          context: 'User is evaluating market positioning for Q4.',
+          instructions: 'Summarize recent research and identify opportunities.',
+          call_to_action: 'Highlight top three action items.',
+        }
+      },
+      updated_at: new Date(Date.now() - 172800000).toISOString(),
     },
     {
       id: 'doc-3',
       title: 'Implementation Plan',
       basket_id: 'mock-basket-id',
-      created_at: new Date(Date.now() - 345600000).toISOString(),
-      updated_at: new Date(Date.now() - 259200000).toISOString(),
+      doc_type: 'artifact_other',
+      current_version_hash: null,
+      latest_version_created_at: new Date(Date.now() - 259200000).toISOString(),
       metadata: {
         wordCount: 1563,
         document_type: 'project-plan',
-        content_raw: '# Implementation\n\nDetailed plan for executing our strategy...'
-      }
+        content_raw: '# Implementation\n\nDetailed plan for executing our strategy...',
+      },
+      updated_at: new Date(Date.now() - 259200000).toISOString(),
     }
   ];
 }
