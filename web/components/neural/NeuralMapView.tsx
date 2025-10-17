@@ -74,7 +74,7 @@ type Connection = {
 
 export default function NeuralMapView({ basketId, basketTitle, blocks, canEdit }: NeuralMapViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
   const [isAnimating, setIsAnimating] = useState(true);
   const [selectedNeuron, setSelectedNeuron] = useState<Neuron | null>(null);
   const [rotation, setRotation] = useState(0);
