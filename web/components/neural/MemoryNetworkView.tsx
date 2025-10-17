@@ -99,6 +99,18 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
   const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'all'>('all');
   const [hoveredLink, setHoveredLink] = useState<Link | null>(null);
   const [showClusters, setShowClusters] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Build force-directed graph
   const { nodes, links } = useMemo(() => {
@@ -553,25 +565,56 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     });
   };
 
+  // Mobile view - show message
+  if (isMobile) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+              <Network className="h-8 w-8 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Desktop View Required</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Memory Network visualization requires a larger screen to explore patterns effectively.
+            </p>
+            <p className="text-xs text-gray-500">
+              Visit on desktop or tablet to discover how your {blocks.length} memories connect and cluster.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-4">
+      {/* Network Canvas - Show first for better scroll position */}
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-0">
+          <canvas
+            ref={canvasRef}
+            width={1200}
+            height={isFullscreen ? 900 : 700}
+            className={`w-full ${isFullscreen ? 'h-[900px]' : 'h-[700px]'} cursor-default`}
+            onClick={handleCanvasClick}
+            onMouseMove={handleCanvasMouseMove}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Search and Filters */}
+      <Card>
+        <CardHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                <Network className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Memory Network</h2>
-                <p className="text-sm text-gray-600">
-                  Discover patterns in your thinking. See how your memories naturally cluster and connect over time.
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {nodes.length} memories • {links.length} connections • {clusters.length} patterns
-                </p>
-              </div>
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                Explore Patterns
+              </CardTitle>
+              <p className="text-xs text-gray-500 mt-1">
+                {nodes.length} memories • {links.length} connections • {clusters.length} patterns
+              </p>
             </div>
             <Button
               variant="ghost"
@@ -581,16 +624,6 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
               {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Explore Patterns
-          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Search */}
@@ -657,20 +690,6 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
               ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Network Canvas */}
-      <Card>
-        <CardContent className="p-0">
-          <canvas
-            ref={canvasRef}
-            width={1200}
-            height={isFullscreen ? 900 : 700}
-            className={`w-full ${isFullscreen ? 'h-[900px]' : 'h-[700px]'} cursor-default`}
-            onClick={handleCanvasClick}
-            onMouseMove={handleCanvasMouseMove}
-          />
         </CardContent>
       </Card>
 
