@@ -101,12 +101,11 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: 'basket not found' }, { status: 404 });
     }
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/documents/compose`, {
+    const res = await fetch(`/api/documents/compose`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: request.headers,
       body: JSON.stringify({
         basket_id,
-        title: `${metadata?.title || 'Document'}`,
         intent: compositionIntent,
         template_id,
         target_audience,
@@ -116,14 +115,12 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       }),
     });
 
-    const doc = await response.json();
-    if (!response.ok || !doc?.document_id) {
-      return NextResponse.json({ error: doc?.error || 'Failed to compose document' }, { status: 400 });
+    const doc = await res.json();
+    if (!res.ok || !doc?.document_id) {
+      return NextResponse.json({ error: doc?.error || 'Failed to compose document' }, { status: res.status });
     }
 
-    return withSchema(CreateDocumentResponseSchema, {
-      document_id: doc.document_id,
-    }, { status: 201 });
+    return withSchema(CreateDocumentResponseSchema, { document_id: doc.document_id }, { status: 201 });
 
   } catch (error) {
     console.error('Document creation error:', error);
