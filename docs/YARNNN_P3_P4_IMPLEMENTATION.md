@@ -18,6 +18,20 @@ This document defines the canonical implementation of P3 (Insights) and P4 (Docu
 
 ---
 
+## Canonical Basket Artifacts
+
+Every basket maintains a guaranteed baseline set of artifacts so it always has a briefing-ready story for humans and agents:
+
+| Layer | Artifact | Cardinality | Purpose |
+|-------|----------|-------------|---------|
+| P3 (Insights) | `insight_canon` | Exactly one current per basket | Authoritative "what matters now" reflection |
+| P4 (Documents) | `document_canon` | Exactly one per basket | Basket Context Canon (comprehensive narrative) |
+| P4 (Documents) | `starter_prompt` | At least one per basket (canonical prompt pack) | Ready-to-use context injection for ambient/agent hosts |
+
+The client enforces these invariants (via health checks and auto-regeneration). Additional insights (`doc_insight`, `timeboxed_insight`) and documents (`artifact_other`) build on top of this core set.
+
+---
+
 ## P3: Insights Taxonomy
 
 ### Insight Types
@@ -25,9 +39,11 @@ This document defines the canonical implementation of P3 (Insights) and P4 (Docu
 | Type | Scope | Cardinality | Purpose |
 |------|-------|-------------|---------|
 | `insight_canon` | Basket or Workspace | Exactly one current per scope | Authoritative "what matters now" |
-| `doc_insight` | Document | Multiple per document | Document-specific interpretations |
+| `doc_insight` | Document Version | One current per document version | Explains how the version supports the basket |
 | `timeboxed_insight` | Temporal window | Multiple per basket | Time-scoped understanding (as_of, for_period) |
 | `review_insight` | Proposal | Ephemeral (computed) | Internal governance intelligence |
+
+`doc_insight` artifacts always reference `document_version_id`. Regenerating a document version MUST regenerate its paired doc insight so the Analyze view always reflects the latest narrative and tensions.
 
 ### Schema
 
@@ -75,7 +91,7 @@ This document defines the canonical implementation of P3 (Insights) and P4 (Docu
 | Type | Cardinality | Purpose |
 |------|-------------|---------|
 | `document_canon` | Exactly one per basket | Basket Context Canon (mandatory health invariant) |
-| `starter_prompt` | Multiple per basket | Reusable reasoning capsules for external hosts |
+| `starter_prompt` | ≥1 per basket (canonical + optional variants) | Reusable reasoning capsules for external hosts |
 | `artifact_other` | Multiple per basket | Future extensibility (reports, briefs, etc.) |
 
 ### Schema
@@ -169,12 +185,21 @@ def should_regenerate_insight_canon(basket_id: str) -> dict:
 def compute_basket_substrate_hash(basket_id: str) -> str:
     """
     Deterministic hash of basket's substrate state
-    Includes: blocks, context_items, raw_dumps (immutable IDs + content hashes)
+    Includes: ACCEPTED/LOCKED/CONSTANT blocks and raw_dumps (immutable IDs + content hashes)
     """
+    blocks = [
+        {
+            "id": b.id,
+            "semantic_type": b.semantic_type,
+            "anchor_role": b.anchor_role,
+            "content_hash": hash(b.content),
+        }
+        for b in get_basket_blocks(basket_id, states=("ACCEPTED", "LOCKED", "CONSTANT"))
+    ]
+
     substrate = {
-        "blocks": [{"id": b.id, "content_hash": hash(b.content)} for b in get_basket_blocks(basket_id)],
-        "context_items": [{"id": c.id, "label": c.label} for c in get_basket_context_items(basket_id)],
-        "raw_dumps": [{"id": r.id} for r in get_basket_raw_dumps(basket_id)]  # Immutable
+        "blocks": blocks,
+        "raw_dumps": [{"id": r.id} for r in get_basket_raw_dumps(basket_id)]  # Immutable capture
     }
 
     return hashlib.sha256(json.dumps(substrate, sort_keys=True).encode()).hexdigest()
