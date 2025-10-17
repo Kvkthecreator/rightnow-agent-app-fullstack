@@ -28,7 +28,7 @@ export async function fetchWithToken(
   let url: string;
   if (typeof input === 'string') {
     // Only redirect specific backend routes to api.yarnnn.com
-    const backendRoutes = ['/api/p3/', '/api/p4/', '/api/dumps/', '/api/health/', '/api/integrations/'];
+    const backendRoutes = ['/api/p2/', '/api/p3/', '/api/p4/', '/api/dumps/', '/api/health/', '/api/integrations/'];
     const isBackendRoute = backendRoutes.some(route => input.startsWith(route));
 
     if (isBackendRoute) {

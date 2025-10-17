@@ -6,7 +6,7 @@ import type { ForceGraphMethods } from 'react-force-graph-2d';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { GitBranch, Filter, ZoomIn, ZoomOut, Maximize2, Info } from 'lucide-react';
+import { GitBranch, Filter, ZoomIn, ZoomOut, Maximize2, Info, Network, Sparkles, Loader2 } from 'lucide-react';
 
 // ForceGraph relies on window, so load on client only
 const ForceGraph2D = dynamic(async () => {
@@ -99,6 +99,8 @@ export default function CausalGraphView({ basketId, basketTitle, graphData }: Ca
     depends_on: true,
   });
   const [minConfidence, setMinConfidence] = useState(0.7);
+  const [isInferringRelationships, setIsInferringRelationships] = useState(false);
+  const [inferenceError, setInferenceError] = useState<string | null>(null);
 
   // Build graph nodes and links
   const { nodes, links } = useMemo(() => {
@@ -211,35 +213,89 @@ export default function CausalGraphView({ basketId, basketTitle, graphData }: Ca
     ),
   };
 
+  const handleTriggerP2Inference = async () => {
+    setIsInferringRelationships(true);
+    setInferenceError(null);
+
+    try {
+      const response = await fetch('/api/p2/infer-relationships', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ basket_id: basketId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to trigger relationship inference');
+      }
+
+      const result = await response.json();
+
+      // Reload page to show new relationships
+      window.location.reload();
+    } catch (error) {
+      console.error('P2 inference error:', error);
+      setInferenceError(error instanceof Error ? error.message : 'Failed to infer relationships');
+    } finally {
+      setIsInferringRelationships(false);
+    }
+  };
+
+  const graphDensity = stats.totalBlocks > 1
+    ? (stats.totalRelationships / (stats.totalBlocks * (stats.totalBlocks - 1) / 2)) * 100
+    : 0;
+
   return (
     <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-slate-600">Blocks</div>
-            <div className="text-2xl font-semibold text-slate-900">{stats.totalBlocks}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-slate-600">Relationships</div>
-            <div className="text-2xl font-semibold text-slate-900">{stats.totalRelationships}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-slate-600">Visible Nodes</div>
-            <div className="text-2xl font-semibold text-slate-900">{stats.visibleNodes}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-slate-600">Visible Links</div>
-            <div className="text-2xl font-semibold text-slate-900">{stats.visibleLinks}</div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Enhanced Stats Header */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-8">
+              <div>
+                <div className="text-3xl font-bold text-gray-900">{stats.totalBlocks}</div>
+                <div className="text-xs text-gray-500 mt-1">Substrate Blocks</div>
+              </div>
+              <div className="h-12 w-px bg-gray-200" />
+              <div>
+                <div className="text-3xl font-bold text-purple-600">{stats.totalRelationships}</div>
+                <div className="text-xs text-gray-500 mt-1">Causal Links</div>
+              </div>
+              <div className="h-12 w-px bg-gray-200" />
+              <div>
+                <div className="text-sm font-medium text-gray-700">
+                  {stats.totalRelationships > 0
+                    ? `${graphDensity.toFixed(1)}% connected`
+                    : 'Not yet analyzed'}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">Graph Density</div>
+              </div>
+            </div>
+
+            {stats.totalBlocks >= 2 && (
+              <Button
+                onClick={handleTriggerP2Inference}
+                disabled={isInferringRelationships}
+                variant="outline"
+                size="sm"
+                className="border-purple-200 text-purple-700 hover:bg-purple-50"
+              >
+                {isInferringRelationships ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {stats.totalRelationships > 0 ? 'Refresh Relationships' : 'Generate Relationships'}
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Filters */}
       <Card>
@@ -311,16 +367,77 @@ export default function CausalGraphView({ basketId, basketTitle, graphData }: Ca
         </CardHeader>
         <CardContent>
           {filteredNodes.length === 0 ? (
-            <div className="h-96 flex items-center justify-center bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
-              <div className="text-center">
-                <Info className="h-12 w-12 text-slate-400 mx-auto mb-2" />
-                <p className="text-slate-600 font-medium">No relationships to display</p>
-                <p className="text-sm text-slate-500 mt-1">
-                  {stats.totalRelationships === 0
-                    ? 'Add memories to generate causal relationships'
-                    : 'Try adjusting your filters'}
-                </p>
-              </div>
+            <div className="h-[500px] flex items-center justify-center">
+              {stats.totalBlocks > 0 && stats.totalRelationships === 0 ? (
+                // Empty state: Blocks exist but no relationships
+                <div className="max-w-md text-center px-6">
+                  <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Network className="h-8 w-8 text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Building Your Causal Graph
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Found {stats.totalBlocks} blocks ready for relationship inference.
+                    The P2 Graph Intelligence pipeline will automatically discover
+                    causal connections between your substrate blocks.
+                  </p>
+                  <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 text-left">
+                    <p className="text-xs font-semibold text-gray-700 mb-2">What is a Causal Graph?</p>
+                    <ul className="text-xs text-gray-600 space-y-1.5">
+                      <li className="flex items-start gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full bg-green-500 mt-0.5 flex-shrink-0"></span>
+                        <span><span className="font-medium">Addresses:</span> Solutions that solve problems</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full bg-blue-500 mt-0.5 flex-shrink-0"></span>
+                        <span><span className="font-medium">Supports:</span> Ideas that reinforce each other</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full bg-red-500 mt-0.5 flex-shrink-0"></span>
+                        <span><span className="font-medium">Contradicts:</span> Conflicting concepts</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full bg-amber-500 mt-0.5 flex-shrink-0"></span>
+                        <span><span className="font-medium">Depends On:</span> Prerequisites and dependencies</span>
+                      </li>
+                    </ul>
+                  </div>
+                  {inferenceError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                      {inferenceError}
+                    </div>
+                  )}
+                  <Button
+                    onClick={handleTriggerP2Inference}
+                    disabled={isInferringRelationships}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    {isInferringRelationships ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Analyzing Relationships...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate Relationships Now
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                // Empty state: No blocks or filtered out
+                <div className="text-center">
+                  <Info className="h-12 w-12 text-slate-400 mx-auto mb-2" />
+                  <p className="text-slate-600 font-medium">No relationships to display</p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    {stats.totalRelationships === 0
+                      ? 'Add memories to generate causal relationships'
+                      : 'Try adjusting your filters'}
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="h-[600px] border border-slate-200 rounded-lg overflow-hidden bg-white">
