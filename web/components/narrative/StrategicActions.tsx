@@ -31,7 +31,7 @@ export function StrategicActions({ basketId, actions, intelligentSuggestions = t
       case 'import_files':
       case 'start_with_template':
       case 'start_template':
-        router.push(`/baskets/${basketId}/memory#add`);
+        router.push(`/baskets/${basketId}/overview#add`);
         break;
       case 'create_new_document':
       case 'create_document':

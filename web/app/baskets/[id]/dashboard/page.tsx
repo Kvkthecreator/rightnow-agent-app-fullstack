@@ -27,7 +27,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps)
 
   // Feature flag check
   if (!CANON_DASHBOARD_ENABLED) {
-    redirect(`/baskets/${id}/memory`);
+    redirect(`/baskets/${id}/overview`);
   }
 
   // Authentication and workspace validation
@@ -136,7 +136,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps)
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <a
-              href={`/baskets/${id}/memory`}
+              href={`/baskets/${id}/overview`}
               className="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
             >
               <div className="text-2xl mb-2">📝</div>

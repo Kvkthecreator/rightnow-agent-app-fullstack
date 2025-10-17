@@ -241,7 +241,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
       });
       if (!res.ok) throw new Error('Extract failed');
       await notificationAPI.emitJobSucceeded('document.extract', 'Captured extract as memory', { basketId });
-      router.push(`/baskets/${basketId}/memory`);
+      router.push(`/baskets/${basketId}/overview`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to extract to memory';
       await notificationAPI.emitJobFailed('document.extract', 'Extract failed', { basketId, error: message });

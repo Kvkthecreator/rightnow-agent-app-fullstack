@@ -1,6 +1,6 @@
 /**
- * Redirect: /baskets/[id] -> /baskets/[id]/memory
- * Status: 302 Temporary Redirect (memory is primary operating surface)
+ * Redirect: /baskets/[id] -> /baskets/[id]/overview
+ * Status: 302 Temporary Redirect (overview is primary operating surface)
  */
 import { redirect } from "next/navigation";
 
@@ -10,5 +10,5 @@ interface Props {
 
 export default async function BasketPage({ params }: Props) {
   const { id } = await params;
-  redirect(`/baskets/${id}/memory`);
+  redirect(`/baskets/${id}/overview`);
 }

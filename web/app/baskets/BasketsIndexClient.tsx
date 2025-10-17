@@ -71,7 +71,7 @@ export function BasketsIndexClient({ baskets }: { baskets: BasketSummary[] }) {
               <button
                 key={basket.id}
                 type="button"
-                onClick={() => router.push(`/baskets/${basket.id}/memory`)}
+                onClick={() => router.push(`/baskets/${basket.id}/overview`)}
                 className="group flex w-full flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left transition hover:border-primary hover:shadow-sm"
               >
                 <div className="flex items-center justify-between gap-3">

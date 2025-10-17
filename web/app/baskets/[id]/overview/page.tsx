@@ -1,9 +1,10 @@
 /**
- * Page: /baskets/[id]/memory - Memory Overview
+ * Page: /baskets/[id]/overview - Basket Overview
  *
- * Streamlined memory dashboard showing:
+ * Primary basket dashboard showing:
+ * - Editable basket title and archive menu
  * - Latest basket-level reflection (insights snapshot)
- * - Key metrics (blocks, links, documents counts)
+ * - Key metrics (blocks, relationships, documents counts)
  * - Documents list
  *
  * Note: Anchors now managed in /building-blocks as substrate metadata

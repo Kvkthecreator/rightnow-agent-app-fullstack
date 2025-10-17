@@ -7,7 +7,7 @@ export type BasketSection = {
 // 🔒 User-intent grouping (Canon v2.3)
 export const SECTION_ORDER: BasketSection[] = [
   // Overview
-  { key: "memory", label: "Overview", href: (id) => `/baskets/${id}/memory` },
+  { key: "memory", label: "Overview", href: (id) => `/baskets/${id}/overview` },
   { key: "uploads", label: "Uploads", href: (id) => `/baskets/${id}/uploads` },
   { key: "building-blocks", label: "Building Blocks", href: (id) => `/baskets/${id}/building-blocks` },
   { key: "governance", label: "Change Requests", href: (id) => `/baskets/${id}/governance` },

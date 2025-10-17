@@ -201,7 +201,7 @@ export default function DumpProcessingStatus({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => window.open(`/baskets/${basketId}/memory`, '_blank')}
+          onClick={() => window.open(`/baskets/${basketId}/overview`, '_blank')}
           disabled={!basketId}
         >
           View in Memory

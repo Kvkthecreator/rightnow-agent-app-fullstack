@@ -33,7 +33,7 @@ export default function TopBar() {
       const basketId = segments[1];
       items.push({ label: "Baskets", href: "/baskets" });
       if (basketId) {
-        items.push({ label: "Basket", href: `/baskets/${basketId}/memory` });
+        items.push({ label: "Basket", href: `/baskets/${basketId}/overview` });
       }
       const section = segments[2];
       if (section) {

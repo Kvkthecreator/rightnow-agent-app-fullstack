@@ -293,7 +293,7 @@ export default function Sidebar({ className }: SidebarProps) {
                     basketList.slice(0, 6).map((item) => (
                       <SidebarItem
                         key={item.id}
-                        href={`/baskets/${item.id}/memory`}
+                        href={`/baskets/${item.id}/overview`}
                         onClick={() => {
                           if (isMobile) setOpen(false);
                         }}

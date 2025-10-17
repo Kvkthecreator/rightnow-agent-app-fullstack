@@ -69,7 +69,7 @@ export function RecentActivityCard({ dumps, timelineEvents, basketId }: RecentAc
           <div className="text-4xl mb-3">📝</div>
           <p className="text-gray-600 mb-4">No recent activity</p>
           <a
-            href={`/baskets/${basketId}/memory`}
+            href={`/baskets/${basketId}/overview`}
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Add Content

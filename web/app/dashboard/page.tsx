@@ -173,7 +173,7 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
             baskets.slice(0, 6).map((basket) => (
               <Link
                 key={basket.id}
-                href={`/baskets/${basket.id}/memory`}
+                href={`/baskets/${basket.id}/overview`}
                 className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-sm"
               >
                 <div className="flex items-center justify-between gap-3">

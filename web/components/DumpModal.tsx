@@ -151,7 +151,7 @@ export default function DumpModal({ basketId, initialOpen = false }: DumpModalPr
                 <div className="flex justify-center space-x-2 pt-4">
                   <Button 
                     variant="outline" 
-                    onClick={() => window.open(`/baskets/${basketId}/memory`, '_blank')}
+                    onClick={() => window.open(`/baskets/${basketId}/overview`, '_blank')}
                   >
                     View in Memory
                   </Button>

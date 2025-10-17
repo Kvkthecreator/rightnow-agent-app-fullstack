@@ -423,7 +423,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                         </Badge>
                       </div>
                       <Link
-                        href={`/baskets/${basketId}/memory`}
+                        href={`/baskets/${basketId}/overview`}
                         className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
                       >
                         <Brain className="h-4 w-4" />
@@ -594,7 +594,7 @@ export default function BuildingBlocksClient({ basketId }: BuildingBlocksClientP
                                 {/* Quick Action */}
                                 <div className="pt-2 border-t border-slate-100">
                                   <Link
-                                    href={`/baskets/${basketId}/memory`}
+                                    href={`/baskets/${basketId}/overview`}
                                     className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
                                   >
                                     <Anchor className="h-3 w-3" />

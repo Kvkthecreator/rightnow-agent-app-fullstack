@@ -21,7 +21,7 @@ export function SubpageHeader({
         )}
       </div>
       {rightContent || (
-        <Link href={`/baskets/${basketId}/memory`} className="text-sm underline">
+        <Link href={`/baskets/${basketId}/overview`} className="text-sm underline">
           Back to Memory
         </Link>
       )}

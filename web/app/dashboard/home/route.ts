@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     return NextResponse.redirect(new URL('/memory', req.url))
   }
   const target = pickMostRelevantBasket({ baskets })!
-  const res = NextResponse.redirect(new URL(`/baskets/${target.id}/memory`, req.url))
+  const res = NextResponse.redirect(new URL(`/baskets/${target.id}/overview`, req.url))
 
   // Cookie write is allowed here (Route Handler)
   res.cookies.set(`lastBasketId::${ws.id}`, target.id, {
