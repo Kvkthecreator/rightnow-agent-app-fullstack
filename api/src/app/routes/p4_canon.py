@@ -158,7 +158,7 @@ async def generate_document_canon(
     substrate_hash = compute_basket_substrate_hash(supabase, request.basket_id)
 
     import hashlib
-    version_hash = hashlib.sha256(canon_content.encode()).hexdigest()[:64]
+    version_hash = hashlib.sha256(canon_content.encode('utf-8')).hexdigest()
 
     generated_at = datetime.utcnow().isoformat()
     derived_from = {
@@ -424,12 +424,11 @@ async def _compose_document_canon(
         composition_mode=composition_mode
     )
 
-    if structured:
-        rendered = _render_document_canon(structured, basket_name, insight_canon)
-        return structured, rendered
+    if not structured:
+        raise HTTPException(status_code=500, detail="LLM returned no content")
 
-    fallback = _render_document_canon_fallback(basket_name, insight_canon, substrate)
-    return None, fallback
+    rendered = _render_document_canon(structured, basket_name, insight_canon)
+    return structured, rendered
 
 
 async def _compose_document_canon_structured(
