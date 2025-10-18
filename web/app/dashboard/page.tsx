@@ -142,21 +142,21 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold uppercase text-muted-foreground">Queues</h2>
+        <h2 className="text-sm font-semibold uppercase text-muted-foreground">Change Requests</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <QueueCard
-            title="Unassigned captures"
-            description="Low-confidence writes waiting for review."
+            title="Workspace Change Requests"
+            description="Basket assignments and cross-basket operations awaiting review."
             count={unassignedCount ?? 0}
-            href="/memory/unassigned"
-            cta="Open queue"
+            href="/workspace/change-requests"
+            cta="Review requests"
           />
           <QueueCard
-            title="Pending proposals"
-            description="Substrate changes awaiting approval."
+            title="Basket-Level Proposals"
+            description="Substrate changes across all baskets (informational)."
             count={pendingProposalCount ?? 0}
-            href="/governance/settings"
-            cta="Review governance"
+            href="/baskets"
+            cta="View baskets"
           />
         </div>
       </section>
