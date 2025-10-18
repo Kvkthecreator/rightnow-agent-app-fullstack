@@ -147,6 +147,20 @@ export async function POST(
           throw new Error(`Failed to mark proposal as executed: ${updateError.message}`);
         }
 
+        // Emit notification (canon: domain-agnostic observability)
+        await supabase.from('user_alerts').insert({
+          workspace_id: workspace.id,
+          user_id: user.id,
+          alert_type: 'governance',
+          severity: 'success',
+          title: 'Change request approved',
+          message: `Proposal executed successfully: ${proposal.validator_report?.ops_summary || 'Substrate updated'}`,
+          action_href: `/baskets/${basketId}/change-requests#${proposalId}`,
+          action_label: 'View',
+          related_basket_id: basketId,
+          related_proposal_id: proposalId
+        });
+
         // Emit cascade events
         await supabase.rpc('emit_timeline_event', {
           p_basket_id: basketId,

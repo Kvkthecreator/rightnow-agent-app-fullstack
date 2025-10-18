@@ -74,7 +74,7 @@ export function NotificationCenter() {
           .select('*')
           .eq('user_id', user.id)
           .is('dismissed_at', null)
-          .order('created_at', { descending: true })
+          .order('created_at', { ascending: false })
           .limit(20);
 
         if (error) {
