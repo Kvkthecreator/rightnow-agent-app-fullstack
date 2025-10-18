@@ -67,9 +67,9 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     // Update name
     const { data: updated, error } = await supabase
       .from('baskets')
-      .update({ name: name.trim(), updated_at: new Date().toISOString() })
+      .update({ name: name.trim() })
       .eq('id', id)
-      .select('id,name,updated_at')
+      .select('id,name')
       .single();
 
     if (error) {
