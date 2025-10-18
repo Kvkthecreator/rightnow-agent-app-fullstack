@@ -25,7 +25,7 @@ export default function UniversalCreateButton({
   const handleCreateBasket = async () => {
     try {
       const id = await resolveTargetBasket();
-      router.push(`/baskets/${basketId}/overview#add`);
+      router.push(`/baskets/${id}/overview#add`);
     } catch (e) {
       console.error("Failed to resolve basket", e);
     }
