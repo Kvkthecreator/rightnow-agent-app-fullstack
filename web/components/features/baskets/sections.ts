@@ -1,16 +1,16 @@
 export type BasketSection = {
-  key: "memory" | "uploads" | "timeline" | "insights" | "graph" | "building-blocks" | "documents" | "governance" | "settings";
+  key: "memory" | "uploads" | "timeline" | "insights" | "graph" | "building-blocks" | "documents" | "change-requests" | "settings";
   label: string;
   href: (id: string) => string;
 };
 
-// 🔒 User-intent grouping (Canon v2.3)
+// 🔒 User-intent grouping (Canon v5.0)
 export const SECTION_ORDER: BasketSection[] = [
   // Overview
   { key: "memory", label: "Overview", href: (id) => `/baskets/${id}/overview` },
   { key: "uploads", label: "Uploads", href: (id) => `/baskets/${id}/uploads` },
   { key: "building-blocks", label: "Building Blocks", href: (id) => `/baskets/${id}/building-blocks` },
-  { key: "governance", label: "Change Requests", href: (id) => `/baskets/${id}/governance` },
+  { key: "change-requests", label: "Change Requests", href: (id) => `/baskets/${id}/change-requests` },
 
   // Insights
   { key: "insights", label: "Insights", href: (id) => `/baskets/${id}/insights` },

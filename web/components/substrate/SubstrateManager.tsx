@@ -289,7 +289,7 @@ export function SubstrateManager({ basketId }: SubstrateManagerProps) {
                         Blocks requiring review are managed through the Governance interface.
                       </p>
                       <a
-                        href={`/baskets/${basketId}/governance`}
+                        href={`/baskets/${basketId}/change-requests`}
                         className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                       >
                         Go to Governance →

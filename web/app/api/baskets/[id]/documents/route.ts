@@ -87,7 +87,10 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       );
     }
 
-    const { basket_id, intent, metadata, template_id, target_audience, tone, pinned_ids, window_days } = parseResult.data;
+    const { basket_id, intent, template_id, target_audience, tone, pinned_ids, window_days, title } = parseResult.data as CreateDocumentRequest;
+    const derivedTitle = typeof body?.title === 'string' && body.title.trim().length > 0
+      ? body.title.trim()
+      : title || 'Untitled Document';
     const compositionIntent = intent || 'Compose document from latest memory';
 
     // Validate basket belongs to workspace
@@ -110,11 +113,13 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
     if (bearer) authHeaders['Authorization'] = bearer;
     if (sbToken) authHeaders['sb-access-token'] = sbToken;
 
-    const res = await fetch(apiUrl('/api/documents/compose'), {
+    const composeUrl = new URL('/api/documents/compose', request.url);
+    const res = await fetch(composeUrl.toString(), {
       method: 'POST',
       headers: authHeaders,
       body: JSON.stringify({
         basket_id,
+        title: derivedTitle,
         intent: compositionIntent,
         template_id,
         target_audience,

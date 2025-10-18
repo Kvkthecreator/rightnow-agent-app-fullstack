@@ -48,6 +48,7 @@ export type BlockDTO = z.infer<typeof BlockSchema>;
 // API Request Schemas
 export const CreateDocumentRequestSchema = z.object({
   basket_id: z.string().uuid(),
+  title: z.string().min(1).optional(),
   intent: z.string().min(1),
   template_id: z.string().optional(),
   target_audience: z.string().optional(),

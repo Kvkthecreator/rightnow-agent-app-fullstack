@@ -40,11 +40,11 @@ interface Proposal {
   ops: any[];
 }
 
-interface GovernanceClientProps {
+interface BasketChangeRequestsClientProps {
   basketId: string;
 }
 
-export default function GovernanceClient({ basketId }: GovernanceClientProps) {
+export default function BasketChangeRequestsClient({ basketId }: BasketChangeRequestsClientProps) {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
