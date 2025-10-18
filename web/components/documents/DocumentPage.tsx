@@ -80,7 +80,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
       setError(null);
     }
     try {
-      const res = await fetch(`/api/documents/${document.id}/composition`, { cache: 'no-store' });
+      const res = await fetch(`/api/internal/documents/${document.id}/composition`, { cache: 'no-store' });
       if (!res.ok) {
         throw new Error('Failed to load document composition');
       }

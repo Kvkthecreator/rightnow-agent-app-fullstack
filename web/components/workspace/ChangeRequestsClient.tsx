@@ -1,3 +1,14 @@
+/**
+ * Workspace Change Requests Client
+ *
+ * Canon: YARNNN_GOVERNANCE_CANON_V5.md
+ * Purpose: Review workspace-level change requests (Type 1: Assignments, Cross-Basket, Workspace)
+ *
+ * Currently implements:
+ * - Type 1a: Basket assignment requests (unassigned MCP captures)
+ *
+ * Future: Type 1b (cross-basket), Type 1c (workspace mutations)
+ */
 "use client";
 
 import { useState, useTransition } from 'react';
@@ -30,7 +41,7 @@ interface Props {
   baskets: BasketOption[];
 }
 
-export default function UnassignedQueueClient({ captures, baskets }: Props) {
+export default function WorkspaceChangeRequestsClient({ captures, baskets }: Props) {
   const [items, setItems] = useState(captures);
   const [isPending, startTransition] = useTransition();
 
@@ -127,17 +138,19 @@ export default function UnassignedQueueClient({ captures, baskets }: Props) {
   return (
     <div className="mx-auto max-w-4xl space-y-6 py-12">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold">Unassigned Captures</h1>
+        <h1 className="text-2xl font-semibold">Workspace Change Requests</h1>
         <p className="text-sm text-muted-foreground">
-          Low-confidence captures from MCP integrations land here so you can route them to the right basket.
+          Review workspace-level operations requiring approval: basket assignments, cross-basket changes, and workspace mutations.
         </p>
       </header>
 
+      {/* Future: Add filter tabs here (All | Assignments | Cross-Basket | Workspace) */}
+
       {items.length === 0 ? (
         <section className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-          <p>No unassigned captures.</p>
+          <p>No pending change requests.</p>
           <p className="mt-1">
-            Continue working inside Claude or ChatGPT. When Yarnnn cannot confidently select a basket, you&apos;ll assign it here.
+            Continue working inside Claude or ChatGPT. When basket inference has low confidence, captures will appear here for assignment.
           </p>
         </section>
       ) : (

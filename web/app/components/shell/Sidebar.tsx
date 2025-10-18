@@ -30,8 +30,8 @@ const GLOBAL_LINKS = [
     icon: Plug,
   },
   {
-    href: '/memory/unassigned',
-    label: 'Unassigned Queue',
+    href: '/workspace/change-requests',
+    label: 'Change Requests',
     icon: Inbox,
   },
   {

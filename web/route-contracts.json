@@ -30,7 +30,7 @@
   "/api/work/status/[workId]",
   "/api/documents",
   "/api/documents/[id]",
-  "/api/documents/[id]/composition",
+  "/api/internal/documents/[id]/composition",
   "/api/documents/[id]/references",
   "/api/documents/[id]/analyze-lite",
   "/api/documents/[id]/versions",

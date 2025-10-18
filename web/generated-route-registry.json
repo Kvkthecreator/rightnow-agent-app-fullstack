@@ -40,7 +40,7 @@
   "/api/debug/create-basket",
   "/api/documents",
   "/api/documents/[id]",
-  "/api/documents/[id]/composition",
+  "/api/internal/documents/[id]/composition",
   "/api/documents/[id]/references",
   "/api/dumps/[id]",
   "/api/dumps/[id]/work",

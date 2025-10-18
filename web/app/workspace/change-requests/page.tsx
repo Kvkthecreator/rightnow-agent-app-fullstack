@@ -3,12 +3,21 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import type { Database } from '@/lib/dbTypes';
 import { ensureSingleWorkspace } from '@/lib/canon/WorkspaceResolver';
 import { listBasketsByWorkspace } from '@/lib/baskets/listBasketsByWorkspace';
-import UnassignedQueueClient, { type UnassignedCapture } from '@/components/memory/UnassignedQueueClient';
+import WorkspaceChangeRequestsClient, { type UnassignedCapture } from '@/components/workspace/ChangeRequestsClient';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function UnassignedQueuePage() {
+/**
+ * Workspace Change Requests Page
+ *
+ * Canon: YARNNN_GOVERNANCE_CANON_V5.md
+ * Shows workspace-level change requests including:
+ * - Type 1a: Basket assignment requests (unassigned captures)
+ * - Type 1b: Cross-basket operations (future)
+ * - Type 1c: Workspace mutations (future)
+ */
+export default async function WorkspaceChangeRequestsPage() {
   const supabase = createServerComponentClient<Database>({ cookies });
   const {
     data: { user },
@@ -30,7 +39,7 @@ export default async function UnassignedQueuePage() {
   const { data: baskets } = await listBasketsByWorkspace(workspace.id);
 
   return (
-    <UnassignedQueueClient
+    <WorkspaceChangeRequestsClient
       captures={(captures ?? []) as UnassignedCapture[]}
       baskets={baskets ?? []}
     />

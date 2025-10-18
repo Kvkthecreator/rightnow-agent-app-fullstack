@@ -13,13 +13,28 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     const workspace = isTest ? { id: '00000000-0000-0000-0000-000000000002' } : await ensureWorkspaceForUser(userId, supabase);
 
     // Load document with current version content (Canon v3.0)
-    const { data: doc, error: docErr } = await supabase
-      .from('document_heads')
-      .select('document_id, basket_id, title, content, document_created_at, document_updated_at, workspace_id, document_metadata')
-      .eq('document_id', id)
+    const { data: documentRow, error: docErr } = await supabase
+      .from('documents')
+      .select('id, basket_id, workspace_id, title, current_version_hash, metadata, created_at, updated_at')
+      .eq('id', id)
       .maybeSingle();
-    if (docErr || !doc) return NextResponse.json({ error: 'document not found' }, { status: 404 });
-    if (doc.workspace_id !== workspace.id) return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
+    if (docErr || !documentRow) return NextResponse.json({ error: 'document not found' }, { status: 404 });
+    if (documentRow.workspace_id !== workspace.id) return NextResponse.json({ error: 'unauthorized' }, { status: 403 });
+
+    let versionContent: string | null = null;
+    let versionMetadata: Record<string, any> | null = null;
+    if (documentRow.current_version_hash) {
+      const { data: version } = await supabase
+        .from('document_versions')
+        .select('content, metadata_snapshot')
+        .eq('document_id', id)
+        .eq('version_hash', documentRow.current_version_hash)
+        .maybeSingle();
+      if (version) {
+        versionContent = version.content;
+        versionMetadata = version.metadata_snapshot as Record<string, any> | null;
+      }
+    }
 
     // Stats (composition)
     const { data: stats } = await supabase
@@ -57,17 +72,16 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 
     // Enhance with Phase 1 metrics if available (Canon v3.0: map view fields to expected names)
     const enhanced_doc = {
-      id: doc.document_id,
-      basket_id: doc.basket_id,
-      title: doc.title,
-      content_raw: doc.content, // Maintain backward compat field name for UI
-      created_at: doc.document_created_at,
-      updated_at: doc.document_updated_at,
-      workspace_id: doc.workspace_id,
+      id: documentRow.id,
+      basket_id: documentRow.basket_id,
+      title: documentRow.title,
+      content_raw: versionContent,
+      created_at: documentRow.created_at,
+      updated_at: documentRow.updated_at,
+      workspace_id: documentRow.workspace_id,
       metadata: {
-        ...doc.document_metadata,
-        // Include Phase 1 metrics from document metadata if available
-        phase1_metrics: doc.document_metadata?.phase1_metrics || null
+        ...(documentRow.metadata || {}),
+        ...(versionMetadata || {}),
       }
     };
 
@@ -88,4 +102,3 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: 'internal server error' }, { status: 500 });
   }
 }
-
