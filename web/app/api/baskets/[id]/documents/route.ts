@@ -10,6 +10,7 @@ import {
   type DocumentDTO,
   type CreateDocumentRequest 
 } from '@/shared/contracts/documents';
+import { apiUrl } from '@/lib/env';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -101,9 +102,17 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: 'basket not found' }, { status: 404 });
     }
 
-    const res = await fetch(`/api/documents/compose`, {
+    const authHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const bearer = request.headers.get('authorization');
+    const sbToken = request.headers.get('sb-access-token');
+    if (bearer) authHeaders['Authorization'] = bearer;
+    if (sbToken) authHeaders['sb-access-token'] = sbToken;
+
+    const res = await fetch(apiUrl('/api/documents/compose'), {
       method: 'POST',
-      headers: request.headers,
+      headers: authHeaders,
       body: JSON.stringify({
         basket_id,
         intent: compositionIntent,

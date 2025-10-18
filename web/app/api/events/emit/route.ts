@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+import { apiUrl } from '@/lib/env';
 import { apiPost } from '@/lib/server/http';
 
 export async function POST(request: NextRequest) {
@@ -10,7 +11,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await apiPost('/api/events/emit', body);
+    const response = await fetch(apiUrl('/api/events/emit'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': request.headers.get('authorization') || '',
+        'sb-access-token': request.headers.get('sb-access-token') || '',
+      },
+      body: JSON.stringify(body),
+    });
     const json = await response.json().catch(() => ({}));
     return NextResponse.json(json, { status: response.status });
   } catch (error) {
