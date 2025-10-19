@@ -125,18 +125,14 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
             description="Remote MCP connector for Claude and Claude Desktop."
             status={claudeStatus.badge}
             meta={claudeStatus.meta}
-            actionLabel={claudeConnected ? 'Manage tokens' : 'Connect Claude'}
             actionHref="/dashboard/integrations"
-            docsHref="https://yarnnn.gitbook.io/docs/integrations-3rd-party/integrations"
           />
           <StatusCard
             title="ChatGPT"
             description="OpenAI Apps SDK integration (preview)."
             status={chatgptStatus.badge}
             meta={chatgptStatus.meta}
-            actionLabel={chatgptConnected ? 'View connection' : 'Preview details'}
             actionHref="/dashboard/integrations"
-            docsHref="https://yarnnn.gitbook.io/docs/integrations-3rd-party/integrations"
           />
         </div>
       </section>
@@ -149,14 +145,12 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
             description="Basket assignments and cross-basket operations awaiting review."
             count={unassignedCount ?? 0}
             href="/workspace/change-requests"
-            cta="Review requests"
           />
           <QueueCard
             title="Basket-Level Proposals"
             description="Substrate changes across all baskets (informational)."
             count={pendingProposalCount ?? 0}
             href="/baskets"
-            cta="View baskets"
           />
         </div>
       </section>
@@ -258,20 +252,19 @@ function StatusCard({
   description,
   status,
   meta,
-  actionLabel,
   actionHref,
-  docsHref,
 }: {
   title: string;
   description: string;
   status: string;
   meta: string;
-  actionLabel: string;
   actionHref: string;
-  docsHref: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border p-4">
+    <Link
+      href={actionHref}
+      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-sm"
+    >
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-medium">{title}</h3>
@@ -282,21 +275,7 @@ function StatusCard({
         </span>
       </div>
       <div className="text-xs text-muted-foreground">{meta}</div>
-      <div className="flex items-center gap-3 text-sm">
-        <Link href={actionHref} className="text-primary hover:underline">
-          {actionLabel}
-        </Link>
-        <span className="text-muted-foreground">·</span>
-        <a
-          href={docsHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Docs
-        </a>
-      </div>
-    </div>
+    </Link>
   );
 }
 
@@ -330,27 +309,25 @@ function QueueCard({
   description,
   count,
   href,
-  cta,
 }: {
   title: string;
   description: string;
   count: number;
   href: string;
-  cta: string;
 }) {
   return (
-    <div className="flex flex-col justify-between rounded-xl border border-border p-4">
+    <Link
+      href={href}
+      className="flex flex-col justify-between rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-sm"
+    >
       <div>
         <h3 className="text-lg font-medium">{title}</h3>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-      <div className="mt-4 flex items-center justify-between text-sm">
+      <div className="mt-4">
         <span className="text-2xl font-semibold">{count}</span>
-        <Link href={href} className="text-primary hover:underline">
-          {cta}
-        </Link>
       </div>
-    </div>
+    </Link>
   );
 }
 
