@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PenTool, RefreshCw, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
+import { Share2, RefreshCw, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -105,8 +105,8 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
           size="sm"
           className="w-full sm:w-auto"
         >
-          <PenTool className="h-3.5 w-3.5" />
-          Add thought
+          <Share2 className="h-3.5 w-3.5" />
+          Share Updates
         </Button>
       </div>
 

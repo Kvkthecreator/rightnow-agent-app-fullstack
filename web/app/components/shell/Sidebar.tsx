@@ -160,7 +160,8 @@ export default function Sidebar({ className }: SidebarProps) {
     graph: Network,
     "building-blocks": Layers,
     documents: FileText,
-    settings: Settings2
+    settings: Settings2,
+    "change-requests": Inbox,
   };
 
   return (
