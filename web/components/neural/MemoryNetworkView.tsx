@@ -346,17 +346,6 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     };
   }, [filteredNodes, filteredLinks]);
 
-  // Add wheel event listener with passive: false
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    canvas.addEventListener('wheel', handleCanvasWheel, { passive: false });
-    return () => {
-      canvas.removeEventListener('wheel', handleCanvasWheel);
-    };
-  }, [handleCanvasWheel]);
-
   // Render canvas
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -616,6 +605,17 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     setPan({ x: 0, y: 0 });
     setZoom(1);
   }, []);
+
+  // Add wheel event listener with passive: false
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.addEventListener('wheel', handleCanvasWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', handleCanvasWheel);
+    };
+  }, [handleCanvasWheel]);
 
   // Stats
   const typeStats = useMemo(() => {
