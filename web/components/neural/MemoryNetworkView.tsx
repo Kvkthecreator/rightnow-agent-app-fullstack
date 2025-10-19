@@ -346,6 +346,17 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     };
   }, [filteredNodes, filteredLinks]);
 
+  // Add wheel event listener with passive: false
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.addEventListener('wheel', handleCanvasWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', handleCanvasWheel);
+    };
+  }, [handleCanvasWheel]);
+
   // Render canvas
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -595,7 +606,7 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
     setIsPanning(false);
   }, []);
 
-  const handleCanvasWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
+  const handleCanvasWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     setZoom(prev => Math.max(0.1, Math.min(5, prev * delta)));
@@ -767,7 +778,6 @@ export default function MemoryNetworkView({ basketId, basketTitle, blocks }: Mem
               onMouseDown={handleCanvasMouseDown}
               onMouseUp={handleCanvasMouseUp}
               onMouseLeave={handleCanvasMouseUp}
-              onWheel={handleCanvasWheel}
               onDoubleClick={handleCanvasDoubleClick}
             />
           </CardContent>
