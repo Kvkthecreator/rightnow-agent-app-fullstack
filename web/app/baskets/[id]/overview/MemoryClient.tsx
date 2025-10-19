@@ -83,8 +83,8 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
   return (
     <div className="space-y-6">
       {/* Basket Header with Editable Title and Menu */}
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex-1 space-y-1">
           <div className="flex items-center gap-2">
             <EditableBasketTitle
               basketId={basketId}
@@ -103,6 +103,7 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
           onClick={() => setShowAddMemory(true)}
           variant="primary"
           size="sm"
+          className="w-full sm:w-auto"
         >
           <PenTool className="h-3.5 w-3.5" />
           Add thought
@@ -134,10 +135,10 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
       {/* Dashboard-like metrics */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-slate-900">Knowledge overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {/* Blocks */}
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-lg bg-blue-50">
@@ -157,7 +158,7 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
 
           {/* Relationships */}
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-lg bg-purple-50">
@@ -177,7 +178,7 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
 
           {/* Documents */}
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-lg bg-green-50">
