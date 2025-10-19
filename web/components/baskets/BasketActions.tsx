@@ -176,7 +176,10 @@ export default function BasketActions({
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
         <DialogContent
           onClick={(e) => e.stopPropagation()}
-          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         >
           <DialogHeader>
             <DialogTitle>Rename Basket</DialogTitle>
@@ -225,7 +228,10 @@ export default function BasketActions({
       <Dialog open={archiveOpen} onOpenChange={setArchiveOpen}>
         <DialogContent
           onClick={(e) => e.stopPropagation()}
-          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         >
           <DialogHeader>
             <DialogTitle>Archive Basket</DialogTitle>
