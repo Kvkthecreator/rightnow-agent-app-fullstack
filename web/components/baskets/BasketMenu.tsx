@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from 'react';
-import { MoreVertical, Archive, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { MoreVertical, Archive, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/DropdownMenu';
 import {
@@ -27,6 +29,7 @@ interface BasketMenuProps {
 }
 
 export default function BasketMenu({ basketId, basketName, onArchive }: BasketMenuProps) {
+  const router = useRouter();
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -51,6 +54,13 @@ export default function BasketMenu({ basketId, basketName, onArchive }: BasketMe
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={() => router.push(`/baskets/${basketId}/settings`)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => setShowArchiveDialog(true)}
             className="text-red-600 focus:text-red-600"
