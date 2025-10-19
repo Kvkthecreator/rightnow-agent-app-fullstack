@@ -14,7 +14,7 @@ export const SECTION_ORDER: BasketSection[] = [
 
   // Insights
   { key: "insights", label: "Insights", href: (id) => `/baskets/${id}/insights` },
-  { key: "graph", label: "Network", href: (id) => `/baskets/${id}/graph` },
+  { key: "graph", label: "Visual Map", href: (id) => `/baskets/${id}/graph` },
   { key: "timeline", label: "Timeline", href: (id) => `/baskets/${id}/timeline` },
 
   // Documents
