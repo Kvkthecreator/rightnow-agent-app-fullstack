@@ -26,6 +26,17 @@ const SEMANTIC_TYPE_OPTIONS = [
   { value: 'classification', label: 'Classification' },
 ];
 
+const ANCHOR_SUGGESTIONS = [
+  'problem',
+  'constraint',
+  'metric',
+  'customer_need',
+  'solution',
+  'vision',
+  'objective',
+  'risk',
+];
+
 interface SubstrateDetailModalProps {
   substrateType: 'raw_dump' | 'block' | 'context_item' | 'relationship' | 'timeline_event';
   substrateId: string;
@@ -627,6 +638,19 @@ export default function SubstrateDetailModal({
                     onChange={(e) => setRetagAnchorRole(e.target.value)}
                     placeholder="e.g., project_constraint, stakeholder_need"
                   />
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                    {ANCHOR_SUGGESTIONS.map((role) => (
+                      <button
+                        key={role}
+                        type="button"
+                        className={`rounded-full border px-2 py-1 ${retagAnchorRole === role ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'}`}
+                        onClick={() => setRetagAnchorRole(role)}
+                      >
+                        {role}
+                      </button>
+                    ))}
+                    <span className="text-slate-400">or type a custom role</span>
+                  </div>
                 </div>
                 {renderActionError()}
                 <div className="flex justify-end gap-2">

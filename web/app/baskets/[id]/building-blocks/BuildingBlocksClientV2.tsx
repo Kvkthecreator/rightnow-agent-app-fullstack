@@ -70,7 +70,7 @@ const fetcher = (url: string) => fetchWithToken(url).then((res) => {
 const KNOWLEDGE_TYPES = new Set(['fact', 'metric', 'entity']);
 const MEANING_TYPES = new Set(['intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint']);
 
-type FilterMode = 'all' | 'knowledge' | 'meaning';
+type FilterMode = 'all' | 'knowledge' | 'meaning' | 'anchored';
 type ViewMode = 'expanded' | 'compact' | 'dense';
 
 interface BuildingBlocksClientProps {
@@ -97,8 +97,8 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
   }, [data?.blocks?.length]);
 
   // Filter blocks by category
-  const { knowledgeBlocks, meaningBlocks } = useMemo(() => {
-    if (!data?.blocks) return { knowledgeBlocks: [], meaningBlocks: [] };
+  const { knowledgeBlocks, meaningBlocks, anchoredBlocks } = useMemo(() => {
+    if (!data?.blocks) return { knowledgeBlocks: [], meaningBlocks: [], anchoredBlocks: [] };
 
     const knowledge = data.blocks.filter(b =>
       b.semantic_type && KNOWLEDGE_TYPES.has(b.semantic_type)
@@ -106,8 +106,9 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
     const meaning = data.blocks.filter(b =>
       b.semantic_type && MEANING_TYPES.has(b.semantic_type)
     );
+    const anchored = data.blocks.filter(b => Boolean(b.anchor_role));
 
-    return { knowledgeBlocks: knowledge, meaningBlocks: meaning };
+    return { knowledgeBlocks: knowledge, meaningBlocks: meaning, anchoredBlocks: anchored };
   }, [data?.blocks]);
 
   // Apply search and filter
@@ -116,6 +117,7 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
 
     if (filterMode === 'knowledge') blocks = knowledgeBlocks;
     else if (filterMode === 'meaning') blocks = meaningBlocks;
+    else if (filterMode === 'anchored') blocks = anchoredBlocks;
     else blocks = data?.blocks || [];
 
     // Search filter
@@ -130,7 +132,7 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
 
     // Sort by usage
     return blocks.sort((a, b) => b.times_referenced - a.times_referenced);
-  }, [data?.blocks, knowledgeBlocks, meaningBlocks, filterMode, query]);
+  }, [data?.blocks, knowledgeBlocks, meaningBlocks, anchoredBlocks, filterMode, query]);
 
   const formatConfidence = (value: number | null) => {
     if (value === null || Number.isNaN(value)) return '—';
@@ -214,11 +216,15 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
           </Badge>
           <Badge variant="secondary" className="bg-blue-50 text-blue-700">
             <Database className="h-3 w-3 mr-1" />
-            {data?.stats.knowledge_blocks || 0} knowledge
+            {knowledgeBlocks.length} knowledge
           </Badge>
           <Badge variant="secondary" className="bg-purple-50 text-purple-700">
             <Brain className="h-3 w-3 mr-1" />
-            {data?.stats.meaning_blocks || 0} meaning
+            {meaningBlocks.length} meaning
+          </Badge>
+          <Badge variant="secondary" className="bg-amber-50 text-amber-700">
+            <span className="mr-1">📌</span>
+            {anchoredBlocks.length} anchored
           </Badge>
         </CardContent>
       </Card>
@@ -249,6 +255,14 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
             >
               <Brain className="h-3 w-3 mr-1" />
               Meaning
+            </Button>
+            <Button
+              size="sm"
+              variant={filterMode === 'anchored' ? 'default' : 'outline'}
+              onClick={() => setFilterMode('anchored')}
+            >
+              <span className="mr-1">📌</span>
+              Anchored
             </Button>
           </div>
 
