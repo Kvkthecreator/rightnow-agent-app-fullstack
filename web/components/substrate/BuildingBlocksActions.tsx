@@ -84,12 +84,44 @@ export default function BuildingBlocksActions({
   const [newSemanticType, setNewSemanticType] = useState(block.semantic_type || '');
   const [newAnchorRole, setNewAnchorRole] = useState(block.anchor_role || '');
 
+  const cloneMetadata = () => {
+    const source = block.metadata ?? {};
+    try {
+      // @ts-ignore structuredClone may exist in runtime
+      return typeof structuredClone === 'function' ? structuredClone(source) : JSON.parse(JSON.stringify(source));
+    } catch {
+      return JSON.parse(JSON.stringify(source));
+    }
+  };
+
+  const buildMetadataForRevision = (title: string, content: string) => {
+    const metadata = cloneMetadata();
+    if (metadata && typeof metadata === 'object') {
+      if (!metadata.extraction_method && block?.metadata?.extraction_method) {
+        metadata.extraction_method = block.metadata.extraction_method;
+      }
+      if (metadata.knowledge_ingredients) {
+        metadata.knowledge_ingredients.title = title;
+        if (metadata.knowledge_ingredients.summary !== undefined) {
+          metadata.knowledge_ingredients.summary = content;
+        }
+      }
+      if (metadata.provenance_validated === undefined && block.metadata?.provenance_validated !== undefined) {
+        metadata.provenance_validated = block.metadata.provenance_validated;
+      }
+    }
+    return metadata;
+  };
+
   // Submit edit (ReviseBlock operation)
   const handleEdit = async () => {
     setLoading(true);
     setError(null);
 
     try {
+      const metadata = buildMetadataForRevision(editTitle.trim(), editContent.trim());
+      const confidence = block.confidence_score ?? 1;
+
       const response = await fetchWithToken('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,12 +132,15 @@ export default function BuildingBlocksActions({
             operations: [
               {
                 type: 'ReviseBlock',
-                block_id: block.id,
-                title: editTitle.trim(),
-                content: editContent.trim(),
-                semantic_type: block.semantic_type,
-                anchor_role: block.anchor_role,
-                confidence: 1.0,
+                data: {
+                  block_id: block.id,
+                  title: editTitle.trim(),
+                  content: editContent.trim(),
+                  semantic_type: block.semantic_type,
+                  anchor_role: block.anchor_role,
+                  confidence,
+                  metadata,
+                },
               },
             ],
             user_override: 'allow_auto', // Instant approval
@@ -121,12 +156,12 @@ export default function BuildingBlocksActions({
 
       const result = await response.json();
 
-      if (result.executed_immediately) {
+      if (result.executed_immediately !== false) {
         // Success - optimistic update
         setEditOpen(false);
         onUpdate(); // Refresh list
       } else {
-        throw new Error('Block edit was not executed immediately');
+        throw new Error('Block edit was queued for review');
       }
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -151,7 +186,9 @@ export default function BuildingBlocksActions({
             operations: [
               {
                 type: 'ArchiveBlock',
-                block_id: block.id,
+                data: {
+                  block_id: block.id,
+                },
               },
             ],
             user_override: 'allow_auto',
@@ -167,11 +204,11 @@ export default function BuildingBlocksActions({
 
       const result = await response.json();
 
-      if (result.executed_immediately) {
+      if (result.executed_immediately !== false) {
         setArchiveOpen(false);
         onUpdate();
       } else {
-        throw new Error('Block archive was not executed immediately');
+        throw new Error('Block archive was queued for review');
       }
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -186,6 +223,14 @@ export default function BuildingBlocksActions({
     setError(null);
 
     try {
+      const metadata = cloneMetadata();
+      if (metadata && metadata.knowledge_ingredients) {
+        if (newSemanticType) {
+          metadata.knowledge_ingredients.semantic_type = newSemanticType;
+        }
+        metadata.knowledge_ingredients.anchor_role = newAnchorRole.trim() || null;
+      }
+
       const response = await fetchWithToken('/api/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -196,10 +241,13 @@ export default function BuildingBlocksActions({
             operations: [
               {
                 type: 'UpdateBlock',
-                block_id: block.id,
-                semantic_type: newSemanticType,
-                anchor_role: newAnchorRole.trim() || null,
-                confidence: 1.0,
+                data: {
+                  block_id: block.id,
+                  semantic_type: newSemanticType || block.semantic_type,
+                  anchor_role: newAnchorRole.trim() || null,
+                  confidence: block.confidence_score ?? 1,
+                  metadata,
+                },
               },
             ],
             user_override: 'allow_auto',
@@ -215,11 +263,11 @@ export default function BuildingBlocksActions({
 
       const result = await response.json();
 
-      if (result.executed_immediately) {
+      if (result.executed_immediately !== false) {
         setRetagOpen(false);
         onUpdate();
       } else {
-        throw new Error('Block retag was not executed immediately');
+        throw new Error('Block retag was queued for review');
       }
     } catch (e: any) {
       setError(e?.message || String(e));

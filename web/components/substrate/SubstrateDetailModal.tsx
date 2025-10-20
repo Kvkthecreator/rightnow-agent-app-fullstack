@@ -4,9 +4,27 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/Input';
 import { FileText, Database, Link2, Hash, Clock, Copy, ExternalLink, X } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
-import BuildingBlocksActions from './BuildingBlocksActions';
+
+const SEMANTIC_TYPE_OPTIONS = [
+  { value: '', label: '— None —' },
+  { value: 'fact', label: 'Fact' },
+  { value: 'metric', label: 'Metric' },
+  { value: 'intent', label: 'Intent' },
+  { value: 'objective', label: 'Objective' },
+  { value: 'rationale', label: 'Rationale' },
+  { value: 'principle', label: 'Principle' },
+  { value: 'assumption', label: 'Assumption' },
+  { value: 'context', label: 'Context' },
+  { value: 'constraint', label: 'Constraint' },
+  { value: 'entity', label: 'Entity' },
+  { value: 'insight', label: 'Insight' },
+  { value: 'action', label: 'Action' },
+  { value: 'summary', label: 'Summary' },
+  { value: 'classification', label: 'Classification' },
+];
 
 interface SubstrateDetailModalProps {
   substrateType: 'raw_dump' | 'block' | 'context_item' | 'relationship' | 'timeline_event';
@@ -111,9 +129,18 @@ export default function SubstrateDetailModal({
   const [substrate, setSubstrate] = useState<SubstrateDetail | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [blockAction, setBlockAction] = useState<'view' | 'edit' | 'retag' | 'archive'>('view');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [retagSemanticType, setRetagSemanticType] = useState('');
+  const [retagAnchorRole, setRetagAnchorRole] = useState('');
 
   useEffect(() => {
     if (open && substrateId) {
+      setBlockAction('view');
+      setActionError(null);
       loadSubstrate();
     }
   }, [open, substrateId, substrateType]);
@@ -138,6 +165,17 @@ export default function SubstrateDetailModal({
       const data = await response.json();
       setSubstrate(data);
 
+      if (data?.semantic_type || data?.title) {
+        setEditTitle(data.title || '');
+        setEditContent(data.content || '');
+      }
+      if (data?.semantic_type) {
+        setRetagSemanticType(data.semantic_type);
+      }
+      if (data?.anchor_role !== undefined) {
+        setRetagAnchorRole(data.anchor_role || '');
+      }
+
       if (data?.revisions && Array.isArray(data.revisions) && data.revisions.length > 0) {
         setHistory(
           data.revisions.map((revision: any) => ({
@@ -161,6 +199,122 @@ export default function SubstrateDetailModal({
     } finally {
       setLoading(false);
     }
+  };
+
+  const cloneMetadata = () => {
+    const source = substrate?.metadata ?? {};
+    try {
+      // @ts-ignore structuredClone may exist in runtime
+      return typeof structuredClone === 'function' ? structuredClone(source) : JSON.parse(JSON.stringify(source));
+    } catch {
+      return JSON.parse(JSON.stringify(source));
+    }
+  };
+
+  const runWorkRequest = async (operations: any[]) => {
+    setActionLoading(true);
+    setActionError(null);
+
+    try {
+      const response = await fetchWithToken('/api/work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          work_type: 'MANUAL_EDIT',
+          work_payload: {
+            basket_id: basketId,
+            operations,
+            user_override: 'allow_auto',
+          },
+          priority: 'normal',
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to submit work request');
+      }
+
+      if (payload.executed_immediately === false) {
+        throw new Error('Work request queued for review');
+      }
+
+      await loadSubstrate();
+      onUpdate?.();
+      setBlockAction('view');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!substrate) return;
+    const metadata = cloneMetadata();
+    if (metadata && metadata.knowledge_ingredients) {
+      metadata.knowledge_ingredients.title = editTitle.trim();
+      if (metadata.knowledge_ingredients.summary !== undefined) {
+        metadata.knowledge_ingredients.summary = editContent.trim();
+      }
+    }
+    const operations = [
+      {
+        type: 'ReviseBlock',
+        data: {
+          block_id: substrate.id,
+          title: editTitle.trim(),
+          content: editContent.trim(),
+          semantic_type: substrate.semantic_type,
+          anchor_role: substrate.anchor_role ?? null,
+          confidence: substrate.confidence_score ?? 1,
+          metadata,
+        },
+      },
+    ];
+    await runWorkRequest(operations);
+  };
+
+  const handleSaveRetag = async () => {
+    if (!substrate) return;
+    const metadata = cloneMetadata();
+    if (metadata && metadata.knowledge_ingredients) {
+      if (retagSemanticType) {
+        metadata.knowledge_ingredients.semantic_type = retagSemanticType;
+      }
+      metadata.knowledge_ingredients.anchor_role = retagAnchorRole.trim() || null;
+    }
+    const operations = [
+      {
+        type: 'UpdateBlock',
+        data: {
+          block_id: substrate.id,
+          semantic_type: retagSemanticType || substrate.semantic_type,
+          anchor_role: retagAnchorRole.trim() || null,
+          confidence: substrate.confidence_score ?? 1,
+          metadata,
+        },
+      },
+    ];
+    await runWorkRequest(operations);
+  };
+
+  const handleArchiveBlock = async () => {
+    if (!substrate) return;
+    const operations = [
+      {
+        type: 'ArchiveBlock',
+        data: {
+          block_id: substrate.id,
+        },
+      },
+    ];
+    await runWorkRequest(operations);
+  };
+
+  const toggleBlockAction = (mode: 'edit' | 'retag' | 'archive') => {
+    setActionError(null);
+    setBlockAction(prev => (prev === mode ? 'view' : mode));
   };
 
   const copyToClipboard = (text: string) => {
@@ -374,8 +528,154 @@ export default function SubstrateDetailModal({
         return <div className="space-y-4">{sections}</div>;
       };
 
+        const renderActionError = () => (
+          actionError && (
+            <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {actionError}
+            </div>
+          )
+        );
+
         return (
           <div className="space-y-6">
+            <section className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={blockAction === 'edit' ? 'default' : 'outline'}
+                  onClick={() => toggleBlockAction('edit')}
+                >
+                  {blockAction === 'edit' ? 'Editing block' : 'Edit block'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={blockAction === 'retag' ? 'default' : 'outline'}
+                  onClick={() => toggleBlockAction('retag')}
+                >
+                  {blockAction === 'retag' ? 'Updating tags' : 'Update tags'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={blockAction === 'archive' ? 'destructive' : 'outline'}
+                  onClick={() => toggleBlockAction('archive')}
+                >
+                  Archive
+                </Button>
+              </div>
+            </section>
+
+            {blockAction === 'edit' && (
+              <section className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">Title</label>
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Block title"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">Content</label>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    placeholder="Block content"
+                    className="w-full min-h-[160px] rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                {renderActionError()}
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleBlockAction('edit')}
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveEdit}
+                    disabled={actionLoading || !editTitle.trim() || !editContent.trim()}
+                  >
+                    {actionLoading ? 'Saving…' : 'Save new version'}
+                  </Button>
+                </div>
+              </section>
+            )}
+
+            {blockAction === 'retag' && (
+              <section className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">Semantic Type</label>
+                  <select
+                    value={retagSemanticType}
+                    onChange={(e) => setRetagSemanticType(e.target.value)}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {SEMANTIC_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1 block">Anchor Role (optional)</label>
+                  <Input
+                    value={retagAnchorRole}
+                    onChange={(e) => setRetagAnchorRole(e.target.value)}
+                    placeholder="e.g., project_constraint, stakeholder_need"
+                  />
+                </div>
+                {renderActionError()}
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleBlockAction('retag')}
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveRetag}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? 'Updating…' : 'Update tags'}
+                  </Button>
+                </div>
+              </section>
+            )}
+
+            {blockAction === 'archive' && (
+              <section className="rounded-lg border border-rose-200 bg-rose-50 p-4 space-y-3">
+                <p className="text-sm text-rose-700">
+                  Archiving removes this block from active memory but preserves a tombstone. Downstream documents may need regeneration if they reference it.
+                </p>
+                {renderActionError()}
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleBlockAction('archive')}
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleArchiveBlock}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? 'Archiving…' : 'Confirm archive'}
+                  </Button>
+                </div>
+              </section>
+            )}
+
             <section className="rounded-lg border border-slate-200 bg-white p-4">
               <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                 <Database className="h-4 w-4" /> Overview
@@ -692,29 +992,7 @@ export default function SubstrateDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 p-4 flex items-center justify-end gap-2">
-          {/* Block actions (Edit/Archive/Retag) - Visible for substrate curation */}
-          {substrateType === 'block' && substrate && onUpdate && (
-            <BuildingBlocksActions
-              block={{
-                id: substrate.id,
-                title: substrate.title || null,
-                content: substrate.content || null,
-                semantic_type: substrate.semantic_type || null,
-                anchor_role: substrate.anchor_role ?? substrate.metadata?.anchor_role ?? null,
-                confidence_score: substrate.confidence_score || null,
-                created_at: substrate.created_at,
-                updated_at: substrate.updated_at || null,
-                status: substrate.state || substrate.status || null,
-                metadata: substrate.metadata || null,
-              }}
-              basketId={basketId}
-              onUpdate={() => {
-                onUpdate();
-                onClose(); // Close modal after action
-              }}
-            />
-          )}
+        <div className="border-t border-gray-200 p-4 flex items-center justify-end">
           <Button variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>
