@@ -42,7 +42,7 @@ The v3.0 backend refactoring merged `context_items` into unified `blocks` table.
   );
   ```
 
-**File:** `web/app/baskets/[id]/building-blocks/BuildingBlocksClient.tsx`
+**File:** `web/app/baskets/[id]/building-blocks/BuildingBlocksClientV2.tsx`
 - **Line 57-64:** TypeScript interface expects `context_items`
 - **Line 68:** `BuildingBlocksResponse` type includes `context_items` and `total_context_items`
 - **Impact:** Component rendering broken
@@ -189,7 +189,7 @@ The v3.0 backend refactoring merged `context_items` into unified `blocks` table.
 ### Phase 2: UI Updates
 4. ✅ **Fix Building Blocks page**
    - Update [web/app/api/baskets/[id]/building-blocks/route.ts](web/app/api/baskets/[id]/building-blocks/route.ts)
-   - Update [web/app/baskets/[id]/building-blocks/BuildingBlocksClient.tsx](web/app/baskets/[id]/building-blocks/BuildingBlocksClient.tsx)
+   - Update [web/app/baskets/[id]/building-blocks/BuildingBlocksClientV2.tsx](web/app/baskets/[id]/building-blocks/BuildingBlocksClientV2.tsx)
 5. ✅ **Update anchor helpers** ([web/lib/anchors/mutationHelpers.ts](web/lib/anchors/mutationHelpers.ts))
 
 ### Phase 3: Cleanup

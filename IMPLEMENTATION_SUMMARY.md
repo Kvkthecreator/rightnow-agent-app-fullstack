@@ -111,8 +111,7 @@ CREATE INDEX idx_proposals_basket_scope
 
 #### 2.4 Global Reference Updates
 **Files updated**:
-- `web/components/substrate/SubstrateManager.tsx`
-  - Link: `/baskets/${basketId}/governance` → `/baskets/${basketId}/change-requests`
+- Legacy `web/components/substrate/SubstrateManager.tsx` removed (superseded by inline block modal actions)
 
 - `web/components/building-blocks/CreateContextItemModal.tsx`
   - Console log: `/baskets/${basketId}/governance` → `/baskets/${basketId}/change-requests`
@@ -268,7 +267,6 @@ NotificationCenter (Top Nav Bell Icon)
 - `web/app/components/shell/Sidebar.tsx` - Updated navigation links
 - `web/components/shell/ClientLayoutShell.tsx` - Updated sidebar routes
 - `web/app/dashboard/page.tsx` - Renamed queues to change requests, fixed links
-- `web/components/substrate/SubstrateManager.tsx` - Updated governance link
 - `web/components/building-blocks/CreateContextItemModal.tsx` - Updated governance link
 
 ### Deleted

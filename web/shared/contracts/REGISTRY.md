@@ -13,7 +13,6 @@
 **Components**
 - useBasketOperations — `web/hooks/useBasketOperations.ts`
 - ApiClient — `web/lib/api/client.ts`
-- SubstrateManager — `web/components/substrate/SubstrateManager.tsx`
 
 ---
 

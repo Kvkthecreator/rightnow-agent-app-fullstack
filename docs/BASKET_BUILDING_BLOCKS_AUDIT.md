@@ -41,7 +41,7 @@ baskets (id, name, workspace_id, status, created_at)
 
 ### B. Building Blocks Page
 
-**UI**: `/app/baskets/[id]/building-blocks/BuildingBlocksClient.tsx`
+**UI**: `/app/baskets/[id]/building-blocks/BuildingBlocksClientV2.tsx`
 - **Status**: ✅ Exists - Read-only substrate browser
 - **Features**:
   - Filter by anchored/free/stale/unused/meaning_blocks
