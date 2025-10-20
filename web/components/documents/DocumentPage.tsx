@@ -9,6 +9,7 @@ import TrustBanner from './TrustBanner';
 import ExplainButton from './ExplainButton';
 import { EnhancedDocumentViewer } from './EnhancedDocumentViewer';
 import { notificationAPI } from '@/lib/api/notifications';
+import { fetchWithToken } from '@/lib/fetchWithToken';
 import { ChevronLeft, Sparkles, ArrowUpRight, RefreshCw, FileText, Layers, History, Download, Lightbulb } from 'lucide-react';
 
 interface DocumentRow {
@@ -256,21 +257,19 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
       correlationId: document.id,
     });
     try {
-      const resp = await fetch('/api/reflections/trigger', {
+      const resp = await fetchWithToken('/api/p3/doc-insight', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          basket_id: basketId,
-          scope: 'document',
           document_id: document.id,
-          force_refresh: true,
+          force: true,
         }),
       });
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok) {
         throw new Error(payload?.error || payload?.detail || 'Failed to request insights');
       }
-      await notificationAPI.emitJobSucceeded('document.reflection', 'Document insights requested', {
+      await notificationAPI.emitJobSucceeded('document.reflection', 'Document insight generated', {
         basketId,
         correlationId: document.id,
       });
