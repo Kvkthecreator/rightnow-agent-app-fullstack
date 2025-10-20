@@ -41,7 +41,7 @@
 
 ```
 /baskets/[id]/
-├── /uploads          ← Dedicated raw_dumps page (file explorer UX)
+├── /timeline (Uploads tab) ← Dedicated raw_dumps panel (file explorer UX)
 ├── /building-blocks  ← Blocks + Context Items only (substrate workbench)
 ├── /governance       ← Proposals with enhanced context
 ├── /memory           ← Anchors + Memory management (existing)
@@ -69,7 +69,7 @@
 ### 1. Uploads Page (Already Exists - Enhance)
 
 **Current State:**
-- `/uploads/UploadsClient.tsx` exists but may be basic
+- `timeline/UploadsPanel.tsx` exists but may be basic
 
 **Enhancements Needed:**
 ```tsx
@@ -342,7 +342,7 @@
     <ProvenanceChain>
       <Step icon="FileIcon">
         <Label>Source Upload</Label>
-        <Link to={`/uploads#${substrate.raw_dump_id}`}>
+        <Link to={`/timeline?view=uploads&highlight=${substrate.raw_dump_id}`}>
           {dumpPreview} (uploaded {formatDate(dump.created_at)})
         </Link>
       </Step>
@@ -609,7 +609,7 @@
 ## Implementation Phases
 
 ### Phase 1: Uploads Page Polish (1-2 days)
-- ✅ Enhance existing `/uploads/UploadsClient.tsx` with file manager UX
+- ✅ Enhance timeline uploads panel with file manager UX
 - ✅ Add extraction summary to detail panel
 - ✅ Bridge to building-blocks (click "View Extracted" filters by dump)
 

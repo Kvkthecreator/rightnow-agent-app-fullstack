@@ -1,5 +1,5 @@
 export type BasketSection = {
-  key: "memory" | "uploads" | "timeline" | "insights" | "graph" | "building-blocks" | "documents" | "change-requests";
+  key: "memory" | "timeline" | "insights" | "graph" | "building-blocks" | "documents" | "change-requests";
   label: string;
   href: (id: string) => string;
 };
@@ -8,7 +8,6 @@ export type BasketSection = {
 export const SECTION_ORDER: BasketSection[] = [
   // Overview
   { key: "memory", label: "Overview", href: (id) => `/baskets/${id}/overview` },
-  { key: "uploads", label: "Uploads", href: (id) => `/baskets/${id}/uploads` },
   { key: "building-blocks", label: "Building Blocks", href: (id) => `/baskets/${id}/building-blocks` },
   { key: "change-requests", label: "Change Requests", href: (id) => `/baskets/${id}/change-requests` },
 

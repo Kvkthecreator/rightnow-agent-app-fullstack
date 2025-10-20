@@ -74,7 +74,7 @@ YARNNN is fundamentally different from Notion and traditional note-taking apps. 
 - PDF upload with OCR text
 
 **User Interaction:** View original (read-only reference)
-**Location:** `/baskets/[id]/uploads` page
+**Location:** `/baskets/[id]/timeline` (Uploads tab)
 
 ### Layer 2: SUBSTRATE (Governed Knowledge)
 
@@ -491,17 +491,17 @@ Document: Auto-regenerated with new section
 
 ### Phase 5: Page Refactoring (Clean Separation)
 
-**Goal:** Clear mental model across /uploads, /building-blocks, /documents
+**Goal:** Clear mental model across timeline uploads, building blocks, documents
 
 **Tasks:**
-1. Update /uploads page to show raw_dump → document links
+1. Update timeline uploads tab to show raw_dump → document links
 2. Add "Composed into document" indicators on raw_dumps
 3. Add "View Original" links on documents from uploads
 4. Ensure /building-blocks shows substrate governance
 5. Remove any document editing UI remnants
 
 **Acceptance:**
-- /uploads shows immutable captures with document links
+- Timeline uploads tab shows immutable captures with document links
 - /building-blocks shows substrate management (governance)
 - /documents shows composition management (regeneration)
 - Clear three-layer mental model maintained

@@ -69,7 +69,7 @@ async def get_current_alerts(user=Depends(verify_jwt)):
                     severity=severity,
                     title="Triage ambient captures",
                     message=f"{pending_count} low-confidence captures need basket assignment.",
-                    action_href="/memory/unassigned",
+                    action_href="/workspace/change-requests?view=assignments",
                     action_label="Open queue",
                 )
             )

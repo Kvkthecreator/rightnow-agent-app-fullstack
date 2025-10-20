@@ -83,7 +83,7 @@ export default function CreateContextItemModal({ basketId, open, onClose, onSucc
           'Your context item is awaiting approval',
           basketId
         );
-        console.log(`View proposal at: /baskets/${basketId}/change-requests?highlight=${result.proposal_id}`);
+        console.log(`View proposal at: /baskets/${basketId}/change-requests#${result.proposal_id}`);
       }
 
       // Reset form

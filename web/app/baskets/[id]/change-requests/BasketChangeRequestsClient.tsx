@@ -54,6 +54,7 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
   const [view, setView] = useState<'summary' | 'list'>('summary');
   const [insightLoadingId, setInsightLoadingId] = useState<string | null>(null);
   const [insightError, setInsightError] = useState<string | null>(null);
+  const [hashProcessed, setHashProcessed] = useState(false);
 
   type StatusFilterType = 'all' | 'PROPOSED' | 'APPROVED' | 'REJECTED';
 
@@ -89,9 +90,43 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
     }
   }, [basketId, statusFilter]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const processHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (!hash) {
+        if (isDetailModalOpen) {
+          setSelectedProposalId(null);
+          setIsDetailModalOpen(false);
+        }
+        return;
+      }
+
+      const match = proposals.find((proposal) => proposal.id === hash);
+      if (match) {
+        setSelectedProposalId(hash);
+        setIsDetailModalOpen(true);
+      }
+    };
+
+    if (!hashProcessed) {
+      processHash();
+      setHashProcessed(true);
+    }
+
+    window.addEventListener('hashchange', processHash);
+    return () => window.removeEventListener('hashchange', processHash);
+  }, [proposals, hashProcessed, isDetailModalOpen]);
+
   const openProposalDetail = (proposalId: string) => {
     setSelectedProposalId(proposalId);
     setIsDetailModalOpen(true);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.hash = proposalId;
+      window.history.replaceState(null, '', url.toString());
+    }
   };
 
   const handleProposalInsights = async (proposalId: string) => {
@@ -123,6 +158,11 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
   const closeProposalDetail = () => {
     setSelectedProposalId(null);
     setIsDetailModalOpen(false);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.hash = '';
+      window.history.replaceState(null, '', url.pathname + url.search);
+    }
   };
 
   const handleApprove = async (proposalId: string, notes?: string) => {

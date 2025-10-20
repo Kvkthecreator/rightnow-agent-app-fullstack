@@ -510,7 +510,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push(`/baskets/${basketId}/uploads?highlight=${document.source_raw_dump_id}`)}
+                onClick={() => router.push(`/baskets/${basketId}/timeline?view=uploads&highlight=${document.source_raw_dump_id}`)}
               >
                 <FileText className="mr-2 h-4 w-4" />
                 View Original Upload

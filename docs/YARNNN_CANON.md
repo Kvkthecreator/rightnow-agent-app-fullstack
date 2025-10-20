@@ -427,7 +427,7 @@ User curates substrate → requests composition → document regenerated
 **Layer 1: RAW_DUMPS** (Immutable Capture)
 - Purpose: Preserve original input exactly as received
 - User interaction: View original (read-only reference)
-- Location: `/baskets/[id]/uploads`
+- Location: `/baskets/[id]/timeline` (Uploads tab)
 
 **Layer 2: SUBSTRATE** (Governed Knowledge)
 - Purpose: Structured, validated knowledge atoms

@@ -18,7 +18,7 @@ interface RouteContext {
  * - Context items with semantic meaning
  * - Stats for filtering (anchored, stale, unused counts)
  *
- * NOTE: Raw dumps are NOT included here - they belong in /uploads page
+ * NOTE: Raw dumps are managed via the timeline uploads tab (not returned here)
  */
 
 interface KnowledgeSummary {

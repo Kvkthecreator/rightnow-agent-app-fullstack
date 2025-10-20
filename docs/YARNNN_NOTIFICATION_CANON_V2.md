@@ -228,7 +228,7 @@ interface UserAlert {
   severity: 'success',
   title: 'Capture auto-assigned',
   message: 'ChatGPT memory added to "Work Journal" (confidence: 0.92)',
-  action_href: '/baskets/basket-xyz/uploads#dump-def',
+  action_href: '/baskets/basket-xyz/timeline?view=uploads&highlight=dump-def',
   action_label: 'View',
   related_basket_id: 'basket-xyz'
 }

@@ -446,7 +446,7 @@ Code/DB: "Proposals"
 ```
 /baskets/[id]/
   ├── /overview              ← Stats, recent activity
-  ├── /uploads               ← Raw dumps
+  ├── /timeline?view=uploads ← Raw dumps
   ├── /building-blocks       ← Substrate content
   ├── /change-requests       ← Review basket-specific proposals
   ├── /timeline              ← Knowledge evolution story

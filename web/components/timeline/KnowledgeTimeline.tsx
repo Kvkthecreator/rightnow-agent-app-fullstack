@@ -62,19 +62,24 @@ export default function KnowledgeTimeline({
       
       const data = await response.json();
       // Transform timeline_events data to Canon-compliant knowledge narrative
-      const transformedEvents = (data.items || []).map((item: any) => ({
-        id: item.ref_id || `event_${Math.random()}`,
-        type: item.type,
-        title: createNarrativeTitle(item.type, item.summary, item.payload),
-        description: createNarrativeDescription(item.type, item.payload),
-        significance: inferSignificance(item.type),
-        metadata: item.payload || {},
-        relatedIds: { ref_id: item.ref_id },
-        timestamp: item.ts,
-        icon: getEventIcon(item.type),
-        color: getEventColor(inferSignificance(item.type)),
-        sourceHost: item.source_host || item.payload?.source_host || null,
-      }));
+      const transformedEvents = (data.items || []).map((item: any) => {
+        const normalizedType = normalizeEventType(item.type, item.summary);
+        const significanceLevel = inferSignificance(normalizedType);
+
+        return {
+          id: item.ref_id || `event_${Math.random()}`,
+          type: normalizedType,
+          title: createNarrativeTitle(normalizedType, item.summary, item.payload),
+          description: createNarrativeDescription(normalizedType, item.payload, item.summary),
+          significance: significanceLevel,
+          metadata: item.payload || {},
+          relatedIds: { ref_id: item.ref_id },
+          timestamp: item.ts,
+          icon: getEventIcon(normalizedType),
+          color: getEventColor(significanceLevel),
+          sourceHost: item.source_host || item.payload?.source_host || null,
+        } as KnowledgeEvent;
+      });
       
       // Apply significance filter on frontend since API doesn't support it
       const filteredEvents = significance 
@@ -259,6 +264,30 @@ export default function KnowledgeTimeline({
 }
 
 // Helper functions for transforming timeline_events data into Canon-compliant narrative
+function normalizeEventType(kind: string, summary?: string | null): string {
+  const canonical = kind?.toLowerCase() || '';
+
+  if (canonical.includes('proposal') && canonical.includes('created')) return 'governance.proposal_created';
+  if (canonical.includes('proposal') && canonical.includes('approved')) return 'governance.proposal_executed';
+  if (canonical.includes('proposal') && canonical.includes('rejected')) return 'governance.proposal_rejected';
+  if (canonical.includes('substrate') && canonical.includes('creation')) return 'substrate.creation_completed';
+  if (canonical.includes('substrate') && canonical.includes('relationship')) return 'substrate.relationships_mapped';
+  if (canonical.includes('document') && canonical.includes('composed')) return 'document.composed';
+  if (canonical.includes('work') && canonical.includes('started')) return 'work.initiated';
+  if (canonical.includes('work') && canonical.includes('completed')) return 'work.completed';
+  if (canonical.includes('capture')) return 'memory.captured';
+
+  // Fall back to summary keywords (legacy events like P1_SUBSTRATE → P2_GRAPH)
+  const summaryText = summary || '';
+  if (summaryText.includes('P0_CAPTURE')) return 'memory.captured';
+  if (summaryText.includes('P1_SUBSTRATE')) return 'substrate.creation_completed';
+  if (summaryText.includes('P2_GRAPH')) return 'substrate.relationships_mapped';
+  if (summaryText.includes('P3_REFLECTION')) return 'document.insight_regenerated';
+  if (summaryText.includes('P4_COMPOSE')) return 'document.composed';
+
+  return kind;
+}
+
 function createNarrativeTitle(eventType: string, summary: string, payload: any): string {
   // Create user-friendly titles that focus on knowledge evolution, not technical details
   const narrativeTitles: Record<string, string> = {
@@ -266,6 +295,7 @@ function createNarrativeTitle(eventType: string, summary: string, payload: any):
     'substrate.creation_completed': 'Knowledge extracted and structured',
     'substrate.relationships_mapped': 'Connections discovered between your ideas',
     'document.composed': 'Document created from your knowledge',
+    'document.insight_regenerated': 'Insights refreshed from updated knowledge',
     'governance.proposal_executed': 'Knowledge changes approved and applied',
     'governance.proposal_created': 'Changes proposed for review',
     'work.initiated': 'Knowledge processing started',
@@ -280,7 +310,7 @@ function createNarrativeTitle(eventType: string, summary: string, payload: any):
   return eventType.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
-function createNarrativeDescription(eventType: string, payload: any): string | undefined {
+function createNarrativeDescription(eventType: string, payload: any, summary?: string): string | undefined {
   if (!payload) return undefined;
   
   // Create narrative descriptions based on event type and payload content
@@ -306,12 +336,17 @@ function createNarrativeDescription(eventType: string, payload: any): string | u
   if (eventType === 'document.composed' && payload.document_title) {
     return `Composed "${payload.document_title}" using your structured knowledge`;
   }
+
+  if (eventType === 'document.insight_regenerated' && payload.document_title) {
+    return `Refreshed insight for “${payload.document_title}” to reflect the latest knowledge state.`;
+  }
   
   // Fallback to existing description extraction
   if (payload.impact_summary) return payload.impact_summary;
   if (payload.ops_summary) return payload.ops_summary;
   if (payload.message) return payload.message;
   if (payload.description) return payload.description;
+  if (summary) return summary;
   
   return undefined;
 }
@@ -324,10 +359,12 @@ function inferSignificance(eventType: string): 'low' | 'medium' | 'high' {
     'governance.proposal_executed': 'high', 
     'document.composed': 'high',
     'memory.captured': 'high',
+    'document.insight_regenerated': 'medium',
     
     // Medium significance - processing and connections
     'substrate.relationships_mapped': 'medium',
     'governance.proposal_created': 'medium',
+    'governance.proposal_rejected': 'medium',
     'work.initiated': 'medium',
     'work.completed': 'medium',
     
@@ -351,6 +388,7 @@ function getEventIcon(eventType: string): string {
     'governance.proposal_created': '📋',
     'governance.proposal_executed': '✅',
     'governance.proposal_rejected': '❌',
+    'document.insight_regenerated': '💡',
     
     // Work operations
     'work.initiated': '🚀',

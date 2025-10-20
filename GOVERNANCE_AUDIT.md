@@ -136,7 +136,7 @@ From `web/app/components/shell/Sidebar.tsx`:
 From `sections.ts`:
 ```typescript
 { key: "memory", label: "Overview", href: `/baskets/${id}/overview` }
-{ key: "uploads", label: "Uploads", href: `/baskets/${id}/uploads` }
+  { key: "timeline", label: "Timeline", href: `/baskets/${id}/timeline` }
 { key: "building-blocks", label: "Building Blocks", href: `/baskets/${id}/building-blocks` }
 { key: "governance", label: "Change Requests", href: `/baskets/${id}/governance` }
 { key: "insights", label: "Insights", href: `/baskets/${id}/insights` }
