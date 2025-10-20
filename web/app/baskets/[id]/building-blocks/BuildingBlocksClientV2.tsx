@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
-import Link from 'next/link';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -31,9 +30,26 @@ interface BlockWithMetrics {
   created_at: string;
   updated_at?: string | null;
   status: string | null;
+  state: string | null;
+  scope: string | null;
+  version: number | null;
+  anchor_role: string | null;
+  anchor_status: string | null;
+  anchor_confidence: number | null;
   metadata?: Record<string, any> | null;
   times_referenced: number;
   usefulness_score: number;
+  knowledge_summary: {
+    has_summary: boolean;
+    goals: number;
+    constraints: number;
+    metrics: number;
+    entities: number;
+    insights: number;
+    actions: number;
+    facts: number;
+  };
+  needs_enrichment: boolean;
 }
 
 interface BuildingBlocksResponse {
@@ -115,6 +131,61 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
     // Sort by usage
     return blocks.sort((a, b) => b.times_referenced - a.times_referenced);
   }, [data?.blocks, knowledgeBlocks, meaningBlocks, filterMode, query]);
+
+  const formatConfidence = (value: number | null) => {
+    if (value === null || Number.isNaN(value)) return '—';
+    return `${Math.round(value * 100)}%`;
+  };
+
+  const renderKnowledgeBadges = (block: BlockWithMetrics) => {
+    const summary = block.knowledge_summary;
+    const badges: { key: string; label: string; count: number; tone: 'blue' | 'amber' | 'rose' | 'indigo' | 'emerald' | 'slate'; icon: string }[] = [
+      { key: 'goals', label: 'Goals', count: summary.goals, tone: 'indigo', icon: '🎯' },
+      { key: 'constraints', label: 'Constraints', count: summary.constraints, tone: 'rose', icon: '⚠️' },
+      { key: 'metrics', label: 'Metrics', count: summary.metrics, tone: 'emerald', icon: '📊' },
+      { key: 'entities', label: 'Entities', count: summary.entities, tone: 'blue', icon: '👥' },
+      { key: 'insights', label: 'Insights', count: summary.insights, tone: 'amber', icon: '💡' },
+      { key: 'actions', label: 'Actions', count: summary.actions, tone: 'emerald', icon: '✅' },
+    ];
+
+    const toneClass = (tone: string) => {
+      switch (tone) {
+        case 'blue':
+          return 'bg-blue-50 text-blue-700 border-blue-100';
+        case 'amber':
+          return 'bg-amber-50 text-amber-700 border-amber-100';
+        case 'rose':
+          return 'bg-rose-50 text-rose-700 border-rose-100';
+        case 'indigo':
+          return 'bg-indigo-50 text-indigo-700 border-indigo-100';
+        case 'emerald':
+          return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+        default:
+          return 'bg-slate-50 text-slate-700 border-slate-100';
+      }
+    };
+
+    return (
+      <div className="flex flex-wrap gap-2 mt-3">
+        {badges.filter((badge) => badge.count > 0).map((badge) => (
+          <Badge
+            key={badge.key}
+            variant="outline"
+            className={`text-xs border ${toneClass(badge.tone)} whitespace-nowrap`}
+          >
+            <span className="mr-1">{badge.icon}</span>
+            {badge.label}
+            <span className="ml-1 font-semibold">{badge.count}</span>
+          </Badge>
+        ))}
+        {badges.every((badge) => badge.count === 0) && (
+          <Badge variant="outline" className="text-xs bg-slate-50 text-slate-600 border-slate-100">
+            Needs enrichment
+          </Badge>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -208,38 +279,60 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
               {/* Expanded View (0-10 blocks) - Cards fully clickable */}
               {viewMode === 'expanded' && (
                 <div className="space-y-3">
-                  {filteredBlocks.map(block => (
-                    <Card
-                      key={block.id}
-                      className="border-slate-200 hover:border-indigo-300 transition-colors cursor-pointer"
-                      onClick={() => setSelected(block.id)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-slate-900">
-                              {block.title || 'Untitled block'}
-                            </h3>
-                            <p className="text-xs text-slate-500 mt-1">
-                              Used {block.times_referenced} times • Created {new Date(block.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
+              {filteredBlocks.map(block => (
+                <Card
+                  key={block.id}
+                  className="border-slate-200 hover:border-indigo-300 transition-colors cursor-pointer"
+                  onClick={() => setSelected(block.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-slate-900">
+                          {block.title || 'Untitled block'}
+                        </h3>
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+                          <span>Created {new Date(block.created_at).toLocaleDateString()}</span>
+                          <span>• Used {block.times_referenced}×</span>
+                          {block.scope && <span>• Scope {block.scope}</span>}
+                          {block.version && <span>• v{block.version}</span>}
                         </div>
-                        {block.content && (
-                          <p className="text-sm text-slate-600 bg-slate-50 rounded border border-slate-200 p-3 line-clamp-2">
-                            {block.content}
-                          </p>
-                        )}
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {block.semantic_type && (
-                            <Badge variant="outline" className="text-xs">
-                              {block.semantic_type}
-                            </Badge>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                      </div>
+                    </div>
+                    {block.content && (
+                      <p className="text-sm text-slate-600 bg-slate-50 rounded border border-slate-200 p-3 line-clamp-2">
+                        {block.content}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {block.semantic_type && (
+                        <Badge variant="outline" className="text-xs bg-slate-100 text-slate-700 border-slate-200">
+                          {block.semantic_type}
+                        </Badge>
+                      )}
+                      {block.anchor_role && (
+                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                          Anchor: {block.anchor_role}
+                        </Badge>
+                      )}
+                      {block.state && (
+                        <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                          {block.state}
+                        </Badge>
+                      )}
+                      <Badge variant="outline" className="text-xs bg-slate-50 text-slate-600 border-slate-200">
+                        Confidence {formatConfidence(block.confidence_score)}
+                      </Badge>
+                    </div>
+                    {renderKnowledgeBadges(block)}
+                    {block.needs_enrichment && (
+                      <div className="mt-3 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded px-3 py-2">
+                        Structured ingredients missing — review or regenerate extraction.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
                 </div>
               )}
 
@@ -258,9 +351,11 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
                             <h3 className="text-sm font-semibold text-slate-900 truncate">
                               {block.title || 'Untitled'}
                             </h3>
-                            <p className="text-xs text-slate-500">
-                              {block.times_referenced}× used
-                            </p>
+                            <div className="text-xs text-slate-500 flex flex-wrap gap-2">
+                              <span>{block.times_referenced}× used</span>
+                              {block.anchor_role && <span>• Anchor: {block.anchor_role}</span>}
+                              <span>• {formatConfidence(block.confidence_score)} confidence</span>
+                            </div>
                           </div>
                         </div>
                         {block.semantic_type && (
@@ -268,6 +363,7 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
                             {block.semantic_type}
                           </Badge>
                         )}
+                        {renderKnowledgeBadges(block)}
                       </CardContent>
                     </Card>
                   ))}
@@ -283,6 +379,7 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
                         <th className="text-left px-3 py-2 font-medium text-slate-700">Title</th>
                         <th className="text-left px-3 py-2 font-medium text-slate-700">Type</th>
                         <th className="text-center px-3 py-2 font-medium text-slate-700">Usage</th>
+                        <th className="text-center px-3 py-2 font-medium text-slate-700">Confidence</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -304,6 +401,9 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
                           </td>
                           <td className="px-3 py-2 text-center text-slate-600">
                             {block.times_referenced}×
+                          </td>
+                          <td className="px-3 py-2 text-center text-slate-600">
+                            {formatConfidence(block.confidence_score)}
                           </td>
                         </tr>
                       ))}

@@ -21,6 +21,17 @@ interface RouteContext {
  * NOTE: Raw dumps are NOT included here - they belong in /uploads page
  */
 
+interface KnowledgeSummary {
+  has_summary: boolean;
+  goals: number;
+  constraints: number;
+  metrics: number;
+  entities: number;
+  insights: number;
+  actions: number;
+  facts: number;
+}
+
 interface BlockWithMetrics {
   id: string;
   title: string | null;
@@ -30,14 +41,21 @@ interface BlockWithMetrics {
   created_at: string;
   updated_at?: string | null;
   status: string | null;
+  state: string | null;
+  scope: string | null;
+  version: number | null;
+  anchor_role: string | null;
+  anchor_status: string | null;
+  anchor_confidence: number | null;
   metadata?: Record<string, any> | null;
   raw_dump_id?: string | null;
 
-  // NEW: Context-aware quality metrics
   usefulness_score: number;
   times_referenced: number;
   staleness_days: number | null;
   last_validated_at: string | null;
+  knowledge_summary: KnowledgeSummary;
+  needs_enrichment: boolean;
 }
 
 // V3.0: Removed ContextItemWithMetrics - context items merged into blocks
@@ -74,6 +92,12 @@ export async function GET(
         updated_at,
         metadata,
         status,
+        state,
+        scope,
+        version,
+        anchor_role,
+        anchor_status,
+        anchor_confidence,
         raw_dump_id,
         last_validated_at
       `)
@@ -116,6 +140,32 @@ export async function GET(
         staleness_days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       }
 
+      const state = block.state ?? block.status ?? null;
+      const scope = block.scope ?? null;
+      const version = typeof block.version === 'number' ? block.version : null;
+
+      const knowledge = (block.metadata?.knowledge_ingredients ?? {}) as Record<string, any>;
+      const knowledgeSummary: KnowledgeSummary = {
+        has_summary: Boolean(knowledge?.summary),
+        goals: Array.isArray(knowledge?.goals) ? knowledge.goals.length : 0,
+        constraints: Array.isArray(knowledge?.constraints) ? knowledge.constraints.length : 0,
+        metrics: Array.isArray(knowledge?.metrics) ? knowledge.metrics.length : 0,
+        entities: Array.isArray(knowledge?.entities) ? knowledge.entities.length : 0,
+        insights: Array.isArray(knowledge?.insights) ? knowledge.insights.length : 0,
+        actions: Array.isArray(knowledge?.actions) ? knowledge.actions.length : 0,
+        facts: Array.isArray(knowledge?.facts) ? knowledge.facts.length : 0,
+      };
+
+      const needsEnrichment =
+        !knowledgeSummary.has_summary &&
+        knowledgeSummary.goals === 0 &&
+        knowledgeSummary.constraints === 0 &&
+        knowledgeSummary.metrics === 0 &&
+        knowledgeSummary.entities === 0 &&
+        knowledgeSummary.insights === 0 &&
+        knowledgeSummary.actions === 0 &&
+        knowledgeSummary.facts === 0;
+
       return {
         id: block.id,
         title: block.title || null,
@@ -125,6 +175,12 @@ export async function GET(
         created_at: block.created_at,
         updated_at: block.updated_at ?? null,
         status: block.status ?? null,
+        state,
+        scope,
+        version,
+        anchor_role: block.anchor_role ?? null,
+        anchor_status: block.anchor_status ?? null,
+        anchor_confidence: block.anchor_confidence ?? null,
         metadata: block.metadata || null,
         raw_dump_id: block.raw_dump_id || null,
 
@@ -133,6 +189,8 @@ export async function GET(
         times_referenced: usage?.times_referenced ?? 0,
         staleness_days,
         last_validated_at: block.last_validated_at,
+        knowledge_summary: knowledgeSummary,
+        needs_enrichment: needsEnrichment,
       };
     });
 

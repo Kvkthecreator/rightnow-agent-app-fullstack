@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { FileText, Database, Link2, Hash, Clock, Copy, ExternalLink, X } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import BuildingBlocksActions from './BuildingBlocksActions';
@@ -30,8 +32,43 @@ interface SubstrateDetail {
   content?: string;         // Canon: authoritative content field
   semantic_type?: string;
   state?: string;
+  status?: string;
   confidence_score?: number;
+  scope?: string | null;
+  version?: number | null;
+  anchor_role?: string | null;
+  anchor_status?: string | null;
+  anchor_confidence?: number | null;
+  times_referenced?: number;
+  usefulness_score?: number;
+  last_used_at?: string | null;
   metadata?: Record<string, any>;
+  knowledge_summary?: {
+    has_summary: boolean;
+    goals: number;
+    constraints: number;
+    metrics: number;
+    entities: number;
+    insights: number;
+    actions: number;
+    facts: number;
+  } | null;
+  knowledge_ingredients?: Record<string, any> | null;
+  needs_enrichment?: boolean;
+  provenance?: Record<string, any> | null;
+  references?: Array<{
+    document_id: string;
+    title: string;
+    doc_type?: string | null;
+    updated_at?: string | null;
+  }>;
+  revisions?: Array<{
+    id: string;
+    summary?: string | null;
+    diff?: any;
+    created_at: string;
+    actor_id?: string | null;
+  }>;
   // Context item fields (Canon-compliant)
   label?: string;              // Legacy support
   kind?: string;               // Canon: entity kind/type
@@ -78,7 +115,6 @@ export default function SubstrateDetailModal({
   useEffect(() => {
     if (open && substrateId) {
       loadSubstrate();
-      loadHistory();
     }
   }, [open, substrateId, substrateType]);
 
@@ -101,22 +137,30 @@ export default function SubstrateDetailModal({
       
       const data = await response.json();
       setSubstrate(data);
+
+      if (data?.revisions && Array.isArray(data.revisions) && data.revisions.length > 0) {
+        setHistory(
+          data.revisions.map((revision: any) => ({
+            timestamp: revision.created_at,
+            action: revision.summary || 'Revision',
+            details: revision.diff ? JSON.stringify(revision.diff) : undefined,
+            agent: revision.actor_id || 'system'
+          }))
+        );
+      } else {
+        setHistory([
+          {
+            timestamp: data?.created_at || new Date().toISOString(),
+            action: 'Created',
+            agent: substrateType === 'raw_dump' ? 'P0 Capture' : 'P1 Extraction'
+          }
+        ]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load substrate');
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadHistory = async () => {
-    // Simulate loading history - in real implementation, this would call an API
-    setHistory([
-      {
-        timestamp: substrate?.created_at || new Date().toISOString(),
-        action: 'Created',
-        agent: substrateType === 'raw_dump' ? 'P0 Capture' : 'P1 Extraction'
-      }
-    ]);
   };
 
   const copyToClipboard = (text: string) => {
@@ -195,33 +239,284 @@ export default function SubstrateDetailModal({
           </div>
         );
 
-      case 'block':
-        return (
-          <div className="space-y-4">
-            {substrate.title && (
-              <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-1">Title</h4>
-                <p className="text-sm">{substrate.title}</p>
+      case 'block': {
+        const knowledge = substrate.knowledge_ingredients || substrate.metadata?.knowledge_ingredients;
+        const knowledgeSummary = substrate.knowledge_summary || {
+          has_summary: Boolean(knowledge?.summary),
+          goals: Array.isArray(knowledge?.goals) ? knowledge.goals.length : 0,
+          constraints: Array.isArray(knowledge?.constraints) ? knowledge.constraints.length : 0,
+          metrics: Array.isArray(knowledge?.metrics) ? knowledge.metrics.length : 0,
+          entities: Array.isArray(knowledge?.entities) ? knowledge.entities.length : 0,
+          insights: Array.isArray(knowledge?.insights) ? knowledge.insights.length : 0,
+          actions: Array.isArray(knowledge?.actions) ? knowledge.actions.length : 0,
+          facts: Array.isArray(knowledge?.facts) ? knowledge.facts.length : 0,
+        };
+
+        const displayConfidence = (value?: number) => {
+          if (value === undefined || value === null) return '—';
+          return `${Math.round(value * 100)}%`;
+        };
+
+        const renderKnowledgeGroups = () => {
+          if (!knowledge) {
+            return null;
+          }
+
+          const sections: React.ReactNode[] = [];
+
+          if (knowledge.summary) {
+            sections.push(
+              <div key="summary" className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <h5 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <span>📝 Summary</span>
+                </h5>
+                <p className="mt-2 text-sm text-slate-700 whitespace-pre-line">
+                  {knowledge.summary}
+                </p>
+              </div>
+            );
+          }
+
+          const listSection = (
+            key: string,
+            label: string,
+            icon: string,
+            items: any[] | undefined,
+            toneClass: string,
+            renderItem: (item: any, index: number) => React.ReactNode
+          ) => {
+            if (!items || items.length === 0) return;
+            sections.push(
+              <div key={key} className={`rounded-lg border ${toneClass} bg-white px-3 py-3`}>
+                <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
+                  <span>{icon} {label}</span>
+                  <span className="text-slate-500 font-medium">{items.length}</span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {items.map(renderItem)}
+                </div>
+              </div>
+            );
+          };
+
+        const goalRenderer = (goal: any, index: number) => (
+          <div key={index} className="rounded border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-sm">
+            <div className="font-medium text-indigo-800">{goal.description || goal.title || 'Goal'}</div>
+            {goal.priority && <div className="text-xs text-indigo-600 mt-1">Priority {goal.priority}</div>}
+          </div>
+        );
+
+        const constraintRenderer = (constraint: any, index: number) => (
+          <div key={index} className="rounded border border-rose-100 bg-rose-50/60 px-3 py-2 text-sm">
+            <div className="font-medium text-rose-800">{constraint.description}</div>
+            {constraint.severity && <div className="text-xs text-rose-600 mt-1">Severity {constraint.severity}</div>}
+          </div>
+        );
+
+        const metricRenderer = (metric: any, index: number) => (
+          <div key={index} className="rounded border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-sm">
+            <div className="font-medium text-emerald-800">{metric.name || 'Metric'}</div>
+            <div className="text-xs text-emerald-600 mt-1">{metric.value_text || metric.description}</div>
+          </div>
+        );
+
+        const entityRenderer = (entity: any, index: number) => (
+          <div key={index} className="rounded border border-blue-100 bg-blue-50/60 px-3 py-2 text-sm">
+            <div className="font-medium text-blue-800">{entity.name}</div>
+            {entity.role && <div className="text-xs text-blue-600 mt-1">Role {entity.role}</div>}
+          </div>
+        );
+
+        const insightRenderer = (insight: any, index: number) => (
+          <div key={index} className="rounded border border-amber-100 bg-amber-50/60 px-3 py-2 text-sm">
+            <div className="font-medium text-amber-800">{insight.text || insight.insight}</div>
+            {Array.isArray(insight.supporting_facts) && insight.supporting_facts.length > 0 && (
+              <div className="text-xs text-amber-600 mt-1">
+                Supports: {insight.supporting_facts.join(', ')}
               </div>
             )}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-1">Type</h4>
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                {substrate.semantic_type}
-              </span>
-            </div>
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Content</h4>
-              <div className="bg-gray-50 p-3 rounded text-sm text-gray-800 max-h-64 overflow-y-auto">
-                {substrate.content || 'No content available'}
-              </div>
-            </div>
-            <div className="flex items-center gap-4 text-sm text-gray-600">
-              <span>Confidence: <span className="font-medium">{((substrate.confidence_score || 0) * 100).toFixed(0)}%</span></span>
-              <span>State: <span className="font-medium">{substrate.state || 'ACCEPTED'}</span></span>
+          </div>
+        );
+
+        const actionRenderer = (action: any, index: number) => (
+          <div key={index} className="rounded border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-sm">
+            <div className="font-medium text-emerald-800">{action.action || action.description}</div>
+            <div className="text-xs text-emerald-600 mt-1 flex flex-wrap gap-2">
+              {action.priority && <span>Priority {action.priority}</span>}
+              {action.owner && <span>Owner {action.owner}</span>}
+              {action.timeline && <span>Timeline {action.timeline}</span>}
             </div>
           </div>
         );
+
+        const factRenderer = (fact: any, index: number) => (
+          <div key={index} className="rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+            {fact.text || fact}
+          </div>
+        );
+
+        listSection('goals', 'Goals', '🎯', knowledge.goals, 'border-indigo-200', goalRenderer);
+        listSection('constraints', 'Constraints', '⚠️', knowledge.constraints, 'border-rose-200', constraintRenderer);
+        listSection('metrics', 'Metrics', '📊', knowledge.metrics, 'border-emerald-200', metricRenderer);
+        listSection('entities', 'Entities', '👥', knowledge.entities, 'border-blue-200', entityRenderer);
+        listSection('insights', 'Insights', '💡', knowledge.insights, 'border-amber-200', insightRenderer);
+        listSection('actions', 'Actions', '✅', knowledge.actions, 'border-emerald-200', actionRenderer);
+        listSection('facts', 'Facts', '🧩', knowledge.facts, 'border-slate-200', factRenderer);
+
+        if (sections.length === 0) {
+          return (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+              No structured ingredients captured yet.
+            </div>
+          );
+        }
+
+        return <div className="space-y-4">{sections}</div>;
+      };
+
+        return (
+          <div className="space-y-6">
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <Database className="h-4 w-4" /> Overview
+              </h4>
+              {substrate.title && (
+                <p className="mt-2 text-base font-medium text-slate-900">{substrate.title}</p>
+              )}
+              <div className="flex flex-wrap gap-2 mt-2">
+                {substrate.semantic_type && (
+                  <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 text-xs">
+                    {substrate.semantic_type}
+                  </Badge>
+                )}
+                {substrate.anchor_role && (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                    Anchor: {substrate.anchor_role}
+                  </Badge>
+                )}
+                {(substrate.state || substrate.status) && (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+                    {substrate.state || substrate.status}
+                  </Badge>
+                )}
+                {substrate.scope && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                    Scope {substrate.scope}
+                  </Badge>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {knowledgeSummary.goals > 0 && (
+                  <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">
+                    🎯 {knowledgeSummary.goals} goals
+                  </Badge>
+                )}
+                {knowledgeSummary.constraints > 0 && (
+                  <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 text-xs">
+                    ⚠️ {knowledgeSummary.constraints} constraints
+                  </Badge>
+                )}
+                {knowledgeSummary.metrics > 0 && (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+                    📊 {knowledgeSummary.metrics} metrics
+                  </Badge>
+                )}
+                {knowledgeSummary.entities > 0 && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                    👥 {knowledgeSummary.entities} entities
+                  </Badge>
+                )}
+                {knowledgeSummary.insights > 0 && (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                    💡 {knowledgeSummary.insights} insights
+                  </Badge>
+                )}
+                {knowledgeSummary.actions > 0 && (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+                    ✅ {knowledgeSummary.actions} actions
+                  </Badge>
+                )}
+              </div>
+              <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
+                <div>
+                  <span className="font-medium text-slate-700">Confidence:</span> {displayConfidence(substrate.confidence_score)}
+                </div>
+                <div>
+                  <span className="font-medium text-slate-700">Times used:</span> {substrate.times_referenced ?? 0}
+                </div>
+                <div>
+                  <span className="font-medium text-slate-700">Version:</span> {substrate.version ?? '—'}
+                </div>
+                <div>
+                  <span className="font-medium text-slate-700">Created:</span> {formatTimestamp(substrate.created_at)}
+                </div>
+                {substrate.updated_at && (
+                  <div>
+                    <span className="font-medium text-slate-700">Updated:</span> {formatTimestamp(substrate.updated_at)}
+                  </div>
+                )}
+                {substrate.last_used_at && (
+                  <div>
+                    <span className="font-medium text-slate-700">Last referenced:</span> {formatTimestamp(substrate.last_used_at)}
+                  </div>
+                )}
+              </div>
+              {substrate.needs_enrichment && (
+                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  Structured ingredients missing. Consider regenerating this block to enrich metadata before using it downstream.
+                </div>
+              )}
+            </section>
+
+            {renderKnowledgeGroups()}
+
+            <section className="space-y-2">
+              <h4 className="text-sm font-semibold text-slate-900">Content</h4>
+              <div className="rounded border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 whitespace-pre-wrap">
+                {substrate.content || 'No content available'}
+              </div>
+            </section>
+
+            {(substrate.provenance || knowledge?.provenance) && (
+              <section className="space-y-2">
+                <h4 className="text-sm font-semibold text-slate-900">Provenance</h4>
+                <div className="rounded border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700">
+                  {(() => {
+                    const provenance = substrate.provenance || knowledge?.provenance;
+                    if (!provenance) return null;
+                    return (
+                      <ul className="list-disc list-inside space-y-1">
+                        {provenance.dump_ids && <li>Dump IDs: {provenance.dump_ids.join(', ')}</li>}
+                        {provenance.extraction_method && <li>Method: {provenance.extraction_method}</li>}
+                        {provenance.confidence !== undefined && <li>Provenance confidence: {Math.round((provenance.confidence || 0) * 100)}%</li>}
+                        {provenance.source_hint && <li>Source: {provenance.source_hint}</li>}
+                      </ul>
+                    );
+                  })()}
+                </div>
+              </section>
+            )}
+
+            {substrate.references && substrate.references.length > 0 && (
+              <section className="space-y-2">
+                <h4 className="text-sm font-semibold text-slate-900">Used in documents</h4>
+                <div className="space-y-2">
+                  {substrate.references.map((ref) => (
+                    <Link
+                      key={ref.document_id}
+                      href={`/baskets/${basketId}/documents/${ref.document_id}`}
+                      className="block rounded border border-blue-100 bg-blue-50/60 px-3 py-2 text-sm text-blue-700 hover:bg-blue-100"
+                    >
+                      <span className="font-medium">{ref.title}</span>
+                      {ref.doc_type && <span className="ml-2 text-xs uppercase tracking-wide">{ref.doc_type}</span>}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        );
+      }
 
       case 'context_item':
         return (
@@ -406,11 +701,11 @@ export default function SubstrateDetailModal({
                 title: substrate.title || null,
                 content: substrate.content || null,
                 semantic_type: substrate.semantic_type || null,
-                anchor_role: substrate.metadata?.anchor_role || null,
+                anchor_role: substrate.anchor_role ?? substrate.metadata?.anchor_role ?? null,
                 confidence_score: substrate.confidence_score || null,
                 created_at: substrate.created_at,
                 updated_at: substrate.updated_at || null,
-                status: substrate.state || null,
+                status: substrate.state || substrate.status || null,
                 metadata: substrate.metadata || null,
               }}
               basketId={basketId}

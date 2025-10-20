@@ -21,6 +21,7 @@ export type Block = {
   anchor_status?: string | null;  // V3.0: proposed | accepted | locked
   anchor_confidence?: number | null;  // V3.0: 0.0-1.0
   scope?: string | null;  // V3.0: WORKSPACE | ORG | GLOBAL
+  version?: number | null;
   processing_agent?: string;
   metadata?: Record<string, any>;
   created_at?: string;
