@@ -5,14 +5,15 @@
  * Shows basket-level change requests (Type 2: basket-scoped substrate mutations)
  */
 import type { Metadata } from 'next';
-import { SubpageHeader } from '@/components/basket/SubpageHeader';
-import { RequestBoundary } from '@/components/RequestBoundary';
 import dynamic from 'next/dynamic';
+import { RequestBoundary } from '@/components/RequestBoundary';
+import { SubpageHeader } from '@/components/basket/SubpageHeader';
 
 const BasketChangeRequestsClient = dynamic(() => import('./BasketChangeRequestsClient'), {
   loading: () => (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full"></div>
+    <div className="space-y-4">
+      <div className="h-32 animate-pulse rounded-lg bg-gray-100" />
+      <div className="h-24 animate-pulse rounded-lg bg-gray-100" />
     </div>
   ),
 });
@@ -35,8 +36,19 @@ export default async function BasketChangeRequestsPage({ params }: PageProps) {
   return (
     <RequestBoundary>
       <div className="flex h-full flex-col">
-        <div className="flex-1 overflow-y-auto">
-          <BasketChangeRequestsClient basketId={basketId} />
+        <div className="border-b border-gray-100 p-3">
+          <SubpageHeader
+            title="Change Requests"
+            description="Govern substrate proposals for this basket"
+            basketId={basketId}
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="mx-auto max-w-6xl">
+            <div className="p-4">
+              <BasketChangeRequestsClient basketId={basketId} />
+            </div>
+          </div>
         </div>
       </div>
     </RequestBoundary>

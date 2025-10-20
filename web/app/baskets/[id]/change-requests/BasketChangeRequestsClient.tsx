@@ -1,139 +1,152 @@
-/* Canon-Compliant Governance Dashboard - Redesigned UX
-   Summary cards → detailed proposal view with proper information architecture
-   Unified proposals (blocks + context items) with clear auto-approval status
-   Modal redesigned from first principles for better rendering and UX
-*/
 "use client";
 
-import { useEffect, useState } from "react";
-import { createBrowserClient } from "@/lib/supabase/clients";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { SubpageHeader } from "@/components/basket/SubpageHeader";
-import { ProposalDetailModal } from "@/components/governance/ProposalDetailModal";
-import { CheckCircle, Clock, XCircle, FileText, Database, User, Bot, ChevronRight, Filter, Eye, Lightbulb } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import useSWR from 'swr';
+import {
+  AlertTriangle,
+  Bot,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Database,
+  Filter,
+  FileText,
+  Lightbulb,
+  Search,
+  ShieldAlert,
+  User,
+} from 'lucide-react';
+import { fetchWithToken } from '@/lib/fetchWithToken';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { ProposalDetailModal } from '@/components/governance/ProposalDetailModal';
+
+interface ProposalOperation {
+  type: string;
+  data: Record<string, unknown>;
+}
 
 interface Proposal {
   id: string;
   proposal_kind: string;
-  origin: string;
-  source_host?: string;
-  source_session?: string;
-  status: string;
+  origin: 'agent' | 'human';
+  source_host?: string | null;
+  source_session?: string | null;
+  status: 'PROPOSED' | 'APPROVED' | 'REJECTED';
   ops_summary: string;
   confidence: number;
   impact_summary: string;
   created_at: string;
+  reviewed_at: string | null;
+  executed_at: string | null;
+  auto_approved: boolean;
+  review_notes: string;
+  is_executed: boolean;
+  ops: ProposalOperation[];
+  provenance: string[];
   validator_report: {
-    dupes: unknown[];
+    confidence: number;
     warnings: string[];
     suggested_merges: string[];
     ontology_hits: string[];
+    impact_summary?: string;
   };
-  provenance: string[];
-  auto_approved: boolean;
-  reviewed_at: string | null;
-  executed_at: string | null;
-  review_notes: string;
-  is_executed: boolean;
-  ops: any[];
 }
+
+interface ProposalsResponse {
+  items: Proposal[];
+}
+
+const fetcher = (url: string) =>
+  fetchWithToken(url).then((res) => {
+    if (!res.ok) {
+      throw new Error('Failed to load change requests');
+    }
+    return res.json();
+  });
+
+type StatusFilter = 'all' | 'PROPOSED' | 'APPROVED' | 'REJECTED';
+
+const STATUS_CONTROLS: Array<{ key: StatusFilter; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'PROPOSED', label: 'Pending' },
+  { key: 'APPROVED', label: 'Approved' },
+  { key: 'REJECTED', label: 'Rejected' },
+];
 
 interface BasketChangeRequestsClientProps {
   basketId: string;
 }
 
 export default function BasketChangeRequestsClient({ basketId }: BasketChangeRequestsClientProps) {
-  const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'PROPOSED' | 'APPROVED' | 'REJECTED'>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [showAutoOnly, setShowAutoOnly] = useState(false);
+  const [query, setQuery] = useState('');
   const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [view, setView] = useState<'summary' | 'list'>('summary');
   const [insightLoadingId, setInsightLoadingId] = useState<string | null>(null);
   const [insightError, setInsightError] = useState<string | null>(null);
-  const [hashProcessed, setHashProcessed] = useState(false);
 
-  type StatusFilterType = 'all' | 'PROPOSED' | 'APPROVED' | 'REJECTED';
+  const { data, error, isLoading, mutate } = useSWR<ProposalsResponse>(
+    `/api/baskets/${basketId}/proposals${statusFilter === 'all' ? '' : `?status=${statusFilter}`}`,
+    fetcher,
+    { refreshInterval: 60_000 },
+  );
 
-  useEffect(() => {
-    const fetchProposals = async () => {
-      if (!basketId) return;
-      
-      setLoading(true);
-      setError(null);
-
-      try {
-        const url = `/api/baskets/${basketId}/proposals${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`;
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('API Response Error:', response.status, response.statusText, errorText);
-          throw new Error(`API error: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        setProposals(data.items || []);
-      } catch (error) {
-        console.error('Failed to fetch proposals:', error);
-        setError(error instanceof Error ? error.message : 'Unknown error occurred');
-        setProposals([]);
-      }
-      setLoading(false);
-    };
-
-    if (basketId) {
-      fetchProposals();
-    }
-  }, [basketId, statusFilter]);
+  const proposals = data?.items ?? [];
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const processHash = () => {
+    const openFromHash = () => {
       const hash = window.location.hash.replace('#', '');
       if (!hash) {
-        if (isDetailModalOpen) {
-          setSelectedProposalId(null);
-          setIsDetailModalOpen(false);
-        }
+        setSelectedProposalId(null);
         return;
       }
-
       const match = proposals.find((proposal) => proposal.id === hash);
       if (match) {
-        setSelectedProposalId(hash);
-        setIsDetailModalOpen(true);
+        setSelectedProposalId(match.id);
       }
     };
 
-    if (!hashProcessed) {
-      processHash();
-      setHashProcessed(true);
-    }
+    openFromHash();
+    window.addEventListener('hashchange', openFromHash);
+    return () => window.removeEventListener('hashchange', openFromHash);
+  }, [proposals]);
 
-    window.addEventListener('hashchange', processHash);
-    return () => window.removeEventListener('hashchange', processHash);
-  }, [proposals, hashProcessed, isDetailModalOpen]);
+  const filteredProposals = useMemo(() => {
+    const text = query.trim().toLowerCase();
+    return proposals
+      .filter((proposal) => (showAutoOnly ? proposal.auto_approved : true))
+      .filter((proposal) => {
+        if (!text) return true;
+        return (
+          proposal.ops_summary.toLowerCase().includes(text) ||
+          proposal.impact_summary.toLowerCase().includes(text) ||
+          proposal.proposal_kind.toLowerCase().includes(text)
+        );
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [proposals, query, showAutoOnly]);
 
-  const openProposalDetail = (proposalId: string) => {
-    setSelectedProposalId(proposalId);
-    setIsDetailModalOpen(true);
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.hash = proposalId;
-      window.history.replaceState(null, '', url.toString());
-    }
-  };
+  const stats = useMemo(() => {
+    const total = proposals.length;
+    const pending = proposals.filter((p) => p.status === 'PROPOSED').length;
+    const approved = proposals.filter((p) => p.status === 'APPROVED').length;
+    const rejected = proposals.filter((p) => p.status === 'REJECTED').length;
+    const autoApproved = proposals.filter((p) => p.auto_approved).length;
+    const highImpact = proposals.filter((p) => p.validator_report.warnings.length > 0 || p.validator_report.confidence < 0.6).length;
 
-  const handleProposalInsights = async (proposalId: string) => {
+    return { total, pending, approved, rejected, autoApproved, highImpact };
+  }, [proposals]);
+
+  const handleInsights = async (proposalId: string) => {
     setInsightLoadingId(proposalId);
     setInsightError(null);
     try {
-      const resp = await fetch('/api/reflections/trigger', {
+      const response = await fetch('/api/reflections/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -143,21 +156,31 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
           force_refresh: true,
         }),
       });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
         throw new Error(payload?.error || payload?.detail || 'Failed to request insights');
       }
+
       window.dispatchEvent(new CustomEvent('reflections:refresh'));
-    } catch (error) {
-      setInsightError(error instanceof Error ? error.message : 'Failed to request insights');
+    } catch (err) {
+      setInsightError(err instanceof Error ? err.message : 'Failed to trigger proposal insights');
     } finally {
       setInsightLoadingId(null);
     }
   };
 
+  const openProposalDetail = (proposalId: string) => {
+    setSelectedProposalId(proposalId);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.hash = proposalId;
+      window.history.replaceState(null, '', url.toString());
+    }
+  };
+
   const closeProposalDetail = () => {
     setSelectedProposalId(null);
-    setIsDetailModalOpen(false);
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       url.hash = '';
@@ -170,15 +193,14 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
       const response = await fetch(`/api/baskets/${basketId}/proposals/${proposalId}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ review_notes: notes || 'Approved via governance queue' })
+        body: JSON.stringify({ review_notes: notes || 'Approved via governance queue' }),
       });
-      
-      if (response.ok) {
-        // Trigger re-fetch by updating statusFilter
-        setStatusFilter(prev => prev);
+      if (!response.ok) {
+        throw new Error(`Approve failed: ${response.status}`);
       }
-    } catch (error) {
-      console.error('Failed to approve proposal:', error);
+      mutate();
+    } catch (err) {
+      console.error('Failed to approve proposal', err);
     }
   };
 
@@ -187,380 +209,319 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
       const response = await fetch(`/api/baskets/${basketId}/proposals/${proposalId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          review_notes: 'Rejected via governance queue',
-          reason: reason
-        })
+        body: JSON.stringify({ review_notes: 'Rejected via governance queue', reason }),
       });
-      
-      if (response.ok) {
-        // Trigger re-fetch by updating statusFilter
-        setStatusFilter(prev => prev);
+      if (!response.ok) {
+        throw new Error(`Reject failed: ${response.status}`);
       }
-    } catch (error) {
-      console.error('Failed to reject proposal:', error);
+      mutate();
+    } catch (err) {
+      console.error('Failed to reject proposal', err);
     }
   };
 
-  // Calculate governance statistics
-  const governanceStats = {
-    total: proposals.length,
-    pending: proposals.filter(p => p.status === 'PROPOSED').length,
-    approved: proposals.filter(p => p.status === 'APPROVED').length,
-    rejected: proposals.filter(p => p.status === 'REJECTED').length,
-    autoApproved: proposals.filter(p => p.auto_approved).length,
-    recentActivity: proposals.filter(p => {
-      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      return new Date(p.created_at) > dayAgo;
-    }).length
-  };
-
-  const filteredProposals = proposals.filter(proposal => {
-    return statusFilter === 'all' || proposal.status === statusFilter;
-  });
-
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-red-600 mb-2">Error Loading Proposals</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()}>
+      <Card className="border-red-200 bg-red-50">
+        <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+          <AlertTriangle className="h-8 w-8 text-red-600" />
+          <div>
+            <p className="text-lg font-semibold text-red-700">Unable to load change requests</p>
+            <p className="text-sm text-red-600">{error.message}</p>
+          </div>
+          <Button onClick={() => mutate()} variant="outline">
             Retry
           </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full"></div>
+      <div className="space-y-4">
+        <div className="h-32 animate-pulse rounded-xl bg-gray-100" />
+        <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header with View Toggle */}
-      <div className="border-b p-4">
-        <SubpageHeader 
-          title="Governance Dashboard" 
-          basketId={basketId}
-          description="Unified proposals and canon-compliant review workflow"
-          rightContent={
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                <Button
-                  variant={view === 'summary' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setView('summary')}
-                  className={view === 'summary' ? '' : 'text-gray-600 hover:text-gray-900'}
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  Summary
-                </Button>
-                <Button
-                  variant={view === 'list' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setView('list')}
-                  className={view === 'list' ? '' : 'text-gray-600 hover:text-gray-900'}
-                >
-                  <Filter className="h-3.5 w-3.5" />
-                  List
-                </Button>
-              </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilterType)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-colors"
-              >
-                <option value="all">All Proposals</option>
-                <option value="PROPOSED">Pending Review</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-              </select>
-            </div>
-          }
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          title="Total proposals"
+          value={stats.total}
+          icon={<FileText className="h-5 w-5 text-slate-500" />}
+          onClick={() => setStatusFilter('all')}
+          active={statusFilter === 'all'}
         />
-      </div>
+        <StatCard
+          title="Pending review"
+          value={stats.pending}
+          tone="warning"
+          icon={<Clock className="h-5 w-5 text-amber-500" />}
+          onClick={() => setStatusFilter('PROPOSED')}
+          active={statusFilter === 'PROPOSED'}
+        />
+        <StatCard
+          title="Approved"
+          value={stats.approved}
+          tone="success"
+          icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+          onClick={() => setStatusFilter('APPROVED')}
+          active={statusFilter === 'APPROVED'}
+        />
+        <StatCard
+          title="Rejected"
+          value={stats.rejected}
+          tone="danger"
+          icon={<ShieldAlert className="h-5 w-5 text-rose-500" />}
+          onClick={() => setStatusFilter('REJECTED')}
+          active={statusFilter === 'REJECTED'}
+        />
+        <StatCard
+          title="Auto-approved"
+          value={stats.autoApproved}
+          tone="accent"
+          icon={<Bot className="h-5 w-5 text-purple-500" />}
+          active={showAutoOnly}
+          onClick={() => {
+            setShowAutoOnly((prev) => !prev);
+            setStatusFilter('all');
+          }}
+        />
+        <StatCard
+          title="Needs attention"
+          value={stats.highImpact}
+          tone="alert"
+          icon={<AlertTriangle className="h-5 w-5 text-orange-500" />}
+          onClick={() => {
+            setStatusFilter('PROPOSED');
+            setShowAutoOnly(false);
+          }}
+        />
+      </section>
 
-      {view === 'summary' ? (
-        /* Summary Dashboard View */
-        <div className="p-6 space-y-6">
-          {/* Governance Statistics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card 
-              className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border-l-4 border-l-blue-500" 
-              onClick={() => setStatusFilter('all')}
+      <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap gap-2">
+            {STATUS_CONTROLS.map(({ key, label }) => (
+              <Button
+                key={key}
+                size="sm"
+                variant={statusFilter === key ? 'primary' : 'outline'}
+                onClick={() => setStatusFilter(key)}
+              >
+                {label}
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant={showAutoOnly ? 'primary' : 'outline'}
+              onClick={() => setShowAutoOnly((prev) => !prev)}
+              className="flex items-center gap-1"
             >
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-3xl font-bold text-blue-600 mb-1">{governanceStats.total}</div>
-                    <div className="text-sm font-medium text-gray-700">Total Proposals</div>
-                  </div>
-                  <div className="p-3 bg-blue-100 rounded-full">
-                    <FileText className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border-l-4 border-l-orange-500" 
-              onClick={() => setStatusFilter('PROPOSED')}
-            >
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-3xl font-bold text-orange-600 mb-1">{governanceStats.pending}</div>
-                    <div className="text-sm font-medium text-gray-700">Pending Review</div>
-                  </div>
-                  <div className="p-3 bg-orange-100 rounded-full">
-                    <Clock className="h-6 w-6 text-orange-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border-l-4 border-l-green-500" 
-              onClick={() => setStatusFilter('APPROVED')}
-            >
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-3xl font-bold text-green-600 mb-1">{governanceStats.approved}</div>
-                    <div className="text-sm font-medium text-gray-700">Approved</div>
-                  </div>
-                  <div className="p-3 bg-green-100 rounded-full">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-purple-500">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-3xl font-bold text-purple-600 mb-1">{governanceStats.autoApproved}</div>
-                    <div className="text-sm font-medium text-gray-700">Auto-Approved</div>
-                  </div>
-                  <div className="p-3 bg-purple-100 rounded-full">
-                    <Bot className="h-6 w-6 text-purple-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              <Filter className="h-3.5 w-3.5" />
+              Auto-approved
+            </Button>
           </div>
-
-          {/* Recent Activity */}
-          {filteredProposals.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Filter className="h-5 w-5" />
-                  {statusFilter === 'all' ? 'Recent Proposals' : `${statusFilter.charAt(0) + statusFilter.slice(1).toLowerCase()} Proposals`}
-                  <Badge variant="outline">{filteredProposals.length}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {filteredProposals.slice(0, 5).map((proposal) => {
-                  const hostLabel = proposal.source_host || (proposal.origin === 'agent' ? 'ambient' : 'human');
-                  return (
-                  <div
-                    key={proposal.id}
-                    className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 hover:border-gray-200 cursor-pointer transition-all duration-200 group"
-                    onClick={() => openProposalDetail(proposal.id)}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className={`p-2 rounded-full ${proposal.origin === 'agent' ? 'bg-purple-100' : 'bg-blue-100'}`}>
-                        {proposal.origin === 'agent' ? 
-                          <Bot className="h-4 w-4 text-purple-600" /> : 
-                          <User className="h-4 w-4 text-blue-600" />
-                        }
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 truncate">{proposal.ops_summary}</div>
-                        <div className="text-sm text-gray-600 truncate flex items-center gap-2">
-                          <span>{proposal.impact_summary}</span>
-                          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-indigo-600">{hostLabel}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500">
-                            {new Date(proposal.created_at).toLocaleDateString()}
-                          </span>
-                          <span className="text-xs text-gray-400">•</span>
-                          <span className="text-xs text-gray-500">
-                            {proposal.ops.length} operation{proposal.ops.length === 1 ? '' : 's'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <Badge 
-                        variant="outline"
-                        className={
-                          proposal.status === 'APPROVED' ? 'bg-green-50 text-green-700 border-green-200' :
-                          proposal.status === 'PROPOSED' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                          'bg-red-50 text-red-700 border-red-200'
-                        }
-                      >
-                        {proposal.status}
-                      </Badge>
-                      {proposal.auto_approved && (
-                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs">
-                          Auto
-                        </Badge>
-                      )}
-                      <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-                    </div>
-                  </div>
-                );
-              })}
-                {filteredProposals.length > 5 && (
-                  <Button 
-                    variant="ghost" 
-                    className="w-full mt-4 text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
-                    onClick={() => setView('list')}
-                  >
-                    View All {filteredProposals.length} Proposals
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {filteredProposals.length === 0 && (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Proposals Found</h3>
-                <p className="text-gray-600">
-                  {statusFilter === 'all' ? 'No governance proposals yet. Add memory to start the review workflow.' :
-                   `No proposals with status "${statusFilter}".`}
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search proposals"
+              className="pl-9"
+            />
+          </div>
         </div>
-      ) : (
-        /* Detailed List View */
-        <div className="p-6 space-y-4">
-          {filteredProposals.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Proposals Found</h3>
-                <p className="text-gray-600">No change requests match the current filter.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            filteredProposals.map((proposal) => (
-              <Card key={proposal.id} className="hover:shadow-md transition-shadow" data-testid="proposal-card">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Badge variant="outline">{proposal.proposal_kind}</Badge>
-                        <Badge 
-                          variant={proposal.status === 'APPROVED' ? 'default' : proposal.status === 'PROPOSED' ? 'secondary' : 'outline'}
-                          className={
-                            proposal.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                            proposal.status === 'PROPOSED' ? 'bg-orange-100 text-orange-800' :
-                            'bg-red-100 text-red-800'
-                          }
-                        >
-                          {proposal.status}
-                        </Badge>
-                        {proposal.auto_approved && (
-                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                            Auto-Approved
-                          </Badge>
-                        )}
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                          {proposal.ops.length} operations
-                        </Badge>
-                        {(proposal.source_host || proposal.origin) && (
-                          <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-                            {proposal.source_host || (proposal.origin === 'agent' ? 'ambient' : 'human')}
-                          </Badge>
-                        )}
-                        {proposal.origin === 'agent' ? <Bot className="h-4 w-4 text-purple-600" /> : <User className="h-4 w-4 text-blue-600" />}
-                        <span className="text-sm text-gray-500">
-                          {new Date(proposal.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        {proposal.ops_summary}
-                      </h3>
-                      
-                      <p className="text-gray-700 mb-3">
-                        {proposal.impact_summary}
-                      </p>
 
-                      {proposal.auto_approved && proposal.executed_at && (
-                        <div className="bg-green-50 border border-green-200 rounded p-3 mb-3">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                            <span className="text-green-600 font-medium text-sm">Auto-executed:</span>
-                            <span className="text-green-700 text-sm">
-                              {new Date(proposal.executed_at).toLocaleString()}
-                            </span>
-                          </div>
-                          {proposal.review_notes && (
-                            <p className="text-green-700 text-sm mt-1">{proposal.review_notes}</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
+        {filteredProposals.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-200 py-12 text-center">
+            <FileText className="h-10 w-10 text-slate-300" />
+            <p className="text-base font-medium text-slate-700">No change requests found</p>
+            <p className="max-w-sm text-sm text-slate-500">
+              Adjust your filters or capture new memory to generate substrate proposals.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredProposals.map((proposal) => (
+              <ProposalCard
+                key={proposal.id}
+                proposal={proposal}
+                onReview={() => openProposalDetail(proposal.id)}
+                onInsights={() => handleInsights(proposal.id)}
+                loadingInsights={insightLoadingId === proposal.id}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
-                    <div className="flex gap-2 ml-4">
-                      <Button
-                        onClick={() => handleProposalInsights(proposal.id)}
-                        variant="ghost"
-                        size="sm"
-                        disabled={insightLoadingId === proposal.id}
-                        className="text-amber-600 hover:text-amber-700"
-                      >
-                        <Lightbulb className="h-3.5 w-3.5" />
-                        {insightLoadingId === proposal.id ? 'Analyzing…' : 'Analyze Insights'}
-                      </Button>
-                      <Button
-                        onClick={() => openProposalDetail(proposal.id)}
-                        variant="primary"
-                        size="sm"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        Review
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+      {insightError && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {insightError}
         </div>
       )}
 
       <ProposalDetailModal
-        isOpen={isDetailModalOpen}
-        proposalId={selectedProposalId}
         basketId={basketId}
+        isOpen={Boolean(selectedProposalId)}
+        proposalId={selectedProposalId}
         onClose={closeProposalDetail}
         onApprove={handleApprove}
         onReject={handleReject}
       />
-      {insightError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {insightError}
-        </div>
-      )}
     </div>
+  );
+}
+
+interface StatCardProps {
+  title: string;
+  value: number;
+  icon: ReactNode;
+  tone?: 'success' | 'warning' | 'danger' | 'accent' | 'alert';
+  onClick?: () => void;
+  active?: boolean;
+}
+
+function StatCard({ title, value, icon, tone, onClick, active }: StatCardProps) {
+  const palette = {
+    success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    warning: 'border-amber-200 bg-amber-50 text-amber-800',
+    danger: 'border-rose-200 bg-rose-50 text-rose-800',
+    accent: 'border-purple-200 bg-purple-50 text-purple-800',
+    alert: 'border-orange-200 bg-orange-50 text-orange-800',
+  } as const;
+
+  const toneClasses = tone ? palette[tone] : 'border-slate-200 bg-white text-slate-800';
+
+  const interactionClass = onClick ? 'cursor-pointer' : '';
+
+  return (
+    <Card
+      onClick={onClick}
+      className={`group border-2 transition-all duration-200 ${interactionClass} ${toneClasses} ${
+        active ? 'shadow-lg ring-2 ring-offset-2 ring-slate-300' : 'hover:shadow-md'
+      }`}
+    >
+      <CardContent className="flex items-center justify-between gap-3 p-5">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-500">{title}</p>
+          <p className="mt-2 text-3xl font-semibold">{value}</p>
+        </div>
+        <div className="rounded-full border border-dashed border-current/30 p-3 text-current">
+          {icon}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface ProposalCardProps {
+  proposal: Proposal;
+  onReview: () => void;
+  onInsights: () => void;
+  loadingInsights: boolean;
+}
+
+function ProposalCard({ proposal, onReview, onInsights, loadingInsights }: ProposalCardProps) {
+  const statusTone = proposal.status === 'APPROVED'
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    : proposal.status === 'PROPOSED'
+      ? 'bg-amber-50 text-amber-700 border-amber-200'
+      : 'bg-rose-50 text-rose-700 border-rose-200';
+
+  const originBadge = proposal.origin === 'agent'
+    ? { label: proposal.source_host || 'Ambient agent', className: 'bg-purple-50 text-purple-700 border-purple-200', icon: <Bot className="h-3.5 w-3.5" /> }
+    : { label: 'Human initiated', className: 'bg-blue-50 text-blue-700 border-blue-200', icon: <User className="h-3.5 w-3.5" /> };
+
+  const operationSummary = (() => {
+    const counts = proposal.ops.reduce<Record<string, number>>((acc, op) => {
+      acc[op.type] = (acc[op.type] || 0) + 1;
+      return acc;
+    }, {});
+
+    const parts = [];
+    if (counts.CreateBlock) parts.push(`${counts.CreateBlock} block${counts.CreateBlock === 1 ? '' : 's'}`);
+    if (counts.CreateContextItem) parts.push(`${counts.CreateContextItem} context item${counts.CreateContextItem === 1 ? '' : 's'}`);
+    if (counts.ReviseBlock) parts.push(`${counts.ReviseBlock} revision${counts.ReviseBlock === 1 ? '' : 's'}`);
+    if (parts.length === 0) parts.push(`${proposal.ops.length} operation${proposal.ops.length === 1 ? '' : 's'}`);
+    return parts.join(' • ');
+  })();
+
+  const submittedAt = new Date(proposal.created_at).toLocaleString();
+
+  return (
+    <Card className="border-slate-200 shadow-sm transition-colors hover:border-slate-300">
+      <CardHeader className="gap-3 border-b border-slate-100 pb-4">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={statusTone}>
+            {proposal.status}
+          </Badge>
+          <Badge variant="outline">{proposal.proposal_kind}</Badge>
+          {proposal.auto_approved && (
+            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+              Auto
+            </Badge>
+          )}
+          <Badge variant="outline" className={`${originBadge.className} flex items-center gap-1`}> 
+            {originBadge.icon}
+            {originBadge.label}
+          </Badge>
+        </div>
+        <CardTitle className="text-lg font-semibold text-slate-900">
+          {proposal.ops_summary}
+        </CardTitle>
+        <p className="text-sm text-slate-600">{proposal.impact_summary}</p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4 pt-4">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+          <span className="flex items-center gap-1">
+            <Database className="h-4 w-4 text-slate-400" />
+            {operationSummary}
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock className="h-4 w-4 text-slate-400" />
+            Submitted {submittedAt}
+          </span>
+          <span className="flex items-center gap-1">
+            Confidence
+            <Badge variant="outline" className="border-slate-200 text-slate-700">
+              {Math.round((proposal.validator_report.confidence ?? proposal.confidence) * 100)}%
+            </Badge>
+          </span>
+          {proposal.validator_report.warnings.length > 0 && (
+            <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-700">
+              {proposal.validator_report.warnings.length} warning{proposal.validator_report.warnings.length === 1 ? '' : 's'}
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-xs uppercase tracking-wide text-slate-500">
+            {proposal.provenance.length > 0 ? `${proposal.provenance.length} referenced capture${proposal.provenance.length === 1 ? '' : 's'}` : 'No capture references'}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onInsights}
+              disabled={loadingInsights}
+              className="text-amber-600 hover:text-amber-700"
+            >
+              <Lightbulb className="h-4 w-4" />
+              {loadingInsights ? 'Analyzing…' : 'Analyze' }
+            </Button>
+            <Button variant="primary" size="sm" onClick={onReview} className="flex items-center gap-1">
+              Review
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
