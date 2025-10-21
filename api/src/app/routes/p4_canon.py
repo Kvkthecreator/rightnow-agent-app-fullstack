@@ -430,11 +430,13 @@ async def _compose_document_canon(
         composition_mode=composition_mode
     )
 
-    if not structured:
-        raise HTTPException(status_code=500, detail="LLM returned no content")
+    if structured:
+        rendered = _render_document_canon(structured, basket_name, insight_canon)
+        return structured, rendered
 
-    rendered = _render_document_canon(structured, basket_name, insight_canon)
-    return structured, rendered
+    fallback = _render_document_canon_fallback(basket_name, insight_canon, substrate)
+    logger.warning("Document canon structured compose failed; using fallback content")
+    return None, fallback
 
 
 async def _compose_document_canon_structured(
