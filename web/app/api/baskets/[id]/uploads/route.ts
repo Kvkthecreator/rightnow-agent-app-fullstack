@@ -63,7 +63,6 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
         file_url,
         processing_status,
         source_meta,
-        metadata,
         body_md,
         text_dump
       `)
