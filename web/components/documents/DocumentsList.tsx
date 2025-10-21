@@ -121,48 +121,56 @@ export function DocumentsList({ basketId, limit }: DocumentsListProps) {
   const canonicalDocs = documents.filter(doc => canonicalOrder.includes(doc.doc_type));
   const otherDocs = documents.filter(doc => !canonicalOrder.includes(doc.doc_type));
 
-  const renderCard = (document: DocumentDTO, isCanonical: boolean) => (
-    <Card
-      key={document.id}
-      className={`p-4 hover:shadow-sm transition-shadow cursor-pointer border-gray-100 ${isCanonical ? 'border-purple-200 bg-purple-50/60' : ''}`}
-      onClick={() => handleDocumentClick(document)}
-    >
-      <div className="flex items-start gap-3">
-        <FileText className={`h-5 w-5 mt-0.5 flex-shrink-0 ${isCanonical ? 'text-purple-500' : 'text-gray-400'}`} />
+  const renderCard = (document: DocumentDTO, isCanonical: boolean) => {
+    const canonicalLabel = document.doc_type === 'document_canon'
+      ? 'Context Brief'
+      : document.doc_type === 'starter_prompt'
+        ? 'Prompt Starter Pack'
+        : 'Canon';
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-medium text-gray-900 text-base truncate">
-              {document.title}
-            </h3>
-            {isCanonical && (
-              <Badge variant="outline" className="border-purple-300 text-purple-700 flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> Canon
-              </Badge>
-            )}
-          </div>
+    return (
+      <Card
+        key={document.id}
+        className={`p-4 hover:shadow-sm transition-shadow cursor-pointer border-gray-100 ${isCanonical ? 'border-purple-200 bg-purple-50/60' : ''}`}
+        onClick={() => handleDocumentClick(document)}
+      >
+        <div className="flex items-start gap-3">
+          <FileText className={`h-5 w-5 mt-0.5 flex-shrink-0 ${isCanonical ? 'text-purple-500' : 'text-gray-400'}`} />
 
-          <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-            {getContentPreview(document)}
-          </p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-medium text-gray-900 text-base truncate">
+                {document.title}
+              </h3>
+              {isCanonical && (
+                <Badge variant="outline" className="border-purple-300 text-purple-700 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> {canonicalLabel}
+                </Badge>
+              )}
+            </div>
 
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {formatDate(document.latest_version_created_at || undefined)}
-            </span>
+            <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+              {getContentPreview(document)}
+            </p>
 
-            {document.metadata?.substrate_count && (
+            <div className="flex items-center gap-4 text-xs text-gray-500">
               <span className="flex items-center gap-1">
-                <Layers className="h-3 w-3" />
-                {document.metadata.substrate_count} memory blocks
+                <Clock className="h-3 w-3" />
+                {formatDate(document.latest_version_created_at || undefined)}
               </span>
-            )}
+
+              {document.metadata?.substrate_count && (
+                <span className="flex items-center gap-1">
+                  <Layers className="h-3 w-3" />
+                  {document.metadata.substrate_count} memory blocks
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-3">

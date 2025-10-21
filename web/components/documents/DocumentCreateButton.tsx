@@ -18,8 +18,8 @@ type TemplateOption = {
 const templateOptions: TemplateOption[] = [
   {
     id: 'prompt_starter',
-    name: 'Prompt Starter',
-    description: 'Generate the canonical prompt pack for ambient agents.',
+    name: 'Prompt Starter Pack',
+    description: 'Generate the canonical copy-ready prompt for ambient agents.',
     defaultIntent: 'Summarize the basket so ambient agents can assist immediately.',
   },
   {

@@ -102,8 +102,8 @@ export function CanonHealthBanner({ basketId }: CanonHealthBannerProps) {
             </h3>
             <p className={`text-xs ${needsGeneration ? 'text-purple-700' : 'text-orange-700'}`}>
               {needsGeneration
-                ? 'Generate the Insight Canon, Basket Canon, and Prompt Starter to unlock full functionality.'
-                : 'Your substrate has changed. Regenerate to refresh narratives and prompts.'}
+                ? 'Generate the Insight Canon, Context Brief, and Prompt Starter Pack to unlock full functionality.'
+                : 'Your substrate has changed. Regenerate to refresh the brief and starter pack.'}
             </p>
           </div>
         </div>

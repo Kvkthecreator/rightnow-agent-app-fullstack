@@ -2,8 +2,8 @@
 P4 Canon Generation Endpoints
 
 Implements P4 document taxonomy:
-- document_canon: Basket Context Canon (mandatory, ONE per basket)
-- starter_prompt: Reasoning capsules for external hosts (MANY per basket)
+- document_canon: Context Brief (mandatory, ONE per basket)
+- starter_prompt: Prompt Starter Pack (reasoning capsules for external hosts)
 
 Note: Separate from existing p4_composition.py which handles general document composition.
       This module focuses specifically on canon generation workflows.
@@ -18,7 +18,7 @@ from collections import Counter
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, Iterable
 from uuid import UUID
 from datetime import datetime
 
@@ -92,10 +92,10 @@ async def generate_document_canon(
     user: dict = Depends(verify_jwt)
 ):
     """
-    Generate or regenerate document_canon (Basket Context Canon).
+    Generate or regenerate document_canon (Context Brief).
 
     Direct operation (not governed per Canon v3.1).
-    Document Canon is the mandatory comprehensive view of basket state.
+    The Context Brief is the mandatory comprehensive view of basket state.
 
     Process:
     1. Check if basket has document_canon
@@ -106,12 +106,24 @@ async def generate_document_canon(
     """
     supabase = supabase_admin()
 
+    # Get basket details
+    basket_result = supabase.table('baskets').select('workspace_id, name').eq('id', request.basket_id).single().execute()
+    if not basket_result.data:
+        raise HTTPException(status_code=404, detail="Basket not found")
+
+    basket = basket_result.data
+    workspace_id = basket['workspace_id']
+    basket_name = basket.get('name', 'Untitled Basket')
+
     # Check staleness
     staleness_check = should_regenerate_document_canon(supabase, request.basket_id)
 
     if not staleness_check['stale'] and not request.force:
-        # Return existing fresh canon
         current = staleness_check['current_canon']
+        if current and current.get('title', '').endswith('Context Canon'):
+            new_title = f"{basket_name} — Context Brief"
+            supabase.table('documents').update({'title': new_title}).eq('id', current['id']).execute()
+            current['title'] = new_title
         return GenerateDocumentCanonResponse(
             document_id=current['id'],
             basket_id=current['basket_id'],
@@ -122,15 +134,6 @@ async def generate_document_canon(
             derived_from=current.get('derived_from', {}),
             created_at=current['created_at']
         )
-
-    # Get basket details
-    basket_result = supabase.table('baskets').select('workspace_id, name').eq('id', request.basket_id).single().execute()
-    if not basket_result.data:
-        raise HTTPException(status_code=404, detail="Basket not found")
-
-    basket = basket_result.data
-    workspace_id = basket['workspace_id']
-    basket_name = basket.get('name', 'Untitled Basket')
 
     # Get current insight_canon
     insight_canon_result = supabase.table('reflections_artifact').select('*').eq(
@@ -183,6 +186,7 @@ async def generate_document_canon(
         document_id = existing_doc.data['id']
         base_metadata = existing_doc.data.get('metadata') or {}
         supabase.table('documents').update({
+            'title': f"{basket_name} — Context Brief",
             'current_version_hash': version_hash,
             'derived_from': derived_from,
             'metadata': {**base_metadata, **metadata_update}
@@ -191,7 +195,7 @@ async def generate_document_canon(
         insert_doc = supabase.table('documents').insert({
             'basket_id': request.basket_id,
             'workspace_id': workspace_id,
-            'title': f"{basket_name} - Context Canon",
+            'title': f"{basket_name} — Context Brief",
             'document_type': 'basket_context',
             'doc_type': 'document_canon',
             'current_version_hash': version_hash,
@@ -236,13 +240,13 @@ async def generate_document_canon(
         version_hash=version_hash,
         structured_outline=structured_outline,
         insight_canon_text=insight_canon.get('reflection_text', ''),
-        document_title=f"{basket_name} - Context Canon"
+        document_title=f"{basket_name} — Context Brief"
     )
 
     return GenerateDocumentCanonResponse(
         document_id=document_id,
         basket_id=request.basket_id,
-        title=f"{basket_name} - Context Canon",
+        title=f"{basket_name} — Context Brief",
         version_hash=version_hash,
         is_fresh=True,
         previous_id=None,
@@ -317,10 +321,12 @@ async def generate_starter_prompt(
     version_hash = hashlib.sha256(prompt_content.encode()).hexdigest()[:64]
 
     # Create starter_prompt document
+    host_label = request.target_host.replace('_', ' ').title()
+
     new_doc = supabase.table('documents').insert({
         'basket_id': request.basket_id,
         'workspace_id': workspace_id,
-        'title': f"{basket_name} - {request.target_host.title()} Starter",
+        'title': f"{basket_name} — Prompt Starter Pack ({host_label})",
         'document_type': 'starter_prompt',
         'doc_type': 'starter_prompt',
         'current_version_hash': version_hash,
@@ -359,7 +365,7 @@ async def generate_starter_prompt(
         },
         'substrate_refs_snapshot': _build_substrate_refs(substrate),
         'version_trigger': 'starter_prompt_generation',
-        'version_message': f'Generated for {request.target_host}'
+        'version_message': f'Generated for {host_label}'
     }).execute()
 
     if not version.data:
@@ -371,7 +377,7 @@ async def generate_starter_prompt(
     return GenerateStarterPromptResponse(
         document_id=document_id,
         basket_id=request.basket_id,
-        title=f"{basket_name} - {request.target_host.title()} Starter",
+        title=f"{basket_name} — Prompt Starter Pack ({host_label})",
         target_host=request.target_host,
         version_hash=version_hash,
         content_preview=content_preview,
@@ -458,27 +464,32 @@ async def _compose_document_canon_structured(
 
 
 def _render_document_canon(structured: Dict[str, Any], basket_name: str, insight_canon: Dict[str, Any]) -> str:
-    lines: List[str] = [f"# {basket_name} - Context Canon", ""]
+    """Render a Context Brief with balanced sections and scan-friendly bullets."""
 
-    summary = structured.get("summary")
+    def _trim_list(values: Iterable[str], limit: int) -> List[str]:
+        return [v for v in values if v][:limit]
+
+    lines: List[str] = [f"# {basket_name} — Context Brief", ""]
+
+    summary = (structured.get("summary") or "").strip()
     if summary:
-        lines.extend(["## Executive Summary", summary.strip(), ""])
+        lines.extend(["## Executive Snapshot", summary, ""])
 
-    themes = structured.get("themes") or []
+    themes = _trim_list(structured.get("themes") or [], 5)
     if themes:
-        lines.append("## What We Are Focused On")
+        lines.append("## Current Priorities")
         for theme in themes:
             lines.append(f"- {theme}")
         lines.append("")
 
     sections = structured.get("sections") or []
-    for section in sections:
-        title = section.get("title", "Section")
-        narrative = section.get("narrative", "")
-        key_points = section.get("key_points") or []
+    for section in sections[:4]:
+        title = section.get("title") or "Focus Area"
+        narrative = (section.get("narrative") or "").strip()
+        key_points = _trim_list(section.get("key_points") or [], 4)
         lines.append(f"## {title}")
         if narrative:
-            lines.append(narrative.strip())
+            lines.append(narrative)
         if key_points:
             lines.append("")
             for point in key_points:
@@ -487,48 +498,50 @@ def _render_document_canon(structured: Dict[str, Any], basket_name: str, insight
 
     tensions = structured.get("tensions") or []
     if tensions:
-        lines.append("## Tensions to Resolve")
-        for tension in tensions:
-            description = tension.get("description", "Unspecified tension")
+        lines.append("## Risks & Tensions")
+        for tension in tensions[:4]:
+            description = tension.get("description") or "Unspecified tension"
             impact = tension.get("impact")
             lines.append(f"- **{description}**" + (f" — {impact}" if impact else ""))
         lines.append("")
 
     opportunities = structured.get("opportunities") or []
     if opportunities:
-        lines.append("## Opportunities")
-        for opp in opportunities:
-            desc = opp.get("description", "Opportunity")
+        lines.append("## Opportunities to Pursue")
+        for opp in opportunities[:4]:
+            desc = opp.get("description") or "Opportunity"
             benefit = opp.get("benefit")
             lines.append(f"- **{desc}**" + (f" — {benefit}" if benefit else ""))
         lines.append("")
 
     actions = structured.get("recommended_actions") or []
     if actions:
-        lines.append("## Recommended Actions")
-        for action in actions:
-            desc = action.get("description", "Action")
+        lines.append("## Recommended Moves")
+        for action in actions[:5]:
+            desc = action.get("description") or "Action"
             urgency = action.get("urgency")
             owner = action.get("owner_hint")
-            suffix = []
+            meta_bits: List[str] = []
             if urgency:
-                suffix.append(f"urgency: {urgency}")
+                meta_bits.append(f"urgency: {urgency}")
             if owner:
-                suffix.append(f"owner: {owner}")
-            suffix_text = f" ({', '.join(suffix)})" if suffix else ""
-            lines.append(f"- {desc}{suffix_text}")
+                meta_bits.append(f"owner: {owner}")
+            suffix = f" ({'; '.join(meta_bits)})" if meta_bits else ""
+            lines.append(f"- {desc}{suffix}")
         lines.append("")
 
-    next_steps = structured.get("next_steps") or []
+    next_steps = _trim_list(structured.get("next_steps") or [], 4)
     if next_steps:
-        lines.append("## Next Steps")
+        lines.append("## Next Checkpoints")
         for step in next_steps:
             lines.append(f"- {step}")
         lines.append("")
 
-    lines.append("## Reference: Insight Canon")
-    lines.append(insight_canon.get('reflection_text', 'No insight available').strip())
-    lines.append("")
+    insight_reference = (insight_canon.get('reflection_text') or '').strip()
+    if insight_reference:
+        lines.append("## Reference: Insight Canon Highlights")
+        lines.append(insight_reference)
+        lines.append("")
 
     return "\n".join(lines).strip()
 
@@ -543,17 +556,17 @@ def _render_document_canon_fallback(
     events = substrate.get('events', [])
 
     lines = [
-        f"# {basket_name} - Context Canon",
+        f"# {basket_name} — Context Brief",
         "",
-        "## Insight Canon",
+        "## Executive Snapshot",
         insight_canon.get('reflection_text', 'No insight available').strip(),
         "",
-        "## Substrate Summary",
-        f"- {len(blocks)} blocks",
-        f"- {len(dumps)} raw captures",
-        f"- {len(events)} timeline events",
+        "## Substrate At-a-glance",
+        f"- Accepted knowledge blocks: {len(blocks)}",
+        f"- Raw captures in scope: {len(dumps)}",
+        f"- Timeline events considered: {len(events)}",
         "",
-        "*LLM composition failed; showing substrate snapshot instead.*",
+        "This fallback summary is based on raw substrate counts because composition returned no narrative.",
     ]
 
     return "\n".join(lines)
@@ -603,8 +616,9 @@ def _build_document_canon_prompt(
 
     prompt_parts = [
         "You are Yarnnn's Document Canon composer.",
-        "Summarise the basket into structured JSON following the provided schema.",
-        "Do not invent blocks that do not exist.",
+        "Produce a Context Brief using the p4_document_canon_v1 schema.",
+        "Every section must reflect the provided substrate. Do not invent new entities, numbers, or decisions.",
+        "Keep paragraphs under roughly 160 words and lists under five items so the brief is easily scannable.",
         "",
         f"Basket: {basket_name}",
         "",
@@ -624,7 +638,9 @@ def _build_document_canon_prompt(
         "\n".join(recent_events) or "(no events)",
         "",
         f"Composition mode: {mode}",
-        "Return JSON that includes summary, sections, themes, tensions, opportunities, recommended_actions, next_steps.",
+        "",
+        "Return JSON with keys: summary, themes, sections (title, narrative, key_points), tensions, opportunities, recommended_actions (description, urgency, owner_hint), next_steps.",
+        "If information is missing, explicitly note the gap instead of fabricating content.",
     ]
 
     return "\n".join(prompt_parts)
@@ -755,20 +771,33 @@ async def _compose_starter_prompt_structured(
 
 
 def _render_starter_prompt(structured: Dict[str, Any], target_host: str) -> str:
-    opening = structured.get('opening', '')
-    context = structured.get('context', '')
-    instructions = structured.get('instructions', '')
-    call_to_action = structured.get('call_to_action', '')
+    opening = (structured.get('opening') or '').strip()
+    context = (structured.get('context') or '').strip()
+    instructions = (structured.get('instructions') or '').strip()
+    call_to_action = (structured.get('call_to_action') or '').strip()
     followups = structured.get('suggested_followups') or []
 
-    lines = [opening.strip(), "", context.strip(), "", instructions.strip(), "", call_to_action.strip()]
-    if followups:
+    lines: List[str] = []
+
+    if opening:
+        lines.append(opening)
+    if context:
+        lines.extend(["", "Context to share:", context])
+    if instructions:
+        lines.extend(["", "When responding, the assistant should:", instructions])
+    if call_to_action:
+        lines.extend(["", "Call to action:", call_to_action])
+    followup_items = [item for item in followups if item][:5]
+    if followup_items:
         lines.append("")
         lines.append("Suggested follow-up questions:")
-        for item in followups[:5]:
+        for item in followup_items:
             lines.append(f"- {item}")
 
-    return "\n".join([line for line in lines if line]).strip()
+    lines.append("")
+    lines.append(f"(Designed for {target_host})")
+
+    return "\n".join(line for line in lines if line).strip()
 
 
 def _render_starter_prompt_fallback(
@@ -777,12 +806,19 @@ def _render_starter_prompt_fallback(
     insight_canon: Dict[str, Any],
     substrate: Dict[str, Any]
 ) -> str:
-    return (
-        f"{basket_name} — {target_host} starter prompt\n\n"
-        "Context summary:\n"
-        f"{insight_canon.get('reflection_text', 'No insight available')[:400]}\n\n"
-        f"Structured blocks: {len(substrate.get('blocks', []))}; raw captures: {len(substrate.get('dumps', []))}."
-    )
+    return "\n".join([
+        f"Use this prompt with {target_host} for {basket_name}.",
+        "",
+        "Context to share:",
+        (insight_canon.get('reflection_text') or 'No insight available').strip()[:500],
+        "",
+        "Guidance:",
+        "1. Ground every response in the context above.",
+        "2. Ask clarifying questions before making assumptions.",
+        "3. Propose next actions with owners when possible.",
+        "",
+        f"Structured blocks available: {len(substrate.get('blocks', []))} | captures: {len(substrate.get('dumps', []))}",
+    ]).strip()
 
 
 def _build_starter_prompt_context(
@@ -802,7 +838,7 @@ def _build_starter_prompt_context(
     style = prompt_style or 'concise'
 
     return "\n".join([
-        "You are generating a Yarnnn Starter Prompt for an external agent.",
+        "You are generating a Yarnnn Starter Prompt for an external assistant.",
         f"Basket: {basket_name}",
         f"Target host: {target_host}",
         f"Desired style: {style}",
@@ -813,8 +849,8 @@ def _build_starter_prompt_context(
         "Key knowledge blocks:",
         "\n".join(top_blocks) or "(no accepted blocks)",
         "",
-        "Produce JSON fields: opening, context, instructions, call_to_action, suggested_followups.",
-        "Keep the tone helpful and grounded in the provided content.",
+        "Return JSON fields: opening (<=2 sentences), context (paragraph <=140 words), instructions (numbered list guidance), call_to_action (clear ask), suggested_followups (<=5 short questions).",
+        "All guidance must be actionable and grounded in the provided material. If information is missing, encourage the host to ask for it rather than inventing details.",
     ])
 async def _compose_starter_prompt(
     basket_name: str,
