@@ -782,7 +782,7 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             response = await self.llm.get_text_response(
                 content_prompt,
                 temperature=1.0,  # Use default temperature for model compatibility
-                max_tokens=2000  # Increased from 800 to prevent truncation (finish_reason=length)
+                max_tokens=4000  # Increased to prevent truncation for longer documents
             )
         except Exception as e:
             logger.warning(f"Failed to generate section content: {e}")
