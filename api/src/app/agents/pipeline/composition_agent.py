@@ -259,19 +259,21 @@ Example response:
             
             blocks_response = blocks_query.execute()
             metrics.candidates_found["blocks"] = len(blocks_response.data or [])
+        else:
+            blocks_response = type("Response", (), {"data": []})()
             
         for block in blocks_response.data or []:
             candidates.append({
                 "type": "block",
                 "id": block["id"],
-                "content": block.get("content", ""),  # Canon: use canonical content field
-                "title": block.get("title", ""),     # Canon: use canonical title field
-                    "semantic_type": block.get("semantic_type"),
-                    "confidence_score": block.get("confidence_score", 0.7),
-                    "created_at": block["created_at"],
-                    "metadata": block,
-                    "freshness_score": self._calculate_freshness(block["created_at"], recency_cutoff)
-                })
+                "content": block.get("content", ""),
+                "title": block.get("title", ""),
+                "semantic_type": block.get("semantic_type"),
+                "confidence_score": block.get("confidence_score", 0.7),
+                "created_at": block["created_at"],
+                "metadata": block,
+                "freshness_score": self._calculate_freshness(block["created_at"], recency_cutoff)
+            })
         
         # V3.0: No context_items table - entities are blocks with semantic_type='entity'
         # Entity blocks already included in blocks query above
@@ -314,7 +316,7 @@ Example response:
                 cap = budget.per_type_caps["relationships"]
 
                 from_resp = supabase.table('substrate_relationships').select(
-                    'id, from_block_id, to_block_id, relationship_type, strength, created_at'
+                    'id, from_block_id, to_block_id, relationship_type, metadata, created_at'
                 ).in_('from_block_id', block_ids).limit(cap).execute()
 
                 relationship_rows.extend(from_resp.data or [])
@@ -322,7 +324,7 @@ Example response:
                 remaining = max(cap - len(relationship_rows), 0)
                 if remaining > 0:
                     to_resp = supabase.table('substrate_relationships').select(
-                        'id, from_block_id, to_block_id, relationship_type, strength, created_at'
+                        'id, from_block_id, to_block_id, relationship_type, metadata, created_at'
                     ).in_('to_block_id', block_ids).limit(remaining).execute()
 
                     seen_ids = {row.get('id') for row in relationship_rows}
@@ -339,6 +341,9 @@ Example response:
                 to_id = relationship.get('to_block_id') or 'unknown'
                 rel_type = relationship.get('relationship_type', 'related')
 
+                relationship_metadata = relationship.get('metadata') or {}
+                strength_value = relationship_metadata.get('strength') or relationship.get('strength') or 0.7
+
                 candidates.append({
                     "type": "relationship",
                     "id": relationship.get("id"),
@@ -347,7 +352,7 @@ Example response:
                     "relationship_type": rel_type,
                     "from_id": from_id,
                     "to_id": to_id,
-                    "strength": relationship.get('strength', 0.7),
+                    "strength": strength_value,
                     "created_at": relationship.get('created_at'),
                     "metadata": relationship,
                     "freshness_score": self._calculate_freshness(relationship.get('created_at'), recency_cutoff)
