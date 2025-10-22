@@ -12,12 +12,12 @@ Optional path: POST /api/baskets/ingest reduces round-trips during onboarding (i
 **Entry Point**: `/baskets/[id]/memory` page → Upload Document button → Modal
 **Flow**: File Upload → Document Creation → raw_dump Linkage → Agent Processing
 - Creates `document` record via `POST /api/documents` → calls `fn_document_create`
-- Links file to `raw_dump` via `POST /api/dumps/upload` with `document_id`
+- Links files or supporting text to `raw_dumps` via `POST /api/dumps/upload` (supports `files[]` + optional `text_dump` in a single request)
 - Agent processes raw_dump asynchronously → creates blocks via governance
 - User can optionally compose resulting blocks into document narrative
 
 **API Schema**: Document creation requires `{basket_id, title, metadata?}` (NOT substrate_type)
-**File Processing**: Uses existing `/api/dumps/upload` endpoint requiring `document_id`
+**File Processing**: Uses `/api/dumps/upload` with canonical formats (text, PDF, images); each request may include multiple files and shared metadata.
 
 Blocks (substrate_type: 'block' in context_blocks table) are structured knowledge ingredients extracted from dumps (substrate_type: 'dump' in raw_dumps table). Reflections are artifacts, not substrates.
 

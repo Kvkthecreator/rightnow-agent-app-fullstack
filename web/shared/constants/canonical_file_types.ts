@@ -51,6 +51,9 @@ export const CANONICAL_BINARY_EXTENSIONS = [
   '.webp',
 ] as const;
 
+// Canonical size guard (aligned across frontend + API routes)
+export const CANONICAL_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
 // Combined canonical formats
 export const SUPPORTED_MIME_TYPES = [
   ...CANONICAL_TEXT_MIME_TYPES,

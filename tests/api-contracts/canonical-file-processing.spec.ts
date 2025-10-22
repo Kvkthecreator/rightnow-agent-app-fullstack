@@ -24,7 +24,7 @@ test.describe('Canonical File Processing Pipeline', () => {
     const textFile = new File([textContent], 'test-goals.txt', { type: 'text/plain' });
 
     const formData = new FormData();
-    formData.append('file', textFile);
+    formData.append('files', textFile);
     formData.append('basket_id', basketId);
     formData.append('dump_request_id', crypto.randomUUID());
     formData.append('meta', JSON.stringify({
@@ -65,7 +65,7 @@ test.describe('Canonical File Processing Pipeline', () => {
     const mdFile = new File([markdownContent], 'requirements.md', { type: 'text/markdown' });
 
     const formData = new FormData();
-    formData.append('file', mdFile);
+    formData.append('files', mdFile);
     formData.append('basket_id', basketId);
     formData.append('dump_request_id', crypto.randomUUID());
 
@@ -86,7 +86,7 @@ test.describe('Canonical File Processing Pipeline', () => {
     const pdfFile = new File([pdfBuffer], 'test-document.pdf', { type: 'application/pdf' });
 
     const formData = new FormData();
-    formData.append('file', pdfFile);
+    formData.append('files', pdfFile);
     formData.append('basket_id', basketId);
     formData.append('dump_request_id', crypto.randomUUID());
 
@@ -109,7 +109,7 @@ test.describe('Canonical File Processing Pipeline', () => {
     const imageFile = new File([pngBuffer], 'screenshot.png', { type: 'image/png' });
 
     const formData = new FormData();
-    formData.append('file', imageFile);
+    formData.append('files', imageFile);
     formData.append('basket_id', basketId);
     formData.append('dump_request_id', crypto.randomUUID());
 
@@ -129,7 +129,7 @@ test.describe('Canonical File Processing Pipeline', () => {
     const csvFile = new File([csvContent], 'data.csv', { type: 'text/csv' });
 
     const formData = new FormData();
-    formData.append('file', csvFile);
+    formData.append('files', csvFile);
     formData.append('basket_id', basketId);
     formData.append('dump_request_id', crypto.randomUUID());
 
@@ -152,7 +152,7 @@ test.describe('Canonical File Processing Pipeline', () => {
     });
 
     const formData = new FormData();
-    formData.append('file', docxFile);
+    formData.append('files', docxFile);
     formData.append('basket_id', basketId);
     formData.append('dump_request_id', crypto.randomUUID());
 
@@ -186,7 +186,7 @@ test.describe('Canonical File Processing Pipeline', () => {
     const markdownFile = new File(['## Technical Requirements\\n- Python 3.9+\\n- PostgreSQL 14+'], 'tech-specs.md', { type: 'text/markdown' });
     
     const formData = new FormData();
-    formData.append('file', markdownFile);
+    formData.append('files', markdownFile);
     formData.append('basket_id', basketId);
     formData.append('dump_request_id', crypto.randomUUID());
     formData.append('meta', JSON.stringify({
@@ -210,13 +210,35 @@ test.describe('Canonical File Processing Pipeline', () => {
     expect(fileResult.success).toBeTruthy();
   });
 
+  test('Uploads support multiple files plus text in one request', async ({ request }) => {
+    const formData = new FormData();
+    formData.append('basket_id', basketId);
+    formData.append('text_dump', 'Kick-off notes for multi-file capture');
+    formData.append('dump_request_id', crypto.randomUUID());
+    formData.append('files', new File(['First attachment'], 'one.md', { type: 'text/markdown' }));
+    formData.append('dump_request_id', crypto.randomUUID());
+    formData.append('files', new File([Buffer.from('%PDF-1.4')], 'two.pdf', { type: 'application/pdf' }));
+    formData.append('dump_request_id', crypto.randomUUID());
+
+    const response = await request.post('/api/dumps/upload', {
+      multipart: formData as any,
+      headers: { 'x-playwright-test': 'true' }
+    });
+
+    expect(response.ok()).toBeTruthy();
+    const result = await response.json();
+    expect(result.success).toBeTruthy();
+    expect(result.dumps.length).toBeGreaterThanOrEqual(3);
+    expect(result.dump_ids.length).toBeGreaterThanOrEqual(2);
+  });
+
   test('File size and validation limits', async ({ request }) => {
     // Test file size limit (simulated large file)
     const largeContent = 'x'.repeat(60 * 1024 * 1024); // 60MB
     const largeFile = new File([largeContent], 'huge-file.txt', { type: 'text/plain' });
 
     const formData = new FormData();
-    formData.append('file', largeFile);
+    formData.append('files', largeFile);
     formData.append('basket_id', basketId);
     formData.append('dump_request_id', crypto.randomUUID());
 
@@ -239,7 +261,7 @@ test.describe('Canonical File Processing Pipeline', () => {
     const textFile = new File(['test content'], 'test.txt', { type: 'text/plain' });
     
     const formData = new FormData();
-    formData.append('file', textFile);
+    formData.append('files', textFile);
     // Missing basket_id and dump_request_id
 
     const response = await request.post('/api/dumps/upload', {
@@ -249,7 +271,7 @@ test.describe('Canonical File Processing Pipeline', () => {
 
     expect(response.status()).toBe(400);
     const error = await response.json();
-    expect(error.error).toContain('Missing required fields');
+    expect(error.error).toContain('Missing required field');
   });
 
   test('Canonical MIME type validation consistency', async ({ request }) => {
@@ -268,7 +290,7 @@ test.describe('Canonical File Processing Pipeline', () => {
       const imageFile = new File([imageBuffer], `test.${format.ext}`, { type: format.mime });
 
       const formData = new FormData();
-      formData.append('file', imageFile);
+      formData.append('files', imageFile);
       formData.append('basket_id', basketId);
       formData.append('dump_request_id', crypto.randomUUID());
 

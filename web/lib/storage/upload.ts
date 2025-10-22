@@ -1,5 +1,6 @@
 import { createBrowserClient } from '@/lib/supabase/clients';
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_MB } from '@/constants/uploads';
+import { CANONICAL_ACCEPT_ATTRIBUTE } from '@/shared/constants/canonical_file_types';
 
 function isAllowedMime(type: string): boolean {
   return ALLOWED_MIME_TYPES.some((t) => {
@@ -12,7 +13,7 @@ function isAllowedMime(type: string): boolean {
 
 export async function uploadFile(file: File, path: string, bucket = 'block-files'): Promise<string> {
   if (!isAllowedMime(file.type)) {
-    throw new Error(`Unsupported file type: ${file.type}`);
+    throw new Error(`Unsupported file type: ${file.type}. Use: ${CANONICAL_ACCEPT_ATTRIBUTE}`);
   }
   if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
     throw new Error(`File size must be under ${MAX_FILE_SIZE_MB}MB.`);

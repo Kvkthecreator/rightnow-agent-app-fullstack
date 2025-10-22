@@ -3,23 +3,18 @@
 
 import { getFragmentType } from './FragmentTypes';
 import type { Fragment, FragmentType } from './FragmentTypes';
+import { CANONICAL_MAX_FILE_SIZE_BYTES, SUPPORTED_MIME_TYPES } from '@/shared/constants/canonical_file_types';
 
 export class FileFragmentHandler {
-  private static readonly ALLOWED_MIME_TYPES = new Set([
-    'text/plain',
-    'application/pdf',
-    'image/png',
-    'image/jpeg',
-    'image/jpg'
-  ]);
+  private static readonly ALLOWED_MIME_TYPES = new Set(SUPPORTED_MIME_TYPES as readonly string[]);
 
-  private static readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  private static readonly MAX_FILE_SIZE = CANONICAL_MAX_FILE_SIZE_BYTES;
 
   static validateFile(file: File): { valid: boolean; error?: string } {
     if (!this.ALLOWED_MIME_TYPES.has(file.type)) {
-      return { 
-        valid: false, 
-        error: `File type ${file.type} not supported. Use: text, PDF, PNG, or JPEG.` 
+      return {
+        valid: false,
+        error: `File type ${file.type} not supported. Accepted types: ${Array.from(this.ALLOWED_MIME_TYPES).join(', ')}`
       };
     }
     
