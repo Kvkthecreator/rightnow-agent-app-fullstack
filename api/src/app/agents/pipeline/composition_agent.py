@@ -881,9 +881,8 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                 }
             }
 
+            # Canon v4.0: Update document metadata only (content goes to document_versions via RPC)
             doc_update = {
-                "content_raw": final_content,
-                "content_rendered": final_content,  # For now, same as raw
                 "metadata": base_metadata
             }
 
@@ -894,10 +893,10 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
 
             api_error = getattr(update_response, "error", None)
             if api_error is not None:
-                raise RuntimeError(f"Failed to update document with composition: {api_error}")
+                raise RuntimeError(f"Failed to update document metadata: {api_error}")
 
             if update_response.data is None:
-                raise RuntimeError("Failed to update document with composition: empty response")
+                raise RuntimeError("Failed to update document metadata: empty response")
             updated_metadata = base_metadata
 
             # V3.0: Canon-Pure: Create substrate references in dedicated table
