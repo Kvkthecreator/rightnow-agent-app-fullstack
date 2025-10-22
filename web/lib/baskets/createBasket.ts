@@ -10,6 +10,12 @@ export interface BasketCreationOptions {
   intent?: string;
   rawDump?: string;
   files?: File[];
+  anchors?: {
+    problem?: string;
+    customer?: string;
+    vision?: string;
+    metrics?: string;
+  };
 }
 
 export interface BasketCreationResult {
@@ -30,6 +36,7 @@ function assertHasFiles(files?: File[]): File[] {
 
 export async function createBasketWithSeed(options: BasketCreationOptions): Promise<BasketCreationResult> {
   const files = assertHasFiles(options.files);
+  const anchorPayload = options.anchors ?? {};
 
   const createPayload = {
     idempotency_key: crypto.randomUUID(),
@@ -47,13 +54,18 @@ export async function createBasketWithSeed(options: BasketCreationOptions): Prom
   const basketId = createResponse.basket_id;
   let anchorsSeeded = false;
 
-  if (options.mode === 'manual' && options.intent?.trim()) {
+  const hasAnchorContent = Object.values(anchorPayload).some((value) => value?.trim().length);
+
+  if (hasAnchorContent) {
     try {
       await fetchWithToken(`/api/baskets/${basketId}/anchors/bootstrap`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          problemStatement: options.intent.trim(),
+          problemStatement: anchorPayload.problem?.trim() || null,
+          primaryCustomer: anchorPayload.customer?.trim() || null,
+          productVision: anchorPayload.vision?.trim() || null,
+          successMetrics: anchorPayload.metrics?.trim() || null,
         }),
       });
       anchorsSeeded = true;
@@ -78,6 +90,8 @@ export async function createBasketWithSeed(options: BasketCreationOptions): Prom
     } satisfies Record<string, unknown>;
 
     formData.append('meta', JSON.stringify(meta));
+
+    const parsedAnchorsSnapshot = hasAnchorContent ? { ...anchorPayload } : undefined;
 
     if (trimmedRawDump) {
       formData.append('text_dump', trimmedRawDump);
