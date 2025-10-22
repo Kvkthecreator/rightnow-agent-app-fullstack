@@ -183,7 +183,13 @@ export async function POST(request: NextRequest) {
         sourceType = 'text_content';
       } else {
         const fileBuffer = Buffer.from(await file.arrayBuffer());
-        const storagePath = `dumps/${basketId}/${Date.now()}-${file.name}`;
+
+        // Sanitize filename to ASCII-only for storage compatibility
+        // Keep extension, replace non-ASCII with underscore
+        const fileExt = file.name.split('.').pop() || '';
+        const fileNameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+        const sanitizedName = fileNameWithoutExt.replace(/[^a-zA-Z0-9_-]/g, '_') + (fileExt ? `.${fileExt}` : '');
+        const storagePath = `dumps/${basketId}/${Date.now()}-${sanitizedName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('basket-dumps')
