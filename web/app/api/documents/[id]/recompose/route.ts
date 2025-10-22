@@ -64,15 +64,14 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     const { error: updateError } = await serviceSupabase
       .from('documents')
       .update({
-        status: 'recomposing',
         metadata: {
-          ...document.metadata || {},
+          ...(document.metadata || {}),
           recomposition_intent: intent,
           recomposition_timestamp: new Date().toISOString(),
           window_days,
-          pinned_ids: pinned_ids || []
+          pinned_ids: pinned_ids || [],
         },
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', document_id);
 
