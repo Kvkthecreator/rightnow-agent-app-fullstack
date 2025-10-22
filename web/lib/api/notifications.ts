@@ -3,6 +3,7 @@
 import type { AppEvent } from '@/lib/types';
 import { createBrowserClient } from '@/lib/supabase/clients';
 import { useNotificationStore } from '@/lib/notifications';
+import { fetchWithToken } from '@/lib/fetchWithToken';
 
 class NotificationAPI {
   private supabase = createBrowserClient();
@@ -46,7 +47,7 @@ class NotificationAPI {
       );
 
       // Call backend API instead of direct Supabase insert
-      await fetch('/api/events/emit', {
+      await fetchWithToken('/api/events/emit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
