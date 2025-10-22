@@ -167,7 +167,8 @@ async def generate_document_canon(
     else:
         structured_outline, canon_content = compose_result  # type: ignore[misc]
         import hashlib
-        version_hash = hashlib.sha256(canon_content.encode('utf-8')).hexdigest()
+        raw_hash = hashlib.sha256(canon_content.encode('utf-8')).hexdigest()
+        version_hash = f"doc_v{raw_hash[:58]}"
 
     substrate_hash = compute_basket_substrate_hash(supabase, request.basket_id)
 
@@ -328,7 +329,8 @@ async def generate_starter_prompt(
 
     # Compute version hash
     import hashlib
-    version_hash = hashlib.sha256(prompt_content.encode()).hexdigest()[:64]
+    raw_hash = hashlib.sha256(prompt_content.encode()).hexdigest()
+    version_hash = f"doc_v{raw_hash[:58]}"
 
     # Create starter_prompt document
     host_label = request.target_host.replace('_', ' ').title()
@@ -448,7 +450,8 @@ async def _compose_document_canon(
     logger.warning("Document canon structured compose failed; using fallback content")
 
     import hashlib
-    fallback_hash = hashlib.sha256(fallback.encode('utf-8')).hexdigest()
+    raw_hash = hashlib.sha256(fallback.encode('utf-8')).hexdigest()
+    fallback_hash = f"doc_v{raw_hash[:58]}"
     return None, fallback, fallback_hash
 
 
