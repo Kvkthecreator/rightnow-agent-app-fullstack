@@ -316,7 +316,7 @@ Example response:
                 cap = budget.per_type_caps["relationships"]
 
                 from_resp = supabase.table('substrate_relationships').select(
-                    'id, from_block_id, to_block_id, relationship_type, metadata, created_at'
+                    'id, from_block_id, to_block_id, relationship_type, metadata, confidence_score, created_at'
                 ).in_('from_block_id', block_ids).limit(cap).execute()
 
                 relationship_rows.extend(from_resp.data or [])
@@ -324,7 +324,7 @@ Example response:
                 remaining = max(cap - len(relationship_rows), 0)
                 if remaining > 0:
                     to_resp = supabase.table('substrate_relationships').select(
-                        'id, from_block_id, to_block_id, relationship_type, metadata, created_at'
+                        'id, from_block_id, to_block_id, relationship_type, metadata, confidence_score, created_at'
                     ).in_('to_block_id', block_ids).limit(remaining).execute()
 
                     seen_ids = {row.get('id') for row in relationship_rows}
@@ -342,7 +342,7 @@ Example response:
                 rel_type = relationship.get('relationship_type', 'related')
 
                 relationship_metadata = relationship.get('metadata') or {}
-                strength_value = relationship_metadata.get('strength') or relationship.get('strength') or 0.7
+                strength_value = relationship_metadata.get('strength') or relationship.get('confidence_score') or 0.7
 
                 candidates.append({
                     "type": "relationship",
