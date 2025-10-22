@@ -41,7 +41,7 @@ class LLMProvider:
         self,
         prompt: str,
         *,
-        temperature: float = 0.3,
+        temperature: float = 1.0,
         max_tokens: int = 4000,
         schema_name: Optional[str] = None,
     ) -> LLMResponse:  # pragma: no cover - interface only
@@ -379,7 +379,7 @@ class OpenAIProvider(LLMProvider):
         self,
         prompt: str,
         *,
-        temperature: float = 0.3,
+        temperature: float = 1.0,
         max_tokens: int = 4000,
         schema_name: Optional[str] = None,
     ) -> LLMResponse:

@@ -230,6 +230,7 @@ async def generate_document_canon(
             'substrate_hash': substrate_hash,
             'composition_mode': request.composition_mode,
             'structured_outline': structured_outline,
+            'fallback_mode': fallback_mode,
         },
         'substrate_refs_snapshot': _build_substrate_refs(substrate),
         'version_trigger': 'p4_canon_regeneration',
