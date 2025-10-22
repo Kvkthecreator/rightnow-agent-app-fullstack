@@ -6,7 +6,7 @@ import { DocumentsList } from '@/components/documents/DocumentsList';
 import BasketSubpageLayout from '@/components/layouts/BasketSubpageLayout';
 import { DocumentCreateButton } from '@/components/documents/DocumentCreateButton';
 import { SectionCard } from '@/components/ui/SectionCard';
-import { CanonHealthBanner } from '@/components/canons/CanonHealthBanner';
+import { DocumentCanonBanner } from '@/components/canons/DocumentCanonBanner';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -39,7 +39,7 @@ export default async function DocumentsPage({ params }: PageProps) {
       description="Compose and organize your documents"
       rightContent={<DocumentCreateButton basketId={id} basketName={basket.name} />}
     >
-      <CanonHealthBanner basketId={id} />
+      <DocumentCanonBanner basketId={id} />
       <SectionCard>
         <DocumentsList basketId={id} />
       </SectionCard>
