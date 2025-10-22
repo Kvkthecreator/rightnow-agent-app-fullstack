@@ -164,7 +164,7 @@ export async function POST(
       };
 
       // Get existing basket content for substrate context
-      const [documentsResult, blocksResult, contextItemsResult, rawDumpsResult] = await Promise.allSettled([
+      const [documentsResult, blocksResult, rawDumpsResult] = await Promise.allSettled([
         supabase
           .from('documents')
           .select('id, title, content, created_at')
@@ -178,14 +178,7 @@ export async function POST(
           .eq('basket_id', basketId)
           .in('status', ['ACCEPTED', 'LOCKED'])
           .order('created_at', { ascending: false })
-          .limit(20),
-          
-        supabase
-          .from('context_items')
-          .select('id, content, type, metadata, created_at')
-          .eq('basket_id', basketId)
-          .order('created_at', { ascending: false })
-          .limit(15),
+          .limit(35), // V3.0: Increased to account for merged context_items
           
         supabase
           .from('raw_dumps')
@@ -197,14 +190,13 @@ export async function POST(
 
       const documents = documentsResult.status === 'fulfilled' ? documentsResult.value.data || [] : [];
       const blocks = blocksResult.status === 'fulfilled' ? blocksResult.value.data || [] : [];
-      const contextItems = contextItemsResult.status === 'fulfilled' ? contextItemsResult.value.data || [] : [];
       const rawDumps = rawDumpsResult.status === 'fulfilled' ? rawDumpsResult.value.data || [] : [];
 
       // Calculate substrate metrics
       const substrateMetrics = {
         documentCount: documents.length,
         blockCount: blocks.length,
-        contextItemCount: contextItems.length,
+        contextItemCount: 0, // V3.0: context_items merged into blocks table
         rawDumpCount: rawDumps.length,
         totalWords: rawDumps.reduce((sum, dump) => sum + (dump.word_count || 0), 0),
         lastActivity: documents.length > 0 ? documents[0].created_at : null
@@ -218,7 +210,7 @@ export async function POST(
         substrate: {
           documents,
           blocks,
-          context_items: contextItems,
+          context_items: [], // V3.0: context_items merged into blocks table
           raw_dumps: rawDumps,
           metrics: substrateMetrics
         },
@@ -334,7 +326,8 @@ export async function POST(
 
     // ✅ CANON: Legacy intelligence generation (existing flow)
     // Fetch current content for hashing and analysis
-    const [documentsResult, rawDumpsResult, contextItemsResult] = await Promise.all([
+    // V3.0: context_items merged into blocks table
+    const [documentsResult, rawDumpsResult] = await Promise.all([
       supabase
         .from('documents')
         .select('id, content, updated_at')
@@ -344,17 +337,11 @@ export async function POST(
         .from('raw_dumps')
         .select('id, body_md, created_at')
         .eq('basket_id', basketId)
-        .eq('workspace_id', workspaceId),
-      supabase
-        .from('context_items')
-        .select('id, content, type, metadata, created_at')
-        .eq('basket_id', basketId)
         .eq('workspace_id', workspaceId)
     ]);
 
     const documents = documentsResult.data || [];
     const rawDumps = rawDumpsResult.data || [];
-    const contextItems = contextItemsResult.data || [];
 
     // Generate content hash for change detection (Canon v3.0: use content from versions)
     const currentHash = await generateContentHash({

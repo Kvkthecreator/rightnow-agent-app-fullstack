@@ -103,7 +103,8 @@ export async function GET(
     }
 
     // Fetch comprehensive data from database (Canon v3.0: use document_heads for content)
-    const [basketResult, documentsResult, rawDumpsResult, contextItemsResult, blocksResult] = await Promise.all([
+    // V3.0: context_items merged into blocks table
+    const [basketResult, documentsResult, rawDumpsResult, blocksResult] = await Promise.all([
       supabase
         .from('baskets')
         .select('*')
@@ -121,10 +122,6 @@ export async function GET(
         .eq('basket_id', basketId)
         .order('created_at', { ascending: false }),
       supabase
-        .from('context_items')
-        .select('*')
-        .eq('basket_id', basketId),
-      supabase
         .from('blocks')
         .select('*')
         .eq('basket_id', basketId)
@@ -137,8 +134,8 @@ export async function GET(
     const basket = basketResult.data;
     const documents = documentsResult.data || [];
     const rawDumps = rawDumpsResult.data || [];
-    const contextItems = contextItemsResult.data || [];
     const blocks = blocksResult.data || [];
+    const contextItems = []; // V3.0: context_items merged into blocks
 
     // Calculate content inventory
     const contentInventory = calculateContentInventory(documents, rawDumps, contextItems, blocks);
