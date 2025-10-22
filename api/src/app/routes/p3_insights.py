@@ -209,7 +209,7 @@ async def generate_insight_canon(
             }).eq('id', previous_id).execute()
 
         # Insert new insight
-        new_insight = supabase.table('reflections_artifact').insert({
+        new_insight = supabase.table('reflections_artifact').upsert({
             'basket_id': request.basket_id,
             'workspace_id': workspace_id,
             'reflection_text': reflection_text,
@@ -220,7 +220,7 @@ async def generate_insight_canon(
             'previous_id': previous_id,
             'derived_from': derived_from,
             'computation_timestamp': datetime.utcnow().isoformat()
-        }).execute()
+        }, on_conflict='basket_id,substrate_hash').execute()
 
         if not new_insight.data:
             raise HTTPException(status_code=500, detail="Failed to create insight")
