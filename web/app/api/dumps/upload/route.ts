@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
         const storagePath = `dumps/${basketId}/${Date.now()}-${file.name}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('raw-dumps')
+          .from('basket-dumps')
           .upload(storagePath, fileBuffer, {
             contentType: canonicalMimeType || file.type,
             upsert: false
@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
         }
 
         const { data: { publicUrl } } = supabase.storage
-          .from('raw-dumps')
+          .from('basket-dumps')
           .getPublicUrl(storagePath);
 
         fileUrl = publicUrl;
