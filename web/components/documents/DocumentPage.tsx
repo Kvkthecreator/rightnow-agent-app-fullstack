@@ -521,7 +521,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
             </Button>
             <Button variant="default" size="sm" onClick={handleCompose} disabled={composeState === 'running'}>
               <Sparkles className="mr-2 h-4 w-4" />
-              {composeState === 'running' ? 'Composing…' : 'Regenerate from Substrate'}
+              {composeState === 'running' ? 'Updating…' : 'Request Update using Blocks'}
             </Button>
             <Button variant="outline" size="sm" onClick={handleExtractToMemory} disabled={composeState === 'running'}>
               <Download className="mr-2 h-4 w-4" />
@@ -604,7 +604,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
               </div>
             ) : (
               <div className="p-12 text-center text-sm text-slate-500">
-                No content yet. Click "Regenerate from Substrate" to compose document from your memory.
+                No content yet. Click "Request Update using Blocks" to compose document from your memory.
               </div>
             )}
           </Card>

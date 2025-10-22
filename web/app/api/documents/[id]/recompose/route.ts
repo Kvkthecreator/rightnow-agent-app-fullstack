@@ -68,6 +68,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
           ...(document.metadata || {}),
           recomposition_intent: intent,
           recomposition_timestamp: new Date().toISOString(),
+          composition_status: 'processing', // Set status for frontend polling
           window_days,
           pinned_ids: pinned_ids || [],
         },
