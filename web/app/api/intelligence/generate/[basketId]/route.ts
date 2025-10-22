@@ -196,7 +196,6 @@ export async function POST(
       const substrateMetrics = {
         documentCount: documents.length,
         blockCount: blocks.length,
-        contextItemCount: 0, // V3.0: context_items merged into blocks table
         rawDumpCount: rawDumps.length,
         totalWords: rawDumps.reduce((sum, dump) => sum + (dump.word_count || 0), 0),
         lastActivity: documents.length > 0 ? documents[0].created_at : null
@@ -210,7 +209,6 @@ export async function POST(
         substrate: {
           documents,
           blocks,
-          context_items: [], // V3.0: context_items merged into blocks table
           raw_dumps: rawDumps,
           metrics: substrateMetrics
         },

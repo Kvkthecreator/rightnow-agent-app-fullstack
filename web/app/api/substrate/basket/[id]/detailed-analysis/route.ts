@@ -16,9 +16,6 @@ interface ContentInventory {
     totalWords: number;
     contentBreakdown: Record<string, number>;
   };
-  contextItems: {
-    total: number;
-  };
   blocks: {
     total: number;
   };
@@ -135,10 +132,9 @@ export async function GET(
     const documents = documentsResult.data || [];
     const rawDumps = rawDumpsResult.data || [];
     const blocks = blocksResult.data || [];
-    const contextItems: any[] = []; // V3.0: context_items merged into blocks
 
     // Calculate content inventory
-    const contentInventory = calculateContentInventory(documents, rawDumps, contextItems, blocks);
+    const contentInventory = calculateContentInventory(documents, rawDumps, blocks);
     
     // Analyze processing results
     const processingResults = analyzeProcessingResults(documents, rawDumps, basket);
@@ -178,7 +174,6 @@ export async function GET(
         basket,
         documentsCount: documents.length,
         rawDumpsCount: rawDumps.length,
-        contextItemsCount: contextItems.length,
         blocksCount: blocks.length,
         intelligenceApiResponse
       }
@@ -196,7 +191,6 @@ export async function GET(
 function calculateContentInventory(
   documents: any[],
   rawDumps: any[],
-  contextItems: any[],
   blocks: any[]
 ): ContentInventory {
   // Analyze documents (Canon v3.0: use 'content' from versions instead of 'content_raw')
@@ -242,9 +236,6 @@ function calculateContentInventory(
       processed: processedDumps.length,
       totalWords: dumpTotalWords,
       contentBreakdown
-    },
-    contextItems: {
-      total: contextItems.length
     },
     blocks: {
       total: blocks.length
