@@ -305,17 +305,7 @@ export default function Sidebar({ className }: SidebarProps) {
                       </SidebarItem>
                     ))
                   )}
-                  {basketList.length > 6 && (
-                    <button
-                      onClick={() => {
-                        router.push('/baskets');
-                        if (isMobile) setOpen(false);
-                      }}
-                      className="mt-1 rounded-md px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                    >
-                      See all baskets →
-                    </button>
-                  )}
+                  {/* No "see all" button: global nav entry already routes via Context Baskets */}
                 </div>
               </section>
             </nav>
