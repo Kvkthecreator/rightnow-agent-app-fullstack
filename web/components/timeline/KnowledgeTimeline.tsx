@@ -168,8 +168,8 @@ export default function KnowledgeTimeline({
           </div>
         </div>
         
-        <button 
-          onClick={() => window.location.href = `/baskets/${basketId}/add-memory`}
+        <button
+          onClick={() => window.location.href = `/baskets/${basketId}/overview`}
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
         >
           Add Your First Memory

@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
   const { data: baskets } = await listBasketsByWorkspace(ws.id)
   if (!baskets?.length) {
-    return NextResponse.redirect(new URL('/memory', req.url))
+    return NextResponse.redirect(new URL('/baskets', req.url))
   }
   const target = pickMostRelevantBasket({ baskets })!
   const res = NextResponse.redirect(new URL(`/baskets/${target.id}/overview`, req.url))

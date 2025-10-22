@@ -36,7 +36,7 @@ export async function checkBasketAccess(
   basketId: string
 ): Promise<BasketAccessResult> {
   const workspace = await ensureWorkspaceServer(supabase)
-  if (!workspace) redirect('/memory')
+  if (!workspace) redirect('/baskets')
 
   const { data: basket, error: basketError } = await supabase
     .from('baskets')
@@ -46,7 +46,7 @@ export async function checkBasketAccess(
     .maybeSingle()
 
   if (basketError) throw basketError
-  if (!basket) redirect('/memory')
+  if (!basket) redirect('/baskets')
 
   return { basket, workspace }
 }

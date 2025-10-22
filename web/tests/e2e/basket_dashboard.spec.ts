@@ -101,14 +101,14 @@ test.describe('Canon v1.4.0 Basket Dashboard - Pure Supabase Architecture', () =
     await expect(quickActions.locator('text=Timeline')).toBeVisible();
     await expect(quickActions.locator('text=Documents')).toBeVisible();
     
-    // Test memory navigation
+    // Test overview navigation
     await quickActions.locator('text=Add Content').click();
-    await expect(page).toHaveURL(new RegExp(`/baskets/${basketId}/memory`));
-    
+    await expect(page).toHaveURL(new RegExp(`/baskets/${basketId}/overview`));
+
     // Go back and test reflections navigation
     await page.goBack();
     await quickActions.locator('text=Reflections').click();
-    await expect(page).toHaveURL(new RegExp(`/baskets/${basketId}/reflections`));
+    await expect(page).toHaveURL(new RegExp(`/baskets/${basketId}/insights`));
   });
 
   test('dashboard handles empty basket gracefully', async ({ page }) => {
@@ -140,7 +140,7 @@ test.describe('Canon v1.4.0 Basket Dashboard - Pure Supabase Architecture', () =
 
   test('dashboard integrates with existing Canon v1.3.1 features', async ({ page }) => {
     // Add a dump first
-    await page.goto(`/baskets/${basketId}/memory`);
+    await page.goto(`/baskets/${basketId}/overview`);
     
     const textarea = page.getByRole('textbox');
     await textarea.fill('Dashboard integration test content');
