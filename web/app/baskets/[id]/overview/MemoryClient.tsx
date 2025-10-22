@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Share2, RefreshCw, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
+import { Upload, RefreshCw, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -101,12 +101,12 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
         </div>
         <Button
           onClick={() => setShowAddMemory(true)}
-          variant="primary"
+          variant="default"
           size="sm"
           className="w-full sm:w-auto"
         >
-          <Share2 className="h-3.5 w-3.5" />
-          Share Updates
+          <Upload className="h-3.5 w-3.5" />
+          Uploads
         </Button>
       </div>
 

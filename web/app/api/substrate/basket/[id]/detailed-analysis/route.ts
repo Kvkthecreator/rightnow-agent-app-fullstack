@@ -135,7 +135,7 @@ export async function GET(
     const documents = documentsResult.data || [];
     const rawDumps = rawDumpsResult.data || [];
     const blocks = blocksResult.data || [];
-    const contextItems = []; // V3.0: context_items merged into blocks
+    const contextItems: any[] = []; // V3.0: context_items merged into blocks
 
     // Calculate content inventory
     const contentInventory = calculateContentInventory(documents, rawDumps, contextItems, blocks);
