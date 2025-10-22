@@ -125,7 +125,7 @@ export async function createBasketWithSeed(options: BasketCreationOptions): Prom
 
   const nextUrl = basketDetails.has_setup_wizard
     ? `/baskets/${basketId}/setup-wizard`
-    : `/baskets/${basketId}/memory`;
+    : `/baskets/${basketId}/overview`;
 
   return {
     basketId,
