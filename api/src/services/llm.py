@@ -248,7 +248,7 @@ def _p4_schema(name: str) -> Optional[Dict[str, Any]]:
                             "key_points": {"type": "array", "items": {"type": "string"}},
                             "supporting_blocks": {"type": "array", "items": {"type": "string"}}
                         },
-                        "required": ["title", "narrative"],
+                        "required": ["title", "narrative", "key_points"],
                         "additionalProperties": False,
                     },
                 },

@@ -371,8 +371,8 @@ Example response:
         return candidates, metrics
     
     async def _score_and_select(
-        self, 
-        candidates: List[Dict[str, Any]], 
+        self,
+        candidates: List[Dict[str, Any]],
         request: CompositionRequest,
         strategy: Dict[str, Any],
         query_metrics: CompositionMetrics
@@ -381,7 +381,7 @@ Example response:
         Score substrate candidates and select the most relevant
         """
         if not candidates:
-            return []
+            return [], query_metrics
         
         # Prepare candidates for LLM scoring
         def _preview_content(value: Any, limit: int = 500) -> str:
