@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { ACCEPTED_FILE_TYPES, createBasketWithSeed } from '@/lib/baskets/createBasket';
 import { CANONICAL_MAX_FILE_SIZE_BYTES } from '@/shared/constants/canonical_file_types';
 import { cn } from '@/lib/utils';
-import { AlertCircle, CheckCircle2, FileText, Loader2, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Upload } from 'lucide-react';
 
 export interface CreateBasketDialogProps {
   open: boolean;
@@ -31,28 +31,19 @@ export default function CreateBasketDialog({ open, onOpenChange }: CreateBasketD
   const [basketName, setBasketName] = useState('');
   const [rawDump, setRawDump] = useState('');
   const [files, setFiles] = useState<File[]>([]);
-  const [showAnchors, setShowAnchors] = useState(false);
-  const [anchors, setAnchors] = useState({
-    problem: '',
-    customer: '',
-    vision: '',
-    metrics: '',
-  });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const canSubmit = useMemo(() => {
     if (!basketName.trim()) return false;
-    return rawDump.trim().length > 0 || files.length > 0 || Object.values(anchors).some((value) => value.trim().length > 0);
-  }, [basketName, rawDump, files, anchors]);
+    return rawDump.trim().length > 0 || files.length > 0;
+  }, [basketName, rawDump, files]);
 
   const resetState = () => {
     setBasketName('');
     setRawDump('');
     setFiles([]);
-    setAnchors({ problem: '', customer: '', vision: '', metrics: '' });
-    setShowAnchors(false);
     setError(null);
     setSubmitting(false);
     setSuccess(false);
@@ -100,7 +91,6 @@ export default function CreateBasketDialog({ open, onOpenChange }: CreateBasketD
         mode: 'upload',
         rawDump,
         files,
-        anchors,
       });
 
       setSuccess(true);
@@ -116,43 +106,13 @@ export default function CreateBasketDialog({ open, onOpenChange }: CreateBasketD
     }
   };
 
-  const anchorFields = (
-    <div className="grid gap-4">
-      <AnchorField
-        label="Problem statement"
-        placeholder="What pain are you solving?"
-        value={anchors.problem}
-        onChange={(value) => setAnchors((prev) => ({ ...prev, problem: value }))}
-      />
-      <AnchorField
-        label="Primary customer"
-        placeholder="Who feels it? Capture persona, environment, and motivation."
-        value={anchors.customer}
-        onChange={(value) => setAnchors((prev) => ({ ...prev, customer: value }))}
-      />
-      <AnchorField
-        label="Vision & differentiation"
-        placeholder="Why this approach wins."
-        value={anchors.vision}
-        onChange={(value) => setAnchors((prev) => ({ ...prev, vision: value }))}
-      />
-      <AnchorField
-        label="Success metrics"
-        placeholder="How will you measure progress?"
-        optional
-        value={anchors.metrics}
-        onChange={(value) => setAnchors((prev) => ({ ...prev, metrics: value }))}
-      />
-    </div>
-  );
-
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Create a basket</DialogTitle>
           <DialogDescription>
-            Seed your basket with context, files, or anchors. Add whatever you already have and Yarnnn will process it through the canonical pipeline.
+            Add whatever you have - notes, files, or ideas. Yarnnn will process it all.
           </DialogDescription>
         </DialogHeader>
 
@@ -167,20 +127,20 @@ export default function CreateBasketDialog({ open, onOpenChange }: CreateBasketD
               />
             </FieldBlock>
 
-            <FieldBlock label="Context" hint="Add any notes or pasted content you already have">
+            <FieldBlock label="Context" hint="Optional: paste any notes or context">
               <Textarea
-                placeholder="Add any background or notes to seed the basket"
+                placeholder="Paste notes, requirements, or any context you have..."
                 value={rawDump}
                 onChange={(event) => setRawDump(event.target.value)}
-                rows={4}
+                rows={3}
               />
             </FieldBlock>
 
-            <FieldBlock label="Attach files" hint={`Up to ${MAX_FILES} attachments · ${(CANONICAL_MAX_FILE_SIZE_BYTES / 1024 / 1024).toFixed(0)}MB each`}>
+            <FieldBlock label="Files" hint={`Up to ${MAX_FILES} files · ${(CANONICAL_MAX_FILE_SIZE_BYTES / 1024 / 1024).toFixed(0)}MB each`}>
               <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-6 text-center text-sm transition hover:border-primary hover:bg-muted/30">
                 <Upload className="h-5 w-5" />
                 <span>Drag & drop or click to browse</span>
-                <span className="text-xs text-muted-foreground">Accepted: {ACCEPTED_FILE_TYPES}</span>
+                <span className="text-xs text-muted-foreground">.txt, .md, .pdf, .jpg, .png, .gif, .bmp, .tiff, .webp</span>
                 <input
                   type="file"
                   multiple
@@ -205,25 +165,6 @@ export default function CreateBasketDialog({ open, onOpenChange }: CreateBasketD
                 </ul>
               )}
             </FieldBlock>
-          </section>
-
-          <section className="rounded-lg border border-border/60 bg-muted/20 p-4">
-            <button
-              type="button"
-              className="flex w-full items-center justify-between text-left"
-              onClick={() => setShowAnchors((prev) => !prev)}
-            >
-              <div>
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <FileText className="h-4 w-4" />
-                  Add structured anchors (optional)
-                </div>
-                <p className="text-xs text-muted-foreground">Set foundation points now so reflections and proposals have solid grounding.</p>
-              </div>
-              <span className="text-xs text-primary">{showAnchors ? 'Hide' : 'Show'}</span>
-            </button>
-
-            {showAnchors && <div className="mt-4 space-y-4">{anchorFields}</div>}
           </section>
 
           {error && (
@@ -285,32 +226,3 @@ function FieldBlock({
   );
 }
 
-function AnchorField({
-  label,
-  placeholder,
-  value,
-  onChange,
-  optional,
-}: {
-  label: string;
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-  optional?: boolean;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-sm">
-        <Label className="text-sm font-medium text-slate-800">{label}</Label>
-        {optional && <span className="text-xs text-muted-foreground">Optional</span>}
-      </div>
-      <Textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        rows={3}
-        className="resize-y"
-      />
-    </div>
-  );
-}
