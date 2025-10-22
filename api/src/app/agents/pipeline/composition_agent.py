@@ -260,12 +260,12 @@ Example response:
             blocks_response = blocks_query.execute()
             metrics.candidates_found["blocks"] = len(blocks_response.data or [])
             
-            for block in blocks_response.data or []:
-                candidates.append({
-                    "type": "block",
-                    "id": block["id"],
-                    "content": block.get("content", ""),  # Canon: use canonical content field
-                    "title": block.get("title", ""),     # Canon: use canonical title field
+        for block in blocks_response.data or []:
+            candidates.append({
+                "type": "block",
+                "id": block["id"],
+                "content": block.get("content", ""),  # Canon: use canonical content field
+                "title": block.get("title", ""),     # Canon: use canonical title field
                     "semantic_type": block.get("semantic_type"),
                     "confidence_score": block.get("confidence_score", 0.7),
                     "created_at": block["created_at"],
@@ -307,18 +307,22 @@ Example response:
         
         # Query relationships with budget constraints - Canon: use correct field names
         if strategy["substrate_priorities"].get("relationships", True) and budget.per_type_caps["relationships"] > 0:
-            relationships_query = supabase.table("substrate_relationships").select("*")\
-                .eq("basket_id", request.basket_id)\
-                .gte("created_at", recency_cutoff.isoformat())\
+            relationships_query = (
+                supabase
+                .table("block_relationships")
+                .select("*")
+                .eq("from_basket_id", request.basket_id)
+                .gte("created_at", recency_cutoff.isoformat())
                 .limit(budget.per_type_caps["relationships"])
+            )
             
             relationships_response = relationships_query.execute()
             metrics.candidates_found["relationships"] = len(relationships_response.data or [])
             
             for relationship in relationships_response.data or []:
                 # Canon: use proper field names for relationships
-                from_id = relationship.get("from_id", "unknown")
-                to_id = relationship.get("to_id", "unknown") 
+                from_id = relationship.get("from_block_id", "unknown") or relationship.get("from_id", "unknown")
+                to_id = relationship.get("to_block_id", "unknown") or relationship.get("to_id", "unknown")
                 rel_type = relationship.get("relationship_type", "related")
                 
                 candidates.append({
