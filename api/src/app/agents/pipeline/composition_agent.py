@@ -309,9 +309,9 @@ Example response:
         if strategy["substrate_priorities"].get("relationships", True) and budget.per_type_caps["relationships"] > 0:
             relationships_query = (
                 supabase
-                .table("block_relationships")
-                .select("*")
-                .eq("from_basket_id", request.basket_id)
+                .table("substrate_relationships")
+                .select("id, basket_id, from_block_id, to_block_id, relationship_type, strength, created_at")
+                .eq("basket_id", request.basket_id)
                 .gte("created_at", recency_cutoff.isoformat())
                 .limit(budget.per_type_caps["relationships"])
             )
@@ -321,10 +321,10 @@ Example response:
             
             for relationship in relationships_response.data or []:
                 # Canon: use proper field names for relationships
-                from_id = relationship.get("from_block_id", "unknown") or relationship.get("from_id", "unknown")
-                to_id = relationship.get("to_block_id", "unknown") or relationship.get("to_id", "unknown")
+                from_id = relationship.get("from_block_id") or relationship.get("from_id") or "unknown"
+                to_id = relationship.get("to_block_id") or relationship.get("to_id") or "unknown"
                 rel_type = relationship.get("relationship_type", "related")
-                
+
                 candidates.append({
                     "type": "relationship",
                     "id": relationship["id"],
