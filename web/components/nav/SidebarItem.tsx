@@ -10,11 +10,14 @@ interface SidebarItemProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
+  match?: 'exact' | 'startsWith';
 }
 
-export function SidebarItem({ href, children, className = "", onClick }: SidebarItemProps) {
+export function SidebarItem({ href, children, className = "", onClick, match = 'exact' }: SidebarItemProps) {
   const pathname = usePathname();
-  const active = pathname === href || pathname?.startsWith(href + "/");
+  const active = match === 'startsWith'
+    ? (pathname === href || pathname?.startsWith(`${href}/`))
+    : pathname === href;
   const [pending, startTransition] = useTransition();
 
     const classes = useMemo(

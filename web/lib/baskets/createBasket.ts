@@ -91,8 +91,6 @@ export async function createBasketWithSeed(options: BasketCreationOptions): Prom
 
     formData.append('meta', JSON.stringify(meta));
 
-    const parsedAnchorsSnapshot = hasAnchorContent ? { ...anchorPayload } : undefined;
-
     if (trimmedRawDump) {
       formData.append('text_dump', trimmedRawDump);
       formData.append('dump_request_id', crypto.randomUUID());

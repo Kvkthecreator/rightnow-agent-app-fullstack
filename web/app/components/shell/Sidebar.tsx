@@ -270,6 +270,7 @@ export default function Sidebar({ className }: SidebarProps) {
                     <SidebarItem
                       key={item.href}
                       href={item.href}
+                      match="exact"
                       onClick={() => {
                         if (isMobile) setOpen(false);
                       }}
@@ -295,6 +296,7 @@ export default function Sidebar({ className }: SidebarProps) {
                       <SidebarItem
                         key={item.id}
                         href={`/baskets/${item.id}/overview`}
+                        match="startsWith"
                         onClick={() => {
                           if (isMobile) setOpen(false);
                         }}
@@ -304,15 +306,15 @@ export default function Sidebar({ className }: SidebarProps) {
                     ))
                   )}
                   {basketList.length > 6 && (
-                    <SidebarItem
-                      href="/baskets"
+                    <button
                       onClick={() => {
+                        router.push('/baskets');
                         if (isMobile) setOpen(false);
                       }}
-                      className="text-muted-foreground"
+                      className="mt-1 rounded-md px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
                     >
-                      View all Context Baskets
-                    </SidebarItem>
+                      See all baskets →
+                    </button>
                   )}
                 </div>
               </section>
