@@ -151,24 +151,33 @@ async def generate_document_canon(
     # Fetch substrate
     substrate = await _fetch_basket_substrate_for_canon(supabase, request.basket_id)
 
-    structured_outline, canon_content = await _compose_document_canon(
+    compose_result = await _compose_document_canon(
         basket_name=basket_name,
         insight_canon=insight_canon,
         substrate=substrate,
         composition_mode=request.composition_mode
     )
 
-    substrate_hash = compute_basket_substrate_hash(supabase, request.basket_id)
+    fallback_mode = False
+    if isinstance(compose_result, tuple) and len(compose_result) == 3:
+        structured_outline = None
+        canon_content = compose_result[1]
+        version_hash = compose_result[2]
+        fallback_mode = True
+    else:
+        structured_outline, canon_content = compose_result  # type: ignore[misc]
+        import hashlib
+        version_hash = hashlib.sha256(canon_content.encode('utf-8')).hexdigest()
 
-    import hashlib
-    version_hash = hashlib.sha256(canon_content.encode('utf-8')).hexdigest()
+    substrate_hash = compute_basket_substrate_hash(supabase, request.basket_id)
 
     generated_at = datetime.utcnow().isoformat()
     derived_from = {
         'insight_canon_id': insight_canon['id'],
         'substrate_hash': substrate_hash,
         'composition_mode': request.composition_mode,
-        'generated_at': generated_at
+        'generated_at': generated_at,
+        'fallback': fallback_mode
     }
 
     existing_doc = supabase.table('documents').select('id, metadata').eq(
@@ -422,7 +431,7 @@ async def _compose_document_canon(
     insight_canon: Dict[str, Any],
     substrate: Dict[str, Any],
     composition_mode: Optional[str]
-) -> Tuple[Optional[Dict[str, Any]], str]:
+) -> Tuple[Optional[Dict[str, Any]], str] | Tuple[None, str, str]:
     structured = await _compose_document_canon_structured(
         basket_name=basket_name,
         insight_canon=insight_canon,
@@ -436,7 +445,10 @@ async def _compose_document_canon(
 
     fallback = _render_document_canon_fallback(basket_name, insight_canon, substrate)
     logger.warning("Document canon structured compose failed; using fallback content")
-    return None, fallback
+
+    import hashlib
+    fallback_hash = hashlib.sha256(fallback.encode('utf-8')).hexdigest()
+    return None, fallback, fallback_hash
 
 
 async def _compose_document_canon_structured(
