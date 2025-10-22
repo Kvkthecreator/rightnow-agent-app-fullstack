@@ -305,38 +305,52 @@ Example response:
                     "freshness_score": self._calculate_freshness(dump["created_at"], recency_cutoff)
                 })
         
-        # Query relationships with budget constraints - Canon: use correct field names
+        # Query relationships with budget constraints - Canon: look up via block membership
         if strategy["substrate_priorities"].get("relationships", True) and budget.per_type_caps["relationships"] > 0:
-            relationships_query = (
-                supabase
-                .table("substrate_relationships")
-                .select("id, basket_id, from_block_id, to_block_id, relationship_type, strength, created_at")
-                .eq("basket_id", request.basket_id)
-                .gte("created_at", recency_cutoff.isoformat())
-                .limit(budget.per_type_caps["relationships"])
-            )
-            
-            relationships_response = relationships_query.execute()
-            metrics.candidates_found["relationships"] = len(relationships_response.data or [])
-            
-            for relationship in relationships_response.data or []:
-                # Canon: use proper field names for relationships
-                from_id = relationship.get("from_block_id") or relationship.get("from_id") or "unknown"
-                to_id = relationship.get("to_block_id") or relationship.get("to_id") or "unknown"
-                rel_type = relationship.get("relationship_type", "related")
+            block_ids = [block.get("id") for block in (blocks_response.data or []) if block.get("id")]
+
+            relationship_rows: List[Dict[str, Any]] = []
+            if block_ids:
+                cap = budget.per_type_caps["relationships"]
+
+                from_resp = supabase.table('substrate_relationships').select(
+                    'id, from_block_id, to_block_id, relationship_type, strength, created_at'
+                ).in_('from_block_id', block_ids).limit(cap).execute()
+
+                relationship_rows.extend(from_resp.data or [])
+
+                remaining = max(cap - len(relationship_rows), 0)
+                if remaining > 0:
+                    to_resp = supabase.table('substrate_relationships').select(
+                        'id, from_block_id, to_block_id, relationship_type, strength, created_at'
+                    ).in_('to_block_id', block_ids).limit(remaining).execute()
+
+                    seen_ids = {row.get('id') for row in relationship_rows}
+                    for rel in to_resp.data or []:
+                        rel_id = rel.get('id')
+                        if rel_id not in seen_ids:
+                            relationship_rows.append(rel)
+                            seen_ids.add(rel_id)
+
+            metrics.candidates_found["relationships"] = len(relationship_rows)
+
+            for relationship in relationship_rows:
+                from_id = relationship.get('from_block_id') or 'unknown'
+                to_id = relationship.get('to_block_id') or 'unknown'
+                rel_type = relationship.get('relationship_type', 'related')
 
                 candidates.append({
                     "type": "relationship",
-                    "id": relationship["id"],
-                    "content": f"{rel_type}: {from_id} → {to_id}",  # Canon: descriptive content
-                    "title": f"{rel_type} relationship",  # Canon: add title
+                    "id": relationship.get("id"),
+                    "content": f"{rel_type}: {from_id} → {to_id}",
+                    "title": f"{rel_type} relationship",
                     "relationship_type": rel_type,
                     "from_id": from_id,
                     "to_id": to_id,
-                    "strength": relationship.get("strength", 0.7),
-                    "created_at": relationship["created_at"],
+                    "strength": relationship.get('strength', 0.7),
+                    "created_at": relationship.get('created_at'),
                     "metadata": relationship,
-                    "freshness_score": self._calculate_freshness(relationship["created_at"], recency_cutoff)
+                    "freshness_score": self._calculate_freshness(relationship.get('created_at'), recency_cutoff)
                 })
         
         # Add pinned items if specified
