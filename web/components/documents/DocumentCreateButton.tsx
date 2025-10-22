@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { notificationAPI } from '@/lib/api/notifications';
+import { X } from 'lucide-react';
 
 type TemplateOption = {
   id: string;
@@ -45,6 +46,7 @@ export function DocumentCreateButton({ basketId, basketName }: { basketId: strin
   const [tone, setTone] = useState('');
   const [audience, setAudience] = useState('');
   const [creating, setCreating] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const resetForm = () => {
     setSelectedTemplate(null);
@@ -53,6 +55,27 @@ export function DocumentCreateButton({ basketId, basketName }: { basketId: strin
     setAudience('');
     setCreating(false);
   };
+
+  const closeModal = () => {
+    setOpen(false);
+    resetForm();
+  };
+
+  // Click outside to close
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        closeModal();
+      }
+    };
+
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [open]);
 
   const handleTemplateSelect = (template: TemplateOption) => {
     setSelectedTemplate(template);
@@ -107,10 +130,17 @@ export function DocumentCreateButton({ basketId, basketName }: { basketId: strin
     <div className="relative">
       <Button onClick={() => { setOpen(v => !v); resetForm(); }} size="sm" variant="outline">Create Document</Button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white border rounded shadow-lg z-20 p-4 space-y-4">
+        <div ref={modalRef} className="absolute right-0 mt-2 w-80 bg-white border rounded shadow-lg z-20 p-4 space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm font-medium text-slate-800">
+              {selectedTemplate ? selectedTemplate.name : 'What do you need?'}
+            </div>
+            <button onClick={closeModal} className="text-slate-400 hover:text-slate-600">
+              <X size={16} />
+            </button>
+          </div>
           {!selectedTemplate && (
             <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-800">What do you need?</div>
               {templateOptions.map(option => (
                 <button
                   key={option.id}
@@ -126,11 +156,10 @@ export function DocumentCreateButton({ basketId, basketName }: { basketId: strin
 
           {selectedTemplate && (
             <div className="space-y-3">
-              <div className="text-sm font-medium text-slate-800 flex items-center justify-between">
-                <span>{selectedTemplate.name}</span>
-                <button className="text-xs text-slate-500" onClick={resetForm}>Change</button>
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-slate-500">Basket: {basketName}</div>
+                <button className="text-xs text-slate-500 hover:text-slate-700" onClick={resetForm}>Change</button>
               </div>
-              <div className="text-xs text-slate-500">Basket: {basketName}</div>
               <textarea
                 className="w-full border rounded p-2 text-sm"
                 value={intent}

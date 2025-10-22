@@ -782,7 +782,7 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
             response = await self.llm.get_text_response(
                 content_prompt,
                 temperature=1.0,  # Use default temperature for model compatibility
-                max_tokens=800
+                max_tokens=2000  # Increased from 800 to prevent truncation (finish_reason=length)
             )
         except Exception as e:
             logger.warning(f"Failed to generate section content: {e}")
@@ -926,20 +926,20 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
                         )
                         continue
 
-                    # Create substrate reference via canonical RPC
-                    ref_response = supabase.rpc("fn_document_attach_substrate", {
-                        "p_document_id": str(document_id),
-                        "p_substrate_type": canonical_type,
-                        "p_substrate_id": str(substrate["id"]),
-                        "p_role": "primary" if idx < 5 else "supporting",
-                        "p_weight": min(1.0, substrate.get("confidence_score", 0.7)),
-                        "p_snippets": [substrate.get("content", "")[:200]] if substrate.get("content") else [],
-                        "p_metadata": {
-                            "selection_reason": substrate.get("selection_reason", ""),
-                            "composition_order": idx,
-                            "composition_agent": self.__class__.__name__
-                        }
-                    }).execute()
+                    # Create substrate reference via type-specific canonical RPC
+                    if canonical_type == "block":
+                        # Use fn_document_attach_block for blocks
+                        snippets = [substrate.get("content", "")[:200]] if substrate.get("content") else []
+                        ref_response = supabase.rpc("fn_document_attach_block", {
+                            "p_document_id": str(document_id),
+                            "p_block_id": str(substrate["id"]),
+                            "p_occurrences": 1,
+                            "p_snippets": snippets
+                        }).execute()
+                    else:
+                        # Skip non-block substrates for now (no RPC available for dumps/timeline_events)
+                        logger.info(f"Skipping substrate attachment for type {canonical_type} (no RPC available)")
+                        continue
                     
                     if ref_response.data:
                         substrate_refs_created.append(ref_response.data)

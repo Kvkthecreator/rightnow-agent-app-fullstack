@@ -22,6 +22,7 @@ const ComposeRequestSchema = z.object({
   title: z.string().min(1),
   intent: z.string().optional(),
   basket_id: z.string().uuid(),
+  template_id: z.string().optional(),
   window_days: z.number().min(1).max(365).default(30),
   pinned_ids: z.array(z.string().uuid()).optional()
 });
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
       }, { status: 422 });
     }
 
-    const { title, intent, basket_id, window_days, pinned_ids } = parsed.data;
+    const { title, intent, basket_id, template_id, window_days, pinned_ids } = parsed.data;
     const supabase = createTestAwareClient({ cookies });
     const serviceSupabase = createServiceRoleClient();
     const { userId, isTest } = await getTestAwareAuth(supabase);
@@ -55,9 +56,41 @@ export async function POST(req: NextRequest) {
       .eq('id', basket_id)
       .eq('workspace_id', workspace.id)
       .single();
-      
+
     if (!basket) {
       return NextResponse.json({ error: "Basket not found or access denied" }, { status: 404 });
+    }
+
+    // Map template to doc_type and document_type
+    const getDocumentTypes = (templateId?: string) => {
+      switch (templateId) {
+        case 'prompt_starter':
+          return { doc_type: 'starter_prompt', document_type: 'starter_prompt' };
+        case 'strategy_brief':
+          return { doc_type: 'document_canon', document_type: 'basket_context' };
+        case 'custom':
+        default:
+          return { doc_type: 'artifact_other', document_type: 'narrative' };
+      }
+    };
+
+    const { doc_type, document_type } = getDocumentTypes(template_id);
+
+    // Check for duplicate canonical documents (document_canon can only have one per basket)
+    if (doc_type === 'document_canon') {
+      const { data: existingCanon } = await serviceSupabase
+        .from('documents')
+        .select('id, title')
+        .eq('basket_id', basket_id)
+        .eq('doc_type', 'document_canon')
+        .maybeSingle();
+
+      if (existingCanon) {
+        return NextResponse.json({
+          error: "A canonical context brief already exists for this basket",
+          details: `Existing document: "${existingCanon.title}". Please edit or regenerate that document instead.`
+        }, { status: 409 });
+      }
     }
 
     // Canon: Create document as composition definition
@@ -71,10 +104,12 @@ export async function POST(req: NextRequest) {
         basket_id,
         workspace_id: workspace.id,
         title,
-        document_type: 'narrative',
+        document_type,
+        doc_type,
         composition_instructions: {
           intent: intent || '',
           style: 'memory_composition',
+          template_id: template_id || 'custom',
           window_days,
           pinned_ids: pinned_ids || []
         },
@@ -85,7 +120,8 @@ export async function POST(req: NextRequest) {
         metadata: {
           composition_source: 'memory',
           creation_method: 'compose_new',
-          composition_intent: intent
+          composition_intent: intent,
+          template_id: template_id || 'custom'
         }
       })
       .select()
