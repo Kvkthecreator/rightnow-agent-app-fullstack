@@ -89,7 +89,7 @@ export async function createBasketWithSeed(options: BasketCreationOptions): Prom
       formData.append('dump_request_id', crypto.randomUUID());
     });
 
-    const uploadResponse = await fetchWithToken('/api/dumps/upload', {
+    const uploadResponse = await fetch('/api/dumps/upload', {
       method: 'POST',
       body: formData,
     });
