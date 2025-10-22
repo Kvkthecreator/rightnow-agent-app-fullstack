@@ -444,7 +444,7 @@ class CanonP3ReflectionAgent:
         try:
             response = await self.llm.get_json_response(
                 prompt,
-                temperature=0.2,
+                temperature=1.0,  # Use default temperature for model compatibility
                 max_tokens=2200,
                 schema_name="p3_reflection",
             )

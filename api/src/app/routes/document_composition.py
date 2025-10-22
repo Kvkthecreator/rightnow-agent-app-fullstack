@@ -529,7 +529,7 @@ Return only the enhanced document content, no explanations.
         
         llm_response = await llm.get_text_response(
             prompt=enhancement_prompt,
-            temperature=0.7,
+            temperature=1.0,  # Use default temperature for model compatibility
             max_tokens=2000
         )
         

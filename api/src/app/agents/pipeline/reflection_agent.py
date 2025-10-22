@@ -185,7 +185,7 @@ Generate insights that are:
 Focus on providing "aha moment" insights that help the user see their own thinking from a new angle.
 
 Return JSON with deep analysis, not surface observations.""",
-                        temperature=0.3,
+                        temperature=1.0,  # Use default temperature for model compatibility
                         schema_name="p3_reflection",
                     )
                     summary = None

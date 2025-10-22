@@ -776,7 +776,7 @@ class P2GraphAgent:
                 from services.universal_work_tracker import WorkContext
                 
                 context = WorkContext(
-                    user_id="system",  # System user for agent-triggered cascades
+                    user_id=None,  # System-triggered (no specific user)
                     workspace_id=str(request.workspace_id),
                     basket_id=str(request.basket_id)
                 )
