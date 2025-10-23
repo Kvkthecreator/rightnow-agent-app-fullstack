@@ -427,7 +427,7 @@ Write in an analytical tone. Focus on synthesis, not summarization."""
             logger.warning(f"LLM section generation failed: {response.error}")
             return section.get('content', 'Content generation failed.')
 
-        return response.text or section.get('content', 'Content generation failed.')
+        return response.content or section.get('content', 'Content generation failed.')
 
     async def _compose_document(
         self,
