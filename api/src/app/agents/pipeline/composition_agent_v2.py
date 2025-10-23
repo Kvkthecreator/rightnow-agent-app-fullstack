@@ -180,7 +180,7 @@ class P4CompositionAgent:
             .select("*")
             .eq("basket_id", request.basket_id)
             .gte("created_at", recency_cutoff.isoformat())
-            .in_("status", ["ACCEPTED", "LOCKED"])
+            .in_("status", ["accepted", "locked"])  # lowercase to match DB values
             .order("created_at", desc=True)
             .limit(20)  # Get top 20 most recent
         )
