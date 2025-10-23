@@ -234,7 +234,7 @@ async def generate_document_canon(
             'fallback_mode': fallback_mode,
         },
         'substrate_refs_snapshot': _build_substrate_refs(substrate),
-        'version_trigger': 'p4_canon_regeneration',
+        'version_trigger': 'substrate_update',
         'version_message': 'Generated from current insight_canon and substrate'
     }).execute()
 
