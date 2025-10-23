@@ -477,7 +477,7 @@ Write in an analytical tone. Focus on synthesis, not summarization."""
             full_content = "\n".join(content_parts)
 
             # Create document version
-            version_hash = f"doc_v{document_id[:8]}_{int(datetime.utcnow().timestamp())}"
+            version_hash = f"doc_v{str(document_id)[:8]}_{int(datetime.utcnow().timestamp())}"
 
             version_data = {
                 "document_id": document_id,
