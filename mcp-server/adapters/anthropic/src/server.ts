@@ -731,6 +731,25 @@ async function main() {
           return;
         }
 
+        // DELETE / - Handle session cleanup (Claude.ai sends this to disconnect)
+        if (req.method === 'DELETE' && url === '/') {
+          const sessionId = req.headers['mcp-session-id'] as string;
+
+          if (sessionId && sseTransports.has(sessionId)) {
+            const transport = sseTransports.get(sessionId);
+            sseTransports.delete(sessionId);
+            console.log(`[SSE] Session deleted via DELETE: ${sessionId}`);
+
+            res.writeHead(204); // No Content
+            res.end();
+          } else {
+            console.log('[SSE] DELETE request for unknown session:', sessionId);
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Session not found');
+          }
+          return;
+        }
+
         // Health check endpoint
         if (req.method === 'GET' && url === '/health') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
