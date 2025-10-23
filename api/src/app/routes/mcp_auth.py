@@ -36,9 +36,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _expires_at(hours: int = 24) -> str:
-    """Generate expiration timestamp (default 24 hours from now)"""
-    return (datetime.now(timezone.utc) + timedelta(hours=hours)).isoformat()
+def _expires_at(days: int = 90) -> str:
+    """Generate expiration timestamp (default 90 days from now)"""
+    return (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
 
 
 @router.post("/sessions", status_code=201)

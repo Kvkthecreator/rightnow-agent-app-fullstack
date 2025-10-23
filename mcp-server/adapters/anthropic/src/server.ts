@@ -44,7 +44,12 @@ import {
   handleTokenExchange,
   handleDynamicClientRegistration,
   validateOAuthToken,
-} from './oauth.js';
+} from './oauth/index.js';
+import {
+  getOAuthAuthorizationServerMetadata,
+  getOAuthProtectedResourceMetadata,
+  getMcpDiscoveryDocument,
+} from './discovery.js';
 
 /**
  * Initialize MCP Server
@@ -271,16 +276,7 @@ async function main() {
         // Standard OAuth 2.0 Authorization Server Metadata (RFC 8414)
         if (req.method === 'GET' && url === '/.well-known/oauth-authorization-server') {
           if (oauthConfig.enabled) {
-            const metadata = {
-              issuer: `https://${req.headers.host}`,
-              authorization_endpoint: `https://${req.headers.host}/authorize`,
-              token_endpoint: `https://${req.headers.host}/token`,
-              registration_endpoint: `https://${req.headers.host}/oauth/register`,
-              response_types_supported: ['code'],
-              grant_types_supported: ['authorization_code'],
-              token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic', 'none'],
-              scopes_supported: ['mcp:*'],
-            };
+            const metadata = getOAuthAuthorizationServerMetadata(req.headers.host as string);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(metadata, null, 2));
           } else {
@@ -293,12 +289,7 @@ async function main() {
         // OAuth 2.0 Protected Resource Metadata (RFC 9728)
         if (req.method === 'GET' && url === '/.well-known/oauth-protected-resource') {
           if (oauthConfig.enabled) {
-            const metadata = {
-              resource: `https://${req.headers.host}`,
-              authorization_servers: [`https://${req.headers.host}`],
-              scopes_supported: ['mcp:*'],
-              bearer_methods_supported: ['header'],
-            };
+            const metadata = getOAuthProtectedResourceMetadata(req.headers.host as string);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(metadata, null, 2));
           } else {
@@ -310,26 +301,7 @@ async function main() {
 
         // Discovery document for remote MCP clients
         if (req.method === 'GET' && url === '/.well-known/mcp.json') {
-          const discovery: any = {
-            version: '2025-06-18',  // Match Claude's current protocol version
-            transports: {
-              streamableHttp: {
-                url: `https://${req.headers.host}/`,
-              },
-            },
-            auth: {
-              type: oauthConfig.enabled ? 'oauth2' : 'bearer',
-            },
-          };
-
-          // Add OAuth endpoints if enabled
-          if (oauthConfig.enabled) {
-            discovery.auth.oauth2 = {
-              authorization_endpoint: `https://${req.headers.host}/authorize`,
-              token_endpoint: `https://${req.headers.host}/token`,
-            };
-          }
-
+          const discovery = getMcpDiscoveryDocument(req.headers.host as string, oauthConfig.enabled);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(discovery, null, 2));
           return;

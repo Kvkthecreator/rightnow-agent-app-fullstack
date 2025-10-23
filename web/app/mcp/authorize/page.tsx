@@ -20,7 +20,6 @@ export default function MCPAuthorizePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isAuthorizing, setIsAuthorizing] = useState(false);
 
   const redirectUri = searchParams.get('redirect_uri');
@@ -39,9 +38,11 @@ export default function MCPAuthorizePage() {
       const { data, error } = await supabase.auth.getUser();
 
       if (error || !data?.user) {
-        // Not authenticated - show login button
-        console.log('[MCP Auth] Not authenticated, showing login UI');
-        setLoading(false);
+        // Not authenticated - redirect to login with full return path
+        console.log('[MCP Auth] Not authenticated, redirecting to login');
+        const returnUrl = `/mcp/authorize?${searchParams.toString()}`;
+        localStorage.setItem('redirectPath', returnUrl);
+        router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
         return;
       }
 
@@ -107,38 +108,6 @@ export default function MCPAuthorizePage() {
     }
   }
 
-  const handleGoogleLogin = async () => {
-    setIsAuthenticating(true);
-
-    try {
-      const supabase = createBrowserClient();
-
-      // Store the full authorize URL to return to after OAuth
-      const returnUrl = `/mcp/authorize?${searchParams.toString()}`;
-      localStorage.setItem('redirectPath', returnUrl);
-
-      const redirectTo = typeof window !== 'undefined'
-        ? `${window.location.origin}/auth/callback`
-        : `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yarnnn.com'}/auth/callback`;
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-        },
-      });
-
-      if (error) {
-        console.error('[MCP Auth] Google login error:', error.message);
-        setError('Failed to initiate Google login');
-        setIsAuthenticating(false);
-      }
-    } catch (err) {
-      console.error('[MCP Auth] Login failed:', err);
-      setError('Failed to sign in');
-      setIsAuthenticating(false);
-    }
-  };
 
   // Loading state
   if (loading) {
@@ -238,46 +207,6 @@ export default function MCPAuthorizePage() {
     );
   }
 
-  // Not authenticated - show login UI
-  return (
-    <div className="min-h-screen w-full flex flex-col justify-center items-center px-4">
-      <div className="w-full max-w-sm bg-card border rounded-xl shadow-sm px-6 py-8 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col items-center space-y-1.5">
-          <h2 className="text-2xl font-semibold tracking-tight">Connect to Claude</h2>
-          <p className="text-sm text-muted-foreground text-center">
-            Sign in to authorize <span className="font-medium">Claude.ai</span>
-          </p>
-        </div>
-
-        {/* Permissions info */}
-        <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
-          <p className="text-xs font-medium text-foreground">Claude will be able to:</p>
-          <ul className="text-xs text-muted-foreground space-y-1.5 ml-4 list-disc">
-            <li>Create memories from chat conversations</li>
-            <li>Read substrate from your baskets</li>
-            <li>Add context to existing baskets</li>
-            <li>Validate substrate structure</li>
-          </ul>
-        </div>
-
-        {/* Login button */}
-        <div className="flex flex-col items-center space-y-4">
-          <Brand width={100} height={28} />
-          <Button
-            onClick={handleGoogleLogin}
-            className="w-full"
-            disabled={isAuthenticating}
-          >
-            {isAuthenticating ? 'Connecting...' : 'Continue with Google'}
-          </Button>
-        </div>
-
-        {/* Footer */}
-        <p className="text-xs text-center text-muted-foreground leading-relaxed">
-          After signing in, you'll need to authorize Claude's connection to your workspace.
-        </p>
-      </div>
-    </div>
-  );
+  // Should never reach here - redirected to login if not authenticated
+  return null;
 }
