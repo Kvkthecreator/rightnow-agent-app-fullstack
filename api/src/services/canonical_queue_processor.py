@@ -31,7 +31,7 @@ from app.agents.pipeline import (
     P2GraphAgent,
     P3ReflectionAgent
 )
-from app.agents.pipeline.composition_agent import P4CompositionAgent, CompositionRequest
+from app.agents.pipeline.composition_agent_v2 import P4CompositionAgent, CompositionRequest
 from app.agents.pipeline.capture_agent import DumpIngestionRequest
 from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
 from app.agents.pipeline.graph_agent import RelationshipMappingRequest

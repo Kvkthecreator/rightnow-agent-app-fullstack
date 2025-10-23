@@ -11,7 +11,7 @@ from typing import Optional, List, Dict, Any
 import logging
 from uuid import UUID
 
-from app.agents.pipeline.composition_agent import P4CompositionAgent, CompositionRequest
+from app.agents.pipeline.composition_agent_v2 import P4CompositionAgent, CompositionRequest
 from middleware.service_auth import verify_service_role
 
 logger = logging.getLogger("uvicorn.error")
