@@ -200,28 +200,33 @@ class P4CompositionAgent:
             metrics.candidates_found["blocks"] = len(blocks_result.data)
 
         # Query relationships if available
-        rels_query = (
-            supabase.table("substrate_relationships")
-            .select("*")
-            .eq("basket_id", request.basket_id)
-            .gte("created_at", recency_cutoff.isoformat())
-            .limit(10)
-        )
+        # Note: substrate_relationships doesn't have basket_id, need to join through blocks
+        # For now, skip relationship querying to avoid errors
+        # TODO: Add proper join query when relationship filtering is needed
 
-        rels_result = rels_query.execute()
-
-        if rels_result.data:
-            for rel in rels_result.data:
-                candidates.append({
-                    "id": rel["id"],
-                    "type": "relationship",
-                    "content": rel.get("relationship_type", "") + ": " + rel.get("metadata", {}).get("description", ""),
-                    "created_at": rel.get("created_at"),
-                    "from_id": rel.get("from_substrate_id"),
-                    "to_id": rel.get("to_substrate_id"),
-                    "relationship_type": rel.get("relationship_type"),
-                })
-            metrics.candidates_found["relationships"] = len(rels_result.data)
+        # Uncomment when join query is implemented:
+        # rels_query = (
+        #     supabase.table("substrate_relationships")
+        #     .select("*, from_block:blocks!from_block_id(basket_id)")
+        #     .eq("from_block.basket_id", request.basket_id)
+        #     .gte("created_at", recency_cutoff.isoformat())
+        #     .limit(10)
+        # )
+        #
+        # rels_result = rels_query.execute()
+        #
+        # if rels_result.data:
+        #     for rel in rels_result.data:
+        #         candidates.append({
+        #             "id": rel["id"],
+        #             "type": "relationship",
+        #             "content": rel.get("relationship_type", "") + ": " + rel.get("metadata", {}).get("description", ""),
+        #             "created_at": rel.get("created_at"),
+        #             "from_id": rel.get("from_block_id"),
+        #             "to_id": rel.get("to_block_id"),
+        #             "relationship_type": rel.get("relationship_type"),
+        #         })
+        #     metrics.candidates_found["relationships"] = len(rels_result.data)
 
         # Prioritize pinned IDs
         if request.pinned_ids:
