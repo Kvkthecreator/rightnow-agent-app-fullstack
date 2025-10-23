@@ -48,6 +48,11 @@ export function getOAuthProtectedResourceMetadata(host: string) {
 export function getMcpDiscoveryDocument(host: string, oauthEnabled: boolean) {
   const discovery: any = {
     version: '2025-06-18',  // Match Claude's current protocol version
+    serverInfo: {
+      name: 'yarnnn-mcp-server',
+      version: '1.0.0',
+      title: 'YARNNN MCP Server',
+    },
     transports: {
       streamableHttp: {
         url: `https://${host}/`,

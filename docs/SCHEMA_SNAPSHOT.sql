@@ -203,14 +203,28 @@ $$;
 CREATE FUNCTION public.emit_narrative_event(p_basket_id uuid, p_doc_id uuid, p_kind text, p_preview text) RETURNS void
     LANGUAGE plpgsql
     AS $$
+declare
+  v_workspace_id uuid;
 begin
-  -- Constrained kinds allow 'narrative' (use as channel); encode p_kind in payload
-  insert into public.timeline_events (basket_id, kind, ref_id, preview, payload)
+  -- Get workspace_id from basket
+  select workspace_id into v_workspace_id
+  from public.baskets
+  where id = p_basket_id;
+  if v_workspace_id is null then
+    raise exception 'Basket % not found or has no workspace', p_basket_id;
+  end if;
+  -- Insert timeline event with workspace_id
+  insert into public.timeline_events (basket_id, workspace_id, kind, ref_id, preview, payload)
   values (
-    p_basket_id, 'narrative', p_doc_id, p_preview,
+    p_basket_id,
+    v_workspace_id,
+    'narrative',
+    p_doc_id,
+    p_preview,
     jsonb_build_object('event', p_kind, 'doc_id', p_doc_id::text)
   );
-end$$;
+end;
+$$;
 CREATE FUNCTION public.emit_rel_bulk_note(p_basket uuid, p_created integer, p_ignored integer, p_idem_key text) RETURNS void
     LANGUAGE plpgsql
     AS $$
@@ -1407,6 +1421,56 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE FUNCTION public.semantic_search_blocks(p_basket_id uuid, p_query_embedding public.vector, p_semantic_types text[] DEFAULT NULL::text[], p_anchor_roles text[] DEFAULT NULL::text[], p_states text[] DEFAULT ARRAY['ACCEPTED'::text, 'LOCKED'::text, 'CONSTANT'::text], p_min_similarity numeric DEFAULT 0.70, p_limit integer DEFAULT 20) RETURNS TABLE(id uuid, basket_id uuid, content text, semantic_type text, anchor_role text, state text, metadata jsonb, similarity_score numeric)
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        b.id,
+        b.basket_id,
+        b.content,
+        b.semantic_type,
+        b.anchor_role,
+        b.state::TEXT,
+        b.metadata,
+        (1 - (b.embedding <=> p_query_embedding))::DECIMAL AS similarity_score
+    FROM public.blocks b
+    WHERE b.basket_id = p_basket_id
+        AND b.embedding IS NOT NULL
+        AND (p_semantic_types IS NULL OR b.semantic_type = ANY(p_semantic_types))
+        AND (p_anchor_roles IS NULL OR b.anchor_role = ANY(p_anchor_roles))
+        AND b.state::TEXT = ANY(p_states)
+        AND (1 - (b.embedding <=> p_query_embedding)) >= p_min_similarity
+    ORDER BY b.embedding <=> p_query_embedding
+    LIMIT p_limit;
+END;
+$$;
+CREATE FUNCTION public.semantic_search_cross_basket(p_workspace_id uuid, p_query_embedding public.vector, p_scopes text[] DEFAULT ARRAY['WORKSPACE'::text, 'GLOBAL'::text], p_semantic_types text[] DEFAULT NULL::text[], p_min_similarity numeric DEFAULT 0.70, p_limit integer DEFAULT 10) RETURNS TABLE(id uuid, basket_id uuid, content text, semantic_type text, anchor_role text, scope text, similarity_score numeric)
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        b.id,
+        b.basket_id,
+        b.content,
+        b.semantic_type,
+        b.anchor_role,
+        b.scope::TEXT,
+        (1 - (b.embedding <=> p_query_embedding))::DECIMAL AS similarity_score
+    FROM public.blocks b
+    JOIN public.baskets bsk ON b.basket_id = bsk.id
+    WHERE bsk.workspace_id = p_workspace_id
+        AND b.embedding IS NOT NULL
+        AND b.scope::TEXT = ANY(p_scopes)
+        AND b.state IN ('ACCEPTED', 'LOCKED', 'CONSTANT')
+        AND (p_semantic_types IS NULL OR b.semantic_type = ANY(p_semantic_types))
+        AND (1 - (b.embedding <=> p_query_embedding)) >= p_min_similarity
+    ORDER BY b.embedding <=> p_query_embedding
+    LIMIT p_limit;
+END;
+$$;
 CREATE FUNCTION public.set_basket_user_id() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -1444,12 +1508,72 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE FUNCTION public.traverse_relationships(p_start_block_id uuid, p_relationship_type text, p_direction text DEFAULT 'forward'::text, p_max_depth integer DEFAULT 2) RETURNS TABLE(id uuid, content text, semantic_type text, anchor_role text, depth integer, relationship_type text)
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+    RETURN QUERY
+    WITH RECURSIVE relationship_chain AS (
+        -- Base case: start block
+        SELECT
+            b.id,
+            b.content,
+            b.semantic_type,
+            b.anchor_role,
+            0 AS depth,
+            ''::TEXT AS relationship_type
+        FROM public.blocks b
+        WHERE b.id = p_start_block_id
+        UNION ALL
+        -- Recursive case: follow relationships
+        SELECT
+            b.id,
+            b.content,
+            b.semantic_type,
+            b.anchor_role,
+            rc.depth + 1,
+            r.relationship_type
+        FROM relationship_chain rc
+        JOIN public.substrate_relationships r ON
+            CASE
+                WHEN p_direction = 'forward' THEN rc.id = r.from_block_id
+                ELSE rc.id = r.to_block_id
+            END
+        JOIN public.blocks b ON
+            CASE
+                WHEN p_direction = 'forward' THEN r.to_block_id = b.id
+                ELSE r.from_block_id = b.id
+            END
+        WHERE rc.depth < p_max_depth
+            AND r.relationship_type = p_relationship_type
+            AND r.state = 'ACCEPTED'
+    )
+    SELECT DISTINCT ON (relationship_chain.id)
+        relationship_chain.id,
+        relationship_chain.content,
+        relationship_chain.semantic_type,
+        relationship_chain.anchor_role,
+        relationship_chain.depth,
+        relationship_chain.relationship_type
+    FROM relationship_chain
+    WHERE relationship_chain.depth > 0  -- Exclude start block
+    ORDER BY relationship_chain.id, relationship_chain.depth;
+END;
+$$;
 CREATE FUNCTION public.update_reflection_cache_updated_at() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
+END;
+$$;
+CREATE FUNCTION public.update_substrate_relationships_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
 END;
 $$;
 CREATE FUNCTION public.validate_structured_ingredient_metadata(metadata_json jsonb) RETURNS boolean
@@ -1549,6 +1673,7 @@ CREATE TABLE public.blocks (
     anchor_role text,
     anchor_status text DEFAULT 'proposed'::text,
     anchor_confidence real,
+    embedding public.vector(1536),
     CONSTRAINT blocks_anchor_confidence_check CHECK (((anchor_confidence >= (0.0)::double precision) AND (anchor_confidence <= (1.0)::double precision))),
     CONSTRAINT blocks_anchor_confidence_v3_check CHECK (((anchor_confidence IS NULL) OR ((anchor_confidence >= (0.0)::double precision) AND (anchor_confidence <= (1.0)::double precision)))),
     CONSTRAINT blocks_anchor_status_v3_check CHECK (((anchor_status IS NULL) OR (anchor_status = ANY (ARRAY['proposed'::text, 'accepted'::text, 'rejected'::text])))),
@@ -1903,13 +2028,18 @@ CREATE TABLE public.openai_app_tokens (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
     workspace_id uuid NOT NULL,
     install_id text,
-    access_token text NOT NULL,
+    access_token text,
     refresh_token text,
     expires_at timestamp with time zone,
     scope text,
     provider_metadata jsonb DEFAULT '{}'::jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    access_token_enc jsonb,
+    refresh_token_enc jsonb,
+    encryption_version smallint,
+    encryption_updated_at timestamp with time zone,
+    rotated_at timestamp with time zone
 );
 CREATE TABLE public.p3_p4_regeneration_policy (
     workspace_id uuid NOT NULL,
@@ -1961,7 +2091,7 @@ CREATE TABLE public.proposal_executions (
 );
 CREATE TABLE public.proposals (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    basket_id uuid NOT NULL,
+    basket_id uuid,
     workspace_id uuid NOT NULL,
     proposal_kind public.proposal_kind NOT NULL,
     basis_snapshot_id uuid,
@@ -1987,7 +2117,11 @@ CREATE TABLE public.proposals (
     bypass_reason text,
     source_host text,
     source_session text,
-    CONSTRAINT proposals_origin_check CHECK ((origin = ANY (ARRAY['agent'::text, 'human'::text])))
+    scope text DEFAULT 'basket'::text,
+    target_basket_id uuid,
+    affected_basket_ids uuid[] DEFAULT '{}'::uuid[],
+    CONSTRAINT proposals_origin_check CHECK ((origin = ANY (ARRAY['agent'::text, 'human'::text]))),
+    CONSTRAINT proposals_scope_check CHECK ((scope = ANY (ARRAY['basket'::text, 'workspace'::text, 'cross-basket'::text])))
 );
 CREATE TABLE public.raw_dumps (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2052,17 +2186,21 @@ CREATE TABLE public.substrate_references (
 );
 CREATE TABLE public.substrate_relationships (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    basket_id uuid,
-    from_type public.substrate_type NOT NULL,
-    from_id uuid NOT NULL,
-    to_type public.substrate_type NOT NULL,
-    to_id uuid NOT NULL,
+    from_block_id uuid NOT NULL,
+    to_block_id uuid NOT NULL,
     relationship_type text NOT NULL,
-    description text,
-    strength double precision DEFAULT 0.5,
-    created_at timestamp with time zone DEFAULT now()
+    confidence_score numeric(3,2),
+    inference_method text,
+    state public.block_state DEFAULT 'PROPOSED'::public.block_state NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    CONSTRAINT no_self_reference CHECK ((from_block_id <> to_block_id)),
+    CONSTRAINT valid_confidence_score CHECK (((confidence_score IS NULL) OR ((confidence_score >= (0)::numeric) AND (confidence_score <= (1)::numeric)))),
+    CONSTRAINT valid_inference_method CHECK (((inference_method IS NULL) OR (inference_method = ANY (ARRAY['semantic_search'::text, 'llm_verification'::text, 'user_created'::text, 'agent_inferred'::text])))),
+    CONSTRAINT valid_relationship_type CHECK ((relationship_type = ANY (ARRAY['addresses'::text, 'supports'::text, 'contradicts'::text, 'depends_on'::text])))
 );
-ALTER TABLE ONLY public.substrate_relationships REPLICA IDENTITY FULL;
 CREATE TABLE public.substrate_tombstones (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     workspace_id uuid NOT NULL,
@@ -2126,27 +2264,6 @@ CREATE TABLE public.user_alerts (
     CONSTRAINT user_alerts_action_label_length CHECK (((actionable = false) OR ((length(action_label) >= 1) AND (length(action_label) <= 50)))),
     CONSTRAINT user_alerts_message_length CHECK (((length(message) >= 1) AND (length(message) <= 500))),
     CONSTRAINT user_alerts_title_length CHECK (((length(title) >= 1) AND (length(title) <= 150)))
-);
-CREATE TABLE public.user_notifications (
-    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
-    workspace_id uuid NOT NULL,
-    user_id uuid NOT NULL,
-    type text NOT NULL,
-    category text NOT NULL,
-    severity text DEFAULT 'info'::text NOT NULL,
-    title text NOT NULL,
-    message text NOT NULL,
-    channels jsonb DEFAULT '[]'::jsonb NOT NULL,
-    persistence_settings jsonb DEFAULT '{}'::jsonb NOT NULL,
-    actions jsonb DEFAULT '[]'::jsonb NOT NULL,
-    related_entities jsonb DEFAULT '{}'::jsonb NOT NULL,
-    governance_context jsonb DEFAULT '{}'::jsonb NOT NULL,
-    status text DEFAULT 'unread'::text NOT NULL,
-    cross_page_persist boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    read_at timestamp with time zone,
-    dismissed_at timestamp with time zone,
-    acknowledged_at timestamp with time zone
 );
 CREATE VIEW public.v_events_rel_bulk AS
  SELECT events.id,
@@ -2243,12 +2360,6 @@ CREATE SEQUENCE public.workspace_memberships_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.workspace_memberships_id_seq OWNED BY public.workspace_memberships.id;
-CREATE TABLE public.workspace_notification_settings (
-    workspace_id uuid NOT NULL,
-    settings jsonb DEFAULT '{}'::jsonb NOT NULL,
-    updated_by uuid,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
 CREATE TABLE public.workspaces (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
     owner_id uuid,
@@ -2344,24 +2455,25 @@ ALTER TABLE ONLY public.substrate_tombstones
     ADD CONSTRAINT substrate_tombstones_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.substrate_relationships
+    ADD CONSTRAINT unique_relationship UNIQUE (from_block_id, to_block_id, relationship_type);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT uq_raw_dumps_basket_dump_req UNIQUE (basket_id, dump_request_id);
 ALTER TABLE ONLY public.user_alerts
     ADD CONSTRAINT user_alerts_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.user_notifications
-    ADD CONSTRAINT user_notifications_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_governance_settings
     ADD CONSTRAINT workspace_governance_settings_pkey PRIMARY KEY (workspace_id);
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_workspace_id_user_id_key UNIQUE (workspace_id, user_id);
-ALTER TABLE ONLY public.workspace_notification_settings
-    ADD CONSTRAINT workspace_notification_settings_pkey PRIMARY KEY (workspace_id);
 ALTER TABLE ONLY public.workspaces
     ADD CONSTRAINT workspaces_pkey PRIMARY KEY (id);
 CREATE INDEX baskets_user_idx ON public.baskets USING btree (user_id);
 CREATE INDEX blk_doc_idx ON public.block_links USING btree (block_id, document_id);
+CREATE INDEX blocks_basket_embedding_idx ON public.blocks USING btree (basket_id, semantic_type) WHERE (embedding IS NOT NULL);
+CREATE INDEX blocks_embedding_accepted_idx ON public.blocks USING ivfflat (embedding public.vector_cosine_ops) WITH (lists='100') WHERE (state = ANY (ARRAY['ACCEPTED'::public.block_state, 'LOCKED'::public.block_state, 'CONSTANT'::public.block_state]));
+CREATE INDEX blocks_embedding_idx ON public.blocks USING ivfflat (embedding public.vector_cosine_ops) WITH (lists='100');
 CREATE UNIQUE INDEX docs_basket_title_idx ON public.documents USING btree (basket_id, title);
 CREATE INDEX idx_agent_queue_cascade ON public.agent_processing_queue USING gin (cascade_metadata);
 CREATE UNIQUE INDEX idx_agent_queue_dump_id_unique ON public.agent_processing_queue USING btree (dump_id) WHERE (dump_id IS NOT NULL);
@@ -2440,10 +2552,12 @@ CREATE UNIQUE INDEX idx_openai_app_tokens_workspace ON public.openai_app_tokens 
 CREATE INDEX idx_proposal_executions_executed_at ON public.proposal_executions USING btree (executed_at DESC);
 CREATE INDEX idx_proposal_executions_proposal ON public.proposal_executions USING btree (proposal_id, operation_index);
 CREATE INDEX idx_proposal_executions_proposal_id ON public.proposal_executions USING btree (proposal_id);
+CREATE INDEX idx_proposals_basket_scope ON public.proposals USING btree (basket_id, status, created_at DESC) WHERE ((scope = 'basket'::text) AND (basket_id IS NOT NULL));
 CREATE INDEX idx_proposals_basket_status ON public.proposals USING btree (basket_id, status);
 CREATE INDEX idx_proposals_blast_radius ON public.proposals USING btree (blast_radius);
 CREATE INDEX idx_proposals_executed ON public.proposals USING btree (is_executed, executed_at);
 CREATE INDEX idx_proposals_workspace_created ON public.proposals USING btree (workspace_id, created_at DESC);
+CREATE INDEX idx_proposals_workspace_scope ON public.proposals USING btree (workspace_id, scope, status, created_at DESC) WHERE ((basket_id IS NULL) OR (scope = ANY (ARRAY['workspace'::text, 'cross-basket'::text])));
 CREATE INDEX idx_proposals_workspace_status ON public.proposals USING btree (workspace_id, status, created_at DESC);
 CREATE INDEX idx_queue_claimed ON public.agent_processing_queue USING btree (claimed_by, processing_state) WHERE (claimed_by IS NOT NULL);
 CREATE INDEX idx_queue_state_created ON public.agent_processing_queue USING btree (processing_state, created_at);
@@ -2458,8 +2572,6 @@ CREATE INDEX idx_reflection_cache_computation_timestamp ON public.reflections_ar
 CREATE INDEX idx_reflections_basket ON public.reflections_artifact USING btree (basket_id);
 CREATE INDEX idx_reflections_lineage ON public.reflections_artifact USING btree (previous_id) WHERE (previous_id IS NOT NULL);
 CREATE INDEX idx_reflections_workspace_scope ON public.reflections_artifact USING btree (workspace_id, scope_level, is_current) WHERE (scope_level = 'workspace'::text);
-CREATE INDEX idx_relationships_from ON public.substrate_relationships USING btree (from_type, from_id);
-CREATE INDEX idx_relationships_to ON public.substrate_relationships USING btree (to_type, to_id);
 CREATE INDEX idx_substrate_references_created ON public.substrate_references USING btree (created_at);
 CREATE INDEX idx_substrate_references_document ON public.substrate_references USING btree (document_id);
 CREATE INDEX idx_substrate_references_role ON public.substrate_references USING btree (role) WHERE (role IS NOT NULL);
@@ -2469,9 +2581,6 @@ CREATE INDEX idx_timeline_events_basket_timestamp_id ON public.timeline_events U
 CREATE INDEX idx_timeline_events_kind_ref_id ON public.timeline_events USING btree (kind, ref_id) WHERE (ref_id IS NOT NULL);
 CREATE INDEX idx_timeline_workspace_ts ON public.timeline_events USING btree (workspace_id, ts DESC, id DESC);
 CREATE INDEX idx_tombstones_lookup ON public.substrate_tombstones USING btree (workspace_id, basket_id, substrate_type, substrate_id);
-CREATE INDEX idx_un_cross ON public.user_notifications USING btree (cross_page_persist) WHERE cross_page_persist;
-CREATE INDEX idx_un_status ON public.user_notifications USING btree (status);
-CREATE INDEX idx_un_ws_user ON public.user_notifications USING btree (workspace_id, user_id, created_at DESC);
 CREATE INDEX idx_user_alerts_actionable ON public.user_alerts USING btree (user_id, actionable, created_at DESC) WHERE (dismissed_at IS NULL);
 CREATE INDEX idx_user_alerts_user_active ON public.user_alerts USING btree (user_id, created_at DESC) WHERE (dismissed_at IS NULL);
 CREATE INDEX idx_user_alerts_workspace_active ON public.user_alerts USING btree (workspace_id, created_at DESC) WHERE (dismissed_at IS NULL);
@@ -2483,6 +2592,11 @@ CREATE INDEX ix_events_kind_ts ON public.events USING btree (kind, ts);
 CREATE INDEX ix_pipeline_metrics_basket ON public.pipeline_metrics USING btree (basket_id, ts DESC);
 CREATE INDEX ix_pipeline_metrics_recent ON public.pipeline_metrics USING btree (pipeline, ts DESC);
 CREATE UNIQUE INDEX reflection_cache_uq ON public.reflections_artifact USING btree (basket_id, substrate_hash);
+CREATE INDEX relationships_confidence_idx ON public.substrate_relationships USING btree (confidence_score DESC) WHERE ((state = 'PROPOSED'::public.block_state) AND (confidence_score IS NOT NULL));
+CREATE INDEX relationships_from_block_idx ON public.substrate_relationships USING btree (from_block_id) WHERE (state = 'ACCEPTED'::public.block_state);
+CREATE INDEX relationships_graph_query_idx ON public.substrate_relationships USING btree (relationship_type, from_block_id, state);
+CREATE INDEX relationships_to_block_idx ON public.substrate_relationships USING btree (to_block_id) WHERE (state = 'ACCEPTED'::public.block_state);
+CREATE INDEX relationships_type_idx ON public.substrate_relationships USING btree (relationship_type) WHERE (state = 'ACCEPTED'::public.block_state);
 CREATE UNIQUE INDEX timeline_dump_unique ON public.timeline_events USING btree (ref_id) WHERE (kind = 'dump'::text);
 CREATE INDEX timeline_events_basket_ts_idx ON public.timeline_events USING btree (basket_id, ts DESC);
 CREATE UNIQUE INDEX uq_basket_anchors_key ON public.basket_anchors USING btree (basket_id, anchor_key);
@@ -2494,8 +2608,6 @@ CREATE UNIQUE INDEX uq_doc_version_signature ON public.document_versions USING b
 CREATE UNIQUE INDEX uq_document_canon_per_basket ON public.documents USING btree (basket_id) WHERE ((doc_type = 'document_canon'::text) AND (basket_id IS NOT NULL));
 CREATE UNIQUE INDEX uq_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
 CREATE UNIQUE INDEX uq_raw_dumps_basket_req ON public.raw_dumps USING btree (basket_id, dump_request_id) WHERE (dump_request_id IS NOT NULL);
-CREATE UNIQUE INDEX uq_relationship_identity ON public.substrate_relationships USING btree (basket_id, from_type, from_id, to_type, to_id, relationship_type);
-CREATE UNIQUE INDEX uq_substrate_rel_directed ON public.substrate_relationships USING btree (basket_id, from_type, from_id, relationship_type, to_type, to_id);
 CREATE UNIQUE INDEX ux_raw_dumps_basket_trace ON public.raw_dumps USING btree (basket_id, ingest_trace_id) WHERE (ingest_trace_id IS NOT NULL);
 CREATE TRIGGER after_dump_insert AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.queue_agent_processing();
 CREATE TRIGGER basket_anchors_set_updated_at BEFORE UPDATE ON public.basket_anchors FOR EACH ROW EXECUTE FUNCTION public.fn_set_basket_anchor_updated_at();
@@ -2513,6 +2625,7 @@ CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH R
 CREATE TRIGGER trg_timeline_after_raw_dump AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.fn_timeline_after_raw_dump();
 CREATE TRIGGER trigger_auto_increment_usage_on_substrate_reference AFTER INSERT ON public.substrate_references FOR EACH ROW EXECUTE FUNCTION public.auto_increment_block_usage_on_reference();
 CREATE TRIGGER trigger_mark_blocks_stale_on_new_dump AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.mark_related_blocks_stale();
+CREATE TRIGGER update_substrate_relationships_updated_at BEFORE UPDATE ON public.substrate_relationships FOR EACH ROW EXECUTE FUNCTION public.update_substrate_relationships_updated_at();
 ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE ONLY public.agent_processing_queue
@@ -2628,6 +2741,8 @@ ALTER TABLE ONLY public.proposal_executions
 ALTER TABLE ONLY public.proposals
     ADD CONSTRAINT proposals_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
 ALTER TABLE ONLY public.proposals
+    ADD CONSTRAINT proposals_target_basket_id_fkey FOREIGN KEY (target_basket_id) REFERENCES public.baskets(id);
+ALTER TABLE ONLY public.proposals
     ADD CONSTRAINT proposals_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
@@ -2642,23 +2757,23 @@ ALTER TABLE ONLY public.substrate_references
 ALTER TABLE ONLY public.substrate_references
     ADD CONSTRAINT substrate_references_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.substrate_relationships
-    ADD CONSTRAINT substrate_relationships_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id);
+    ADD CONSTRAINT substrate_relationships_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.substrate_relationships
+    ADD CONSTRAINT substrate_relationships_from_block_id_fkey FOREIGN KEY (from_block_id) REFERENCES public.blocks(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.substrate_relationships
+    ADD CONSTRAINT substrate_relationships_to_block_id_fkey FOREIGN KEY (to_block_id) REFERENCES public.blocks(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.timeline_events
     ADD CONSTRAINT timeline_events_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.user_alerts
     ADD CONSTRAINT user_alerts_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.user_notifications
-    ADD CONSTRAINT user_notifications_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.workspace_governance_settings
     ADD CONSTRAINT workspace_governance_settings_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_memberships
     ADD CONSTRAINT workspace_memberships_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.workspace_notification_settings
-    ADD CONSTRAINT workspace_notification_settings_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.workspaces
     ADD CONSTRAINT workspaces_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 CREATE POLICY "Allow anon read events" ON public.events FOR SELECT USING (true);
@@ -2678,16 +2793,7 @@ CREATE POLICY "Allow workspace members to read baskets" ON public.baskets FOR SE
   WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Anon can view events temporarily" ON public.basket_events FOR SELECT TO anon USING (true);
 CREATE POLICY "Authenticated users can view events" ON public.basket_events FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Members can read settings" ON public.workspace_notification_settings FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
-   FROM public.workspace_memberships
-  WHERE (workspace_memberships.user_id = auth.uid()))));
-CREATE POLICY "Members can update settings" ON public.workspace_notification_settings FOR UPDATE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
-   FROM public.workspace_memberships
-  WHERE (workspace_memberships.user_id = auth.uid())))) WITH CHECK (true);
-CREATE POLICY "Members can upsert settings" ON public.workspace_notification_settings FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
-   FROM public.workspace_memberships
-  WHERE (workspace_memberships.user_id = auth.uid()))));
-CREATE POLICY "Service role can manage notifications" ON public.user_notifications TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role can manage all relationships" ON public.substrate_relationships USING (((auth.jwt() ->> 'role'::text) = 'service_role'::text)) WITH CHECK (((auth.jwt() ->> 'role'::text) = 'service_role'::text));
 CREATE POLICY "Service role can manage queue" ON public.agent_processing_queue TO service_role USING (true);
 CREATE POLICY "Service role full access" ON public.baskets TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to block_usage" ON public.block_usage TO service_role USING (true) WITH CHECK (true);
@@ -2695,12 +2801,14 @@ CREATE POLICY "Service role has full access to extraction_quality_metrics" ON pu
 CREATE POLICY "Users can create proposals in their workspace" ON public.proposals FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY "Users can create relationships in their workspace baskets" ON public.substrate_relationships FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM ((public.blocks b
+     JOIN public.baskets bsk ON ((b.basket_id = bsk.id)))
+     JOIN public.workspace_memberships wm ON ((bsk.workspace_id = wm.workspace_id)))
+  WHERE ((b.id = substrate_relationships.from_block_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY "Users can insert events for their workspaces" ON public.events FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
-CREATE POLICY "Users can insert their notifications" ON public.user_notifications FOR INSERT TO authenticated WITH CHECK (((user_id = auth.uid()) AND (workspace_id IN ( SELECT workspace_memberships.workspace_id
-   FROM public.workspace_memberships
-  WHERE (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY "Users can modify block revisions in their workspaces" ON public.block_revisions USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
@@ -2726,9 +2834,11 @@ CREATE POLICY "Users can revoke own MCP sessions" ON public.mcp_oauth_sessions F
 CREATE POLICY "Users can update proposals in their workspace" ON public.proposals FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
-CREATE POLICY "Users can update their notifications" ON public.user_notifications FOR UPDATE TO authenticated USING (((user_id = auth.uid()) AND (workspace_id IN ( SELECT workspace_memberships.workspace_id
-   FROM public.workspace_memberships
-  WHERE (workspace_memberships.user_id = auth.uid()))))) WITH CHECK ((user_id = auth.uid()));
+CREATE POLICY "Users can update relationships in their workspace" ON public.substrate_relationships FOR UPDATE USING (((created_by = auth.uid()) OR (EXISTS ( SELECT 1
+   FROM ((public.blocks b
+     JOIN public.baskets bsk ON ((b.basket_id = bsk.id)))
+     JOIN public.workspace_memberships wm ON ((bsk.workspace_id = wm.workspace_id)))
+  WHERE ((b.id = substrate_relationships.from_block_id) AND (wm.user_id = auth.uid()))))));
 CREATE POLICY "Users can update their queued items" ON public.agent_processing_queue FOR UPDATE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid())))) WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
@@ -2769,14 +2879,11 @@ CREATE POLICY "Users can view raw_dumps in their workspace" ON public.raw_dumps 
   WHERE ((baskets.id = raw_dumps.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
-CREATE POLICY "Users can view relationships in their workspace" ON public.substrate_relationships FOR SELECT USING ((EXISTS ( SELECT 1
-   FROM public.baskets
-  WHERE ((baskets.id = substrate_relationships.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
-           FROM public.workspace_memberships
-          WHERE (workspace_memberships.user_id = auth.uid())))))));
-CREATE POLICY "Users can view their notifications" ON public.user_notifications FOR SELECT TO authenticated USING (((user_id = auth.uid()) AND (workspace_id IN ( SELECT workspace_memberships.workspace_id
-   FROM public.workspace_memberships
-  WHERE (workspace_memberships.user_id = auth.uid())))));
+CREATE POLICY "Users can view relationships in their workspace baskets" ON public.substrate_relationships FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM ((public.blocks b
+     JOIN public.baskets bsk ON ((b.basket_id = bsk.id)))
+     JOIN public.workspace_memberships wm ON ((bsk.workspace_id = wm.workspace_id)))
+  WHERE (((b.id = substrate_relationships.from_block_id) OR (b.id = substrate_relationships.to_block_id)) AND (wm.user_id = auth.uid())))));
 CREATE POLICY "Workspace members can read events" ON public.events FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -3062,6 +3169,7 @@ CREATE POLICY substrate_references_update_policy ON public.substrate_references 
      JOIN public.baskets b ON ((d.basket_id = b.id)))
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE ((d.id = substrate_references.document_id) AND (wm.user_id = auth.uid())))));
+ALTER TABLE public.substrate_relationships ENABLE ROW LEVEL SECURITY;
 CREATE POLICY te_select_workspace_member ON public.timeline_events FOR SELECT USING ((EXISTS ( SELECT 1
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
@@ -3080,7 +3188,6 @@ CREATE POLICY "update reflections by service role" ON public.reflections_artifac
 ALTER TABLE public.user_alerts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY user_alerts_own_read ON public.user_alerts FOR SELECT USING ((user_id = auth.uid()));
 CREATE POLICY user_alerts_own_update ON public.user_alerts FOR UPDATE USING ((user_id = auth.uid()));
-ALTER TABLE public.user_notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspace_governance_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY workspace_governance_settings_insert ON public.workspace_governance_settings FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -3095,7 +3202,6 @@ CREATE POLICY workspace_members_can_read_events ON public.app_events FOR SELECT 
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = app_events.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
 ALTER TABLE public.workspace_memberships ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.workspace_notification_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "write history by service role" ON public.timeline_events FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
 CREATE POLICY "write reflections by service role" ON public.reflections_artifact FOR INSERT WITH CHECK ((auth.role() = 'service_role'::text));
