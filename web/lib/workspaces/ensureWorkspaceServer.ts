@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/auth-helpers-nextjs";
 import type { Database } from "@/lib/dbTypes";
+import { ensureSingleWorkspace } from "@/lib/canon/WorkspaceResolver";
 
 export async function ensureWorkspaceServer(supabase: SupabaseClient<Database>) {
   const {
@@ -9,43 +10,23 @@ export async function ensureWorkspaceServer(supabase: SupabaseClient<Database>) 
 
   if (authError || !user) return null;
 
-  // Mirror backend behaviour: user operates in exactly one workspace keyed by owner_id
-  const { data: ownedWorkspace, error: lookupError } = await supabase
-    .from('workspaces')
-    .select('*')
-    .eq('owner_id', user.id)
-    .limit(1)
-    .maybeSingle();
+  try {
+    const { id: workspaceId } = await ensureSingleWorkspace(user.id, supabase);
 
-  if (!lookupError && ownedWorkspace) {
-    return ownedWorkspace;
-  }
+    const { data: workspace, error: fetchError } = await supabase
+      .from('workspaces')
+      .select('*')
+      .eq('id', workspaceId)
+      .maybeSingle();
 
-  // Create workspace if missing
-  const { data: newWorkspace, error: createError } = await supabase
-    .from('workspaces')
-    .insert({ name: `${user.email ?? 'Workspace'}`, owner_id: user.id })
-    .select()
-    .single();
+    if (fetchError || !workspace) {
+      console.error('[Workspace Fetch Error]', fetchError);
+      return null;
+    }
 
-  if (createError || !newWorkspace) {
-    console.error('❌ Failed to create workspace:', createError);
+    return workspace;
+  } catch (error) {
+    console.error('[ensureWorkspaceServer] Failed to resolve workspace', error);
     return null;
   }
-
-  // Ensure membership row exists (helps other RLS checks)
-  const { error: membershipError } = await supabase
-    .from('workspace_memberships')
-    .insert({
-      user_id: user.id,
-      workspace_id: newWorkspace.id,
-      role: 'owner',
-    });
-
-  if (membershipError) {
-    // Non-fatal; log for visibility
-    console.warn('⚠️ Failed to create workspace membership:', membershipError.message);
-  }
-
-  return newWorkspace;
 }

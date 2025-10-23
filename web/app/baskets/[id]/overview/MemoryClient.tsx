@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, RefreshCw, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
@@ -14,6 +14,7 @@ import InsightCanonCard from '@/components/insights/InsightCanonCard';
 import InsightDetailModal from '@/components/insights/InsightDetailModal';
 import EditableBasketTitle from '@/components/baskets/EditableBasketTitle';
 import BasketMenu from '@/components/baskets/BasketMenu';
+import { useBasketReadiness } from '@/hooks/useBasketReadiness';
 import type { BasketStats } from '@/app/api/baskets/[id]/stats/route';
 
 interface Props {
@@ -29,6 +30,8 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
 
   const [stats, setStats] = useState<BasketStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const { status: readinessStatus, activeJobs, lastSuccessEvent, lastFailureEvent } = useBasketReadiness(basketId);
+  const lastSuccessEventRef = useRef<string | null>(null);
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
@@ -47,6 +50,13 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  useEffect(() => {
+    if (!lastSuccessEvent?.id) return;
+    if (lastSuccessEventRef.current === lastSuccessEvent.id) return;
+    lastSuccessEventRef.current = lastSuccessEvent.id;
+    loadStats();
+  }, [lastSuccessEvent?.id, loadStats]);
 
   const refreshDocuments = () => {
     try { router.refresh(); } catch (error) { console.warn('Refresh failed', error); }
@@ -109,6 +119,13 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
           Uploads
         </Button>
       </div>
+
+      <BasketStatusBanner
+        status={readinessStatus}
+        activeJobs={activeJobs}
+        lastFailureMessage={lastFailureEvent?.message}
+        lastSuccessMessage={lastSuccessEvent?.message}
+      />
 
       {needsOnboarding && (
         <OnboardingPanel basketId={basketId} onComplete={() => window.location.reload()} />
@@ -233,6 +250,48 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
         open={showInsightModal}
         onClose={() => setShowInsightModal(false)}
       />
+    </div>
+  );
+}
+
+interface StatusBannerProps {
+  status: 'idle' | 'processing' | 'ready' | 'failed';
+  activeJobs: number;
+  lastFailureMessage?: string;
+  lastSuccessMessage?: string;
+}
+
+function BasketStatusBanner({ status, activeJobs, lastFailureMessage, lastSuccessMessage }: StatusBannerProps) {
+  if (status === 'idle') return null;
+
+  if (status === 'processing') {
+    return (
+      <div className="flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+        <span className="font-medium">Processing memory updates…</span>
+        <span className="text-xs text-blue-600">
+          {activeJobs} active task{activeJobs === 1 ? '' : 's'}
+        </span>
+      </div>
+    );
+  }
+
+  if (status === 'failed') {
+    return (
+      <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <p className="font-medium">We hit a snag while updating this basket.</p>
+        {lastFailureMessage && (
+          <p className="mt-1 text-rose-600">{lastFailureMessage}</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+      <p className="font-medium">Memory is up to date.</p>
+      {lastSuccessMessage && (
+        <p className="mt-1 text-emerald-600">{lastSuccessMessage}</p>
+      )}
     </div>
   );
 }

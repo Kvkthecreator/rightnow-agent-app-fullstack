@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { cookies } from "next/headers";
+import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase/clients';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
 
@@ -9,7 +10,7 @@ interface RouteContext { params: Promise<{ id: string }> }
 export async function GET(req: NextRequest, ctx: RouteContext) {
   try {
     const { id } = await ctx.params;
-    const supabase = createServerSupabaseClient() as any;
+    const supabase = createRouteHandlerClient({ cookies });
     const { userId } = await getAuthenticatedUser(supabase);
     const workspace = await ensureWorkspaceForUser(userId, supabase);
 
@@ -48,14 +49,14 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: 'name required' }, { status: 422 });
     }
 
-    const supabase = createServerSupabaseClient() as any;
+    const supabase = createRouteHandlerClient({ cookies });
     const { userId } = await getAuthenticatedUser(supabase);
     const workspace = await ensureWorkspaceForUser(userId, supabase);
 
     // Verify basket access
     const { data: basket } = await supabase
       .from('baskets')
-      .select('id,workspace_id')
+      .select('id,workspace_id,name')
       .eq('id', id)
       .maybeSingle();
 
@@ -77,13 +78,18 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     }
 
     // Emit timeline event
-    await supabase.from('timeline_events').insert({
+    const serviceSupabase = createServiceRoleClient();
+    const { error: timelineError } = await serviceSupabase.from('timeline_events').insert({
       basket_id: id,
       workspace_id: workspace.id,
       event_type: 'BASKET_RENAMED',
       user_id: userId,
       metadata: { old_name: basket.name, new_name: name.trim() }
     });
+
+    if (timelineError) {
+      console.warn('[Basket Rename] Failed to emit timeline event', timelineError);
+    }
 
     return NextResponse.json(updated, { status: 200 });
   } catch (e) {

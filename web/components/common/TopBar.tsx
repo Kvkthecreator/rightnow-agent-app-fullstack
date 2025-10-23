@@ -8,7 +8,7 @@ import React from "react";
 import Link from "next/link";
 import { SECTION_ORDER } from "@/components/features/baskets/sections";
 import UserNav from "@/components/UserNav";
-import { NotificationBadge } from "@/components/notifications/NotificationBadge";
+import ActionCenter from "@/components/notifications/ActionCenter";
 
 export default function TopBar() {
   const { toggle, open } = useNavState();
@@ -99,7 +99,7 @@ export default function TopBar() {
 
       {/* Top Bar Actions */}
       <div className="flex items-center gap-2">
-        <NotificationBadge />
+        <ActionCenter />
         <UserNav compact />
       </div>
     </header>

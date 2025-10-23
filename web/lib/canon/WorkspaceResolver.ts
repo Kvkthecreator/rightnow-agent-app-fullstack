@@ -6,6 +6,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createServiceRoleClient } from '@/lib/supabase/clients';
 
 export interface SingleWorkspaceResult {
   workspaceId: string;
@@ -19,9 +20,16 @@ export interface WorkspaceError {
 
 export class CanonicalWorkspaceResolver {
   private supabase: SupabaseClient;
+  private serviceSupabase: SupabaseClient;
   
-  constructor(supabase: SupabaseClient) {
+  constructor(supabase: SupabaseClient, serviceSupabase?: SupabaseClient) {
     this.supabase = supabase;
+    try {
+      this.serviceSupabase = serviceSupabase ?? createServiceRoleClient();
+    } catch (error) {
+      console.error('[Workspace Resolver] Service role client unavailable, falling back to auth client', error);
+      this.serviceSupabase = supabase;
+    }
   }
 
   /**
@@ -49,8 +57,10 @@ export class CanonicalWorkspaceResolver {
       }
 
       if (!memberships || memberships.length === 0) {
-        // Create single workspace for user
-        return await this.createSingleWorkspace(userId);
+        console.warn('[CANON NOTICE] Missing workspace membership detected; repairing via service role', {
+          userId,
+        });
+        return await this.ensureWorkspaceWithMembership(userId);
       }
 
       // Canon violation: multiple workspaces detected
@@ -92,53 +102,77 @@ export class CanonicalWorkspaceResolver {
   /**
    * Create single workspace for user (canon compliant)
    */
-  private async createSingleWorkspace(userId: string): Promise<SingleWorkspaceResult | WorkspaceError> {
+  private async ensureWorkspaceWithMembership(userId: string): Promise<SingleWorkspaceResult | WorkspaceError> {
     try {
-      // Create workspace
-      const { data: workspace, error: workspaceError } = await this.supabase
+      const { data: existingWorkspace, error: lookupError } = await this.serviceSupabase
         .from('workspaces')
-        .insert({
-          owner_id: userId,
-          name: 'My Workspace' // Single workspace name
-        })
         .select('id')
-        .single();
+        .eq('owner_id', userId)
+        .limit(1)
+        .maybeSingle();
 
-      if (workspaceError || !workspace) {
-        console.error('[Workspace Creation Error]', workspaceError);
-        return { 
-          error: 'Failed to create workspace', 
-          code: 'RESOLUTION_FAILED' 
+      if (lookupError && lookupError.code !== 'PGRST116') {
+        console.error('[Workspace Lookup Error]', lookupError);
+        return {
+          error: 'Failed to resolve workspace',
+          code: 'RESOLUTION_FAILED',
         };
       }
 
-      // Create membership
-      const { error: membershipError } = await this.supabase
+      let workspaceId = existingWorkspace?.id;
+
+      if (!workspaceId) {
+        const { data: workspace, error: workspaceError } = await this.serviceSupabase
+          .from('workspaces')
+          .insert({
+            owner_id: userId,
+            name: 'My Workspace',
+          })
+          .select('id')
+          .single();
+
+        if (workspaceError || !workspace) {
+          console.error('[Workspace Creation Error]', workspaceError);
+          return {
+            error: 'Failed to create workspace',
+            code: 'RESOLUTION_FAILED',
+          };
+        }
+
+        workspaceId = workspace.id;
+      }
+
+      const { data: membership, error: membershipError } = await this.serviceSupabase
         .from('workspace_memberships')
-        .insert({
-          user_id: userId,
-          workspace_id: workspace.id,
-          role: 'owner'
-        });
+        .upsert(
+          {
+            workspace_id: workspaceId,
+            user_id: userId,
+            role: 'owner',
+          },
+          { onConflict: 'workspace_id,user_id' },
+        )
+        .select('role')
+        .single();
 
       if (membershipError) {
-        console.error('[Workspace Membership Error]', membershipError);
-        return { 
-          error: 'Failed to create workspace membership', 
-          code: 'RESOLUTION_FAILED' 
+        console.error('[Workspace Membership Repair Error]', membershipError);
+        return {
+          error: 'Failed to create workspace membership',
+          code: 'RESOLUTION_FAILED',
         };
       }
 
       return {
-        workspaceId: workspace.id,
-        isOwner: true
+        workspaceId,
+        isOwner: membership?.role === 'owner',
       };
 
     } catch (error) {
-      console.error('[Single Workspace Creation Exception]', error);
-      return { 
-        error: 'Workspace creation failed', 
-        code: 'RESOLUTION_FAILED' 
+      console.error('[Workspace Service Role Exception]', error);
+      return {
+        error: 'Workspace creation failed',
+        code: 'RESOLUTION_FAILED',
       };
     }
   }

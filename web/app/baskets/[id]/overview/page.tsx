@@ -22,11 +22,8 @@ interface PageProps {
   searchParams?: Promise<Record<string, string | undefined>>;
 }
 
-export default async function MemoryPage({ params, searchParams }: PageProps) {
+export default async function MemoryPage({ params }: PageProps) {
   const { id } = await params;
-  const qs = searchParams ? await searchParams : {};
-  const profileId = qs.profile;
-  const onboarded = qs.onboarded;
   const supabase = createServerComponentClient({ cookies });
 
   // Consolidated authorization and basket access check
@@ -63,20 +60,6 @@ export default async function MemoryPage({ params, searchParams }: PageProps) {
   return (
     <BasketWrapper basket={basket}>
       <div className="space-y-6 pb-8">
-        {onboarded && (
-          <div className="rounded-lg border bg-green-50 p-4 text-sm text-green-700 flex justify-between">
-            <span>Memory initialized from your First Mirror.</span>
-            {profileId && (
-              <a
-                className="underline font-medium"
-                href={`/baskets/${id}/documents/${profileId}`}
-              >
-                Open Profile
-              </a>
-            )}
-          </div>
-        )}
-
         <MemoryClient
           basketId={id}
           basketName={basket.name}

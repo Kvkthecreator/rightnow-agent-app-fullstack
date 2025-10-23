@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fetchWithToken } from "@/lib/fetchWithToken";
 import { Bell, X, Check, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useNotificationStore } from '@/lib/notifications';
 
 /**
  * Clean Action Center Component
@@ -52,6 +53,8 @@ export default function ActionCenter({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const seenAlertIds = useRef<Set<string>>(new Set());
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
     loadAlerts();
@@ -79,12 +82,52 @@ export default function ActionCenter({
       setAlerts(data.alerts || []);
       setCounts(data.counts || { total: 0, unread: 0, actionable: 0 });
       setError(null);
-      
+      hydrateToasts(data.alerts || []);
+
     } catch (err) {
       console.error('Action center error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load alerts');
     } finally {
       setLoading(false);
+    }
+  }
+
+  function hydrateToasts(nextAlerts: UserAlert[]) {
+    // Avoid spamming toasts on initial hydration
+    const nextIds = new Set(nextAlerts.map(alert => alert.id));
+    if (!hasInitialized.current) {
+      seenAlertIds.current = nextIds;
+      hasInitialized.current = true;
+      return;
+    }
+
+    const addToast = useNotificationStore.getState().addToast;
+    nextAlerts.forEach(alert => {
+      if (seenAlertIds.current.has(alert.id)) {
+        return;
+      }
+
+      const severity = mapAlertSeverity(alert.severity);
+      addToast({
+        message: `${alert.title}${alert.message ? ' — ' + alert.message : ''}`,
+        severity,
+        dedupe_key: `alert_${alert.id}`,
+        duration: severity === 'error' ? 8000 : undefined,
+      });
+    });
+
+    seenAlertIds.current = nextIds;
+  }
+
+  function mapAlertSeverity(severity: UserAlert['severity']): 'info' | 'warning' | 'error' {
+    switch (severity) {
+      case 'warning':
+        return 'warning';
+      case 'error':
+      case 'critical':
+        return 'error';
+      default:
+        return 'info';
     }
   }
 
@@ -100,16 +143,17 @@ export default function ActionCenter({
         // Optimistically update UI
         if (action === 'dismiss') {
           setAlerts(prev => prev.filter(a => a.id !== alertId));
+          seenAlertIds.current.delete(alertId);
           setCounts(prev => ({
-            total: prev.total - 1,
-            unread: prev.unread - (alerts.find(a => a.id === alertId)?.isRead ? 0 : 1),
-            actionable: prev.actionable - (alerts.find(a => a.id === alertId)?.actionable ? 1 : 0)
+            total: Math.max(prev.total - 1, 0),
+            unread: Math.max(prev.unread - (alerts.find(a => a.id === alertId)?.isRead ? 0 : 1), 0),
+            actionable: Math.max(prev.actionable - (alerts.find(a => a.id === alertId)?.actionable ? 1 : 0), 0)
           }));
         } else if (action === 'markRead') {
           setAlerts(prev => prev.map(a => 
             a.id === alertId ? { ...a, isRead: true } : a
           ));
-          setCounts(prev => ({ ...prev, unread: prev.unread - 1 }));
+          setCounts(prev => ({ ...prev, unread: Math.max(prev.unread - 1, 0) }));
         }
       }
     } catch (err) {
