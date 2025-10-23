@@ -33,6 +33,18 @@ import {
   type ValidateAgainstSubstrateInput,
 } from './validate_against_substrate.js';
 
+import {
+  connectYarnnn,
+  connectYarnnnTool,
+  type ConnectYarnnnInput,
+} from './connect_yarnnn.js';
+
+import {
+  createAuditedBrief,
+  createAuditedBriefTool,
+  type CreateAuditedBriefInput,
+} from './create_audited_brief.js';
+
 import type { YARNNNClient } from '../client.js';
 import type { SessionFingerprintInput } from '../utils/sessionFingerprint.js';
 
@@ -44,6 +56,8 @@ export const tools = {
   get_substrate: getSubstrateTool,
   add_to_substrate: addToSubstrateTool,
   validate_against_substrate: validateAgainstSubstrateTool,
+  connect_yarnnn: connectYarnnnTool,
+  create_audited_gtm_brief: createAuditedBriefTool,
 } as const;
 
 /**
@@ -59,6 +73,8 @@ export const toolHandlers: Record<string, ToolHandler> = {
   get_substrate: getSubstrate,
   add_to_substrate: addToSubstrate,
   validate_against_substrate: validateAgainstSubstrate,
+  connect_yarnnn: connectYarnnn,
+  create_audited_gtm_brief: createAuditedBrief,
 };
 
 /**

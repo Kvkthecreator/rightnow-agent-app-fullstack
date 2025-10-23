@@ -24,6 +24,11 @@ export type {
   ConflictItem,
   YARNNNError,
   SessionFingerprint,
+  ConnectYarnnnResponse,
+  AuditedBriefResponse,
+  AuditedBriefSection,
+  AuditedParagraph,
+  ProvenanceRef,
 } from './types/index.js';
 export {
   selectBasket,

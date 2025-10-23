@@ -1,0 +1,32 @@
+{
+  "name": "Yarnnn – Audited Briefs",
+  "description": "Compose decision-ready briefs with paragraph-level provenance for your teams.",
+  "version": "0.1.0",
+  "oauth": {
+    "type": "oauth2",
+    "authorization_url": "${OAUTH_AUTH_URL}",
+    "token_url": "${OAUTH_TOKEN_URL}",
+    "scopes": ["read:blocks", "compose:briefs", "offline_access"],
+    "redirect_urls": ["${OPENAI_REDIRECT_URI}"],
+    "client_type": "confidential",
+    "pkce": true
+  },
+  "tools": [
+    {
+      "name": "connect_yarnnn",
+      "description": "Connect and verify Yarnnn workspace access."
+    },
+    {
+      "name": "create_audited_gtm_brief",
+      "description": "Create a GTM brief with auditable provenance backed by Yarnnn data."
+    }
+  ],
+  "endpoints": {
+    "base_url": "${APPS_BASE_URL}"
+  },
+  "permissions": {
+    "network": {
+      "allowed_domains": ["${YARNNN_API_DOMAIN}"]
+    }
+  }
+}

@@ -23,3 +23,37 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+
+  - type: web
+    name: yarnnn-chatgpt-app
+    env: node
+    root: apps/chatgpt
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: APPS_BASE_URL
+        sync: false
+      - key: OPENAI_CLIENT_ID
+        sync: false
+      - key: OPENAI_CLIENT_SECRET
+        sync: false
+      - key: OPENAI_REDIRECT_URI
+        sync: false
+      - key: OAUTH_AUTH_URL
+        sync: false
+      - key: OAUTH_TOKEN_URL
+        sync: false
+      - key: YARNNN_API_URL
+        value: https://api.yarnnn.com
+      - key: YARNNN_API_DOMAIN
+        value: api.yarnnn.com
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: MCP_SHARED_SECRET
+        sync: false
+      - key: PORT
+        value: "4312"

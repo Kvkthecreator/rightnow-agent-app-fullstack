@@ -104,6 +104,39 @@ export interface ConflictItem {
   severity: 'high' | 'medium' | 'low';
 }
 
+export interface ConnectYarnnnResponse {
+  status: 'linked' | 'not_linked' | 'error';
+  linked: boolean;
+  install_id?: string | null;
+  expires_at?: string | null;
+  scope?: string | null;
+  error?: string;
+}
+
+export interface ProvenanceRef {
+  blockId: string;
+  sourceUrl?: string | null;
+  excerpt?: string | null;
+  offsets?: [number, number];
+}
+
+export interface AuditedParagraph {
+  text: string;
+  provenance: ProvenanceRef[];
+}
+
+export interface AuditedBriefSection {
+  heading: string;
+  content: AuditedParagraph[];
+}
+
+export interface AuditedBriefResponse {
+  id: string;
+  title: string;
+  sections: AuditedBriefSection[];
+  generatedAt?: string;
+}
+
 // Error Types
 export interface YARNNNError {
   code: string;
