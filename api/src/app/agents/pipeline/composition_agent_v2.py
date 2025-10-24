@@ -17,6 +17,7 @@ Quality preserved: Same narrative planning, same content generation
 import asyncio
 import json
 import logging
+import hashlib
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -477,7 +478,8 @@ Write in an analytical tone. Focus on synthesis, not summarization."""
             full_content = "\n".join(content_parts)
 
             # Create document version
-            version_hash = f"doc_v{str(document_id)[:8]}_{int(datetime.utcnow().timestamp())}"
+            raw_version_hash = hashlib.sha256(full_content.encode("utf-8")).hexdigest()
+            version_hash = f"doc_v{raw_version_hash[:58]}"
 
             version_data = {
                 "document_id": str(document_id),
