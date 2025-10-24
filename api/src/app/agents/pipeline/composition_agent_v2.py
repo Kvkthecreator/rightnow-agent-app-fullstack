@@ -571,8 +571,8 @@ Write in an analytical tone. Focus on synthesis, not summarization."""
 
         for substrate in selected_substrate:
             ref_data = {
-                "document_id": document_id,
-                "substrate_id": substrate["id"],
+                "document_id": str(document_id),
+                "substrate_id": str(substrate["id"]),
                 "substrate_type": substrate["type"],
                 "created_at": datetime.utcnow().isoformat()
             }
