@@ -536,7 +536,7 @@ Write in an analytical tone. Focus on synthesis, not summarization."""
 
             # Log metrics
             metrics_log = {
-                "document_id": document_id,
+                "document_id": str(document_id),
                 "processing_time_ms": metrics.processing_time_ms,
                 "candidates_found": metrics.candidates_found,
                 "candidates_selected": metrics.candidates_selected,
