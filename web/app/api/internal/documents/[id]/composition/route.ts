@@ -75,7 +75,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       id: documentRow.id,
       basket_id: documentRow.basket_id,
       title: documentRow.title,
-      content_raw: versionContent,
+      content: versionContent,
       created_at: documentRow.created_at,
       updated_at: documentRow.updated_at,
       workspace_id: documentRow.workspace_id,
