@@ -567,6 +567,9 @@ Write in an analytical tone. Focus on synthesis, not summarization."""
         selected_substrate: List[Dict[str, Any]]
     ) -> None:
         """Create substrate references in canonical table"""
+        # Delete existing references for this document (for recompose operations)
+        supabase.table("substrate_references").delete().eq("document_id", str(document_id)).execute()
+
         reference_inserts = []
 
         for substrate in selected_substrate:
