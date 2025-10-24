@@ -23,7 +23,7 @@ class P4CompositionRequestDto(BaseModel):
     basket_id: str = Field(..., description="Basket context")
     workspace_id: str = Field(..., description="Workspace context")
     intent: str = Field(default="", description="Composition intent")
-    window: Optional[dict] = Field(default={"days": 30}, description="Memory window")
+    window: Optional[dict] = Field(default={"days": 90}, description="Memory window")
     pinned_ids: List[str] = Field(default=[], description="Pinned substrate IDs")
     operation_type: str = Field(default="compose", description="Operation type: compose or recompose")
 
