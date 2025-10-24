@@ -480,7 +480,7 @@ Write in an analytical tone. Focus on synthesis, not summarization."""
             version_hash = f"doc_v{str(document_id)[:8]}_{int(datetime.utcnow().timestamp())}"
 
             version_data = {
-                "document_id": document_id,
+                "document_id": str(document_id),
                 "version_hash": version_hash,
                 "content": full_content,
                 "metadata_snapshot": {
