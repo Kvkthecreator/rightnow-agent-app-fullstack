@@ -40,10 +40,10 @@ import {
 } from './connect_yarnnn.js';
 
 import {
-  createAuditedBrief,
-  createAuditedBriefTool,
-  type CreateAuditedBriefInput,
-} from './create_audited_brief.js';
+  composeDocument,
+  composeDocumentTool,
+  type ComposeDocumentInput,
+} from './compose_document.js';
 
 import type { YARNNNClient } from '../client.js';
 import type { SessionFingerprintInput } from '../utils/sessionFingerprint.js';
@@ -57,7 +57,7 @@ export const tools = {
   add_to_substrate: addToSubstrateTool,
   validate_against_substrate: validateAgainstSubstrateTool,
   connect_yarnnn: connectYarnnnTool,
-  create_audited_gtm_brief: createAuditedBriefTool,
+  compose_document: composeDocumentTool,
 } as const;
 
 /**
@@ -74,7 +74,7 @@ export const toolHandlers: Record<string, ToolHandler> = {
   add_to_substrate: addToSubstrate,
   validate_against_substrate: validateAgainstSubstrate,
   connect_yarnnn: connectYarnnn,
-  create_audited_gtm_brief: createAuditedBrief,
+  compose_document: composeDocument,
 };
 
 /**
