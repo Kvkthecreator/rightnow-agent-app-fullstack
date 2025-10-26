@@ -120,16 +120,15 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   }, [document.id]);
 
   useEffect(() => {
-    fetchComposition().then(payload => {
-      if (!payload) return;
-      const status = payload.document?.metadata?.composition_status;
-      if (status === 'processing' || status === 'recomposing') {
-        setComposeState('running');
-        setComposeMessage('Composition in progress');
-      }
-    });
+    // Only fetch versions on mount - document content already provided by server
     fetchVersions();
-  }, [fetchComposition, fetchVersions]);
+
+    // Check if initial document has processing status
+    if (document.metadata?.composition_status === 'processing' || document.metadata?.composition_status === 'recomposing') {
+      setComposeState('running');
+      setComposeMessage('Composition in progress');
+    }
+  }, [fetchVersions, document.metadata]);
 
   useEffect(() => {
     if (composeState !== 'running') return;
@@ -539,10 +538,6 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
             <Button variant="default" size="sm" onClick={handleCompose} disabled={composeState === 'running'}>
               <Sparkles className="mr-2 h-4 w-4" />
               {composeState === 'running' ? 'Updating…' : 'Request Update using Blocks'}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => { fetchComposition(); router.refresh(); }} disabled={loading}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh Content
             </Button>
             <Button variant="outline" size="sm" onClick={handleExtractToMemory} disabled={composeState === 'running'}>
               <Download className="mr-2 h-4 w-4" />
