@@ -86,6 +86,12 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
         throw new Error('Failed to load document composition');
       }
       const payload: CompositionPayload = await res.json();
+      console.log('[DocumentPage] Composition payload:', {
+        hasContent: !!payload?.document?.content,
+        contentLength: payload?.document?.content?.length || 0,
+        documentId: payload?.document?.id,
+        referencesCount: payload?.references?.length || 0
+      });
       setComposition(payload);
       setReferences(payload.references || []);
       return payload;
@@ -481,6 +487,17 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   };
 
   const currentContent = composition?.document?.content || document.content || '';
+
+  // Debug: Log content state
+  React.useEffect(() => {
+    console.log('[DocumentPage] Content state:', {
+      hasComposition: !!composition,
+      compositionContent: composition?.document?.content?.substring(0, 100),
+      documentContent: document.content?.substring(0, 100),
+      currentContentLength: currentContent.length,
+      hasCurrentContent: !!currentContent
+    });
+  }, [composition, document.content, currentContent]);
 
   return (
     <div className="flex flex-col gap-6">
