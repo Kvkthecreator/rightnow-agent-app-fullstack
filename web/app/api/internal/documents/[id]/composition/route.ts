@@ -24,12 +24,22 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     let versionContent: string | null = null;
     let versionMetadata: Record<string, any> | null = null;
     if (documentRow.current_version_hash) {
-      const { data: version } = await supabase
+      const { data: version, error: versionError } = await supabase
         .from('document_versions')
         .select('content, metadata_snapshot')
         .eq('document_id', id)
         .eq('version_hash', documentRow.current_version_hash)
         .maybeSingle();
+
+      console.log('[composition/route] Version fetch:', {
+        documentId: id,
+        current_version_hash: documentRow.current_version_hash,
+        hasVersion: !!version,
+        hasContent: !!version?.content,
+        contentLength: version?.content?.length || 0,
+        versionError
+      });
+
       if (version) {
         versionContent = version.content;
         versionMetadata = version.metadata_snapshot as Record<string, any> | null;
