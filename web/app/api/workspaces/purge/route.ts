@@ -78,20 +78,22 @@ export async function DELETE(request: Request) {
       }, { status: 500 });
     }
 
-    // Log the purge action for audit trail
-    await supabase
-      .from('app_events')
-      .insert({
-        event_type: 'workspace.purged',
-        workspace_id: workspaceId,
-        user_id: userId,
-        metadata: {
-          purged_at: new Date().toISOString(),
-          confirmed_email: email_confirmation.toLowerCase(),
-        }
-      })
-      .then(() => {}) // Ignore logging errors - purge succeeded
-      .catch(err => console.warn('Failed to log purge event:', err));
+    // Log the purge action for audit trail (ignore errors - purge already succeeded)
+    try {
+      await supabase
+        .from('app_events')
+        .insert({
+          event_type: 'workspace.purged',
+          workspace_id: workspaceId,
+          user_id: userId,
+          metadata: {
+            purged_at: new Date().toISOString(),
+            confirmed_email: email_confirmation.toLowerCase(),
+          }
+        });
+    } catch (err) {
+      console.warn('Failed to log purge event:', err);
+    }
 
     return NextResponse.json({
       success: true,
