@@ -46,6 +46,8 @@ export function DocumentCreateButton({ basketId, basketName }: { basketId: strin
   const [tone, setTone] = useState('');
   const [audience, setAudience] = useState('');
   const [creating, setCreating] = useState(false);
+  const [existingCanonical, setExistingCanonical] = useState<{id: string, title: string} | null>(null);
+  const [checkingCanonical, setCheckingCanonical] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   const resetForm = () => {
@@ -77,7 +79,38 @@ export function DocumentCreateButton({ basketId, basketName }: { basketId: strin
     }
   }, [open]);
 
+  // Check for existing canonical brief when modal opens
+  useEffect(() => {
+    if (!open) return;
+
+    const checkCanonicalBrief = async () => {
+      setCheckingCanonical(true);
+      try {
+        const res = await fetch(`/api/baskets/${basketId}/documents?doc_type=document_canon`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.documents && data.documents.length > 0) {
+            setExistingCanonical({ id: data.documents[0].id, title: data.documents[0].title });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check for canonical brief:', error);
+      } finally {
+        setCheckingCanonical(false);
+      }
+    };
+
+    checkCanonicalBrief();
+  }, [open, basketId]);
+
   const handleTemplateSelect = (template: TemplateOption) => {
+    // If trying to create canonical brief and one exists, redirect to existing
+    if (template.id === 'prompt_starter' && existingCanonical) {
+      router.push(`/baskets/${basketId}/documents/${existingCanonical.id}`);
+      closeModal();
+      return;
+    }
+
     setSelectedTemplate(template);
     setIntent(template.defaultIntent || '');
     setTone(template.defaultTone || '');
@@ -104,7 +137,7 @@ export function DocumentCreateButton({ basketId, basketName }: { basketId: strin
           template_id: selectedTemplate.id,
           target_audience: audience || undefined,
           tone: tone || undefined,
-          window_days: 30,
+          window_days: 90,
           pinned_ids: [],
         }),
       });
@@ -141,16 +174,32 @@ export function DocumentCreateButton({ basketId, basketName }: { basketId: strin
           </div>
           {!selectedTemplate && (
             <div className="space-y-2">
-              {templateOptions.map(option => (
-                <button
-                  key={option.id}
-                  className={itemCls('w-full text-left px-3 py-2 rounded border hover:bg-slate-50')}
-                  onClick={() => handleTemplateSelect(option)}
-                >
-                  <div className="text-sm font-semibold text-slate-900">{option.name}</div>
-                  <div className="text-xs text-slate-600">{option.description}</div>
-                </button>
-              ))}
+              {templateOptions.map(option => {
+                const isCanonical = option.id === 'prompt_starter';
+                const hasExisting = isCanonical && existingCanonical;
+
+                return (
+                  <button
+                    key={option.id}
+                    className={itemCls(
+                      'w-full text-left px-3 py-2 rounded border hover:bg-slate-50',
+                      hasExisting ? 'border-blue-200 bg-blue-50' : ''
+                    )}
+                    onClick={() => handleTemplateSelect(option)}
+                  >
+                    <div className="text-sm font-semibold text-slate-900">
+                      {option.name}
+                      {hasExisting && <span className="ml-2 text-xs font-normal text-blue-600">→ Open existing</span>}
+                    </div>
+                    <div className="text-xs text-slate-600">
+                      {hasExisting
+                        ? `"${existingCanonical.title}" already exists. Click to open.`
+                        : option.description
+                      }
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
 
