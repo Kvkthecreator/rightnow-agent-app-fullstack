@@ -5,7 +5,8 @@ import type { Database } from "@/lib/dbTypes";
 
 import SettingsSection from "@/components/settings/SettingsSection";
 import DisplayBox from "@/components/settings/DisplayBox";
-import { ArrowLeft, Plug, Settings as SettingsIcon } from "lucide-react";
+import { DangerZone } from "@/components/settings/DangerZone";
+import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { ensureWorkspaceServer } from "@/lib/workspaces/ensureWorkspaceServer";
 
@@ -71,18 +72,7 @@ export default async function SettingsPage() {
         )}
       </SettingsSection>
 
-      <SettingsSection
-        title="Integrations"
-        description="Manage external connections from the dedicated integrations page."
-      >
-        <Link
-          href="/dashboard/integrations"
-          className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted transition"
-        >
-          <Plug className="h-4 w-4" />
-          Open integrations
-        </Link>
-      </SettingsSection>
+      <DangerZone userEmail={user.email ?? ''} />
     </div>
   );
 }
