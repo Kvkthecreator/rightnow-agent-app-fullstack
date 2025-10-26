@@ -540,6 +540,10 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
               <Sparkles className="mr-2 h-4 w-4" />
               {composeState === 'running' ? 'Updating…' : 'Request Update using Blocks'}
             </Button>
+            <Button variant="outline" size="sm" onClick={() => { fetchComposition(); router.refresh(); }} disabled={loading}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh Content
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExtractToMemory} disabled={composeState === 'running'}>
               <Download className="mr-2 h-4 w-4" />
               Extract to Memory
