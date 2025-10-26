@@ -66,7 +66,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const [composition, setComposition] = useState<CompositionPayload | null>(null);
   const [references, setReferences] = useState<Array<{ reference: any; substrate: any }>>([]);
   const [versions, setVersions] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false); // Server provides data, no loading needed
   const [error, setError] = useState<string | null>(null);
   const [composeState, setComposeState] = useState<ComposeState>('idle');
   const [composeMessage, setComposeMessage] = useState<string | null>(null);
