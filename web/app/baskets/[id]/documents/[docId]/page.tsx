@@ -37,12 +37,21 @@ export default async function DocumentDetailPage({ params }: PageProps) {
   let versionCreatedAt: string | null = null;
 
   if (documentRow.current_version_hash) {
-    const { data: version } = await supabase
+    const { data: version, error: versionError } = await supabase
       .from('document_versions')
       .select('content, metadata_snapshot, created_at')
       .eq('document_id', docId)
       .eq('version_hash', documentRow.current_version_hash)
       .maybeSingle();
+
+    console.log('[DocumentDetailPage] Version fetch:', {
+      docId,
+      current_version_hash: documentRow.current_version_hash,
+      hasVersion: !!version,
+      hasContent: !!version?.content,
+      contentLength: version?.content?.length || 0,
+      versionError
+    });
 
     if (version) {
       versionContent = version.content;
@@ -86,6 +95,12 @@ export default async function DocumentDetailPage({ params }: PageProps) {
       composition_completed_at: versionCreatedAt || documentRow.updated_at,
     },
   };
+
+  console.log('[DocumentDetailPage] Passing to component:', {
+    docId: documentForPage.id,
+    hasContent: !!documentForPage.content,
+    contentLength: documentForPage.content?.length || 0
+  });
 
   return (
     <BasketWrapper basket={basket}>
