@@ -45,10 +45,10 @@ interface Proposal {
   review_notes: string;
   is_executed: boolean;
   ops: ProposalOperation[];
-  provenance: string[];
+  provenance: Array<string | Record<string, unknown>>;
   validator_report: {
     confidence: number;
-    warnings: string[];
+    warnings: Array<string | Record<string, unknown>>;
     suggested_merges: string[];
     ontology_hits: string[];
     impact_summary?: string;

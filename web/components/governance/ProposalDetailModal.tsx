@@ -37,11 +37,11 @@ interface ProposalDetail {
   ops_summary: string;
   operations_preview?: string;
   impact_summary: string;
-  provenance: string[];
+  provenance: Array<string | Record<string, unknown>>;
   ops: ProposalOperation[];
   validator_report: {
     confidence: number;
-    warnings: string[];
+    warnings: Array<string | Record<string, unknown>>;
     suggested_merges: string[];
     ontology_hits: string[];
     impact_summary?: string;
@@ -226,8 +226,10 @@ export function ProposalDetailModal({
                       {proposal.validator_report.warnings.length} warning{proposal.validator_report.warnings.length === 1 ? '' : 's'} detected
                     </div>
                     <ul className="mt-2 list-disc space-y-1 pl-5">
-                      {proposal.validator_report.warnings.map((warning) => (
-                        <li key={warning}>{warning}</li>
+                      {proposal.validator_report.warnings.map((warning, index) => (
+                        <li key={index} className="whitespace-pre-wrap">
+                          {formatDetailValue(warning)}
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -278,9 +280,14 @@ export function ProposalDetailModal({
                   {proposal.provenance.length === 0 ? (
                     <p className="mt-1 text-sm text-slate-500">No raw dumps referenced.</p>
                   ) : (
-                    <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                      {proposal.provenance.map((dumpId) => (
-                        <li key={dumpId} className="font-mono text-xs text-slate-600">{dumpId}</li>
+                    <ul className="mt-2 space-y-2 text-sm text-slate-700">
+                      {proposal.provenance.map((entry, index) => (
+                        <li
+                          key={index}
+                          className="rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-600 shadow-sm"
+                        >
+                          {renderProvenanceEntry(entry)}
+                        </li>
                       ))}
                     </ul>
                   )}
@@ -339,6 +346,39 @@ export function ProposalDetailModal({
   );
 }
 
+function renderProvenanceEntry(entry: unknown) {
+  if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+    return (
+      <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {Object.entries(entry).map(([key, value]) => (
+          <div key={key} className="space-y-0.5">
+            <dt className="text-[10px] uppercase tracking-wide text-slate-500">{key.replace(/_/g, ' ')}</dt>
+            <dd className="font-mono text-xs text-slate-700 whitespace-pre-wrap">{formatDetailValue(value)}</dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+
+  return (
+    <span className="font-mono text-xs text-slate-700 whitespace-pre-wrap">
+      {formatDetailValue(entry)}
+    </span>
+  );
+}
+
+function formatDetailValue(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return value.toString();
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch (error) {
+    console.warn('Failed to serialize value for display', error, value);
+    return String(value);
+  }
+}
+
 function readableOperation(type: string): string {
   switch (type) {
     case 'CreateBlock':
@@ -376,10 +416,8 @@ function OperationPreview({ operation }: { operation: ProposalOperation }) {
         {entries.map(([key, value]) => (
           <div key={key} className="truncate">
             <dt className="font-medium uppercase tracking-wide text-slate-500">{key.replace(/_/g, ' ')}</dt>
-            <dd className="text-slate-700">
-              {typeof value === 'string' || typeof value === 'number'
-                ? String(value)
-                : JSON.stringify(value, null, 2)}
+            <dd className="font-mono text-xs text-slate-700 whitespace-pre-wrap">
+              {formatDetailValue(value)}
             </dd>
           </div>
         ))}
