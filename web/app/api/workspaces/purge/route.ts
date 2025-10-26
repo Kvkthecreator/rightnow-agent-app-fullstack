@@ -19,11 +19,15 @@ export async function DELETE(request: Request) {
   const supabase = createServerComponentClient({ cookies });
 
   // Authentication check
-  const { userId, user } = await getAuthenticatedUser(supabase);
+  const { userId } = await getAuthenticatedUser(supabase);
 
-  if (!userId || !user?.email) {
+  // Get user email for verification
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData?.user?.email) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const userEmail = userData.user.email;
 
   // Parse and validate request
   const body = await request.json();
@@ -36,7 +40,7 @@ export async function DELETE(request: Request) {
   }
 
   // Verify email matches (case-insensitive)
-  if (email_confirmation.toLowerCase() !== user.email.toLowerCase()) {
+  if (email_confirmation.toLowerCase() !== userEmail.toLowerCase()) {
     return NextResponse.json({
       error: 'Email does not match your account email'
     }, { status: 403 });
