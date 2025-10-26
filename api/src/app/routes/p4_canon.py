@@ -376,7 +376,7 @@ async def generate_starter_prompt(
             'structured_prompt': structured_prompt
         },
         'substrate_refs_snapshot': _build_substrate_refs(substrate),
-        'version_trigger': 'starter_prompt_generation',
+        'version_trigger': 'user_requested',
         'version_message': f'Generated for {host_label}'
     }).execute()
 
