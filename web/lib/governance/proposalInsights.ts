@@ -38,7 +38,7 @@ export interface ProposalInsight {
 
 function describeOperations(ops: ProposalOperation[]): string {
   if (!Array.isArray(ops) || ops.length === 0) {
-    return 'No substrate operations detected.';
+    return 'No block changes detected.';
   }
 
   const counts = ops.reduce<Record<string, number>>((acc, op) => {
@@ -48,8 +48,8 @@ function describeOperations(ops: ProposalOperation[]): string {
   }, {});
 
   const friendlyNames: Record<string, string> = {
-    CreateBlock: 'create block',
-    ReviseBlock: 'revise block',
+    CreateBlock: 'add block',
+    ReviseBlock: 'update block',
     ArchiveBlock: 'archive block',
     CreateContextItem: 'add context item',
     MergeContextItems: 'merge context item',
@@ -150,9 +150,9 @@ export function generateProposalInsight(proposal: ProposalInsightInput): Proposa
   }
 
   if (provenance.length === 0) {
-    narrativeParts.push('No capture provenance linked to this proposal.');
+    narrativeParts.push('No memory references linked to this proposal.');
   } else {
-    narrativeParts.push(`Linked to ${provenance.length} capture${provenance.length === 1 ? '' : 's'} for traceability.`);
+    narrativeParts.push(`Linked to ${provenance.length} reference${provenance.length === 1 ? '' : 's'} for traceability.`);
   }
 
   const keyPoints: string[] = [];

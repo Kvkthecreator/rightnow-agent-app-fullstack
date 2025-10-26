@@ -484,6 +484,9 @@ function ProposalCard({ proposal, insight, onReview }: ProposalCardProps) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-4">
         <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-4 text-sm leading-6 text-slate-700">
+          <div className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-purple-600">
+            <Sparkles className="h-3.5 w-3.5" /> AI Insights
+          </div>
           {insight.narrative}
         </div>
 
@@ -509,8 +512,8 @@ function ProposalCard({ proposal, insight, onReview }: ProposalCardProps) {
             <span className="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-500">
               <Clock className="h-4 w-4 text-slate-400" />
               {proposal.provenance.length > 0
-                ? `${proposal.provenance.length} provenance link${proposal.provenance.length === 1 ? '' : 's'}`
-                : 'No capture provenance'}
+                ? `${proposal.provenance.length} reference${proposal.provenance.length === 1 ? '' : 's'} linked`
+                : 'No references linked'}
             </span>
           </div>
           <div className="flex gap-2 sm:ml-auto">

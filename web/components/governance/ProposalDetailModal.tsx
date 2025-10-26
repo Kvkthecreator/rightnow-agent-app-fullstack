@@ -171,7 +171,7 @@ export function ProposalDetailModal({
         <DialogHeader className="space-y-2">
           <DialogTitle className="flex items-center gap-2 text-xl font-semibold text-slate-900">
             {proposal?.origin === 'agent' ? <Bot className="h-5 w-5 text-purple-500" /> : <User className="h-5 w-5 text-blue-500" />}
-            Governance Review
+            Change Request Details
           </DialogTitle>
           {proposal && (
             <div className="flex flex-wrap gap-2">
@@ -219,7 +219,7 @@ export function ProposalDetailModal({
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-900">
                     <Sparkles className="h-4 w-4 text-purple-500" />
-                    AI Guidance
+                    AI Insights
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm leading-6 text-slate-700">
@@ -272,10 +272,10 @@ export function ProposalDetailModal({
                     </div>
                   )}
                   <div>
-                    <p className="uppercase tracking-wide text-slate-500">Provenance</p>
+                    <p className="uppercase tracking-wide text-slate-500">References</p>
                     <p className="text-slate-700">
                       {proposal.provenance.length > 0
-                        ? `${proposal.provenance.length} capture${proposal.provenance.length === 1 ? '' : 's'}`
+                        ? `${proposal.provenance.length} reference${proposal.provenance.length === 1 ? '' : 's'}`
                         : 'No references'}
                     </p>
                   </div>
@@ -308,7 +308,7 @@ export function ProposalDetailModal({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-900">
                   <Database className="h-4 w-4 text-slate-500" />
-                  Operations ({proposal.ops.length})
+                  Changes ({proposal.ops.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 text-sm text-slate-700">
@@ -323,7 +323,7 @@ export function ProposalDetailModal({
                     </div>
                     <div className="mt-3 space-y-2">
                       {items.map((op, index) => (
-                        <OperationPreview key={`${type}-${index}`} operation={op} />
+                        <OperationCard key={`${type}-${index}`} operation={op} />
                       ))}
                     </div>
                   </div>
@@ -345,7 +345,7 @@ export function ProposalDetailModal({
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <p className="text-xs uppercase tracking-wide text-slate-500">Referenced captures</p>
                   {proposal.provenance.length === 0 ? (
-                    <p className="mt-1 text-sm text-slate-500">No raw dumps referenced.</p>
+                    <p className="mt-1 text-sm text-slate-500">No references attached.</p>
                   ) : (
                     <ul className="mt-2 space-y-2 text-sm text-slate-700">
                       {proposal.provenance.map((entry, index) => (
@@ -449,11 +449,11 @@ function formatDetailValue(value: unknown): string {
 function readableOperation(type: string): string {
   switch (type) {
     case 'CreateBlock':
-      return 'Create block';
+      return 'Add block';
     case 'ReviseBlock':
-      return 'Revise block';
+      return 'Update block';
     case 'CreateContextItem':
-      return 'Add context item';
+      return 'Add context';
     case 'MergeContextItems':
       return 'Merge context items';
     case 'PromoteScope':
@@ -467,28 +467,114 @@ function readableOperation(type: string): string {
   }
 }
 
-function OperationPreview({ operation }: { operation: ProposalOperation }) {
-  const entries = Object.entries(operation.data ?? {});
-  if (entries.length === 0) {
-    return (
-      <div className="rounded-md border border-dashed border-slate-200 p-2 text-xs text-slate-500">
-        No additional metadata provided.
-      </div>
-    );
-  }
+function OperationCard({ operation }: { operation: ProposalOperation }) {
+  const [expanded, setExpanded] = useState(false);
+  const summary = buildOperationSummary(operation);
 
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
-      <dl className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-        {entries.map(([key, value]) => (
-          <div key={key} className="truncate">
-            <dt className="font-medium uppercase tracking-wide text-slate-500">{key.replace(/_/g, ' ')}</dt>
-            <dd className="font-mono text-xs text-slate-700 whitespace-pre-wrap">
-              {formatDetailValue(value)}
-            </dd>
-          </div>
-        ))}
-      </dl>
+    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-inner">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-slate-900">{summary.heading}</p>
+          {summary.body && <p className="text-sm text-slate-600">{summary.body}</p>}
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => setExpanded((prev) => !prev)} className="self-start text-slate-600">
+          {expanded ? 'Hide details' : 'See details'}
+        </Button>
+      </div>
+      {summary.meta.length > 0 && (
+        <dl className="mt-3 grid gap-3 text-xs text-slate-600 sm:grid-cols-2">
+          {summary.meta.map(({ label, value }) => (
+            <div key={label}>
+              <dt className="uppercase tracking-wide text-slate-500">{label}</dt>
+              <dd className="mt-1 text-slate-700">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {expanded && (
+        <div className="mt-4 rounded-md border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+          <pre className="whitespace-pre-wrap">{formatDetailValue(operation.data ?? {})}</pre>
+        </div>
+      )}
     </div>
   );
+}
+
+function buildOperationSummary(operation: ProposalOperation): {
+  heading: string;
+  body: string;
+  meta: Array<{ label: string; value: string }>;
+} {
+  const data = (operation?.data ?? {}) as Record<string, unknown>;
+  const meta: Array<{ label: string; value: string }> = [];
+
+  const getString = (value: unknown): string | null =>
+    typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+
+  const getNumber = (value: unknown): number | null =>
+    typeof value === 'number' ? value : null;
+
+  const confidenceValue = getNumber(data.confidence ?? (data as any).anchor_confidence);
+  if (confidenceValue !== null) {
+    meta.push({ label: 'Confidence', value: `${Math.round(confidenceValue * 100)}%` });
+  }
+
+  const semanticType = getString(data.semantic_type);
+  if (semanticType) {
+    meta.push({ label: 'Block type', value: semanticType });
+  }
+
+  const anchorRole = getString((data as any).anchor_role);
+  if (anchorRole) {
+    meta.push({ label: 'Anchor role', value: anchorRole });
+  }
+
+  const method = getString((data as any).extraction_method || (data as any).method);
+  if (method) {
+    meta.push({ label: 'Source method', value: method });
+  }
+
+  const dumpId = getString((data as any).source_dump_id);
+  if (dumpId) {
+    meta.push({ label: 'Source dump', value: dumpId });
+  }
+
+  const headingFallback = readableOperation(operation.type);
+  switch (operation.type) {
+    case 'CreateBlock':
+    case 'ReviseBlock': {
+      const title = getString(data.title);
+      const content = getString(data.content);
+      const heading = title || headingFallback;
+      const body = content ? truncateText(content, 240) : '';
+      return { heading, body, meta };
+    }
+    case 'CreateContextItem': {
+      const label = getString(data.label) || headingFallback;
+      const description = getString(data.content) || getString((data as any).value) || '';
+      return { heading: label, body: truncateText(description, 200), meta };
+    }
+    case 'MergeContextItems': {
+      const from = Array.isArray((data as any).from_ids) ? (data as any).from_ids.length : 0;
+      const target = getString((data as any).canonical_id) || 'Context';
+      if (from > 0) {
+        meta.push({ label: 'Merged items', value: String(from) });
+      }
+      meta.push({ label: 'Primary context', value: target });
+      return { heading: headingFallback, body: '', meta };
+    }
+    default: {
+      return {
+        heading: headingFallback,
+        body: '',
+        meta,
+      };
+    }
+  }
+}
+
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1).trim()}…`;
 }
