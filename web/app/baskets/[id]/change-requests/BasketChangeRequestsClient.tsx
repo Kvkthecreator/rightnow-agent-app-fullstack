@@ -11,9 +11,9 @@ import {
   Database,
   Filter,
   FileText,
-  Lightbulb,
   Search,
   ShieldAlert,
+  Sparkles,
   User,
 } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { ProposalDetailModal } from '@/components/governance/ProposalDetailModal';
+import { generateProposalInsight, type ProposalInsight } from '@/lib/governance/proposalInsights';
 
 interface ProposalOperation {
   type: string;
@@ -85,8 +86,6 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
   const [showAutoOnly, setShowAutoOnly] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
-  const [insightLoadingId, setInsightLoadingId] = useState<string | null>(null);
-  const [insightError, setInsightError] = useState<string | null>(null);
 
   const { data, error, isLoading, mutate } = useSWR<ProposalsResponse>(
     `/api/baskets/${basketId}/proposals${statusFilter === 'all' ? '' : `?status=${statusFilter}`}`,
@@ -131,6 +130,28 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [proposals, query, showAutoOnly]);
 
+  const enrichedProposals = useMemo(
+    () =>
+      filteredProposals.map((proposal) => ({
+        proposal,
+        insight: generateProposalInsight({
+          id: proposal.id,
+          status: proposal.status,
+          auto_approved: proposal.auto_approved,
+          ops_summary: proposal.ops_summary,
+          impact_summary: proposal.impact_summary,
+          created_at: proposal.created_at,
+          executed_at: proposal.executed_at,
+          reviewed_at: proposal.reviewed_at,
+          review_notes: proposal.review_notes,
+          provenance: proposal.provenance,
+          validator_report: proposal.validator_report,
+          ops: proposal.ops,
+        }),
+      })),
+    [filteredProposals],
+  );
+
   const stats = useMemo(() => {
     const total = proposals.length;
     const pending = proposals.filter((p) => p.status === 'PROPOSED').length;
@@ -141,34 +162,6 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
 
     return { total, pending, approved, rejected, autoApproved, highImpact };
   }, [proposals]);
-
-  const handleInsights = async (proposalId: string) => {
-    setInsightLoadingId(proposalId);
-    setInsightError(null);
-    try {
-      const response = await fetch('/api/reflections/trigger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          basket_id: basketId,
-          scope: 'proposal',
-          proposal_id: proposalId,
-          force_refresh: true,
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload?.error || payload?.detail || 'Failed to request insights');
-      }
-
-      window.dispatchEvent(new CustomEvent('reflections:refresh'));
-    } catch (err) {
-      setInsightError(err instanceof Error ? err.message : 'Failed to trigger proposal insights');
-    } finally {
-      setInsightLoadingId(null);
-    }
-  };
 
   const openProposalDetail = (proposalId: string) => {
     setSelectedProposalId(proposalId);
@@ -337,7 +330,7 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
           </div>
         </div>
 
-        {filteredProposals.length === 0 ? (
+        {enrichedProposals.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-200 py-12 text-center">
             <FileText className="h-10 w-10 text-slate-300" />
             <p className="text-base font-medium text-slate-700">No change requests found</p>
@@ -347,24 +340,17 @@ export default function BasketChangeRequestsClient({ basketId }: BasketChangeReq
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredProposals.map((proposal) => (
+            {enrichedProposals.map(({ proposal, insight }) => (
               <ProposalCard
                 key={proposal.id}
                 proposal={proposal}
+                insight={insight}
                 onReview={() => openProposalDetail(proposal.id)}
-                onInsights={() => handleInsights(proposal.id)}
-                loadingInsights={insightLoadingId === proposal.id}
               />
             ))}
           </div>
         )}
       </section>
-
-      {insightError && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {insightError}
-        </div>
-      )}
 
       <ProposalDetailModal
         basketId={basketId}
@@ -389,134 +375,147 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon, tone, onClick, active }: StatCardProps) {
   const palette = {
-    success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-    warning: 'border-amber-200 bg-amber-50 text-amber-800',
-    danger: 'border-rose-200 bg-rose-50 text-rose-800',
-    accent: 'border-purple-200 bg-purple-50 text-purple-800',
-    alert: 'border-orange-200 bg-orange-50 text-orange-800',
+    success: {
+      border: 'border-emerald-200',
+      icon: 'bg-emerald-50 text-emerald-600',
+    },
+    warning: {
+      border: 'border-amber-200',
+      icon: 'bg-amber-50 text-amber-600',
+    },
+    danger: {
+      border: 'border-rose-200',
+      icon: 'bg-rose-50 text-rose-600',
+    },
+    accent: {
+      border: 'border-purple-200',
+      icon: 'bg-purple-50 text-purple-600',
+    },
+    alert: {
+      border: 'border-orange-200',
+      icon: 'bg-orange-50 text-orange-600',
+    },
   } as const;
 
-  const toneClasses = tone ? palette[tone] : 'border-slate-200 bg-white text-slate-800';
-
-  const interactionClass = onClick ? 'cursor-pointer' : '';
+  const borderClass = tone ? palette[tone].border : 'border-slate-200';
+  const iconClass = tone ? palette[tone].icon : 'bg-slate-100 text-slate-500';
 
   return (
-    <Card
+    <button
+      type="button"
       onClick={onClick}
-      className={`group border-2 transition-all duration-200 ${interactionClass} ${toneClasses} ${
-        active ? 'shadow-lg ring-2 ring-offset-2 ring-slate-300' : 'hover:shadow-md'
+      className={`w-full rounded-lg border ${borderClass} bg-white px-4 py-3 text-left shadow-sm transition-colors ${
+        active ? 'ring-2 ring-slate-300' : 'hover:border-slate-300'
       }`}
     >
-      <CardContent className="flex items-center justify-between gap-3 p-5">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-500">{title}</p>
-          <p className="mt-2 text-3xl font-semibold">{value}</p>
+          <p className="text-[11px] uppercase tracking-wide text-slate-500">{title}</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
         </div>
-        <div className="rounded-full border border-dashed border-current/30 p-3 text-current">
+        <div className={`rounded-md p-2 text-sm ${iconClass}`}>
           {icon}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </button>
   );
 }
 
 interface ProposalCardProps {
   proposal: Proposal;
+  insight: ProposalInsight;
   onReview: () => void;
-  onInsights: () => void;
-  loadingInsights: boolean;
 }
 
-function ProposalCard({ proposal, onReview, onInsights, loadingInsights }: ProposalCardProps) {
+function ProposalCard({ proposal, insight, onReview }: ProposalCardProps) {
   const statusTone = proposal.status === 'APPROVED'
-    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    ? 'border-emerald-200 text-emerald-700'
     : proposal.status === 'PROPOSED'
-      ? 'bg-amber-50 text-amber-700 border-amber-200'
-      : 'bg-rose-50 text-rose-700 border-rose-200';
+      ? 'border-amber-200 text-amber-700'
+      : 'border-rose-200 text-rose-700';
 
   const originBadge = proposal.origin === 'agent'
-    ? { label: proposal.source_host || 'Ambient agent', className: 'bg-purple-50 text-purple-700 border-purple-200', icon: <Bot className="h-3.5 w-3.5" /> }
+    ? {
+        label: proposal.source_host || 'Ambient agent',
+        className: 'bg-purple-50 text-purple-700 border-purple-200',
+        icon: <Bot className="h-3.5 w-3.5" />,
+      }
     : { label: 'Human initiated', className: 'bg-blue-50 text-blue-700 border-blue-200', icon: <User className="h-3.5 w-3.5" /> };
 
-  const operationSummary = (() => {
-    const counts = proposal.ops.reduce<Record<string, number>>((acc, op) => {
-      acc[op.type] = (acc[op.type] || 0) + 1;
-      return acc;
-    }, {});
-
-    const parts = [];
-    if (counts.CreateBlock) parts.push(`${counts.CreateBlock} block${counts.CreateBlock === 1 ? '' : 's'}`);
-    if (counts.CreateContextItem) parts.push(`${counts.CreateContextItem} context item${counts.CreateContextItem === 1 ? '' : 's'}`);
-    if (counts.ReviseBlock) parts.push(`${counts.ReviseBlock} revision${counts.ReviseBlock === 1 ? '' : 's'}`);
-    if (parts.length === 0) parts.push(`${proposal.ops.length} operation${proposal.ops.length === 1 ? '' : 's'}`);
-    return parts.join(' • ');
-  })();
+  const riskBorder =
+    insight.riskLevel === 'high'
+      ? 'border-rose-200'
+      : insight.riskLevel === 'medium'
+        ? 'border-amber-200'
+        : 'border-slate-200';
 
   const submittedAt = new Date(proposal.created_at).toLocaleString();
 
   return (
-    <Card className="border-slate-200 shadow-sm transition-colors hover:border-slate-300">
+    <Card className={`border ${riskBorder} bg-white shadow-sm transition-colors hover:border-slate-300`}>
       <CardHeader className="gap-3 border-b border-slate-100 pb-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={statusTone}>
-            {proposal.status}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className={`border ${statusTone} uppercase text-[11px] font-semibold`}>
+            {proposal.status.toLowerCase()}
           </Badge>
-          <Badge variant="outline">{proposal.proposal_kind}</Badge>
+          <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
+            {proposal.proposal_kind}
+          </Badge>
           {proposal.auto_approved && (
             <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-              Auto
+              Auto-approved
             </Badge>
           )}
-          <Badge variant="outline" className={`${originBadge.className} flex items-center gap-1`}> 
+          <Badge variant="outline" className={`${originBadge.className} flex items-center gap-1`}>
             {originBadge.icon}
             {originBadge.label}
           </Badge>
         </div>
-        <CardTitle className="text-lg font-semibold text-slate-900">
-          {proposal.ops_summary}
-        </CardTitle>
+        <CardTitle className="text-base font-semibold text-slate-900">{proposal.ops_summary}</CardTitle>
         <p className="text-sm text-slate-600">{proposal.impact_summary}</p>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <Sparkles className="h-3.5 w-3.5 text-purple-500" />
+          <span>{insight.confidenceLabel}</span>
+          <span>•</span>
+          <span className="capitalize">{insight.recommendation} recommendation</span>
+          <span>•</span>
+          <span>Submitted {submittedAt}</span>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-4">
-        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
-          <span className="flex items-center gap-1">
-            <Database className="h-4 w-4 text-slate-400" />
-            {operationSummary}
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="h-4 w-4 text-slate-400" />
-            Submitted {submittedAt}
-          </span>
-          <span className="flex items-center gap-1">
-            Confidence
-            <Badge variant="outline" className="border-slate-200 text-slate-700">
-              {Math.round((proposal.validator_report.confidence ?? proposal.confidence) * 100)}%
+        <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-4 text-sm leading-6 text-slate-700">
+          {insight.narrative}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {insight.keyPoints.map((point) => (
+            <Badge key={`${proposal.id}-${point}`} variant="outline" className="border-slate-200 bg-white text-xs text-slate-600">
+              {point}
             </Badge>
-          </span>
+          ))}
           {proposal.validator_report.warnings.length > 0 && (
-            <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-700">
+            <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-700 text-xs">
               {proposal.validator_report.warnings.length} warning{proposal.validator_report.warnings.length === 1 ? '' : 's'}
             </Badge>
           )}
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs uppercase tracking-wide text-slate-500">
-            {proposal.provenance.length > 0 ? `${proposal.provenance.length} referenced capture${proposal.provenance.length === 1 ? '' : 's'}` : 'No capture references'}
+        <div className="flex flex-col gap-2 border-t border-slate-100 pt-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-500">
+              <Database className="h-4 w-4 text-slate-400" />
+              {insight.operationsSummary.replace(/\.$/, '')}
+            </span>
+            <span className="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-500">
+              <Clock className="h-4 w-4 text-slate-400" />
+              {proposal.provenance.length > 0
+                ? `${proposal.provenance.length} provenance link${proposal.provenance.length === 1 ? '' : 's'}`
+                : 'No capture provenance'}
+            </span>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onInsights}
-              disabled={loadingInsights}
-              className="text-amber-600 hover:text-amber-700"
-            >
-              <Lightbulb className="h-4 w-4" />
-              {loadingInsights ? 'Analyzing…' : 'Analyze' }
-            </Button>
+          <div className="flex gap-2 sm:ml-auto">
             <Button variant="primary" size="sm" onClick={onReview} className="flex items-center gap-1">
-              Review
+              Review details
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

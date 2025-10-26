@@ -10,6 +10,7 @@ import {
   Layers,
   Link2,
   Loader2,
+  Sparkles,
   ShieldOff,
   User,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/Textarea';
+import { generateProposalInsight } from '@/lib/governance/proposalInsights';
 
 interface ProposalOperation {
   type: string;
@@ -112,6 +114,27 @@ export function ProposalDetailModal({
 
   const confidencePct = proposal ? Math.round((proposal.validator_report.confidence ?? 0) * 100) : null;
 
+  const insight = useMemo(
+    () =>
+      proposal
+        ? generateProposalInsight({
+            id: proposal.id,
+            status: proposal.status,
+            auto_approved: proposal.auto_approved,
+            ops_summary: proposal.ops_summary,
+            impact_summary: proposal.impact_summary,
+            created_at: proposal.created_at,
+            executed_at: proposal.executed_at,
+            reviewed_at: proposal.reviewed_at,
+            review_notes: proposal.review_notes,
+            provenance: proposal.provenance,
+            validator_report: proposal.validator_report,
+            ops: proposal.ops,
+          })
+        : null,
+    [proposal],
+  );
+
   const handleApprove = async () => {
     if (!proposal) return;
     try {
@@ -191,34 +214,78 @@ export function ProposalDetailModal({
 
         {proposal && !loading && !error && (
           <div className="space-y-6">
+            {insight && (
+              <Card className="border-slate-200 bg-slate-50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                    <Sparkles className="h-4 w-4 text-purple-500" />
+                    AI Guidance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm leading-6 text-slate-700">
+                  <p>{insight.narrative}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {insight.keyPoints.map((point) => (
+                      <Badge key={`${proposal.id}-${point}`} variant="outline" className="border-slate-300 bg-white text-xs text-slate-600">
+                        {point}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base font-semibold text-slate-900">Overview</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 text-sm text-slate-600">
-                <div>
+              <CardContent className="space-y-5 text-sm text-slate-600">
+                <div className="space-y-1">
                   <p className="text-slate-900">{proposal.ops_summary}</p>
-                  <p className="mt-1 text-slate-600">{proposal.impact_summary}</p>
+                  <p className="text-slate-600">{proposal.impact_summary}</p>
+                </div>
+                <div className="grid gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600 sm:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <p className="uppercase tracking-wide text-slate-500">Submitted</p>
+                    <p className="text-slate-700">{new Date(proposal.created_at).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="uppercase tracking-wide text-slate-500">Status</p>
+                    <p className="capitalize text-slate-700">{proposal.status.toLowerCase()}</p>
+                  </div>
+                  {proposal.reviewed_at && (
+                    <div>
+                      <p className="uppercase tracking-wide text-slate-500">Reviewed</p>
+                      <p className="text-slate-700">{new Date(proposal.reviewed_at).toLocaleString()}</p>
+                    </div>
+                  )}
+                  {proposal.executed_at && (
+                    <div>
+                      <p className="uppercase tracking-wide text-slate-500">Applied</p>
+                      <p className="text-slate-700">{new Date(proposal.executed_at).toLocaleString()}</p>
+                    </div>
+                  )}
+                  {confidencePct !== null && (
+                    <div>
+                      <p className="uppercase tracking-wide text-slate-500">Validator confidence</p>
+                      <p className="text-slate-700">{confidencePct}%</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="uppercase tracking-wide text-slate-500">Provenance</p>
+                    <p className="text-slate-700">
+                      {proposal.provenance.length > 0
+                        ? `${proposal.provenance.length} capture${proposal.provenance.length === 1 ? '' : 's'}`
+                        : 'No references'}
+                    </p>
+                  </div>
                 </div>
                 {proposal.validator_report.impact_summary && (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Validator insight</p>
-                    <p className="mt-1 text-sm text-slate-700">{proposal.validator_report.impact_summary}</p>
+                  <div className="rounded-lg border border-slate-100 bg-white p-3 text-sm text-slate-700">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Validator summary</p>
+                    <p className="mt-2 leading-6">{proposal.validator_report.impact_summary}</p>
                   </div>
                 )}
-                <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-                  <span>Submitted {new Date(proposal.created_at).toLocaleString()}</span>
-                  {proposal.reviewed_at && <span>Reviewed {new Date(proposal.reviewed_at).toLocaleString()}</span>}
-                  {proposal.executed_at && <span>Applied {new Date(proposal.executed_at).toLocaleString()}</span>}
-                  {confidencePct !== null && (
-                    <span className="flex items-center gap-1 text-sm text-slate-600">
-                      Quality score
-                      <Badge variant="outline" className="border-slate-200 text-slate-700">
-                        {confidencePct}%
-                      </Badge>
-                    </span>
-                  )}
-                </div>
                 {proposal.validator_report.warnings.length > 0 && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                     <div className="flex items-center gap-2 font-medium">
