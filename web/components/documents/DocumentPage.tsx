@@ -489,7 +489,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const currentContent = composition?.document?.content || document.content || '';
 
   // Debug: Log content state
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('[DocumentPage] Content state:', {
       hasComposition: !!composition,
       compositionContent: composition?.document?.content?.substring(0, 100),
