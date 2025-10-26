@@ -1,8 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'node:http';
 import { URL } from 'node:url';
 
-import { CreateAuditedGtmBriefInput } from '../lib/schemas.js';
-import { composeBrief, verifyConnection } from '../lib/client.js';
+import { ComposeDocumentInput } from '../lib/schemas.js';
+import { composeDocument, verifyConnection } from '../lib/client.js';
 import { logger } from '../lib/logger.js';
 
 function extractBearer(req: IncomingMessage): string | null {
@@ -58,13 +58,13 @@ export async function handleActions(req: IncomingMessage, res: ServerResponse): 
       return;
     }
 
-    if (tool === 'create_audited_gtm_brief') {
+    if (tool === 'compose_document') {
       const payload = await readJsonBody(req);
-      const input = CreateAuditedGtmBriefInput.parse(payload);
-      const brief = await composeBrief(token, input);
+      const input = ComposeDocumentInput.parse(payload);
+      const result = await composeDocument(token, input);
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify(brief));
+      res.end(JSON.stringify(result));
       return;
     }
 

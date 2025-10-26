@@ -254,17 +254,17 @@ async def upsert_token(payload: TokenUpsertRequest, request: Request):
 ## Gaps & Risks
 | Area | Status | Notes |
 | --- | --- | --- |
-| Manifest | 🟥 Red | No `apps/chatgpt/manifest.json`; nothing describes OAuth, tools, or permissions for the ChatGPT App SDK. |
-| OAuth | 🟨 Yellow | `/oauth/start` and `/oauth/callback` exist but lack PKCE, refresh/token rotation, and Atlas-specific redirect handling; relies on shared secret rather than per-install storage. |
-| Tool wiring | 🟥 Red | `/tools/:name` returns 501; no OpenAI Apps SDK integration or bindings for Yarnnn-specific actions (connect, audited brief). Only substrate tools exist in `@yarnnn/integration-core`. |
-| Deployability | 🟨 Yellow | Render guide documents an OpenAI service, but repo-level `render.yaml` omits it; no health checks for new routes; environment templates lack new vars. |
-| Tests | 🟥 Red | No unit/integration tests cover OpenAI adapter, OAuth lifecycle, or ChatGPT tool flows; CI does not build the adapter. |
+| Manifest | 🟩 Green | `apps/chatgpt/manifest.json` declared with OAuth scopes, base URL, and tool list (`connect_yarnnn`, `compose_document`). |
+| OAuth | 🟨 Yellow | PKCE implemented (`/oauth/start`/`/oauth/callback`) with encrypted persistence, but Dynamic Client Registration, refresh handling, and durable state storage remain outstanding. |
+| Tool wiring | 🟩 Green | `compose_document` and `connect_yarnnn` available via Apps runtime and `@yarnnn/integration-core`; MCP tool list aligns with Canon v3.0. |
+| Deployability | 🟨 Yellow | Render blueprint includes the ChatGPT app service, but production readiness still depends on the outstanding OAuth hardening and monitoring work. |
+| Tests | 🟥 Red | No automated coverage yet for Apps runtime, OAuth flow, or P4 composition path in this context. |
 
 Additional risks:
-- No schema or API contract for “Audited GTM Brief” – searches show provenance tooling but no `briefs.compose` API or MCP tool. Shipping the ChatGPT app will require new backend endpoints and tool definitions.
-- Token refresh/rotation is missing; persisted access tokens will expire without handling.
-- `mcp-server/adapters/openai-apps/src/server.ts:217-239` depends on `MCP_SHARED_SECRET`, but no config ensures that value is deployed for the OpenAI service.
-- The placeholder UI served from `/ui-shell` is not the component tree the Apps SDK expects (no manifest-driven actions, no OAuth CTA).
+- Dynamic Client Registration / refresh-token rotation still unimplemented—apps must handle re-auth and client provisioning before public launch.
+- OAuth state is held in-memory (Map); multi-instance deployments require durable storage to avoid state loss.
+- `mcp-server/adapters/openai-apps/src/server.ts` remains an Express stub; integrating the official Apps SDK runtime is still pending.
+- Placeholder UI (`/ui-shell`) persists; once Apps SDK surfaces structured components, replace with production UI or remove.
 
 ## Decision Log
 - **Scope surfaced ChatGPT actions** – Recommend building new MCP tool wrappers for “connect_yarnnn” (OAuth handshake health check) and “briefs.compose_audited” that proxy to Yarnnn APIs rather than overloading existing substrate tools. This keeps substrate memory tools intact for Anthropic while enabling Atlas-specific actions.
@@ -275,15 +275,18 @@ Additional risks:
 
 ## Exact To-Do List
 1. Add `apps/chatgpt/manifest.json` describing OAuth settings, permissions, and the two required actions; include local/Render redirect URIs and scopes (Apps SDK schema v2024-10).  
-2. Scaffold `apps/chatgpt/src/server.ts` (or equivalent entry) using the official ChatGPT Apps SDK: register `connect_yarnnn` and `create_audited_gtm_brief` tools, bridge to `@yarnnn/integration-core`, and reuse shared logging.  
+2. Scaffold `apps/chatgpt/src/server.ts` (or equivalent entry) using the official ChatGPT Apps SDK: register `connect_yarnnn` and `compose_document` tools, bridge to `@yarnnn/integration-core`, and reuse shared logging.  
 3. Implement OAuth handler routes (`apps/chatgpt/src/routes/oauth.ts`) with PKCE, state validation, refresh token persistence, and error responses compatible with Apps SDK expectations.  
 4. Extend backend endpoints:  
    - `api/src/app/routes/openai_apps.py` – support storing PKCE verifier hashes, refresh tokens, rotation timestamps, and expose a `/status` check for the Connect Yarnnn tool.  
-   - Add new FastAPI routes for `briefs.compose` and `briefs/{id}/provenance` (or surface existing ones) with provenance-focused responses.  
-5. Update `@yarnnn/integration-core` (`mcp-server/packages/core`) with new tool schemas, handlers, and a Yarnnn API client method for the audited brief compose/provenance workflow.  
+   - Ensure existing P4 composition endpoint (`/api/agents/p4-composition`) covers developer-mode use cases without additional bespoke routes.  
+5. Update `@yarnnn/integration-core` (`mcp-server/packages/core`) with new tool schemas/handlers (`connect_yarnnn`, `compose_document`) and supporting Yarnnn client helpers.  
 6. Replace the Express stub in `mcp-server/adapters/openai-apps/src/server.ts` with an Apps SDK bridge that proxies tool invocations to the new core handlers; retire the 501 placeholder.  
 7. Provide environment scaffolding: `apps/chatgpt/.env.template`, `mcp-server/.env.example`, and Render blueprint entries so local + Render deployments include `OPENAI_CLIENT_ID/SECRET`, `OPENAI_APP_REDIRECT_URI`, and `MCP_SHARED_SECRET`.  
 8. Author docs in `apps/chatgpt/README.md` covering local dev (`pnpm dev:apps:chatgpt`), OAuth setup, and Atlas installation steps; link from `docs/CHATGPT_MCP_PREVIEW.md`.  
-9. Add automated coverage: unit tests for tool handlers, Playwright (or Apps SDK simulator) e2e script covering OAuth + brief creation, and CI jobs that build/test the new workspace.  
+9. Add automated coverage: unit tests for tool handlers, Playwright (or Apps SDK simulator) e2e script covering OAuth + P4 composition, and CI jobs that build/test the new workspace.  
 10. Instrument health checks (`/healthz`, `/readyz`) and activity logging so Render deployments can report status and Yarnnn dashboards can monitor ChatGPT usage alongside Claude.
 
+## Current Progress & Remaining Runway
+- Developer-mode app is provisioned (manifest, PKCE OAuth, encrypted token persistence, canon-compliant tools). You can tunnel the service and load it via ChatGPT → Developer Mode today.
+- Outstanding before production submission: implement Dynamic Client Registration, add refresh-token retry/on-demand rotation, persist OAuth state outside process memory, integrate the official Apps SDK runtime/UI, and expand automated tests/telemetry.

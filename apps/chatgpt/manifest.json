@@ -17,8 +17,8 @@
       "description": "Connect and verify Yarnnn workspace access."
     },
     {
-      "name": "create_audited_gtm_brief",
-      "description": "Create a GTM brief with auditable provenance backed by Yarnnn data."
+      "name": "compose_document",
+      "description": "Compose a Yarnnn-backed document (brief, report, analysis) with provenance."
     }
   ],
   "endpoints": {

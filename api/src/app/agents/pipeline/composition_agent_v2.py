@@ -64,6 +64,9 @@ class CompositionRequest:
         basket_id: str,
         workspace_id: str,
         intent: str,
+        target_audience: Optional[str] = None,
+        tone: Optional[str] = None,
+        purpose: Optional[str] = None,
         window: Optional[Dict[str, Any]] = None,
         pinned_ids: Optional[List[str]] = None
     ):
@@ -71,6 +74,9 @@ class CompositionRequest:
         self.basket_id = basket_id
         self.workspace_id = workspace_id
         self.intent = intent
+        self.target_audience = target_audience
+        self.tone = tone or "analytical"
+        self.purpose = purpose or "general"
         self.window = window or {}
         self.pinned_ids = pinned_ids or []
 
@@ -126,7 +132,8 @@ class P4CompositionAgent:
                 selected_substrate,
                 narrative,
                 request.workspace_id,
-                metrics
+                metrics,
+                request
             )
 
             if not composition_result:
@@ -276,13 +283,26 @@ class P4CompositionAgent:
         # Prepare substrate summary
         substrate_summary = self._prepare_substrate_summary(selected_substrate)
 
+        # Build purpose-specific guidance
+        purpose_guidance = ""
+        if request.purpose == "shareable_overview":
+            purpose_guidance = "This is a comprehensive basket overview - make it multi-purpose and accessible for sharing."
+        elif request.purpose == "external_host_reasoning":
+            purpose_guidance = "This is for initializing an external chat session - make it concise and context-rich."
+        elif request.purpose:
+            purpose_guidance = f"Purpose: {request.purpose}"
+
+        audience_context = f"Target Audience: {request.target_audience}" if request.target_audience else "Audience: General"
+
         narrative_prompt = f"""Generate a narrative structure for this document using connected intelligence.
 
+COMPOSITION OBJECTIVE:
 Intent: {request.intent}
-Tone: analytical
-Organization: thematic
+{audience_context}
+Tone: {request.tone}
+{purpose_guidance}
 
-Selected Substrate:
+AVAILABLE SUBSTRATE:
 {substrate_summary}
 
 Create a JSON structure with:
@@ -361,7 +381,8 @@ Example:
         self,
         section: Dict[str, Any],
         selected_substrate: List[Dict[str, Any]],
-        narrative: Dict[str, Any]
+        narrative: Dict[str, Any],
+        request: Optional[CompositionRequest] = None
     ) -> str:
         """
         Generate content for a single section
@@ -394,15 +415,24 @@ Example:
 
         substrate_text = "\n\n".join(substrate_context)
 
-        # Generate section content
+        # Generate section content with user's intent context
+        user_intent = request.intent if request else "Document composition"
+        user_tone = request.tone if request else "analytical"
+        user_audience = request.target_audience if request else "general readers"
+
         content_prompt = f"""Generate detailed content for this document section using connected intelligence.
 
-Section Title: {section['title']}
-Section Purpose: {section['content']}
-Document Intent: {narrative.get('summary', 'Document composition')}
+COMPOSITION OBJECTIVE:
+User's Intent: {user_intent}
+Target Audience: {user_audience}
+Desired Tone: {user_tone}
+
+SECTION DETAILS:
+Title: {section['title']}
+Purpose: {section['content']}
 Synthesis Approach: {narrative.get('synthesis_approach', 'Connect related information')}
 
-Relevant Substrate:
+RELEVANT SUBSTRATE:
 {substrate_text}
 
 Generate 2-4 paragraphs that:
@@ -412,7 +442,7 @@ Generate 2-4 paragraphs that:
 4. Provide INSIGHTS that emerge from connections, not just facts
 5. Use transition phrases like "This led to...", "As a result...", "Building on this..."
 
-Write in an analytical tone. Focus on synthesis, not summarization."""
+Write in {user_tone} tone for {user_audience}. Focus on synthesis, not summarization."""
 
         try:
             response = await self.llm.get_text_response(
@@ -436,7 +466,8 @@ Write in an analytical tone. Focus on synthesis, not summarization."""
         selected_substrate: List[Dict[str, Any]],
         narrative: Dict[str, Any],
         workspace_id: str,
-        metrics: CompositionMetrics
+        metrics: CompositionMetrics,
+        request: Optional[CompositionRequest] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Compose document with parallel section generation
@@ -461,7 +492,7 @@ Write in an analytical tone. Focus on synthesis, not summarization."""
             # OPTIMIZATION: Generate all sections in parallel
             sections = narrative.get("sections", [])
             section_tasks = [
-                self._generate_section_content(section, selected_substrate, narrative)
+                self._generate_section_content(section, selected_substrate, narrative, request)
                 for section in sections
             ]
 
@@ -481,11 +512,22 @@ Write in an analytical tone. Focus on synthesis, not summarization."""
             raw_version_hash = hashlib.sha256(full_content.encode("utf-8")).hexdigest()
             version_hash = f"doc_v{raw_version_hash[:58]}"
 
+            # Capture composition intent for version metadata
+            composition_intent_context = {
+                "user_intent": request.intent if request else None,
+                "target_audience": request.target_audience if request else None,
+                "tone": request.tone if request else "analytical",
+                "purpose": request.purpose if request else "general"
+            }
+
             version_data = {
                 "document_id": str(document_id),
                 "version_hash": version_hash,
                 "content": full_content,
+                "version_trigger": "user_requested",
+                "version_message": "Document composed from substrate with user intent",
                 "metadata_snapshot": {
+                    "composition_intent": composition_intent_context,
                     "composition_metrics": {
                         "candidates_found": metrics.candidates_found,
                         "candidates_selected": metrics.candidates_selected,

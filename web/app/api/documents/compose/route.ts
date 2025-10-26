@@ -21,6 +21,9 @@ import { z } from "zod";
 const ComposeRequestSchema = z.object({
   title: z.string().min(1),
   intent: z.string().optional(),
+  target_audience: z.string().optional(),
+  tone: z.string().optional(),
+  purpose: z.string().optional(),
   basket_id: z.string().uuid(),
   template_id: z.string().optional(),
   window_days: z.number().min(1).max(365).default(30),
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest) {
       }, { status: 422 });
     }
 
-    const { title, intent, basket_id, template_id, window_days, pinned_ids } = parsed.data;
+    const { title, intent, target_audience, tone, purpose, basket_id, template_id, window_days, pinned_ids } = parsed.data;
     const supabase = createTestAwareClient({ cookies });
     const serviceSupabase = createServiceRoleClient();
     const { userId, isTest } = await getTestAwareAuth(supabase);
@@ -61,20 +64,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Basket not found or access denied" }, { status: 404 });
     }
 
-    // Map template to doc_type and document_type
+    // Map template to doc_type, document_type, and default intent characteristics
     const getDocumentTypes = (templateId?: string) => {
       switch (templateId) {
         case 'prompt_starter':
-          return { doc_type: 'starter_prompt', document_type: 'starter_prompt' };
+          return {
+            doc_type: 'starter_prompt',
+            document_type: 'starter_prompt',
+            defaultPurpose: 'external_host_reasoning',
+            defaultTone: tone || 'concise'
+          };
         case 'strategy_brief':
-          return { doc_type: 'document_canon', document_type: 'basket_context' };
+          return {
+            doc_type: 'document_canon',
+            document_type: 'basket_context',
+            defaultPurpose: 'shareable_overview',
+            defaultTone: tone || 'comprehensive'
+          };
         case 'custom':
         default:
-          return { doc_type: 'artifact_other', document_type: 'narrative' };
+          return {
+            doc_type: 'artifact_other',
+            document_type: 'narrative',
+            defaultPurpose: purpose || 'general',
+            defaultTone: tone || 'analytical'
+          };
       }
     };
 
-    const { doc_type, document_type } = getDocumentTypes(template_id);
+    const { doc_type, document_type, defaultPurpose, defaultTone } = getDocumentTypes(template_id);
 
     // Check for duplicate canonical documents (document_canon can only have one per basket)
     if (doc_type === 'document_canon') {
@@ -108,6 +126,9 @@ export async function POST(req: NextRequest) {
         doc_type,
         composition_instructions: {
           intent: intent || '',
+          target_audience: target_audience || null,
+          tone: defaultTone,
+          purpose: defaultPurpose,
           style: 'memory_composition',
           template_id: template_id || 'custom',
           window_days,
@@ -121,7 +142,10 @@ export async function POST(req: NextRequest) {
           composition_source: 'memory',
           creation_method: 'compose_new',
           composition_intent: intent,
-          template_id: template_id || 'custom'
+          template_id: template_id || 'custom',
+          target_audience,
+          tone: defaultTone,
+          purpose: defaultPurpose
         }
       })
       .select()
@@ -147,6 +171,9 @@ export async function POST(req: NextRequest) {
           basket_id,
           workspace_id: workspace.id,
           intent: intent || '',
+          target_audience: target_audience || null,
+          tone: defaultTone,
+          purpose: defaultPurpose,
           window: { days: window_days },
           pinned_ids: pinned_ids || []
         })

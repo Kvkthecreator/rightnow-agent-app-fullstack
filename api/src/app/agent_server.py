@@ -67,7 +67,6 @@ from .routes.p3_insights import router as p3_insights_router
 from .routes.p4_canon import router as p4_canon_router
 from .routes.p3_p4_health import router as p3_p4_health_router
 from .api.validator.validate_proposal import router as validator_router
-from .routes.briefs import router as briefs_router
 
 
 def _assert_env():
@@ -146,7 +145,6 @@ routers = (
     integration_tokens_router,
     auth_validate_router,
     openai_apps_router,
-    briefs_router,
 )
 
 # Add correlation middleware

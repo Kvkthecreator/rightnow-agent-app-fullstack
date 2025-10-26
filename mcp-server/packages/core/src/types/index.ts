@@ -113,30 +113,6 @@ export interface ConnectYarnnnResponse {
   error?: string;
 }
 
-export interface ProvenanceRef {
-  blockId: string;
-  sourceUrl?: string | null;
-  excerpt?: string | null;
-  offsets?: [number, number];
-}
-
-export interface AuditedParagraph {
-  text: string;
-  provenance: ProvenanceRef[];
-}
-
-export interface AuditedBriefSection {
-  heading: string;
-  content: AuditedParagraph[];
-}
-
-export interface AuditedBriefResponse {
-  id: string;
-  title: string;
-  sections: AuditedBriefSection[];
-  generatedAt?: string;
-}
-
 // Error Types
 export interface YARNNNError {
   code: string;

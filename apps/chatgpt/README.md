@@ -33,4 +33,8 @@ This workspace hosts the ChatGPT/Atlas application that lets users connect Yarnn
 - `src/routes/` – Health, OAuth, and tool handler modules.
 - `src/lib/` – Shared utilities (API client, Zod schemas, logger).
 
-Future PRs will flesh out token refresh, tool execution, tests, and deployment descriptors. This scaffold establishes the contract expected by ChatGPT while we wire the underlying behaviour.
+## Current Scope & Next Steps
+
+- ✅ Developer-mode ready: `/oauth/start` implements PKCE and persists encrypted tokens via the Yarnnn backend, and tool routes proxy to `/api/agents/p4-composition` (compose documents) and `/api/integrations/openai/tokens/me` (connection status).
+- ⚠️ Pending for full launch: Dynamic Client Registration (per-install client IDs), refresh-token retry loop, and durable storage for OAuth state beyond the in-memory cache. Until these land, limit testing to ChatGPT developer mode.
+- 🚦 Testing guidance: run `npm run dev` (exposed over HTTPS/Ngrok) and register `manifest.json` in ChatGPT → Settings → Apps & Connectors → Developer Mode. Verify `connect_yarnnn` and `compose_document` through the Apps SDK simulator before wider pilots.

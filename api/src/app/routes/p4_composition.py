@@ -23,6 +23,9 @@ class P4CompositionRequestDto(BaseModel):
     basket_id: str = Field(..., description="Basket context")
     workspace_id: str = Field(..., description="Workspace context")
     intent: str = Field(default="", description="Composition intent")
+    target_audience: Optional[str] = Field(default=None, description="Target audience for composition")
+    tone: Optional[str] = Field(default=None, description="Desired tone (e.g., strategic, friendly, concise)")
+    purpose: Optional[str] = Field(default=None, description="External purpose (e.g., shareable_overview, external_host_reasoning)")
     window: Optional[dict] = Field(default={"days": 90}, description="Memory window")
     pinned_ids: List[str] = Field(default=[], description="Pinned substrate IDs")
     operation_type: str = Field(default="compose", description="Operation type: compose or recompose")
@@ -63,6 +66,9 @@ async def compose_document(
             basket_id=UUID(request.basket_id),
             workspace_id=UUID(request.workspace_id),
             intent=request.intent,
+            target_audience=request.target_audience,
+            tone=request.tone,
+            purpose=request.purpose,
             window=request.window,
             pinned_ids=[UUID(pid) for pid in request.pinned_ids] if request.pinned_ids else []
         )
