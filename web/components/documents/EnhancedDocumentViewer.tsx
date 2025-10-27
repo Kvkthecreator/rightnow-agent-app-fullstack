@@ -80,12 +80,44 @@ export function EnhancedDocumentViewer({ content, references = [], className = "
   paragraphIndexRef.current = 0;
 
   const markdownComponents = {
+    h1: ({ children }: { children: React.ReactNode }) => (
+      <h1 className="text-3xl font-bold text-slate-900 mt-8 mb-6 border-b border-slate-200 pb-3">{children}</h1>
+    ),
+    h2: ({ children }: { children: React.ReactNode }) => (
+      <h2 className="text-2xl font-semibold text-slate-800 mt-7 mb-4">{children}</h2>
+    ),
+    h3: ({ children }: { children: React.ReactNode }) => (
+      <h3 className="text-xl font-semibold text-slate-800 mt-6 mb-3">{children}</h3>
+    ),
+    ul: ({ children }: { children: React.ReactNode }) => (
+      <ul className="list-disc list-outside ml-6 space-y-2 text-slate-700 mb-6">{children}</ul>
+    ),
+    ol: ({ children }: { children: React.ReactNode }) => (
+      <ol className="list-decimal list-outside ml-6 space-y-2 text-slate-700 mb-6">{children}</ol>
+    ),
+    li: ({ children }: { children: React.ReactNode }) => (
+      <li className="leading-relaxed">{children}</li>
+    ),
+    blockquote: ({ children }: { children: React.ReactNode }) => (
+      <blockquote className="border-l-4 border-blue-400 bg-blue-50 pl-4 py-3 italic text-slate-700 my-6 rounded-r">
+        {children}
+      </blockquote>
+    ),
+    strong: ({ children }: { children: React.ReactNode }) => (
+      <strong className="font-semibold text-slate-900">{children}</strong>
+    ),
+    em: ({ children }: { children: React.ReactNode }) => (
+      <em className="italic text-slate-700">{children}</em>
+    ),
+    code: ({ children }: { children: React.ReactNode }) => (
+      <code className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-sm font-mono">{children}</code>
+    ),
     p: ({ children }: { children: React.ReactNode }) => {
       const currentIndex = paragraphIndexRef.current++;
       const reference = showSources ? paragraphAssignments[currentIndex] : null;
 
       if (!reference) {
-        return <p>{children}</p>;
+        return <p className="text-slate-800 leading-relaxed mb-5">{children}</p>;
       }
 
       const isExpanded = expandedReferenceId === reference.id;
@@ -174,12 +206,11 @@ export function EnhancedDocumentViewer({ content, references = [], className = "
       )}
 
       {/* Enhanced Document Content */}
-      <div className="prose prose-gray prose-lg max-w-none">
+      <div className="prose prose-slate prose-lg max-w-none">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={markdownComponents}
           skipHtml
-          className="text-gray-800 leading-relaxed"
         >
           {content}
         </ReactMarkdown>

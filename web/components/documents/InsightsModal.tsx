@@ -13,6 +13,8 @@ import {
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { Lightbulb, RefreshCw, Clock } from 'lucide-react';
 import { notificationAPI } from '@/lib/api/notifications';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface InsightsModalProps {
   open: boolean;
@@ -172,10 +174,29 @@ export function InsightsModal({
                 <Clock className="h-3 w-3" />
                 <span>Generated {formatTimestamp(insight.computation_timestamp)}</span>
               </div>
-              <div className="prose prose-sm max-w-none">
-                <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
+              <div className="prose prose-slate prose-sm max-w-none">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({children}) => <h1 className="text-2xl font-bold text-slate-900 mt-6 mb-4">{children}</h1>,
+                    h2: ({children}) => <h2 className="text-xl font-semibold text-slate-800 mt-5 mb-3">{children}</h2>,
+                    h3: ({children}) => <h3 className="text-lg font-semibold text-slate-800 mt-4 mb-2">{children}</h3>,
+                    p: ({children}) => <p className="text-slate-700 leading-relaxed mb-4">{children}</p>,
+                    ul: ({children}) => <ul className="list-disc list-inside space-y-2 text-slate-700 mb-4">{children}</ul>,
+                    ol: ({children}) => <ol className="list-decimal list-inside space-y-2 text-slate-700 mb-4">{children}</ol>,
+                    li: ({children}) => <li className="leading-relaxed">{children}</li>,
+                    blockquote: ({children}) => (
+                      <blockquote className="border-l-4 border-amber-400 bg-amber-50 pl-4 py-2 italic text-slate-600 my-4">
+                        {children}
+                      </blockquote>
+                    ),
+                    strong: ({children}) => <strong className="font-semibold text-slate-900">{children}</strong>,
+                    em: ({children}) => <em className="italic text-slate-700">{children}</em>,
+                    code: ({children}) => <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded text-sm font-mono">{children}</code>,
+                  }}
+                >
                   {insight.reflection_text}
-                </div>
+                </ReactMarkdown>
               </div>
             </div>
           ) : (
