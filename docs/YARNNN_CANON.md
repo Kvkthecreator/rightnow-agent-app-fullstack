@@ -109,7 +109,28 @@ User Thought → Raw Capture → Agent Processing → Substrate Evolution → Re
 | **P3: Insights** | Artifact | Generate interpretive intelligence | Creates P3 insights, never modifies substrate | **ENHANCED** - Semantic retrieval for deeper insights |
 | **P4: Documents** | Artifact | Theme-based narrative composition | Creates P4 documents, consumes substrate + P3 insights | **ENHANCED** - Semantic theme search for narrative coherence |
 
-**Note:** P2 Graph Intelligence has been replaced by **Neural Map** - a zero-cost client-side visualization that clusters substrate by semantic type into brain regions. See [NEURAL_MAP_ARCHITECTURE.md](./NEURAL_MAP_ARCHITECTURE.md) for details.
+**Note:** P2 Graph Intelligence has been **permanently removed** (Canon v3.1). It was replaced by **Neural Map** - a zero-cost client-side visualization that clusters substrate by semantic type into brain regions. See rationale below.
+
+### Why P2 Relationships Were Removed (Canon v3.1)
+
+**Decision:** P2 Graph Agent and `substrate_relationships` table removed entirely from codebase.
+
+**Rationale:**
+1. **Semantic Type Mismatch**: P1 extraction produced semantic types (`fact`, `finding`, `insight`, `metric`) that were incompatible with P2's relationship ontology (`problem`, `constraint`, `solution`). Even relationship-rich data produced 0 relationships due to vocabulary misalignment.
+
+2. **Minimal Integration**: P3 used relationships only for a single pattern check (≥3 relationships). P4 included them in prompts but degraded gracefully. Neither pipeline depended on relationships for core value.
+
+3. **Canon Contradiction**: YARNNN_CANON.md line 112 explicitly stated P2 was replaced by Neural Map, yet full P2 implementation remained in codebase, creating architectural confusion.
+
+4. **Semantic Search Superiority**: Embeddings provide more powerful substrate discovery than explicit relationships. P3/P4 use semantic similarity for context retrieval and composition.
+
+5. **Simplicity**: Removing dual approaches (explicit relationships AND semantic search) reduces complexity and maintenance burden.
+
+**What Replaced It:**
+- **Neural Map** (client-side): Visual clustering of substrate by semantic type
+- **Semantic Search** (server-side): Vector similarity for P1 duplicate detection, P3 context, P4 composition
+
+**Impact:** Zero degradation. P3/P4 workflows unchanged. Simplified architecture aligns with Canon.
 
 ### V3.1 Semantic Layer: Core Upgrade
 

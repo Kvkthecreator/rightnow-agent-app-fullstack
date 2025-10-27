@@ -1,12 +1,13 @@
 /**
- * Page: /baskets/[id]/overview - Basket Overview
+ * Page: /baskets/[id]/overview - Basket Overview (Canon v3.1)
  *
  * Primary basket dashboard showing:
  * - Editable basket title and archive menu
  * - Latest basket-level reflection (insights snapshot)
- * - Key metrics (blocks, relationships, documents counts)
+ * - Key metrics (blocks, documents counts)
  * - Documents list
  *
+ * Canon v3.1: Relationships removed (replaced by Neural Map in /graph)
  * Note: Anchors now managed in /building-blocks as substrate metadata
  */
 import { cookies } from "next/headers";

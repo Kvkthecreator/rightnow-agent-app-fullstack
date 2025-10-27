@@ -1,5 +1,5 @@
 """
-P4 Composition Agent - YARNNN Canon v3.0 Compliant
+P4 Composition Agent - YARNNN Canon v3.1 Compliant
 
 Implements intelligent document composition from substrate memory.
 Sacred Principle #3: "Narrative is Deliberate" - Documents compose substrate references + authored prose.
@@ -7,12 +7,13 @@ Sacred Principle #3: "Narrative is Deliberate" - Documents compose substrate ref
 This agent:
 1. Analyzes intent to understand document purpose
 2. Queries substrate comprehensively from unified blocks table
-3. Scores relevance based on semantic similarity, recency, relationships
+3. Scores relevance based on semantic similarity and recency
 4. Generates thoughtful narrative structure
 5. Composes document with clear reasoning
 
-V3.0 Changes:
-- Query unified blocks table (no context_items)
+V3.1 Changes:
+- Relationships removed (replaced by Neural Map)
+- Composition uses blocks only (unified substrate)
 - All substrate types: knowledge, meaning, structural (entity)
 - Emergent anchors for semantic organization
 """
@@ -55,11 +56,11 @@ class RetrievalBudget:
 
     def __post_init__(self):
         if self.type_weights is None:
-            # V3.0: Only blocks and relationships (no context_items)
-            self.type_weights = {"blocks": 0.75, "relationships": 0.25, "dumps": 0.00}
+            # Canon v3.1: Only blocks (relationships removed)
+            self.type_weights = {"blocks": 1.0, "dumps": 0.00}
         if self.per_type_caps is None:
-            # V3.0: Increased block cap (includes entities now)
-            self.per_type_caps = {"blocks": 100, "relationships": 40, "dumps": 0}
+            # Canon v3.1: Increased block cap (includes entities, no relationships)
+            self.per_type_caps = {"blocks": 120, "dumps": 0}
 
 @dataclass
 class CompositionMetrics:
@@ -190,10 +191,9 @@ Basket Context: Document being composed from memory in basket {request.basket_id
 Provide a JSON strategy with:
 1. document_type: The type of document (e.g., "summary", "analysis", "plan", "reflection", "report")
 2. key_themes: List of 3-5 key themes or topics to focus on
-3. substrate_priorities: What types of substrate to prioritize (V3.0: blocks include all semantic types)
+3. substrate_priorities: What types of substrate to prioritize (Canon v3.1: blocks only)
    - blocks: true/false (knowledge, meaning, entities - unified substrate)
    - dumps: true/false (raw memories)
-   - relationships: true/false (connections between substrate)
 4. organization: How to organize the document ("chronological", "thematic", "priority", "categorical")
 5. tone: The appropriate tone ("analytical", "narrative", "instructional", "reflective")
 6. confidence: 0.0-1.0 confidence in understanding the intent
@@ -205,8 +205,7 @@ Example response:
   "key_themes": ["project planning", "technical architecture", "team coordination"],
   "substrate_priorities": {{
     "blocks": true,
-    "dumps": false,
-    "relationships": true
+    "dumps": false
   }},
   "organization": "thematic",
   "tone": "analytical",
@@ -307,56 +306,7 @@ Example response:
                     "freshness_score": self._calculate_freshness(dump["created_at"], recency_cutoff)
                 })
         
-        # Query relationships with budget constraints - Canon: look up via block membership
-        if strategy["substrate_priorities"].get("relationships", True) and budget.per_type_caps["relationships"] > 0:
-            block_ids = [block.get("id") for block in (blocks_response.data or []) if block.get("id")]
-
-            relationship_rows: List[Dict[str, Any]] = []
-            if block_ids:
-                cap = budget.per_type_caps["relationships"]
-
-                from_resp = supabase.table('substrate_relationships').select(
-                    'id, from_block_id, to_block_id, relationship_type, metadata, confidence_score, created_at'
-                ).in_('from_block_id', block_ids).limit(cap).execute()
-
-                relationship_rows.extend(from_resp.data or [])
-
-                remaining = max(cap - len(relationship_rows), 0)
-                if remaining > 0:
-                    to_resp = supabase.table('substrate_relationships').select(
-                        'id, from_block_id, to_block_id, relationship_type, metadata, confidence_score, created_at'
-                    ).in_('to_block_id', block_ids).limit(remaining).execute()
-
-                    seen_ids = {row.get('id') for row in relationship_rows}
-                    for rel in to_resp.data or []:
-                        rel_id = rel.get('id')
-                        if rel_id not in seen_ids:
-                            relationship_rows.append(rel)
-                            seen_ids.add(rel_id)
-
-            metrics.candidates_found["relationships"] = len(relationship_rows)
-
-            for relationship in relationship_rows:
-                from_id = relationship.get('from_block_id') or 'unknown'
-                to_id = relationship.get('to_block_id') or 'unknown'
-                rel_type = relationship.get('relationship_type', 'related')
-
-                relationship_metadata = relationship.get('metadata') or {}
-                strength_value = relationship_metadata.get('strength') or relationship.get('confidence_score') or 0.7
-
-                candidates.append({
-                    "type": "relationship",
-                    "id": relationship.get("id"),
-                    "content": f"{rel_type}: {from_id} → {to_id}",
-                    "title": f"{rel_type} relationship",
-                    "relationship_type": rel_type,
-                    "from_id": from_id,
-                    "to_id": to_id,
-                    "strength": strength_value,
-                    "created_at": relationship.get('created_at'),
-                    "metadata": relationship,
-                    "freshness_score": self._calculate_freshness(relationship.get('created_at'), recency_cutoff)
-                })
+        # Canon v3.1: Relationships removed - composition uses blocks only
         
         # Add pinned items if specified
         if request.pinned_ids:
@@ -565,49 +515,47 @@ Example:
                 "summary": "Insufficient substrate for composition"
             }
         
-        # Prepare substrate summary with relationship context
-        substrate_summary, relationship_map = self._prepare_substrate_with_relationships(selected_substrate)
-        
-        narrative_prompt = f"""Generate a narrative structure for this document using CONNECTED INTELLIGENCE.
+        # Canon v3.1: Prepare substrate summary (relationships removed)
+        substrate_summary = self._prepare_substrate_summary(selected_substrate)
+
+        narrative_prompt = f"""Generate a narrative structure for this document using INTELLIGENT SYNTHESIS.
 
 Intent: {request.intent}
 Document Type: {strategy['document_type']}
 Tone: {strategy['tone']}
 Organization: {strategy['organization']}
 
-Selected Substrate with Relationships:
+Selected Substrate:
 {substrate_summary}
 
-IMPORTANT: Use the relationship information to create connected insights, not isolated facts.
-Focus on causal chains, temporal sequences, and how concepts build on each other.
+IMPORTANT: Synthesize insights by connecting patterns across substrate blocks.
+Focus on thematic coherence, temporal sequences, and how concepts build on each other.
 
 Create a JSON structure with:
 1. sections: Array of sections, each with:
    - title: Section title
-   - content: Brief description emphasizing CONNECTIONS and SYNTHESIS
+   - content: Brief description emphasizing patterns and synthesis
    - substrate_refs: List of substrate types to reference
-   - relationship_focus: How this section uses relationships between concepts
    - order: Section order (0-based)
-2. introduction: Opening that explains connections and relationships
-3. summary: One-line summary emphasizing insights derived from relationships
-4. composition_notes: Notes about what relationships were leveraged and why
-5. synthesis_approach: How relationships inform the narrative flow
+2. introduction: Opening that sets context and themes
+3. summary: One-line summary emphasizing key insights
+4. composition_notes: Notes about synthesis approach
+5. synthesis_approach: How substrate informs narrative flow
 
 Example:
 {{
   "sections": [
     {{
-      "title": "Causal Analysis",
-      "content": "How technical decisions led to performance outcomes, based on causal relationships",
-      "substrate_refs": ["block", "relationship"],
-      "relationship_focus": "causal_relationship chains showing decision → implementation → result",
+      "title": "Technical Evolution",
+      "content": "How technical decisions evolved over time based on substrate patterns",
+      "substrate_refs": ["block"],
       "order": 0
     }}
   ],
-  "introduction": "This document reveals connected patterns across technical decisions and their cascading effects...",
-  "summary": "Analysis revealing causal chains between architecture choices and system performance",
-  "composition_notes": "Leveraged 5 causal relationships to show decision impact pathways",
-  "synthesis_approach": "Follow causal chains from decisions through implementation to outcomes"
+  "introduction": "This document synthesizes patterns across technical decisions and their outcomes...",
+  "summary": "Analysis revealing evolution of architecture choices and system performance",
+  "composition_notes": "Organized substrate by semantic type and temporal patterns",
+  "synthesis_approach": "Chronological flow with thematic clustering"
 }}"""
 
         response = await self.llm.get_json_response(
@@ -625,18 +573,18 @@ Example:
         
         return narrative
     
-    def _prepare_substrate_with_relationships(self, selected_substrate: List[Dict[str, Any]]) -> Tuple[str, Dict[str, Any]]:
+    def _prepare_substrate_summary(self, selected_substrate: List[Dict[str, Any]]) -> str:
         """
-        V3.0: Analyze substrate relationships and prepare enhanced context for narrative generation
+        Canon v3.1: Prepare substrate summary for narrative generation.
 
-        All substrate is now blocks with semantic_type differentiation.
+        Organizes substrate blocks by semantic type for better composition.
+        Relationships removed - composition uses blocks only.
         """
-        # V3.0: Separate substrate by type (all blocks)
+        # Separate substrate by type
         blocks = [s for s in selected_substrate if s['type'] == 'block']
         dumps = [s for s in selected_substrate if s['type'] == 'dump']
-        relationships = [s for s in selected_substrate if s['type'] == 'relationship']
 
-        # V3.0: Categorize blocks by semantic_type for better organization
+        # Categorize blocks by semantic_type for better organization
         knowledge_blocks = [b for b in blocks if b.get('semantic_type') in [
             'fact', 'metric', 'event', 'insight', 'action', 'finding', 'quote', 'summary'
         ]]
@@ -645,44 +593,20 @@ Example:
         ]]
         entity_blocks = [b for b in blocks if b.get('semantic_type') == 'entity']
 
-        # Build relationship map
-        relationship_map = {}
-        for rel in relationships:
-            rel_type = rel.get('relationship_type', 'related')
-            from_id = rel.get('from_id')
-            to_id = rel.get('to_id')
-
-            if from_id and to_id:
-                if from_id not in relationship_map:
-                    relationship_map[from_id] = []
-                relationship_map[from_id].append({
-                    'to': to_id,
-                    'type': rel_type,
-                    'strength': rel.get('strength', 0.7)
-                })
-
-        # Generate enhanced substrate summary
+        # Generate substrate summary
         summary_parts = []
 
-        # V3.0: Add knowledge blocks with their relationships
+        # Add knowledge blocks
         if knowledge_blocks:
             summary_parts.append("=== KNOWLEDGE BLOCKS ===")
             for block in knowledge_blocks:
-                block_id = block['id']
                 semantic_type = block.get('semantic_type', 'concept')
                 anchor = block.get('anchor_role', '')
                 anchor_text = f" [{anchor}]" if anchor else ""
-                block_content = f"[{semantic_type.upper()}]{anchor_text} {block.get('title', block.get('content', '')[:100])}..."
+                title = block.get('title', block.get('content', '')[:100])
+                summary_parts.append(f"[{semantic_type.upper()}]{anchor_text} {title}...")
 
-                # Add relationships for this block
-                if block_id in relationship_map:
-                    relations = relationship_map[block_id]
-                    rel_text = "; ".join([f"{r['type']} → {r['to']}" for r in relations[:3]])
-                    block_content += f" (Connected: {rel_text})"
-
-                summary_parts.append(block_content)
-
-        # V3.0: Add meaning blocks
+        # Add meaning blocks
         if meaning_blocks:
             summary_parts.append("\n=== MEANING & INTENT ===")
             for block in meaning_blocks:
@@ -690,36 +614,21 @@ Example:
                 title = block.get('title', 'Untitled')
                 summary_parts.append(f"[{semantic_type.upper()}] {title}")
 
-        # V3.0: Add entity blocks (structural type)
+        # Add entity blocks
         if entity_blocks:
             summary_parts.append("\n=== ENTITIES ===")
             for block in entity_blocks:
                 entity_label = block.get('title', 'Unknown Entity')
                 content = block.get('content', '')
                 summary_parts.append(f"[ENTITY] {entity_label}: {content[:150]}")
-        
-        # Add relationships summary
-        if relationships:
-            summary_parts.append("\n=== KEY RELATIONSHIPS ===")
-            unique_rels = {}
-            for rel in relationships:
-                rel_type = rel.get('relationship_type', 'related')
-                if rel_type not in unique_rels:
-                    unique_rels[rel_type] = 0
-                unique_rels[rel_type] += 1
-            
-            for rel_type, count in unique_rels.items():
-                summary_parts.append(f"- {count} {rel_type} relationship(s)")
-        
+
         # Add raw dumps if selected
         if dumps:
             summary_parts.append("\n=== RAW MEMORIES ===")
             for dump in dumps[:3]:  # Limit to prevent overwhelming
                 summary_parts.append(f"[MEMORY] {dump.get('content', '')[:150]}...")
-        
-        enhanced_summary = "\n".join(summary_parts)
-        
-        return enhanced_summary, relationship_map
+
+        return "\n".join(summary_parts)
     
     async def _generate_section_content(
         self,
@@ -728,41 +637,35 @@ Example:
         narrative: Dict[str, Any]
     ) -> str:
         """
-        Generate detailed content for a section using relationship-aware substrate
+        Canon v3.1: Generate detailed content for a section using substrate blocks.
+
+        Relationships removed - composition synthesizes insights from blocks only.
         """
         # Get substrate relevant to this section
         relevant_substrate = []
         section_refs = section.get('substrate_refs', [])
-        
+
         for substrate in selected_substrate:
             if substrate['type'] in section_refs:
                 relevant_substrate.append(substrate)
-        
+
         # If no specific refs, use all substrate
         if not relevant_substrate:
             relevant_substrate = selected_substrate
-        
+
         # Prepare substrate for content generation
         substrate_context = []
         for sub in relevant_substrate[:8]:  # Limit to prevent context overflow
             sub_info = f"[{sub['type'].upper()}] {sub.get('content', '')[:300]}"
-            
-            # Add relationship context if available - Canon: use proper fields
-            if sub['type'] == 'relationship':
-                from_id = sub.get('from_id', 'unknown')
-                to_id = sub.get('to_id', 'unknown')
-                sub_info += f" (Connects: {from_id} → {to_id})"
-            
             substrate_context.append(sub_info)
-        
+
         substrate_text = "\n\n".join(substrate_context)
-        
-        # Generate content using relationship focus
-        content_prompt = f"""Generate detailed content for this document section using CONNECTED INTELLIGENCE.
+
+        # Generate content using synthesis approach
+        content_prompt = f"""Generate detailed content for this document section using INTELLIGENT SYNTHESIS.
 
 Section Title: {section['title']}
 Section Purpose: {section['content']}
-Relationship Focus: {section.get('relationship_focus', 'Identify connections between concepts')}
 Document Intent: {narrative.get('summary', 'Document composition')}
 Synthesis Approach: {narrative.get('synthesis_approach', 'Connect related information')}
 
@@ -771,10 +674,10 @@ Relevant Substrate:
 
 CRITICAL: Generate 2-4 paragraphs that:
 1. Show HOW concepts connect and influence each other
-2. Identify CAUSAL relationships (A led to B)
-3. Reveal PATTERNS across the information
-4. Provide INSIGHTS that emerge from connections, not just facts
-5. Use transition phrases like "This led to...", "As a result...", "Building on this..."
+2. Identify patterns and themes across the information
+3. Provide INSIGHTS that emerge from synthesis, not just facts
+4. Use transition phrases like "This led to...", "As a result...", "Building on this..."
+5. Create narrative coherence across substrate blocks
 
 Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not summarization."""
 
@@ -810,7 +713,9 @@ Write in a {narrative.get('tone', 'analytical')} tone. Focus on synthesis, not s
         query_metrics: CompositionMetrics
     ) -> Dict[str, Any]:
         """
-        Compose final document with relationship-aware content and substrate references
+        Canon v3.1: Compose final document with synthesized content and substrate references.
+
+        Relationships removed - composition uses blocks only.
         """
         try:
             # Load existing document context for metadata merging

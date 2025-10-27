@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, RefreshCw, FileText, Boxes, Link as LinkIcon } from 'lucide-react';
+import { Upload, RefreshCw, FileText, Boxes } from 'lucide-react';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { DocumentsList } from '@/components/documents/DocumentsList';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -170,26 +170,6 @@ export default function MemoryClient({ basketId, basketName, needsOnboarding }: 
                 )}
               </div>
               <p className="text-xs text-slate-500">Structured knowledge pieces</p>
-            </CardContent>
-          </Card>
-
-          {/* Relationships */}
-          <Card>
-            <CardContent className="p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-purple-50">
-                    <LinkIcon className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-600">Relationships</span>
-                </div>
-                {!statsLoading && (
-                  <span className="text-2xl font-semibold text-slate-900">
-                    {stats?.relationships_count ?? 0}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500">Causal connections</p>
             </CardContent>
           </Card>
 
