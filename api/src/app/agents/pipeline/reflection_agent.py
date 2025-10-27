@@ -274,36 +274,8 @@ Return JSON with deep analysis, not surface observations.""",
             
             # V3.0: No context_items table - entities are blocks with semantic_type='entity'
             # Entity blocks already included in blocks query above
-            
-            # Get relationships for pattern analysis
-            relationships_query = supabase.table("substrate_relationships").select(
-                "id,basket_id,from_type,from_id,to_type,to_id,relationship_type,strength,description,created_at"
-            )
-            
-            if basket_filter:
-                relationships_query = relationships_query.eq("basket_id", basket_filter)
-            else:
-                if basket_ids:
-                    relationships_query = relationships_query.in_("basket_id", basket_ids)
-            
-            relationships_response = relationships_query.execute()
-            
-            if relationships_response.data and len(relationships_response.data) > 0:
-                for rel in relationships_response.data:
-                    if rel and isinstance(rel, dict) and "id" in rel:
-                        substrate_data.append({
-                            "id": rel["id"],
-                            "type": "relationship",
-                            "basket_id": rel.get("basket_id"),
-                            "from_type": rel.get("from_type"),
-                            "from_id": rel.get("from_id"),
-                            "to_type": rel.get("to_type"),
-                            "to_id": rel.get("to_id"),
-                            "relationship_type": rel.get("relationship_type"),
-                            "strength": rel.get("strength", 0.5),
-                            "description": rel.get("description", ""),
-                            "created_at": rel.get("created_at")
-                        })
+
+            # Canon v3.1: Relationships removed - pattern analysis uses blocks only
             
             return substrate_data
             
@@ -314,17 +286,17 @@ Return JSON with deep analysis, not surface observations.""",
     def _compute_patterns(self, substrate_data: List[Dict[str, Any]]) -> List[PatternReflection]:
         """Compute patterns from substrate data through read-only analysis."""
         patterns = []
-        
+
         # V3.0: Filter blocks (all substrate) for pattern analysis
         blocks = [item for item in substrate_data if item["type"] == "block"]
-        relationships = [item for item in substrate_data if item["type"] == "relationship"]
+        # Canon v3.1: Relationships removed
 
         # Thematic patterns (V3.0: only blocks, no separate context_items)
         thematic_patterns = self._analyze_thematic_patterns(blocks)
         patterns.extend(thematic_patterns)
-        
-        # Structural patterns
-        structural_patterns = self._analyze_structural_patterns(blocks, relationships)
+
+        # Structural patterns (v3.1: no relationships)
+        structural_patterns = self._analyze_structural_patterns(blocks)
         patterns.extend(structural_patterns)
         
         # Quality patterns
@@ -403,21 +375,14 @@ Return JSON with deep analysis, not surface observations.""",
         
         return patterns
     
-    def _analyze_structural_patterns(self, blocks: List[Dict[str, Any]], relationships: List[Dict[str, Any]]) -> List[PatternReflection]:
-        """Analyze structural patterns in substrate organization."""
+    def _analyze_structural_patterns(self, blocks: List[Dict[str, Any]]) -> List[PatternReflection]:
+        """Analyze structural patterns in substrate organization (Canon v3.1: blocks only)."""
         patterns = []
-        
-        if len(relationships) >= 3:
-            # High connectivity pattern
-            connectivity_strength = sum(rel.get("strength", 0.5) for rel in relationships) / len(relationships)
-            patterns.append(PatternReflection(
-                pattern_type="structural", 
-                description=f"High connectivity pattern with {len(relationships)} relationships",
-                evidence_count=len(relationships),
-                confidence=connectivity_strength,
-                substrate_references=[rel["id"] for rel in relationships]
-            ))
-        
+
+        # Canon v3.1: Relationships removed - analyze blocks structure instead
+        # Could analyze semantic_type clustering, anchor_role patterns, etc.
+        # For now, return empty (relationships-based patterns removed)
+
         return patterns
     
     def _analyze_quality_patterns(self, blocks: List[Dict[str, Any]]) -> List[PatternReflection]:
@@ -681,9 +646,7 @@ Return JSON with deep analysis, not surface observations.""",
                 anchor = item.get('anchor_role', '')
                 anchor_text = f"[{anchor}]" if anchor else ""
                 lines.append(f"BLOCK[{st}]{anchor_text}: {title}\n{content}")
-            elif t == 'relationship':
-                rtype = item.get('relationship_type')
-                lines.append(f"REL[{rtype}]: {item.get('from_id')} -> {item.get('to_id')}")
+            # Canon v3.1: Relationships removed
         return '\n\n'.join(lines)
 
     def _infer_any_basket(self, substrate_data: List[Dict[str, Any]]) -> str:

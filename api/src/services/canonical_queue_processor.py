@@ -28,13 +28,11 @@ from uuid import uuid4, UUID
 from app.agents.pipeline import (
     P0CaptureAgent,
     P1SubstrateAgent,
-    P2GraphAgent,
     P3ReflectionAgent
 )
 from app.agents.pipeline.composition_agent_v2 import P4CompositionAgent, CompositionRequest
 from app.agents.pipeline.capture_agent import DumpIngestionRequest
 from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
-from app.agents.pipeline.graph_agent import RelationshipMappingRequest
 from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
 from app.agents.pipeline.governance_processor import GovernanceDumpProcessor
 from app.utils.supabase_client import supabase_admin_client as supabase
@@ -66,9 +64,10 @@ class CanonicalQueueProcessor:
         # Initialize canonical pipeline agents
         self.p0_capture = P0CaptureAgent()
         self.p1_governance = GovernanceDumpProcessor()  # Canonical governance with quality extraction
-        self.p2_graph = P2GraphAgent()
         self.p3_reflection = P3ReflectionAgent()
         self.p4_composition = P4CompositionAgent()  # Document composition
+
+        # Note: P2 (Graph/Relationships) removed in Canon v3.1 - replaced by Neural Map
         
         # Note: Always use improved extraction (no feature flag needed)
         
@@ -91,13 +90,17 @@ class CanonicalQueueProcessor:
                     for entry in queue_entries:
                         try:
                             work_type = entry.get('work_type', 'P1_SUBSTRATE')  # Default for legacy entries
-                            
+
                             if work_type in ['P0_CAPTURE', 'P1_SUBSTRATE']:
                                 # Traditional dump-based processing
                                 await self._process_dump_canonically(entry)
                             elif work_type == 'P2_GRAPH':
-                                # Graph relationship mapping
-                                await self._process_graph_work(entry)
+                                # P2_GRAPH deprecated in Canon v3.1 - mark as completed
+                                logger.info(f"Skipping deprecated P2_GRAPH work: {entry.get('work_id')}")
+                                await self._mark_completed(entry['work_id'], {
+                                    "status": "deprecated",
+                                    "message": "P2 Graph removed in Canon v3.1 - use Neural Map for visualization"
+                                })
                             # P3_REFLECTION removed - now direct artifact operations via /api/reflections
                             # P4_COMPOSE_NEW and P4_RECOMPOSE removed - now direct artifact operations via /api/documents
                             else:
@@ -327,103 +330,8 @@ class CanonicalQueueProcessor:
     
     # P4 composition methods removed - now direct artifact operations per Canon v2.3
     # Document composition happens via /api/documents/compose and /api/documents/[id]/recompose
-    
-    async def _process_graph_work(self, queue_entry: Dict[str, Any]):
-        """
-        Process P2_GRAPH work for relationship mapping.
-        
-        Canon Compliance:
-        - P2 creates relationships, never modifies substrate content
-        - Implements Sacred Principle #2: All Substrates are Peers (through semantic connections)
-        - Only creates substrate_relationships
-        """
-        work_id = queue_entry.get('work_id', queue_entry['id'])
-        queue_id = queue_entry['id']
-        work_payload = queue_entry.get('work_payload', {})
-        
-        logger.info(f"Starting P2 graph work: work_id={work_id}")
-        
-        try:
-            # Mark as processing
-            await self._update_queue_state(queue_id, 'processing')
-            
-            # Extract operation data
-            operations = work_payload.get('operations', [])
-            if not operations:
-                raise ValueError("P2 graph work missing operations")
-            
-            map_op = next((op for op in operations if op['type'] == 'MapRelationships'), None)
-            if not map_op:
-                raise ValueError("P2 graph work missing MapRelationships operation")
-            
-            op_data = map_op['data']
-            basket_id = work_payload['basket_id']
-            
-            # Get all substrate IDs for this basket for relationship analysis
-            substrate_ids = []
-            
-            # V3.0: Get all blocks (entities are now blocks with semantic_type='entity')
-            blocks_response = supabase.table("blocks").select("id").eq(
-                "basket_id", basket_id
-            ).in_("state", ["ACCEPTED", "LOCKED", "CONSTANT"]).execute()
-            substrate_ids.extend([UUID(b['id']) for b in (blocks_response.data or [])])
 
-            # V3.0: No context_items table - all substrate is in blocks table
-            # Entities/context are blocks with semantic_type='entity', 'reference', etc.
-
-            # CANON COMPLIANCE: P2 connects substrate only (blocks)
-            # Raw dumps are NOT part of relationship mapping per Sacred Principles
-            
-            if len(substrate_ids) < 2:
-                logger.info(f"P2 Graph: Insufficient substrate ({len(substrate_ids)}) for relationship mapping")
-                await self._update_queue_state(queue_id, 'completed')
-                return
-            
-            # Create relationship mapping request
-            from app.agents.pipeline.graph_agent import RelationshipMappingRequest
-            
-            relationship_request = RelationshipMappingRequest(
-                workspace_id=UUID(queue_entry['workspace_id']),
-                basket_id=UUID(basket_id),
-                substrate_ids=substrate_ids,
-                agent_id='p2_graph_agent'
-            )
-            
-            # Execute P2 Graph Agent
-            graph_result = await self.p2_graph.map_relationships(relationship_request)
-            
-            # Mark as completed with work result
-            work_result = {
-                'relationships_created': len(graph_result.relationships_created),
-                'substrate_analyzed': graph_result.substrate_analyzed,
-                'connection_strength_avg': graph_result.connection_strength_avg,
-                'processing_time_ms': graph_result.processing_time_ms
-            }
-            
-            # Update universal work tracker if work_id exists
-            if queue_entry.get('work_id'):
-                await universal_work_tracker.complete_work(
-                    queue_entry['work_id'], 
-                    work_result,
-                    'P2_graph_completed'
-                )
-            
-            await self._update_queue_state(queue_id, 'completed')
-            
-            logger.info(f"P2 Graph completed successfully: work_id={work_id}, relationships={len(graph_result.relationships_created)}")
-            
-        except Exception as e:
-            logger.exception(f"P2 Graph processing failed for work_id {work_id}: {e}")
-            
-            # Update universal work tracker for failure
-            if queue_entry.get('work_id'):
-                await universal_work_tracker.fail_work(
-                    queue_entry['work_id'],
-                    str(e)
-                )
-            
-            await self._mark_failed(queue_id, str(e))
-            raise
+    # P2 Graph processing removed in Canon v3.1 - replaced by Neural Map (client-side visualization)
     
     async def _get_batch_group(self, dump_id: str) -> List[str]:
         """
@@ -509,8 +417,8 @@ class CanonicalQueueProcessor:
             "canon_version": "v2.3",
             "pipeline_agents": {
                 "P0_CAPTURE": self.p0_capture.get_agent_info(),
-                "P1_GOVERNANCE": self.p1_governance.get_agent_info(),
-                "P2_GRAPH": self.p2_graph.get_agent_info()
+                "P1_GOVERNANCE": self.p1_governance.get_agent_info()
+                # P2_GRAPH removed in Canon v3.1 - replaced by Neural Map
                 # P3_REFLECTION removed - now direct artifact operations via /api/reflections
                 # P4_COMPOSITION removed - now direct artifact operations via /api/documents
             },

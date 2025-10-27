@@ -1,8 +1,13 @@
 """
-Enhanced Cascade Manager - YARNNN Canon v2.1 Compliant
+Enhanced Cascade Manager - YARNNN Canon v3.1 Compliant
 
 Integrates with Universal Work Tracker for comprehensive cascade orchestration.
-Handles P1→P2→P3 pipeline flows with full status visibility and timeline events.
+Handles P1→P3 pipeline flows with full status visibility and timeline events.
+
+Canon v3.1 Update:
+- P2 (Graph/Relationships) removed - replaced by Neural Map (client-side visualization)
+- P1_SUBSTRATE no longer triggers P2_GRAPH cascades
+- Direct P1→P3 cascade possible (though P3 typically triggered on-demand)
 
 Canon Compliance:
 - Uses universal_work_tracker for all cascade work creation
@@ -22,8 +27,8 @@ from services.universal_work_tracker import universal_work_tracker, WorkContext
 
 logger = logging.getLogger("uvicorn.error")
 
-# Cascade work types
-CascadeWorkType = Literal['P1_SUBSTRATE', 'P2_GRAPH', 'P3_REFLECTION']
+# Cascade work types (P2_GRAPH removed in v3.1)
+CascadeWorkType = Literal['P1_SUBSTRATE', 'P3_REFLECTION']
 
 class CascadeRule:
     """Defines cascade triggering rules between pipeline stages."""
@@ -49,37 +54,29 @@ class CascadeRule:
 
 class CanonicalCascadeManager:
     """
-    Canon v2.1 compliant cascade manager with universal work tracker integration.
-    
-    Manages automatic P1→P2→P3 cascade flows while maintaining:
+    Canon v3.1 compliant cascade manager with universal work tracker integration.
+
+    Manages automatic cascade flows while maintaining:
     - Full status visibility through universal work tracker
-    - Timeline event emission for all cascade state changes  
+    - Timeline event emission for all cascade state changes
     - Conditional triggering based on work results
     - Workspace isolation and security
     - Agent intelligence requirements
+
+    Canon v3.1: P2 (Graph/Relationships) removed - P1 and P3 are independent
     """
-    
+
     def __init__(self):
         self.cascade_rules = self._initialize_cascade_rules()
-        logger.info("Canonical Cascade Manager initialized - Canon v2.1 compliant")
-    
+        logger.info("Canonical Cascade Manager initialized - Canon v3.1 compliant")
+
     def _initialize_cascade_rules(self) -> Dict[str, CascadeRule]:
-        """Initialize cascade rules per Canon v2.1 pipeline flows."""
+        """Initialize cascade rules per Canon v3.1 pipeline flows."""
         return {
             'P1_SUBSTRATE': CascadeRule(
-                triggers_next='P2_GRAPH',
-                condition_func=lambda result: (
-                    result.get('proposals_created', 0) > 0 and
-                    result.get('proposals_executed', 0) > 0
-                ),
-                delay_seconds=5,  # Allow governance operations to complete
-                description='Substrate creation triggers relationship mapping'
-            ),
-            'P2_GRAPH': CascadeRule(
-                triggers_next='P3_REFLECTION',
-                condition_func=lambda result: result.get('relationships_created', 0) > 0,
-                delay_seconds=0,
-                description='Relationship mapping triggers reflection computation'
+                triggers_next=None,  # P2 removed in v3.1 - no automatic cascade
+                condition_func=None,
+                description='Substrate creation complete (P3/P4 triggered on-demand)'
             ),
             'P3_REFLECTION': CascadeRule(
                 triggers_next=None,  # Terminal stage
@@ -167,8 +164,11 @@ class CanonicalCascadeManager:
         substrate_created: Dict[str, int]
     ) -> Optional[str]:
         """
-        Trigger P1→P2 cascade specifically for substrate creation.
-        
+        Track P1 substrate creation completion.
+
+        Canon v3.1: No longer triggers P2 cascade (removed).
+        P3/P4 are triggered on-demand via direct API calls.
+
         Called after governance proposals are executed and substrate is created.
         """
         context = WorkContext(
@@ -176,46 +176,26 @@ class CanonicalCascadeManager:
             workspace_id=workspace_id,
             basket_id=basket_id
         )
-        
+
         work_result = {
             'proposals_created': 1,
             'proposals_executed': 1,
             'substrate_created': substrate_created,
             'source_proposal_id': proposal_id
         }
-        
+
         # Create synthetic work_id for this substrate creation
         work_id = f"substrate-{proposal_id}"
-        
+
+        # Process completion (no cascade triggered in v3.1)
         return await self.process_work_completion(
             work_id=work_id,
             work_type='P1_SUBSTRATE',
             work_result=work_result,
             context=context
         )
-    
-    async def trigger_p2_graph_cascade(
-        self,
-        work_id: str,
-        relationships_created: int,
-        context: WorkContext
-    ) -> Optional[str]:
-        """
-        Trigger P2→P3 cascade after relationship mapping.
-        
-        Called by P2GraphAgent after relationship creation.
-        """
-        work_result = {
-            'relationships_created': relationships_created,
-            'confidence': 0.8  # Standard P2 confidence
-        }
-        
-        return await self.process_work_completion(
-            work_id=work_id,
-            work_type='P2_GRAPH',
-            work_result=work_result,
-            context=context
-        )
+
+    # P2 graph cascade removed in Canon v3.1 - replaced by Neural Map
     
     async def _create_cascade_work(
         self,
@@ -241,27 +221,10 @@ class CanonicalCascadeManager:
             }
         }
         
-        # Add target-specific payload data with required operations
-        if target_work_type == 'P2_GRAPH':
-            # Create required operations array for P2 graph processing
-            cascade_payload['operations'] = [{
-                'type': 'MapRelationships',
-                'data': {
-                    'basket_id': context.basket_id,
-                    'workspace_id': context.workspace_id,
-                    'substrate_ids': work_result.get('substrate_created', {}),
-                    'relationship_scope': 'basket_wide',
-                    'agent_id': f"cascade-{source_work_id}"
-                }
-            }]
-            # Keep metadata for debugging/monitoring
-            cascade_payload['graph_processing'] = {
-                'substrate_ids': work_result.get('substrate_created', {}),
-                'relationship_scope': 'basket_wide'
-            }
-        elif target_work_type == 'P3_REFLECTION':
+        # Add target-specific payload data
+        # P2_GRAPH removed in Canon v3.1
+        if target_work_type == 'P3_REFLECTION':
             cascade_payload['reflection_processing'] = {
-                'relationships_count': work_result.get('relationships_created', 0),
                 'reflection_scope': 'pattern_analysis'
             }
         

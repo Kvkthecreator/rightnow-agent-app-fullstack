@@ -4,12 +4,13 @@ DEPRECATED: Base agent classes for legacy agents.
 All new agents should use the canonical pipeline agents in agents/pipeline/.
 This file is kept for backward compatibility only.
 
-Canonical Pipeline Agents (agents/pipeline/):
-- P0CaptureAgent: Only writes raw_dumps, never interprets  
-- P1SubstrateAgent: Creates blocks/context_items, never relationships
-- P2GraphAgent: Creates relationships, never modifies substrate
-- P3ReflectionAgent: Read-only computation, optionally cached
-- P4PresentationAgent: Consumes substrate for narrative, never creates it
+Canonical Pipeline Agents (agents/pipeline/) - Canon v3.1:
+- P0CaptureAgent: Only writes raw_dumps, never interprets
+- P1SubstrateAgent: Creates blocks with semantic duplicate detection
+- P3ReflectionAgent: Pattern analysis and insight generation
+- P4PresentationAgent: Document composition from substrate + insights
+
+Note: P2 (Graph/Relationships) removed in v3.1 - replaced by Neural Map
 """
 
 from __future__ import annotations
