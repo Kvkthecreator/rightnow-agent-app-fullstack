@@ -144,7 +144,7 @@ export default function SubstrateDetailModal({
   onUpdate
 }: SubstrateDetailModalProps) {
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'content' | 'history'>('content');
+  const [activeTab, setActiveTab] = useState<'content' | 'history' | 'settings'>('content');
   const [substrate, setSubstrate] = useState<SubstrateDetail | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -557,157 +557,6 @@ export default function SubstrateDetailModal({
 
         return (
           <div className="space-y-6">
-            <section className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant={blockAction === 'edit' ? 'default' : 'outline'}
-                  onClick={() => toggleBlockAction('edit')}
-                >
-                  {blockAction === 'edit' ? 'Editing block' : 'Edit block'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant={blockAction === 'retag' ? 'default' : 'outline'}
-                  onClick={() => toggleBlockAction('retag')}
-                >
-                  {blockAction === 'retag' ? 'Updating tags' : 'Update tags'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant={blockAction === 'archive' ? 'destructive' : 'outline'}
-                  onClick={() => toggleBlockAction('archive')}
-                >
-                  Archive
-                </Button>
-              </div>
-            </section>
-
-            {blockAction === 'edit' && (
-              <section className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-slate-700 mb-1 block">Title</label>
-                  <Input
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="Block title"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700 mb-1 block">Content</label>
-                  <textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    placeholder="Block content"
-                    className="w-full min-h-[160px] rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                {renderActionError()}
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleBlockAction('edit')}
-                    disabled={actionLoading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleSaveEdit}
-                    disabled={actionLoading || !editTitle.trim() || !editContent.trim()}
-                  >
-                    {actionLoading ? 'Saving…' : 'Save new version'}
-                  </Button>
-                </div>
-              </section>
-            )}
-
-            {blockAction === 'retag' && (
-              <section className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-slate-700 mb-1 block">Semantic Type</label>
-                  <select
-                    value={retagSemanticType}
-                    onChange={(e) => setRetagSemanticType(e.target.value)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {SEMANTIC_TYPE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-700 mb-1 block">Anchor Role (optional)</label>
-                  <Input
-                    value={retagAnchorRole}
-                    onChange={(e) => setRetagAnchorRole(e.target.value)}
-                    placeholder="e.g., project_constraint, stakeholder_need"
-                  />
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                    {ANCHOR_SUGGESTIONS.map((role) => (
-                      <button
-                        key={role}
-                        type="button"
-                        className={`rounded-full border px-2 py-1 ${retagAnchorRole === role ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'}`}
-                        onClick={() => setRetagAnchorRole(role)}
-                      >
-                        {role}
-                      </button>
-                    ))}
-                    <span className="text-slate-400">or type a custom role</span>
-                  </div>
-                </div>
-                {renderActionError()}
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleBlockAction('retag')}
-                    disabled={actionLoading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleSaveRetag}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? 'Updating…' : 'Update tags'}
-                  </Button>
-                </div>
-              </section>
-            )}
-
-            {blockAction === 'archive' && (
-              <section className="rounded-lg border border-rose-200 bg-rose-50 p-4 space-y-3">
-                <p className="text-sm text-rose-700">
-                  Archiving removes this block from active memory but preserves a tombstone. Downstream documents may need regeneration if they reference it.
-                </p>
-                {renderActionError()}
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleBlockAction('archive')}
-                    disabled={actionLoading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleArchiveBlock}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? 'Archiving…' : 'Confirm archive'}
-                  </Button>
-                </div>
-              </section>
-            )}
-
             {/* Primary Content Display - Single source of truth */}
             <section className="space-y-4">
               {/* Title and Type */}
@@ -954,6 +803,198 @@ export default function SubstrateDetailModal({
     );
   };
 
+  const renderSettings = () => {
+    if (substrateType !== 'block') {
+      return (
+        <div className="text-sm text-slate-500">
+          Settings are only available for blocks.
+        </div>
+      );
+    }
+
+    const renderActionError = () => (
+      actionError && (
+        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          {actionError}
+        </div>
+      )
+    );
+
+    return (
+      <div className="space-y-6">
+        {/* Edit Block Section */}
+        <section className="rounded-lg border border-slate-200 bg-white p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-slate-900">Edit Block</h4>
+            <Button
+              size="sm"
+              variant={blockAction === 'edit' ? 'default' : 'outline'}
+              onClick={() => toggleBlockAction('edit')}
+            >
+              {blockAction === 'edit' ? 'Editing' : 'Edit'}
+            </Button>
+          </div>
+
+          {blockAction === 'edit' && (
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Title</label>
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Block title"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Content</label>
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  placeholder="Block content"
+                  className="w-full min-h-[160px] rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              {renderActionError()}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleBlockAction('edit')}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveEdit}
+                  disabled={actionLoading || !editTitle.trim() || !editContent.trim()}
+                >
+                  {actionLoading ? 'Saving…' : 'Save new version'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Update Tags Section */}
+        <section className="rounded-lg border border-slate-200 bg-white p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-slate-900">Update Tags</h4>
+            <Button
+              size="sm"
+              variant={blockAction === 'retag' ? 'default' : 'outline'}
+              onClick={() => toggleBlockAction('retag')}
+            >
+              {blockAction === 'retag' ? 'Updating' : 'Update'}
+            </Button>
+          </div>
+
+          {blockAction === 'retag' && (
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Semantic Type</label>
+                <select
+                  value={retagSemanticType}
+                  onChange={(e) => setRetagSemanticType(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {SEMANTIC_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">Anchor Role (optional)</label>
+                <Input
+                  value={retagAnchorRole}
+                  onChange={(e) => setRetagAnchorRole(e.target.value)}
+                  placeholder="e.g., project_constraint, stakeholder_need"
+                />
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  {ANCHOR_SUGGESTIONS.map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      className={`rounded-full border px-2 py-1 ${retagAnchorRole === role ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'}`}
+                      onClick={() => setRetagAnchorRole(role)}
+                    >
+                      {role}
+                    </button>
+                  ))}
+                  <span className="text-slate-400">or type a custom role</span>
+                </div>
+              </div>
+              {renderActionError()}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleBlockAction('retag')}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveRetag}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Updating…' : 'Update tags'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Danger Zone */}
+        <section className="rounded-lg border border-rose-200 bg-rose-50 p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-semibold text-rose-900">Danger Zone</h4>
+              <p className="text-xs text-rose-700 mt-1">Irreversible actions</p>
+            </div>
+            <Button
+              size="sm"
+              variant={blockAction === 'archive' ? 'destructive' : 'outline'}
+              onClick={() => toggleBlockAction('archive')}
+            >
+              {blockAction === 'archive' ? 'Confirm?' : 'Archive'}
+            </Button>
+          </div>
+
+          {blockAction === 'archive' && (
+            <div className="space-y-3 pt-2 border-t border-rose-200">
+              <p className="text-sm text-rose-700">
+                Archiving removes this block from active memory but preserves a tombstone. Downstream documents may need regeneration if they reference it.
+              </p>
+              {renderActionError()}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleBlockAction('archive')}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleArchiveBlock}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Archiving…' : 'Confirm archive'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  };
+
   if (!open) return null;
 
   return (
@@ -1005,12 +1046,24 @@ export default function SubstrateDetailModal({
             >
               History
             </button>
+            {substrateType === 'block' && (
+              <button
+                className={`px-4 py-2 text-sm font-medium border-b-2 ${
+                  activeTab === 'settings'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('settings')}
+              >
+                Settings
+              </button>
+            )}
           </div>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'content' ? renderContent() : renderHistory()}
+          {activeTab === 'content' ? renderContent() : activeTab === 'history' ? renderHistory() : renderSettings()}
         </div>
 
         {/* Footer */}
