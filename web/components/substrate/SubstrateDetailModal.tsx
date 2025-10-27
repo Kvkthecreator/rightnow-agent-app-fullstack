@@ -708,68 +708,36 @@ export default function SubstrateDetailModal({
               </section>
             )}
 
-            <section className="rounded-lg border border-slate-200 bg-white p-4">
-              <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <Database className="h-4 w-4" /> Overview
-              </h4>
+            {/* Primary Content Display - Single source of truth */}
+            <section className="space-y-4">
+              {/* Title and Type */}
               {substrate.title && (
-                <p className="mt-2 text-base font-medium text-slate-900">{substrate.title}</p>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">{substrate.title}</h3>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {substrate.semantic_type && (
+                      <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">
+                        {substrate.semantic_type}
+                      </Badge>
+                    )}
+                    {(substrate.state || substrate.status) && (
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                        {substrate.state || substrate.status}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               )}
-              <div className="flex flex-wrap gap-2 mt-2">
-                {substrate.semantic_type && (
-                  <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 text-xs">
-                    {substrate.semantic_type}
-                  </Badge>
-                )}
-                {substrate.anchor_role && (
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
-                    Anchor: {substrate.anchor_role}
-                  </Badge>
-                )}
-                {(substrate.state || substrate.status) && (
-                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
-                    {substrate.state || substrate.status}
-                  </Badge>
-                )}
-                {substrate.scope && (
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                    Scope {substrate.scope}
-                  </Badge>
-                )}
+
+              {/* Main Content */}
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
+                  {substrate.content || 'No content available'}
+                </p>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {knowledgeSummary.goals > 0 && (
-                  <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs">
-                    🎯 {knowledgeSummary.goals} goals
-                  </Badge>
-                )}
-                {knowledgeSummary.constraints > 0 && (
-                  <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 text-xs">
-                    ⚠️ {knowledgeSummary.constraints} constraints
-                  </Badge>
-                )}
-                {knowledgeSummary.metrics > 0 && (
-                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
-                    📊 {knowledgeSummary.metrics} metrics
-                  </Badge>
-                )}
-                {knowledgeSummary.entities > 0 && (
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                    👥 {knowledgeSummary.entities} entities
-                  </Badge>
-                )}
-                {knowledgeSummary.insights > 0 && (
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
-                    💡 {knowledgeSummary.insights} insights
-                  </Badge>
-                )}
-                {knowledgeSummary.actions > 0 && (
-                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
-                    ✅ {knowledgeSummary.actions} actions
-                  </Badge>
-                )}
-              </div>
-              <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
+
+              {/* Metadata */}
+              <div className="grid gap-x-6 gap-y-2 text-sm text-slate-600 md:grid-cols-2">
                 <div>
                   <span className="font-medium text-slate-700">Confidence:</span> {displayConfidence(substrate.confidence_score)}
                 </div>
@@ -777,36 +745,42 @@ export default function SubstrateDetailModal({
                   <span className="font-medium text-slate-700">Times used:</span> {substrate.times_referenced ?? 0}
                 </div>
                 <div>
-                  <span className="font-medium text-slate-700">Version:</span> {substrate.version ?? '—'}
+                  <span className="font-medium text-slate-700">Version:</span> {substrate.version ?? 1}
                 </div>
                 <div>
                   <span className="font-medium text-slate-700">Created:</span> {formatTimestamp(substrate.created_at)}
                 </div>
                 {substrate.updated_at && (
-                  <div>
+                  <div className="md:col-span-2">
                     <span className="font-medium text-slate-700">Updated:</span> {formatTimestamp(substrate.updated_at)}
                   </div>
                 )}
-                {substrate.last_used_at && (
-                  <div>
-                    <span className="font-medium text-slate-700">Last referenced:</span> {formatTimestamp(substrate.last_used_at)}
-                  </div>
-                )}
               </div>
+
+              {/* Knowledge Ingredients - Collapsible */}
+              {knowledge && (knowledgeSummary.facts > 0 || knowledgeSummary.goals > 0 || knowledgeSummary.constraints > 0 || knowledgeSummary.metrics > 0 || knowledgeSummary.entities > 0 || knowledgeSummary.insights > 0 || knowledgeSummary.actions > 0) && (
+                <details className="group rounded-lg border border-slate-200 bg-slate-50">
+                  <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-100 rounded-lg">
+                    <span className="text-sm font-semibold text-slate-900">Knowledge Ingredients</span>
+                    <div className="flex items-center gap-2">
+                      {knowledgeSummary.facts > 0 && <span className="text-xs text-slate-600">🧩 {knowledgeSummary.facts}</span>}
+                      {knowledgeSummary.goals > 0 && <span className="text-xs text-slate-600">🎯 {knowledgeSummary.goals}</span>}
+                      {knowledgeSummary.constraints > 0 && <span className="text-xs text-slate-600">⚠️ {knowledgeSummary.constraints}</span>}
+                      {knowledgeSummary.metrics > 0 && <span className="text-xs text-slate-600">📊 {knowledgeSummary.metrics}</span>}
+                      <span className="ml-2 text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                    </div>
+                  </summary>
+                  <div className="px-4 pb-4 pt-2 space-y-3">
+                    {renderKnowledgeGroups()}
+                  </div>
+                </details>
+              )}
+
               {substrate.needs_enrichment && (
-                <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  Structured ingredients missing. Consider regenerating this block to enrich metadata before using it downstream.
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                  ℹ️ This block could benefit from enrichment to extract structured knowledge ingredients.
                 </div>
               )}
-            </section>
-
-            {renderKnowledgeGroups()}
-
-            <section className="space-y-2">
-              <h4 className="text-sm font-semibold text-slate-900">Content</h4>
-              <div className="rounded border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800 whitespace-pre-wrap">
-                {substrate.content || 'No content available'}
-              </div>
             </section>
 
             {(substrate.provenance || knowledge?.provenance) && (
