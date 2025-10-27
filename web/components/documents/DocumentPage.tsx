@@ -14,7 +14,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import TrustBanner from './TrustBanner';
-import ExplainButton from './ExplainButton';
 import { EnhancedDocumentViewer } from './EnhancedDocumentViewer';
 import { InsightsModal } from './InsightsModal';
 import { notificationAPI } from '@/lib/api/notifications';
@@ -555,26 +554,6 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
               <div className="p-6 text-sm text-red-600">{error}</div>
             ) : currentContent ? (
               <div className="p-6">
-                <div className="mb-6 flex items-center justify-end">
-                  <ExplainButton
-                    documentId={composition?.document?.id || document.id}
-                    substrates={references.map(entry => ({
-                      id: entry.substrate?.id || entry.reference?.id,
-                      type: entry.substrate?.substrate_type || entry.reference?.substrate_type,
-                      title: entry.substrate?.preview || entry.substrate?.title || 'Substrate source',
-                      content: entry.substrate?.content || entry.substrate?.preview || '',
-                      role: entry.reference?.role,
-                      weight: entry.reference?.weight,
-                      selection_reason: entry.reference?.metadata?.selection_reason
-                    }))}
-                    metrics={metrics ? {
-                      coverage_percentage: metrics.coverage,
-                      freshness_score: metrics.freshness,
-                      provenance_percentage: metrics.provenance,
-                      raw_gaps_used: metrics.rawGaps
-                    } : undefined}
-                  />
-                </div>
                 <EnhancedDocumentViewer
                   content={currentContent}
                   references={references.map(entry => ({
