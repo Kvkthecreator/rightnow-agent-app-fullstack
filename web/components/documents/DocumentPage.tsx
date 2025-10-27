@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import TrustBanner from './TrustBanner';
 import ExplainButton from './ExplainButton';
 import { EnhancedDocumentViewer } from './EnhancedDocumentViewer';
@@ -74,6 +82,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const [composeStartedAt, setComposeStartedAt] = useState<Date | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState<string | null>(null);
+  const [showUpdateConfirm, setShowUpdateConfirm] = useState(false);
 
   const fetchComposition = useCallback(async (silent = false): Promise<CompositionPayload | null> => {
     if (!silent) {
@@ -195,12 +204,17 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const lastComposedAt = composition?.document?.metadata?.composition_completed_at;
   const hasVersions = versions.length > 0;
 
+  const handleUpdateClick = () => {
+    setShowUpdateConfirm(true);
+  };
+
   const handleCompose = async () => {
+    setShowUpdateConfirm(false);
     setComposeState('running');
     setComposeMessage('Composing from memory…');
     setComposeError(null);
     setComposeStartedAt(new Date());
-    await notificationAPI.emitJobStarted('document.compose', `Composing “${document.title}”`, { basketId });
+    await notificationAPI.emitJobStarted('document.compose', `Composing "${document.title}"`, { basketId });
     try {
       const res = await fetch(`/api/documents/${document.id}/recompose`, {
         method: 'POST',
@@ -341,7 +355,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
     if (!references.length) {
       return (
         <Card className="p-4">
-          <div className="text-sm text-slate-500">No substrate references yet. Compose from memory to attach sources.</div>
+          <div className="text-sm text-slate-500">No blocks yet. Update document to attach sources from memory.</div>
         </Card>
       );
     }
@@ -350,7 +364,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
         <div className="border-b border-slate-200 px-4 py-3">
           <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
             <Layers className="h-4 w-4" />
-            Substrate Sources
+            Blocks
           </h3>
         </div>
         <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
@@ -516,8 +530,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
             </h1>
             <div className="flex flex-wrap gap-3 text-xs text-slate-500">
               <span>Last updated {relativeTime(composition?.document?.updated_at || document.updated_at)}</span>
-              {lastComposedAt && <span>Last composed {relativeTime(lastComposedAt)}</span>}
-              <span>{substrateCount} substrate references</span>
+              <span>{substrateCount} {substrateCount === 1 ? 'block' : 'blocks'}</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -533,15 +546,15 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
             )}
             <Button variant="outline" size="sm" onClick={handleDocumentInsights} disabled={insightLoading || composeState === 'running'}>
               <Lightbulb className="mr-2 h-4 w-4" />
-              {insightLoading ? 'Analyzing…' : 'Analyze Document Insights'}
+              {insightLoading ? 'Analyzing…' : 'Insights'}
             </Button>
-            <Button variant="default" size="sm" onClick={handleCompose} disabled={composeState === 'running'}>
+            <Button variant="default" size="sm" onClick={handleUpdateClick} disabled={composeState === 'running'}>
               <Sparkles className="mr-2 h-4 w-4" />
-              {composeState === 'running' ? 'Updating…' : 'Request Update using Blocks'}
+              {composeState === 'running' ? 'Updating…' : 'Update'}
             </Button>
             <Button variant="outline" size="sm" onClick={handleExtractToMemory} disabled={composeState === 'running'}>
               <Download className="mr-2 h-4 w-4" />
-              Extract to Memory
+              Export
             </Button>
           </div>
         </div>
@@ -582,11 +595,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
               <div className="p-6 text-sm text-red-600">{error}</div>
             ) : currentContent ? (
               <div className="p-6">
-                <div className="mb-6 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Layers className="h-4 w-4" />
-                    <span>Composed from {substrateCount} substrate items</span>
-                  </div>
+                <div className="mb-6 flex items-center justify-end">
                   <ExplainButton
                     documentId={composition?.document?.id || document.id}
                     substrates={references.map(entry => ({
@@ -620,7 +629,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
               </div>
             ) : (
               <div className="p-12 text-center text-sm text-slate-500">
-                No content yet. Click "Request Update using Blocks" to compose document from your memory.
+                No content yet. Click "Update" to compose document from your memory.
               </div>
             )}
           </Card>
@@ -637,6 +646,25 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
             )}
           </div>
         </div>
+
+      <Dialog open={showUpdateConfirm} onOpenChange={setShowUpdateConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Document?</DialogTitle>
+            <DialogDescription>
+              This will recompose the document using the latest blocks from your memory. This may take a few moments.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUpdateConfirm(false)}>
+              Cancel
+            </Button>
+            <Button variant="default" onClick={handleCompose}>
+              Update
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
