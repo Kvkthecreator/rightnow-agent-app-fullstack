@@ -52,7 +52,6 @@ export async function GET(
     const [
       { count: blocks_count },
       { count: raw_dumps_count },
-      { count: relationships_count },
       { count: documents_count }
     ] = await Promise.all([
       supabase.from('blocks')
@@ -65,22 +64,45 @@ export async function GET(
         .eq('basket_id', id)
         .eq('workspace_id', workspace.id)
         .neq('processing_status', 'redacted'),
-      // V3.1: Count relationships for this basket's blocks
-      blockIds.length > 0
-        ? supabase.from('substrate_relationships')
-            .select('*', { count: 'exact', head: true })
-            .or(`from_block_id.in.(${blockIds.join(',')}),to_block_id.in.(${blockIds.join(',')})`)
-        : Promise.resolve({ count: 0 }),
       supabase.from('documents')
         .select('*', { count: 'exact', head: true })
         .eq('basket_id', id)
         .eq('workspace_id', workspace.id)
     ]);
 
+    let relationships_count = 0;
+    if (blockIds.length > 0) {
+      const blockSet = new Set(blockIds);
+      const selectColumns = 'id, from_block_id, to_block_id';
+
+      const [outbound, inbound] = await Promise.all([
+        supabase
+          .from('substrate_relationships')
+          .select(selectColumns)
+          .in('from_block_id', blockIds),
+        supabase
+          .from('substrate_relationships')
+          .select(selectColumns)
+          .in('to_block_id', blockIds),
+      ]);
+
+      if (outbound.error || inbound.error) {
+        console.error('Relationship count fetch failed:', outbound.error || inbound.error);
+      } else {
+        const relIds = new Set<string>();
+        [...(outbound.data || []), ...(inbound.data || [])].forEach((rel) => {
+          if (!rel) return;
+          if (!blockSet.has(rel.from_block_id) || !blockSet.has(rel.to_block_id)) return;
+          relIds.add(rel.id);
+        });
+        relationships_count = relIds.size;
+      }
+    }
+
     const stats: BasketStats = {
       blocks_count: blocks_count || 0,
       raw_dumps_count: raw_dumps_count || 0,
-      relationships_count: relationships_count || 0,
+      relationships_count,
       documents_count: documents_count || 0
     };
 

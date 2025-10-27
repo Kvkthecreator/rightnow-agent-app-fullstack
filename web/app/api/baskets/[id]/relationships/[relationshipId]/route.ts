@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { checkBasketAccess } from "@/lib/baskets/access";
@@ -15,39 +15,71 @@ export async function GET(
   try {
     const { id: basketId, relationshipId } = await params;
     const supabase = createRouteHandlerClient({ cookies });
-    
-    // Check basket access
+
     await checkBasketAccess(supabase, basketId);
-    
-    // Fetch relationship details
-    const { data: relationship, error } = await supabase
+
+    const { data: relationship, error: relationshipError } = await supabase
       .from('substrate_relationships')
-      .select(`
-        id,
-        basket_id,
-        from_type,
-        from_id,
-        to_type,
-        to_id,
-        relationship_type,
-        strength,
-        description,
-        created_at
-      `)
+      .select('id, from_block_id, to_block_id, relationship_type, confidence_score, inference_method, state, metadata, created_at, updated_at')
       .eq('id', relationshipId)
-      .eq('basket_id', basketId)
-      .single();
-    
-    if (error || !relationship) {
-      return Response.json({ error: 'Relationship not found' }, { status: 404 });
+      .maybeSingle();
+
+    if (relationshipError || !relationship) {
+      return NextResponse.json({ error: 'Relationship not found' }, { status: 404 });
     }
-    
-    return Response.json(relationship);
+
+    const blockIds = [relationship.from_block_id, relationship.to_block_id].filter(Boolean);
+    if (blockIds.length === 0) {
+      return NextResponse.json({ error: 'Relationship not found' }, { status: 404 });
+    }
+    const { data: blocks, error: blockError } = await supabase
+      .from('blocks')
+      .select('id, basket_id, workspace_id, title, semantic_type, created_at')
+      .in('id', blockIds);
+
+    if (blockError) {
+      console.error('Relationship block fetch failed:', blockError);
+      return NextResponse.json({ error: 'Failed to load related blocks' }, { status: 500 });
+    }
+
+    const blockMap = new Map<string, { id: string; title?: string | null; semantic_type?: string | null; created_at?: string }>();
+    (blocks || []).forEach((block) => {
+      if (block.basket_id === basketId) {
+        blockMap.set(block.id, {
+          id: block.id,
+          title: block.title,
+          semantic_type: block.semantic_type,
+          created_at: block.created_at,
+        });
+      }
+    });
+
+    const fromBlock = relationship.from_block_id ? blockMap.get(relationship.from_block_id) : undefined;
+    const toBlock = relationship.to_block_id ? blockMap.get(relationship.to_block_id) : undefined;
+
+    if (!fromBlock || !toBlock) {
+      return NextResponse.json({ error: 'Relationship does not belong to this basket' }, { status: 404 });
+    }
+
+    const result = {
+      id: relationship.id,
+      relationship_type: relationship.relationship_type,
+      confidence_score: relationship.confidence_score,
+      inference_method: relationship.inference_method,
+      state: relationship.state,
+      metadata: relationship.metadata,
+      created_at: relationship.created_at,
+      updated_at: relationship.updated_at,
+      from_block: fromBlock,
+      to_block: toBlock,
+    };
+
+    return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
     console.error('Failed to fetch relationship:', error);
-    return Response.json(
-      { error: error.message || 'Failed to fetch relationship' },
-      { status: error.status || 500 }
+    return NextResponse.json(
+      { error: error?.message || 'Failed to fetch relationship' },
+      { status: error?.status || 500 }
     );
   }
 }

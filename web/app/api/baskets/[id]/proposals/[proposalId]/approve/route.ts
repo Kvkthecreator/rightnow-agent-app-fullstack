@@ -189,24 +189,16 @@ export async function POST(
 
         // Trigger P2 Graph mapping for substrate connections
         try {
-          // Get current substrate counts
-          const [
-            { count: blocks_count },
-            { count: context_items_count }
-          ] = await Promise.all([
-            supabase.from('blocks')
-              .select('*', { count: 'exact', head: true })
-              .eq('basket_id', basketId)
-              .neq('status', 'archived'),
-            supabase.from('context_items')
-              .select('*', { count: 'exact', head: true })
-              .eq('basket_id', basketId)
-              .eq('state', 'ACTIVE')
-          ]);
+          // Get current accepted/locked blocks in this basket
+          const { count: blocks_count } = await supabase.from('blocks')
+            .select('*', { count: 'exact', head: true })
+            .eq('basket_id', basketId)
+            .eq('workspace_id', workspace.id)
+            .neq('status', 'archived');
 
-          const totalSubstrate = (blocks_count || 0) + (context_items_count || 0);
+          const totalSubstrate = blocks_count || 0;
           const hasNewSubstrate = executionLog.some((e: any) =>
-            e.success && ['CreateBlock', 'CreateContextItem', 'ReviseBlock', 'UpdateContextItem'].includes(e.operation_type)
+            e.success && ['CreateBlock', 'ReviseBlock'].includes(e.operation_type)
           );
 
           // P2 Graph: Map relationships if basket has enough substrate (10+) and substrate was created/updated

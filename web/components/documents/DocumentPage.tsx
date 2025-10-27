@@ -16,6 +16,7 @@ import {
 import TrustBanner from './TrustBanner';
 import ExplainButton from './ExplainButton';
 import { EnhancedDocumentViewer } from './EnhancedDocumentViewer';
+import { InsightsModal } from './InsightsModal';
 import { notificationAPI } from '@/lib/api/notifications';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { ChevronLeft, Sparkles, ArrowUpRight, RefreshCw, FileText, Layers, History, Download, Lightbulb } from 'lucide-react';
@@ -80,9 +81,8 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   const [composeMessage, setComposeMessage] = useState<string | null>(null);
   const [composeError, setComposeError] = useState<string | null>(null);
   const [composeStartedAt, setComposeStartedAt] = useState<Date | null>(null);
-  const [insightLoading, setInsightLoading] = useState(false);
-  const [insightError, setInsightError] = useState<string | null>(null);
   const [showUpdateConfirm, setShowUpdateConfirm] = useState(false);
+  const [showInsightsModal, setShowInsightsModal] = useState(false);
 
   const fetchComposition = useCallback(async (silent = false): Promise<CompositionPayload | null> => {
     if (!silent) {
@@ -268,41 +268,8 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
     }
   };
 
-  const handleDocumentInsights = async () => {
-    setInsightLoading(true);
-    setInsightError(null);
-    await notificationAPI.emitJobStarted('document.reflection', `Analyzing "${document.title}"`, {
-      basketId,
-      correlationId: document.id,
-    });
-    try {
-      const resp = await fetchWithToken('/api/p3/doc-insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          document_id: document.id,
-          force: true,
-        }),
-      });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        throw new Error(payload?.error || payload?.detail || 'Failed to request insights');
-      }
-      await notificationAPI.emitJobSucceeded('document.reflection', 'Document insight generated', {
-        basketId,
-        correlationId: document.id,
-      });
-      window.dispatchEvent(new CustomEvent('reflections:refresh'));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to request insights';
-      setInsightError(message);
-      await notificationAPI.emitJobFailed('document.reflection', message, {
-        basketId,
-        correlationId: document.id,
-      });
-    } finally {
-      setInsightLoading(false);
-    }
+  const handleInsightsClick = () => {
+    setShowInsightsModal(true);
   };
 
   const renderComposeBanner = () => {
@@ -544,9 +511,9 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
                 View Original Upload
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={handleDocumentInsights} disabled={insightLoading || composeState === 'running'}>
+            <Button variant="outline" size="sm" onClick={handleInsightsClick}>
               <Lightbulb className="mr-2 h-4 w-4" />
-              {insightLoading ? 'Analyzing…' : 'Insights'}
+              Insights
             </Button>
             <Button variant="default" size="sm" onClick={handleUpdateClick} disabled={composeState === 'running'}>
               <Sparkles className="mr-2 h-4 w-4" />
@@ -558,13 +525,6 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
             </Button>
           </div>
         </div>
-        {insightError && (
-          <div className="px-6 pb-4">
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {insightError}
-            </div>
-          </div>
-        )}
         {metrics && (
           <div className="border-t border-slate-200 px-6 py-4 bg-slate-50">
             <TrustBanner
@@ -665,6 +625,15 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <InsightsModal
+        open={showInsightsModal}
+        onOpenChange={setShowInsightsModal}
+        documentId={document.id}
+        documentTitle={composition?.document?.title || document.title}
+        currentVersionHash={(composition?.document as any)?.current_version_hash || ''}
+        basketId={basketId}
+      />
     </div>
   );
 }

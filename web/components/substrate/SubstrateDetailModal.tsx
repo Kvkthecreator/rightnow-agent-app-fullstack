@@ -107,12 +107,20 @@ interface SubstrateDetail {
   synonyms?: string[];
   description?: string;
   // Relationship fields (Canon-compliant)
-  from_type?: string;
-  from_id?: string;
-  to_type?: string;
-  to_id?: string;
   relationship_type?: string;
-  strength?: number;
+  from_block?: {
+    id: string;
+    title?: string | null;
+    semantic_type?: string | null;
+    created_at?: string;
+  };
+  to_block?: {
+    id: string;
+    title?: string | null;
+    semantic_type?: string | null;
+    created_at?: string;
+  };
+  inference_method?: string | null;
   // Timeline event fields
   event_kind?: string;
   preview?: string;
@@ -888,7 +896,9 @@ export default function SubstrateDetailModal({
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm">
               <span className="font-medium">From:</span>
-              <span className="bg-gray-100 px-2 py-1 rounded">{substrate.from_type} ({substrate.from_id?.slice(0, 8)}...)</span>
+              <span className="bg-gray-100 px-2 py-1 rounded">
+                {substrate.from_block?.title || substrate.from_block?.semantic_type || 'Block'} ({substrate.from_block?.id?.slice(0, 8)}...)
+              </span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <span className="font-medium">Type:</span>
@@ -896,16 +906,30 @@ export default function SubstrateDetailModal({
             </div>
             <div className="flex items-center gap-2 text-sm">
               <span className="font-medium">To:</span>
-              <span className="bg-gray-100 px-2 py-1 rounded">{substrate.to_type} ({substrate.to_id?.slice(0, 8)}...)</span>
+              <span className="bg-gray-100 px-2 py-1 rounded">
+                {substrate.to_block?.title || substrate.to_block?.semantic_type || 'Block'} ({substrate.to_block?.id?.slice(0, 8)}...)
+              </span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium">Strength:</span>
-              <span>{((substrate.strength || 0) * 100).toFixed(0)}%</span>
+              <span className="font-medium">Confidence:</span>
+              <span>{Math.round((substrate.confidence_score ?? 0) * 100)}%</span>
             </div>
-            {substrate.description && (
+            {substrate.inference_method && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium">Inference method:</span>
+                <span>{substrate.inference_method}</span>
+              </div>
+            )}
+            {substrate.metadata?.description && (
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Description</h4>
-                <p className="text-sm text-gray-800">{substrate.description}</p>
+                <p className="text-sm text-gray-800">{substrate.metadata.description}</p>
+              </div>
+            )}
+            {substrate.metadata?.reasoning && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-1">Reasoning</h4>
+                <p className="text-sm text-gray-800">{substrate.metadata.reasoning}</p>
               </div>
             )}
           </div>

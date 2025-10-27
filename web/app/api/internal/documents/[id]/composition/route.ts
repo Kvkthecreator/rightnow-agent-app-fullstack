@@ -86,6 +86,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       basket_id: documentRow.basket_id,
       title: documentRow.title,
       content: versionContent,
+      current_version_hash: documentRow.current_version_hash,
       created_at: documentRow.created_at,
       updated_at: documentRow.updated_at,
       workspace_id: documentRow.workspace_id,
