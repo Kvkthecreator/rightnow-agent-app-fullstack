@@ -33,7 +33,7 @@ export async function handleAuthorize(
 
   // Redirect to backend OAuth authorization endpoint
   // Backend handles: user auth, consent screen, code generation, direct redirect to Claude
-  const backendAuthUrl = `${config.backendUrl}/auth/mcp/authorize${queryString}`;
+  const backendAuthUrl = `${config.backendUrl}/api/auth/mcp/authorize${queryString}`;
 
   console.log('[OAuth] Proxying authorization to backend:', backendAuthUrl);
 
@@ -69,7 +69,7 @@ export async function handleTokenExchange(
   // Proxy token exchange request to backend
   // Backend handles: code validation, token generation, session storage
   try {
-    const backendResponse = await fetch(`${config.backendUrl}/auth/mcp/token`, {
+    const backendResponse = await fetch(`${config.backendUrl}/api/auth/mcp/token`, {
       method: 'POST',
       headers: {
         'Content-Type': req.headers['content-type'] || 'application/x-www-form-urlencoded',
