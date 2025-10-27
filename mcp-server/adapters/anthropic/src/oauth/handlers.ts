@@ -1,18 +1,21 @@
 /**
  * OAuth authorization flow handlers
+ *
+ * This adapter delegates all OAuth operations to the backend authorization server.
+ * Backend handles: authorization, consent, code generation, token exchange, session storage.
  */
 
 import { IncomingMessage, ServerResponse } from 'node:http';
 import { URL } from 'node:url';
 import type { OAuthConfig } from './config.js';
-import type { AuthorizationRequest, TokenRequest } from './types.js';
-import { generateToken, storeAuthCode, consumeAuthCode } from './tokens.js';
 
 /**
  * Handle GET /authorize - OAuth authorization endpoint
  *
  * Claude.ai redirects here when user enables the connector.
- * Immediately redirects to YARNNN web app for authentication.
+ * Delegates to backend OAuth authorization endpoint.
+ *
+ * Flow: MCP /authorize → Backend /auth/mcp/authorize → User consent → Backend redirect to Claude
  */
 export async function handleAuthorize(
   req: IncomingMessage,
@@ -26,94 +29,15 @@ export async function handleAuthorize(
   }
 
   const url = new URL(req.url || '', `http://${req.headers.host}`);
-  const params: AuthorizationRequest = {
-    response_type: url.searchParams.get('response_type') || '',
-    client_id: url.searchParams.get('client_id') || '',
-    redirect_uri: url.searchParams.get('redirect_uri') || '',
-    state: url.searchParams.get('state') || '',
-    scope: url.searchParams.get('scope') || undefined,
-  };
+  const queryString = url.search; // Preserve all query parameters
 
-  console.log('[OAuth] Authorization request:', params);
+  // Redirect to backend OAuth authorization endpoint
+  // Backend handles: user auth, consent screen, code generation, direct redirect to Claude
+  const backendAuthUrl = `${config.backendUrl}/auth/mcp/authorize${queryString}`;
 
-  // Validate required OAuth parameters
-  if (params.response_type !== 'code') {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'unsupported_response_type' }));
-    return;
-  }
+  console.log('[OAuth] Proxying authorization to backend:', backendAuthUrl);
 
-  if (!params.redirect_uri || !params.state) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'invalid_request' }));
-    return;
-  }
-
-  // Check if client_id matches (optional, for added security)
-  if (config.clientId && params.client_id !== config.clientId) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'invalid_client' }));
-    return;
-  }
-
-  // Immediately redirect to YARNNN web app for auth (no intermediate HTML page)
-  const authorizationUrl = `https://yarnnn.com/mcp/authorize?` +
-    `redirect_uri=${encodeURIComponent(params.redirect_uri)}&` +
-    `state=${encodeURIComponent(params.state)}&` +
-    `scope=${encodeURIComponent(params.scope || 'mcp:*')}&` +
-    `mcp_callback=${encodeURIComponent(`https://${req.headers.host}/oauth/callback`)}`;
-
-  console.log('[OAuth] Redirecting to YARNNN authorization page:', authorizationUrl);
-
-  res.writeHead(302, { 'Location': authorizationUrl });
-  res.end();
-}
-
-/**
- * Handle GET /oauth/callback - OAuth callback from YARNNN web app
- *
- * After user authenticates in YARNNN web app, they're redirected here
- * with their Supabase token. We generate an OAuth code and redirect to Claude.
- */
-export async function handleOAuthCallback(
-  req: IncomingMessage,
-  res: ServerResponse,
-  config: OAuthConfig
-): Promise<void> {
-  const url = new URL(req.url || '', `http://${req.headers.host}`);
-  const supabaseToken = url.searchParams.get('token');
-  const userId = url.searchParams.get('user_id');
-  const workspaceId = url.searchParams.get('workspace_id');
-  const redirectUri = url.searchParams.get('redirect_uri');
-  const state = url.searchParams.get('state');
-
-  console.log('[OAuth] Callback received:', { userId, workspaceId, hasToken: !!supabaseToken });
-
-  if (!supabaseToken || !userId || !workspaceId || !redirectUri || !state) {
-    res.writeHead(400, { 'Content-Type': 'text/html' });
-    res.end('<h1>Invalid callback parameters</h1>');
-    return;
-  }
-
-  // Generate authorization code
-  const code = generateToken('ac');  // ac = authorization code
-  const expiresAt = Date.now() + (10 * 60 * 1000); // 10 minutes
-
-  storeAuthCode(code, {
-    supabaseToken,
-    userId,
-    workspaceId,
-    expiresAt,
-  });
-
-  console.log('[OAuth] Authorization code generated:', code);
-
-  // Redirect back to Claude with code and state
-  const claudeRedirectUrl = new URL(redirectUri);
-  claudeRedirectUrl.searchParams.set('code', code);
-  claudeRedirectUrl.searchParams.set('state', state);
-
-  res.writeHead(302, { 'Location': claudeRedirectUrl.toString() });
+  res.writeHead(302, { 'Location': backendAuthUrl });
   res.end();
 }
 
@@ -140,91 +64,39 @@ export async function handleTokenExchange(
     body += chunk.toString();
   }
 
-  let params: TokenRequest;
-  const contentType = req.headers['content-type'] || '';
+  console.log('[OAuth] Token exchange request - proxying to backend');
 
-  if (contentType.includes('application/json')) {
-    params = JSON.parse(body);
-  } else {
-    // Parse URL-encoded form data
-    const searchParams = new URLSearchParams(body);
-    params = {
-      grant_type: searchParams.get('grant_type') || '',
-      code: searchParams.get('code') || '',
-      redirect_uri: searchParams.get('redirect_uri') || '',
-      client_id: searchParams.get('client_id') || '',
-      client_secret: searchParams.get('client_secret') || undefined,
-    };
-  }
-
-  console.log('[OAuth] Token exchange request:', { grant_type: params.grant_type, code: params.code?.substring(0, 10) + '...' });
-
-  // Validate grant type
-  if (params.grant_type !== 'authorization_code') {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'unsupported_grant_type' }));
-    return;
-  }
-
-  // Validate client credentials (if configured)
-  if (config.clientSecret) {
-    if (params.client_secret !== config.clientSecret) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'invalid_client' }));
-      return;
-    }
-  }
-
-  // Look up and consume authorization code
-  const authData = consumeAuthCode(params.code);
-  if (!authData) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'invalid_grant', error_description: 'Code expired or already used' }));
-    return;
-  }
-
-  // Generate access token with long expiration for MCP servers
-  // MCP servers should have long-lived tokens (90 days) since they're not browser-based
-  // and users don't want to re-authenticate frequently for AI assistants
-  const accessToken = generateToken('yat'); // yat = YARNNN access token
-
-  // Store in backend (single source of truth)
+  // Proxy token exchange request to backend
+  // Backend handles: code validation, token generation, session storage
   try {
-    const response = await fetch(`${config.backendUrl}/api/mcp/auth/sessions`, {
+    const backendResponse = await fetch(`${config.backendUrl}/auth/mcp/token`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authData.supabaseToken}`,
+        'Content-Type': req.headers['content-type'] || 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
-        mcp_token: accessToken,
-        supabase_token: authData.supabaseToken,
-        user_id: authData.userId,
-        expires_in_days: 90,
-      }),
+      body,
     });
 
-    if (!response.ok) {
-      console.error('[OAuth] Failed to persist session to backend:', response.status);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'failed_to_create_session' }));
-      return;
+    const responseBody = await backendResponse.text();
+
+    // Forward backend response to client
+    res.writeHead(backendResponse.status, {
+      'Content-Type': 'application/json',
+    });
+    res.end(responseBody);
+
+    if (backendResponse.ok) {
+      const tokenData = JSON.parse(responseBody);
+      console.log('[OAuth] Access token issued:', tokenData.access_token.substring(0, 10) + '...');
+    } else {
+      console.error('[OAuth] Token exchange failed:', backendResponse.status, responseBody);
     }
   } catch (error) {
-    console.error('[OAuth] Failed to persist session to backend:', error);
+    console.error('[OAuth] Backend token exchange failed:', error);
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'backend_unavailable' }));
-    return;
+    res.end(JSON.stringify({
+      error: 'server_error',
+      error_description: 'Backend OAuth service unavailable'
+    }));
   }
-
-  console.log('[OAuth] Access token issued (90-day expiration):', accessToken.substring(0, 10) + '...');
-
-  // Return token response
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({
-    access_token: accessToken,
-    token_type: 'Bearer',
-    expires_in: 7776000, // 90 days in seconds
-    scope: params.scope || 'full_access',
-  }));
 }

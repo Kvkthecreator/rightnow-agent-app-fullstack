@@ -1,20 +1,19 @@
 /**
  * OAuth 2.0 implementation for Claude.ai remote MCP connector
  *
- * This module provides a complete OAuth 2.0 authorization flow integrated
- * with YARNNN's Supabase authentication system.
+ * This adapter delegates all OAuth operations to the backend authorization server.
+ * Backend is the single source of truth for authorization, tokens, and session storage.
  */
 
 // Configuration
 export { getOAuthConfig } from './config.js';
 export type { OAuthConfig } from './config.js';
 
-// Handlers
-export { handleAuthorize, handleOAuthCallback, handleTokenExchange } from './handlers.js';
-export { handleDynamicClientRegistration } from './client-registration.js';
+// Handlers - MCP adapter proxies requests to backend
+export { handleAuthorize, handleTokenExchange } from './handlers.js';
 
-// Validation
+// Validation - validates tokens via backend
 export { validateOAuthToken } from './validation.js';
 
 // Types
-export type { AuthorizationRequest, TokenRequest, AuthCodeData } from './types.js';
+export type { AuthorizationRequest, TokenRequest } from './types.js';

@@ -1,5 +1,5 @@
 /**
- * OAuth request/response types
+ * OAuth request/response types (RFC 6749)
  */
 
 export interface AuthorizationRequest {
@@ -17,11 +17,4 @@ export interface TokenRequest {
   client_id: string;
   client_secret?: string;
   scope?: string;
-}
-
-export interface AuthCodeData {
-  supabaseToken: string;
-  userId: string;
-  workspaceId: string;
-  expiresAt: number;
 }

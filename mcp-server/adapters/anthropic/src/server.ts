@@ -40,9 +40,7 @@ import {
 import {
   getOAuthConfig,
   handleAuthorize,
-  handleOAuthCallback,
   handleTokenExchange,
-  handleDynamicClientRegistration,
   validateOAuthToken,
 } from './oauth/index.js';
 import {
@@ -307,25 +305,13 @@ async function main() {
           return;
         }
 
-        // OAuth Dynamic Client Registration (RFC 7591)
-        if (req.method === 'POST' && url === '/oauth/register') {
-          await handleDynamicClientRegistration(req, res, oauthConfig);
-          return;
-        }
-
-        // OAuth authorization endpoint
+        // OAuth authorization endpoint - proxy to backend
         if (req.method === 'GET' && url.startsWith('/authorize')) {
           await handleAuthorize(req, res, oauthConfig);
           return;
         }
 
-        // OAuth callback endpoint
-        if (req.method === 'GET' && url.startsWith('/oauth/callback')) {
-          await handleOAuthCallback(req, res, oauthConfig);
-          return;
-        }
-
-        // OAuth token exchange endpoint
+        // OAuth token exchange endpoint - proxy to backend
         if (req.method === 'POST' && url === '/token') {
           await handleTokenExchange(req, res, oauthConfig);
           return;

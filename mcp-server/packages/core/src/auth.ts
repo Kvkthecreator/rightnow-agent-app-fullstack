@@ -1,49 +1,57 @@
-import type { UserContext, AuthValidationResponse } from './types/index.js';
+import type { UserContext } from './types/index.js';
+
+interface SessionValidationResponse {
+  supabase_token: string;
+  workspace_id: string;
+  user_id: string;
+  expires_at: string;
+}
 
 /**
- * Validate user authentication token against YARNNN backend
+ * Validate MCP OAuth token against YARNNN backend
  *
- * YARNNN Auth Canon:
- * - Uses Supabase JWT tokens
- * - Workspace-scoped security (single workspace per user)
- * - All access via RLS policies on workspace_memberships
+ * OAuth 2.0 Flow:
+ * - User authorizes via /auth/mcp/authorize (Supabase login)
+ * - MCP server exchanges auth code for access token at /auth/mcp/token
+ * - Access token validated here via /api/mcp/auth/sessions/validate
+ * - Returns user context (workspace-scoped)
  */
-export async function validateAuth(baseUrl: string, userToken: string): Promise<UserContext> {
-  if (!userToken) {
-    throw new Error('Missing user_token in MCP context');
+export async function validateAuth(baseUrl: string, mcpToken: string): Promise<UserContext> {
+  if (!mcpToken) {
+    throw new Error('Missing MCP OAuth token - user must authorize via OAuth flow');
   }
 
   try {
-    // Call YARNNN backend auth validation endpoint
-    const response = await fetch(`${baseUrl}/api/auth/validate`, {
-      method: 'GET',
+    // Validate MCP OAuth token (RFC 6749 compliant)
+    const response = await fetch(`${baseUrl}/api/mcp/auth/sessions/validate`, {
+      method: 'POST',
       headers: {
-        'Authorization': `Bearer ${userToken}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ mcp_token: mcpToken }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Auth validation failed: ${response.status} ${errorText}`);
+      throw new Error(`OAuth token validation failed: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json() as AuthValidationResponse;
+    const data = await response.json() as SessionValidationResponse;
 
-    if (!data.valid || !data.user_id || !data.workspace_id) {
-      throw new Error('Invalid authentication response from backend');
+    if (!data.user_id || !data.workspace_id) {
+      throw new Error('Invalid OAuth session response from backend');
     }
 
     return {
       userId: data.user_id,
       workspaceId: data.workspace_id,
-      basketId: data.basket_id,
+      basketId: undefined, // Basket is dynamically inferred per request
     };
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`Authentication failed: ${error.message}`);
+      throw new Error(`OAuth authentication failed: ${error.message}`);
     }
-    throw new Error('Authentication failed: Unknown error');
+    throw new Error('OAuth authentication failed: Unknown error');
   }
 }
 
