@@ -15,11 +15,12 @@ export function getOAuthAuthorizationServerMetadata(host: string) {
     issuer: `https://${host}`,
     authorization_endpoint: `https://${host}/authorize`,
     token_endpoint: `https://${host}/token`,
-    registration_endpoint: `https://${host}/oauth/register`,
+    // Note: No registration_endpoint - using pre-configured client registry in backend
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code'],
     token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic', 'none'],
     scopes_supported: ['mcp:*'],
+    code_challenge_methods_supported: ['S256'], // PKCE support
   };
 }
 
@@ -68,6 +69,7 @@ export function getMcpDiscoveryDocument(host: string, oauthEnabled: boolean) {
     discovery.auth.oauth2 = {
       authorization_endpoint: `https://${host}/authorize`,
       token_endpoint: `https://${host}/token`,
+      client_id: 'yarnnn-mcp-anthropic', // Pre-configured client ID
     };
   }
 
