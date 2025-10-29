@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
+import { transformTimeline } from '@/lib/timeline/transform';
+import type { TimelineEventDTO } from '@/lib/timeline/types';
 
 // GET /api/baskets/[id]/timeline?limit=50 — minimal projection to avoid 404s
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,24 +24,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (basket.workspace_id !== workspace.id) return NextResponse.json({ items: [] }, { status: 200 });
 
     // Fetch recent timeline events (if table exists)
+    const significanceParam = new URL(req.url).searchParams.get('significance');
+    const significanceFilter = (['low', 'medium', 'high'] as const).includes(
+      significanceParam as 'low' | 'medium' | 'high',
+    )
+      ? (significanceParam as 'low' | 'medium' | 'high')
+      : null;
+
     const { data: events, error } = await supabase
       .from('timeline_events')
-      .select('ts, kind, ref_id, preview, payload, source_host, source_session')
+      .select('id, ts, kind, ref_id, preview, payload, source_host, source_session, created_at')
       .eq('basket_id', id)
       .order('ts', { ascending: false })
+      .order('id', { ascending: false })
       .limit(limit);
-    if (error) return NextResponse.json({ items: [] }, { status: 200 });
+    if (error || !events) return NextResponse.json({ items: [] }, { status: 200 });
 
-    type Ev = { ts: string; kind: string; ref_id: string | null; preview: string | null; payload: any; source_host?: string | null; source_session?: string | null };
-    const items = ((events || []) as Ev[]).map((ev: Ev) => ({
-      ts: ev.ts,
-      type: ev.kind,
-      summary: ev.preview || ev.kind,
-      ref_id: ev.ref_id,
-      payload: ev.payload,
-      source_host: ev.source_host,
-      source_session: ev.source_session,
-    }));
+    let items: TimelineEventDTO[] = transformTimeline(events);
+
+    if (significanceFilter) {
+      items = items.filter((event) => event.significance === significanceFilter);
+    }
 
     return NextResponse.json({ items }, { status: 200 });
   } catch {

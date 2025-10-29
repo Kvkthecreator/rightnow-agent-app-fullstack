@@ -114,6 +114,21 @@ export interface Database {
           source_session?: string | null;
         };
       };
+      timeline_events: {
+        Row: {
+          id: number;
+          basket_id: string;
+          workspace_id: string;
+          ts: string | null;
+          kind: string;
+          ref_id: string | null;
+          preview: string | null;
+          payload: Json | null;
+          source_host: string | null;
+          source_session: string | null;
+          created_at: string;
+        };
+      };
     };
     Views: {
       v_basket_overview: {

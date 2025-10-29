@@ -154,10 +154,10 @@ export default function TimelineUploadsPanel({ basketId, highlightDumpId }: Time
           <div>
             <CardTitle className="flex items-center gap-2 text-xl">
               <CloudUpload className="h-5 w-5 text-indigo-600" />
-              Captured Memories
+              Captured memories
             </CardTitle>
             <p className="text-sm text-slate-500">
-              Immutable raw dumps that seed substrate evolution.
+              Immutable captures that seed block evolution.
             </p>
           </div>
           <div className="flex items-center gap-2">
