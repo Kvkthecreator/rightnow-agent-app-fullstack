@@ -163,6 +163,10 @@ app.add_middleware(CorrelationIdMiddleware)
 for r in routers:
     app.include_router(r, prefix="/api")
 
+# Also register OAuth router without /api prefix for client compatibility
+# Some OAuth clients may drop the /api prefix when following redirects
+app.include_router(mcp_oauth_router)
+
 app.include_router(basket_router)
 app.include_router(reflections_router)
 app.include_router(narrative_jobs_router)
