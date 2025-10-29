@@ -17,6 +17,23 @@ export default function LoginClient() {
 
   const showDevMagicLogin = process.env.NODE_ENV === "development";
 
+  // Check if user is already logged in and redirect if so
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        console.log('[Login] User already logged in, redirecting...');
+        const redirectPath = localStorage.getItem('redirectPath') || '/dashboard';
+        console.log('[Login] Redirecting to:', redirectPath);
+        localStorage.removeItem('redirectPath');
+        window.location.href = redirectPath;
+      }
+    };
+
+    checkSession();
+  }, []);
+
   // Store return_to in localStorage if present (for MCP OAuth flow)
   useEffect(() => {
     const returnTo = searchParams.get('return_to');
