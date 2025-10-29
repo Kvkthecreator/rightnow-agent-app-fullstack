@@ -126,7 +126,6 @@ export interface Database {
           payload: Json | null;
           source_host: string | null;
           source_session: string | null;
-          created_at: string;
         };
       };
     };

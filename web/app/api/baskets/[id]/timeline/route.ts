@@ -33,7 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { data: events, error } = await supabase
       .from('timeline_events')
-      .select('id, ts, kind, ref_id, preview, payload, source_host, source_session, created_at')
+      .select('id, ts, kind, ref_id, preview, payload, source_host, source_session')
       .eq('basket_id', id)
       .order('ts', { ascending: false })
       .order('id', { ascending: false })
