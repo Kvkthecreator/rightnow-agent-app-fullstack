@@ -215,10 +215,16 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
     setComposeStartedAt(new Date());
     await notificationAPI.emitJobStarted('document.compose', `Composing "${document.title}"`, { basketId });
     try {
+      // Extract intent string from metadata (may be object or string)
+      const compositionIntent = document.metadata?.composition_intent;
+      const intentString = typeof compositionIntent === 'object' && compositionIntent !== null
+        ? (compositionIntent.user_intent || compositionIntent.intent || '')
+        : (compositionIntent || '');
+
       const res = await fetch(`/api/documents/${document.id}/recompose`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intent: document.metadata?.composition_intent || '', window_days: DEFAULT_WINDOW_DAYS })
+        body: JSON.stringify({ intent: intentString, window_days: DEFAULT_WINDOW_DAYS })
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
