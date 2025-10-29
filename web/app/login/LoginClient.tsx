@@ -17,13 +17,13 @@ export default function LoginClient() {
 
   const showDevMagicLogin = process.env.NODE_ENV === "development";
 
-  // Store returnUrl in localStorage if present (for MCP OAuth flow)
+  // Store return_to in localStorage if present (for MCP OAuth flow)
   useEffect(() => {
-    const returnUrl = searchParams.get('returnUrl');
-    console.log('[Login] returnUrl from query params:', returnUrl);
-    if (returnUrl) {
-      console.log('[Login] Storing redirectPath in localStorage:', returnUrl);
-      localStorage.setItem('redirectPath', returnUrl);
+    const returnTo = searchParams.get('return_to');
+    console.log('[Login] return_to from query params:', returnTo);
+    if (returnTo) {
+      console.log('[Login] Storing redirectPath in localStorage:', returnTo);
+      localStorage.setItem('redirectPath', returnTo);
     }
   }, [searchParams]);
 
