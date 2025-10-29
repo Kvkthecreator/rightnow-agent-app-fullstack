@@ -29,12 +29,20 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   try {
     const { id: document_id } = await ctx.params;
     const raw = await req.json().catch(() => ({}));
+
+    console.log('[Recompose API] Received raw request:', JSON.stringify(raw, null, 2));
+
     const parsed = RecomposeRequestSchema.safeParse(raw);
-    
+
     if (!parsed.success) {
-      return NextResponse.json({ 
-        error: "Invalid recompose request", 
-        details: parsed.error.flatten() 
+      console.error('[Recompose API] Validation failed:', JSON.stringify({
+        raw,
+        errors: parsed.error.flatten()
+      }, null, 2));
+      return NextResponse.json({
+        error: "Invalid recompose request",
+        details: parsed.error.flatten(),
+        received: raw
       }, { status: 422 });
     }
 
@@ -85,9 +93,20 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
     // Trigger P4 recomposition asynchronously (direct agent call, not governance)
     try {
-      const recompositionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/agents/p4-composition`, {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+      const p4Url = `${apiBaseUrl}/api/agents/p4-composition`;
+
+      console.log('[Recompose API] Triggering P4 composition:', {
+        url: p4Url,
+        document_id,
+        basket_id: document.basket_id,
+        workspace_id: workspace.id,
+        operation_type: 'recompose'
+      });
+
+      const recompositionResponse = await fetch(p4Url, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
         },
@@ -103,10 +122,18 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       });
 
       if (!recompositionResponse.ok) {
-        console.warn('P4 recomposition trigger failed, but document updated successfully');
+        const errorText = await recompositionResponse.text().catch(() => 'Unable to read error');
+        console.warn('[Recompose API] P4 composition trigger failed:', {
+          status: recompositionResponse.status,
+          statusText: recompositionResponse.statusText,
+          error: errorText
+        });
+      } else {
+        const result = await recompositionResponse.json().catch(() => ({}));
+        console.log('[Recompose API] P4 composition triggered successfully:', result);
       }
     } catch (e) {
-      console.warn('P4 recomposition async trigger failed:', e);
+      console.error('[Recompose API] P4 composition async trigger exception:', e);
       // Don't fail the request - document was updated successfully
     }
 
