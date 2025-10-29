@@ -21,9 +21,18 @@ export default function LoginClient() {
   useEffect(() => {
     const returnTo = searchParams.get('return_to');
     console.log('[Login] return_to from query params:', returnTo);
+    console.log('[Login] All search params:', Object.fromEntries(searchParams.entries()));
     if (returnTo) {
       console.log('[Login] Storing redirectPath in localStorage:', returnTo);
       localStorage.setItem('redirectPath', returnTo);
+      // Verify it was stored
+      const stored = localStorage.getItem('redirectPath');
+      console.log('[Login] Verified localStorage.redirectPath:', stored);
+    } else {
+      console.log('[Login] No return_to parameter found');
+      // Check if we have a stored path from previous visit
+      const existing = localStorage.getItem('redirectPath');
+      console.log('[Login] Existing redirectPath in localStorage:', existing);
     }
   }, [searchParams]);
 
