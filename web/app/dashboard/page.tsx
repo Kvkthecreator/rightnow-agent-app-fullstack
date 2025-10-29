@@ -8,6 +8,7 @@ import { listBasketsByWorkspace } from '@/lib/baskets/listBasketsByWorkspace';
 import { cn } from '@/lib/utils';
 import { apiGet } from '@/lib/server/http';
 import AlertAnnouncer, { type DashboardAlert as AnnouncerAlert } from '@/components/dashboard/AlertAnnouncer';
+import { CreateBasketCallout } from './CreateBasketCallout';
 
 function formatTimestamp(value: string | null | undefined) {
   if (!value) return '—';
@@ -148,7 +149,7 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
           />
           <QueueCard
             title="Basket-Level Proposals"
-            description="Substrate changes across all baskets (informational)."
+            description="Block updates across every basket (informational)."
             count={pendingProposalCount ?? 0}
             href="/baskets"
           />
@@ -173,7 +174,7 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-medium">{basket.name || 'Untitled basket'}</h3>
-                    <p className="text-sm text-muted-foreground">Curated knowledge hub</p>
+                    <p className="text-sm text-muted-foreground">Curated block workspace</p>
                   </div>
                   <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
                     {basket.status ?? 'Active'}
@@ -185,9 +186,7 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
               </Link>
             ))
           ) : (
-            <div className="col-span-2 rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-              No baskets yet. Ambient captures will appear here once your AI hosts are connected.
-            </div>
+            <CreateBasketCallout className="col-span-2" />
           )}
         </div>
       </section>
