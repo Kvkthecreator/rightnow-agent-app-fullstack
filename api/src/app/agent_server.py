@@ -113,6 +113,7 @@ app.add_middleware(
     exempt_prefixes={
         "/health",
         "/auth/mcp",  # OAuth authorization flow (uses Supabase cookies, not JWT)
+        "/api/auth/mcp",  # OAuth with /api prefix (registration, authorize, token endpoints)
     },
 )
 
