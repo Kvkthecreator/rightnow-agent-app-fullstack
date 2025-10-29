@@ -569,6 +569,10 @@ class ClientRegistrationResponse(BaseModel):
     registration_client_uri: Optional[str] = None
     registration_access_token: Optional[str] = None
 
+    class Config:
+        # Exclude None values from JSON response (RFC 7591 compliant)
+        exclude_none = True
+
 
 @router.post("/register", response_model=ClientRegistrationResponse)
 async def register_client(request: ClientRegistrationRequest):
