@@ -574,7 +574,7 @@ class ClientRegistrationResponse(BaseModel):
         exclude_none = True
 
 
-@router.post("/register", response_model=ClientRegistrationResponse)
+@router.post("/register", response_model=ClientRegistrationResponse, response_model_exclude_none=True)
 async def register_client(request: ClientRegistrationRequest):
     """
     RFC 7591 Dynamic Client Registration Endpoint
