@@ -213,7 +213,7 @@ export function transformTimelineEvent(row: TimelineRow): TimelineEventDTO {
     kind,
     title,
     description,
-    timestamp: row.ts || row.created_at || new Date().toISOString(),
+    timestamp: row.ts || new Date().toISOString(),
     significance,
     host: row.source_host || undefined,
     tags,
