@@ -132,12 +132,16 @@ function createDescription(kind: TimelineEventKind, row: TimelineRow): string | 
 
 function createLink(kind: TimelineEventKind, row: TimelineRow): { href?: string; label?: string } {
   const payload = row.payload as Record<string, any> | null;
+  const basketPath = row.basket_id ? `/baskets/${row.basket_id}` : null;
   switch (kind) {
     case 'capture':
-      if (payload?.dump_id) {
-        return { href: `/dumps/${payload.dump_id}`, label: 'Open capture' };
-      }
-      return { href: row.ref_id ? `/dumps/${row.ref_id}` : undefined, label: row.ref_id ? 'Open capture' : undefined };
+      if (!basketPath) return {};
+      const dumpId = payload?.dump_id || row.ref_id;
+      const highlight = dumpId ? `&highlight=${dumpId}` : '';
+      return {
+        href: `${basketPath}/timeline?view=uploads${highlight}`,
+        label: 'View capture',
+      };
     case 'proposal':
     case 'proposal_resolved':
       if (payload?.proposal_id || row.ref_id) {
@@ -156,10 +160,10 @@ function createLink(kind: TimelineEventKind, row: TimelineRow): { href?: string;
       }
       return {};
     case 'block':
-      if (payload?.block_id || row.ref_id) {
-        return { href: `/blocks/${payload?.block_id || row.ref_id}`, label: 'View block' };
-      }
-      return {};
+      if (!basketPath) return {};
+      const blockId = payload?.block_id || row.ref_id;
+      const focus = blockId ? `?focus=${blockId}` : '';
+      return { href: `${basketPath}/building-blocks${focus}`, label: 'View block' };
     case 'automation':
       if (payload?.work_id) {
         return { href: `/work/${payload.work_id}`, label: 'View run' };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { fetchWithToken } from '@/lib/fetchWithToken';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Blocks, FileText, RefreshCw, Search, Brain, Database } from 'lucide-react';
 import SubstrateDetailModal from '@/components/substrate/SubstrateDetailModal';
+import { useSearchParams } from 'next/navigation';
 
 /**
  * BuildingBlocksClientV2 - Simplified substrate management with adaptive layouts
@@ -78,6 +79,7 @@ interface BuildingBlocksClientProps {
 }
 
 export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClientProps) {
+  const searchParams = useSearchParams();
   const { data, error, isLoading, mutate } = useSWR<BuildingBlocksResponse>(
     `/api/baskets/${basketId}/building-blocks`,
     fetcher,
@@ -87,6 +89,13 @@ export default function BuildingBlocksClientV2({ basketId }: BuildingBlocksClien
   const [query, setQuery] = useState('');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    const focus = searchParams.get('focus');
+    if (focus) {
+      setSelected(focus);
+    }
+  }, [searchParams]);
 
   // Adaptive view mode based on block count
   const viewMode: ViewMode = useMemo(() => {
