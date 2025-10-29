@@ -41,6 +41,7 @@ import {
   getOAuthConfig,
   handleAuthorize,
   handleTokenExchange,
+  handleClientRegistration,
   validateOAuthToken,
 } from './oauth/index.js';
 import {
@@ -317,7 +318,14 @@ async function main() {
           return;
         }
 
+        // OAuth dynamic client registration endpoint (RFC 7591) - proxy to backend
         if (req.method === 'POST' && url === '/register') {
+          await handleClientRegistration(req, res, oauthConfig);
+          return;
+        }
+
+        // Legacy /register endpoint for old clients
+        if (req.method === 'POST' && url === '/register/legacy') {
           const host = req.headers.host || 'mcp.yarnnn.com';
           const registerResponse: any = {
             success: true,

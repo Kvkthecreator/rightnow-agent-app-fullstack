@@ -49,8 +49,9 @@ def _cleanup_expired_codes():
 
 
 # ------------------------------------------------------------------
-# OAuth Client Registry (hardcoded for MCP server, expand as needed)
+# OAuth Client Registry (static clients + dynamic registration)
 # ------------------------------------------------------------------
+# Static clients (pre-configured, high-trust)
 MCP_CLIENTS = {
     "yarnnn-mcp-anthropic": {
         "client_secret": None,  # Will be set from env var
@@ -59,6 +60,7 @@ MCP_CLIENTS = {
             "http://localhost:3000/oauth/callback",  # For local development
         ],
         "name": "YARNNN MCP Server (Claude)",
+        "registration_type": "static",
     },
     "yarnnn-mcp-openai": {
         "client_secret": None,
@@ -67,14 +69,25 @@ MCP_CLIENTS = {
             "http://localhost:4000/oauth/callback",
         ],
         "name": "YARNNN MCP Server (OpenAI)",
+        "registration_type": "static",
     },
 }
+
+# Dynamic clients (registered at runtime via /register endpoint)
+# Structure: {client_id: {client_secret, redirect_uris, name, registration_type: "dynamic"}}
+_dynamic_clients: dict[str, dict] = {}
 
 
 def validate_client(client_id: str, client_secret: Optional[str] = None,
                    redirect_uri: Optional[str] = None) -> bool:
-    """Validate OAuth client credentials"""
+    """Validate OAuth client credentials (checks both static and dynamic clients)"""
+    # Check static clients first
     client = MCP_CLIENTS.get(client_id)
+
+    # Check dynamic clients if not found in static registry
+    if not client:
+        client = _dynamic_clients.get(client_id)
+
     if not client:
         return False
 
@@ -528,6 +541,87 @@ async def introspect_token(
         "sub": session["user_id"],
         "workspace_id": session["workspace_id"],
     }
+
+
+# ------------------------------------------------------------------
+# Dynamic Client Registration (RFC 7591)
+# ------------------------------------------------------------------
+class ClientRegistrationRequest(BaseModel):
+    """RFC 7591 Dynamic Client Registration Request"""
+    redirect_uris: list[str]
+    client_name: Optional[str] = None
+    token_endpoint_auth_method: Optional[str] = "none"  # Default to public client
+    grant_types: Optional[list[str]] = ["authorization_code"]
+    response_types: Optional[list[str]] = ["code"]
+    scope: Optional[str] = "mcp:full"
+
+
+class ClientRegistrationResponse(BaseModel):
+    """RFC 7591 Dynamic Client Registration Response"""
+    client_id: str
+    client_secret: Optional[str] = None
+    client_name: str
+    redirect_uris: list[str]
+    grant_types: list[str]
+    response_types: list[str]
+    token_endpoint_auth_method: str
+    registration_client_uri: Optional[str] = None
+    registration_access_token: Optional[str] = None
+
+
+@router.post("/register", response_model=ClientRegistrationResponse)
+async def register_client(request: ClientRegistrationRequest):
+    """
+    RFC 7591 Dynamic Client Registration Endpoint
+
+    Allows MCP clients (like MCP Inspector, future integrations) to register
+    themselves at runtime instead of requiring pre-configuration.
+
+    This makes the YARNNN MCP OAuth server universally compatible with any
+    MCP client that supports dynamic registration.
+
+    Request Body:
+    - redirect_uris: List of allowed redirect URIs
+    - client_name: Human-readable client name (optional)
+    - token_endpoint_auth_method: "none" for public clients, "client_secret_post" for confidential
+    - grant_types: OAuth grant types (defaults to ["authorization_code"])
+    - response_types: OAuth response types (defaults to ["code"])
+
+    Response:
+    - client_id: Generated unique client identifier
+    - client_secret: Generated secret (only for confidential clients, null for public)
+    - Other metadata echoing the request
+    """
+    # Generate unique client_id
+    client_id = f"dynamic-{secrets.token_urlsafe(16)}"
+
+    # Generate client_secret for confidential clients
+    client_secret = None
+    if request.token_endpoint_auth_method in ["client_secret_post", "client_secret_basic"]:
+        client_secret = secrets.token_urlsafe(32)
+
+    # Store dynamic client
+    _dynamic_clients[client_id] = {
+        "client_secret": client_secret,
+        "redirect_uris": request.redirect_uris,
+        "name": request.client_name or f"Dynamic Client {client_id[:8]}",
+        "registration_type": "dynamic",
+        "token_endpoint_auth_method": request.token_endpoint_auth_method,
+        "grant_types": request.grant_types,
+        "response_types": request.response_types,
+        "registered_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # RFC 7591 compliant response
+    return ClientRegistrationResponse(
+        client_id=client_id,
+        client_secret=client_secret,
+        client_name=request.client_name or f"Dynamic Client {client_id[:8]}",
+        redirect_uris=request.redirect_uris,
+        grant_types=request.grant_types or ["authorization_code"],
+        response_types=request.response_types or ["code"],
+        token_endpoint_auth_method=request.token_endpoint_auth_method or "none",
+    )
 
 
 __all__ = ["router"]

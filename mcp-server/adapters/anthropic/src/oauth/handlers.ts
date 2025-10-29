@@ -100,3 +100,56 @@ export async function handleTokenExchange(
     }));
   }
 }
+
+/**
+ * Handle POST /register - Dynamic Client Registration (RFC 7591)
+ *
+ * Allows MCP clients to register themselves dynamically instead of requiring pre-configuration.
+ * This makes the YARNNN MCP server universally compatible with any MCP client.
+ */
+export async function handleClientRegistration(
+  req: IncomingMessage,
+  res: ServerResponse,
+  config: OAuthConfig
+): Promise<void> {
+  // Read request body
+  let body = '';
+  for await (const chunk of req) {
+    body += chunk.toString();
+  }
+
+  console.log('[OAuth] Client registration request - proxying to backend');
+
+  // Proxy registration request to backend
+  try {
+    const backendResponse = await fetch(`${config.backendUrl}/api/auth/mcp/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body,
+    });
+
+    const responseBody = await backendResponse.text();
+
+    // Forward backend response to client
+    res.writeHead(backendResponse.status, {
+      'Content-Type': 'application/json',
+    });
+    res.end(responseBody);
+
+    if (backendResponse.ok) {
+      const registrationData = JSON.parse(responseBody);
+      console.log('[OAuth] Client registered:', registrationData.client_id);
+    } else {
+      console.error('[OAuth] Client registration failed:', backendResponse.status, responseBody);
+    }
+  } catch (error) {
+    console.error('[OAuth] Backend registration failed:', error);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      error: 'server_error',
+      error_description: 'Backend OAuth service unavailable'
+    }));
+  }
+}

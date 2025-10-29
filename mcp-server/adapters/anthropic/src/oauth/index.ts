@@ -10,7 +10,7 @@ export { getOAuthConfig } from './config.js';
 export type { OAuthConfig } from './config.js';
 
 // Handlers - MCP adapter proxies requests to backend
-export { handleAuthorize, handleTokenExchange } from './handlers.js';
+export { handleAuthorize, handleTokenExchange, handleClientRegistration } from './handlers.js';
 
 // Validation - validates tokens via backend
 export { validateOAuthToken } from './validation.js';

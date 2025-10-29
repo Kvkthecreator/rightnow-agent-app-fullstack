@@ -15,7 +15,7 @@ export function getOAuthAuthorizationServerMetadata(host: string) {
     issuer: `https://${host}`,
     authorization_endpoint: `https://${host}/authorize`,
     token_endpoint: `https://${host}/token`,
-    // Note: No registration_endpoint - using pre-configured client registry in backend
+    registration_endpoint: `https://${host}/register`, // RFC 7591 dynamic client registration
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code'],
     token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic', 'none'],
@@ -69,7 +69,9 @@ export function getMcpDiscoveryDocument(host: string, oauthEnabled: boolean) {
     discovery.auth.oauth2 = {
       authorization_endpoint: `https://${host}/authorize`,
       token_endpoint: `https://${host}/token`,
-      client_id: 'yarnnn-mcp-anthropic', // Pre-configured client ID
+      registration_endpoint: `https://${host}/register`, // RFC 7591 dynamic client registration
+      // Note: Static clients can use client_id "yarnnn-mcp-anthropic" directly
+      // Dynamic clients should register first via /register endpoint
     };
   }
 
