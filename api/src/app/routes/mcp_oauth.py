@@ -550,6 +550,7 @@ class ClientRegistrationRequest(BaseModel):
     """RFC 7591 Dynamic Client Registration Request"""
     redirect_uris: list[str]
     client_name: Optional[str] = None
+    client_secret: Optional[str] = None  # Clients can suggest a secret (usually null for public clients)
     token_endpoint_auth_method: Optional[str] = "none"  # Default to public client
     grant_types: Optional[list[str]] = ["authorization_code"]
     response_types: Optional[list[str]] = ["code"]
