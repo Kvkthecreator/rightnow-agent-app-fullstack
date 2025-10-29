@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "yarnnn": {
+      "url": "http://localhost:3333",
+      "transport": {
+        "type": "streamable-http"
+      }
+    }
+  }
+}
