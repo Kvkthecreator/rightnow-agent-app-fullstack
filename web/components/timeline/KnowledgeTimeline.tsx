@@ -23,7 +23,6 @@ export default function KnowledgeTimeline({
 
   useEffect(() => {
     loadTimeline();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [basketId, significance, limit]);
 
   async function loadTimeline() {
