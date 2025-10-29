@@ -15,6 +15,7 @@ Flow:
 
 from __future__ import annotations
 
+import os
 import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Annotated, Optional
@@ -161,8 +162,12 @@ async def authorize(
             "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
         }
 
-        # Redirect to frontend login page with return URL
-        login_url = f"/login?return_to=/auth/mcp/authorize/resume?request_id={auth_request_id}"
+        # Redirect to YARNNN web app login page with return URL
+        # After login, user will be redirected back to resume OAuth authorization
+        backend_url = os.getenv("BACKEND_URL", "https://api.yarnnn.com")
+        frontend_url = os.getenv("FRONTEND_URL", "https://yarnnn.com")
+        resume_url = f"{backend_url}/api/auth/mcp/authorize/resume?request_id={auth_request_id}"
+        login_url = f"{frontend_url}/login?return_to={resume_url}"
         return RedirectResponse(login_url, status_code=302)
 
     # User is authenticated - verify JWT and show consent screen
