@@ -48,3 +48,36 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   return NextResponse.json({ status: 'updated' });
 }
+
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const supabase = createRouteHandlerClient<Database>({ cookies });
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
+  const workspace = await ensureSingleWorkspace(user.id, supabase);
+
+  const { data, error: queryError } = await supabase
+    .from('mcp_unassigned_captures')
+    .select(
+      'id, tool, summary, payload, fingerprint, candidates, status, assigned_basket_id, source_host, source_session, created_at'
+    )
+    .eq('id', params.id)
+    .eq('workspace_id', workspace.id)
+    .maybeSingle();
+
+  if (queryError) {
+    return NextResponse.json({ error: queryError.message }, { status: 500 });
+  }
+
+  if (!data) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
+
+  return NextResponse.json(data);
+}

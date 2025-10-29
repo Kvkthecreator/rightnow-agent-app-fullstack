@@ -180,9 +180,16 @@ export default function SubstrateDetailModal({
         'timeline_event': `/api/baskets/${basketId}/timeline/${substrateId}`
       };
       
-      const response = await fetchWithToken(endpoints[substrateType]);
+      const primaryEndpoint = endpoints[substrateType];
+      let response = await fetchWithToken(primaryEndpoint);
+
+      if (!response.ok && substrateType === 'raw_dump') {
+        const fallbackEndpoint = `/api/memory/unassigned/${substrateId}`;
+        response = await fetchWithToken(fallbackEndpoint);
+      }
+
       if (!response.ok) throw new Error('Failed to load substrate details');
-      
+
       const data = await response.json();
       setSubstrate(data);
 

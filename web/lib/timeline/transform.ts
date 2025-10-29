@@ -3,8 +3,9 @@ import type { TimelineEventDTO, TimelineEventKind, TimelineEventSignificance } f
 
 type TimelineRow = Database['public']['Tables']['timeline_events']['Row'];
 
-function mapKind(kind: string): TimelineEventKind {
+function mapKind(kind: string, preview?: string | null): TimelineEventKind {
   const k = kind.toLowerCase();
+  const summary = (preview || '').toLowerCase();
   if (k.startsWith('dump')) return 'capture';
   if (k.startsWith('proposal') || k === 'queue.entry_created') return 'proposal';
   if (k === 'proposal.approved' || k === 'proposal.rejected' || k === 'delta.applied' || k === 'delta.rejected') {
@@ -24,6 +25,12 @@ function mapKind(kind: string): TimelineEventKind {
     return 'block';
   }
   if (k.startsWith('work.') || k.startsWith('pipeline.') || k.startsWith('cascade.')) return 'automation';
+
+  if (summary.includes('p0_capture')) return 'capture';
+  if (summary.includes('p1_substrate') || summary.includes('p2_graph')) return 'block';
+  if (summary.includes('p3_reflection')) return 'insight';
+  if (summary.includes('p4_compose')) return 'document';
+
   return 'system';
 }
 
@@ -194,7 +201,7 @@ function randomId() {
 }
 
 export function transformTimelineEvent(row: TimelineRow): TimelineEventDTO {
-  const kind = mapKind(row.kind || '');
+  const kind = mapKind(row.kind || '', row.preview || '');
   const significance = inferSignificance(kind);
   const title = createTitle(kind, row);
   const description = createDescription(kind, row);
