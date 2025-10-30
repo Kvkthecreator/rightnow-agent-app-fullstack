@@ -15,10 +15,21 @@ type CaptureRow = Pick<
 > &
   Partial<Pick<MCPUnassignedRow, 'source_host' | 'source_session'>>;
 
+type ProposalState =
+  | 'PROPOSED'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'SUPERSEDED'
+  | 'MERGED'
+  | 'EXECUTED'
+  | 'DRAFT'
+  | (string & {});
+
 interface ProposalRow {
   id: string;
   scope: 'basket' | 'workspace' | 'cross-basket' | null;
-  status: 'PROPOSED' | 'UNDER_REVIEW' | string | null;
+  status: ProposalState | null;
   proposal_kind: string;
   origin: 'agent' | 'human';
   basket_id: string | null;
@@ -59,7 +70,7 @@ export interface ProposalChangeRequest {
   type: 'proposal';
   id: string;
   scope: 'basket' | 'workspace' | 'cross-basket';
-  status: 'PROPOSED' | 'UNDER_REVIEW';
+  status: ProposalState;
   proposalKind: string;
   origin: 'agent' | 'human';
   createdAt: string | null;
@@ -72,14 +83,13 @@ export interface ProposalChangeRequest {
   metadata: Record<string, unknown> | null;
   sourceHost?: string | null;
   sourceSession?: string | null;
+  autoApproved: boolean;
 }
 
 export interface WorkspaceChangeRequestsPayload {
   assignments: AssignmentChangeRequest[];
   proposals: ProposalChangeRequest[];
 }
-
-const ALLOWED_PROPOSAL_STATUSES = new Set(['PROPOSED', 'UNDER_REVIEW']);
 
 function asRecord(value: Json | null): Record<string, unknown> | null {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -136,25 +146,34 @@ export function mapAssignments(rows: CaptureRow[]): AssignmentChangeRequest[] {
 
 export function mapProposals(rows: ProposalRow[]): ProposalChangeRequest[] {
   return rows
-    .filter((row) => row.id && row.status && ALLOWED_PROPOSAL_STATUSES.has(row.status))
-    .map((row) => ({
-      type: 'proposal' as const,
-      id: row.id,
-      scope: (row.scope ?? 'basket') as ProposalChangeRequest['scope'],
-      status: (row.status ?? 'PROPOSED') as ProposalChangeRequest['status'],
-      proposalKind: row.proposal_kind,
-      origin: row.origin,
-      createdAt: row.created_at,
-      basketId: row.basket_id,
-      targetBasketId: row.target_basket_id,
-      affectedBasketIds: parseUuidArray(row.affected_basket_ids),
-      validatorReport: row.validator_report,
-      ops: parseOps(row.ops),
-      reviewNotes: row.review_notes,
-      metadata: row.metadata,
-      sourceHost: row.source_host,
-      sourceSession: row.source_session,
-    }));
+    .filter((row) => row.id && row.status)
+    .map((row) => {
+      const status = (row.status ?? 'PROPOSED') as ProposalState;
+      const reviewNotes = typeof row.review_notes === 'string' ? row.review_notes : null;
+      const autoApproved =
+        status === 'APPROVED' &&
+        Boolean(reviewNotes?.toLowerCase().includes('auto-approved'));
+
+      return {
+        type: 'proposal' as const,
+        id: row.id,
+        scope: (row.scope ?? 'basket') as ProposalChangeRequest['scope'],
+        status,
+        proposalKind: row.proposal_kind,
+        origin: row.origin,
+        createdAt: row.created_at,
+        basketId: row.basket_id,
+        targetBasketId: row.target_basket_id,
+        affectedBasketIds: parseUuidArray(row.affected_basket_ids),
+        validatorReport: row.validator_report,
+        ops: parseOps(row.ops),
+        reviewNotes,
+        metadata: row.metadata,
+        sourceHost: row.source_host,
+        sourceSession: row.source_session,
+        autoApproved,
+      };
+    });
 }
 
 export function buildWorkspaceChangeRequests(

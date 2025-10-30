@@ -11,7 +11,8 @@ import type {
   WorkspaceChangeRequestsPayload,
 } from '@/lib/workspaces/changeRequests';
 
-type FilterKey = 'all' | 'assignment' | 'basket' | 'cross-basket' | 'workspace';
+type ScopeFilterKey = 'all' | 'assignment' | 'basket' | 'cross-basket' | 'workspace';
+type StatusFilterKey = 'pending' | 'all' | 'approved' | 'rejected' | 'closed';
 
 interface BasketOption {
   id: string;
@@ -30,13 +31,21 @@ interface RequestListItem {
   proposal?: ProposalChangeRequest;
 }
 
-const FILTER_LABELS: Record<FilterKey, string> = {
+const SCOPE_FILTER_LABELS: Record<ScopeFilterKey, string> = {
   all: 'All',
   assignment: 'Assignments',
   basket: 'Basket updates',
   'cross-basket': 'Cross-basket',
   workspace: 'Workspace changes',
 };
+
+const STATUS_FILTERS: Array<{ key: StatusFilterKey; label: string }> = [
+  { key: 'pending', label: 'Needs review' },
+  { key: 'all', label: 'All statuses' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'rejected', label: 'Rejected' },
+  { key: 'closed', label: 'Closed' },
+];
 
 const SCOPE_LABEL: Record<ProposalChangeRequest['scope'], string> = {
   basket: 'Basket update',
@@ -47,13 +56,14 @@ const SCOPE_LABEL: Record<ProposalChangeRequest['scope'], string> = {
 export default function WorkspaceChangeRequestsClient({ requests, baskets }: Props) {
   const [assignments, setAssignments] = useState<AssignmentChangeRequest[]>(requests.assignments);
   const [proposals, setProposals] = useState<ProposalChangeRequest[]>(requests.proposals);
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilterKey>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilterKey>('pending');
   const [isPending, startTransition] = useTransition();
   const [proposalActionId, setProposalActionId] = useState<string | null>(null);
 
   const basketMap = useMemo(() => new Map(baskets.map((basket) => [basket.id, basket.name || 'Untitled basket'])), [baskets]);
 
-  const counts = useMemo(() => {
+  const scopeCounts = useMemo(() => {
     const basketCount = proposals.filter((proposal) => proposal.scope === 'basket').length;
     const crossBasketCount = proposals.filter((proposal) => proposal.scope === 'cross-basket').length;
     const workspaceCount = proposals.filter((proposal) => proposal.scope === 'workspace').length;
@@ -63,7 +73,21 @@ export default function WorkspaceChangeRequestsClient({ requests, baskets }: Pro
       basket: basketCount,
       'cross-basket': crossBasketCount,
       workspace: workspaceCount,
-    } satisfies Record<FilterKey, number>;
+    } satisfies Record<ScopeFilterKey, number>;
+  }, [assignments.length, proposals]);
+
+  const statusCounts = useMemo(() => {
+    const pending = proposals.filter((proposal) => isPendingStatus(proposal.status)).length + assignments.length;
+    const approved = proposals.filter((proposal) => isApprovedStatus(proposal.status)).length;
+    const rejected = proposals.filter((proposal) => isRejectedStatus(proposal.status)).length;
+    const closed = proposals.filter((proposal) => isClosedStatus(proposal.status)).length;
+    return {
+      pending,
+      all: proposals.length + assignments.length,
+      approved,
+      rejected,
+      closed,
+    } satisfies Record<StatusFilterKey, number>;
   }, [assignments.length, proposals]);
 
   const items = useMemo(() => {
@@ -81,10 +105,21 @@ export default function WorkspaceChangeRequestsClient({ requests, baskets }: Pro
     ];
 
     const filtered = combined.filter((item) => {
-      if (filter === 'all') return true;
-      if (filter === 'assignment') return item.kind === 'assignment';
-      if (item.kind !== 'proposal' || !item.proposal) return false;
-      return item.proposal.scope === filter;
+      if (item.kind === 'assignment') {
+        return (
+          (scopeFilter === 'all' || scopeFilter === 'assignment') &&
+          (statusFilter === 'pending' || statusFilter === 'all')
+        );
+      }
+
+      if (!item.proposal) {
+        return false;
+      }
+
+      return (
+        matchesScopeFilter(item.proposal.scope, scopeFilter) &&
+        matchesStatusFilter(item.proposal.status, statusFilter)
+      );
     });
 
     return filtered.sort((a, b) => {
@@ -92,7 +127,7 @@ export default function WorkspaceChangeRequestsClient({ requests, baskets }: Pro
       const tsB = toTimestamp(b.createdAt);
       return tsB - tsA;
     });
-  }, [assignments, proposals, filter]);
+  }, [assignments, proposals, scopeFilter, statusFilter]);
 
   const handleAssign = (id: string, basketId: string) => {
     if (!basketId) return;
@@ -186,11 +221,12 @@ export default function WorkspaceChangeRequestsClient({ requests, baskets }: Pro
         </p>
       </header>
 
-      <FilterRow filter={filter} counts={counts} onChange={setFilter} />
+      <ScopeFilterRow filter={scopeFilter} counts={scopeCounts} onChange={setScopeFilter} />
+      <StatusFilterRow filter={statusFilter} counts={statusCounts} onChange={setStatusFilter} />
 
       {!hasRequests ? (
         <section className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-          <p>{emptyStateMessage(filter)}</p>
+          <p>{emptyStateMessage(scopeFilter, statusFilter)}</p>
           <p className="mt-1">Keep working in Claude or ChatGPT—new items will land here when they need your call.</p>
         </section>
       ) : (
@@ -337,6 +373,7 @@ function ProposalCard({
   const operationsNarrative = describeOperations(proposal.ops);
   const scopeLabel = SCOPE_LABEL[proposal.scope];
   const targetLabel = deriveTargetLabel(proposal, basketMap);
+  const statusInfo = getStatusStyles(proposal.status);
 
   const detailHref =
     proposal.scope === 'basket' && proposal.basketId
@@ -348,12 +385,20 @@ function ProposalCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
+            <span className={statusInfo.className}>
+              {statusInfo.label}
+            </span>
             <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
               {scopeLabel}
             </span>
             {targetLabel && (
               <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium">
                 {targetLabel}
+              </span>
+            )}
+            {proposal.autoApproved && (
+              <span className="rounded-md bg-fuchsia-100 px-2 py-1 text-xs font-medium text-fuchsia-700">
+                Auto-approved
               </span>
             )}
             <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
@@ -406,18 +451,18 @@ function ProposalCard({
   );
 }
 
-function FilterRow({
+function ScopeFilterRow({
   filter,
   counts,
   onChange,
 }: {
-  filter: FilterKey;
-  counts: Record<FilterKey, number>;
-  onChange: (value: FilterKey) => void;
+  filter: ScopeFilterKey;
+  counts: Record<ScopeFilterKey, number>;
+  onChange: (value: ScopeFilterKey) => void;
 }) {
-  const filters = (Object.keys(FILTER_LABELS) as FilterKey[]).map((key) => ({
+  const filters = (Object.keys(SCOPE_FILTER_LABELS) as ScopeFilterKey[]).map((key) => ({
     key,
-    label: `${FILTER_LABELS[key]} (${counts[key]})`,
+    label: `${SCOPE_FILTER_LABELS[key]} (${counts[key]})`,
   }));
 
   return (
@@ -433,6 +478,34 @@ function FilterRow({
           )}
         >
           {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StatusFilterRow({
+  filter,
+  counts,
+  onChange,
+}: {
+  filter: StatusFilterKey;
+  counts: Record<StatusFilterKey, number>;
+  onChange: (value: StatusFilterKey) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {STATUS_FILTERS.map(({ key, label }) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChange(key)}
+          className={cn(
+            'rounded-full border px-3 py-1 text-xs font-medium transition',
+            filter === key ? 'border-primary bg-primary text-white' : 'border-border text-muted-foreground hover:bg-muted',
+          )}
+        >
+          {`${label} (${counts[key] ?? 0})`}
         </button>
       ))}
     </div>
@@ -497,6 +570,79 @@ function deriveCaptureSummary(assignment: AssignmentChangeRequest) {
     return content.length > 160 ? `${content.slice(0, 160)}…` : content;
   }
   return 'Capture pending review';
+}
+
+const PENDING_STATUSES = new Set<ProposalChangeRequest['status']>(['PROPOSED', 'UNDER_REVIEW']);
+const APPROVED_STATUSES = new Set<ProposalChangeRequest['status']>(['APPROVED', 'EXECUTED']);
+const REJECTED_STATUSES = new Set<ProposalChangeRequest['status']>(['REJECTED']);
+const CLOSED_STATUSES = new Set<ProposalChangeRequest['status']>(['SUPERSEDED', 'MERGED']);
+
+function matchesScopeFilter(scope: ProposalChangeRequest['scope'], filter: ScopeFilterKey) {
+  if (filter === 'all') return true;
+  if (filter === 'assignment') return false;
+  return scope === filter;
+}
+
+function matchesStatusFilter(status: ProposalChangeRequest['status'], filter: StatusFilterKey) {
+  switch (filter) {
+    case 'pending':
+      return isPendingStatus(status);
+    case 'approved':
+      return isApprovedStatus(status);
+    case 'rejected':
+      return isRejectedStatus(status);
+    case 'closed':
+      return isClosedStatus(status);
+    default:
+      return true;
+  }
+}
+
+function isPendingStatus(status: ProposalChangeRequest['status']) {
+  return PENDING_STATUSES.has(status);
+}
+
+function isApprovedStatus(status: ProposalChangeRequest['status']) {
+  return APPROVED_STATUSES.has(status);
+}
+
+function isRejectedStatus(status: ProposalChangeRequest['status']) {
+  return REJECTED_STATUSES.has(status);
+}
+
+function isClosedStatus(status: ProposalChangeRequest['status']) {
+  return CLOSED_STATUSES.has(status);
+}
+
+function getStatusStyles(status: ProposalChangeRequest['status']) {
+  if (isPendingStatus(status)) {
+    return {
+      label: 'Pending review',
+      className: 'rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700',
+    };
+  }
+  if (isApprovedStatus(status)) {
+    return {
+      label: 'Approved',
+      className: 'rounded-md bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700',
+    };
+  }
+  if (isRejectedStatus(status)) {
+    return {
+      label: 'Rejected',
+      className: 'rounded-md bg-rose-100 px-2 py-1 text-xs font-medium text-rose-700',
+    };
+  }
+  if (isClosedStatus(status)) {
+    return {
+      label: 'Closed',
+      className: 'rounded-md bg-slate-200 px-2 py-1 text-xs font-medium text-slate-700',
+    };
+  }
+  return {
+    label: formatStatusLabel(status),
+    className: 'rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground',
+  };
 }
 
 function describeOperations(ops: ProposalChangeRequest['ops']): string {
@@ -585,7 +731,17 @@ function toTimestamp(value: string | null) {
   return Number.isNaN(ts) ? 0 : ts;
 }
 
-function emptyStateMessage(filter: FilterKey) {
+function emptyStateMessage(filter: ScopeFilterKey, statusFilter: StatusFilterKey) {
+  if (statusFilter === 'approved') {
+    return 'No approved proposals to review yet.';
+  }
+  if (statusFilter === 'rejected') {
+    return 'No rejected proposals on record.';
+  }
+  if (statusFilter === 'closed') {
+    return 'No closed proposals here—everything is still in motion.';
+  }
+
   switch (filter) {
     case 'assignment':
       return 'No capture assignments need attention right now.';
@@ -598,4 +754,12 @@ function emptyStateMessage(filter: FilterKey) {
     default:
       return 'You’re all caught up on workspace change requests.';
   }
+}
+
+function formatStatusLabel(status: string) {
+  return status
+    .toLowerCase()
+    .split('_')
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
 }
