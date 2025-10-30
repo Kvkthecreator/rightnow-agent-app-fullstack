@@ -19,7 +19,7 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -326,7 +326,7 @@ class OpenAIProvider(LLMProvider):
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY not set")
 
-        self.client = OpenAI(api_key=api_key)
+        self.client = AsyncOpenAI(api_key=api_key)
 
         # Model configuration with graceful fallback
         desired_json_model = os.getenv("OPENAI_MODEL_P4_JSON", os.getenv("LLM_MODEL_P4_JSON", "gpt-5"))
@@ -344,13 +344,10 @@ class OpenAIProvider(LLMProvider):
         )
 
     def _is_model_available(self, model: str) -> bool:
-        try:
-            # Lightweight check – server-side; will fail fast if model is unknown
-            self.client.models.retrieve(model)
-            return True
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"Model not available: {model} (reason: {e})")
-            return False
+        # NOTE: Skipping model validation during init with AsyncOpenAI
+        # Model availability will be validated on first API call
+        # TODO: Consider async factory pattern if eager validation is needed
+        return True
 
     def _first_available_model(self, preferred: str, fallbacks: list[str]) -> str:
         if preferred and self._is_model_available(preferred):
@@ -408,7 +405,7 @@ class OpenAIProvider(LLMProvider):
             if temperature != 1.0:
                 request_params["temperature"] = temperature
             
-            resp = self.client.chat.completions.create(**request_params)
+            resp = await self.client.chat.completions.create(**request_params)
 
             raw = resp.choices[0].message.content or ""
             parsed: Optional[Dict[str, Any]] = None
@@ -456,7 +453,7 @@ class OpenAIProvider(LLMProvider):
             if temperature != 1.0:
                 request_params["temperature"] = temperature
 
-            resp = self.client.chat.completions.create(**request_params)
+            resp = await self.client.chat.completions.create(**request_params)
             choice = resp.choices[0]
             raw_content = choice.message.content
 
