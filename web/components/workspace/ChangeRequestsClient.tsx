@@ -213,19 +213,32 @@ export default function WorkspaceChangeRequestsClient({ requests, baskets }: Pro
   const hasRequests = items.length > 0;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 py-12">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold">Workspace Change Requests</h1>
+    <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
+      <header className="space-y-1">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Workspace Change Requests</h1>
         <p className="text-sm text-muted-foreground">
           Capture assignments and basket updates that need a quick review before they update your shared memory.
         </p>
       </header>
 
-      <ScopeFilterRow filter={scopeFilter} counts={scopeCounts} onChange={setScopeFilter} />
-      <StatusFilterRow filter={statusFilter} counts={statusCounts} onChange={setStatusFilter} />
+      <section className="rounded-2xl border border-border bg-card/70 p-5 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase text-muted-foreground">Scope</h2>
+            <span className="text-xs text-muted-foreground">Choose which requests to view</span>
+          </div>
+          <ScopeFilterRow filter={scopeFilter} counts={scopeCounts} onChange={setScopeFilter} />
+          <div className="h-px bg-border" />
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase text-muted-foreground">Status</h2>
+            <span className="text-xs text-muted-foreground">Track what&apos;s already handled</span>
+          </div>
+          <StatusFilterRow filter={statusFilter} counts={statusCounts} onChange={setStatusFilter} />
+        </div>
+      </section>
 
       {!hasRequests ? (
-        <section className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+        <section className="rounded-2xl border border-dashed border-muted-foreground/30 bg-muted/40 px-6 py-8 text-sm text-muted-foreground">
           <p>{emptyStateMessage(scopeFilter, statusFilter)}</p>
           <p className="mt-1">Keep working in Claude or ChatGPT—new items will land here when they need your call.</p>
         </section>
@@ -288,7 +301,7 @@ function AssignmentCard({
   const suggested = Array.isArray(assignment.candidates) ? assignment.candidates.slice(0, 3) : [];
 
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-4 text-sm shadow-sm">
+    <div className="rounded-2xl border border-border bg-white/95 px-5 py-4 text-sm shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -381,7 +394,7 @@ function ProposalCard({
       : null;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-4 text-sm shadow-sm">
+    <div className="rounded-2xl border border-border bg-white/95 px-5 py-4 text-sm shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -473,8 +486,10 @@ function ScopeFilterRow({
           type="button"
           onClick={() => onChange(key)}
           className={cn(
-            'rounded-full border px-3 py-1 text-xs font-medium transition',
-            filter === key ? 'border-primary bg-primary text-white' : 'border-border text-muted-foreground hover:bg-muted',
+            'rounded-full border px-3.5 py-1.5 text-xs font-medium shadow-sm transition',
+            filter === key
+              ? 'border-primary bg-primary text-white'
+              : 'border-border bg-background text-muted-foreground hover:bg-muted',
           )}
         >
           {label}
@@ -501,8 +516,10 @@ function StatusFilterRow({
           type="button"
           onClick={() => onChange(key)}
           className={cn(
-            'rounded-full border px-3 py-1 text-xs font-medium transition',
-            filter === key ? 'border-primary bg-primary text-white' : 'border-border text-muted-foreground hover:bg-muted',
+            'rounded-full border px-3.5 py-1.5 text-xs font-medium shadow-sm transition',
+            filter === key
+              ? 'border-primary bg-primary text-white'
+              : 'border-border bg-background text-muted-foreground hover:bg-muted',
           )}
         >
           {`${label} (${counts[key] ?? 0})`}
