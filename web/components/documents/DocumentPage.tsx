@@ -128,7 +128,8 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
   }, [document.id]);
 
   useEffect(() => {
-    // Only fetch versions on mount - document content already provided by server
+    // Fetch composition data and versions on mount
+    fetchComposition(false); // Fetch with loading state
     fetchVersions();
 
     // Check if initial document has processing status
@@ -136,7 +137,7 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
       setComposeState('running');
       setComposeMessage('Composition in progress');
     }
-  }, [fetchVersions, document.metadata]);
+  }, [fetchComposition, fetchVersions, document.metadata]);
 
   useEffect(() => {
     if (composeState !== 'running') return;
@@ -151,6 +152,8 @@ export function DocumentPage({ document, basketId }: DocumentPageProps) {
         setComposeError(null);
         notificationAPI.emitJobSucceeded('document.compose', 'Document composed successfully', { basketId });
         clearInterval(interval);
+        // Refresh composition data to ensure blocks/references are loaded
+        await fetchComposition(true);
       } else if (status === 'failed') {
         const errMessage = payload.document?.metadata?.composition_error || 'Composition failed';
         setComposeState('failed');
