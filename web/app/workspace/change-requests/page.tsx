@@ -46,9 +46,8 @@ export default async function WorkspaceChangeRequestsPage() {
       'id, scope, status, proposal_kind, origin, basket_id, target_basket_id, affected_basket_ids, created_at, validator_report, ops, review_notes, metadata, source_host, source_session',
     )
     .eq('workspace_id', workspace.id)
-    .in('status', ['PROPOSED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'SUPERSEDED', 'MERGED', 'EXECUTED'])
     .order('created_at', { ascending: false })
-    .limit(100);
+    .limit(200);
 
   const { data: baskets } = await listBasketsByWorkspace(workspace.id);
 
