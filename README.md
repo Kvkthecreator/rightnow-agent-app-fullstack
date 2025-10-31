@@ -1,26 +1,40 @@
-# 🧶 yarnnn Monorepo  
+# 🧶 YARNNN Monorepo
 
-yarnnn is a **context-first memory OS** for solo builders and creative professionals. It helps you preserve, defend, and evolve your scattered ideas — turning them into reusable outputs through persistent context.
+**YARNNN is an AI Work Platform where deep context understanding enables superior agent supervision.**
+
+We integrate what others separate: context management + agent work orchestration. The result? Deploy autonomous agents with confidence, not fear.
+
+### What Makes YARNNN Different
+
+- **Single Approval**: Review work quality once → context automatically updated
+- **Context-Powered Reasoning**: Agents access deep substrate, not just retrieval
+- **Multi-Checkpoint Supervision**: Iterative feedback beats binary approve/reject
+- **Complete Provenance**: Every substrate change traces to work session and reasoning
+
+**See**: [Platform Canon v4.0](docs/canon/YARNNN_PLATFORM_CANON_V4.md) for complete philosophy
 
 ---
 
-## Architecture  
+## Architecture (v4.0 - Four-Layer Model)
 
-The project is structured into layers that remain consistent even as implementation details evolve:
+YARNNN is built on a layered architecture where each layer has clear responsibilities:
 
-| Layer | Concept | Purpose |
-|--------|---------|---------|
-| 🧺 0 | Baskets | Canonical memory stream (narrative-first workspace) |
-| ◾ 1 | Blocks | User-promoted or suggested reusable memory modules |
-| 🤖 2 | Agents | Assistive modules that help evolve, defend, and reason over memory |
+| Layer | Responsibility | Key Components |
+|-------|---------------|----------------|
+| **Layer 4: Presentation** | Work review UI, substrate management | Next.js (Vercel) |
+| **Layer 3: Unified Governance** | Work quality + substrate integrity approval | Python orchestrator |
+| **Layer 2: Work Orchestration** | Agent sessions, artifacts, checkpoints | PostgreSQL + FastAPI |
+| **Layer 1: Substrate Core** | Blocks, documents, timeline, semantic layer | Supabase + FastAPI |
 
-These layers map to a simple architecture:
+### Technology Stack
 
-- **Frontend**: Next.js on Vercel — narrative rendering, inline promotion actions
-- **Backend**: FastAPI on Render + Supabase — memory persistence, agent orchestration
-- **Codex**: Developer automation, task scaffolding, and codebase evolution  
+- **Frontend**: Next.js on Vercel
+- **Backend**: FastAPI on Render
+- **Database**: PostgreSQL (Supabase)
+- **Auth**: Supabase Auth
+- **Realtime**: Supabase Realtime
 
-> See `codex/AGENTS.md` for durable design principles, including Phase 1 focus and future-ready block economy direction.
+**See**: [Layered Architecture v4.0](docs/architecture/YARNNN_LAYERED_ARCHITECTURE_V4.md) for complete system design
 
 ---
 
@@ -61,12 +75,23 @@ npm run agent:test -- --subset=contracts    # Contract validation
 
 The pipeline generates structured reports in `artifacts/` and is designed for agent automation. See `docs/TEST_ARCHITECTURE_AUDIT.md` for complete documentation.
 
-## Canon Documentation
+## Canon Documentation (v4.0)
 
-The following Canon documents govern key architectural decisions:
+Core philosophy and architectural decisions are governed by canon documents:
 
-- **[Alerts & Notifications Canon](web/docs/YARNNN_ALERTS_NOTIFICATIONS_CANON.md)** - Unified event system for all user-facing notifications
-- **[Governance Hierarchy](web/docs/governance-hierarchy.md)** - User settings authority and automation boundaries
+### Philosophy
+- **[Platform Canon v4.0](docs/canon/YARNNN_PLATFORM_CANON_V4.md)** - Core identity and principles
+- **[Work Platform Thesis](docs/canon/YARNNN_WORK_PLATFORM_THESIS.md)** - Why context + work integration matters
+- **[Governance Philosophy v4.0](docs/canon/YARNNN_GOVERNANCE_PHILOSOPHY_V4.md)** - Unified governance model
+
+### Architecture
+- **[Work Orchestration Layer](docs/WORK_ORCHESTRATION_LAYER.md)** - Layer 2 specification
+- **[Substrate Canon V3](docs/YARNNN_SUBSTRATE_CANON_V3.md)** - Layer 1 specification
+
+### Legacy (v3.1)
+- **[Architecture Canon](docs/YARNNN_ARCHITECTURE_CANON.md)** - Pre-v4.0 architecture (being updated)
+- **[Governance Canon V5](docs/YARNNN_GOVERNANCE_CANON_V5.md)** - Superseded by v4.0
+- See [Archive](docs/archive/) for historical documentation
 
 ## Repository Layout
 

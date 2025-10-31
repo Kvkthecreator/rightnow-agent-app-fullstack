@@ -1,12 +1,14 @@
 # YARNNN Canon v3.1 — The Authoritative Reference
 
+**⚠️ STATUS (2025-10-31)**: This document describes YARNNN v3.1 architecture. For current v4.0 documentation, see [docs/canon/YARNNN_PLATFORM_CANON_V4.md](canon/YARNNN_PLATFORM_CANON_V4.md)
+
 **The Single Source of Truth for Yarnnn Service Philosophy and Implementation**
 
 **🚨 MAJOR UPDATE (2025-01-15)**: Architecture upgraded to v3.1 - Semantic Layer Integration
 - **v3.0**: Substrate unified (context_items → blocks), emergent anchors, universal versioning
 - **v3.1**: Semantic intelligence layer (vector embeddings + causal relationships)
 - **See**: [YARNNN_SUBSTRATE_CANON_V3.md](./YARNNN_SUBSTRATE_CANON_V3.md) for substrate reference
-- **See**: [SEMANTIC_LAYER_INTEGRATION_DESIGN.md](./SEMANTIC_LAYER_INTEGRATION_DESIGN.md) for semantic architecture
+- **See**: [archive/planning/SEMANTIC_LAYER_INTEGRATION_DESIGN.md](archive/planning/SEMANTIC_LAYER_INTEGRATION_DESIGN.md) for historical semantic architecture (archived)
 
 ## 🌊 Core Philosophy: Memory-First, Substrate-Equal
 

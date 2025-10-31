@@ -2,7 +2,7 @@
 
 **The Definitive Reference for Substrate Architecture**
 
-**Status**: Active (2025-01-15)
+**Status**: Active (2025-01-15, Updated 2025-10-31 for v4.0 integration)
 **Version**: v3.1 (Semantic Layer Integration)
 **Supersedes**: YARNNN_SUBSTRATE_CANON.md v2.x
 **Authority**: This is the single source of truth for substrate design
@@ -13,6 +13,29 @@
 
 - **v3.0** (2025-01-15): Unified substrate (context_items → blocks), emergent anchors, universal versioning
 - **v3.1** (2025-01-15): Semantic intelligence layer (vector embeddings + causal relationships)
+- **v4.0 Integration** (2025-10-31): Work orchestration layer links to substrate via governance
+
+---
+
+## 🆕 v4.0 Integration Notes
+
+**YARNNN v4.0** introduces unified work orchestration + governance spanning both agent work quality AND substrate integrity. This document (v3.1) remains the canonical reference for **substrate architecture** (Layer 1), but now integrates with:
+
+- **Layer 2 (Work Orchestration)**: Agent work sessions create artifacts that become substrate blocks after approval
+- **Layer 3 (Unified Governance)**: Single user review handles both work quality and substrate mutation
+- **Provenance**: Every block created via work orchestration includes complete lineage (work_session_id, work_artifact_id, agent_reasoning)
+
+**Key Changes for v4.0**:
+- Blocks can be created via **two paths**: Direct (human-created) or Work Orchestration (agent-created with approval)
+- Agent-created blocks skip PROPOSED state (work already reviewed) → Go directly to ACCEPTED
+- Block metadata includes provenance fields: `work_session_id`, `work_artifact_id`, `agent_confidence`, `approved_by_user`
+
+**See**:
+- [Work Session Lifecycle](features/work-management/WORK_SESSION_LIFECYCLE.md) - Agent work states
+- [Artifact Types](features/work-management/ARTIFACT_TYPES_AND_HANDLING.md) - How artifacts → blocks
+- [Audit Trails](features/governance/AUDIT_TRAILS.md) - Complete provenance tracking
+
+---
 
 ---
 
