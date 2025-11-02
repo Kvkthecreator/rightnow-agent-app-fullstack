@@ -1,6 +1,12 @@
 """
 Universal Work Tracker - YARNNN Canon v2.1 Compliant
 
+⚠️ DEPRECATION NOTICE (v4.0 Migration):
+This v2.1-era work tracker will be replaced by the work_sessions table model.
+Current status: Operational (used by work_status.py)
+Will be removed after v4.0 work_sessions routes are wired.
+See: LEGACY_CODE_INVENTORY.md for migration plan.
+
 Provides universal work orchestration for all async operations in YARNNN,
 not just pipeline processing. Serves as the single source of truth for work
 creation, status tracking, and cascade management.
@@ -14,7 +20,6 @@ Canon Compliance:
 # V3.0 DEPRECATION NOTICE:
 # This file contains references to context_items table which was merged into blocks table.
 # Entity blocks are now identified by semantic_type='entity'.
-# This file is legacy/supporting code - update if actively maintained.
 
 
 import asyncio

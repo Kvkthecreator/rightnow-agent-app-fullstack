@@ -1,8 +1,14 @@
 """
 Universal Work Status API - YARNNN Canon v2.1 Compliant
 
+⚠️ DEPRECATION NOTICE (v4.0 Migration):
+This route will be replaced by api/src/app/routes/work_sessions.py
+Current status: Operational (provides /api/work/* endpoints)
+Will be removed after v4.0 work_sessions routes are operational.
+See: LEGACY_CODE_INVENTORY.md for migration plan.
+
 Provides unified status tracking for all async work in YARNNN:
-- P0-P4 pipeline operations  
+- P0-P4 pipeline operations
 - Manual substrate edits
 - Governance proposal reviews
 - Document composition

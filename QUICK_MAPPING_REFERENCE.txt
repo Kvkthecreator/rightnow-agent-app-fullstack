@@ -1,0 +1,267 @@
+=============================================================================
+QUICK REFERENCE: CANON vs IMPLEMENTATION MAPPING
+=============================================================================
+
+LAYER 2: WORK ORCHESTRATION
+=============================
+
+Schema (Database):
+  ✅ work_sessions          - FULL SCHEMA (migration 20251031)
+  ✅ work_artifacts         - FULL SCHEMA
+  ✅ work_checkpoints       - FULL SCHEMA
+  ✅ work_iterations        - FULL SCHEMA
+  ✅ work_context_mutations - FULL SCHEMA
+
+Models (Python):
+  ✅ work_session.py        - Complete with status/approval_strategy
+  ✅ work_artifact.py       - Complete with artifact_type/risk_level
+  ✅ work_checkpoint.py     - Complete with checkpoint_type/user_decision
+  ✅ work_iteration.py      - Complete with iteration_number/triggered_by
+  ✅ work_context_mutation.py - Complete with mutation tracking
+
+Orchestrator:
+  ✅ UnifiedApprovalOrchestrator class - Exists in governance/unified_approval.py
+  ✅ review_work_session() method - Implemented (lines 71-159)
+  ✅ _apply_artifact_to_substrate() - Implemented (per artifact type routing)
+  ✅ Substrate application logic - Implemented (block create/supersede/document)
+  ⚠️  Per-artifact decisions - Implemented in orchestrator, NOT IN ROUTES
+  ❌ Checkpoint handling - NOT IN ORCHESTRATOR
+  ❌ Iteration handling - NOT IN ORCHESTRATOR
+  ❌ Risk assessment - NOT IN ORCHESTRATOR
+
+Route Handlers:
+  ❌ POST /api/work/sessions/{id}/review - MISSING (blocking usage)
+  ❌ POST /api/work/sessions - MISSING
+  ❌ GET /api/work/sessions/{id} - MISSING
+  ❌ POST /api/work/sessions/{id}/checkpoints - MISSING
+  ❌ PATCH /api/work/sessions/{id}/checkpoints/{cid} - MISSING
+  ❌ POST /api/work/sessions/{id}/iterations - MISSING
+
+Agent Integration:
+  ❌ Agents DO NOT create work_sessions
+  ❌ Agents DO NOT create work_artifacts
+  ❌ Agents bypass work orchestration entirely
+  ❌ No hook for agents to emit work context
+
+
+LAYER 3: UNIFIED GOVERNANCE
+=============================
+
+Unified Review Logic:
+  ✅ WorkReviewDecision class - Defined
+  ✅ ArtifactDecision enum (APPLY/DRAFT/REJECT) - Defined
+  ✅ Decision logic implementation - IN ORCHESTRATOR
+  ❌ Decision routes - MISSING (orchestrator unreachable)
+
+Risk Assessment Framework:
+  ✅ Documented in canon (5 factors)
+  ✅ RiskLevel enum - Defined (low/medium/high)
+  ✅ risk_level field on artifact/checkpoint - Schema has it
+  ❌ Risk calculation service - DOES NOT EXIST
+  ❌ Factor 1: Mutation Type scoring - NOT CALCULATED
+  ❌ Factor 2: Confidence modifier - NOT CALCULATED
+  ❌ Factor 3: Context impact analysis - NOT CALCULATED
+  ❌ Factor 4: Agent track record - NO TABLE/LOGIC
+  ❌ Factor 5: Novelty detection - NOT CALCULATED
+
+Checkpoint Strategies:
+  ✅ checkpoint_required - Defined in model
+  ✅ final_only - Defined in model
+  ✅ auto_approve_low_risk - Defined in model
+  ❌ Enforcement logic - MISSING
+  ❌ All sessions treated as "final_only"
+
+Per-Artifact Decisions:
+  ✅ Apply to substrate - IN ORCHESTRATOR
+  ✅ Save as draft - IN ORCHESTRATOR
+  ✅ Reject with feedback - IN ORCHESTRATOR
+  ❌ Called from routes - NO ROUTES CALL IT
+
+Provenance Tracking:
+  ✅ work_context_mutations audit trail - IN ORCHESTRATOR
+  ✅ Before/after state logging - IMPLEMENTED
+  ✅ Links session→artifact→mutation - SCHEMA SUPPORTS IT
+  ❌ Query routes for provenance - MISSING
+
+Iteration Feedback:
+  ✅ WorkIteration table - EXISTS
+  ✅ Iteration triggers defined - MODELS EXIST
+  ❌ Workflow orchestration - MISSING
+  ❌ Agent feedback incorporation - MISSING
+  ❌ Routes for feedback - MISSING
+
+
+CRITICAL CONNECTIVITY GAPS
+==========================
+
+Agent Work Flow:
+  CANON PROMISE:
+    Agent → creates work_session
+           → creates work_artifacts
+           → waits for user review
+           → receives approval decision
+           → artifacts applied to substrate
+
+  ACTUAL FLOW:
+    Agent → directly writes to blocks table
+           → no work_session created
+           → no governance checkpoint
+           → substrate mutated without approval
+
+Queue-Based Work:
+  CANON PROMISE:
+    work_sessions is canonical work entity
+    
+  ACTUAL IMPLEMENTATION:
+    agent_processing_queue is still canonical
+    work_sessions is parallel, unused structure
+    Two competing systems (one active, one dead)
+
+Governance Models:
+  CANON v3.1 (ACTIVE):
+    proposals table → approval workflow → blocks updated
+    
+  CANON v4.0 (ORPHANED):
+    work_sessions → unified_approval → blocks updated
+    Never called from routes
+    Sitting in codebase unused
+
+Document Version Mismatch:
+  Code references: v2.1 (work_status.py, universal_work_tracker.py)
+  Code references: v3.1 removed P2, but code still has P2 in WorkType enum
+  Canon is at: v4.0 (platform canon, governance canon)
+  Result: Architectural confusion across layers
+
+
+WHAT'S DEAD CODE
+================
+
+1. UnifiedApprovalOrchestrator
+   - Fully implemented (485 lines)
+   - Zero routes call it
+   - review_work_session() never invoked
+   
+2. work_sessions table
+   - Fully designed schema
+   - Zero inserts from application
+   - Only unified_approval reads it (unreachable)
+   
+3. work_artifacts table
+   - Fully designed schema
+   - Zero inserts from application
+   - Table is empty
+   
+4. work_checkpoints table
+   - Fully designed schema
+   - Zero usage
+   - No orchestration logic
+   
+5. work_iterations table
+   - Fully designed schema
+   - Zero usage
+   - No feedback loop implementation
+   
+6. work_context_mutations table
+   - Fully designed schema
+   - Only written by orchestrator
+   - Orchestrator unreachable
+
+
+WHAT EXISTS ONLY IN DOCS
+=========================
+
+1. Approval Strategy Enforcement
+   - How should work flow vary by approval_strategy?
+   - Code: field exists, never checked
+
+2. Risk Scoring (5 factors)
+   - How to calculate risk_level automatically?
+   - Code: no calculation, must be set manually
+
+3. Agent Track Record
+   - How to track per-agent approval rate?
+   - Code: no table, no queries
+
+4. Checkpoint Workflows
+   - How should agents request mid-work review?
+   - Code: no API, no orchestration
+
+5. Iteration Loops
+   - How should agents incorporate user feedback?
+   - Code: table exists, no workflow
+
+6. Auto-Approval
+   - How should system auto-approve low-risk work?
+   - Code: no logic, requires human review always
+
+
+IMPLEMENTATION COMPLETE BUT NOT CONNECTED
+==========================================
+
+Tier 1: Completed (100%)
+- Database schema: 5 tables created ✅
+- Data models: 5 files with full definitions ✅
+- Orchestrator: UnifiedApprovalOrchestrator (485 lines) ✅
+- Provenance: before/after state tracking ✅
+
+Tier 2: Partially Completed
+- Per-artifact decisions: logic exists in orchestrator (⚠️  unreachable)
+- Risk assessment: fields exist, no calculation (⚠️  not automated)
+- Approval strategies: defined, not enforced (⚠️  all treated as final_only)
+
+Tier 3: Completely Missing (0%)
+- Route handlers: NO endpoints call orchestrator ❌
+- Agent integration: agents don't emit work ❌
+- Checkpoint workflows: no orchestration ❌
+- Iteration feedback: no implementation ❌
+- Risk calculation: no service ❌
+- Agent track record: no tracking ❌
+- Auto-approval: no logic ❌
+
+
+RECOMMENDATIONS
+===============
+
+Option A: COMPLETE v4.0 (2-3 weeks)
+  1. Create routes to call unified_approval
+  2. Hook agents to create work_sessions/artifacts
+  3. Implement risk assessment service
+  4. Implement checkpoint orchestration
+  5. Implement iteration feedback loop
+  6. Track agent approval rates
+  7. Enforce approval strategies
+  
+  Result: v4.0 fully operational, architecture matches code
+
+Option B: REVERT TO v3.1 (1 week)
+  1. Archive work_sessions/artifacts tables
+  2. Update docs to match v3.1 model
+  3. Keep agent_processing_queue as canonical
+  4. Remove v4.0 references
+  
+  Result: Documentation matches code, no dead code
+
+Option C: HYBRID INCREMENTAL (4-6 weeks)
+  Sprint 1 (2w): Routes + basic work tracking
+  Sprint 2 (1.5w): Checkpoints
+  Sprint 3 (1.5w): Risk & iterations
+
+  Result: Gradual alignment with v4.0 vision
+
+
+KEY FILES TO EXAMINE
+====================
+
+Canon:
+  /docs/YARNNN_CANON.md
+  /docs/WORK_ORCHESTRATION_LAYER.md
+  /docs/canon/YARNNN_PLATFORM_CANON_V4.md
+  /docs/canon/YARNNN_GOVERNANCE_PHILOSOPHY_V4.md
+
+Implementation:
+  /api/src/app/work/models/
+  /api/src/app/governance/unified_approval.py
+  /api/src/app/routes/work_status.py
+  /api/src/services/universal_work_tracker.py
+  /supabase/migrations/20251031_work_orchestration_layer.sql
+

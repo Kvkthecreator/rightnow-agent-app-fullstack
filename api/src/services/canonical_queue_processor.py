@@ -1,6 +1,12 @@
 """
 Canonical Queue Processor - YARNNN Canon v2.3 Compliant
 
+⚠️ DEPRECATION NOTICE (v4.0 Migration):
+Queue-based agent orchestration will be replaced by the work_sessions model.
+Current status: Operational (core agent processing system)
+Will be removed after v4.0 work_sessions routes are wired.
+See: LEGACY_CODE_INVENTORY.md for migration plan.
+
 Orchestrates substrate pipeline agents (P0-P2) for governed substrate mutations
 while respecting Sacred Principles and substrate/artifact boundaries.
 Integrates with Universal Work Tracker for comprehensive status visibility.
@@ -8,14 +14,13 @@ Integrates with Universal Work Tracker for comprehensive status visibility.
 Canon v2.3 Pipeline Processing Sequence:
 1. P0 Capture: Raw dump ingestion (direct, no governance)
 2. P1 Substrate: Block/context creation (governed proposals)
-3. P2 Graph: Relationship mapping (governed proposals)  
+3. P2 Graph: Relationship mapping (governed proposals)
 (P3 Reflection: Direct artifact operations via /api/reflections)
 (P4 Document Composition: Direct artifact operations via /api/documents)
 """
 # V3.0 DEPRECATION NOTICE:
 # This file contains references to context_items table which was merged into blocks table.
 # Entity blocks are now identified by semantic_type='entity'.
-# This file is legacy/supporting code - update if actively maintained.
 
 
 import asyncio
