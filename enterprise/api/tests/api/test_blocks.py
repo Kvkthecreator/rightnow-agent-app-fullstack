@@ -10,7 +10,7 @@ os.environ.setdefault("SUPABASE_URL", "http://localhost")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "svc.key")
 sys.modules.setdefault("supabase", types.SimpleNamespace(create_client=lambda *a, **k: None))
 
-from app.routes.blocks import router as blocks_router, verify_jwt, get_or_create_workspace
+from shared.substrate.routes.blocks import router as blocks_router, verify_jwt, get_or_create_workspace
 
 app = FastAPI()
 app.include_router(blocks_router, prefix="/api")

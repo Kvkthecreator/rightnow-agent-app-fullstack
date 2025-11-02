@@ -85,7 +85,7 @@ def stub_user(
 ) -> dict:
     return {"user_id": "00000000-0000-0000-0000-000000000000"}
 try:
-    import app.utils.jwt as jwt
+    import shared.utils.jwt as jwt
     jwt.verify_jwt = stub_user
     for mod_name in [
         "app.routes.basket_new",

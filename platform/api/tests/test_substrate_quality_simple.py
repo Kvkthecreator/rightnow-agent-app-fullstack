@@ -10,8 +10,8 @@ from uuid import uuid4
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
-from app.utils.supabase_client import supabase_admin_client as supabase
+from platform.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
+from shared.utils.supabase_client import supabase_admin_client as supabase
 
 
 async def test_basket_context_view():

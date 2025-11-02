@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from app.utils.supabase_client import supabase_admin_client as supabase
+from shared.utils.supabase_client import supabase_admin_client as supabase
 
 def test_blocks_query():
     """Test if blocks query works with correct status values"""

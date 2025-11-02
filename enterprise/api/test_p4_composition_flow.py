@@ -22,9 +22,9 @@ os.environ["SUPABASE_URL"] = "https://galytxxkrbksilekmhcw.supabase.co"
 os.environ["SUPABASE_ANON_KEY"] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhbHl0eHhrcmJrc2lsZWttaGN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NTU3NjMsImV4cCI6MjA2MjMzMTc2M30.n9wrD3a_fep8GfeCRm0iflk-4Y47RYnLA0EeEECU7OY"
 os.environ["SUPABASE_SERVICE_ROLE_KEY"] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdhbHl0eHhrcmJrc2lsZWttaGN3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Njc1NTc2MywiZXhwIjoyMDYyMzMxNzYzfQ.0oAdZeTn_k3p-29Hy8z1v5YYGpjBeqML0amz5bcAS6g"
 
-from app.utils.supabase_client import supabase_admin_client as supabase
-from services.universal_work_tracker import universal_work_tracker, WorkContext
-from services.canonical_queue_processor import CanonicalQueueProcessor
+from shared.utils.supabase_client import supabase_admin_client as supabase
+from shared.substrate.services.universal_work_tracker import universal_work_tracker, WorkContext
+from shared.substrate.services.canonical_queue_processor import CanonicalQueueProcessor
 from app.agents.pipeline.composition_agent import P4CompositionAgent, CompositionRequest
 
 logging.basicConfig(level=logging.INFO)

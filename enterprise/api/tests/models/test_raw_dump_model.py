@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from app.models.raw_dump import RawDump
+from shared.substrate.models.raw_dump import RawDump
 
 
 def test_raw_dump_accepts_document_id():

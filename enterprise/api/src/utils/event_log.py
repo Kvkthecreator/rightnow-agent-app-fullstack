@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from app.utils.supabase_client import supabase_client as supabase
+from shared.utils.supabase_client import supabase_client as supabase
 
 from .db import json_safe
 

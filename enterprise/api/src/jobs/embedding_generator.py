@@ -26,8 +26,8 @@ import sys
 from typing import Optional, List
 from uuid import UUID
 
-from app.utils.supabase_client import supabase_admin_client as supabase
-from services.semantic_primitives import generate_and_store_embedding
+from shared.utils.supabase_client import supabase_admin_client as supabase
+from shared.substrate.services.semantic_primitives import generate_and_store_embedding
 
 logger = logging.getLogger("uvicorn.error")
 

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from uuid import UUID
 import datetime
 
-from app.models.context import ContextItemType, CompositionIntent
+from shared.substrate.models.context import ContextItemType, CompositionIntent
 
 
 class BlockRelevanceScore(BaseModel):

@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("SUPABASE_URL", "http://localhost")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "svc.key")
 
-from app.routes.baskets import router as baskets_router
+from shared.substrate.routes.baskets import router as baskets_router
 
 app = FastAPI()
 app.include_router(baskets_router, prefix="/api")

@@ -12,9 +12,9 @@ from typing import Dict, Any, List, Optional
 from uuid import UUID, uuid4
 
 from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
-from app.utils.supabase_client import supabase_admin_client as supabase
-from services.enhanced_cascade_manager import canonical_cascade_manager
-from services.semantic_primitives import (
+from shared.utils.supabase_client import supabase_admin_client as supabase
+from shared.substrate.services.enhanced_cascade_manager import canonical_cascade_manager
+from shared.substrate.services.semantic_primitives import (
     semantic_search,
     SemanticSearchFilters,
     DUPLICATE_HIGH_CONFIDENCE,

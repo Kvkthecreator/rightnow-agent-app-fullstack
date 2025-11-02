@@ -28,8 +28,8 @@ from app.services.basket_signatures import (
     build_signature_payload,
     upsert_basket_signature,
 )
-from app.utils.supabase_client import supabase_admin_client as supabase
-from services.llm import get_llm
+from shared.utils.supabase_client import supabase_admin_client as supabase
+from shared.substrate.services.llm import get_llm
 
 
 class ReflectionComputationRequest(BaseModel):

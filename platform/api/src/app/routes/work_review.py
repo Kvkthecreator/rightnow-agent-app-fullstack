@@ -16,8 +16,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from app.utils.jwt import verify_jwt
-from app.utils.supabase_client import supabase_admin_client as supabase
+from shared.utils.jwt import verify_jwt
+from shared.utils.supabase_client import supabase_admin_client as supabase
 from app.governance.unified_approval import (
     UnifiedApprovalOrchestrator,
     WorkReviewDecision,

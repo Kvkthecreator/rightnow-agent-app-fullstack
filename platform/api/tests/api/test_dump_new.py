@@ -4,7 +4,7 @@ import uuid
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.routes.dump_new import router as dump_router
+from shared.substrate.routes.dump_new import router as dump_router
 
 app = FastAPI()
 app.include_router(dump_router, prefix="/api")

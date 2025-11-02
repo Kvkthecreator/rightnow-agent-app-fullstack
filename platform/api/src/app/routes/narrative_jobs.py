@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace
-from services.narrative_jobs import start_job, get_job, JobMode
+from shared.substrate.services.narrative_jobs import start_job, get_job, JobMode
 
 router = APIRouter(prefix="/api", tags=["narrative_jobs"])
 

@@ -21,7 +21,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional, Tuple
 from uuid import UUID
 
-from app.utils.supabase_client import supabase_admin_client as supabase
+from shared.utils.supabase_client import supabase_admin_client as supabase
 from app.schemas.work_status import WorkStatusResponse, SubstrateImpact, CascadeFlow, WorkError
 
 logger = logging.getLogger("uvicorn.error")

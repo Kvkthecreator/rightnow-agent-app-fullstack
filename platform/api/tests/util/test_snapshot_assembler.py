@@ -1,4 +1,4 @@
-from app.util.snapshot_assembler import assemble_snapshot
+from platform.util.snapshot_assembler import assemble_snapshot
 
 
 def test_assemble_filters_states():

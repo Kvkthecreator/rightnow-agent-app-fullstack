@@ -22,12 +22,12 @@ from typing import Optional, Dict, Any, List, Tuple, Iterable
 from uuid import UUID
 from datetime import datetime
 
-from app.utils.supabase import supabase_admin
+from shared.utils.supabase import supabase_admin
 from lib.freshness import (
     should_regenerate_document_canon,
     compute_basket_substrate_hash
 )
-from app.utils.jwt import verify_jwt
+from shared.utils.jwt import verify_jwt
 
 router = APIRouter(prefix="/p4", tags=["p4-documents"])
 
@@ -461,7 +461,7 @@ async def _compose_document_canon_structured(
     substrate: Dict[str, Any],
     composition_mode: Optional[str]
 ) -> Optional[Dict[str, Any]]:
-    from services.llm import get_llm
+    from shared.substrate.services.llm import get_llm
 
     llm = get_llm()
     prompt = _build_document_canon_prompt(basket_name, insight_canon, substrate, composition_mode)
@@ -768,7 +768,7 @@ async def _compose_starter_prompt_structured(
     substrate: Dict[str, Any],
     prompt_style: Optional[str]
 ) -> Optional[Dict[str, Any]]:
-    from services.llm import get_llm
+    from shared.substrate.services.llm import get_llm
 
     llm = get_llm()
     prompt = _build_starter_prompt_context(basket_name, target_host, insight_canon, substrate, prompt_style)

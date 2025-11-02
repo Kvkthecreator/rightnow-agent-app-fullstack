@@ -10,8 +10,8 @@ from contracts.basket import BasketChangeRequest, BasketDelta
 from fastapi import APIRouter, Depends, HTTPException, Request
 from ..baskets.schemas import BasketWorkRequest
 from typing import Union
-from services.deltas import list_deltas, persist_delta, try_apply_delta
-from services.idempotency import (
+from shared.substrate.services.deltas import list_deltas, persist_delta, try_apply_delta
+from shared.substrate.services.idempotency import (
     already_processed,
     fetch_delta_by_request_id,
     mark_processed,

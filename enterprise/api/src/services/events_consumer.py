@@ -1,6 +1,6 @@
 import logging
 from app.event_bus import subscribe
-from services.manager import run_manager_plan
+from shared.substrate.services.manager import run_manager_plan
 
 log = logging.getLogger(__name__)
 

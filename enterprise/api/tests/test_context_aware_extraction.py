@@ -12,7 +12,7 @@ import pytest
 from uuid import uuid4, UUID
 from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
 from app.agents.pipeline.governance_processor import GovernanceDumpProcessor
-from app.utils.supabase_client import supabase_admin_client as supabase
+from shared.utils.supabase_client import supabase_admin_client as supabase
 
 
 @pytest.mark.asyncio

@@ -15,7 +15,7 @@ from uuid import UUID
 import os
 from openai import OpenAI
 
-from app.utils.supabase_client import supabase_admin_client as supabase
+from shared.utils.supabase_client import supabase_admin_client as supabase
 from app.schemas.focused_extraction import (
     FocusedExtraction, EXTRACTION_TEMPLATES, detect_content_type,
     ContentType, ExtractedFact, ExtractedInsight, ExtractedAction, ExtractedContext

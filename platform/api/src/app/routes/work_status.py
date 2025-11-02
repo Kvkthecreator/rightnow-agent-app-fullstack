@@ -34,9 +34,9 @@ from app.schemas.work_status import (
     QueueHealthResponse,
     WorkType
 )
-from app.utils.supabase_client import supabase_admin_client as supabase
-from app.utils.jwt import verify_jwt
-from services.universal_work_tracker import universal_work_tracker, WorkContext
+from shared.utils.supabase_client import supabase_admin_client as supabase
+from shared.utils.jwt import verify_jwt
+from shared.substrate.services.universal_work_tracker import universal_work_tracker, WorkContext
 from app.services.status_derivation import status_derivation_service
 
 router = APIRouter(prefix="/api/work", tags=["work-status"])

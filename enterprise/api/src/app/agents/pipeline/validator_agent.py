@@ -20,7 +20,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 import hashlib
 
-from app.utils.supabase_client import supabase_admin_client as supabase
+from shared.utils.supabase_client import supabase_admin_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
 

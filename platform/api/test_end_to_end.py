@@ -19,7 +19,7 @@ async def test_manager_worker_integration():
 
     try:
         from contracts.basket import BasketChangeRequest, SourceText
-        from services.manager import run_manager_plan
+        from shared.substrate.services.manager import run_manager_plan
 
         # Create a realistic test request
         test_request = BasketChangeRequest(
@@ -79,10 +79,10 @@ async def test_database_operations():
         import os
 
         from contracts.basket import BasketDelta
-        from services.clock import now_iso
-        from services.deltas import persist_delta
-        from services.events import publish_event
-        from services.idempotency import already_processed, mark_processed
+        from shared.substrate.services.clock import now_iso
+        from shared.substrate.services.deltas import persist_delta
+        from shared.substrate.services.events import publish_event
+        from shared.substrate.services.idempotency import already_processed, mark_processed
 
         if not os.getenv("DATABASE_URL"):
             print("  ⚠️  Skipping database tests - DATABASE_URL not set")
@@ -140,7 +140,7 @@ async def test_worker_adapter():
     print("\n🔧 Testing WorkerAgentAdapter...")
 
     try:
-        from services.worker_adapter import WorkerAgentAdapter, WorkerOutputAggregator
+        from shared.substrate.services.worker_adapter import WorkerAgentAdapter, WorkerOutputAggregator
 
         # Test basket analyzer adapter (will likely fail due to missing deps,
         # but should handle gracefully)

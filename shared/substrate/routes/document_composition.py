@@ -22,7 +22,7 @@ from ..documents.services.lifecycle_management import DocumentLifecycleService
 from ..documents.services.coherence_analyzer import CoherenceAnalyzerService
 from ..agents.pipeline.presentation_agent import P4PresentationAgent
 from ..dependencies import get_current_user
-from services.events import EventService
+from shared.substrate.services.events import EventService
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -503,7 +503,7 @@ async def enhance_existing_document(
     
     try:
         from app.agents.pipeline.presentation_agent import P4PresentationAgent
-        from services.llm import get_llm
+        from shared.substrate.services.llm import get_llm
         
         # Use LLM service to enhance the content with context from basket
         llm = get_llm()

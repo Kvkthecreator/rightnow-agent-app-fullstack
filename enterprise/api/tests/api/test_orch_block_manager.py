@@ -16,7 +16,7 @@ sys.modules.setdefault("asyncpg", asyncpg_stub)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../src"))
 
-from app.routes.agents import router as agents_router
+from shared.substrate.routes.agents import router as agents_router
 
 app = FastAPI()
 app.include_router(agents_router, prefix="/api")

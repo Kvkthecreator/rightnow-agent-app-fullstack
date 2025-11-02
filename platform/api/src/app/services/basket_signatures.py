@@ -6,7 +6,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
-from services.embedding import generate_embedding
+from shared.substrate.services.embedding import generate_embedding
 from ..utils.supabase import supabase_admin
 
 logger = logging.getLogger("uvicorn.error")
