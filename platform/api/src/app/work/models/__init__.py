@@ -1,10 +1,10 @@
 """Work orchestration models (Layer 2)."""
 
 from .work_session import WorkSession, WorkSessionStatus, WorkSessionApprovalStrategy
-from .work_artifact import WorkArtifact, WorkArtifactType, WorkArtifactStatus
+from .work_artifact import WorkArtifact, WorkArtifactType, WorkArtifactStatus, RiskLevel
 from .work_checkpoint import WorkCheckpoint, WorkCheckpointType, WorkCheckpointStatus
 from .work_iteration import WorkIteration, WorkIterationTrigger
-from .work_context_mutation import WorkContextMutation, WorkMutationType
+from .work_context_mutation import WorkContextMutation, WorkMutationType, SubstrateType
 
 __all__ = [
     "WorkSession",
@@ -20,4 +20,6 @@ __all__ = [
     "WorkIterationTrigger",
     "WorkContextMutation",
     "WorkMutationType",
+    "SubstrateType",
+    "RiskLevel",
 ]
