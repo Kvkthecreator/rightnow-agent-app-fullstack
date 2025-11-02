@@ -1,0 +1,1 @@
+"""Repository layer for database operations - separates data access from business logic"""

@@ -1,19 +1,12 @@
-# render.yaml
+# render.yaml - YARNNN v4.0 Mono-Repo Configuration
 services:
+  # Platform API - AI Work Platform (v4.0)
   - type: web
-    name: rightnow-api-old
-    env: python
-    buildCommand: pip install -r api/requirements.txt
-    startCommand: uvicorn src.app.agent_server:app --host 0.0.0.0 --port 10000 --log-level debug
-    root: api/
-    autoDeploy: false
-
-  - type: web
-    name: rightnow-api
+    name: yarnnn-platform-api
     env: python
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn src.app.agent_server:app --host 0.0.0.0 --port 10000 --log-level debug
-    root: api/
+    root: platform/api/
     envVars:
       - key: OPENAI_API_KEY
         sync: false
@@ -22,6 +15,25 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: DATABASE_URL
+        sync: false
+
+  # Enterprise API - Context Management with MCP (rolled back to b735c693)
+  - type: web
+    name: yarnnn-enterprise-api
+    env: python
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn src.app.agent_server:app --host 0.0.0.0 --port 10000 --log-level debug
+    root: enterprise/api/
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: MCP_SHARED_SECRET
         sync: false
 
   - type: web
