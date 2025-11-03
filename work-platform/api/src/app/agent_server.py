@@ -68,11 +68,13 @@ from .routes.narrative_jobs import router as narrative_jobs_router
 from .routes.integration_tokens import router as integration_tokens_router
 from .routes.auth_validate import router as auth_validate_router
 # openai_apps route removed - functionality moved to mcp-server/adapters/openai-apps
-from .routes.mcp_inference import router as mcp_inference_router
+# Phase 3 BFF: MCP routes belong to substrate-api, not work-platform
+# These routers exist in substrate-api/api/src/app/routes/, not here
+# from .routes.mcp_inference import router as mcp_inference_router
+# from .routes.mcp_activity import router as mcp_activity_router
+# from .routes.mcp_auth import router as mcp_auth_router
+# from .routes.mcp_oauth import router as mcp_oauth_router
 from .routes.memory_unassigned import router as memory_unassigned_router
-from .routes.mcp_activity import router as mcp_activity_router
-from .routes.mcp_auth import router as mcp_auth_router
-from .routes.mcp_oauth import router as mcp_oauth_router
 from .routes.events import router as events_router
 from .routes.alerts import router as alerts_router
 from .routes.phase1_routes import router as phase1_router
@@ -167,11 +169,12 @@ routers = (
     p3_insights_router,
     p4_canon_router,
     p3_p4_health_router,
-    mcp_inference_router,
+    # Phase 3 BFF: MCP routers removed - belong to substrate-api
+    # mcp_inference_router,
+    # mcp_activity_router,
+    # mcp_auth_router,
+    # mcp_oauth_router,
     memory_unassigned_router,
-    mcp_activity_router,
-    mcp_auth_router,
-    mcp_oauth_router,
     alerts_router,
     events_router,
     integration_tokens_router,
@@ -188,9 +191,10 @@ app.add_middleware(CorrelationIdMiddleware)
 for r in routers:
     app.include_router(r, prefix="/api")
 
+# Phase 3 BFF: MCP OAuth router removed - belongs to substrate-api
 # Also register OAuth router without /api prefix for client compatibility
 # Some OAuth clients may drop the /api prefix when following redirects
-app.include_router(mcp_oauth_router)
+# app.include_router(mcp_oauth_router)
 
 app.include_router(basket_router)
 # Phase 4/5: Legacy reflections router removed
