@@ -29,7 +29,8 @@ from middleware.auth import AuthMiddleware
 from middleware.correlation import CorrelationIdMiddleware
 
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
-from .routes.reflections import router as reflections_router
+# Phase 4/5: Legacy reflections router removed (used Canon v2.1 reflection agent)
+# from .routes.reflections import router as reflections_router
 # Phase 4/5: Legacy Canon v2.1 queue processor removed - stubs for backward compatibility
 async def start_canonical_queue_processor():
     """Legacy Canon v2.1 - No-op stub"""
@@ -186,7 +187,8 @@ for r in routers:
 app.include_router(mcp_oauth_router)
 
 app.include_router(basket_router)
-app.include_router(reflections_router)
+# Phase 4/5: Legacy reflections router removed
+# app.include_router(reflections_router)
 app.include_router(narrative_jobs_router)
 app.include_router(projection_router)
 
