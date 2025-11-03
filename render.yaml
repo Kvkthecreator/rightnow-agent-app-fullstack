@@ -16,6 +16,11 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      # Phase 3: BFF Communication with Substrate API
+      - key: SUBSTRATE_API_URL
+        value: https://yarnnn-substrate-api.onrender.com
+      - key: SUBSTRATE_SERVICE_SECRET
+        sync: false
 
   # Substrate API - Core Memory/Context Domain with MCP
   - type: web
@@ -35,6 +40,13 @@ services:
         sync: false
       - key: MCP_SHARED_SECRET
         sync: false
+      # Phase 3: Service-to-Service Authentication (disabled by default)
+      - key: ENABLE_SERVICE_AUTH
+        value: "false"
+      - key: SUBSTRATE_SERVICE_SECRET
+        sync: false
+      - key: ALLOWED_SERVICES
+        value: "platform-api,chatgpt-app"
 
   - type: web
     name: yarnnn-chatgpt-app
