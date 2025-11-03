@@ -4,31 +4,31 @@
 
 YARNNN v4.0 mono-repo follows a **Backend-for-Frontend (BFF)** architecture pattern with clear domain separation:
 
-1. **Platform API** (`platform/api/`) - AI Work Platform (BFF Layer) - Calls Substrate API
-2. **Substrate API** (`substrate-api/api/`) - Core Memory/Context Domain with MCP integration
+1. **Work Platform API** (`work-platform/api/`) - Consumer/Work-Facing Application (BFF Layer)
+2. **Substrate API** (`substrate-api/api/`) - P0-P4 Agent Pipeline + Memory/Context Domain
 3. **Infrastructure** (`infra/`) - Pure utilities (auth, DB clients, shared types)
 4. **ChatGPT App** (`mcp-server/adapters/openai-apps/`) - OpenAI GPT integration
 
 ## Architecture Principles
 
 ### Backend-for-Frontend (BFF) Pattern
-- **Platform API** is the work/consumer-facing application (WIP/to-be-built)
-- **Substrate API** is the core domain with P0-P4 agent pipeline + memory/context
-- Platform calls Substrate via HTTP (Phase 3) - no direct substrate DB access
+- **Work Platform API** is the consumer/work-facing application (to-be-built)
+- **Substrate API** contains P0-P4 agent pipeline + memory/context domain
+- Work Platform calls Substrate via HTTP (Phase 3) - no direct substrate DB access
 - Both services use `infra/` for shared utilities only
 
 ### Domain Separation
-- **Platform Domain**: Work/consumer-facing features, business logic (to-be-built)
-- **Substrate Domain**: P0-P4 pipeline, memory blocks, documents, embeddings, work orchestration
+- **Work Platform Domain**: Consumer/work-facing features, business logic
+- **Substrate Domain**: P0-P4 agent pipeline, memory blocks, documents, embeddings, work orchestration
 - **Infrastructure**: Authentication, database clients, JWT utilities
 
 ## Render Deployment (APIs)
 
 The `render.yaml` configuration defines three services:
 
-### Platform API (BFF Layer)
-- **Service name**: `yarnnn-platform-api`
-- **Root directory**: `platform/api/`
+### Work Platform API (BFF Layer - Consumer-Facing)
+- **Service name**: `yarnnn-work-platform-api`
+- **Root directory**: `work-platform/api/`
 - **Build command**: `pip install --upgrade pip && pip install -r requirements.txt`
 - **Start command**: `uvicorn src.app.agent_server:app --host 0.0.0.0 --port 10000 --log-level debug`
 - **Environment variables**:
@@ -36,8 +36,10 @@ The `render.yaml` configuration defines three services:
   - SUPABASE_URL
   - SUPABASE_SERVICE_ROLE_KEY
   - DATABASE_URL
+  - SUBSTRATE_API_URL
+  - SUBSTRATE_SERVICE_SECRET
 
-### Substrate API (Core Domain)
+### Substrate API (P0-P4 Pipeline + Memory Domain)
 - **Service name**: `yarnnn-substrate-api`
 - **Root directory**: `substrate-api/api/`
 - **Build command**: `pip install --upgrade pip && pip install -r requirements.txt`
@@ -48,6 +50,9 @@ The `render.yaml` configuration defines three services:
   - SUPABASE_SERVICE_ROLE_KEY
   - DATABASE_URL
   - MCP_SHARED_SECRET (for ChatGPT/Claude integration)
+  - ENABLE_SERVICE_AUTH (optional)
+  - SUBSTRATE_SERVICE_SECRET (optional)
+  - ALLOWED_SERVICES (optional)
 
 ### ChatGPT App (MCP Integration)
 - **Service name**: `yarnnn-chatgpt-app`
@@ -57,8 +62,8 @@ The `render.yaml` configuration defines three services:
 
 ## Vercel Deployment (Web Frontends)
 
-### Platform Web
-- **Root directory**: `platform/web/`
+### Work Platform Web
+- **Root directory**: `work-platform/web/`
 - **Framework**: Next.js (auto-detected)
 - **Build command**: `npm run build` (auto)
 - **Output directory**: `.next` (auto)
@@ -78,13 +83,13 @@ git push origin main
 
 ### 2. Update Render Services
 Go to Render Dashboard:
-- **Platform API**: Ensure Root Directory is `platform/api/`
-- **Substrate API**: Update service name to `yarnnn-substrate-api`, Root Directory to `substrate-api/api/`
+- **Work Platform API**: Update service name to `yarnnn-work-platform-api`, Root Directory to `work-platform/api/`
+- **Substrate API**: Ensure service name is `yarnnn-substrate-api`, Root Directory is `substrate-api/api/`
 
 ### 3. Update Vercel Projects
 Go to Vercel Dashboard:
-- **Platform Web**: Ensure Root Directory is `platform/web/`
-- **Substrate Web**: Update Root Directory to `substrate-api/web/`
+- **Work Platform Web**: Update Root Directory to `work-platform/web/`
+- **Substrate Web**: Ensure Root Directory is `substrate-api/web/`
 
 ## Infrastructure Layer
 
@@ -93,37 +98,43 @@ The `infra/` directory contains **pure utilities only** (no business logic):
 - `infra/substrate/` - Shared substrate models and types
 
 **Important**:
-- Both Platform and Substrate APIs import from `infra.*`
-- Platform API uses local `app.utils.*` for platform-specific code
+- Both Work Platform and Substrate APIs import from `infra.*`
+- Work Platform API uses local `app.utils.*` for work-specific code
 - Substrate API uses `infra.*` for all shared utilities
 
 ## Migration History
 
 ### Phase 1: Import Fixes (Completed)
-- Platform API no longer depends on `/shared` directory
+- Work Platform API no longer depends on `/shared` directory
 - All imports use local copies: `app.utils.*`, `services.*`, `app.models.*`
 
 ### Phase 2: Architecture Refactor (Completed)
-- Renamed `enterprise/` → `substrate-api/` (clear domain naming)
+- Renamed `enterprise/` → `substrate-api/` (P0-P4 pipeline + memory domain)
+- Renamed `platform/` → `work-platform/` (consumer/work-facing app)
 - Renamed `shared/` → `infra/` (infrastructure-only utilities)
 - Updated all substrate-api imports: `shared.*` → `infra.*`
 - Updated render.yaml service names and paths
 
-### Phase 3: BFF Implementation (In Progress)
+### Phase 3: BFF Implementation + Domain Hardening (In Progress)
 **Phase 3.1 - Foundation (Completed)**:
-- Created HTTP client (`platform/api/src/clients/substrate_client.py`) with:
+- Created HTTP client (`work-platform/api/src/clients/substrate_client.py`) with:
   - Service token authentication
   - Retry logic with exponential backoff
   - Circuit breaker for fault tolerance
   - Connection pooling via httpx
 - Added service-to-service auth middleware in Substrate API
 - Created test suite (`test_bff_foundation.py`)
-- Updated platform requirements (added tenacity for retries)
+- Updated work-platform requirements (added tenacity for retries)
+
+**Phase 3.2 - Domain Hardening (Current)**:
+- Renamed `platform/` → `work-platform/` for clarity
+- Identified agent pipeline code in work-platform (should be in substrate-api)
+- Migration path: Remove or move agent code to substrate-api
 
 **Next Steps**:
-- Phase 3.2: Migrate read operations to HTTP
-- Phase 3.3: Route substrate mutations via Universal Work API
-- Phase 3.4+: See [PHASE3_BFF_IMPLEMENTATION_PLAN.md](PHASE3_BFF_IMPLEMENTATION_PLAN.md)
+- Phase 3.3: Remove agent pipeline from work-platform
+- Phase 3.4: Remove direct substrate DB access from work-platform
+- Phase 3.5+: See [PHASE3_BFF_IMPLEMENTATION_PLAN.md](PHASE3_BFF_IMPLEMENTATION_PLAN.md)
 
 ## Testing Deployment
 

@@ -1,12 +1,12 @@
 # render.yaml - YARNNN v4.0 Mono-Repo Configuration (Phase 2: Architecture Refactor)
 services:
-  # Platform API - AI Work Platform (BFF Layer)
+  # Work Platform API - Consumer/Work-Facing Application (BFF Layer)
   - type: web
-    name: yarnnn-platform-api
+    name: yarnnn-work-platform-api
     env: python
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn src.app.agent_server:app --host 0.0.0.0 --port 10000 --log-level debug
-    root: platform/api/
+    root: work-platform/api/
     envVars:
       - key: OPENAI_API_KEY
         sync: false
@@ -22,7 +22,7 @@ services:
       - key: SUBSTRATE_SERVICE_SECRET
         sync: false
 
-  # Substrate API - Core Memory/Context Domain with MCP
+  # Substrate API - P0-P4 Agent Pipeline + Memory/Context Domain
   - type: web
     name: yarnnn-substrate-api
     env: python
