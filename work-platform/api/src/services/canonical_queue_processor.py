@@ -30,16 +30,46 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from uuid import uuid4, UUID
 
-from app.agents.pipeline import (
-    P0CaptureAgent,
-    P1SubstrateAgent,
-    P3ReflectionAgent
-)
-from app.agents.pipeline.composition_agent_v2 import P4CompositionAgent, CompositionRequest
-from app.agents.pipeline.capture_agent import DumpIngestionRequest
-from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
-from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
-from app.agents.pipeline.governance_processor import GovernanceDumpProcessor
+# Phase 4/5: Legacy Canon v2.1 pipeline removed - these imports are stubs for backward compatibility
+# from app.agents.pipeline import (
+#     P0CaptureAgent,
+#     P1SubstrateAgent,
+#     P3ReflectionAgent
+# )
+# from app.agents.pipeline.composition_agent_v2 import P4CompositionAgent, CompositionRequest
+# from app.agents.pipeline.capture_agent import DumpIngestionRequest
+
+# Stub classes to prevent import errors (Canon v2.1 is being sunset in favor of Claude Agent SDK)
+class P0CaptureAgent:
+    pass
+
+class P1SubstrateAgent:
+    pass
+
+class P3ReflectionAgent:
+    pass
+
+class P4CompositionAgent:
+    pass
+
+class CompositionRequest:
+    pass
+
+class DumpIngestionRequest:
+    pass
+
+# from app.agents.pipeline.improved_substrate_agent import ImprovedP1SubstrateAgent
+# from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
+# from app.agents.pipeline.governance_processor import GovernanceDumpProcessor
+
+class ImprovedP1SubstrateAgent:
+    pass
+
+class ReflectionComputationRequest:
+    pass
+
+class GovernanceDumpProcessor:
+    pass
 from app.utils.supabase_client import supabase_admin_client as supabase
 from contracts.basket import BasketDelta, BasketChangeRequest
 from services.clock import now_iso
