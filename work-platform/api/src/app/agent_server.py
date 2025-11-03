@@ -62,7 +62,8 @@ from .routes.debug import router as debug_router
 from .routes.dump_new import router as dump_new_router
 from .routes.health import router as health_router
 from .routes.inputs import router as inputs_router
-from .routes.narrative_intelligence import router as narrative_intelligence_router
+# Phase 4/5: Legacy narrative_intelligence removed (imports old agent pipeline)
+# from .routes.narrative_intelligence import router as narrative_intelligence_router
 from .routes.narrative_jobs import router as narrative_jobs_router
 from .routes.integration_tokens import router as integration_tokens_router
 from .routes.auth_validate import router as auth_validate_router
@@ -155,7 +156,8 @@ routers = (
     # agent_memory_router,
     template_router,
     context_intelligence_router,
-    narrative_intelligence_router,
+    # Phase 4/5: Legacy narrative_intelligence_router removed
+    # narrative_intelligence_router,
     auth_health_router,
     health_router,
     work_status_router,
