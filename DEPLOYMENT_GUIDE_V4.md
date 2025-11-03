@@ -1,18 +1,32 @@
-# YARNNN v4.0 Mono-Repo Deployment Guide
+# YARNNN v4.0 Mono-Repo Deployment Guide (Phase 2: Architecture Refactor)
 
 ## Overview
 
-YARNNN v4.0 mono-repo contains three deployable services:
+YARNNN v4.0 mono-repo follows a **Backend-for-Frontend (BFF)** architecture pattern with clear domain separation:
 
-1. **Platform API** (`platform/api/`) - AI Work Platform with v4.0 unified governance
-2. **Enterprise API** (`enterprise/api/`) - Context Management with MCP integration
-3. **ChatGPT App** (`apps/chatgpt/`) - OpenAI GPT integration
+1. **Platform API** (`platform/api/`) - AI Work Platform (BFF Layer) - Calls Substrate API
+2. **Substrate API** (`substrate-api/api/`) - Core Memory/Context Domain with MCP integration
+3. **Infrastructure** (`infra/`) - Pure utilities (auth, DB clients, shared types)
+4. **ChatGPT App** (`mcp-server/adapters/openai-apps/`) - OpenAI GPT integration
+
+## Architecture Principles
+
+### Backend-for-Frontend (BFF) Pattern
+- **Platform API** is product-specific, handles work/agent orchestration
+- **Substrate API** is the core service for memory/context management
+- Platform calls Substrate via HTTP (Phase 3) - no direct substrate DB access
+- Both services use `infra/` for shared utilities only
+
+### Domain Separation
+- **Platform Domain**: Work sessions, agent orchestration, governance
+- **Substrate Domain**: Memory blocks, documents, relationships, embeddings
+- **Infrastructure**: Authentication, database clients, JWT utilities
 
 ## Render Deployment (APIs)
 
-The `render.yaml` configuration has been updated for mono-repo structure:
+The `render.yaml` configuration defines three services:
 
-### Platform API
+### Platform API (BFF Layer)
 - **Service name**: `yarnnn-platform-api`
 - **Root directory**: `platform/api/`
 - **Build command**: `pip install --upgrade pip && pip install -r requirements.txt`
@@ -23,9 +37,9 @@ The `render.yaml` configuration has been updated for mono-repo structure:
   - SUPABASE_SERVICE_ROLE_KEY
   - DATABASE_URL
 
-### Enterprise API
-- **Service name**: `yarnnn-enterprise-api`
-- **Root directory**: `enterprise/api/`
+### Substrate API (Core Domain)
+- **Service name**: `yarnnn-substrate-api`
+- **Root directory**: `substrate-api/api/`
 - **Build command**: `pip install --upgrade pip && pip install -r requirements.txt`
 - **Start command**: `uvicorn src.app.agent_server:app --host 0.0.0.0 --port 10000 --log-level debug`
 - **Environment variables**:
@@ -33,7 +47,13 @@ The `render.yaml` configuration has been updated for mono-repo structure:
   - SUPABASE_URL
   - SUPABASE_SERVICE_ROLE_KEY
   - DATABASE_URL
-  - MCP_SHARED_SECRET
+  - MCP_SHARED_SECRET (for ChatGPT/Claude integration)
+
+### ChatGPT App (MCP Integration)
+- **Service name**: `yarnnn-chatgpt-app`
+- **Root directory**: `mcp-server/adapters/openai-apps/`
+- **Runtime**: Node.js
+- See render.yaml for full configuration
 
 ## Vercel Deployment (Web Frontends)
 
@@ -43,8 +63,8 @@ The `render.yaml` configuration has been updated for mono-repo structure:
 - **Build command**: `npm run build` (auto)
 - **Output directory**: `.next` (auto)
 
-### Enterprise Web
-- **Root directory**: `enterprise/web/`
+### Substrate Web
+- **Root directory**: `substrate-api/web/`
 - **Framework**: Next.js (auto-detected)
 - **Build command**: `npm run build` (auto)
 - **Output directory**: `.next` (auto)
@@ -53,43 +73,47 @@ The `render.yaml` configuration has been updated for mono-repo structure:
 
 ### 1. Push to GitHub
 ```bash
-git push origin feature/mono-repo-restructure
+git push origin main
 ```
 
 ### 2. Update Render Services
 Go to Render Dashboard:
-- **Platform API**: Update Root Directory to `platform/api/`
-- **Enterprise API**: Create new service with Root Directory `enterprise/api/`
+- **Platform API**: Ensure Root Directory is `platform/api/`
+- **Substrate API**: Update service name to `yarnnn-substrate-api`, Root Directory to `substrate-api/api/`
 
 ### 3. Update Vercel Projects
 Go to Vercel Dashboard:
-- **Platform Web**: Update Root Directory to `platform/web/`
-- **Enterprise Web**: Create new project with Root Directory `enterprise/web/`
+- **Platform Web**: Ensure Root Directory is `platform/web/`
+- **Substrate Web**: Update Root Directory to `substrate-api/web/`
 
-## Environment Variables
+## Infrastructure Layer
 
-Both APIs share most environment variables except:
-- **Enterprise API** additionally requires `MCP_SHARED_SECRET` for ChatGPT/Claude integration
+The `infra/` directory contains **pure utilities only** (no business logic):
+- `infra/utils/` - JWT, Supabase client, database utilities
+- `infra/substrate/` - Shared substrate models and types
 
-## Shared Code
+**Important**:
+- Both Platform and Substrate APIs import from `infra.*`
+- Platform API uses local `app.utils.*` for platform-specific code
+- Substrate API uses `infra.*` for all shared utilities
 
-The `shared/` directory contains:
-- `shared/substrate/` - Substrate models, routes, services
-- `shared/utils/` - JWT, Supabase client, etc.
-- `shared/database/` - Migrations and database client
+## Migration History
 
-**Important**: Ensure `shared/` is accessible from both `platform/` and `enterprise/` by adding the repo root to PYTHONPATH in build scripts if needed.
+### Phase 1: Import Fixes (Completed)
+- Platform API no longer depends on `/shared` directory
+- All imports use local copies: `app.utils.*`, `services.*`, `app.models.*`
 
-## Migration Notes
+### Phase 2: Architecture Refactor (Current)
+- Renamed `enterprise/` → `substrate-api/` (clear domain naming)
+- Renamed `shared/` → `infra/` (infrastructure-only utilities)
+- Updated all substrate-api imports: `shared.*` → `infra.*`
+- Updated render.yaml service names and paths
 
-### From v2.1 to v4.0
-- Work sessions now use `work_sessions` table instead of `agent_processing_queue`
-- New unified governance endpoints: `/api/work/sessions` and `/api/work/review`
-- UnifiedApprovalOrchestrator handles single-review dual-effect governance
-
-### Rollback (Enterprise)
-Enterprise API is rolled back to commit `b735c693` (pre-v4.0) with MCP routes added.
-This ensures MCP integration remains stable while Work Platform evolves independently.
+### Phase 3: BFF Implementation (Next)
+- Platform calls Substrate via HTTP
+- Remove direct substrate table access from Platform
+- Clean up duplicate code
+- Establish API contracts between layers
 
 ## Testing Deployment
 
@@ -98,25 +122,53 @@ This ensures MCP integration remains stable while Work Platform evolves independ
 curl https://yarnnn-platform-api.onrender.com/health
 ```
 
-### Enterprise API Health Check
+### Substrate API Health Check
 ```bash
-curl https://yarnnn-enterprise-api.onrender.com/health
+curl https://yarnnn-substrate-api.onrender.com/health
 ```
 
 ### MCP Integration Test
 ```bash
-curl https://yarnnn-enterprise-api.onrender.com/api/mcp/v1/resources
+curl https://yarnnn-substrate-api.onrender.com/api/mcp/v1/resources
 ```
 
 ## Troubleshooting
 
 ### Import Errors
-If you see "ModuleNotFoundError: No module named 'shared'":
-- Ensure PYTHONPATH includes repo root
-- Check that `shared/` directory is accessible from service root
+**Platform API:**
+- Should use `app.utils.*`, `services.*`, `app.models.*`
+- NO imports from `infra.*` or `shared.*`
+
+**Substrate API:**
+- Should use `infra.*` for shared utilities
+- NO imports from `shared.*`
 
 ### Missing Environment Variables
 Check Render/Vercel dashboard to ensure all env vars are set correctly.
 
 ### Database Connection Issues
 Verify `DATABASE_URL` and `SUPABASE_URL` are correct and accessible from service.
+
+### Render Cache Issues
+If deployment shows old code:
+1. Go to Render Dashboard → Service Settings
+2. Manual Deploy → Clear build cache & deploy
+3. Or Suspend → Resume service
+
+## Architecture Decision Records
+
+### Why Substrate API (not "Enterprise")?
+- "Enterprise" was misleading - didn't reflect actual domain
+- "Substrate" clearly indicates memory/context management
+- Aligns with codebase terminology (substrate blocks, relationships, etc.)
+
+### Why `infra/` (not "shared")?
+- "Shared" implies sharing business logic (anti-pattern)
+- "Infrastructure" clarifies this is utilities-only
+- Forces proper domain separation
+
+### Why BFF Pattern?
+- Follows industry best practices (Anthropic Claude, OpenAI ChatGPT)
+- Clear separation of product logic vs core domain
+- Enables independent scaling and evolution
+- Platform can evolve UX without touching substrate
