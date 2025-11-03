@@ -1,4 +1,5 @@
 # RightNow Agent Server entrypoint with robust error handling
+# Phase 1: All imports now use local copies (no shared/ dependency)
 # ruff: noqa: E402
 
 from __future__ import annotations
