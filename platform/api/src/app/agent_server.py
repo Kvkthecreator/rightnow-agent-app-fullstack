@@ -35,7 +35,7 @@ from middleware.correlation import CorrelationIdMiddleware
 
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
 from .routes.reflections import router as reflections_router
-from shared.substrate.services.canonical_queue_processor import start_canonical_queue_processor, stop_canonical_queue_processor, get_canonical_queue_health
+from services.canonical_queue_processor import start_canonical_queue_processor, stop_canonical_queue_processor, get_canonical_queue_health
 from .routes.agent_memory import router as agent_memory_router
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router

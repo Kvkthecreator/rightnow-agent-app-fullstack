@@ -42,8 +42,8 @@ from app.agents.pipeline.reflection_agent import ReflectionComputationRequest
 from app.agents.pipeline.governance_processor import GovernanceDumpProcessor
 from shared.utils.supabase_client import supabase_admin_client as supabase
 from contracts.basket import BasketDelta, BasketChangeRequest
-from shared.substrate.services.clock import now_iso
-from shared.substrate.services.universal_work_tracker import universal_work_tracker
+from services.clock import now_iso
+from services.universal_work_tracker import universal_work_tracker
 from shared.substrate.services.events import EventService
 
 logger = logging.getLogger("uvicorn.error")
