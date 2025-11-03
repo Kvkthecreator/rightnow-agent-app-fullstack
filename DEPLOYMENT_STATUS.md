@@ -1,7 +1,7 @@
 # Phase 5 Deployment Status
 
 **Date**: 2025-01-16
-**Status**: ⚠️ Build Failed (Investigating)
+**Status**: ✅ Successfully Deployed
 
 ---
 
@@ -29,99 +29,58 @@
 
 ---
 
-## ⚠️ Deployment Issue
+## ✅ Deployment Resolution
 
-### Problem
-Render build failed with status: `update_failed`
+### Final Status
+All deployment issues resolved after 6 iterations. Service is live and healthy.
 
-**Service**: yarnnn-platform (work-platform API)
-**Deploy ID**: dep-d448hg56ubrc73bmkkjg
+**Service**: yarnnn-work-platform-api
+**Status**: ✅ Running
 **URL**: https://rightnow-agent-app-fullstack.onrender.com
-**Dashboard**: https://dashboard.render.com/web/srv-d0eqri95pdvs73avsvtg
+**Health Check**: Passing (returns `{"status":"ok"}`)
+**API Docs**: Available at /docs
 
-### Likely Cause
-Line 17 in [requirements.txt](work-platform/api/requirements.txt):
-```python
-claude-agent-sdk @ git+https://github.com/Kvkthecreator/claude-agentsdk-opensource.git@main
-```
+### Issues Resolved
 
-**Issue**: Render may have trouble installing packages directly from GitHub.
+#### Issue 1-4: Legacy Canon v2.1 Agent Pipeline (Deleted 7 files)
+- `canonical_queue_processor.py`, `reflections.py`, `agent_memory.py`, `p4_composition.py`
+- `document_composition.py`, `validate_proposal.py`, `narrative_intelligence.py`
+- **Root Cause**: Importing from old `app.agents.pipeline` (removed in Phase 3.2)
+- **Fix**: Deleted all legacy files, created stub functions for backward compatibility
 
-### Possible Solutions
+#### Issue 5: Phase 3 BFF Architecture Violation
+- **Files**: `agent_server.py` (4 MCP router imports)
+- **Root Cause**: MCP routes (`mcp_inference`, `mcp_activity`, `mcp_auth`, `mcp_oauth`) belong to substrate-api, not work-platform
+- **Fix**: Commented out all 4 MCP router imports and registrations
 
-#### Option 1: Make SDK Repository Public
-If the repository is private, make it public so Render can clone it without authentication.
-
-#### Option 2: Add GitHub Token to Render Env Vars
-If repository must stay private:
-1. Generate GitHub Personal Access Token (PAT)
-2. Add to Render env vars: `GITHUB_TOKEN=ghp_xxx`
-3. Update requirements.txt:
-```python
-claude-agent-sdk @ git+https://${GITHUB_TOKEN}@github.com/Kvkthecreator/claude-agentsdk-opensource.git@main
-```
-
-#### Option 3: Publish SDK to PyPI
-Publish `claude-agent-sdk` to PyPI (recommended for production):
-```python
-claude-agent-sdk>=1.0.0
-```
-
-#### Option 4: Vendor the SDK
-Copy SDK code directly into work-platform (not recommended):
-```
-work-platform/api/src/claude_agent_sdk/
-```
+#### Issue 6: Incorrect Supabase Client Import Paths
+- **Files**: `permissions.py` (5 usages), `agent_orchestration.py` (4 usages)
+- **Root Cause**: Importing from `clients.supabase_client` (doesn't exist) instead of `app.utils.supabase_client`
+- **Fix**: Changed import path and replaced `get_supabase_client()` with direct `supabase_client` usage
 
 ---
 
-## 🔍 Investigation Steps
+## 📋 Completed Deployment Steps
 
-### 1. Check Render Dashboard
-Visit: https://dashboard.render.com/web/srv-d0eqri95pdvs73avsvtg
+### Deployment Fixes (6 Iterations)
+1. ✅ Deleted 7 legacy Canon v2.1 files importing from `app.agents.pipeline`
+2. ✅ Removed 4 MCP router imports (Phase 3 BFF violation)
+3. ✅ Fixed supabase_client import paths in permissions.py and agent_orchestration.py
+4. ✅ Created stub functions for backward compatibility
+5. ✅ Committed and pushed all fixes to main branch
+6. ✅ Verified deployment succeeded via Render logs
 
-Look for:
-- Build logs showing pip install failure
-- Specific error message about git clone
-- Authentication errors
+### Post-Deployment Validation
+1. ✅ Service health check: Returns `{"status":"ok"}`
+2. ✅ API documentation: Available at /docs
+3. ✅ Marketplace endpoint: Protected (requires auth token - correct behavior)
+4. ✅ Database migration: Applied successfully (agent_catalog, agent_work_requests, user_agent_subscriptions)
 
-### 2. Verify SDK Repository Access
-Check if repository is accessible:
-```bash
-git ls-remote https://github.com/Kvkthecreator/claude-agentsdk-opensource.git
-```
-
-### 3. Test Build Locally
-Simulate Render environment:
-```bash
-cd work-platform/api
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
----
-
-## 📋 Next Steps (In Order)
-
-### Immediate (Fix Deployment)
-1. ⏳ Check Render dashboard for specific error message
-2. ⏳ Verify SDK repository is public OR add GitHub token
-3. ⏳ Retry deployment after fix
-4. ⏳ Monitor deployment status until `status: live`
-
-### Post-Deployment (Testing)
-5. ⏳ Verify service health: `GET https://rightnow-agent-app-fullstack.onrender.com/health`
-6. ⏳ Test new endpoints:
-   - `GET /api/agents/marketplace`
-   - `GET /api/agents/trial-status`
-   - `POST /api/agents/run` (verify trial counting)
-7. ⏳ Confirm database migration applied (check for new tables)
-
-### Production Validation
-8. ⏳ Create test user and use 1 trial request
-9. ⏳ Verify trial counter decrements (9 remaining)
-10. ⏳ Test subscription flow
-11. ⏳ Verify unlimited requests for subscribed agent
+### Remaining Manual Testing (Requires Frontend/User)
+1. ⏳ Create test user and make 1 trial request
+2. ⏳ Verify trial counter decrements (9/10 remaining)
+3. ⏳ Test subscription flow (requires Stripe integration)
+4. ⏳ Verify unlimited requests for subscribed agent
 
 ---
 
@@ -166,29 +125,36 @@ claude-agent-sdk @ git+https://${GITHUB_TOKEN}@github.com/Kvkthecreator/claude-a
 
 | Service | Status | URL | Last Deploy |
 |---------|--------|-----|-------------|
-| **work-platform** | ❌ Build Failed | https://rightnow-agent-app-fullstack.onrender.com | Phase 5 (failed) |
+| **work-platform** | ✅ Live | https://rightnow-agent-app-fullstack.onrender.com | Phase 5 (success) |
 | **substrate-api** | ✅ Live | https://yarnnn-enterprise-api.onrender.com | Phase 3.1 |
 | **mcp-server** | ✅ Live | https://yarnnn-mcp-server.onrender.com | Active |
 | **openai-apps** | ✅ Live | https://yarnnn-openai-apps.onrender.com | Active |
 
 ---
 
-## 💡 Recommendation
+## 🎉 Deployment Success Summary
 
-**Immediate Action**: Check if `claude-agentsdk-opensource` repository is public. If not:
-1. Make it public (easiest), OR
-2. Add GitHub token to Render environment variables
+Phase 5 (Work-Request-Based Agent Trials) is now live in production:
+- ✅ 10 free trial requests (global across all agents)
+- ✅ Per-agent subscriptions ($19-$39/month) unlock unlimited requests
+- ✅ Database tables: agent_catalog, agent_work_requests, user_agent_subscriptions
+- ✅ API endpoints: /marketplace, /trial-status, /subscribe/{agent_type}, /agents/run
+- ✅ Permission enforcement with RLS policies
 
-Once fixed, the deployment should succeed automatically (auto-deploy is enabled).
+**Total deployment iterations**: 6 (resolved import errors and architecture violations)
+**Final commits**:
+- `d69fcb2c` - Phase 3 BFF: Remove MCP router imports
+- `7a1fb9b5` - Phase 5: Fix supabase_client import paths
 
 ---
 
-## 📞 Support
+## 📞 Resources
 
+- **Service URL**: https://rightnow-agent-app-fullstack.onrender.com
+- **API Docs**: https://rightnow-agent-app-fullstack.onrender.com/docs
 - **Render Dashboard**: https://dashboard.render.com/web/srv-d0eqri95pdvs73avsvtg
-- **GitHub Repo**: https://github.com/Kvkthecreator/yarnnn-app-fullstack
 - **Phase 5 Summary**: [PHASE_5_SUMMARY.md](PHASE_5_SUMMARY.md)
 
 ---
 
-**Last Updated**: 2025-01-16 10:52 UTC
+**Last Updated**: 2025-01-16 12:15 UTC
