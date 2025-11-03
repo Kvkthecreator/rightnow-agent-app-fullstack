@@ -39,7 +39,7 @@ services:
   - type: web
     name: yarnnn-chatgpt-app
     env: node
-    root: apps/chatgpt
+    root: mcp-server/adapters/openai-apps
     buildCommand: npm install && npm run build
     startCommand: npm run start
     envVars:
