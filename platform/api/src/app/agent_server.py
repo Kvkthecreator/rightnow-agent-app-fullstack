@@ -53,7 +53,7 @@ from .routes.narrative_intelligence import router as narrative_intelligence_rout
 from .routes.narrative_jobs import router as narrative_jobs_router
 from .routes.integration_tokens import router as integration_tokens_router
 from .routes.auth_validate import router as auth_validate_router
-from .routes.openai_apps import router as openai_apps_router
+# openai_apps route removed - functionality moved to mcp-server/adapters/openai-apps
 from .routes.mcp_inference import router as mcp_inference_router
 from .routes.memory_unassigned import router as memory_unassigned_router
 from .routes.mcp_activity import router as mcp_activity_router
@@ -155,7 +155,7 @@ routers = (
     events_router,
     integration_tokens_router,
     auth_validate_router,
-    openai_apps_router,
+    # openai_apps_router removed - functionality moved to separate service
 )
 
 # Add correlation middleware
