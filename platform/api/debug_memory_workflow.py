@@ -16,7 +16,7 @@ import os
 from typing import Dict, Any
 
 # Import governance components
-from shared.utils.supabase_client import supabase_admin_client as supabase
+from app.utils.supabase_client import supabase_admin_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
 

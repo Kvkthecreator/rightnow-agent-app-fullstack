@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException
 
-from shared.utils.supabase_client import supabase_client as supabase
+from app.utils.supabase_client import supabase_client as supabase
 
 router = APIRouter(prefix="/debug", tags=["debug"])
 

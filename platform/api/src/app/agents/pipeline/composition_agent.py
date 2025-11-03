@@ -27,8 +27,8 @@ from datetime import datetime, timezone, timedelta
 from uuid import UUID
 import math
 
-from shared.utils.supabase_client import supabase_admin_client as supabase
-from shared.substrate.services.llm import get_llm
+from app.utils.supabase_client import supabase_admin_client as supabase
+from services.llm import get_llm
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 

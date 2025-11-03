@@ -18,8 +18,8 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from shared.utils.supabase_client import supabase_admin_client as supabase
-from shared.substrate.services.semantic_primitives import (
+from app.utils.supabase_client import supabase_admin_client as supabase
+from services.semantic_primitives import (
     infer_relationships,
     RELATIONSHIP_HIGH_CONFIDENCE,
     RELATIONSHIP_MEDIUM_CONFIDENCE,

@@ -19,7 +19,7 @@ from typing import Dict, Any, List, Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 
-from shared.utils.supabase_client import supabase_admin_client as supabase
+from app.utils.supabase_client import supabase_admin_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
 

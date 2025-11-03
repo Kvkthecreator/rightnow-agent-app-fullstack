@@ -14,7 +14,7 @@ from uuid import uuid4
 from typing import Dict, Any, List, Literal, Optional
 from pydantic import BaseModel
 
-from shared.utils.supabase_client import supabase_client as supabase
+from app.utils.supabase_client import supabase_client as supabase
 from services.clock import now_iso
 
 JobMode = Literal["from_scaffold", "refresh_full"]
@@ -215,7 +215,7 @@ async def _generate_narrative(substrate: Dict[str, Any], mode: JobMode) -> Dict[
 async def _emit_job_event(event_type: str, payload: Dict[str, Any]):
     """Emit job-related event."""
     try:
-        from shared.utils.db import as_json
+        from app.utils.db import as_json
         
         supabase.table("events").insert(as_json({
             "id": str(uuid4()),

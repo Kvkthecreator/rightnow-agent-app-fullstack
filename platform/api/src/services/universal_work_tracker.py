@@ -29,7 +29,7 @@ from typing import Optional, Dict, Any, List, Literal
 from uuid import uuid4, UUID
 from dataclasses import dataclass
 
-from shared.utils.supabase_client import supabase_admin_client as supabase
+from app.utils.supabase_client import supabase_admin_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
 

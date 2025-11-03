@@ -137,9 +137,9 @@ async def test_manager_system():
     
     try:
         # Test idempotency service
-        from shared.substrate.services.idempotency import already_processed, mark_processed
-        from shared.substrate.services.deltas import persist_delta
-        from shared.substrate.services.events import publish_event
+        from services.idempotency import already_processed, mark_processed
+        from services.deltas import persist_delta
+        from services.events import publish_event
         from contracts.basket import BasketDelta
         from src.app.deps import get_db
         

@@ -13,7 +13,7 @@ import logging
 from typing import List, Tuple, Optional
 from datetime import datetime
 
-from shared.substrate.services.llm import get_llm
+from services.llm import get_llm
 from ..types import (
     TestInput, TestResult, TestType, QualityMetrics,
     CitationSpan, HarnessConfig

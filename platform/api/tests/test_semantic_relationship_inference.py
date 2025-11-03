@@ -17,8 +17,8 @@ import asyncio
 import logging
 from typing import Dict, Any
 
-from shared.utils.supabase_client import supabase_admin_client as supabase
-from shared.substrate.services.semantic_primitives import (
+from app.utils.supabase_client import supabase_admin_client as supabase
+from services.semantic_primitives import (
     verify_relationship_with_llm,
     infer_relationships,
     RELATIONSHIP_ONTOLOGY,
@@ -216,7 +216,7 @@ async def test_infer_relationships_integration():
 
         # Generate embeddings for blocks
         logger.info("Generating embeddings...")
-        from shared.substrate.services.embedding import generate_embedding
+        from services.embedding import generate_embedding
 
         for i, block_id in enumerate(block_ids):
             block = blocks_response.data[i]

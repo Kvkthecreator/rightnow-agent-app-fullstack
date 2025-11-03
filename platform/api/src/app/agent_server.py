@@ -17,12 +17,6 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.abspath(os.path.join(base_dir, "..")))
 sys.path.append(base_dir)
 
-# Add repo root to sys.path for shared/ module access
-# From platform/api/src/app/agent_server.py, go up 4 levels to reach repo root
-repo_root = os.path.abspath(os.path.join(base_dir, "..", "..", "..", ".."))
-if repo_root not in sys.path:
-    sys.path.insert(0, repo_root)
-
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -195,7 +189,7 @@ async def health():
 async def health_db():
     """Database health check for deployment verification"""
     try:
-        from shared.utils.supabase_client import supabase_client
+        from app.utils.supabase_client import supabase_client
         # Test Supabase connection with a simple query
         result = supabase_client.rpc('fn_queue_health').execute()
         return {

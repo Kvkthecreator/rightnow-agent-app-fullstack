@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from shared.utils.supabase_client import supabase_admin_client as supabase
+from app.utils.supabase_client import supabase_admin_client as supabase
 from app.agents.pipeline.reflection_agent_canon_v2 import CanonP3ReflectionAgent
 from app.agents.pipeline.reflection_agent_canon_v2 import ReflectionComputationRequest
 

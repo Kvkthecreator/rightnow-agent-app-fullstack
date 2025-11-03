@@ -22,7 +22,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List, Literal
 from uuid import UUID, uuid4
 
-from shared.utils.supabase_client import supabase_admin_client as supabase
+from app.utils.supabase_client import supabase_admin_client as supabase
 from services.universal_work_tracker import universal_work_tracker, WorkContext
 
 logger = logging.getLogger("uvicorn.error")

@@ -12,8 +12,8 @@ from uuid import UUID
 from pydantic import BaseModel
 from supabase import Client
 
-from shared.substrate.models.block import Block
-from shared.substrate.models.document import Document
+from app.models.block import Block
+from app.models.document import Document
 from app.work.models import (
     WorkSession,
     WorkArtifact,

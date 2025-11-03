@@ -5,8 +5,8 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
-from shared.utils.db import as_json
-from shared.utils.supabase_client import supabase_client as supabase
+from app.utils.db import as_json
+from app.utils.supabase_client import supabase_client as supabase
 
 logger = logging.getLogger("uvicorn.error")
 

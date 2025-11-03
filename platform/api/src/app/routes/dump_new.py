@@ -12,7 +12,7 @@ from pydantic import BaseModel, model_validator
 
 from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_client as supabase
-from shared.substrate.services.events import EventService
+from services.events import EventService
 
 router = APIRouter(prefix="/dumps", tags=["dumps"])
 log = logging.getLogger("uvicorn.error")

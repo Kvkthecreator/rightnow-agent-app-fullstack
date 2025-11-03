@@ -10,8 +10,8 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 from uuid import UUID
 
-from shared.utils.supabase import supabase_admin
-from shared.utils.jwt import verify_jwt
+from app.utils.supabase import supabase_admin
+from app.utils.jwt import verify_jwt
 from lib.freshness import (
     get_basket_canons_health,
     should_regenerate_insight_canon,

@@ -14,8 +14,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 
-from shared.utils.jwt import verify_jwt
-from shared.utils.supabase_client import supabase_admin_client as supabase
+from app.utils.jwt import verify_jwt
+from app.utils.supabase_client import supabase_admin_client as supabase
 
 router = APIRouter(prefix="/api/work/sessions", tags=["work-sessions"])
 

@@ -25,13 +25,13 @@ from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
 
-from shared.utils.supabase import supabase_admin
+from app.utils.supabase import supabase_admin
 from lib.freshness import (
     should_regenerate_insight_canon,
     compute_basket_substrate_hash,
     compute_graph_signature
 )
-from shared.utils.jwt import verify_jwt
+from app.utils.jwt import verify_jwt
 
 router = APIRouter(prefix="/p3", tags=["p3-insights"])
 
@@ -577,7 +577,7 @@ async def _generate_insight_text(
     - context_items removed (merged into blocks)
     - All entity/context data now in blocks table
     """
-    from shared.substrate.services.llm import get_llm
+    from services.llm import get_llm
 
     # Format substrate for LLM
     blocks = substrate.get('blocks', [])

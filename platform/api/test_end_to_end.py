@@ -19,7 +19,7 @@ async def test_manager_worker_integration():
 
     try:
         from contracts.basket import BasketChangeRequest, SourceText
-        from shared.substrate.services.manager import run_manager_plan
+        from services.manager import run_manager_plan
 
         # Create a realistic test request
         test_request = BasketChangeRequest(
@@ -80,9 +80,9 @@ async def test_database_operations():
 
         from contracts.basket import BasketDelta
         from shared.substrate.services.clock import now_iso
-        from shared.substrate.services.deltas import persist_delta
-        from shared.substrate.services.events import publish_event
-        from shared.substrate.services.idempotency import already_processed, mark_processed
+        from services.deltas import persist_delta
+        from services.events import publish_event
+        from services.idempotency import already_processed, mark_processed
 
         if not os.getenv("DATABASE_URL"):
             print("  ⚠️  Skipping database tests - DATABASE_URL not set")

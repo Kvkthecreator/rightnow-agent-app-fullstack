@@ -9,7 +9,7 @@ import time
 import logging
 from typing import List, Dict, Any, Optional, Tuple
 
-from shared.substrate.services.llm import get_llm
+from services.llm import get_llm
 from ..types import (
     TestInput, TestResult, TestType, QualityMetrics,
     CitationSpan, HarnessConfig

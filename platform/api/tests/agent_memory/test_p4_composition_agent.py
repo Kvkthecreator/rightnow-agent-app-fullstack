@@ -25,7 +25,7 @@ sys.modules["supabase"] = _supabase_module
 
 from platform.agents.pipeline.composition_agent import CompositionRequest, P4CompositionAgent
 
-from shared.substrate.services.llm import LLMResponse
+from services.llm import LLMResponse
 
 
 class _StubLLM:
