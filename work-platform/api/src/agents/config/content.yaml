@@ -1,0 +1,26 @@
+# Content Creator Agent Configuration (PLACEHOLDER)
+
+# NOTE: This is a placeholder configuration.
+# Configure after ResearchAgent is validated and wired up with Yarnnn.
+
+agent:
+  id: yarnnn_content_agent
+  type: content
+  description: "Autonomous content creation agent (not yet configured)"
+
+content:
+  # Platforms to create content for
+  enabled_platforms:
+    - "twitter"
+    - "linkedin"
+
+  # Brand voice mode
+  brand_voice_mode: "adaptive"
+
+  # Voice temperature (creativity)
+  voice_temperature: 0.7
+
+# TODO: Configure when ready to wire up
+# - Set up brand voice examples
+# - Configure approval workflows
+# - Test with governance

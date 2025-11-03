@@ -1,0 +1,33 @@
+# Research Agent Configuration
+
+agent:
+  id: yarnnn_research_agent
+  type: research
+  description: "Autonomous research agent for market intelligence and monitoring"
+
+research:
+  # Domains to monitor
+  monitoring_domains:
+    - "ai_agents"
+    - "market_trends"
+    - "competitors"
+
+  # How often to run monitoring (hourly, daily, weekly)
+  monitoring_frequency: "daily"
+
+  # Confidence threshold for significant signals (0.0-1.0)
+  signal_threshold: 0.7
+
+  # Synthesis mode (summary, detailed, insights)
+  synthesis_mode: "insights"
+
+# Optional: Schedule configuration (if using scheduled jobs)
+schedule:
+  # Cron expression: Daily at 6am UTC
+  cron: "0 6 * * *"
+  timezone: "UTC"
+
+# Optional: Notification settings (for future use)
+notifications:
+  enabled: false
+  channels: []

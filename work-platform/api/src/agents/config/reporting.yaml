@@ -1,0 +1,26 @@
+# Reporting Agent Configuration (PLACEHOLDER)
+
+# NOTE: This is a placeholder configuration.
+# Configure after ResearchAgent is validated and wired up with Yarnnn.
+
+agent:
+  id: yarnnn_reporting_agent
+  type: reporting
+  description: "Autonomous reporting agent (not yet configured)"
+
+reporting:
+  # Default output formats
+  default_formats:
+    - "pdf"
+    - "xlsx"
+
+  # Template library (paths to template files)
+  template_library: {}
+
+  # Brand guidelines
+  brand_guidelines: {}
+
+# TODO: Configure when ready to wire up
+# - Set up template library
+# - Configure brand guidelines
+# - Test report generation
