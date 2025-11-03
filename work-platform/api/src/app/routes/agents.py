@@ -4,8 +4,9 @@ from fastapi import APIRouter, HTTPException
 from postgrest.exceptions import APIError
 from pydantic import BaseModel
 
-# Legacy runtime agent removed - use canonical queue processor
-from src.services.canonical_queue_processor import get_canonical_queue_health
+# Phase 4/5: Legacy Canon v2.1 removed - stub for backward compatibility
+async def get_canonical_queue_health():
+    return {"status": "migrated_to_claude_sdk", "queue_health": "n/a"}
 
 from ..utils.supabase_client import supabase_client as supabase
 

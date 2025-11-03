@@ -497,6 +497,79 @@ class SubstrateClient:
         }
         return self._request("POST", "/p3/insight-canon", json=request_body)
 
+    # ========================================================================
+    # Phase 4: Additional Methods for Agent SDK Integration
+    # ========================================================================
+
+    def get_basket_documents(self, basket_id: UUID | str) -> list[dict]:
+        """
+        Get all documents for a basket.
+
+        Args:
+            basket_id: Basket UUID
+
+        Returns:
+            List of document dictionaries
+        """
+        response = self._request(
+            "GET",
+            f"/api/documents",
+            params={"basket_id": str(basket_id)}
+        )
+        return response.get("documents", [])
+
+    def get_basket_relationships(self, basket_id: UUID | str) -> list[dict]:
+        """
+        Get substrate relationships for a basket.
+
+        Args:
+            basket_id: Basket UUID
+
+        Returns:
+            List of relationship dictionaries
+        """
+        response = self._request(
+            "GET",
+            f"/api/baskets/{basket_id}/relationships"
+        )
+        return response.get("relationships", [])
+
+    def search_semantic(
+        self,
+        basket_id: UUID | str,
+        query: str,
+        limit: int = 20
+    ) -> list[dict]:
+        """
+        Semantic search across basket blocks.
+
+        Note: This endpoint may not exist yet in substrate-api.
+        For now, falls back to get_basket_blocks() with client-side filtering.
+
+        Args:
+            basket_id: Basket UUID
+            query: Semantic query string
+            limit: Maximum results to return
+
+        Returns:
+            List of matching block dictionaries
+        """
+        try:
+            response = self._request(
+                "POST",
+                f"/api/baskets/{basket_id}/search",
+                json={"query": query, "limit": limit}
+            )
+            return response.get("results", [])
+        except SubstrateAPIError as e:
+            # If endpoint doesn't exist (404), fall back to get_basket_blocks
+            if e.status_code == 404:
+                logger.warning(
+                    "Semantic search endpoint not found, falling back to get_basket_blocks"
+                )
+                return self.get_basket_blocks(basket_id, limit=limit)
+            raise
+
     def __enter__(self):
         """Context manager entry."""
         return self

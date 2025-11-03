@@ -4,7 +4,10 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request
 
 from src.utils.db import json_safe
-from src.services.canonical_queue_processor import get_canonical_queue_health
+# Phase 4/5: Legacy Canon v2.1 queue processor removed
+async def get_canonical_queue_health():
+    """Legacy Canon v2.1 - Returns healthy stub"""
+    return {"status": "migrated_to_claude_sdk", "queue_health": "n/a"}
 
 # Legacy supabase helpers removed - use app.utils.supabase_client directly
 from .utils.supabase_client import supabase_admin_client as supabase

@@ -30,7 +30,18 @@ from middleware.correlation import CorrelationIdMiddleware
 
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
 from .routes.reflections import router as reflections_router
-from services.canonical_queue_processor import start_canonical_queue_processor, stop_canonical_queue_processor, get_canonical_queue_health
+# Phase 4/5: Legacy Canon v2.1 queue processor removed - stubs for backward compatibility
+async def start_canonical_queue_processor():
+    """Legacy Canon v2.1 - No-op stub"""
+    pass
+
+async def stop_canonical_queue_processor():
+    """Legacy Canon v2.1 - No-op stub"""
+    pass
+
+async def get_canonical_queue_health():
+    """Legacy Canon v2.1 - Returns healthy stub"""
+    return {"status": "migrated_to_claude_sdk", "queue_health": "n/a"}
 from .routes.agent_memory import router as agent_memory_router
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
@@ -69,6 +80,9 @@ from .routes.p3_insights import router as p3_insights_router
 from .routes.p4_canon import router as p4_canon_router
 from .routes.p3_p4_health import router as p3_p4_health_router
 from .api.validator.validate_proposal import router as validator_router
+# Phase 4: Agent SDK integration
+from .routes.agents_status import router as agents_status_router
+from .routes.agent_orchestration import router as agent_orchestration_router
 
 
 def _assert_env():
@@ -156,6 +170,9 @@ routers = (
     integration_tokens_router,
     auth_validate_router,
     # openai_apps_router removed - functionality moved to separate service
+    # Phase 4: Agent SDK integration
+    agents_status_router,
+    agent_orchestration_router,
 )
 
 # Add correlation middleware

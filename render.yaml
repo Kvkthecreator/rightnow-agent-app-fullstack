@@ -10,6 +10,8 @@ services:
     envVars:
       - key: OPENAI_API_KEY
         sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false  # Phase 4: For Claude Agent SDK
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY

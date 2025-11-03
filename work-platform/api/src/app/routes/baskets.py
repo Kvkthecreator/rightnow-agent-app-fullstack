@@ -16,8 +16,12 @@ from services.idempotency import (
     fetch_delta_by_request_id,
     mark_processed,
 )
-# Legacy manager removed - use canonical queue processor
-from src.services.canonical_queue_processor import CanonicalQueueProcessor, get_canonical_queue_health
+# Phase 4/5: Legacy Canon v2.1 removed - stubs for backward compatibility
+class CanonicalQueueProcessor:
+    pass
+
+async def get_canonical_queue_health():
+    return {"status": "migrated_to_claude_sdk", "queue_health": "n/a"}
 from pydantic import ValidationError
 
 # Import deps AFTER path setup
