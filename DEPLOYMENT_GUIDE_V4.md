@@ -12,14 +12,14 @@ YARNNN v4.0 mono-repo follows a **Backend-for-Frontend (BFF)** architecture patt
 ## Architecture Principles
 
 ### Backend-for-Frontend (BFF) Pattern
-- **Platform API** is product-specific, handles work/agent orchestration
-- **Substrate API** is the core service for memory/context management
+- **Platform API** is the work/consumer-facing application (WIP/to-be-built)
+- **Substrate API** is the core domain with P0-P4 agent pipeline + memory/context
 - Platform calls Substrate via HTTP (Phase 3) - no direct substrate DB access
 - Both services use `infra/` for shared utilities only
 
 ### Domain Separation
-- **Platform Domain**: Work sessions, agent orchestration, governance
-- **Substrate Domain**: Memory blocks, documents, relationships, embeddings
+- **Platform Domain**: Work/consumer-facing features, business logic (to-be-built)
+- **Substrate Domain**: P0-P4 pipeline, memory blocks, documents, embeddings, work orchestration
 - **Infrastructure**: Authentication, database clients, JWT utilities
 
 ## Render Deployment (APIs)

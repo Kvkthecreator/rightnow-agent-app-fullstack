@@ -4,7 +4,17 @@
 
 Phase 3 implements the Backend-for-Frontend (BFF) architectural pattern by establishing HTTP-based communication between Platform API and Substrate API, eliminating direct substrate database access from Platform.
 
-**Key Insight from Analysis**: Substrate-API already implements **Canon v2.1 Universal Work Orchestration** pattern where all substrate mutations flow through governed async work queues. This aligns perfectly with BFF architecture.
+**Current State (Pre-BFF)**:
+- Platform API incorrectly contains P0-P4 agent pipeline code
+- Both Platform and Substrate access substrate tables directly
+- Code duplication and unclear domain boundaries
+
+**Target State (Post-BFF)**:
+- **Platform API** = Work/consumer-facing application only
+- **Substrate API** = P0-P4 agent pipeline + memory/context domain
+- Platform calls Substrate via HTTP only (no direct DB access)
+
+**Key Insight**: Substrate-API already implements **Canon v2.1 Universal Work Orchestration** - perfect foundation for BFF pattern.
 
 ---
 
@@ -13,9 +23,9 @@ Phase 3 implements the Backend-for-Frontend (BFF) architectural pattern by estab
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Platform API (BFF Layer)                                   │
-│  - Work orchestration & governance                          │
-│  - Agent pipeline (P0-P4)                                   │
-│  - User-facing business logic                               │
+│  - Work/consumer-facing application (WIP/to-be-built)       │
+│  - Business logic for end-user features                     │
+│  - Orchestrates Substrate API calls                         │
 │                                                              │
 │  ┌────────────────────────────────────────┐                │
 │  │  HTTP Client (substrate_client.py)     │                │
@@ -29,6 +39,8 @@ Phase 3 implements the Backend-for-Frontend (BFF) architectural pattern by estab
                     ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Substrate API (Core Domain)                                │
+│  - P0-P4 Agent Pipeline (Capture → Validate → Reflect       │
+│    → Compose → Canon)                                       │
 │  - Memory blocks, documents, relationships                  │
 │  - Embeddings & semantic search                             │
 │  - Universal work orchestration (Canon v2.1)                │
