@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Literal, Optional
 from pydantic import BaseModel
 
 from shared.utils.supabase_client import supabase_client as supabase
-from shared.substrate.services.clock import now_iso
+from services.clock import now_iso
 
 JobMode = Literal["from_scaffold", "refresh_full"]
 JobState = Literal["queued", "running", "done", "error"]
