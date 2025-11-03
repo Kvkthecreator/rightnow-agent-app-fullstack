@@ -76,11 +76,12 @@ from .routes.alerts import router as alerts_router
 from .routes.phase1_routes import router as phase1_router
 from .routes.projection import router as projection_router
 from .routes.work_status import router as work_status_router
-from .routes.p4_composition import router as p4_composition_router
+# Phase 4/5: Legacy Canon v2.1 routers removed (import from old agent pipeline)
+# from .routes.p4_composition import router as p4_composition_router
+# from .api.validator.validate_proposal import router as validator_router
 from .routes.p3_insights import router as p3_insights_router
 from .routes.p4_canon import router as p4_canon_router
 from .routes.p3_p4_health import router as p3_p4_health_router
-from .api.validator.validate_proposal import router as validator_router
 # Phase 4: Agent SDK integration
 from .routes.agents_status import router as agents_status_router
 from .routes.agent_orchestration import router as agent_orchestration_router
@@ -156,11 +157,12 @@ routers = (
     auth_health_router,
     health_router,
     work_status_router,
-    p4_composition_router,
+    # Phase 4/5: Legacy Canon v2.1 routers removed
+    # p4_composition_router,
+    # validator_router,
     p3_insights_router,
     p4_canon_router,
     p3_p4_health_router,
-    validator_router,
     mcp_inference_router,
     memory_unassigned_router,
     mcp_activity_router,
