@@ -11,6 +11,7 @@ pydantic>=2.10,<3
 python-dotenv>=0.20.0,<1
 requests>=2.0,<3
 typing-extensions>=4.12.2,<5
+tenacity>=8.0.0  # Retry logic for substrate HTTP client (Phase 3.1 BFF)
 
 # ── Supabase integration ──────────────────────────────────────────────
 # Using PyPI version instead of git for Render reliability

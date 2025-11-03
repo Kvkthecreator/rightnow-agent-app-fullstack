@@ -103,17 +103,27 @@ The `infra/` directory contains **pure utilities only** (no business logic):
 - Platform API no longer depends on `/shared` directory
 - All imports use local copies: `app.utils.*`, `services.*`, `app.models.*`
 
-### Phase 2: Architecture Refactor (Current)
+### Phase 2: Architecture Refactor (Completed)
 - Renamed `enterprise/` → `substrate-api/` (clear domain naming)
 - Renamed `shared/` → `infra/` (infrastructure-only utilities)
 - Updated all substrate-api imports: `shared.*` → `infra.*`
 - Updated render.yaml service names and paths
 
-### Phase 3: BFF Implementation (Next)
-- Platform calls Substrate via HTTP
-- Remove direct substrate table access from Platform
-- Clean up duplicate code
-- Establish API contracts between layers
+### Phase 3: BFF Implementation (In Progress)
+**Phase 3.1 - Foundation (Completed)**:
+- Created HTTP client (`platform/api/src/clients/substrate_client.py`) with:
+  - Service token authentication
+  - Retry logic with exponential backoff
+  - Circuit breaker for fault tolerance
+  - Connection pooling via httpx
+- Added service-to-service auth middleware in Substrate API
+- Created test suite (`test_bff_foundation.py`)
+- Updated platform requirements (added tenacity for retries)
+
+**Next Steps**:
+- Phase 3.2: Migrate read operations to HTTP
+- Phase 3.3: Route substrate mutations via Universal Work API
+- Phase 3.4+: See [PHASE3_BFF_IMPLEMENTATION_PLAN.md](PHASE3_BFF_IMPLEMENTATION_PLAN.md)
 
 ## Testing Deployment
 
