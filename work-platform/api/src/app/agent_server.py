@@ -43,7 +43,8 @@ async def stop_canonical_queue_processor():
 async def get_canonical_queue_health():
     """Legacy Canon v2.1 - Returns healthy stub"""
     return {"status": "migrated_to_claude_sdk", "queue_health": "n/a"}
-from .routes.agent_memory import router as agent_memory_router
+# Phase 4/5: Legacy agent_memory router removed (imports old agent pipeline)
+# from .routes.agent_memory import router as agent_memory_router
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
 from .routes.auth_health import router as auth_health_router
@@ -150,7 +151,8 @@ routers = (
     phase1_router,
     # V3.0: context_items_router removed (table merged into blocks)
     block_lifecycle_router,
-    agent_memory_router,
+    # Phase 4/5: Legacy agent_memory_router removed
+    # agent_memory_router,
     template_router,
     context_intelligence_router,
     narrative_intelligence_router,
