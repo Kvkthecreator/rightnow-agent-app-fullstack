@@ -4,7 +4,12 @@
     "target": "ES2017",
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "verbatimModuleSyntax": true,
-    "types": ["react", "react-dom", "node"]
+    "types": ["react", "react-dom", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@shared/*": ["../../shared/*"]
+    }
   },
   "include": [
     "next-env.d.ts",
