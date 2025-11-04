@@ -89,6 +89,8 @@ from .routes.p3_p4_health import router as p3_p4_health_router
 # Phase 4: Agent SDK integration
 from .routes.agents_status import router as agents_status_router
 from .routes.agent_orchestration import router as agent_orchestration_router
+# Phase 6: Basket-first onboarding
+from .routes.work_requests import router as work_requests_router
 
 
 def _assert_env():
@@ -183,6 +185,8 @@ routers = (
     # Phase 4: Agent SDK integration
     agents_status_router,
     agent_orchestration_router,
+    # Phase 6: Basket-first onboarding
+    work_requests_router,
 )
 
 # Add correlation middleware

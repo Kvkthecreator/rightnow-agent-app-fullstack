@@ -432,6 +432,53 @@ class SubstrateClient:
         )
 
     # ========================================================================
+    # Basket Operations (Phase 6: Onboarding Scaffolding)
+    # ========================================================================
+
+    def create_basket(
+        self,
+        workspace_id: UUID | str,
+        name: str,
+        metadata: Optional[dict] = None,
+        user_id: Optional[UUID | str] = None,
+    ) -> dict:
+        """
+        Create new basket in substrate-api.
+
+        Phase 6: Used by onboarding scaffolder to create context containers.
+
+        Args:
+            workspace_id: Workspace UUID
+            name: Basket name
+            metadata: Optional metadata (tags, origin_template, etc.)
+            user_id: Optional user ID for ownership
+
+        Returns:
+            {"basket_id": "...", "name": "...", "workspace_id": "...", ...}
+        """
+        request_body = {
+            "workspace_id": str(workspace_id),
+            "name": name,
+            "metadata": metadata or {},
+        }
+        if user_id:
+            request_body["user_id"] = str(user_id)
+
+        return self._request("POST", "/api/baskets", json=request_body)
+
+    def get_basket_info(self, basket_id: UUID | str) -> dict:
+        """
+        Get basket information.
+
+        Args:
+            basket_id: Basket UUID
+
+        Returns:
+            Basket details
+        """
+        return self._request("GET", f"/api/baskets/{basket_id}")
+
+    # ========================================================================
     # Raw Dumps / Inputs
     # ========================================================================
 

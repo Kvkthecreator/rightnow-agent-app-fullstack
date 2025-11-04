@@ -1,13 +1,15 @@
 import json
 import os
 import sys
-from uuid import uuid4
+from uuid import uuid4, UUID
+from typing import Optional
 
 # CRITICAL: Add src to path BEFORE any other imports that depend on it
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 from contracts.basket import BasketChangeRequest, BasketDelta
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field, ValidationError
 from ..baskets.schemas import BasketWorkRequest
 from typing import Union
 from infra.substrate.services.deltas import list_deltas, persist_delta, try_apply_delta
@@ -18,7 +20,6 @@ from infra.substrate.services.idempotency import (
 )
 # Legacy manager removed - use canonical queue processor
 from src.services.canonical_queue_processor import CanonicalQueueProcessor, get_canonical_queue_health
-from pydantic import ValidationError
 
 # Import deps AFTER path setup
 from ..deps import get_db
@@ -26,6 +27,142 @@ from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(prefix="/api/baskets", tags=["baskets"])
+
+
+# ========================================================================
+# Phase 6: Basket Creation Models
+# ========================================================================
+
+
+class CreateBasketRequest(BaseModel):
+    """Request model for creating a new basket."""
+
+    workspace_id: str = Field(..., description="Workspace ID for basket")
+    name: str = Field(..., min_length=1, max_length=200, description="Basket name")
+    metadata: Optional[dict] = Field(default_factory=dict, description="Metadata (stored in tags as JSON)")
+    user_id: Optional[str] = Field(None, description="User ID (for audit trail)")
+
+
+class CreateBasketResponse(BaseModel):
+    """Response model for basket creation."""
+
+    basket_id: str
+    name: str
+    workspace_id: str
+    status: str
+    user_id: Optional[str]
+    created_at: str
+
+
+# ========================================================================
+# Phase 6: Basket Creation Endpoint
+# ========================================================================
+
+
+@router.post("", response_model=CreateBasketResponse, status_code=201)
+async def create_basket(
+    request: CreateBasketRequest,
+    db=Depends(get_db),  # noqa: B008
+):
+    """
+    Create a new basket.
+
+    Phase 6: Called by work-platform's onboarding_scaffolder via substrate_client.
+    This endpoint is part of the Phase 3 BFF architecture - work-platform never
+    touches substrate tables directly.
+
+    Args:
+        request: Basket creation parameters
+        db: Database connection
+
+    Returns:
+        Created basket information
+
+    Raises:
+        HTTPException 400: Invalid workspace_id or validation error
+        HTTPException 500: Database error
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Validate workspace_id is valid UUID
+        try:
+            workspace_uuid = UUID(request.workspace_id)
+        except (ValueError, AttributeError) as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid workspace_id format: {request.workspace_id}",
+            ) from e
+
+        # Validate user_id if provided
+        user_uuid = None
+        if request.user_id:
+            try:
+                user_uuid = UUID(request.user_id)
+            except (ValueError, AttributeError) as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid user_id format: {request.user_id}",
+                ) from e
+
+        # Generate basket ID
+        basket_id = uuid4()
+
+        # Prepare tags array with metadata
+        tags = []
+        if request.metadata:
+            # Store metadata keys as tags for searchability
+            for key, value in request.metadata.items():
+                tags.append(f"{key}:{str(value)}")
+
+        # Insert basket using actual production schema
+        query = """
+            INSERT INTO baskets (id, name, workspace_id, user_id, status, tags, origin_template)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id, name, workspace_id, user_id, status, created_at
+        """
+
+        result = await db.fetch_one(
+            query,
+            values=[
+                str(basket_id),
+                request.name,
+                str(workspace_uuid),
+                str(user_uuid) if user_uuid else None,
+                "INIT",  # basket_state enum default
+                tags,
+                "work_platform_onboarding",  # origin_template for tracking
+            ],
+        )
+
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to create basket")
+
+        logger.info(
+            f"[BASKET CREATE] Created basket {result['id']} "
+            f"for workspace {result['workspace_id']} via Phase 6 onboarding"
+        )
+
+        return CreateBasketResponse(
+            basket_id=str(result["id"]),
+            name=result["name"],
+            workspace_id=str(result["workspace_id"]),
+            user_id=str(result["user_id"]) if result["user_id"] else None,
+            status=str(result["status"]),
+            created_at=result["created_at"].isoformat(),
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+
+    except Exception as e:
+        logger.exception(f"Failed to create basket: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create basket: {str(e)}"
+        ) from e
 
 
 @router.post("/{basket_id}/work", response_model=BasketDelta)
