@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { apiGet } from '@/lib/server/http';
 import AlertAnnouncer, { type DashboardAlert as AnnouncerAlert } from '@/components/dashboard/AlertAnnouncer';
 import { CreateBasketCallout } from './CreateBasketCallout';
-import { NewOnboardingButton } from './NewOnboardingButton';
+import { CreateProjectButton } from './CreateProjectButton';
 
 function formatTimestamp(value: string | null | undefined) {
   if (!value) return '—';
@@ -110,7 +110,7 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
             Monitor ambient activity, triage captures, and keep integrations healthy.
           </p>
         </div>
-        <NewOnboardingButton />
+        <CreateProjectButton />
       </header>
 
       {alerts.length > 0 && (

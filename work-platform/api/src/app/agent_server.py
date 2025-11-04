@@ -89,7 +89,9 @@ from .routes.p3_p4_health import router as p3_p4_health_router
 # Phase 4: Agent SDK integration
 from .routes.agents_status import router as agents_status_router
 from .routes.agent_orchestration import router as agent_orchestration_router
-# Phase 6: Basket-first onboarding
+# Phase 6: Project-first onboarding (Refactor)
+from .routes.projects import router as projects_router
+# Legacy: work_requests router kept for backward compatibility
 from .routes.work_requests import router as work_requests_router
 
 
@@ -185,7 +187,9 @@ routers = (
     # Phase 4: Agent SDK integration
     agents_status_router,
     agent_orchestration_router,
-    # Phase 6: Basket-first onboarding
+    # Phase 6: Project-first onboarding
+    projects_router,
+    # Legacy: work_requests for backward compatibility
     work_requests_router,
 )
 
