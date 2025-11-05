@@ -1,5 +1,29 @@
+"""Manager agent orchestration.
+
+⚠️ DEPRECATED: This module bypasses substrate governance (proposals).
+
+This module directly creates blocks via SubstrateOps, which violates
+the substrate purity principle that ALL blocks must be created via proposals.
+
+PROBLEMS:
+- Bypasses P1 governance validation
+- Skips semantic duplicate detection
+- No quality checks
+- Direct block creation
+
+DO NOT USE for new features. Instead:
+- Use GovernanceDumpProcessor (governance_processor.py)
+- Create proposals, not blocks directly
+- Let P1 governance handle validation
+
+This file is kept for legacy compatibility only.
+
+See: docs/architecture/GOVERNANCE_SEPARATION_REFACTOR_PLAN.md
+"""
+
 import os
 import sys
+import warnings
 from uuid import uuid4
 from typing import Union
 
@@ -10,7 +34,7 @@ from contracts.basket import BasketChangeRequest, BasketDelta, EntityChangeBlock
 from services.clock import now_iso
 from services.worker_adapter import WorkerAgentAdapter, WorkerOutputAggregator
 from infra.substrate.services.substrate_diff import compute_deltas, apply_deltas
-from infra.substrate.services.substrate_ops import SubstrateOps
+from infra.substrate.services.substrate_ops import SubstrateOps  # DEPRECATED
 from services.interpretation_adapter import extract_graph_from_worker_output
 # V3.0: upsert_context_items removed (table merged into blocks)
 from infra.substrate.services.upserts import upsert_relationships, upsert_blocks
@@ -27,10 +51,21 @@ async def run_manager_plan(
     db, basket_id: str, req: Union[BasketWorkRequest, BasketChangeRequest], workspace_id: str
 ) -> BasketDelta:
     """
-    Manager Agent Orchestration with dual-mode support.
-    
+    ⚠️ DEPRECATED: Manager Agent Orchestration with dual-mode support.
+
+    WARNING: This function bypasses substrate governance (proposals) by
+    directly creating blocks via SubstrateOps.
+
+    DO NOT USE for new features. Use governance_processor.py instead.
+
     Handles both init_build (first ingest) and evolve_turn (incremental) modes.
     """
+    warnings.warn(
+        "run_manager_plan is deprecated and bypasses governance. "
+        "Use GovernanceDumpProcessor instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     
     if isinstance(req, dict) and req.get("focus") == "interpretation":
         out = await WorkerAgentAdapter.call_basket_analyzer(basket_id=basket_id, workspace_id=workspace_id, focus_dump_id=req.get("dump_id"))

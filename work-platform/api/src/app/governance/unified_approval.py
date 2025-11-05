@@ -1,7 +1,21 @@
 """Unified approval orchestrator for work sessions.
 
-This module implements Layer 3: Unified Governance
-Single user review → dual effect (work quality + substrate mutation)
+⚠️ STATUS: PARTIAL IMPLEMENTATION - SUBSTRATE INTEGRATION NOT YET DEFINED
+
+This module was designed for Layer 3: Unified Governance, but the substrate
+integration approach is not yet implemented.
+
+CURRENT STATE:
+- ✅ Work quality assessment (review work sessions)
+- ❌ Substrate mutation (DISABLED - conflicts with substrate governance)
+
+TODO (Future):
+- Design proper work-platform → substrate-api integration
+- Should approved artifacts create substrate proposals?
+- Should work governance be independent from substrate governance?
+- What's the right bridge architecture?
+
+See: docs/architecture/GOVERNANCE_SEPARATION_REFACTOR_PLAN.md
 """
 
 from datetime import datetime
@@ -167,23 +181,35 @@ class UnifiedApprovalOrchestrator:
         """
         Apply artifact to substrate based on type.
 
-        Returns substrate ID if applied, None otherwise.
+        ⚠️ NOT IMPLEMENTED: This method bypasses substrate governance (proposals)
+        and directly creates blocks, which violates the substrate purity principle.
+
+        TODO (Future Implementation):
+        1. Submit approved artifacts to substrate-api as proposals
+        2. Let substrate governance (P1) validate and create blocks
+        3. Handle semantic deduplication and quality checks
+        4. Track proposal status and notify work-platform of results
+
+        For now, this raises NotImplementedError to prevent governance violations.
         """
-        if artifact.artifact_type == WorkArtifactType.BLOCK_PROPOSAL:
-            return await self._create_block_from_artifact(artifact, session, user_id)
+        raise NotImplementedError(
+            "Substrate mutations from work-platform are not yet implemented. "
+            "This functionality needs to be designed to work with substrate "
+            "governance (proposals) rather than bypassing it. "
+            "See: docs/architecture/GOVERNANCE_SEPARATION_REFACTOR_PLAN.md"
+        )
 
-        elif artifact.artifact_type == WorkArtifactType.BLOCK_UPDATE:
-            return await self._supersede_block_from_artifact(artifact, session, user_id)
-
-        elif artifact.artifact_type == WorkArtifactType.DOCUMENT_CREATION:
-            return await self._create_document_from_artifact(artifact, session, user_id)
-
-        elif artifact.artifact_type == WorkArtifactType.EXTERNAL_DELIVERABLE:
-            # External artifacts don't affect substrate
-            await self._store_external_artifact(artifact)
-            return None
-
-        return None
+        # DISABLED CODE (kept for reference):
+        # if artifact.artifact_type == WorkArtifactType.BLOCK_PROPOSAL:
+        #     return await self._create_block_from_artifact(artifact, session, user_id)
+        # elif artifact.artifact_type == WorkArtifactType.BLOCK_UPDATE:
+        #     return await self._supersede_block_from_artifact(artifact, session, user_id)
+        # elif artifact.artifact_type == WorkArtifactType.DOCUMENT_CREATION:
+        #     return await self._create_document_from_artifact(artifact, session, user_id)
+        # elif artifact.artifact_type == WorkArtifactType.EXTERNAL_DELIVERABLE:
+        #     await self._store_external_artifact(artifact)
+        #     return None
+        # return None
 
     async def _create_block_from_artifact(
         self,
@@ -192,56 +218,71 @@ class UnifiedApprovalOrchestrator:
         user_id: UUID,
     ) -> UUID:
         """
-        Create block from artifact.
+        ⚠️ DISABLED: Direct block creation bypasses substrate governance.
 
-        Work was already reviewed, so block goes directly to ACCEPTED state.
+        PROBLEM: This method creates blocks directly with state="ACCEPTED",
+        which bypasses:
+        - P1 proposal governance
+        - Semantic duplicate detection
+        - Quality validation
+        - Merge detection
+
+        This violates the substrate purity principle that ALL blocks must be
+        created via proposals.
+
+        TODO (Future): Replace with substrate proposal submission.
         """
-        # Extract block data from artifact content
-        block_data = {
-            "basket_id": str(session.basket_id),
-            "workspace_id": str(session.workspace_id),
-            "content": artifact.content.get("content"),
-            "semantic_type": artifact.content.get("semantic_type", "general"),
-            "state": "ACCEPTED",  # Direct acceptance - work already reviewed
-            "scope": artifact.content.get("scope", "BASKET"),
-            "version": 1,
-            "metadata": {
-                "created_from_work_session": str(session.id),
-                "created_from_artifact": str(artifact.id),
-                "agent_confidence": artifact.agent_confidence,
-                "agent_reasoning": artifact.agent_reasoning,
-            },
-        }
-
-        # Insert block
-        result = self.db.table("blocks").insert(block_data).execute()
-        block_id = UUID(result.data[0]["id"])
-
-        # Update artifact with block link
-        await self._update_artifact(
-            artifact.id,
-            {
-                "becomes_block_id": str(block_id),
-                "status": WorkArtifactStatus.APPLIED_TO_SUBSTRATE.value,
-                "applied_at": datetime.utcnow().isoformat(),
-                "reviewed_by_user_id": str(user_id),
-                "reviewed_at": datetime.utcnow().isoformat(),
-                "review_decision": "approved",
-            },
+        raise NotImplementedError(
+            "Direct block creation is disabled. Must go through substrate proposals."
         )
 
-        # Log substrate mutation
-        await self._log_context_mutation(
-            work_session_id=session.id,
-            artifact_id=artifact.id,
-            mutation_type=WorkMutationType.BLOCK_CREATED,
-            substrate_id=block_id,
-            substrate_type=SubstrateType.BLOCK,
-            after_state=block_data,
-            risk_level=artifact.risk_level,
-        )
-
-        return block_id
+        # DISABLED CODE - DO NOT UNCOMMENT WITHOUT FIXING GOVERNANCE BYPASS
+        # # Extract block data from artifact content
+        # block_data = {
+        #     "basket_id": str(session.basket_id),
+        #     "workspace_id": str(session.workspace_id),
+        #     "content": artifact.content.get("content"),
+        #     "semantic_type": artifact.content.get("semantic_type", "general"),
+        #     "state": "ACCEPTED",  # ❌ BYPASSES PROPOSALS!
+        #     "scope": artifact.content.get("scope", "BASKET"),
+        #     "version": 1,
+        #     "metadata": {
+        #         "created_from_work_session": str(session.id),
+        #         "created_from_artifact": str(artifact.id),
+        #         "agent_confidence": artifact.agent_confidence,
+        #         "agent_reasoning": artifact.agent_reasoning,
+        #     },
+        # }
+        #
+        # # Insert block
+        # result = self.db.table("blocks").insert(block_data).execute()
+        # block_id = UUID(result.data[0]["id"])
+        #
+        # # Update artifact with block link
+        # await self._update_artifact(
+        #     artifact.id,
+        #     {
+        #         "becomes_block_id": str(block_id),
+        #         "status": WorkArtifactStatus.APPLIED_TO_SUBSTRATE.value,
+        #         "applied_at": datetime.utcnow().isoformat(),
+        #         "reviewed_by_user_id": str(user_id),
+        #         "reviewed_at": datetime.utcnow().isoformat(),
+        #         "review_decision": "approved",
+        #     },
+        # )
+        #
+        # # Log substrate mutation
+        # await self._log_context_mutation(
+        #     work_session_id=session.id,
+        #     artifact_id=artifact.id,
+        #     mutation_type=WorkMutationType.BLOCK_CREATED,
+        #     substrate_id=block_id,
+        #     substrate_type=SubstrateType.BLOCK,
+        #     after_state=block_data,
+        #     risk_level=artifact.risk_level,
+        # )
+        #
+        # return block_id
 
     async def _supersede_block_from_artifact(
         self,
@@ -249,65 +290,14 @@ class UnifiedApprovalOrchestrator:
         session: WorkSession,
         user_id: UUID,
     ) -> UUID:
-        """Update/supersede existing block from artifact."""
-        parent_block_id = artifact.content.get("supersedes_block_id")
+        """
+        ⚠️ DISABLED: Direct block superseding bypasses substrate governance.
 
-        if not parent_block_id:
-            raise ValueError("Block update artifact missing supersedes_block_id")
-
-        # Fetch parent block for before_state
-        parent_result = self.db.table("blocks").select("*").eq("id", str(parent_block_id)).execute()
-        parent_block = parent_result.data[0] if parent_result.data else None
-
-        # Create new version
-        block_data = {
-            "basket_id": str(session.basket_id),
-            "workspace_id": str(session.workspace_id),
-            "parent_block_id": str(parent_block_id),
-            "content": artifact.content.get("content"),
-            "semantic_type": artifact.content.get("semantic_type"),
-            "state": "ACCEPTED",
-            "scope": artifact.content.get("scope", parent_block.get("scope")),
-            "version": (parent_block.get("version", 0) + 1) if parent_block else 1,
-            "metadata": {
-                "created_from_work_session": str(session.id),
-                "created_from_artifact": str(artifact.id),
-                "supersedes": str(parent_block_id),
-            },
-        }
-
-        result = self.db.table("blocks").insert(block_data).execute()
-        new_block_id = UUID(result.data[0]["id"])
-
-        # Mark parent as superseded
-        self.db.table("blocks").update({"state": "SUPERSEDED"}).eq("id", str(parent_block_id)).execute()
-
-        # Update artifact
-        await self._update_artifact(
-            artifact.id,
-            {
-                "becomes_block_id": str(new_block_id),
-                "supersedes_block_id": str(parent_block_id),
-                "status": WorkArtifactStatus.APPLIED_TO_SUBSTRATE.value,
-                "applied_at": datetime.utcnow().isoformat(),
-                "reviewed_by_user_id": str(user_id),
-                "reviewed_at": datetime.utcnow().isoformat(),
-            },
+        TODO (Future): Replace with substrate proposal submission.
+        """
+        raise NotImplementedError(
+            "Direct block superseding is disabled. Must go through substrate proposals."
         )
-
-        # Log mutation
-        await self._log_context_mutation(
-            work_session_id=session.id,
-            artifact_id=artifact.id,
-            mutation_type=WorkMutationType.BLOCK_SUPERSEDED,
-            substrate_id=new_block_id,
-            substrate_type=SubstrateType.BLOCK,
-            before_state=parent_block,
-            after_state=block_data,
-            risk_level=artifact.risk_level or RiskLevel.MEDIUM,
-        )
-
-        return new_block_id
 
     async def _create_document_from_artifact(
         self,
@@ -315,45 +305,15 @@ class UnifiedApprovalOrchestrator:
         session: WorkSession,
         user_id: UUID,
     ) -> UUID:
-        """Create document from artifact."""
-        doc_data = {
-            "basket_id": str(session.basket_id),
-            "workspace_id": str(session.workspace_id),
-            "title": artifact.content.get("title", "Untitled"),
-            "content_raw": artifact.content.get("content"),
-            "doc_type": artifact.content.get("doc_type", "artifact_other"),
-            "state": "PUBLISHED",
-            "metadata": {
-                "created_from_work_session": str(session.id),
-                "created_from_artifact": str(artifact.id),
-            },
-        }
+        """
+        ⚠️ DISABLED: Direct document creation bypasses substrate governance.
 
-        result = self.db.table("documents").insert(doc_data).execute()
-        doc_id = UUID(result.data[0]["id"])
-
-        await self._update_artifact(
-            artifact.id,
-            {
-                "creates_document_id": str(doc_id),
-                "status": WorkArtifactStatus.APPLIED_TO_SUBSTRATE.value,
-                "applied_at": datetime.utcnow().isoformat(),
-                "reviewed_by_user_id": str(user_id),
-                "reviewed_at": datetime.utcnow().isoformat(),
-            },
+        TODO (Future): Determine if documents should go through proposals
+        or if they can be created directly (documents != memory blocks).
+        """
+        raise NotImplementedError(
+            "Direct document creation is disabled pending architecture decision."
         )
-
-        await self._log_context_mutation(
-            work_session_id=session.id,
-            artifact_id=artifact.id,
-            mutation_type=WorkMutationType.DOCUMENT_CREATED,
-            substrate_id=doc_id,
-            substrate_type=SubstrateType.DOCUMENT,
-            after_state=doc_data,
-            risk_level=artifact.risk_level or RiskLevel.LOW,
-        )
-
-        return doc_id
 
     async def _store_external_artifact(self, artifact: WorkArtifact) -> None:
         """Store reference to external artifact (no substrate impact)."""

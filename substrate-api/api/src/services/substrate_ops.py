@@ -1,7 +1,21 @@
 # ruff: noqa
-"""Simple substrate operations for manager use."""
+"""Simple substrate operations for manager use.
+
+⚠️ DEPRECATED: This module bypasses substrate governance (proposals).
+
+ALL substrate mutations should go through the proposal system:
+- Use governance_processor.py to create proposals
+- Let P1 governance validate and create blocks
+- Ensure semantic deduplication and quality checks
+
+This module is kept for legacy compatibility but should NOT be used
+for new features.
+
+See: docs/architecture/GOVERNANCE_SEPARATION_REFACTOR_PLAN.md
+"""
 
 import logging
+import warnings
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
@@ -12,7 +26,15 @@ logger = logging.getLogger("uvicorn.error")
 
 
 class SubstrateOps:
-    """Simplified substrate operations for creating and updating entities."""
+    """
+    ⚠️ DEPRECATED: Simplified substrate operations for creating and updating entities.
+
+    WARNING: This class bypasses substrate governance (proposals) and should
+    NOT be used. All block creation must go through proposals.
+
+    For new features, use:
+    - app.agents.pipeline.governance_processor.GovernanceDumpProcessor
+    """
 
     @staticmethod
     async def create_context_block(
@@ -23,9 +45,23 @@ class SubstrateOps:
         metadata: Optional[Dict[str, Any]] = None
     ) -> Tuple[str, int]:
         """
-        Create a context block from raw dump content.
+        ⚠️ DEPRECATED: Create a context block from raw dump content.
+
+        WARNING: This method bypasses substrate governance (proposals).
+
+        DO NOT USE for new features. Instead:
+        1. Create proposal via governance_processor.py
+        2. Let P1 validate and create blocks
+        3. Ensure semantic deduplication
+
         Returns (block_id, version).
         """
+        warnings.warn(
+            "SubstrateOps.create_context_block is deprecated and bypasses governance. "
+            "Use governance_processor.py to create proposals instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         block_id = str(uuid4())
         block_data = {
             "id": block_id,

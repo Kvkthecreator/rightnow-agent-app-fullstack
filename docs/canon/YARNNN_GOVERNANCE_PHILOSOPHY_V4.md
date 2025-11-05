@@ -3,20 +3,46 @@
 **Unified Governance: Work Quality + Context Integrity**
 
 **Version**: 4.0 (Major Evolution from Substrate-Only Governance)
-**Date**: 2025-10-31
-**Status**: ✅ Canonical
+**Date**: 2025-10-31 (Updated: 2025-11-05)
+**Status**: ⚠️ DESIGN VISION (NOT YET IMPLEMENTED)
 **Supersedes**: YARNNN_GOVERNANCE_CANON_V5.md
 
 ---
 
-## 🎯 Core Philosophy
+## ⚠️ CURRENT IMPLEMENTATION STATUS (As of 2025-11-05)
 
-**Governance in YARNNN v4.0 spans TWO concerns in a SINGLE approval**:
+**This document describes the v4.0 VISION, which is NOT yet implemented.**
+
+**What IS Working** ✅:
+- **Substrate Governance** (substrate-api): P0-P4 pipeline with proposals
+- Blocks created via proposals only
+- P1 semantic deduplication and quality validation
+
+**What is NOT Working** ❌:
+- **Work-Platform Governance**: Not yet defined or implemented
+- Unified approval orchestrator: Disabled (bypassed substrate governance)
+- Work→Substrate bridge: Architecture not yet designed
+
+**Decision Pending**: How should work-platform interact with substrate governance?
+- Should approved work artifacts create substrate proposals?
+- Should work governance be independent from substrate governance?
+- What's the right bridge architecture?
+
+**See**: [`GOVERNANCE_SEPARATION_REFACTOR_PLAN.md`](../architecture/GOVERNANCE_SEPARATION_REFACTOR_PLAN.md)
+
+---
+
+## 🎯 Core Philosophy (Future Vision)
+
+**Governance in YARNNN v4.0 will address TWO concerns**:
 
 1. **Work Quality** - Is the agent's work good? (reasoning, completeness, accuracy)
 2. **Context Integrity** - Should this update the knowledge base? (trust, relevance, correctness)
 
-**The Key Insight**: These are not separate questions. Reviewing work quality IS reviewing context changes.
+**The Key Design Question**: How should these two concerns relate?
+- **Option A**: Single approval handles both (unified)
+- **Option B**: Two independent approval layers (separated)
+- **Current Implementation**: Only substrate governance exists (option B by default)
 
 ### The Evolution
 

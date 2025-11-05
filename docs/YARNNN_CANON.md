@@ -22,17 +22,24 @@ Yarnnn is a **memory-first cognitive system** that captures human thought as imm
 4. **Agent Intelligence is Mandatory** - Substrate cannot exist without agent interpretation
 5. **Substrate Management Replaces Document Editing** - Users curate substrate and direct composition instead of editing prose
 
-### The Three Governance Principles (v2.2)
+### The Three Governance Principles (v2.2) ✅ IMPLEMENTED
 
 1. **Substrate-Only Governance** - ALL substrate mutations flow through governance framework
-2. **User-Controlled Execution Mode** - Users control execution policy via governance flags  
+2. **User-Controlled Execution Mode** - Users control execution policy via governance flags
 3. **Confidence-Informed Routing** - Confidence scores inform routing within governance modes
+
+**📋 Governance Status (As of 2025-11-05)**:
+- ✅ Substrate governance (P1 proposals) - WORKING
+- ⚠️ Work-platform governance - NOT YET DEFINED (see v4.0 docs)
+- ✅ Governance purity enforced - All blocks via proposals
+
+**See**: [`GOVERNANCE_SEPARATION_REFACTOR_PLAN.md`](architecture/GOVERNANCE_SEPARATION_REFACTOR_PLAN.md) for current state.
 
 ### 🚨 CRITICAL: Governance Scope Boundaries
 
 **GOVERNED (Substrate Layer - Memory):**
 - `raw_dumps` creation (P0 - direct only, no proposals)
-- `blocks` mutations (P1 - via proposals, all semantic_types)
+- `blocks` mutations (P1 - via proposals, all semantic_types) ✅ ENFORCED
 - `timeline_events` (system controlled)
 
 **INDEPENDENT (Artifact Layer - Expression):**
