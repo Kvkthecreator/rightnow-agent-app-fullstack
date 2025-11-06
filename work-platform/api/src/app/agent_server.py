@@ -213,7 +213,8 @@ for r in routers:
 # Some OAuth clients may drop the /api prefix when following redirects
 # app.include_router(mcp_oauth_router)
 
-app.include_router(basket_router)
+# Phase 1A: basket_router removed - baskets managed by substrate-api
+# app.include_router(basket_router)
 # Phase 4/5: Legacy reflections router removed
 # app.include_router(reflections_router)
 app.include_router(narrative_jobs_router)
