@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
-import { ACCEPTED_FILE_TYPES, createBasketWithSeed } from '@/lib/baskets/createBasket';
+import { ACCEPTED_FILE_TYPES, createBasketWithSeed } from '@/lib/substrate/baskets';
 import { CANONICAL_MAX_FILE_SIZE_BYTES } from '@/shared/constants/canonical_file_types';
 import { cn } from '@/lib/utils';
 import { AlertCircle, CheckCircle2, Loader2, Upload } from 'lucide-react';

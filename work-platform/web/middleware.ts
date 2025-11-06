@@ -25,6 +25,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(redirectUrl, req.url));
   }
 
+  // Redirect /baskets to /projects (Phase 1 Work Platform migration)
+  if (req.nextUrl.pathname.startsWith('/baskets')) {
+    const redirectUrl = req.nextUrl.pathname.replace('/baskets', '/projects');
+    return NextResponse.redirect(new URL(redirectUrl, req.url));
+  }
+
   // Basket ID canonicalization disabled to prevent auth cascade failures
   // Per Canon v1.4.0: Middleware MUST NOT gate access by calling auth.getUser()
   // The resolve API triggers auth validation on every basket route request

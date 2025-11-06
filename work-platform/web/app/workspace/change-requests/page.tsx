@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import type { Database } from '@/lib/dbTypes';
 import { ensureSingleWorkspace } from '@/lib/canon/WorkspaceResolver';
-import { listBasketsByWorkspace } from '@/lib/baskets/listBasketsByWorkspace';
+import { listBasketsByWorkspace } from '@/lib/substrate/baskets';
 import WorkspaceChangeRequestsClient from '@/components/workspace/ChangeRequestsClient';
 import {
   buildWorkspaceChangeRequests,

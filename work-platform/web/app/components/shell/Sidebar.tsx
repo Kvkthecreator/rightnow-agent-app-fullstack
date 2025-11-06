@@ -5,12 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Inbox, Plug, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield, CloudUpload, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
-import { getAllBaskets } from "@/lib/baskets/getAllBaskets";
-import type { BasketOverview } from "@/lib/baskets/getAllBaskets";
+import { getAllProjects } from "@/lib/projects/getAllProjects";
+import type { ProjectOverview } from "@/lib/projects/getAllProjects";
 import SidebarToggleIcon from "@/components/icons/SidebarToggleIcon";
 import { useNavState } from "@/components/nav/useNavState";
 import SidebarItem from "@/components/nav/SidebarItem";
-import { SECTION_ORDER } from "@/components/features/baskets/sections";
+import { SECTION_ORDER } from "@/components/features/projects/sections";
 
 interface SidebarProps {
   className?: string;
@@ -35,8 +35,8 @@ const GLOBAL_LINKS = [
     icon: Inbox,
   },
   {
-    href: '/baskets',
-    label: 'Context Baskets',
+    href: '/projects',
+    label: 'Projects',
     icon: BookOpen,
   },
 ];
@@ -48,8 +48,8 @@ export default function Sidebar({ className }: SidebarProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [basket, setBasket] = useState<BasketOverview | null>(null);
-  const [basketList, setBasketList] = useState<BasketOverview[]>([]);
+  const [project, setProject] = useState<ProjectOverview | null>(null);
+  const [projectList, setProjectList] = useState<ProjectOverview[]>([]);
   const [openDropdown, setOpenDropdown] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   // Mobile detection and responsive behavior
@@ -78,29 +78,29 @@ export default function Sidebar({ className }: SidebarProps) {
         } = await supabase.auth.getUser();
         setUserEmail(user?.email || null);
 
-        const data = await getAllBaskets();
-        setBasketList(data);
+        const data = await getAllProjects();
+        setProjectList(data);
 
-        const idFromPath = pathname?.match(/^\/baskets\/([^/]+)/)?.[1];
+        const idFromPath = pathname?.match(/^\/projects\/([^/]+)/)?.[1];
         if (idFromPath) {
           const fallback = data.find((item) => item.id === idFromPath);
           if (fallback) {
-            setBasket(fallback);
+            setProject(fallback);
           } else {
-            setBasket({
+            setProject({
               id: idFromPath,
-              name: 'Untitled Basket',
+              name: 'Untitled Project',
+              description: null,
               created_at: new Date().toISOString(),
-              status: 'active',
-            } as BasketOverview);
+            } as ProjectOverview);
           }
         } else {
-          setBasket(null);
+          setProject(null);
         }
       } catch (err) {
         console.error("❌ Sidebar: Init error:", err);
-        setBasket(null);
-        setBasketList([]);
+        setProject(null);
+        setProjectList([]);
       }
     }
     init();
@@ -146,12 +146,17 @@ export default function Sidebar({ className }: SidebarProps) {
     }
   };
 
-  const activeBasketId = pathname?.match(/^\/baskets\/([^/]+)/)?.[1] || null;
-  const basketId = activeBasketId || basket?.id;
-  const isBasketDetail = Boolean(activeBasketId);
+  const activeProjectId = pathname?.match(/^\/projects\/([^/]+)/)?.[1] || null;
+  const projectId = activeProjectId || project?.id;
+  const isProjectDetail = Boolean(activeProjectId);
 
   // Map section keys to icons
   const sectionIcons: Record<string, React.ElementType> = {
+    overview: LayoutDashboard,
+    context: Layers,
+    "work-review": Inbox,
+    reports: FileText,
+    // Legacy basket sections (for backward compatibility during migration)
     memory: BookOpen,
     uploads: CloudUpload,
     governance: Shield,
@@ -209,7 +214,7 @@ export default function Sidebar({ className }: SidebarProps) {
 
         {/* Navigation */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {isBasketDetail && basket ? (
+          {isProjectDetail && project ? (
             <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
               <button
                 onClick={() => {
@@ -222,14 +227,14 @@ export default function Sidebar({ className }: SidebarProps) {
               </button>
               <section className="space-y-2">
                 <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Current Basket
+                  Current Project
                 </div>
                 <div className="rounded-md border-2 border-primary/40 bg-primary/5 px-3 py-2.5 text-sm font-semibold text-foreground shadow-sm">
-                  {basket.name || 'Untitled Basket'}
+                  {project.name || 'Untitled Project'}
                 </div>
                 <div className="flex flex-col gap-0.5 pt-2">
-                  {SECTION_ORDER.filter((section) => section.key !== 'documents').map((section) => {
-                    const href = section.href(basket.id);
+                  {SECTION_ORDER.map((section) => {
+                    const href = section.href(project.id);
                     const Icon = sectionIcons[section.key];
                     return (
                       <SidebarItem
@@ -246,16 +251,6 @@ export default function Sidebar({ className }: SidebarProps) {
                       </SidebarItem>
                     );
                   })}
-                  <SidebarItem
-                    href={`/baskets/${basket.id}/documents`}
-                    onClick={() => {
-                      if (isMobile) setOpen(false);
-                    }}
-                  >
-                    <span className="flex items-center gap-2">
-                      <FileText size={14} /> Documents
-                    </span>
-                  </SidebarItem>
                 </div>
               </section>
             </nav>
@@ -286,26 +281,26 @@ export default function Sidebar({ className }: SidebarProps) {
 
               <section className="space-y-1">
                 <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Context Baskets
+                  Projects
                 </p>
                 <div className="flex flex-col gap-0.5">
-                  {basketList.length === 0 ? (
-                    <p className="px-3 py-2 text-sm text-muted-foreground">No context baskets yet</p>
+                  {projectList.length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">No projects yet</p>
                   ) : (
-                    basketList.slice(0, 6).map((item) => (
+                    projectList.slice(0, 6).map((item) => (
                       <SidebarItem
                         key={item.id}
-                        href={`/baskets/${item.id}/overview`}
+                        href={`/projects/${item.id}/overview`}
                         match="startsWith"
                         onClick={() => {
                           if (isMobile) setOpen(false);
                         }}
                       >
-                        {item.name || 'Untitled Basket'}
+                        {item.name || 'Untitled Project'}
                       </SidebarItem>
                     ))
                   )}
-                  {/* No "see all" button: global nav entry already routes via Context Baskets */}
+                  {/* No "see all" button: global nav entry already routes via Projects */}
                 </div>
               </section>
             </nav>

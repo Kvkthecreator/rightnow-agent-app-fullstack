@@ -18,7 +18,7 @@ import {
   Plus,
   MoreVertical
 } from 'lucide-react';
-import { SubpageHeader } from '@/components/basket/SubpageHeader';
+import { SubpageHeader } from '@/components/ui/SubpageHeader';
 import type { BlockDTO } from '@/shared/contracts/documents';
 
 interface BlocksListViewProps {

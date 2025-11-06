@@ -4,7 +4,7 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import type { Database } from '@/lib/dbTypes';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { listBasketsByWorkspace } from '@/lib/baskets/listBasketsByWorkspace';
+import { listBasketsByWorkspace } from '@/lib/substrate/baskets';
 import { cn } from '@/lib/utils';
 import { apiGet } from '@/lib/server/http';
 import AlertAnnouncer, { type DashboardAlert as AnnouncerAlert } from '@/components/dashboard/AlertAnnouncer';
