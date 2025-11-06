@@ -1,72 +1,69 @@
-"""Work session model."""
+"""Work session model (Phase 1).
+
+Work sessions represent individual work requests within a project.
+Each session executes an agent with:
+- Context: From linked basket (substrate blocks)
+- Task: User-provided intent and parameters
+
+Phase 1 Scope:
+- Execute agent with context + task
+- Collect artifacts during execution
+- Checkpoint for user review
+- Store artifact review status (NO substrate application yet)
+"""
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
-class WorkSessionStatus(str, Enum):
-    """Work session status."""
-
-    INITIALIZED = "initialized"
-    IN_PROGRESS = "in_progress"
-    AWAITING_CHECKPOINT = "awaiting_checkpoint"
-    AWAITING_FINAL_APPROVAL = "awaiting_final_approval"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    FAILED = "failed"
-
-
-class WorkSessionApprovalStrategy(str, Enum):
-    """Approval strategy for work sessions."""
-
-    CHECKPOINT_REQUIRED = "checkpoint_required"
-    FINAL_ONLY = "final_only"
-    AUTO_APPROVE_LOW_RISK = "auto_approve_low_risk"
-
-
 class TaskType(str, Enum):
-    """Task type classification."""
+    """Task type classification (simplified for Phase 1)."""
 
     RESEARCH = "research"
-    SYNTHESIS = "synthesis"
+    CONTENT_CREATION = "content_creation"
     ANALYSIS = "analysis"
-    COMPOSITION = "composition"
-    UPDATE = "update"
+
+
+class WorkSessionStatus(str, Enum):
+    """Work session execution status."""
+
+    PENDING = "pending"  # Created, not yet started
+    RUNNING = "running"  # Agent is executing
+    PAUSED = "paused"  # At checkpoint, waiting for user decision
+    COMPLETED = "completed"  # Successfully finished
+    FAILED = "failed"  # Execution failed
 
 
 class WorkSession(BaseModel):
-    """Work session tracking agent execution."""
+    """Work session model - individual work request."""
 
     id: UUID
-    workspace_id: UUID
-    basket_id: UUID
+
+    # Relationships
+    project_id: UUID  # Which project this belongs to
+    basket_id: UUID  # Context source (denormalized from project)
+    workspace_id: UUID  # Workspace (denormalized from project)
     initiated_by_user_id: UUID
-    executed_by_agent_id: Optional[str] = None
-    agent_session_id: Optional[str] = None
 
-    task_intent: str
+    # Task definition (from user input)
     task_type: TaskType
-    task_document_id: Optional[UUID] = None
+    task_intent: str  # Natural language: "Write LinkedIn post about our startup"
+    task_parameters: Dict[str, Any] = Field(default_factory=dict)  # JSONB: flexible params
 
-    status: WorkSessionStatus = WorkSessionStatus.INITIALIZED
-    approval_strategy: WorkSessionApprovalStrategy = WorkSessionApprovalStrategy.FINAL_ONLY
-    confidence_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+    # Execution state
+    status: WorkSessionStatus = WorkSessionStatus.PENDING
+    executed_by_agent_id: Optional[str] = None  # e.g., 'research_agent'
 
-    reasoning_trail: List[Dict[str, Any]] = Field(default_factory=list)
-    context_snapshot: Optional[Dict[str, Any]] = None
-
-    artifacts_count: int = 0
-    substrate_mutations_count: int = 0
-
+    # Timestamps
     created_at: datetime
-    updated_at: datetime
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
 
+    # Execution metadata (step progress, errors, etc.)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     class Config:
@@ -78,24 +75,35 @@ class WorkSession(BaseModel):
 class WorkSessionCreate(BaseModel):
     """Create work session request."""
 
-    workspace_id: UUID
-    basket_id: UUID
-    task_intent: str
+    project_id: UUID
     task_type: TaskType
-    task_document_id: Optional[UUID] = None
-    approval_strategy: WorkSessionApprovalStrategy = WorkSessionApprovalStrategy.FINAL_ONLY
-    confidence_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
-    executed_by_agent_id: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    task_intent: str = Field(..., min_length=1, max_length=1000)
+    task_parameters: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:
+        """Pydantic config."""
+
+        json_schema_extra = {
+            "example": {
+                "project_id": "123e4567-e89b-12d3-a456-426614174000",
+                "task_type": "content_creation",
+                "task_intent": "Write a LinkedIn post about our AI sales assistant product",
+                "task_parameters": {
+                    "platform": "linkedin",
+                    "target_audience": "sales leaders",
+                    "tone": "professional",
+                    "length": "short",
+                    "cta": "Book a demo",
+                },
+            }
+        }
 
 
 class WorkSessionUpdate(BaseModel):
-    """Update work session request."""
+    """Update work session (used internally by executor)."""
 
     status: Optional[WorkSessionStatus] = None
-    agent_session_id: Optional[str] = None
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
-    reasoning_trail: Optional[List[Dict[str, Any]]] = None
-    context_snapshot: Optional[Dict[str, Any]] = None
+    executed_by_agent_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None

@@ -93,6 +93,9 @@ from .routes.agent_orchestration import router as agent_orchestration_router
 from .routes.projects import router as projects_router
 # Legacy: work_requests router kept for backward compatibility
 from .routes.work_requests import router as work_requests_router
+# Phase 1: Work platform (Projects & Work Sessions)
+from .work.routes import router as work_platform_router
+from .work.review_routes import router as work_review_router
 
 
 def _assert_env():
@@ -191,6 +194,9 @@ routers = (
     projects_router,
     # Legacy: work_requests for backward compatibility
     work_requests_router,
+    # Phase 1: Work platform API
+    work_platform_router,
+    work_review_router,
 )
 
 # Add correlation middleware
