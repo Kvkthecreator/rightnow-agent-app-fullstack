@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import React from "react";
 import Link from "next/link";
-import { SECTION_ORDER } from "@/components/features/baskets/sections";
+import { SECTION_ORDER } from "@/components/features/projects/sections";
 import UserNav from "@/components/UserNav";
 import ActionCenter from "@/components/notifications/ActionCenter";
 
@@ -29,11 +29,12 @@ export default function TopBar() {
       {} as Record<string, string>
     );
 
-    if (segments[0] === "baskets") {
-      const basketId = segments[1];
-      items.push({ label: "Baskets", href: "/baskets" });
-      if (basketId) {
-        items.push({ label: "Basket", href: `/baskets/${basketId}/overview` });
+    // Handle both /projects and /baskets (baskets redirect to projects via middleware)
+    if (segments[0] === "projects" || segments[0] === "baskets") {
+      const projectId = segments[1];
+      items.push({ label: "Projects", href: "/projects" });
+      if (projectId) {
+        items.push({ label: "Project", href: `/projects/${projectId}/overview` });
       }
       const section = segments[2];
       if (section) {

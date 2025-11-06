@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { SubpageHeader } from "@/components/basket/SubpageHeader";
+import { SubpageHeader } from "@/components/ui/SubpageHeader";
 
 interface BasketSubpageLayoutProps {
   basketId: string;

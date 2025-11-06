@@ -1,6 +1,6 @@
 "use client";
-import { useBlocks } from "@/lib/baskets/useBlocks";
-import type { BlockRow } from "@/lib/baskets/useBlocks";
+import { useBlocks } from "@/lib/substrate/useBlocks";
+import type { BlockRow } from "@/lib/substrate/useBlocks";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);

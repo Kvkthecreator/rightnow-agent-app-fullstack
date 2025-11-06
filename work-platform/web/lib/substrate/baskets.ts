@@ -64,7 +64,7 @@ export async function pickMostRelevantBasket(
  * Accepted file types for basket uploads
  * Kept minimal - full validation happens in substrate-api
  */
-export const ACCEPTED_FILE_TYPES = [
+const ACCEPTED_FILE_TYPES_ARRAY = [
   '.txt',
   '.md',
   '.json',
@@ -74,42 +74,64 @@ export const ACCEPTED_FILE_TYPES = [
   '.docx',
 ] as const;
 
+export const ACCEPTED_FILE_TYPES = ACCEPTED_FILE_TYPES_ARRAY.join(',');
+
 /**
  * Create a basket with seed content
  * TODO: This should be a POST to substrate-api HTTP endpoint
- * For now, keeping minimal stub
+ * For now, keeping minimal stub with expected parameters
  */
 export async function createBasketWithSeed(params: {
-  workspaceId: string;
   name: string;
+  mode?: string;
+  rawDump?: string;
+  files?: File[];
   description?: string;
-  seedContent?: string;
-}): Promise<{ basket: BasketOverview | null; error: any }> {
+}): Promise<{ nextUrl: string }> {
   const supabase = createBrowserClient();
 
   try {
+    // Get current user's workspace
+    const { data: auth } = await supabase.auth.getUser();
+    const userId = auth?.user?.id;
+    if (!userId) {
+      throw new Error('Not authenticated');
+    }
+
+    const { data: membership } = await supabase
+      .from('workspace_memberships')
+      .select('workspace_id')
+      .eq('user_id', userId)
+      .limit(1)
+      .single();
+
+    if (!membership?.workspace_id) {
+      throw new Error('No workspace found');
+    }
+
     // Call substrate-api to create basket
     // For now, direct DB insert (TEMPORARY - should be HTTP call)
     const { data, error } = await supabase
       .from('baskets')
       .insert({
-        workspace_id: params.workspaceId,
+        workspace_id: membership.workspace_id,
         name: params.name,
         description: params.description || null,
         status: 'active',
       })
-      .select('id, name, description, status, workspace_id, created_at, updated_at')
+      .select('id')
       .single();
 
     if (error) {
-      return { basket: null, error };
+      throw error;
     }
 
-    // TODO: Send seedContent to substrate-api for processing
+    // TODO: Send rawDump and files to substrate-api for processing
+    // For now, just return the basket URL
 
-    return { basket: data, error: null };
+    return { nextUrl: `/baskets/${data.id}/overview` };
   } catch (e) {
     console.error('❌ Failed to create basket:', e);
-    return { basket: null, error: e };
+    throw e;
   }
 }

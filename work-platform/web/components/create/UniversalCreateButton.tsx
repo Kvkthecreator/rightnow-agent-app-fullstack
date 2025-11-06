@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { resolveTargetBasket } from "@/lib/baskets/resolveTargetBasket";
 
 interface Props {
   variant?: "default" | "outline" | "ghost";
@@ -15,20 +14,16 @@ interface Props {
 
 export default function UniversalCreateButton({
   variant = "default",
-  size = "md", 
+  size = "md",
   className,
   children,
   context = "inline"
 }: Props) {
   const router = useRouter();
 
-  const handleCreateBasket = async () => {
-    try {
-      const id = await resolveTargetBasket();
-      router.push(`/baskets/${id}/overview#add`);
-    } catch (e) {
-      console.error("Failed to resolve basket", e);
-    }
+  const handleCreateBasket = () => {
+    // Redirect to projects page (baskets managed by substrate-api)
+    router.push('/projects');
   };
 
   // Context-specific button content and styling
