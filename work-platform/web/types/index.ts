@@ -9,5 +9,13 @@ export * from "@/shared/contracts";
 // Legacy exports for compatibility
 export type { Document } from "@/shared/contracts/documents";
 export type { Block, BlockWithHistory } from "@/shared/contracts/blocks";
-export type { Basket } from "@/shared/contracts/baskets";
 export type { Dump, RawDump } from "@/shared/contracts/dumps";
+
+// Basket type (deprecated - baskets now handled by substrate-api)
+export interface Basket {
+  id: string;
+  name: string;
+  workspace_id: string;
+  created_at: string;
+  updated_at: string;
+}

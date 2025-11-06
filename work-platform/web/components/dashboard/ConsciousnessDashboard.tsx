@@ -19,11 +19,11 @@ import { YarnnnMemorySubstrate } from '@/components/thinking/YarnnnMemorySubstra
 import { Brain, Sparkles, FileCheck } from 'lucide-react';
 import OrganicSpinner from '@/components/ui/OrganicSpinner';
 import { ErrorMessage } from '@/components/ui/ErrorMessage';
-import { useBasket } from '@/contexts/BasketContext';
-import { 
-  analyzeConversationIntent, 
+import { createBrowserClient } from '@/lib/supabase/clients';
+import {
+  analyzeConversationIntent,
   createConversationGenerationRequest,
-  type ConversationTriggeredGeneration 
+  type ConversationTriggeredGeneration
 } from '@/lib/intelligence/conversationAnalyzer';
 import { useState as useToastState } from 'react';
 import { useWorkspaceId } from '@/hooks/useWorkspaceId';
@@ -46,11 +46,23 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     setToast({ message: `${title}: ${message}`, type: 'info' });
     setTimeout(() => setToast(null), 4000);
   };
-  
-  // Get basket data from context
-  const { basket, updateBasketName } = useBasket();
+
+  // Get basket data directly
+  const [basket, setBasket] = useState<{ name?: string } | null>(null);
   const [lastActive, setLastActive] = useState<string>(new Date().toISOString());
+
   useEffect(() => {
+    const fetchBasket = async () => {
+      const supabase = createBrowserClient();
+      const { data } = await supabase
+        .from('baskets')
+        .select('name')
+        .eq('id', basketId)
+        .single();
+      setBasket(data);
+    };
+    fetchBasket();
+
     fetch(`/api/baskets/${basketId}/state`)
       .then((r) => r.json())
       .then((d) => {
@@ -272,10 +284,17 @@ export function ConsciousnessDashboard({ basketId }: ConsciousnessDashboardProps
     }
   };
 
-  // Handle basket name change - now much simpler!
+  // Handle basket name change
   const handleNameChange = async (newName: string) => {
-    // The context handles all the API calls and state updates
-    await updateBasketName(newName);
+    const supabase = createBrowserClient();
+    const { error } = await supabase
+      .from('baskets')
+      .update({ name: newName })
+      .eq('id', basketId);
+
+    if (!error) {
+      setBasket({ ...basket, name: newName });
+    }
   };
 
   if (error || hasErrors) {

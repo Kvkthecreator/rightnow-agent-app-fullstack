@@ -1,24 +1,30 @@
 'use client';
 
-import { useBasket as useBasketContext } from '@/contexts/BasketContext';
-import { useBasket as useBasketQuery } from '@/hooks/useBasket';
+import { useState, useEffect } from 'react';
+import { createBrowserClient } from '@/lib/supabase/clients';
 
 /**
  * Hook to get the workspace ID from the current basket
- * Falls back to basket query if context is not available
  */
 export function useWorkspaceId(basketId: string): string | null {
-  // Try to get from context first (faster if available)
-  try {
-    const contextBasket = useBasketContext();
-    if (contextBasket?.basket?.workspace_id) {
-      return contextBasket.basket.workspace_id;
-    }
-  } catch {
-    // Context not available, fall through to query
-  }
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
-  // Fall back to query
-  const { data: basket } = useBasketQuery(basketId);
-  return basket?.workspace_id || null;
+  useEffect(() => {
+    if (!basketId) return;
+
+    const fetchWorkspaceId = async () => {
+      const supabase = createBrowserClient();
+      const { data } = await supabase
+        .from('baskets')
+        .select('workspace_id')
+        .eq('id', basketId)
+        .single();
+
+      setWorkspaceId(data?.workspace_id || null);
+    };
+
+    fetchWorkspaceId();
+  }, [basketId]);
+
+  return workspaceId;
 }

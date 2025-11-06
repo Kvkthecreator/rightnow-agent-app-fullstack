@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 // Import our document management hook
-import { useBasketDocuments } from "@/lib/hooks/useBasketDocuments";
+import { useDocuments } from "@/lib/substrate/useDocuments";
 
 // Import document components
 import { DocumentGrid } from "@/components/documents/DocumentGrid";
@@ -24,7 +24,7 @@ export function DocumentsView({ basketId, basketName, documentId }: DocumentsVie
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { documents, isLoading } = useBasketDocuments(basketId);
+  const { documents, isLoading } = useDocuments(basketId);
 
   // Find active document if documentId provided
   const activeDocument = documentId ? documents.find((doc: any) => doc.id === documentId) : null;

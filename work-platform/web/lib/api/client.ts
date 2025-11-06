@@ -6,9 +6,22 @@
  * @contract output : BasketDelta
  */
 
-import type { BasketChangeRequest, BasketDelta } from '@/shared/contracts/basket'
 import { fetchWithToken } from '@/lib/fetchWithToken'
 import { getCacheManager } from '@/lib/performance/CacheManager'
+
+// Legacy basket types (deprecated - baskets now handled by substrate-api)
+export interface BasketChangeRequest {
+  type: string;
+  data?: any;
+}
+
+export interface BasketDelta {
+  id: string;
+  basket_id: string;
+  type: string;
+  status: string;
+  created_at: string;
+}
 
 // Use local Next.js API routes to avoid CORS issues
 const API_BASE_URL = typeof window !== 'undefined' 

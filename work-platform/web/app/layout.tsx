@@ -3,7 +3,6 @@ import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import "../styles/diff.css";
 
-import { BasketProvider } from "@/lib/context/BasketContext";
 import DumpModalWrapper from "@/components/DumpModalWrapper";
 import ClientLayoutShell from "@/components/shell/ClientLayoutShell";
 
@@ -58,12 +57,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Providers>
             <SupabaseProvider>
               <NotificationProvider>
-                <BasketProvider>
-                  <RequestBoundary>
-                    <ClientLayoutShell>{children}</ClientLayoutShell>
-                  </RequestBoundary>
-                  <DumpModalWrapper />
-                </BasketProvider>
+                <RequestBoundary>
+                  <ClientLayoutShell>{children}</ClientLayoutShell>
+                </RequestBoundary>
+                <DumpModalWrapper />
               </NotificationProvider>
             </SupabaseProvider>
           </Providers>

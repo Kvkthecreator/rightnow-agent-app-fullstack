@@ -1,7 +1,7 @@
 // Shared contracts - all types used across frontend and backend
 
 // Core domain entities
-export * from './baskets';
+// Baskets removed - now handled by substrate-api
 export * from './blocks';
 export * from './documents';
 export * from './dumps';

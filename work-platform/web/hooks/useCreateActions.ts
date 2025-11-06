@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useBasket } from "@/contexts/BasketContext";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 import { createDocumentWithPrompt } from "@/lib/documents/createDocument";
 import { createDump } from "@/lib/api/dumps";
@@ -15,10 +15,12 @@ import { notificationService } from "@/lib/notifications/service";
  */
 export function useCreateActions() {
   const router = useRouter();
-  const { basket } = useBasket();
+  const pathname = usePathname();
   const { user } = useAuth();
 
-  const basketId = basket?.id;
+  // Extract basket ID from URL like /baskets/[id]/...
+  const match = pathname?.match(/\/baskets\/([^\/]+)/);
+  const basketId = match?.[1] || null;
 
   return {
     quickDump: () => {

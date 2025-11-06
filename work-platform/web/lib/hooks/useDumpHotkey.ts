@@ -1,11 +1,15 @@
 "use client";
 import { useEffect } from "react";
-import { useBasket } from "@/lib/context/BasketContext";
+import { usePathname } from "next/navigation";
 import { openDumpModal } from "@/components/DumpModal";
 import { notificationService } from '@/lib/notifications/service';
 
 export default function useDumpHotkey() {
-  const { currentBasketId } = useBasket();
+  const pathname = usePathname();
+  // Extract basket ID from URL like /baskets/[id]/...
+  const match = pathname?.match(/\/baskets\/([^\/]+)/);
+  const currentBasketId = match?.[1] || null;
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const isCombo = (e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "v";
