@@ -48,10 +48,11 @@ async def get_canonical_queue_health():
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
 from .routes.auth_health import router as auth_health_router
-from .routes.basket_from_template import router as template_router
-from .routes.basket_new import router as basket_new_router
-from .routes.basket_snapshot import router as snapshot_router
-from .routes.baskets import router as basket_router
+# Phase 1A: Basket routes removed - baskets managed by substrate-api
+# from .routes.basket_from_template import router as template_router
+# from .routes.basket_new import router as basket_new_router
+# from .routes.basket_snapshot import router as snapshot_router
+# from .routes.baskets import router as basket_router
 from .routes.block_lifecycle import router as block_lifecycle_router
 from .routes.blocks import router as blocks_router
 from .routes.change_queue import router as change_queue_router
@@ -151,8 +152,9 @@ routers = (
     commits_router,
     blocks_router,
     change_queue_router,
-    basket_new_router,
-    snapshot_router,
+    # Phase 1A: Basket routers removed - baskets managed by substrate-api
+    # basket_new_router,
+    # snapshot_router,
     inputs_router,
     debug_router,
     agent_router,
@@ -163,7 +165,8 @@ routers = (
     block_lifecycle_router,
     # Phase 4/5: Legacy agent_memory_router removed
     # agent_memory_router,
-    template_router,
+    # Phase 1A: template_router removed
+    # template_router,
     context_intelligence_router,
     # Phase 4/5: Legacy narrative_intelligence_router removed
     # narrative_intelligence_router,
