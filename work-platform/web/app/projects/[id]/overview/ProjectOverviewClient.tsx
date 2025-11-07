@@ -12,6 +12,7 @@ interface ProjectData {
   name: string;
   description: string | null;
   basket_id: string;
+  basket_name: string;
   project_type: string;
   status: string;
   workspace_id: string;
@@ -204,7 +205,7 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-sm font-semibold text-slate-700 mb-1">Linked Context</h3>
-            <p className="text-lg font-medium text-slate-900">{project.name} Knowledge Base</p>
+            <p className="text-lg font-medium text-slate-900">{project.basket_name}</p>
             <p className="text-sm text-slate-600 mt-1">
               This project uses context from the linked basket. All work requests have access to this knowledge base.
             </p>

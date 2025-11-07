@@ -165,6 +165,118 @@ async def create_basket(
         ) from e
 
 
+@router.get("/{basket_id}", status_code=200)
+async def get_basket(
+    basket_id: str,
+    db=Depends(get_db),  # noqa: B008
+):
+    """
+    Get basket details with stats.
+
+    Service-to-service endpoint for BFF pattern. Returns basket metadata
+    and aggregate counts (blocks, documents).
+
+    Args:
+        basket_id: Basket UUID
+        db: Database connection
+
+    Returns:
+        {
+            "id": "...",
+            "name": "...",
+            "status": "...",
+            "workspace_id": "...",
+            "user_id": "...",
+            "created_at": "...",
+            "updated_at": "...",
+            "stats": {
+                "blocks_count": 0,
+                "documents_count": 0
+            }
+        }
+
+    Raises:
+        HTTPException 404: Basket not found
+        HTTPException 500: Database error
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Validate basket_id is valid UUID
+        try:
+            basket_uuid = UUID(basket_id)
+        except (ValueError, AttributeError) as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid basket_id format: {basket_id}",
+            ) from e
+
+        # Fetch basket with stats
+        basket_query = """
+            SELECT
+                id,
+                name,
+                status,
+                workspace_id,
+                user_id,
+                created_at,
+                updated_at
+            FROM baskets
+            WHERE id = :basket_id
+        """
+
+        basket = await db.fetch_one(basket_query, values={"basket_id": str(basket_uuid)})
+
+        if not basket:
+            raise HTTPException(status_code=404, detail="Basket not found")
+
+        # Get blocks count
+        blocks_count_query = """
+            SELECT COUNT(*) as count
+            FROM blocks
+            WHERE basket_id = :basket_id
+            AND state IN ('CONSTANT', 'LOCKED', 'ACCEPTED', 'PROPOSED')
+        """
+        blocks_result = await db.fetch_one(blocks_count_query, values={"basket_id": str(basket_uuid)})
+        blocks_count = blocks_result["count"] if blocks_result else 0
+
+        # Get documents count
+        documents_count_query = """
+            SELECT COUNT(*) as count
+            FROM documents
+            WHERE basket_id = :basket_id
+        """
+        documents_result = await db.fetch_one(documents_count_query, values={"basket_id": str(basket_uuid)})
+        documents_count = documents_result["count"] if documents_result else 0
+
+        logger.info(f"[BASKET GET] Fetched basket {basket_id}: {blocks_count} blocks, {documents_count} documents")
+
+        return {
+            "id": str(basket["id"]),
+            "name": basket["name"],
+            "status": basket["status"],
+            "workspace_id": str(basket["workspace_id"]),
+            "user_id": str(basket["user_id"]) if basket["user_id"] else None,
+            "created_at": basket["created_at"].isoformat(),
+            "updated_at": basket["updated_at"].isoformat() if basket.get("updated_at") else None,
+            "stats": {
+                "blocks_count": blocks_count,
+                "documents_count": documents_count,
+            },
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.exception(f"Failed to fetch basket {basket_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch basket: {str(e)}"
+        ) from e
+
+
 @router.post("/{basket_id}/work", response_model=BasketDelta)
 async def post_basket_work(
     basket_id: str,

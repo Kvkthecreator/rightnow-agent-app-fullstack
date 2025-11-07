@@ -67,23 +67,43 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     failed: workSessions?.filter(s => s.status === 'failed').length || 0,
   };
 
-  // TODO: Fetch blocks and documents from substrate-api via HTTP
-  // These tables are in substrate DB, not work-platform DB
-  // For now, set to 0 until we implement substrate client calls
-  const blocksCount = 0;
-  const documentsCount = 0;
+  // Fetch basket data from substrate-api via BFF pattern
+  // Call our Next.js API route which proxies to substrate-api
+  let blocksCount = 0;
+  let documentsCount = 0;
+  let basketName = project.name;
 
-  // Future implementation:
-  // const substrateClient = getSubstrateClient();
-  // const basket = await substrateClient.getBasket(project.basket_id);
-  // const blocksCount = basket.blocks_count;
-  // const documentsCount = basket.documents_count;
+  try {
+    const basketResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/baskets/${project.basket_id}`,
+      {
+        headers: {
+          // Forward cookies for authentication
+          Cookie: (await cookies()).toString(),
+        },
+        cache: 'no-store', // Always fetch fresh data
+      }
+    );
+
+    if (basketResponse.ok) {
+      const basketData = await basketResponse.json();
+      blocksCount = basketData.stats?.blocks_count || 0;
+      documentsCount = basketData.stats?.documents_count || 0;
+      basketName = basketData.name || project.name;
+    } else {
+      console.warn(`[Project Overview] Failed to fetch basket ${project.basket_id}: ${basketResponse.status}`);
+    }
+  } catch (error) {
+    console.error(`[Project Overview] Error fetching basket ${project.basket_id}:`, error);
+    // Continue with 0 counts if fetch fails
+  }
 
   const projectData = {
     id: project.id,
     name: project.name,
     description: project.description,
     basket_id: project.basket_id,
+    basket_name: basketName,
     project_type: project.project_type,
     status: project.status,
     workspace_id: project.workspace_id,
