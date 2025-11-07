@@ -1,12 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 
 const WORK_PLATFORM_API_URL = process.env.NEXT_PUBLIC_WORK_PLATFORM_API_URL || 'http://localhost:8000';
 
+/**
+ * Extract access token using canonical pattern from lib/server/http.ts
+ * Tries headers first, then cookies (per YARNNN_AUTH_CANON.md)
+ */
+function requireAccessToken(): string {
+  const h = headers();
+
+  // Try sb-access-token header
+  const sb = h.get('sb-access-token');
+  if (sb) return sb;
+
+  // Try Authorization header
+  const auth = h.get('authorization');
+  if (auth?.startsWith('Bearer ')) return auth.slice(7);
+
+  // Fall back to cookie
+  const c = cookies().get('sb-access-token')?.value;
+  if (c) return c;
+
+  throw new Error('NO_TOKEN');
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // Extract and validate auth token (canonical pattern)
+    let token: string;
+    try {
+      token = requireAccessToken();
+    } catch (e) {
+      return NextResponse.json(
+        { detail: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
-    
+
     const projectName = formData.get('project_name') as string;
     const initialContext = formData.get('initial_context') as string;
     const description = formData.get('description') as string | null;
@@ -29,19 +62,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get JWT token from cookies
-    const cookieStore = await cookies();
-    const token = cookieStore.get('sb-access-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json(
-        { detail: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    // Forward to work-platform backend
-    // The backend expects: project_name, project_type (defaults to "general"), initial_context, description
+    // Forward to work-platform backend (canonical auth pattern)
     const backendPayload = {
       project_name: projectName.trim(),
       project_type: 'general', // Default project type since it's just a container
@@ -49,11 +70,13 @@ export async function POST(request: NextRequest) {
       description: description?.trim() || undefined,
     };
 
+    // Send both Authorization AND sb-access-token headers (per AUTH_CANON.md line 7-9)
     const backendResponse = await fetch(`${WORK_PLATFORM_API_URL}/api/projects/new`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
+        'sb-access-token': token,  // Both headers required
       },
       body: JSON.stringify(backendPayload),
     });
