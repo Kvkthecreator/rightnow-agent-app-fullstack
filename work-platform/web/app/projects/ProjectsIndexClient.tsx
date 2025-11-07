@@ -47,16 +47,18 @@ export function ProjectsIndexClient({ projects }: { projects: ProjectSummary[] }
   };
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Projects</h1>
+    <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
+      <div className="flex items-start justify-between gap-4">
+        <header className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Projects</h1>
           <p className="text-sm text-muted-foreground">
             Manage your work projects. Each project contains context and work requests for agent collaboration.
           </p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>New Project</Button>
-      </header>
+        </header>
+        {hasProjects && (
+          <Button onClick={() => setDialogOpen(true)}>New Project</Button>
+        )}
+      </div>
 
       {!hasProjects ? (
         <section className="rounded-xl border border-dashed border-border bg-muted/20 p-12 text-center">
