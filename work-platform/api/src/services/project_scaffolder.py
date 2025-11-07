@@ -203,18 +203,18 @@ async def scaffold_new_project(
         # Step 4: Create Project (work-platform DB)
         # ================================================================
 
-        # CRITICAL: PostgREST schema cache is completely stale for projects table
-        # Only insert absolute minimum required fields until cache is reloaded
+        # Match actual production schema (migration 20251104 never ran)
+        # Production table has: id, workspace_id, basket_id, name, description,
+        # created_by_user_id, created_at, updated_at, status
         project_data = {
             "workspace_id": workspace_id,
-            "user_id": user_id,
+            "created_by_user_id": user_id,  # Column is created_by_user_id, not user_id
             "name": project_name,
             "basket_id": basket_id,
-            # All other fields commented out due to PostgREST PGRST204 errors
-            # Uncomment after reloading schema cache in Supabase Dashboard
-            # "description": description,
+            "description": description,
+            "status": "active",
+            # These columns don't exist in production yet (migration never ran):
             # "project_type": project_type,
-            # "status": "active",
             # "origin_template": "onboarding_v1",
             # "onboarded_at": datetime.utcnow().isoformat(),
             # "metadata": {...},
