@@ -13,6 +13,7 @@ const SHOW_SIDEBAR_ROUTES = [
   "/blocks",
   "/context",
   "/workspace",
+  "/projects",
 ];
 
 // Deep routes where the sidebar should remain hidden
