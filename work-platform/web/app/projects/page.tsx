@@ -11,7 +11,7 @@ export default async function ProjectsPage() {
   const { userId } = await getAuthenticatedUser(supabase);
   const workspace = await ensureWorkspaceForUser(userId, supabase);
 
-  // Fetch projects with their associated baskets
+  // Fetch projects (baskets are in substrate-api DB, can't join)
   const { data: projects = [], error: projectsError } = await supabase
     .from('projects')
     .select(`
@@ -19,13 +19,10 @@ export default async function ProjectsPage() {
       name,
       description,
       basket_id,
+      project_type,
+      status,
       created_at,
-      updated_at,
-      baskets!inner(
-        id,
-        name,
-        status
-      )
+      updated_at
     `)
     .eq('workspace_id', workspace.id)
     .order('created_at', { ascending: false });
@@ -65,8 +62,8 @@ export default async function ProjectsPage() {
     name: project.name,
     description: project.description,
     basket_id: project.basket_id,
-    basket_name: project.baskets?.name,
-    basket_status: project.baskets?.status,
+    project_type: project.project_type,
+    status: project.status,
     created_at: project.created_at,
     updated_at: project.updated_at,
     pendingWork: sessionsByProject.get(project.id) ?? { count: 0, lastCreatedAt: null, taskType: null },
