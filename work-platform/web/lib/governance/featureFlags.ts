@@ -35,13 +35,11 @@ const DEFAULT_FLAGS: GovernanceFlags = {
  * DEPRECATED: Environment-only flags (use useWorkspaceGovernance instead)
  */
 export function getGovernanceFlags(): GovernanceFlags {
-  console.warn('getGovernanceFlags() is deprecated - use useWorkspaceGovernance() hook for workspace-aware governance');
   
   const envFlags: Partial<GovernanceFlags> = {};
   
   if (typeof window !== 'undefined') {
     // Client-side: return defaults and warn
-    console.warn('Client-side environment access deprecated - use server API');
     return DEFAULT_FLAGS;
   }
   
