@@ -213,11 +213,14 @@ async def scaffold_new_project(
             "status": "active",
             "origin_template": "onboarding_v1",
             "onboarded_at": datetime.utcnow().isoformat(),
-            "metadata": {
-                "dump_id": dump_id,
-                "initial_context_length": len(initial_context),
-                "agent_type": agent_type,
-            },
+            # TODO: Re-enable metadata after PostgREST schema cache is reloaded
+            # PostgREST PGRST204: "Could not find the 'metadata' column in schema cache"
+            # Workaround: Remove until Supabase schema cache refreshes
+            # "metadata": {
+            #     "dump_id": dump_id,
+            #     "initial_context_length": len(initial_context),
+            #     "agent_type": agent_type,
+            # },
         }
 
         try:
