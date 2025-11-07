@@ -12,10 +12,10 @@ interface ProjectData {
   name: string;
   description: string | null;
   basket_id: string;
-  basket_name: string | null;
-  basket_status: string | null;
+  project_type: string;
+  status: string;
   workspace_id: string;
-  created_by_user_id: string;
+  user_id: string;
   created_at: string;
   updated_at: string;
   stats: {

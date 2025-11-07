@@ -21,7 +21,7 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
   const supabase = createServerComponentClient({ cookies });
   const { userId } = await getAuthenticatedUser(supabase);
 
-  // Fetch project with basket info
+  // Fetch project (baskets are in separate DB, fetch separately via API)
   const { data: project } = await supabase
     .from('projects')
     .select(`
@@ -30,15 +30,11 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
       description,
       basket_id,
       workspace_id,
-      created_by_user_id,
+      user_id,
+      project_type,
+      status,
       created_at,
-      updated_at,
-      baskets!inner(
-        id,
-        name,
-        description,
-        status
-      )
+      updated_at
     `)
     .eq('id', projectId)
     .maybeSingle() as { data: any };
@@ -71,27 +67,27 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     failed: workSessions?.filter(s => s.status === 'failed').length || 0,
   };
 
-  // Fetch context blocks count (from basket)
-  const { count: blocksCount } = await supabase
-    .from('blocks')
-    .select('id', { count: 'exact', head: true })
-    .eq('basket_id', project.basket_id);
+  // TODO: Fetch blocks and documents from substrate-api via HTTP
+  // These tables are in substrate DB, not work-platform DB
+  // For now, set to 0 until we implement substrate client calls
+  const blocksCount = 0;
+  const documentsCount = 0;
 
-  // Fetch documents count (reports)
-  const { count: documentsCount } = await supabase
-    .from('documents')
-    .select('id', { count: 'exact', head: true })
-    .eq('basket_id', project.basket_id);
+  // Future implementation:
+  // const substrateClient = getSubstrateClient();
+  // const basket = await substrateClient.getBasket(project.basket_id);
+  // const blocksCount = basket.blocks_count;
+  // const documentsCount = basket.documents_count;
 
   const projectData = {
     id: project.id,
     name: project.name,
     description: project.description,
     basket_id: project.basket_id,
-    basket_name: project.baskets?.name,
-    basket_status: project.baskets?.status,
+    project_type: project.project_type,
+    status: project.status,
     workspace_id: project.workspace_id,
-    created_by_user_id: project.created_by_user_id,
+    user_id: project.user_id,
     created_at: project.created_at,
     updated_at: project.updated_at,
     stats: {
