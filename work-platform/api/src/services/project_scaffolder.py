@@ -203,21 +203,22 @@ async def scaffold_new_project(
         # Step 4: Create Project (work-platform DB)
         # ================================================================
 
-        # Match actual production schema (migration 20251104 never ran)
-        # Production table has: id, workspace_id, basket_id, name, description,
-        # created_by_user_id, created_at, updated_at, status
+        # Production schema aligned via migration 20251107_align_projects_schema.sql
         project_data = {
             "workspace_id": workspace_id,
-            "created_by_user_id": user_id,  # Column is created_by_user_id, not user_id
+            "user_id": user_id,
             "name": project_name,
             "basket_id": basket_id,
             "description": description,
             "status": "active",
-            # These columns don't exist in production yet (migration never ran):
-            # "project_type": project_type,
-            # "origin_template": "onboarding_v1",
-            # "onboarded_at": datetime.utcnow().isoformat(),
-            # "metadata": {...},
+            "project_type": project_type,
+            "origin_template": "onboarding_v1",
+            "onboarded_at": datetime.utcnow().isoformat(),
+            "metadata": {
+                "dump_id": dump_id,
+                "initial_context_length": len(initial_context),
+                "agent_type": agent_type,
+            },
         }
 
         try:
