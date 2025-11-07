@@ -46,14 +46,13 @@ class CreateProjectRequest(BaseModel):
         max_length=200,
     )
     project_type: str = Field(
-        ...,
-        description="Project type (research, content_creation, reporting, analysis, general)",
+        default="general",
+        description="Project type (research, content_creation, reporting, analysis, general) - defaults to 'general' as projects are just containers",
         pattern="^(research|content_creation|reporting|analysis|general)$",
     )
     initial_context: str = Field(
-        ...,
-        description="Initial context/notes to seed project",
-        min_length=10,
+        default="",
+        description="Initial context/notes to seed project (optional if files are provided)",
         max_length=50000,
     )
     description: Optional[str] = Field(

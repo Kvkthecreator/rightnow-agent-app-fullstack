@@ -1,45 +1,101 @@
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useRouter } from 'next/navigation';
+import { AlertCircle, CheckCircle2, Loader2, Upload } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CreateProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+const MAX_FILES = 5;
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_FILE_TYPES = '.txt,.md,.pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.webp,.json,.csv';
+
 export default function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [projectType, setProjectType] = useState<string>('research');
+  const [submitting, setSubmitting] = useState(false);
   const [projectName, setProjectName] = useState('');
-  const [initialContext, setInitialContext] = useState('');
+  const [rawDump, setRawDump] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const canSubmit = useMemo(() => {
+    if (!projectName.trim()) return false;
+    return rawDump.trim().length > 0 || files.length > 0;
+  }, [projectName, rawDump, files]);
+
+  const resetState = () => {
+    setProjectName('');
+    setRawDump('');
+    setFiles([]);
+    setDescription('');
+    setError(null);
+    setSubmitting(false);
+    setSuccess(false);
+  };
+
+  const handleClose = (nextOpen: boolean) => {
+    if (submitting) return;
+    onOpenChange(nextOpen);
+    if (!nextOpen) resetState();
+  };
+
+  const handleFileSelection = (fileList: FileList | null) => {
+    if (!fileList) return;
+    const remainingSlots = MAX_FILES - files.length;
+    const nextFiles: File[] = [];
+
+    Array.from(fileList)
+      .slice(0, remainingSlots)
+      .forEach((file) => {
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+          setError(`"${file.name}" exceeds the ${(MAX_FILE_SIZE_BYTES / 1024 / 1024).toFixed(0)}MB limit.`);
+          return;
+        }
+        nextFiles.push(file);
+      });
+
+    if (nextFiles.length > 0) {
+      setFiles((prev) => [...prev, ...nextFiles]);
+      setError(null);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
     setError(null);
 
     try {
+      const formData = new FormData();
+      formData.append('project_name', projectName);
+      formData.append('initial_context', rawDump);
+      if (description) {
+        formData.append('description', description);
+      }
+
+      // Append files
+      files.forEach((file) => {
+        formData.append('files', file);
+      });
+
       const response = await fetch('/api/projects/new', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          project_name: projectName,
-          project_type: projectType,
-          initial_context: initialContext,
-          description: description || undefined,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -49,32 +105,24 @@ export default function CreateProjectDialog({ open, onOpenChange }: CreateProjec
 
       const result = await response.json();
 
-      // Success! Close dialog and redirect to project
-      onOpenChange(false);
+      setSuccess(true);
+      handleClose(false);
+      resetState();
 
-      // Reset form
-      setProjectType('research');
-      setProjectName('');
-      setInitialContext('');
-      setDescription('');
-
-      // Show success message
-      alert(`✅ Project created successfully!\n\nProject: ${result.project_name}\nProject ID: ${result.project_id}\nBasket ID: ${result.basket_id}\nRemaining Trials: ${result.remaining_trials ?? 'N/A'}\n\n${result.next_step}`);
-
-      // Redirect to projects list (or project detail when that route exists)
-      router.push('/dashboard');
+      // Navigate to project
+      router.push(`/projects/${result.project_id}/overview`);
       router.refresh();
     } catch (err) {
-      console.error('Failed to create project:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      const message = err instanceof Error ? err.message : 'Failed to create project';
+      setError(message);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>
@@ -82,99 +130,125 @@ export default function CreateProjectDialog({ open, onOpenChange }: CreateProjec
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="project-name">Project Name</Label>
-            <Input
-              id="project-name"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="e.g., Healthcare AI Research"
-              required
-              minLength={1}
-              maxLength={200}
-              autoFocus
-            />
-            <p className="text-xs text-muted-foreground">
-              Give your project a descriptive name
-            </p>
-          </div>
+        <div className="flex flex-col gap-6">
+          <section className="flex flex-col gap-4">
+            <FieldBlock label="Project Name" required>
+              <Input
+                placeholder="e.g., Healthcare AI Research"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                autoFocus
+              />
+            </FieldBlock>
 
-          <div className="space-y-2">
-            <Label htmlFor="project-type">Project Type</Label>
-            <Select value={projectType} onValueChange={setProjectType}>
-              <SelectTrigger id="project-type">
-                <SelectValue placeholder="Select project type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="research">Research Project</SelectItem>
-                <SelectItem value="content_creation">Content Creation</SelectItem>
-                <SelectItem value="reporting">Reporting & Analysis</SelectItem>
-                <SelectItem value="analysis">Data Analysis</SelectItem>
-                <SelectItem value="general">General Purpose</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Choose the type of work this project will focus on
-            </p>
-          </div>
+            <FieldBlock label="Initial Context" hint="Paste notes, requirements, or any context you have">
+              <Textarea
+                placeholder="Describe what you want to accomplish with this project..."
+                value={rawDump}
+                onChange={(e) => setRawDump(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+            </FieldBlock>
 
-          <div className="space-y-2">
-            <Label htmlFor="initial-context">Initial Context</Label>
-            <Textarea
-              id="initial-context"
-              value={initialContext}
-              onChange={(e) => setInitialContext(e.target.value)}
-              placeholder="Describe what you want to accomplish with this project..."
-              className="min-h-[150px] resize-none"
-              required
-              minLength={10}
-              maxLength={50000}
-            />
-            <p className="text-xs text-muted-foreground">
-              Provide context, goals, or initial notes for this project (10-50,000 characters)
-            </p>
-          </div>
+            <FieldBlock label="Files" hint={`Up to ${MAX_FILES} files · ${(MAX_FILE_SIZE_BYTES / 1024 / 1024).toFixed(0)}MB each`}>
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-6 text-center text-sm transition hover:border-primary hover:bg-muted/30">
+                <Upload className="h-5 w-5" />
+                <span>Drag & drop or click to browse</span>
+                <span className="text-xs text-muted-foreground">.txt, .md, .pdf, .jpg, .png, .gif, .bmp, .tiff, .webp</span>
+                <input
+                  type="file"
+                  multiple
+                  accept={ACCEPTED_FILE_TYPES}
+                  className="hidden"
+                  onChange={(e) => handleFileSelection(e.target.files)}
+                  disabled={files.length >= MAX_FILES}
+                />
+              </label>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief project description..."
-              className="min-h-[80px] resize-none"
-              maxLength={1000}
-            />
-            <p className="text-xs text-muted-foreground">
-              Optional summary visible on project cards (max 1,000 characters)
-            </p>
-          </div>
+              {files.length > 0 && (
+                <ul className="mt-3 space-y-2 text-sm">
+                  {files.map((file, index) => (
+                    <li key={`${file.name}-${index}`} className="flex items-center justify-between rounded border border-border/60 bg-muted/40 px-3 py-2">
+                      <span className="truncate" title={file.name}>
+                        {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
+                      <Button variant="ghost" size="sm" onClick={() => removeFile(index)} disabled={submitting}>
+                        Remove
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </FieldBlock>
+
+            <FieldBlock label="Description (Optional)" hint="Brief summary visible on project cards">
+              <Textarea
+                placeholder="Optional project description..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                className="resize-none"
+                maxLength={1000}
+              />
+            </FieldBlock>
+          </section>
 
           {error && (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-              <strong>Error:</strong> {error}
+            <div className="flex items-center gap-2 rounded border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
             </div>
           )}
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading || !projectName.trim() || !initialContext.trim() || initialContext.length < 10}
-            >
-              {loading ? 'Creating...' : 'Create Project'}
-            </Button>
-          </DialogFooter>
-        </form>
+          {success && (
+            <div className="flex items-center gap-2 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>Project created successfully. Redirecting…</span>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => handleClose(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={!canSubmit || submitting}>
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creating…
+              </span>
+            ) : (
+              'Create Project'
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function FieldBlock({
+  label,
+  hint,
+  required,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+        <Label className={cn('text-sm font-medium text-slate-800', required && 'after:ml-1 after:text-destructive after:content-["*"]')}>
+          {label}
+        </Label>
+        {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+      </div>
+      {children}
+    </div>
   );
 }
