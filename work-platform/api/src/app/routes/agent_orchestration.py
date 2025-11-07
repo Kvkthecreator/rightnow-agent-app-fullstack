@@ -151,7 +151,7 @@ async def run_agent_task(
     Raises:
         HTTPException: On configuration, permission, or execution errors
     """
-    user_id = user.get("sub")
+    user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
@@ -548,7 +548,7 @@ async def get_user_trial_status(user: dict = Depends(verify_jwt)):
             "subscribed_agents": ["research"]
         }
     """
-    user_id = user.get("sub")
+    user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
@@ -600,7 +600,7 @@ async def get_agent_marketplace(user: dict = Depends(verify_jwt)):
             }
         }
     """
-    user_id = user.get("sub")
+    user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
@@ -700,7 +700,7 @@ async def subscribe_to_agent(
             "message": "Successfully subscribed to research agent"
         }
     """
-    user_id = user.get("sub")
+    user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 

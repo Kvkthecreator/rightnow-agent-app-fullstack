@@ -119,7 +119,7 @@ async def create_new_work_request(
             "next_step": "Use POST /api/agents/run with basket_id to execute agent"
         }
     """
-    user_id = user.get("sub")
+    user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 

@@ -107,7 +107,7 @@ async def get_work_status(work_id: str, user: dict = Depends(verify_jwt)):
     Respects workspace isolation via user JWT verification.
     """
     try:
-        user_id = user.get('sub')
+        user_id = user.get('sub') or user.get('user_id')
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid user token")
         
@@ -164,7 +164,7 @@ async def list_work_statuses(
     Results are workspace-isolated via user JWT.
     """
     try:
-        user_id = user.get('sub')
+        user_id = user.get('sub') or user.get('user_id')
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid user token")
         
@@ -259,7 +259,7 @@ async def initiate_work(
     Supports all work types: P0-P4, manual edits, governance, document composition.
     """
     try:
-        user_id = user.get('sub')
+        user_id = user.get('sub') or user.get('user_id')
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid user token")
         
@@ -331,7 +331,7 @@ async def retry_failed_work(work_id: str, user: dict = Depends(verify_jwt)):
     Only works for failed work items within user's workspace.
     """
     try:
-        user_id = user.get('sub')
+        user_id = user.get('sub') or user.get('user_id')
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid user token")
         
@@ -391,7 +391,7 @@ async def get_cascade_flow_status(work_id: str, user: dict = Depends(verify_jwt)
     Canon-compliant with workspace isolation.
     """
     try:
-        user_id = user.get('sub')
+        user_id = user.get('sub') or user.get('user_id')
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid user token")
         
@@ -448,7 +448,7 @@ async def get_workspace_work_summary(workspace_id: str, user: dict = Depends(ver
     Canon-compliant with workspace isolation.
     """
     try:
-        user_id = user.get('sub')
+        user_id = user.get('sub') or user.get('user_id')
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid user token")
         

@@ -63,7 +63,7 @@ async def create_work_session(
     Agent will execute task and produce artifacts for review.
     This replaces the old /api/work/initiate endpoint.
     """
-    user_id = user.get('sub')
+    user_id = user.get('sub') or user.get('user_id')
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
@@ -131,7 +131,7 @@ async def get_work_session(
 
     Replaces /api/work/{work_id}/status endpoint.
     """
-    user_id = user.get('sub')
+    user_id = user.get('sub') or user.get('user_id')
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
@@ -186,7 +186,7 @@ async def list_work_sessions(
 
     Replaces /api/work/ list endpoint.
     """
-    user_id = user.get('sub')
+    user_id = user.get('sub') or user.get('user_id')
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
@@ -274,7 +274,7 @@ async def retry_work_session(
 
     Replaces /api/work/{work_id}/retry endpoint.
     """
-    user_id = user.get('sub')
+    user_id = user.get('sub') or user.get('user_id')
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
