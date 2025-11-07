@@ -512,10 +512,18 @@ class SubstrateClient:
         Returns:
             Dump creation result
         """
+        import uuid
+        import hashlib
+
+        # Generate idempotent dump_request_id from content hash
+        content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
+        dump_request_id = f"dump_{content_hash}"
+
         request_body = {
             "basket_id": str(basket_id),
-            "content": content,
-            "metadata": metadata or {},
+            "dump_request_id": dump_request_id,
+            "text_dump": content,  # Changed from "content" to "text_dump"
+            "meta": metadata or {},  # Changed from "metadata" to "meta"
         }
         return self._request("POST", "/api/dumps/new", json=request_body)
 
