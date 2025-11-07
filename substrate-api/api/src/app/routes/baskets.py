@@ -120,21 +120,21 @@ async def create_basket(
         # Insert basket using actual production schema
         query = """
             INSERT INTO baskets (id, name, workspace_id, user_id, status, tags, origin_template)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES (:id, :name, :workspace_id, :user_id, :status, :tags, :origin_template)
             RETURNING id, name, workspace_id, user_id, status, created_at
         """
 
         result = await db.fetch_one(
             query,
-            values=[
-                str(basket_id),
-                request.name,
-                str(workspace_uuid),
-                str(user_uuid) if user_uuid else None,
-                "INIT",  # basket_state enum default
-                tags,
-                "work_platform_onboarding",  # origin_template for tracking
-            ],
+            values={
+                "id": str(basket_id),
+                "name": request.name,
+                "workspace_id": str(workspace_uuid),
+                "user_id": str(user_uuid) if user_uuid else None,
+                "status": "INIT",  # basket_state enum default
+                "tags": tags,
+                "origin_template": "work_platform_onboarding",  # origin_template for tracking
+            },
         )
 
         if not result:
