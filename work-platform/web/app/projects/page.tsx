@@ -19,7 +19,6 @@ export default async function ProjectsPage() {
       name,
       description,
       basket_id,
-      project_type,
       status,
       created_at,
       updated_at
@@ -62,7 +61,6 @@ export default async function ProjectsPage() {
     name: project.name,
     description: project.description,
     basket_id: project.basket_id,
-    project_type: project.project_type,
     status: project.status,
     created_at: project.created_at,
     updated_at: project.updated_at,

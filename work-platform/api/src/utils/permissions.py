@@ -17,7 +17,7 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from app.utils.supabase_client import supabase_client
+from app.utils.supabase_client import supabase_client, supabase_admin_client
 from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ async def check_agent_work_request_allowed(
         )
 
     # Call Supabase function to check trial limit
-    supabase = supabase_client
+    supabase = supabase_admin_client
 
     try:
         # Call check_trial_limit() function
@@ -152,7 +152,7 @@ async def record_work_request(
     """
     logger.info(f"Recording work request: user={user_id}, agent={agent_type}, mode={work_mode}")
 
-    supabase = supabase_client
+    supabase = supabase_admin_client
 
     # Determine if trial request or paid
     is_trial = not permission_info.get("is_subscribed", False)
@@ -210,7 +210,7 @@ async def update_work_request_status(
     """
     logger.info(f"Updating work request {work_request_id}: status={status}")
 
-    supabase = supabase_client
+    supabase = supabase_admin_client
 
     # Validate status
     valid_statuses = {"running", "completed", "failed"}
@@ -267,7 +267,7 @@ async def get_trial_status(user_id: str, workspace_id: str) -> dict:
     """
     logger.info(f"Getting trial status: user={user_id}")
 
-    supabase = supabase_client
+    supabase = supabase_admin_client
 
     try:
         # Count used trial requests (global across all agents)
@@ -331,7 +331,7 @@ async def create_agent_subscription(
     """
     logger.info(f"Creating subscription: user={user_id}, agent={agent_type}")
 
-    supabase = supabase_client
+    supabase = supabase_admin_client
 
     # Validate agent type
     valid_agents = {"research", "content", "reporting"}
