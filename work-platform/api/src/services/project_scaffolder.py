@@ -211,11 +211,11 @@ async def scaffold_new_project(
             "basket_id": basket_id,
             "project_type": project_type,
             "status": "active",
-            "origin_template": "onboarding_v1",
-            "onboarded_at": datetime.utcnow().isoformat(),
-            # TODO: Re-enable metadata after PostgREST schema cache is reloaded
-            # PostgREST PGRST204: "Could not find the 'metadata' column in schema cache"
-            # Workaround: Remove until Supabase schema cache refreshes
+            # TODO: Re-enable these fields after PostgREST schema cache is reloaded
+            # PostgREST PGRST204: Schema cache is stale after migration
+            # Temporary workaround: Only insert columns PostgREST knows about
+            # "origin_template": "onboarding_v1",
+            # "onboarded_at": datetime.utcnow().isoformat(),
             # "metadata": {
             #     "dump_id": dump_id,
             #     "initial_context_length": len(initial_context),
