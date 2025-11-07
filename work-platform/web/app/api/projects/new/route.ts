@@ -1,42 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { headers, cookies } from 'next/headers';
+import { cookies } from 'next/headers';
+import { createRouteHandlerClient } from '@/lib/supabase/clients';
 
 const WORK_PLATFORM_API_URL = process.env.NEXT_PUBLIC_WORK_PLATFORM_API_URL || 'http://localhost:8000';
 
-/**
- * Extract access token using canonical pattern from lib/server/http.ts
- * Tries headers first, then cookies (per YARNNN_AUTH_CANON.md)
- */
-function requireAccessToken(): string {
-  const h = headers();
-
-  // Try sb-access-token header
-  const sb = h.get('sb-access-token');
-  if (sb) return sb;
-
-  // Try Authorization header
-  const auth = h.get('authorization');
-  if (auth?.startsWith('Bearer ')) return auth.slice(7);
-
-  // Fall back to cookie
-  const c = cookies().get('sb-access-token')?.value;
-  if (c) return c;
-
-  throw new Error('NO_TOKEN');
-}
-
 export async function POST(request: NextRequest) {
   try {
-    // Extract and validate auth token (canonical pattern)
-    let token: string;
-    try {
-      token = requireAccessToken();
-    } catch (e) {
+    // Get Supabase session (canonical pattern per AUTH_CANON.md line 39-43)
+    const supabase = createRouteHandlerClient({ cookies });
+
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession();
+
+    if (authError || !session) {
       return NextResponse.json(
         { detail: 'Authentication required' },
         { status: 401 }
       );
     }
+
+    const token = session.access_token;
 
     const formData = await request.formData();
 
