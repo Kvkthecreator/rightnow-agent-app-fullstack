@@ -60,7 +60,7 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
             </div>
           </div>
           <Badge variant="secondary" className="text-xs">
-            {project.basket_status || 'Active'}
+            {project.status}
           </Badge>
         </div>
 
@@ -204,7 +204,7 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-sm font-semibold text-slate-700 mb-1">Linked Context</h3>
-            <p className="text-lg font-medium text-slate-900">{project.basket_name || 'Untitled Context'}</p>
+            <p className="text-lg font-medium text-slate-900">{project.name} Knowledge Base</p>
             <p className="text-sm text-slate-600 mt-1">
               This project uses context from the linked basket. All work requests have access to this knowledge base.
             </p>
