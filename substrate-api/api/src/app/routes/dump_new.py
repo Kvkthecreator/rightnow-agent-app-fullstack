@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, model_validator
 
 from ..utils.jwt import verify_jwt
-from ..utils.supabase_client import supabase_client as supabase
+from ..utils.supabase import supabase_admin
 from infra.substrate.services.events import EventService
 
 router = APIRouter(prefix="/dumps", tags=["dumps"])
@@ -48,8 +48,9 @@ async def create_dump(
     # The user_id should be passed in the metadata if needed
     user = None
 
+    sb = supabase_admin()
     basket = (
-        supabase.table("baskets")
+        sb.table("baskets")
         .select("id, workspace_id")
         .eq("id", payload.basket_id)
         .single()
@@ -62,7 +63,7 @@ async def create_dump(
     # Skip workspace membership check for service-to-service calls
     if user is not None:
         membership = (
-            supabase.table("workspace_memberships")
+            sb.table("workspace_memberships")
             .select("workspace_id")
             .eq("workspace_id", workspace_id)
             .eq("user_id", user["user_id"])
@@ -91,7 +92,7 @@ async def create_dump(
             "ingest_trace_id": (payload.meta or {}).get("ingest_trace_id"),
         }
     ]
-    resp = supabase.rpc(
+    resp = sb.rpc(
         "fn_ingest_dumps",
         {
             "p_workspace_id": workspace_id,
