@@ -30,7 +30,7 @@ from .models import (
 from .task_params import validate_task_params
 from .executor import start_work_session_execution
 
-router = APIRouter(prefix="/api/work", tags=["work-platform"])
+router = APIRouter(prefix="/work", tags=["work-platform"])
 
 
 # ============================================================================

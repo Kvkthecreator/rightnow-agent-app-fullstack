@@ -26,7 +26,7 @@ from ..dependencies import get_current_user
 
 logger = logging.getLogger("uvicorn.error")
 
-router = APIRouter(prefix="/api/context-intelligence", tags=["Context Intelligence"])
+router = APIRouter(prefix="/context-intelligence", tags=["Context Intelligence"])
 
 
 # Request/Response Models

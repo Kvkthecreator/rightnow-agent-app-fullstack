@@ -25,7 +25,7 @@ from services.onboarding_scaffolder import (
 )
 from utils.permissions import PermissionDeniedError
 
-router = APIRouter(prefix="/api/work-requests", tags=["work-requests"])
+router = APIRouter(prefix="/work-requests", tags=["work-requests"])
 logger = logging.getLogger(__name__)
 
 

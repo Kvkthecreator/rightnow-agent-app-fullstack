@@ -38,7 +38,7 @@ from utils.permissions import (
     PermissionDeniedError,
 )
 
-router = APIRouter(prefix="/api/agents", tags=["agent-orchestration"])
+router = APIRouter(prefix="/agents", tags=["agent-orchestration"])
 logger = logging.getLogger(__name__)
 
 

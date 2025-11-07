@@ -39,7 +39,7 @@ from app.utils.jwt import verify_jwt
 from services.universal_work_tracker import universal_work_tracker, WorkContext
 from app.services.status_derivation import status_derivation_service
 
-router = APIRouter(prefix="/api/work", tags=["work-status"])
+router = APIRouter(prefix="/work", tags=["work-status"])
 
 @router.get("/health", response_model=QueueHealthResponse)
 async def get_queue_health():

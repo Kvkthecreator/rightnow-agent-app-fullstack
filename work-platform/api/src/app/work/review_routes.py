@@ -15,7 +15,7 @@ from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace
 from .models import WorkSessionStatus
 
-router = APIRouter(prefix="/api/work", tags=["work-platform-reviews"])
+router = APIRouter(prefix="/work", tags=["work-platform-reviews"])
 
 
 # ============================================================================
