@@ -513,11 +513,10 @@ class SubstrateClient:
             Dump creation result
         """
         import uuid
-        import hashlib
 
-        # Generate idempotent dump_request_id from content hash
-        content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
-        dump_request_id = f"dump_{content_hash}"
+        # Generate deterministic UUID from content for idempotency
+        # Using uuid5 with NAMESPACE_DNS ensures same content -> same UUID
+        dump_request_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, content))
 
         request_body = {
             "basket_id": str(basket_id),
