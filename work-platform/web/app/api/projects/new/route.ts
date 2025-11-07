@@ -38,13 +38,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!initialContext || initialContext.trim().length < 10) {
-      if (files.length === 0) {
-        return NextResponse.json(
-          { detail: 'Either initial context (min 10 chars) or files are required' },
-          { status: 400 }
-        );
-      }
+    // Allow any non-empty context, or require files if context is empty
+    if ((!initialContext || initialContext.trim().length === 0) && files.length === 0) {
+      return NextResponse.json(
+        { detail: 'Either initial context or files are required' },
+        { status: 400 }
+      );
     }
 
     // Forward to work-platform backend (canonical auth pattern)

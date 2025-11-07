@@ -31,6 +31,7 @@ export default function CreateProjectDialog({ open, onOpenChange }: CreateProjec
 
   const canSubmit = useMemo(() => {
     if (!projectName.trim()) return false;
+    // Need either some context OR files
     return rawDump.trim().length > 0 || files.length > 0;
   }, [projectName, rawDump, files]);
 
