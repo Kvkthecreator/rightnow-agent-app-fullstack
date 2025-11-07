@@ -130,7 +130,7 @@ async def create_project(
             "next_step": "Navigate to /projects/550e8400-... to begin work"
         }
     """
-    user_id = user.get("sub")
+    user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
