@@ -11,8 +11,8 @@ export type ProjectSummary = {
   name: string;
   description: string | null;
   basket_id: string;
-  basket_name: string | null;
-  basket_status: string | null;
+  project_type: string;
+  status: string;
   created_at: string | null;
   updated_at: string | null;
   pendingWork: {
@@ -94,7 +94,7 @@ export function ProjectsIndexClient({ projects }: { projects: ProjectSummary[] }
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
-                      {project.basket_status ?? 'Active'}
+                      {project.status}
                     </span>
                     <ProjectActions
                       projectId={project.id}
