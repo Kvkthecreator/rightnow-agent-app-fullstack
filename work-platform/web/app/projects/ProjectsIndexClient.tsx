@@ -11,7 +11,6 @@ export type ProjectSummary = {
   name: string;
   description: string | null;
   basket_id: string;
-  project_type: string;
   status: string;
   created_at: string | null;
   updated_at: string | null;
