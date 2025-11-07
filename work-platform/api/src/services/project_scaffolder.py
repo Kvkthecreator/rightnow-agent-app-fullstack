@@ -18,7 +18,7 @@ from typing import Optional
 from datetime import datetime
 
 from clients.substrate_client import get_substrate_client
-from app.utils.supabase_client import supabase_client
+from app.utils.supabase_client import supabase_client, supabase_admin_client
 from utils.permissions import (
     check_agent_work_request_allowed,
     record_work_request,
@@ -224,7 +224,7 @@ async def scaffold_new_project(
             logger.debug(
                 f"[PROJECT SCAFFOLDING] Creating project record for basket {basket_id}"
             )
-            response = supabase_client.table("projects").insert(project_data).execute()
+            response = supabase_admin_client.table("projects").insert(project_data).execute()
 
             if not response.data or len(response.data) == 0:
                 raise Exception("No project created in database")

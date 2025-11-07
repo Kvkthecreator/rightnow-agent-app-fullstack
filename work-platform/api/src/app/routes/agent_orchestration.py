@@ -26,7 +26,7 @@ from adapters.auth_adapter import AuthAdapter
 
 # Import Phase 1-3 utilities
 from app.utils.jwt import verify_jwt
-from app.utils.supabase_client import supabase_client
+from app.utils.supabase_client import supabase_client, supabase_admin_client
 
 # Import Phase 5 permissions
 from utils.permissions import (
@@ -57,7 +57,7 @@ async def _get_workspace_id_for_user(user_id: str) -> str:
     Raises:
         HTTPException: If user has no workspace or workspace not found
     """
-    supabase = supabase_client
+    supabase = supabase_admin_client
 
     # Query workspace_memberships (existing pattern)
     response = supabase.table("workspace_memberships").select(
@@ -92,7 +92,7 @@ async def _validate_basket_access(
     Raises:
         HTTPException: If basket not found or doesn't belong to workspace
     """
-    supabase = supabase_client
+    supabase = supabase_admin_client
 
     # Validate basket ownership (existing pattern)
     response = supabase.table("baskets").select("id").eq(
@@ -605,7 +605,7 @@ async def get_agent_marketplace(user: dict = Depends(verify_jwt)):
         raise HTTPException(status_code=401, detail="Invalid user token")
 
     workspace_id = await _get_workspace_id_for_user(user_id)
-    supabase = supabase_client
+    supabase = supabase_admin_client
 
     try:
         # Get all active agents from catalog
@@ -716,7 +716,7 @@ async def subscribe_to_agent(
     )
 
     # Get pricing from catalog
-    supabase = supabase_client
+    supabase = supabase_admin_client
     catalog = supabase.table("agent_catalog").select("monthly_price_cents").eq(
         "agent_type", agent_type
     ).single().execute()
