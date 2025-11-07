@@ -27,7 +27,7 @@ from services.project_scaffolder import (
 )
 from utils.permissions import PermissionDeniedError
 
-router = APIRouter(prefix="/api/projects", tags=["projects"])
+router = APIRouter(prefix="/projects", tags=["projects"])
 logger = logging.getLogger(__name__)
 
 
