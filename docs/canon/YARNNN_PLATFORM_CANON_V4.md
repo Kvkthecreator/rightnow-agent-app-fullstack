@@ -2,14 +2,41 @@
 
 **The Single Source of Truth for YARNNN Service Philosophy and Implementation**
 
-**Version**: 4.0 (Major Paradigm Shift)
-**Date**: 2025-10-31
-**Status**: ✅ Canonical
+**Version**: 4.0.1 (Current Implementation) / 4.0 (Vision)
+**Date**: 2025-10-31 (Updated: 2025-11-06)
+**Status**: ⚠️ Canonical Vision (Implementation in Phase 1)
 **Supersedes**: YARNNN_CANON.md (v3.1)
 
 ---
 
-## 🎯 Core Identity
+## ⚠️ CURRENT IMPLEMENTATION STATUS (As of 2025-11-06)
+
+**This document describes the v4.0 VISION. Implementation is in progress (Phase 1).**
+
+**What IS Working** ✅:
+- **Substrate Core** (substrate-api): Blocks, documents, insights, timeline, semantic layer
+- **Substrate Governance**: P1 pipeline with proposals, semantic deduplication, quality validation
+- **Projects**: User-facing work containers (1:1 with baskets currently)
+- **Work Sessions**: Basic task tracking schema (projects, work_sessions, work_artifacts, work_checkpoints)
+
+**What is NOT Yet Implemented** ⏸️:
+- **Work-Platform Governance**: Unified approval orchestrator disabled (Nov 5, 2025)
+- **Work→Substrate Integration**: Bridge architecture deferred to Phase 2
+- **Agent SDK Integration**: Session linking and orchestration
+- **Multi-checkpoint workflows**: Iterations and feedback loops
+
+**Current Architecture**: **Separated governance** (not unified)
+- Substrate governance via proposals (working)
+- Work-platform governance not yet defined
+
+**See**:
+- [`GOVERNANCE_CLEANUP_SUMMARY_2025_11_05.md`](../architecture/GOVERNANCE_CLEANUP_SUMMARY_2025_11_05.md) - Governance separation
+- [`PHASE1_DEPLOYMENT_SUMMARY.md`](../../work-platform/PHASE1_DEPLOYMENT_SUMMARY.md) - Current work-platform state
+- [`PHASE6_PROJECTS_ARCHITECTURE.md`](../../PHASE6_PROJECTS_ARCHITECTURE.md) - Projects vs Baskets
+
+---
+
+## 🎯 Core Identity (Vision)
 
 **YARNNN is an AI Work Platform where deep context understanding enables superior agent supervision and work quality.**
 
@@ -69,17 +96,23 @@ Deep substrate understanding improves agent reasoning quality. Context is not ju
 - Semantic layer enables intelligent relationship discovery
 - Timeline provides temporal context
 
-### 3. **Governance Spans Both**
+### 3. **Governance Independence (Current Implementation)**
 
-Single approval handles work quality AND context mutation. No redundant double-governance.
+**Current State (Phase 1)**: Work governance and substrate governance are **separated**
 
-**Why**: Reviewing agent work IS reviewing substrate changes. Separating them creates friction and confusion.
+**Why**: Work quality review and substrate integrity validation have different concerns
+- Work governance: "Did the agent complete the task well?"
+- Substrate governance: "Should this become memory?" (deduplication, quality, merge detection)
 
 **Manifestation**:
-- Unified approval orchestrator
-- Work review → automatic substrate application
+- Substrate governance via P1 proposals (working)
+- Work-platform governance not yet defined (deferred to Phase 2)
+- Bridge architecture pending: approved work artifacts → substrate proposals
+
+**Future Vision (v4.0)**: Unified approval orchestrator
+- Single review for work quality → automatic substrate application
 - Per-artifact decisions (apply/draft/reject)
-- Single audit trail for both concerns
+- Eliminated in Nov 2025 cleanup because it bypassed substrate proposals
 
 ### 4. **Provenance is Mandatory**
 
@@ -289,32 +322,57 @@ Agents work autonomously but outputs require approval. Think "employee with auto
 
 ---
 
-## 🔄 What's New in v4.0
+## 🔄 What's New in v4.0 (Phase 1 - In Progress)
 
-### Layer 2: Work Orchestration
+### Projects (User-Facing Containers)
+
+**Concept**: User-facing work containers separate from substrate storage.
+
+**Status**: ✅ Implemented (Phase 6, Nov 2025)
+
+**Components**:
+- `projects` table - Work containers with 1:1 basket relationship
+- Project creation flow - Orchestrates basket + dump + work request creation
+- BFF pattern - work-platform orchestrates, substrate-api stores
+
+**Why**: Clear domain separation. Users see "projects", infrastructure uses "baskets".
+
+### Layer 2: Work Orchestration (Schema Only)
 
 **Concept**: Agent work is a first-class entity requiring lifecycle management.
 
-**Components**:
-- `work_sessions` - Track agent execution (task → work → completion)
-- `work_artifacts` - Agent outputs awaiting review
-- `work_checkpoints` - Multi-stage approval workflow
-- `work_iterations` - Feedback loops and revisions
-- `work_context_mutations` - Audit trail of substrate changes
+**Status**: ⏸️ Schema created (Phase 1, Nov 2025), governance deferred to Phase 2
 
-**Why**: In v3.1, agent work was implicit (just "process dumps"). Now it's explicit, governed, and traceable.
+**Components Created**:
+- `work_sessions` - Track task execution with JSONB parameters
+- `work_artifacts` - Agent outputs with review status
+- `work_checkpoints` - User review pause points
+- RLS policies for workspace isolation
 
-### Layer 3: Unified Governance
+**Components Deferred**:
+- `work_iterations` - Feedback loops (not yet implemented)
+- `work_context_mutations` - Audit trail (not yet implemented)
+- Substrate application logic (disabled Nov 2025)
 
-**Concept**: Single approval handles both work quality and context integrity.
+**Why**: Rapid iteration with clear separation. Substrate integration comes in Phase 2.
 
-**Pattern**: Work Review → Substrate Application
-- User reviews: "Is this good work?" (reasoning, completeness, accuracy)
-- If approved: Artifacts automatically applied to substrate
-- Blocks created in `ACCEPTED` state (no separate proposal)
-- Timeline event captures both work approval and substrate mutation
+### Layer 3: Separated Governance (Current State)
 
-**Why**: In v3.1, governance was substrate-only (blocks/proposals). Now it spans work quality too.
+**Concept**: Work governance and substrate governance operate independently.
+
+**Status**: ⚠️ Substrate governance working, work governance not yet defined
+
+**Pattern**: Separated Review (Current)
+- **Substrate governance**: P1 proposals → semantic dedup → quality validation → blocks
+- **Work governance**: Not yet implemented (deferred to Phase 2)
+- **Bridge**: Architecture pending (approved work artifacts → substrate proposals)
+
+**Pattern**: Unified Review (Future Vision - Disabled Nov 2025)
+- ~~Single approval handles both work quality and substrate mutation~~
+- ~~Blocks created in `ACCEPTED` state (no separate proposal)~~
+- Eliminated because it bypassed substrate proposals and semantic deduplication
+
+**Why Separated**: Maintains substrate integrity guarantees while work-platform design matures.
 
 ### Agent SDK Integration
 
