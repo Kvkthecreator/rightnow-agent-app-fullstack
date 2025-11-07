@@ -34,9 +34,20 @@ class CreateDumpReq(BaseModel):
 
 @router.post("/new", status_code=201)
 async def create_dump(
-    payload: CreateDumpReq, req: Request, user: Annotated[dict, Depends(verify_jwt)]
+    payload: CreateDumpReq, req: Request
 ):
+    """
+    Create raw dump (Phase 6: Service-to-service endpoint, no JWT required).
+
+    This endpoint is called by work-platform during project scaffolding.
+    Authentication is handled via SUBSTRATE_SERVICE_SECRET at middleware level.
+    """
     start = time.time()
+
+    # For service-to-service calls, we don't have a user context
+    # The user_id should be passed in the metadata if needed
+    user = None
+
     basket = (
         supabase.table("baskets")
         .select("id, workspace_id")
@@ -48,26 +59,28 @@ async def create_dump(
         raise HTTPException(status_code=404, detail="Basket not found")
     workspace_id = basket.data["workspace_id"]
 
-    membership = (
-        supabase.table("workspace_memberships")
-        .select("workspace_id")
-        .eq("workspace_id", workspace_id)
-        .eq("user_id", user["user_id"])
-        .execute()
-    )
-    if not membership.data:
-        log.info(
-            json.dumps(
-                {
-                    "route": "/api/dumps/new",
-                    "user_id": user["user_id"],
-                    "basket_id": payload.basket_id,
-                    "dump_request_id": payload.dump_request_id,
-                    "action": "forbidden",
-                }
-            )
+    # Skip workspace membership check for service-to-service calls
+    if user is not None:
+        membership = (
+            supabase.table("workspace_memberships")
+            .select("workspace_id")
+            .eq("workspace_id", workspace_id)
+            .eq("user_id", user["user_id"])
+            .execute()
         )
-        raise HTTPException(status_code=403, detail="Workspace access denied")
+        if not membership.data:
+            log.info(
+                json.dumps(
+                    {
+                        "route": "/api/dumps/new",
+                        "user_id": user["user_id"],
+                        "basket_id": payload.basket_id,
+                        "dump_request_id": payload.dump_request_id,
+                        "action": "forbidden",
+                    }
+                )
+            )
+            raise HTTPException(status_code=403, detail="Workspace access denied")
 
     dumps = [
         {
@@ -100,7 +113,7 @@ async def create_dump(
         json.dumps(
             {
                 "route": "/api/dumps/new",
-                "user_id": user["user_id"],
+                "user_id": user["user_id"] if user else "service_to_service",
                 "basket_id": payload.basket_id,
                 "dump_request_id": payload.dump_request_id,
                 "action": "created",
