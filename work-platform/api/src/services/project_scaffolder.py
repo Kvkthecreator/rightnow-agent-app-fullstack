@@ -143,6 +143,7 @@ async def scaffold_new_project(
             "project_type": project_type,
             "created_via": "project_scaffolder",
             "origin": "new_project_onboarding",
+            "origin_template": "project_onboarding",
         }
 
         try:
@@ -152,7 +153,6 @@ async def scaffold_new_project(
                 name=project_name,
                 metadata=basket_metadata,
                 user_id=user_id,
-                origin_template="project_onboarding",
             )
             basket_id = basket_response["basket_id"]
             logger.info(

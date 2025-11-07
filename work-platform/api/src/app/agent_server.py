@@ -29,9 +29,8 @@ from middleware.auth import AuthMiddleware
 from middleware.correlation import CorrelationIdMiddleware
 
 from .agent_entrypoints import router as agent_router, run_agent, run_agent_direct
-# Phase 4/5: Legacy reflections router removed (used Canon v2.1 reflection agent)
-# from .routes.reflections import router as reflections_router
-# Phase 4/5: Legacy Canon v2.1 queue processor removed - stubs for backward compatibility
+
+# Legacy queue processor stubs for backward compatibility
 async def start_canonical_queue_processor():
     """Legacy Canon v2.1 - No-op stub"""
     pass
@@ -43,58 +42,35 @@ async def stop_canonical_queue_processor():
 async def get_canonical_queue_health():
     """Legacy Canon v2.1 - Returns healthy stub"""
     return {"status": "migrated_to_claude_sdk", "queue_health": "n/a"}
-# Phase 4/5: Legacy agent_memory router removed (imports old agent pipeline)
-# from .routes.agent_memory import router as agent_memory_router
+
 from .routes.agent_run import router as agent_run_router
 from .routes.agents import router as agents_router
 from .routes.auth_health import router as auth_health_router
-# Phase 1A: Basket routes removed - baskets managed by substrate-api
-# from .routes.basket_from_template import router as template_router
-# from .routes.basket_new import router as basket_new_router
-# from .routes.basket_snapshot import router as snapshot_router
-# from .routes.baskets import router as basket_router
 from .routes.block_lifecycle import router as block_lifecycle_router
 from .routes.blocks import router as blocks_router
 from .routes.change_queue import router as change_queue_router
 from .routes.commits import router as commits_router
 from .routes.context_intelligence import router as context_intelligence_router
-# V3.0: context_items route removed (table merged into blocks)
 from .routes.debug import router as debug_router
 from .routes.dump_new import router as dump_new_router
 from .routes.health import router as health_router
 from .routes.inputs import router as inputs_router
-# Phase 4/5: Legacy narrative_intelligence removed (imports old agent pipeline)
-# from .routes.narrative_intelligence import router as narrative_intelligence_router
 from .routes.narrative_jobs import router as narrative_jobs_router
 from .routes.integration_tokens import router as integration_tokens_router
 from .routes.auth_validate import router as auth_validate_router
-# openai_apps route removed - functionality moved to mcp-server/adapters/openai-apps
-# Phase 3 BFF: MCP routes belong to substrate-api, not work-platform
-# These routers exist in substrate-api/api/src/app/routes/, not here
-# from .routes.mcp_inference import router as mcp_inference_router
-# from .routes.mcp_activity import router as mcp_activity_router
-# from .routes.mcp_auth import router as mcp_auth_router
-# from .routes.mcp_oauth import router as mcp_oauth_router
 from .routes.memory_unassigned import router as memory_unassigned_router
 from .routes.events import router as events_router
 from .routes.alerts import router as alerts_router
 from .routes.phase1_routes import router as phase1_router
 from .routes.projection import router as projection_router
 from .routes.work_status import router as work_status_router
-# Phase 4/5: Legacy Canon v2.1 routers removed (import from old agent pipeline)
-# from .routes.p4_composition import router as p4_composition_router
-# from .api.validator.validate_proposal import router as validator_router
 from .routes.p3_insights import router as p3_insights_router
 from .routes.p4_canon import router as p4_canon_router
 from .routes.p3_p4_health import router as p3_p4_health_router
-# Phase 4: Agent SDK integration
 from .routes.agents_status import router as agents_status_router
 from .routes.agent_orchestration import router as agent_orchestration_router
-# Phase 6: Project-first onboarding (Refactor)
 from .routes.projects import router as projects_router
-# Legacy: work_requests router kept for backward compatibility
 from .routes.work_requests import router as work_requests_router
-# Phase 1: Work platform (Projects & Work Sessions)
 from .work.routes import router as work_platform_router
 from .work.review_routes import router as work_review_router
 
@@ -152,52 +128,29 @@ routers = (
     commits_router,
     blocks_router,
     change_queue_router,
-    # Phase 1A: Basket routers removed - baskets managed by substrate-api
-    # basket_new_router,
-    # snapshot_router,
     inputs_router,
     debug_router,
     agent_router,
     agent_run_router,
     agents_router,
     phase1_router,
-    # V3.0: context_items_router removed (table merged into blocks)
     block_lifecycle_router,
-    # Phase 4/5: Legacy agent_memory_router removed
-    # agent_memory_router,
-    # Phase 1A: template_router removed
-    # template_router,
     context_intelligence_router,
-    # Phase 4/5: Legacy narrative_intelligence_router removed
-    # narrative_intelligence_router,
     auth_health_router,
     health_router,
     work_status_router,
-    # Phase 4/5: Legacy Canon v2.1 routers removed
-    # p4_composition_router,
-    # validator_router,
     p3_insights_router,
     p4_canon_router,
     p3_p4_health_router,
-    # Phase 3 BFF: MCP routers removed - belong to substrate-api
-    # mcp_inference_router,
-    # mcp_activity_router,
-    # mcp_auth_router,
-    # mcp_oauth_router,
     memory_unassigned_router,
     alerts_router,
     events_router,
     integration_tokens_router,
     auth_validate_router,
-    # openai_apps_router removed - functionality moved to separate service
-    # Phase 4: Agent SDK integration
     agents_status_router,
     agent_orchestration_router,
-    # Phase 6: Project-first onboarding
     projects_router,
-    # Legacy: work_requests for backward compatibility
     work_requests_router,
-    # Phase 1: Work platform API
     work_platform_router,
     work_review_router,
 )
@@ -208,15 +161,6 @@ app.add_middleware(CorrelationIdMiddleware)
 for r in routers:
     app.include_router(r, prefix="/api")
 
-# Phase 3 BFF: MCP OAuth router removed - belongs to substrate-api
-# Also register OAuth router without /api prefix for client compatibility
-# Some OAuth clients may drop the /api prefix when following redirects
-# app.include_router(mcp_oauth_router)
-
-# Phase 1A: basket_router removed - baskets managed by substrate-api
-# app.include_router(basket_router)
-# Phase 4/5: Legacy reflections router removed
-# app.include_router(reflections_router)
 app.include_router(narrative_jobs_router)
 app.include_router(projection_router)
 
