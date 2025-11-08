@@ -154,19 +154,8 @@ export default function Sidebar({ className }: SidebarProps) {
   const sectionIcons: Record<string, React.ElementType> = {
     overview: LayoutDashboard,
     context: Layers,
-    "work-review": Inbox,
+    "work-sessions": Clock,
     reports: FileText,
-    // Legacy basket sections (for backward compatibility during migration)
-    memory: BookOpen,
-    uploads: CloudUpload,
-    governance: Shield,
-    timeline: Clock,
-    insights: Brain,
-    graph: Network,
-    "building-blocks": Layers,
-    documents: FileText,
-    settings: Settings2,
-    "change-requests": Inbox,
   };
 
   return (

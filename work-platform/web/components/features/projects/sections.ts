@@ -6,7 +6,7 @@
 import {
   LayoutDashboard,
   Layers,
-  GitPullRequest,
+  Clock,
   FileText,
   type LucideIcon,
 } from "lucide-react";
@@ -35,11 +35,11 @@ export const PROJECT_SECTIONS: ProjectSection[] = [
     description: "Manage knowledge base and context items",
   },
   {
-    key: "work-review",
-    label: "Work Review",
-    icon: GitPullRequest,
-    href: (id) => `/projects/${id}/work-review`,
-    description: "Review and manage work requests",
+    key: "work-sessions",
+    label: "Work Sessions",
+    icon: Clock,
+    href: (id) => `/projects/${id}/work-sessions`,
+    description: "View and manage agent work sessions",
   },
   {
     key: "reports",
