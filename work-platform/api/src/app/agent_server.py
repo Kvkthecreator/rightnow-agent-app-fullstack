@@ -70,6 +70,7 @@ from .routes.p3_p4_health import router as p3_p4_health_router
 from .routes.agents_status import router as agents_status_router
 from .routes.agent_orchestration import router as agent_orchestration_router
 from .routes.projects import router as projects_router
+from .routes.project_work_sessions import router as project_work_sessions_router
 from .routes.work_requests import router as work_requests_router
 from .work.routes import router as work_platform_router
 from .work.review_routes import router as work_review_router
@@ -150,6 +151,7 @@ routers = (
     agents_status_router,
     agent_orchestration_router,
     projects_router,
+    project_work_sessions_router,
     work_requests_router,
     work_platform_router,
     work_review_router,

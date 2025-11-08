@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Plus, FileText, Layers, Zap, CheckCircle, Clock, PlayCircle, PauseCircle, XCircle } from 'lucide-react';
+import CreateWorkRequestModal from '@/components/CreateWorkRequestModal';
 
 interface ProjectAgent {
   id: string;
@@ -49,6 +50,7 @@ interface ProjectOverviewClientProps {
 export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [workRequestModalOpen, setWorkRequestModalOpen] = useState(false);
 
   const activeWork = project.stats.workSessions.pending + project.stats.workSessions.running;
   const totalWork = project.stats.workSessions.total;
@@ -77,8 +79,7 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-3">
           <Button
-            onClick={() => router.push(`/projects/${project.id}/work-review`)}
-            disabled
+            onClick={() => setWorkRequestModalOpen(true)}
             className="gap-2"
           >
             <Plus className="h-4 w-4" />
@@ -263,12 +264,20 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
             <Button onClick={() => router.push(`/projects/${project.id}/context`)}>
               Add Context
             </Button>
-            <Button variant="secondary" disabled>
+            <Button variant="secondary" onClick={() => setWorkRequestModalOpen(true)}>
               Create Work Request
             </Button>
           </div>
         </Card>
       )}
+
+      {/* Work Request Modal */}
+      <CreateWorkRequestModal
+        open={workRequestModalOpen}
+        onOpenChange={setWorkRequestModalOpen}
+        projectId={project.id}
+        agents={project.agents}
+      />
     </div>
   );
 }
