@@ -66,8 +66,8 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-slate-900">{error || 'Not Found'}</h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{error || 'Not Found'}</h2>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
             The work session you're looking for doesn't exist or you don't have access to it.
           </p>
           <Link href={`/projects/${projectId}/work-sessions`} className="mt-4 inline-block">
@@ -84,15 +84,15 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
       <div>
         <Link
           href={`/projects/${projectId}/work-sessions`}
-          className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 mb-2"
+          className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 mb-2"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Work Sessions
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Work Session</h1>
-            <p className="text-slate-600 mt-1">{session.project_name}</p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Work Session</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">{session.project_name}</p>
           </div>
           <Badge variant={getStatusVariant(session.status)} className="text-base px-4 py-2">
             {getStatusIcon(session.status)}
@@ -102,8 +102,8 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
       </div>
 
       {/* Session Metadata */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Session Information</h2>
+      <Card className="p-6 dark:bg-slate-800 dark:border-slate-700">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Session Information</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <InfoItem label="Agent" value={session.agent_display_name} icon={<Zap className="h-4 w-4" />} />
           <InfoItem label="Agent Type" value={session.agent_type} />
@@ -117,16 +117,16 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
       </Card>
 
       {/* Task Description */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Task Description</h2>
-        <p className="text-slate-700 whitespace-pre-wrap">{session.task_description}</p>
+      <Card className="p-6 dark:bg-slate-800 dark:border-slate-700">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Task Description</h2>
+        <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{session.task_description}</p>
       </Card>
 
       {/* Context (if any) */}
       {session.context && Object.keys(session.context).length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Additional Context</h2>
-          <pre className="text-sm text-slate-700 bg-slate-50 p-4 rounded overflow-x-auto">
+        <Card className="p-6 dark:bg-slate-800 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">Additional Context</h2>
+          <pre className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 p-4 rounded overflow-x-auto">
             {JSON.stringify(session.context, null, 2)}
           </pre>
         </Card>
@@ -134,12 +134,12 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
 
       {/* Running State */}
       {session.status === 'running' && (
-        <Card className="p-6 bg-blue-50 border-blue-200">
+        <Card className="p-6 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
           <div className="flex items-center gap-3">
-            <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
+            <Loader2 className="h-6 w-6 text-blue-600 dark:text-blue-400 animate-spin" />
             <div>
-              <h3 className="font-semibold text-blue-900">Agent is processing your request</h3>
-              <p className="text-sm text-blue-700 mt-1">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-100">Agent is processing your request</h3>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                 The agent is actively working on your task. Results will appear here when completed.
               </p>
             </div>
@@ -149,12 +149,12 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
 
       {/* Pending State */}
       {session.status === 'pending' && (
-        <Card className="p-6 bg-slate-50 border-slate-200">
+        <Card className="p-6 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            <Clock className="h-6 w-6 text-slate-600" />
+            <Clock className="h-6 w-6 text-slate-600 dark:text-slate-400" />
             <div>
-              <h3 className="font-semibold text-slate-900">Waiting for agent</h3>
-              <p className="text-sm text-slate-600 mt-1">
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">Waiting for agent</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 Your work request is queued and will be processed shortly.
               </p>
             </div>
@@ -164,12 +164,12 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
 
       {/* Error Message */}
       {session.status === 'failed' && session.error_message && (
-        <Card className="p-6 bg-red-50 border-red-200">
+        <Card className="p-6 bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-6 w-6 text-red-600 mt-0.5" />
+            <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400 mt-0.5" />
             <div>
-              <h3 className="font-semibold text-red-900">Task Failed</h3>
-              <p className="text-sm text-red-700 mt-1">{session.error_message}</p>
+              <h3 className="font-semibold text-red-900 dark:text-red-100">Task Failed</h3>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">{session.error_message}</p>
             </div>
           </div>
         </Card>
@@ -177,15 +177,15 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
 
       {/* Results */}
       {session.status === 'completed' && (
-        <Card className="p-6 bg-green-50 border-green-200">
+        <Card className="p-6 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
           <div className="flex items-start gap-3">
-            <CheckCircle className="h-6 w-6 text-green-600 mt-0.5" />
+            <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400 mt-0.5" />
             <div className="flex-1">
-              <h3 className="font-semibold text-green-900">Task Completed</h3>
+              <h3 className="font-semibold text-green-900 dark:text-green-100">Task Completed</h3>
               {session.result_summary ? (
-                <p className="text-sm text-green-700 mt-1">{session.result_summary}</p>
+                <p className="text-sm text-green-700 dark:text-green-300 mt-1">{session.result_summary}</p>
               ) : (
-                <p className="text-sm text-green-700 mt-1">
+                <p className="text-sm text-green-700 dark:text-green-300 mt-1">
                   The agent has successfully completed your task.
                 </p>
               )}
@@ -196,12 +196,12 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
 
       {/* Placeholder for Artifacts (future) */}
       {session.status === 'completed' && (
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+        <Card className="p-6 dark:bg-slate-800 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Artifacts & Results
           </h2>
-          <p className="text-slate-600 text-sm">
+          <p className="text-slate-600 dark:text-slate-400 text-sm">
             Artifacts and detailed results will be displayed here when agent execution is implemented.
           </p>
         </Card>
@@ -221,11 +221,11 @@ function InfoItem({
 }) {
   return (
     <div>
-      <div className="text-sm text-slate-600 mb-1 flex items-center gap-1">
+      <div className="text-sm text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
         {icon}
         {label}
       </div>
-      <div className="text-slate-900 font-medium">{value}</div>
+      <div className="text-slate-900 dark:text-slate-100 font-medium">{value}</div>
     </div>
   );
 }
