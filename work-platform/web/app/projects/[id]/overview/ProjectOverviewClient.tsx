@@ -22,7 +22,6 @@ interface ProjectData {
   description: string | null;
   basket_id: string;
   basket_name: string;
-  project_type: string;
   status: string;
   workspace_id: string;
   user_id: string;

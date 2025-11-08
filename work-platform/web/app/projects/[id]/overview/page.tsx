@@ -31,7 +31,6 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
       basket_id,
       workspace_id,
       user_id,
-      project_type,
       status,
       created_at,
       updated_at
@@ -111,7 +110,6 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     description: project.description,
     basket_id: project.basket_id,
     basket_name: basketName,
-    project_type: project.project_type,
     status: project.status,
     workspace_id: project.workspace_id,
     user_id: project.user_id,
