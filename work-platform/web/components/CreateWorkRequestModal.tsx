@@ -120,7 +120,7 @@ export default function CreateWorkRequestModal({
         <div className="flex flex-col gap-6">
           {/* Agent Selection */}
           <section className="flex flex-col gap-3">
-            <Label className="text-sm font-medium text-slate-800 dark:text-slate-200">
+            <Label className="text-sm font-medium text-slate-800">
               Select Agent <span className="text-destructive">*</span>
             </Label>
             <div className="grid gap-3 md:grid-cols-3">
@@ -132,28 +132,28 @@ export default function CreateWorkRequestModal({
                   onClick={() => setSelectedAgentId(agent.id)}
                   className={`flex flex-col items-start gap-2 rounded-lg border-2 p-4 text-left transition ${
                     selectedAgentId === agent.id
-                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-950 dark:border-blue-500'
-                      : 'border-slate-200 bg-white hover:border-slate-300 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-slate-600'
+                      ? 'border-blue-600 bg-blue-50
+                      : 'border-slate-200 bg-white hover:border-slate-300
                   } ${!agent.is_active || submitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                 >
                   <div className="flex items-center gap-2">
                     <div className={`rounded-lg p-2 ${
-                      selectedAgentId === agent.id ? 'bg-blue-100 dark:bg-blue-900' : 'bg-blue-50 dark:bg-blue-950'
+                      selectedAgentId === agent.id ? 'bg-blue-100 : 'bg-blue-50
                     }`}>
                       <Zap className={`h-5 w-5 ${
-                        selectedAgentId === agent.id ? 'text-blue-700 dark:text-blue-300' : 'text-blue-600 dark:text-blue-400'
+                        selectedAgentId === agent.id ? 'text-blue-700 : 'text-blue-600
                       }`} />
                     </div>
                     <div>
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{agent.display_name}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{agent.agent_type}</div>
+                      <div className="font-medium text-slate-900">{agent.display_name}</div>
+                      <div className="text-xs text-slate-500">{agent.agent_type}</div>
                     </div>
                   </div>
                 </button>
               ))}
             </div>
             {selectedAgent && (
-              <p className="text-xs text-slate-600 dark:text-slate-400">
+              <p className="text-xs text-slate-600">
                 {getAgentDescription(selectedAgent.agent_type)}
               </p>
             )}
@@ -161,7 +161,7 @@ export default function CreateWorkRequestModal({
 
           {/* Task Description */}
           <section className="flex flex-col gap-2">
-            <Label htmlFor="task-description" className="text-sm font-medium text-slate-800 dark:text-slate-200">
+            <Label htmlFor="task-description" className="text-sm font-medium text-slate-800">
               Task Description <span className="text-destructive">*</span>
             </Label>
             <Textarea
@@ -174,14 +174,14 @@ export default function CreateWorkRequestModal({
               maxLength={5000}
               disabled={submitting}
             />
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-500">
               {taskDescription.length}/5000 characters {taskDescription.length < 10 && '(minimum 10)'}
             </p>
           </section>
 
           {/* Error Message */}
           {error && (
-            <div className="flex items-center gap-2 rounded border border-destructive/50 bg-destructive/10 dark:bg-destructive/20 p-3 text-sm text-destructive dark:text-red-400">
+            <div className="flex items-center gap-2 rounded border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
               <span>{error}</span>
             </div>
@@ -189,7 +189,7 @@ export default function CreateWorkRequestModal({
 
           {/* Success Message */}
           {success && (
-            <div className="flex items-center gap-2 rounded border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 p-3 text-sm text-emerald-700 dark:text-emerald-300">
+            <div className="flex items-center gap-2 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
               <CheckCircle2 className="h-4 w-4" />
               <span>Work request created! Redirecting to session details...</span>
             </div>

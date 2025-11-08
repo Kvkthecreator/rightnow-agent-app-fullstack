@@ -17,7 +17,7 @@ export default function Loading() {
       {/* Status Filter Cards Skeleton */}
       <div className="grid gap-4 md:grid-cols-5">
         {[...Array(5)].map((_, i) => (
-          <Card key={i} className="p-4 dark:bg-slate-800 dark:border-slate-700">
+          <Card key={i} className="p-4">
             <div className="flex items-center gap-2">
               <Skeleton className="h-4 w-4 rounded-full" />
               <div className="space-y-2">
@@ -32,7 +32,7 @@ export default function Loading() {
       {/* Sessions List Skeleton */}
       <div className="space-y-3">
         {[...Array(3)].map((_, i) => (
-          <Card key={i} className="p-4 dark:bg-slate-800 dark:border-slate-700">
+          <Card key={i} className="p-4">
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <Skeleton className="h-6 w-20" />

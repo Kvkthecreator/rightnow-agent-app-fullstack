@@ -19,25 +19,25 @@ export default function Error({
 
   return (
     <div className="flex h-full items-center justify-center p-6">
-      <Card className="max-w-lg p-8 dark:bg-slate-800 dark:border-slate-700">
+      <Card className="max-w-lg p-8">
         <div className="flex flex-col items-center text-center gap-4">
-          <div className="rounded-full bg-red-100 dark:bg-red-950 p-4">
-            <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+          <div className="rounded-full bg-red-100 p-4">
+            <AlertCircle className="h-8 w-8 text-red-600" />
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            <h2 className="text-2xl font-bold text-slate-900">
               Failed to load project
             </h2>
-            <p className="mt-2 text-slate-600 dark:text-slate-400">
+            <p className="mt-2 text-slate-600">
               We encountered an error while loading this project. This could be due to a network
               issue, missing permissions, or a problem with the project data.
             </p>
           </div>
 
           {error.message && (
-            <div className="w-full rounded-lg bg-slate-50 dark:bg-slate-900 p-3 text-left">
-              <p className="text-sm font-mono text-slate-700 dark:text-slate-300">
+            <div className="w-full rounded-lg bg-slate-50 p-3 text-left">
+              <p className="text-sm font-mono text-slate-700">
                 {error.message}
               </p>
             </div>
@@ -64,7 +64,7 @@ export default function Error({
           </div>
 
           {error.digest && (
-            <p className="text-xs text-slate-500 dark:text-slate-500 mt-2">
+            <p className="text-xs text-slate-500 mt-2">
               Error ID: {error.digest}
             </p>
           )}
