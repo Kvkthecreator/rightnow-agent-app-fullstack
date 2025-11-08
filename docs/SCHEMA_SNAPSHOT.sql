@@ -1,4 +1,4 @@
-\restrict BOlSxdWM52iVtcYUXMPw5DnQZaddbRrlCLyVSamCbYYQjfKycZQKOl1bMKjJTMx
+\restrict q9LwNEbFshviAPdnv5l6IJHsR5HWe84leALsiukvYPTtg2uO9zFyRIYdhhDcxcY
 CREATE SCHEMA public;
 CREATE TYPE public.alert_severity AS ENUM (
     'info',
@@ -3752,4 +3752,4 @@ CREATE POLICY ws_owner_or_member_read ON public.workspaces FOR SELECT USING (((o
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY ws_owner_update ON public.workspaces FOR UPDATE USING ((owner_id = auth.uid()));
-\unrestrict BOlSxdWM52iVtcYUXMPw5DnQZaddbRrlCLyVSamCbYYQjfKycZQKOl1bMKjJTMx
+\unrestrict q9LwNEbFshviAPdnv5l6IJHsR5HWe84leALsiukvYPTtg2uO9zFyRIYdhhDcxcY
