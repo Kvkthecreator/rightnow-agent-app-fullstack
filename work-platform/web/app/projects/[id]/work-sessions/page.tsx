@@ -35,8 +35,8 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-slate-900">Project not found</h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Project not found</h2>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
             The project you're looking for doesn't exist or you don't have access to it.
           </p>
         </div>
@@ -79,12 +79,12 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <Link href={`/projects/${projectId}/overview`} className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 mb-2">
+          <Link href={`/projects/${projectId}/overview`} className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 mb-2">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Project
           </Link>
-          <h1 className="text-3xl font-bold text-slate-900">Work Sessions</h1>
-          <p className="text-slate-600 mt-1">{project.name}</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Work Sessions</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1">{project.name}</p>
         </div>
         <Link href={`/projects/${projectId}/overview`}>
           <Button>New Work Request</Button>
@@ -139,11 +139,11 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
 
       {/* Sessions List */}
       {sessions.length === 0 ? (
-        <Card className="p-12 text-center border-dashed">
-          <h3 className="text-xl font-semibold text-slate-900 mb-2">
+        <Card className="p-12 text-center border-dashed dark:bg-slate-800 dark:border-slate-700">
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
             {statusFilter ? 'No sessions found' : 'No work sessions yet'}
           </h3>
-          <p className="text-slate-600 mb-6 max-w-md mx-auto">
+          <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-md mx-auto">
             {statusFilter
               ? `No ${statusFilter} work sessions for this project.`
               : 'Create your first work request to get started.'}
@@ -158,19 +158,19 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
         <div className="space-y-3">
           {sessions.map((session) => (
             <Link key={session.session_id} href={`/projects/${projectId}/work-sessions/${session.session_id}`}>
-              <Card className="p-4 hover:border-slate-300 transition cursor-pointer">
+              <Card className="p-4 hover:border-slate-300 dark:hover:border-slate-600 transition cursor-pointer dark:bg-slate-800 dark:border-slate-700">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <Badge variant={getStatusVariant(session.status)}>
                         {session.status}
                       </Badge>
-                      <span className="text-sm text-slate-600">{session.agent_display_name}</span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-sm text-slate-600 dark:text-slate-400">{session.agent_display_name}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">
                         {new Date(session.created_at).toLocaleString()}
                       </span>
                     </div>
-                    <p className="text-slate-900 font-medium">{session.task_description}</p>
+                    <p className="text-slate-900 dark:text-slate-100 font-medium">{session.task_description}</p>
                   </div>
                 </div>
               </Card>
@@ -205,12 +205,20 @@ function StatusFilterCard({
 
   return (
     <Link href={href}>
-      <Card className={`p-4 cursor-pointer transition ${active ? 'border-blue-600 bg-blue-50' : 'hover:border-slate-300'}`}>
+      <Card className={`p-4 cursor-pointer transition ${
+        active
+          ? 'border-blue-600 bg-blue-50 dark:bg-blue-950 dark:border-blue-500'
+          : 'hover:border-slate-300 dark:hover:border-slate-600 dark:bg-slate-800 dark:border-slate-700'
+      }`}>
         <div className="flex items-center gap-2">
-          {icon && <span className={color}>{icon}</span>}
+          {icon && <span className={`${color} dark:brightness-125`}>{icon}</span>}
           <div>
-            <div className={`text-2xl font-bold ${active ? 'text-blue-600' : color}`}>{count}</div>
-            <div className="text-xs text-slate-600">{label}</div>
+            <div className={`text-2xl font-bold ${
+              active
+                ? 'text-blue-600 dark:text-blue-400'
+                : `${color} dark:brightness-125`
+            }`}>{count}</div>
+            <div className="text-xs text-slate-600 dark:text-slate-400">{label}</div>
           </div>
         </div>
       </Card>
