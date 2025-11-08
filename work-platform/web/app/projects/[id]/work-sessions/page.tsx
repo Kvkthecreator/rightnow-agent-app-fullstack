@@ -207,16 +207,16 @@ function StatusFilterCard({
     <Link href={href}>
       <Card className={`p-4 cursor-pointer transition ${
         active
-          ? 'border-blue-600 bg-blue-50
-          : 'hover:border-slate-300
+          ? 'border-blue-600 bg-blue-50'
+          : 'hover:border-slate-300'
       }`}>
         <div className="flex items-center gap-2">
-          {icon && <span className={`${color}
+          {icon && <span className={color}>{icon}</span>}
           <div>
             <div className={`text-2xl font-bold ${
               active
-                ? 'text-blue-600
-                : `${color}
+                ? 'text-blue-600'
+                : color
             }`}>{count}</div>
             <div className="text-xs text-slate-600">{label}</div>
           </div>

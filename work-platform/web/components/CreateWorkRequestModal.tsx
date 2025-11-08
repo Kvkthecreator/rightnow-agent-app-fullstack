@@ -132,16 +132,16 @@ export default function CreateWorkRequestModal({
                   onClick={() => setSelectedAgentId(agent.id)}
                   className={`flex flex-col items-start gap-2 rounded-lg border-2 p-4 text-left transition ${
                     selectedAgentId === agent.id
-                      ? 'border-blue-600 bg-blue-50
-                      : 'border-slate-200 bg-white hover:border-slate-300
+                      ? 'border-blue-600 bg-blue-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
                   } ${!agent.is_active || submitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                 >
                   <div className="flex items-center gap-2">
                     <div className={`rounded-lg p-2 ${
-                      selectedAgentId === agent.id ? 'bg-blue-100 : 'bg-blue-50
+                      selectedAgentId === agent.id ? 'bg-blue-100' : 'bg-blue-50'
                     }`}>
                       <Zap className={`h-5 w-5 ${
-                        selectedAgentId === agent.id ? 'text-blue-700 : 'text-blue-600
+                        selectedAgentId === agent.id ? 'text-blue-700' : 'text-blue-600'
                       }`} />
                     </div>
                     <div>
