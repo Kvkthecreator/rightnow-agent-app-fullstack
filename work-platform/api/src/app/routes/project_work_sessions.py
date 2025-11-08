@@ -37,6 +37,49 @@ logger = logging.getLogger(__name__)
 # ========================================================================
 
 
+class WorkSessionListItem(BaseModel):
+    """Work session list item (summary)."""
+
+    session_id: str
+    agent_id: str
+    agent_type: str
+    agent_display_name: str
+    task_description: str
+    status: str
+    created_at: str
+    completed_at: Optional[str]
+
+
+class WorkSessionsListResponse(BaseModel):
+    """List of work sessions for a project."""
+
+    sessions: list[WorkSessionListItem]
+    total_count: int
+    status_counts: dict
+
+
+class WorkSessionDetailResponse(BaseModel):
+    """Detailed work session information."""
+
+    session_id: str
+    project_id: str
+    project_name: str
+    agent_id: str
+    agent_type: str
+    agent_display_name: str
+    task_description: str
+    status: str
+    task_type: str
+    priority: int
+    context: dict
+    work_request_id: str
+    created_at: str
+    updated_at: Optional[str]
+    completed_at: Optional[str]
+    error_message: Optional[str]
+    result_summary: Optional[str]
+
+
 class CreateWorkSessionRequest(BaseModel):
     """Request to create work session for a project agent."""
 
@@ -296,4 +339,228 @@ async def create_project_work_session(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to create work session: {str(e)}"
+        )
+
+
+@router.get("/{project_id}/work-sessions", response_model=WorkSessionsListResponse)
+async def list_project_work_sessions(
+    project_id: str = Path(..., description="Project ID"),
+    status: Optional[str] = None,
+    user: dict = Depends(verify_jwt)
+):
+    """
+    List all work sessions for a project.
+
+    Args:
+        project_id: Project ID
+        status: Optional status filter (pending, running, completed, failed)
+        user: Authenticated user from JWT
+
+    Returns:
+        List of work sessions with summary info
+    """
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user token")
+
+    logger.info(
+        f"[PROJECT WORK SESSIONS LIST] Fetching sessions: project={project_id}, user={user_id}"
+    )
+
+    supabase = supabase_admin_client
+
+    try:
+        # Validate project exists and user has access
+        project_response = supabase.table("projects").select(
+            "id, name, user_id"
+        ).eq("id", project_id).single().execute()
+
+        if not project_response.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        project = project_response.data
+
+        # Verify user owns project
+        if project["user_id"] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Build query for work sessions
+        query = supabase.table("work_sessions").select(
+            """
+            id,
+            project_agent_id,
+            task_description,
+            status,
+            created_at,
+            completed_at
+            """
+        ).eq("project_id", project_id).order("created_at", desc=True)
+
+        # Apply status filter if provided
+        if status:
+            query = query.eq("status", status)
+
+        sessions_response = query.execute()
+        sessions = sessions_response.data or []
+
+        # Get agent info for each session
+        session_list = []
+        for session in sessions:
+            # Fetch agent details
+            agent_response = supabase.table("project_agents").select(
+                "id, agent_type, display_name"
+            ).eq("id", session["project_agent_id"]).single().execute()
+
+            if agent_response.data:
+                agent = agent_response.data
+                session_list.append(WorkSessionListItem(
+                    session_id=session["id"],
+                    agent_id=agent["id"],
+                    agent_type=agent["agent_type"],
+                    agent_display_name=agent["display_name"],
+                    task_description=session["task_description"],
+                    status=session["status"],
+                    created_at=session["created_at"],
+                    completed_at=session.get("completed_at"),
+                ))
+
+        # Get status counts
+        all_sessions_response = supabase.table("work_sessions").select(
+            "status"
+        ).eq("project_id", project_id).execute()
+
+        status_counts = {}
+        for sess in (all_sessions_response.data or []):
+            status_val = sess["status"]
+            status_counts[status_val] = status_counts.get(status_val, 0) + 1
+
+        logger.info(
+            f"[PROJECT WORK SESSIONS LIST] Found {len(session_list)} sessions for project {project_id}"
+        )
+
+        return WorkSessionsListResponse(
+            sessions=session_list,
+            total_count=len(all_sessions_response.data or []),
+            status_counts=status_counts,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[PROJECT WORK SESSIONS LIST] Unexpected error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch work sessions: {str(e)}"
+        )
+
+
+@router.get("/{project_id}/work-sessions/{session_id}", response_model=WorkSessionDetailResponse)
+async def get_project_work_session(
+    project_id: str = Path(..., description="Project ID"),
+    session_id: str = Path(..., description="Work session ID"),
+    user: dict = Depends(verify_jwt)
+):
+    """
+    Get detailed information about a specific work session.
+
+    Args:
+        project_id: Project ID
+        session_id: Work session ID
+        user: Authenticated user from JWT
+
+    Returns:
+        Detailed work session information
+    """
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user token")
+
+    logger.info(
+        f"[PROJECT WORK SESSION DETAIL] Fetching session: "
+        f"project={project_id}, session={session_id}, user={user_id}"
+    )
+
+    supabase = supabase_admin_client
+
+    try:
+        # Validate project exists and user has access
+        project_response = supabase.table("projects").select(
+            "id, name, user_id"
+        ).eq("id", project_id).single().execute()
+
+        if not project_response.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        project = project_response.data
+
+        # Verify user owns project
+        if project["user_id"] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Fetch work session
+        session_response = supabase.table("work_sessions").select(
+            """
+            id,
+            project_id,
+            project_agent_id,
+            agent_work_request_id,
+            task_description,
+            task_type,
+            status,
+            priority,
+            context,
+            created_at,
+            updated_at,
+            completed_at,
+            error_message,
+            result_summary
+            """
+        ).eq("id", session_id).eq("project_id", project_id).single().execute()
+
+        if not session_response.data:
+            raise HTTPException(status_code=404, detail="Work session not found")
+
+        session = session_response.data
+
+        # Fetch agent details
+        agent_response = supabase.table("project_agents").select(
+            "id, agent_type, display_name"
+        ).eq("id", session["project_agent_id"]).single().execute()
+
+        if not agent_response.data:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
+        agent = agent_response.data
+
+        logger.info(
+            f"[PROJECT WORK SESSION DETAIL] Found session {session_id} with status {session['status']}"
+        )
+
+        return WorkSessionDetailResponse(
+            session_id=session["id"],
+            project_id=session["project_id"],
+            project_name=project["name"],
+            agent_id=agent["id"],
+            agent_type=agent["agent_type"],
+            agent_display_name=agent["display_name"],
+            task_description=session["task_description"],
+            status=session["status"],
+            task_type=session["task_type"],
+            priority=session["priority"],
+            context=session["context"] or {},
+            work_request_id=session["agent_work_request_id"],
+            created_at=session["created_at"],
+            updated_at=session.get("updated_at"),
+            completed_at=session.get("completed_at"),
+            error_message=session.get("error_message"),
+            result_summary=session.get("result_summary"),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[PROJECT WORK SESSION DETAIL] Unexpected error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch work session: {str(e)}"
         )
