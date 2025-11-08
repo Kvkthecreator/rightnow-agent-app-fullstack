@@ -49,7 +49,6 @@ export async function POST(request: NextRequest) {
     // Forward to work-platform backend (canonical auth pattern)
     const backendPayload = {
       project_name: projectName.trim(),
-      default_agent_type: 'research', // Default agent to scaffold (research, content, reporting)
       initial_context: initialContext.trim() || 'Initial project setup',
       description: description?.trim() || undefined,
     };

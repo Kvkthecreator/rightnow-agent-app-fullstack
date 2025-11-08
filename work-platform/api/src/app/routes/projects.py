@@ -45,11 +45,6 @@ class CreateProjectRequest(BaseModel):
         min_length=1,
         max_length=200,
     )
-    default_agent_type: str = Field(
-        default="research",
-        description="Default agent type to create (research, content, reporting) - determines first agent scaffolded for project",
-        pattern="^(research|content|reporting)$",
-    )
     initial_context: str = Field(
         default="",
         description="Initial context/notes to seed project (optional if files are provided)",
@@ -69,7 +64,7 @@ class ProjectResponse(BaseModel):
     project_name: str
     basket_id: str
     dump_id: str
-    agent_id: str
+    agent_ids: list[str]
     work_request_id: str
     status: str
     is_trial_request: bool
@@ -90,14 +85,14 @@ async def create_project(
     """
     Create new project with complete infrastructure scaffolding (NEW users).
 
-    Phase 6.5 Refactor: Creates PROJECT (pure container) with BASKET (storage) and default AGENT.
+    Phase 6.5 Refactor: Creates PROJECT (pure container) with BASKET (storage) and ALL AGENTS.
 
     Orchestrates:
     1. Permission check (trial/subscription)
     2. Basket creation (substrate-api)
     3. Raw dump creation (substrate-api)
     4. Project creation (work-platform DB)
-    5. Default agent instance creation (project_agents)
+    5. Auto-scaffold ALL agents (research, content, reporting)
     6. Work request record (for trial tracking)
 
     This is a wrapper for onboarding, NOT a replacement for existing flows.
@@ -108,12 +103,11 @@ async def create_project(
         user: Authenticated user from JWT
 
     Returns:
-        Project creation result
+        Project creation result with all 3 agents auto-created
 
     Example Request:
         {
             "project_name": "Healthcare AI Research",
-            "default_agent_type": "research",
             "initial_context": "Research latest AI developments in healthcare...",
             "description": "Comprehensive analysis of AI in healthcare"
         }
@@ -124,7 +118,7 @@ async def create_project(
             "project_name": "Healthcare AI Research",
             "basket_id": "660e8400-...",
             "dump_id": "770e8400-...",
-            "agent_id": "990e8400-...",
+            "agent_ids": ["990e8400-...", "aa0e8400-...", "bb0e8400-..."],
             "work_request_id": "880e8400-...",
             "status": "active",
             "is_trial_request": true,
@@ -141,8 +135,7 @@ async def create_project(
     workspace_id = await _get_workspace_id_for_user(user_id)
 
     logger.info(
-        f"[PROJECTS API] Creating project: user={user_id}, "
-        f"agent={request.default_agent_type}, workspace={workspace_id}"
+        f"[PROJECTS API] Creating project: user={user_id}, workspace={workspace_id}"
     )
 
     try:
@@ -150,7 +143,6 @@ async def create_project(
             user_id=user_id,
             workspace_id=workspace_id,
             project_name=request.project_name,
-            default_agent_type=request.default_agent_type,
             initial_context=request.initial_context,
             description=request.description,
         )

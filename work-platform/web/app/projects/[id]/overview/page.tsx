@@ -52,6 +52,13 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     );
   }
 
+  // Fetch project agents (auto-scaffolded on project creation)
+  const { data: projectAgents } = await supabase
+    .from('project_agents')
+    .select('id, agent_type, display_name, is_active, created_at')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: true });
+
   // Fetch work sessions stats
   const { data: workSessions } = await supabase
     .from('work_sessions')
@@ -110,6 +117,7 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     user_id: project.user_id,
     created_at: project.created_at,
     updated_at: project.updated_at,
+    agents: projectAgents || [],
     stats: {
       contextItems: blocksCount || 0,
       documents: documentsCount || 0,

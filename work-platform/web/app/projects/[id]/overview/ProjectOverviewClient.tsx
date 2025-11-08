@@ -7,6 +7,14 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Plus, FileText, Layers, Zap, CheckCircle, Clock, PlayCircle, PauseCircle, XCircle } from 'lucide-react';
 
+interface ProjectAgent {
+  id: string;
+  agent_type: string;
+  display_name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 interface ProjectData {
   id: string;
   name: string;
@@ -19,6 +27,7 @@ interface ProjectData {
   user_id: string;
   created_at: string;
   updated_at: string;
+  agents: ProjectAgent[];
   stats: {
     contextItems: number;
     documents: number;
@@ -170,6 +179,29 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
           </div>
         </Card>
       </div>
+
+      {/* Project Agents */}
+      {project.agents && project.agents.length > 0 && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Available Agents</h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            {project.agents.map((agent) => (
+              <div
+                key={agent.id}
+                className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4"
+              >
+                <div className="rounded-lg bg-blue-50 p-2">
+                  <Zap className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-slate-900">{agent.display_name}</div>
+                  <div className="text-xs text-slate-500">{agent.agent_type}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Work Sessions Status */}
       {totalWork > 0 && (

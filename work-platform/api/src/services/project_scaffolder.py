@@ -56,20 +56,19 @@ async def scaffold_new_project(
     project_name: str,
     initial_context: str,
     description: Optional[str] = None,
-    default_agent_type: str = "research",  # Default agent to create
 ) -> dict:
     """
     Scaffold new project with basket-first infrastructure (NEW users).
 
-    Phase 6.5 Refactor: Creates PROJECT (pure container) with BASKET (storage) and default AGENT.
+    Phase 6.5 Refactor: Creates PROJECT (pure container) with BASKET (storage) and ALL AGENTS.
 
     Flow:
     1. Check permissions (trial/subscription)
     2. Create basket (substrate-api) with origin_template='project_onboarding'
     3. Create raw_dump (substrate-api) with initial context
     4. Create project (work-platform DB) linking to basket
-    5. Create default agent instance (project_agents)
-    6. Record work_request (for trial tracking)
+    5. Auto-scaffold ALL agent instances (research, content, reporting)
+    6. Record work_request (for trial tracking with research agent)
 
     Args:
         user_id: User ID from JWT
@@ -77,7 +76,6 @@ async def scaffold_new_project(
         project_name: User-provided project name
         initial_context: Initial context/notes to seed project
         description: Optional project description
-        default_agent_type: Agent type to auto-create ('research', 'content', 'reporting')
 
     Returns:
         {
@@ -85,7 +83,7 @@ async def scaffold_new_project(
             "project_name": "...",
             "basket_id": "...",
             "dump_id": "...",
-            "agent_id": "...",  # NEW: Default agent created
+            "agent_ids": ["...", "...", "..."],  # All 3 agents auto-created
             "work_request_id": "...",
             "status": "active",
             "is_trial_request": true/false,
@@ -99,13 +97,13 @@ async def scaffold_new_project(
     """
     logger.info(
         f"[PROJECT SCAFFOLDING] Creating project for user={user_id}, "
-        f"default_agent={default_agent_type}, workspace={workspace_id}"
+        f"workspace={workspace_id}"
     )
 
     basket_id = None
     dump_id = None
     project_id = None
-    agent_id = None
+    agent_ids = []
     work_request_id = None
 
     try:
@@ -113,8 +111,8 @@ async def scaffold_new_project(
         # Step 1: Check Permissions (Phase 5 trial/subscription)
         # ================================================================
         try:
-            # Use default_agent_type for permission check
-            agent_type = default_agent_type
+            # Use 'research' for permission check and work_request (default agent)
+            agent_type = "research"
 
             permission_info = await check_agent_work_request_allowed(
                 user_id=user_id,
@@ -136,10 +134,10 @@ async def scaffold_new_project(
         substrate_client = get_substrate_client()
 
         basket_metadata = {
-            "default_agent_type": default_agent_type,
             "created_via": "project_scaffolder",
             "origin": "new_project_onboarding",
             "origin_template": "project_onboarding",
+            "auto_scaffolded_agents": ["research", "content", "reporting"],
         }
 
         try:
@@ -168,7 +166,6 @@ async def scaffold_new_project(
         # ================================================================
         dump_metadata = {
             "source": "project_scaffolder",
-            "default_agent_type": default_agent_type,
             "is_initial_context": True,
         }
 
@@ -213,7 +210,7 @@ async def scaffold_new_project(
             "metadata": {
                 "dump_id": dump_id,
                 "initial_context_length": len(initial_context),
-                "default_agent_type": default_agent_type,
+                "auto_scaffolded_agents": ["research", "content", "reporting"],
             },
         }
 
@@ -242,34 +239,41 @@ async def scaffold_new_project(
             )
 
         # ================================================================
-        # Step 5: Create Default Agent Instance (project_agents)
+        # Step 5: Auto-Scaffold ALL Agent Instances (project_agents)
         # ================================================================
         try:
             logger.debug(
-                f"[PROJECT SCAFFOLDING] Creating default {default_agent_type} agent for project {project_id}"
+                f"[PROJECT SCAFFOLDING] Auto-scaffolding all agents for project {project_id}"
             )
 
-            agent_response = supabase_admin_client.table("project_agents").insert({
-                "project_id": project_id,
-                "agent_type": default_agent_type,
-                "display_name": f"{default_agent_type.title()} Agent",
-                "created_by_user_id": user_id,
-                "is_active": True
-            }).execute()
+            # Create all 3 agent types
+            agent_types = ["research", "content", "reporting"]
+            agents_data = [
+                {
+                    "project_id": project_id,
+                    "agent_type": agent_type,
+                    "display_name": f"{agent_type.title()} Agent",
+                    "created_by_user_id": user_id,
+                    "is_active": True
+                }
+                for agent_type in agent_types
+            ]
+
+            agent_response = supabase_admin_client.table("project_agents").insert(agents_data).execute()
 
             if not agent_response.data or len(agent_response.data) == 0:
-                raise Exception("No agent created in database")
+                raise Exception("No agents created in database")
 
-            agent_id = agent_response.data[0]["id"]
+            agent_ids = [agent["id"] for agent in agent_response.data]
             logger.info(
-                f"[PROJECT SCAFFOLDING] Created agent {agent_id} ({default_agent_type}) for project {project_id}"
+                f"[PROJECT SCAFFOLDING] Created {len(agent_ids)} agents for project {project_id}: {agent_types}"
             )
 
         except Exception as e:
-            logger.error(f"[PROJECT SCAFFOLDING] Failed to create agent: {e}")
+            logger.error(f"[PROJECT SCAFFOLDING] Failed to create agents: {e}")
             raise ProjectScaffoldingError(
-                message=f"Failed to create project agent: {str(e)}",
-                step="create_agent",
+                message=f"Failed to create project agents: {str(e)}",
+                step="create_agents",
                 details={"error": str(e)},
                 project_id=project_id,
                 basket_id=basket_id,
@@ -321,7 +325,7 @@ async def scaffold_new_project(
         # ================================================================
         logger.info(
             f"[PROJECT SCAFFOLDING] ✅ SUCCESS: project={project_id}, "
-            f"basket={basket_id}, agent={agent_id}, work_request={work_request_id}"
+            f"basket={basket_id}, agents={len(agent_ids)}, work_request={work_request_id}"
         )
 
         return {
@@ -329,7 +333,7 @@ async def scaffold_new_project(
             "project_name": project_name,
             "basket_id": basket_id,
             "dump_id": dump_id,
-            "agent_id": agent_id,
+            "agent_ids": agent_ids,
             "work_request_id": work_request_id,
             "status": "active",
             "is_trial_request": not permission_info.get("is_subscribed", False),
