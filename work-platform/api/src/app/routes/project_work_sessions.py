@@ -284,12 +284,13 @@ async def create_project_work_session(
             "agent_work_request_id": work_request_id,
             "basket_id": basket_id,
             "workspace_id": workspace_id,
-            "user_id": user_id,
-            "task_description": request.task_description,
+            "initiated_by_user_id": user_id,  # Fixed: table uses initiated_by_user_id not user_id
+            "task_intent": request.task_description,  # Fixed: table uses task_intent not task_description
             "task_type": request.work_mode,
             "status": "pending",
-            "context": request.context,
-            "priority": request.priority,
+            "task_parameters": request.context,  # Fixed: table uses task_parameters not context
+            # Note: priority not in table schema, storing in metadata instead
+            "metadata": {"priority": request.priority, "source": "ui"},
         }
 
         try:
@@ -389,10 +390,10 @@ async def list_project_work_sessions(
             """
             id,
             project_agent_id,
-            task_description,
+            task_intent,
             status,
             created_at,
-            completed_at
+            ended_at
             """
         ).eq("project_id", project_id).order("created_at", desc=True)
 
@@ -418,10 +419,10 @@ async def list_project_work_sessions(
                     agent_id=agent["id"],
                     agent_type=agent["agent_type"],
                     agent_display_name=agent["display_name"],
-                    task_description=session["task_description"],
+                    task_description=session["task_intent"],  # Fixed: use task_intent
                     status=session["status"],
                     created_at=session["created_at"],
-                    completed_at=session.get("completed_at"),
+                    completed_at=session.get("ended_at"),  # Fixed: use ended_at
                 ))
 
         # Get status counts
@@ -504,16 +505,14 @@ async def get_project_work_session(
             project_id,
             project_agent_id,
             agent_work_request_id,
-            task_description,
+            task_intent,
             task_type,
             status,
-            priority,
-            context,
+            task_parameters,
+            metadata,
             created_at,
-            updated_at,
-            completed_at,
-            error_message,
-            result_summary
+            started_at,
+            ended_at
             """
         ).eq("id", session_id).eq("project_id", project_id).single().execute()
 
@@ -536,6 +535,12 @@ async def get_project_work_session(
             f"[PROJECT WORK SESSION DETAIL] Found session {session_id} with status {session['status']}"
         )
 
+        # Extract metadata fields
+        metadata = session.get("metadata") or {}
+        priority = metadata.get("priority", 5)
+        error_message = metadata.get("error_message")
+        result_summary = metadata.get("result_summary")
+
         return WorkSessionDetailResponse(
             session_id=session["id"],
             project_id=session["project_id"],
@@ -543,17 +548,17 @@ async def get_project_work_session(
             agent_id=agent["id"],
             agent_type=agent["agent_type"],
             agent_display_name=agent["display_name"],
-            task_description=session["task_description"],
+            task_description=session["task_intent"],  # Fixed: use task_intent
             status=session["status"],
             task_type=session["task_type"],
-            priority=session["priority"],
-            context=session["context"] or {},
+            priority=priority,  # From metadata
+            context=session["task_parameters"] or {},  # Fixed: use task_parameters
             work_request_id=session["agent_work_request_id"],
             created_at=session["created_at"],
-            updated_at=session.get("updated_at"),
-            completed_at=session.get("completed_at"),
-            error_message=session.get("error_message"),
-            result_summary=session.get("result_summary"),
+            updated_at=session.get("started_at"),  # Use started_at as updated_at proxy
+            completed_at=session.get("ended_at"),  # Fixed: use ended_at
+            error_message=error_message,  # From metadata
+            result_summary=result_summary,  # From metadata
         )
 
     except HTTPException:
