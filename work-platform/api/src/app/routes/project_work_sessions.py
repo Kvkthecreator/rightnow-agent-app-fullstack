@@ -28,6 +28,11 @@ from utils.permissions import (
     PermissionDeniedError,
 )
 
+# Import enhanced task configuration models and services
+from models.task_configurations import CreateWorkSessionRequest as EnhancedWorkSessionRequest
+from services.context_envelope_generator import ContextEnvelopeGenerator
+from clients.substrate_client import SubstrateClient
+
 router = APIRouter(prefix="/projects", tags=["project-work-sessions"])
 logger = logging.getLogger(__name__)
 
@@ -80,33 +85,14 @@ class WorkSessionDetailResponse(BaseModel):
     result_summary: Optional[str]
 
 
-class CreateWorkSessionRequest(BaseModel):
-    """Request to create work session for a project agent."""
-
-    agent_id: str = Field(
-        ...,
-        description="Project agent ID (from project_agents table)"
-    )
-    task_description: str = Field(
-        ...,
-        description="Description of work to be performed",
-        min_length=10,
-        max_length=5000
-    )
-    work_mode: str = Field(
-        default="general",
-        description="Work mode (general, governance_proposal, etc.)"
-    )
-    context: Optional[dict] = Field(
-        default={},
-        description="Additional context for agent execution"
-    )
-    priority: int = Field(
-        default=5,
-        description="Priority level (1-10, higher = more urgent)",
-        ge=1,
-        le=10
-    )
+# Legacy model kept for backward compatibility (deprecated)
+class LegacyCreateWorkSessionRequest(BaseModel):
+    """Legacy request format (deprecated - use EnhancedWorkSessionRequest)."""
+    agent_id: str
+    task_description: str
+    work_mode: str = "general"
+    context: Optional[dict] = {}
+    priority: int = 5
 
 
 class WorkSessionResponse(BaseModel):
@@ -133,7 +119,7 @@ class WorkSessionResponse(BaseModel):
 @router.post("/{project_id}/work-sessions", response_model=WorkSessionResponse)
 async def create_project_work_session(
     project_id: str = Path(..., description="Project ID"),
-    request: CreateWorkSessionRequest = ...,
+    request: EnhancedWorkSessionRequest = ...,
     user: dict = Depends(verify_jwt)
 ):
     """
@@ -244,14 +230,47 @@ async def create_project_work_session(
             )
 
         # ================================================================
-        # Step 4: Create Agent Work Request (Billing/Trial Tracking)
+        # Step 4: Generate Context Envelope (P4 Document)
+        # ================================================================
+        context_envelope = None
+        task_document_id = None
+
+        try:
+            substrate_client = SubstrateClient()
+            envelope_generator = ContextEnvelopeGenerator(substrate_client)
+
+            context_envelope = await envelope_generator.generate_project_context_envelope(
+                project_id=project_id,
+                basket_id=basket_id,
+                agent_type=agent_type,
+                focus_blocks=None  # TODO: Extract from task_configuration if specified
+            )
+
+            # Store envelope as P4 document
+            task_document_id = await envelope_generator.store_envelope_as_document(
+                envelope=context_envelope,
+                basket_id=basket_id
+            )
+
+            logger.info(
+                f"[PROJECT WORK SESSION] Generated context envelope, "
+                f"document_id={task_document_id}"
+            )
+        except Exception as e:
+            logger.warning(
+                f"[PROJECT WORK SESSION] Failed to generate context envelope: {e}. "
+                f"Continuing without it - agent will query substrate directly."
+            )
+            # Non-fatal: agent can still execute without envelope
+
+        # ================================================================
+        # Step 5: Create Agent Work Request (Billing/Trial Tracking)
         # ================================================================
         request_payload = {
             "project_id": project_id,
             "agent_id": request.agent_id,
             "task_description": request.task_description[:200],  # Truncate
-            "work_mode": request.work_mode,
-            "context": request.context,
+            "task_configuration": request.get_task_configuration(),  # Agent-specific config
         }
 
         try:
@@ -260,7 +279,7 @@ async def create_project_work_session(
                 workspace_id=workspace_id,
                 basket_id=basket_id,
                 agent_type=agent_type,
-                work_mode=request.work_mode,
+                work_mode="enhanced",  # Mark as enhanced request
                 request_payload=request_payload,
                 permission_info=permission_info,
             )
@@ -276,7 +295,7 @@ async def create_project_work_session(
             )
 
         # ================================================================
-        # Step 5: Create Work Session (Execution Record)
+        # Step 6: Create Work Session (Execution Record)
         # ================================================================
         session_data = {
             "project_id": project_id,
@@ -284,13 +303,18 @@ async def create_project_work_session(
             "agent_work_request_id": work_request_id,
             "basket_id": basket_id,
             "workspace_id": workspace_id,
-            "initiated_by_user_id": user_id,  # Fixed: table uses initiated_by_user_id not user_id
-            "task_intent": request.task_description,  # Fixed: table uses task_intent not task_description
-            "task_type": request.work_mode,
-            "status": "pending",
-            "task_parameters": request.context,  # Fixed: table uses task_parameters not context
-            # Note: priority not in table schema, storing in metadata instead
-            "metadata": {"priority": request.priority, "source": "ui"},
+            "initiated_by_user_id": user_id,
+            "task_intent": request.task_description,
+            "task_type": agent_type,  # Store agent type as task_type
+            "status": "initialized",  # Start as initialized (pending deprecated)
+            "task_configuration": request.get_task_configuration(),  # Agent-specific config (JSONB)
+            "task_document_id": task_document_id,  # Link to context envelope P4 document
+            "approval_strategy": request.approval_strategy.strategy,  # Checkpoint strategy
+            "metadata": {
+                "priority": request.priority,
+                "source": "ui_enhanced",
+                "envelope_generated": task_document_id is not None,
+            },
         }
 
         try:
@@ -317,7 +341,7 @@ async def create_project_work_session(
             )
 
         # ================================================================
-        # Step 6: Return Work Session Details
+        # Step 7: Return Work Session Details
         # ================================================================
         return WorkSessionResponse(
             session_id=session_id,
@@ -325,12 +349,12 @@ async def create_project_work_session(
             agent_id=request.agent_id,
             agent_type=agent_type,
             task_description=request.task_description,
-            status="pending",
+            status="initialized",
             work_request_id=work_request_id,
             created_at=session["created_at"],
             is_trial_request=not permission_info.get("is_subscribed", False),
             remaining_trials=permission_info.get("remaining_trial_requests"),
-            message=f"Work session created. Agent will begin processing shortly.",
+            message=f"Work session created with context envelope. Agent ready to execute.",
         )
 
     except HTTPException:
