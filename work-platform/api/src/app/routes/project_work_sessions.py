@@ -367,6 +367,316 @@ async def create_project_work_session(
         )
 
 
+# ============================================================================
+# PHASE 2: AGENT EXECUTION ENDPOINTS
+# ============================================================================
+
+@router.post("/{project_id}/work-sessions/{session_id}/execute")
+async def execute_work_session(
+    project_id: str = Path(..., description="Project ID"),
+    session_id: str = Path(..., description="Work session ID"),
+    user: dict = Depends(verify_jwt)
+):
+    """
+    Execute a work session via Agent SDK.
+
+    **Phase 2: Agent Execution**
+
+    Flow:
+    1. Validate session belongs to project
+    2. Check session is in executable state (initialized/paused)
+    3. Create agent instance
+    4. Provision context envelope
+    5. Execute agent task
+    6. Handle outputs (artifacts, checkpoints)
+    7. Update session status
+
+    Returns:
+        Execution result with status and artifacts
+    """
+    from services.work_session_executor import WorkSessionExecutor
+
+    user_id = user["sub"]
+    logger.info(
+        f"[EXECUTE SESSION] User {user_id} executing session {session_id} "
+        f"in project {project_id}"
+    )
+
+    try:
+        # Verify session belongs to project and user has access
+        supabase = create_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        )
+
+        session_response = supabase.table("work_sessions").select(
+            "id, project_id, status"
+        ).eq("id", session_id).eq("project_id", project_id).single().execute()
+
+        if not session_response.data:
+            raise HTTPException(
+                status_code=404,
+                detail="Work session not found or does not belong to this project"
+            )
+
+        # Execute work session
+        executor = WorkSessionExecutor()
+        result = await executor.execute_work_session(session_id)
+
+        logger.info(
+            f"[EXECUTE SESSION] ✅ Execution completed: "
+            f"session={session_id}, status={result['status']}"
+        )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[EXECUTE SESSION] Failed to execute session {session_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to execute work session: {str(e)}"
+        )
+
+
+@router.get("/{project_id}/work-sessions/{session_id}/status")
+async def get_work_session_status(
+    project_id: str = Path(..., description="Project ID"),
+    session_id: str = Path(..., description="Work session ID"),
+    user: dict = Depends(verify_jwt)
+):
+    """
+    Get real-time status of a work session.
+
+    **Phase 2: Execution Monitoring**
+
+    Returns:
+        Work session status with:
+        - status: Current execution status
+        - artifacts_count: Number of artifacts created
+        - checkpoints: List of checkpoints (if any)
+        - metadata: Execution metadata
+    """
+    user_id = user["sub"]
+
+    try:
+        supabase = create_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        )
+
+        # Fetch session with artifacts and checkpoints
+        session_response = supabase.table("work_sessions").select(
+            "id, status, task_type, task_intent, metadata, created_at"
+        ).eq("id", session_id).eq("project_id", project_id).single().execute()
+
+        if not session_response.data:
+            raise HTTPException(
+                status_code=404,
+                detail="Work session not found"
+            )
+
+        session = session_response.data
+
+        # Get artifacts count
+        artifacts_response = supabase.table("work_artifacts").select(
+            "id", count="exact"
+        ).eq("work_session_id", session_id).execute()
+
+        artifacts_count = artifacts_response.count or 0
+
+        # Get checkpoints
+        checkpoints_response = supabase.table("work_checkpoints").select(
+            "id, reason, status, created_at"
+        ).eq("work_session_id", session_id).order("created_at").execute()
+
+        checkpoints = checkpoints_response.data or []
+
+        return {
+            "session_id": session["id"],
+            "status": session["status"],
+            "task_type": session["task_type"],
+            "task_intent": session["task_intent"],
+            "artifacts_count": artifacts_count,
+            "checkpoints": checkpoints,
+            "metadata": session.get("metadata", {}),
+            "created_at": session["created_at"]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[GET STATUS] Failed to get status for session {session_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get work session status: {str(e)}"
+        )
+
+
+@router.post("/{project_id}/work-sessions/{session_id}/checkpoints/{checkpoint_id}/approve")
+async def approve_checkpoint(
+    project_id: str = Path(..., description="Project ID"),
+    session_id: str = Path(..., description="Work session ID"),
+    checkpoint_id: str = Path(..., description="Checkpoint ID"),
+    feedback: Optional[str] = None,
+    user: dict = Depends(verify_jwt)
+):
+    """
+    Approve a checkpoint, allowing execution to resume.
+
+    **Phase 2: Checkpoint Approval**
+
+    Body (optional):
+        - feedback: User feedback/notes
+
+    Flow:
+    1. Validate checkpoint belongs to session
+    2. Mark checkpoint as approved
+    3. Optionally resume execution automatically
+    """
+    from services.checkpoint_handler import CheckpointHandler
+
+    user_id = user["sub"]
+
+    logger.info(
+        f"[APPROVE CHECKPOINT] User {user_id} approving checkpoint {checkpoint_id} "
+        f"in session {session_id}"
+    )
+
+    try:
+        # Verify checkpoint belongs to session
+        supabase = create_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        )
+
+        checkpoint_response = supabase.table("work_checkpoints").select(
+            "id, work_session_id"
+        ).eq("id", checkpoint_id).single().execute()
+
+        if not checkpoint_response.data:
+            raise HTTPException(status_code=404, detail="Checkpoint not found")
+
+        if checkpoint_response.data["work_session_id"] != session_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Checkpoint does not belong to this work session"
+            )
+
+        # Approve checkpoint
+        handler = CheckpointHandler()
+        success = await handler.approve_checkpoint(
+            checkpoint_id=checkpoint_id,
+            reviewed_by_user_id=user_id,
+            feedback=feedback
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to approve checkpoint"
+            )
+
+        logger.info(f"[APPROVE CHECKPOINT] ✅ Checkpoint {checkpoint_id} approved")
+
+        return {
+            "checkpoint_id": checkpoint_id,
+            "status": "approved",
+            "message": "Checkpoint approved. Execution can resume."
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[APPROVE CHECKPOINT] Failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to approve checkpoint: {str(e)}"
+        )
+
+
+@router.post("/{project_id}/work-sessions/{session_id}/checkpoints/{checkpoint_id}/reject")
+async def reject_checkpoint(
+    project_id: str = Path(..., description="Project ID"),
+    session_id: str = Path(..., description="Work session ID"),
+    checkpoint_id: str = Path(..., description="Checkpoint ID"),
+    rejection_reason: str = ...,
+    user: dict = Depends(verify_jwt)
+):
+    """
+    Reject a checkpoint, failing the work session.
+
+    **Phase 2: Checkpoint Rejection**
+
+    Body (required):
+        - rejection_reason: Why checkpoint was rejected
+
+    Side effects:
+        - Marks checkpoint as rejected
+        - Marks work session as failed
+    """
+    from services.checkpoint_handler import CheckpointHandler
+
+    user_id = user["sub"]
+
+    logger.info(
+        f"[REJECT CHECKPOINT] User {user_id} rejecting checkpoint {checkpoint_id}: "
+        f"{rejection_reason}"
+    )
+
+    try:
+        # Verify checkpoint belongs to session
+        supabase = create_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        )
+
+        checkpoint_response = supabase.table("work_checkpoints").select(
+            "id, work_session_id"
+        ).eq("id", checkpoint_id).single().execute()
+
+        if not checkpoint_response.data:
+            raise HTTPException(status_code=404, detail="Checkpoint not found")
+
+        if checkpoint_response.data["work_session_id"] != session_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Checkpoint does not belong to this work session"
+            )
+
+        # Reject checkpoint
+        handler = CheckpointHandler()
+        success = await handler.reject_checkpoint(
+            checkpoint_id=checkpoint_id,
+            reviewed_by_user_id=user_id,
+            rejection_reason=rejection_reason
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to reject checkpoint"
+            )
+
+        logger.info(f"[REJECT CHECKPOINT] ✅ Checkpoint {checkpoint_id} rejected")
+
+        return {
+            "checkpoint_id": checkpoint_id,
+            "status": "rejected",
+            "message": "Checkpoint rejected. Work session marked as failed."
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[REJECT CHECKPOINT] Failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to reject checkpoint: {str(e)}"
+        )
+
+
 @router.get("/{project_id}/work-sessions", response_model=WorkSessionsListResponse)
 async def list_project_work_sessions(
     project_id: str = Path(..., description="Project ID"),
