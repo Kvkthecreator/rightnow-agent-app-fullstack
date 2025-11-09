@@ -80,29 +80,46 @@ YARNNN has evolved from a **context-first memory OS** to an **AI Work Platform**
   - Prevents duplicate processing of basket work requests
   - Cached results for repeated requests
 
-### Governance Architecture Integration ✅ (v4.0: Unified Governance)
+### Governance Architecture ✅ (v4.0: SPLIT GOVERNANCE - Updated 2025-11-05)
 
-**v4.0 Enhancement**: Governance now spans both work quality AND substrate integrity.
+**CRITICAL: YARNNN has TWO INDEPENDENT GOVERNANCE SYSTEMS**
 
-- **Unified Approval Orchestrator**: Single review handles work quality + substrate mutations
-- **Work Session Lifecycle**: `initialized` → `in_progress` → `pending_review` → `completed_approved`
-- **Risk Assessment Engine**: Multi-factor risk calculation (mutation type, confidence, track record, novelty)
-- **Checkpoint Manager**: Multi-stage approval workflows (plan, mid-work, artifact, final)
-- **Auto-Approval Engine**: Trusted agents bypass review for low-risk work
-- **Workspace Policies**: Per-workspace governance configuration with RLS isolation
-- **Agent Track Record**: Performance metrics enable trust calibration
-- **Complete Audit Trail**: All governance decisions + substrate mutations in timeline_events
+#### 1. Work-Platform Governance (work-platform service)
+**Concern**: Work quality, task completion, agent deliverables
+**Question**: "Did the agent do good work?"
 
-### Data Flow (v4.0: Unified Governance Model)
-1. **Frontend** → Create task via `/api/work/sessions`
-2. **Work Session** → Agent executes, creates artifacts
-3. **Risk Assessment** → Calculate risk for each artifact
-4. **User Review** → Single approval decision via `/api/governance/sessions/{id}/review`
-5. **Unified Orchestrator** → Apply approved artifacts to substrate in ACCEPTED state
-6. **Substrate Mutation** → Blocks created, embeddings generated, relationships extracted
-7. **Timeline Events** → Work approval + substrate changes logged
-8. **Agent Metrics** → Track record updated (approval rate, confidence calibration)
-9. **Realtime** → Frontend updates with work completion + substrate changes
+- **Work Session Lifecycle**: `initialized` → `in_progress` → `pending_review` → `approved` / `rejected`
+- **Work Artifacts**: Agent outputs awaiting quality review
+- **Approval Decision**: User reviews agent work quality only
+- **Output**: Approved artifacts (ready for substrate submission)
+
+#### 2. Substrate Governance (substrate-api service)
+**Concern**: Memory integrity, semantic deduplication, quality validation
+**Question**: "Should this become persistent memory?"
+
+- **Proposal System**: ALL substrate mutations via `proposals` table
+- **P1 Validation**: Semantic dedup, quality checks, merge detection
+- **Block Creation**: Only through approved proposals (ENFORCED)
+- **Provenance**: Links back to source (raw_dump or work_artifact)
+
+#### Critical Separation (as of 2025-11-05):
+- ✅ **Substrate governance**: WORKING & ENFORCED (P1 proposals only)
+- ⚠️ **Work-platform governance**: SCHEMA READY, integration NOT YET IMPLEMENTED
+- ❌ **"Unified Approval Orchestrator"**: DISABLED (bypassed proposals - see GOVERNANCE_CLEANUP_SUMMARY_2025_11_05.md)
+
+**See**:
+- [Governance Cleanup Summary (2025-11-05)](architecture/GOVERNANCE_CLEANUP_SUMMARY_2025_11_05.md) - Current state
+- [Governance Separation Refactor Plan](architecture/GOVERNANCE_SEPARATION_REFACTOR_PLAN.md) - Future implementation plan
+
+### Data Flow (v4.0: Split Governance - TO BE IMPLEMENTED)
+1. **Frontend** → Create work session via `/api/work/sessions`
+2. **Agent** → Executes task, creates work_artifacts
+3. **Work Governance** → User reviews work quality, approves/rejects
+4. **Bridge** (TODO) → Submit approved artifacts as substrate proposals
+5. **Substrate Governance** → P1 validates proposals (semantic dedup, quality)
+6. **Substrate** → Approved proposals create blocks (or merge with existing)
+7. **Notification** → Work-platform notified of substrate mutations
+8. **Timeline Events** → Both work approval + substrate changes logged
 
 ## 🧹 Recent Cleanup (Completed)
 
