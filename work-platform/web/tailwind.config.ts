@@ -2,7 +2,7 @@ import { type Config } from "tailwindcss";
 import colors from "tailwindcss/colors";
 
 const config = {
-  darkMode: "class",
+  darkMode: false,
     content: {
     files: [
         "./app/**/*.{ts,tsx}",
