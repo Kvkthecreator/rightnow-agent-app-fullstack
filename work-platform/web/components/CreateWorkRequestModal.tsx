@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Label';
@@ -24,6 +24,7 @@ interface CreateWorkRequestModalProps {
   onOpenChange: (open: boolean) => void;
   projectId: string;
   agents: ProjectAgent[];
+  preSelectedAgentId?: string | null;
 }
 
 export default function CreateWorkRequestModal({
@@ -31,10 +32,11 @@ export default function CreateWorkRequestModal({
   onOpenChange,
   projectId,
   agents,
+  preSelectedAgentId,
 }: CreateWorkRequestModalProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
-  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(preSelectedAgentId || '');
   const [taskDescription, setTaskDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -85,6 +87,13 @@ export default function CreateWorkRequestModal({
   const [approvalStrategy, setApprovalStrategy] = useState<ApprovalStrategy>({
     strategy: "final_only",
   });
+
+  // Update selectedAgentId when preSelectedAgentId changes (e.g., when clicking an agent card)
+  useEffect(() => {
+    if (preSelectedAgentId) {
+      setSelectedAgentId(preSelectedAgentId);
+    }
+  }, [preSelectedAgentId]);
 
   const selectedAgent = agents.find(a => a.id === selectedAgentId);
 

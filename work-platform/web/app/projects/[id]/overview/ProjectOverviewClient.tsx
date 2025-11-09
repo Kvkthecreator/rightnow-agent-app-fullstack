@@ -50,9 +50,22 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [workRequestModalOpen, setWorkRequestModalOpen] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const activeWork = project.stats.workSessions.pending + project.stats.workSessions.running;
   const totalWork = project.stats.workSessions.total;
+
+  const handleAgentClick = (agentId: string) => {
+    setSelectedAgentId(agentId);
+    setWorkRequestModalOpen(true);
+  };
+
+  const handleModalClose = (open: boolean) => {
+    setWorkRequestModalOpen(open);
+    if (!open) {
+      setSelectedAgentId(null);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-6">
@@ -77,13 +90,6 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={() => setWorkRequestModalOpen(true)}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            New Work Request
-          </Button>
           <Button
             variant="secondary"
             onClick={() => router.push(`/projects/${project.id}/context`)}
@@ -186,9 +192,15 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Available Agents</h3>
           <div className="grid gap-4 md:grid-cols-3">
             {project.agents.map((agent) => (
-              <div
+              <button
                 key={agent.id}
-                className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4"
+                onClick={() => handleAgentClick(agent.id)}
+                disabled={!agent.is_active}
+                className={`flex items-center gap-3 rounded-lg border-2 bg-white p-4 text-left transition-all ${
+                  agent.is_active
+                    ? 'border-slate-200 hover:border-blue-400 hover:shadow-md cursor-pointer'
+                    : 'border-slate-100 opacity-50 cursor-not-allowed'
+                }`}
               >
                 <div className="rounded-lg bg-blue-50 p-2">
                   <Zap className="h-5 w-5 text-blue-600" />
@@ -197,7 +209,8 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
                   <div className="font-medium text-slate-900">{agent.display_name}</div>
                   <div className="text-xs text-slate-500">{agent.agent_type}</div>
                 </div>
-              </div>
+                <Plus className="h-4 w-4 text-slate-400" />
+              </button>
             ))}
           </div>
         </Card>
@@ -273,9 +286,10 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
       {/* Work Request Modal */}
       <CreateWorkRequestModal
         open={workRequestModalOpen}
-        onOpenChange={setWorkRequestModalOpen}
+        onOpenChange={handleModalClose}
         projectId={project.id}
         agents={project.agents}
+        preSelectedAgentId={selectedAgentId}
       />
     </div>
   );
