@@ -7,6 +7,10 @@ import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, CheckCircle2, Loader2, Zap } from 'lucide-react';
+import ResearchConfigForm, { type ResearchConfig } from '@/components/work/ResearchConfigForm';
+import ContentConfigForm, { type ContentConfig } from '@/components/work/ContentConfigForm';
+import ReportingConfigForm, { type ReportingConfig } from '@/components/work/ReportingConfigForm';
+import ApprovalStrategySelector, { type ApprovalStrategy } from '@/components/work/ApprovalStrategySelector';
 
 interface ProjectAgent {
   id: string;
@@ -35,7 +39,58 @@ export default function CreateWorkRequestModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const canSubmit = selectedAgentId && taskDescription.trim().length >= 10;
+  // Agent-specific configurations
+  const [researchConfig, setResearchConfig] = useState<ResearchConfig>({
+    research_scope: {
+      depth: "detailed",
+      timeframe_lookback_days: 30,
+    },
+    output_preferences: {
+      format: "detailed_report",
+      max_findings: 10,
+      confidence_threshold: 0.7,
+    },
+  });
+
+  const [contentConfig, setContentConfig] = useState<ContentConfig>({
+    content_spec: {
+      platform: "general",
+      tone: "professional",
+      target_audience: "",
+    },
+    brand_requirements: {
+      use_brand_voice: true,
+      include_cta: false,
+    },
+    variations_count: 1,
+  });
+
+  const [reportingConfig, setReportingConfig] = useState<ReportingConfig>({
+    report_spec: {
+      report_type: "executive_summary",
+      time_period_start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      time_period_end: new Date().toISOString().split('T')[0],
+      sections_required: ["Overview", "Key Metrics", "Recommendations"],
+    },
+    data_sources: {
+      include_timeline_events: true,
+      include_metrics: true,
+    },
+    audience: {
+      stakeholder_level: "executive",
+      depth: "high_level",
+    },
+  });
+
+  const [approvalStrategy, setApprovalStrategy] = useState<ApprovalStrategy>({
+    strategy: "final_only",
+  });
+
+  const selectedAgent = agents.find(a => a.id === selectedAgentId);
+
+  const canSubmit = selectedAgentId && taskDescription.trim().length >= 10 &&
+    (selectedAgent?.agent_type !== 'content' || contentConfig.content_spec.target_audience.trim().length >= 3) &&
+    (selectedAgent?.agent_type !== 'reporting' || (reportingConfig.report_spec.time_period_start && reportingConfig.report_spec.time_period_end));
 
   const resetState = () => {
     setSelectedAgentId('');
@@ -57,18 +112,29 @@ export default function CreateWorkRequestModal({
     setError(null);
 
     try {
+      // Build agent-specific configuration payload
+      const payload: any = {
+        agent_id: selectedAgentId,
+        task_description: taskDescription,
+        approval_strategy: approvalStrategy,
+        priority: 5,
+      };
+
+      // Add agent-type specific configuration
+      if (selectedAgent?.agent_type === 'research') {
+        payload.research_config = researchConfig;
+      } else if (selectedAgent?.agent_type === 'content') {
+        payload.content_config = contentConfig;
+      } else if (selectedAgent?.agent_type === 'reporting') {
+        payload.reporting_config = reportingConfig;
+      }
+
       const response = await fetch(`/api/projects/${projectId}/work-sessions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          agent_id: selectedAgentId,
-          task_description: taskDescription,
-          work_mode: 'general',
-          context: {},
-          priority: 5,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -104,8 +170,6 @@ export default function CreateWorkRequestModal({
       setSubmitting(false);
     }
   };
-
-  const selectedAgent = agents.find(a => a.id === selectedAgentId);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -178,6 +242,37 @@ export default function CreateWorkRequestModal({
               {taskDescription.length}/5000 characters {taskDescription.length < 10 && '(minimum 10)'}
             </p>
           </section>
+
+          {/* Agent-Specific Configuration Forms */}
+          {selectedAgent && selectedAgent.agent_type === 'research' && (
+            <ResearchConfigForm
+              config={researchConfig}
+              onChange={setResearchConfig}
+            />
+          )}
+
+          {selectedAgent && selectedAgent.agent_type === 'content' && (
+            <ContentConfigForm
+              config={contentConfig}
+              onChange={setContentConfig}
+            />
+          )}
+
+          {selectedAgent && selectedAgent.agent_type === 'reporting' && (
+            <ReportingConfigForm
+              config={reportingConfig}
+              onChange={setReportingConfig}
+            />
+          )}
+
+          {/* Approval Strategy */}
+          {selectedAgent && (
+            <ApprovalStrategySelector
+              strategy={approvalStrategy}
+              onChange={setApprovalStrategy}
+              agentType={selectedAgent.agent_type}
+            />
+          )}
 
           {/* Error Message */}
           {error && (
