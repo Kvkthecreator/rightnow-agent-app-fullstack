@@ -104,7 +104,13 @@ def create_research_agent(
 
     # Create adapters (use our substrate_client internally - Phase 3 BFF)
     memory = SubstrateMemoryAdapter(basket_id=basket_id, workspace_id=workspace_id)
-    governance = SubstrateGovernanceAdapter(basket_id=basket_id, workspace_id=workspace_id, user_id=user_id)
+
+    # NOTE: Governance should NOT be used during agent execution.
+    # Agents READ from substrate (via memory) and WRITE artifacts.
+    # Governance happens separately: work approval → bridge → substrate proposals.
+    # See: docs/architecture/GOVERNANCE_SEPARATION_REFACTOR_PLAN.md
+    # For now, pass None - if SDK requires it, we'll create a no-op adapter
+    governance = None
 
     # Get Anthropic API key
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -162,7 +168,13 @@ def create_content_agent(
 
     # Create adapters (use our substrate_client internally - Phase 3 BFF)
     memory = SubstrateMemoryAdapter(basket_id=basket_id, workspace_id=workspace_id)
-    governance = SubstrateGovernanceAdapter(basket_id=basket_id, workspace_id=workspace_id, user_id=user_id)
+
+    # NOTE: Governance should NOT be used during agent execution.
+    # Agents READ from substrate (via memory) and WRITE artifacts.
+    # Governance happens separately: work approval → bridge → substrate proposals.
+    # See: docs/architecture/GOVERNANCE_SEPARATION_REFACTOR_PLAN.md
+    # For now, pass None - if SDK requires it, we'll create a no-op adapter
+    governance = None
 
     # Get Anthropic API key
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -219,7 +231,13 @@ def create_reporting_agent(
 
     # Create adapters (use our substrate_client internally - Phase 3 BFF)
     memory = SubstrateMemoryAdapter(basket_id=basket_id, workspace_id=workspace_id)
-    governance = SubstrateGovernanceAdapter(basket_id=basket_id, workspace_id=workspace_id, user_id=user_id)
+
+    # NOTE: Governance should NOT be used during agent execution.
+    # Agents READ from substrate (via memory) and WRITE artifacts.
+    # Governance happens separately: work approval → bridge → substrate proposals.
+    # See: docs/architecture/GOVERNANCE_SEPARATION_REFACTOR_PLAN.md
+    # For now, pass None - if SDK requires it, we'll create a no-op adapter
+    governance = None
 
     # Get Anthropic API key
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
