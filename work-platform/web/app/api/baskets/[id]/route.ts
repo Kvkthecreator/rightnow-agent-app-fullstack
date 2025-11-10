@@ -44,10 +44,10 @@ export async function GET(
 
     console.log(`[Baskets API] Fetching basket ${basketId} for workspace ${workspace.id}`);
 
-    // Call substrate-api Next.js layer (user token, not service secret)
-    // Substrate-api endpoints: /baskets/{id} (no /api prefix)
+    // Call substrate-api (user token, not service secret)
+    // Substrate-api uses /api prefix for all routes
     const substrateResponse = await fetch(
-      `${SUBSTRATE_API_URL}/baskets/${basketId}`,
+      `${SUBSTRATE_API_URL}/api/baskets/${basketId}`,
       {
         method: 'GET',
         headers: {

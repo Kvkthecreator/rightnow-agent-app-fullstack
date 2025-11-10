@@ -62,8 +62,8 @@ export async function GET(
     }
 
     // Forward request to substrate-api
-    // GET /baskets/{basketId}/blocks?states=ACCEPTED,LOCKED,CONSTANT
-    const substrateUrl = new URL(`${SUBSTRATE_API_URL}/baskets/${basketId}/blocks`);
+    // GET /api/baskets/{basketId}/blocks?states=ACCEPTED,LOCKED,CONSTANT
+    const substrateUrl = new URL(`${SUBSTRATE_API_URL}/api/baskets/${basketId}/blocks`);
     substrateUrl.searchParams.set('states', 'ACCEPTED,LOCKED,CONSTANT');
     substrateUrl.searchParams.set('limit', '200'); // Reasonable limit for context page
 
