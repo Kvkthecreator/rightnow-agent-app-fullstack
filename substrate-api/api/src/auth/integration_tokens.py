@@ -28,6 +28,11 @@ def verify_integration_token(token: str) -> dict:
         .execute()
     )
 
+    # Handle None response (can happen if Supabase client errors)
+    if resp is None or not hasattr(resp, 'data'):
+        log.warning("Integration token query returned invalid response")
+        raise HTTPException(status_code=401, detail="Invalid integration token")
+
     record = resp.data
     if not record or record.get("revoked_at"):
         log.debug("Integration token invalid or revoked")
