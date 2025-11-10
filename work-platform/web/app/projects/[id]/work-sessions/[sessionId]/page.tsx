@@ -25,6 +25,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import WorkSessionExecutor from './WorkSessionExecutor';
+import ArtifactList from './ArtifactList';
 
 interface PageProps {
   params: Promise<{ id: string; sessionId: string }>;
@@ -39,6 +40,7 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
   // Fetch session details via BFF
   let session: any = null;
   let error: string | null = null;
+  let artifacts: any[] = [];
 
   try {
     const response = await fetch(
@@ -53,6 +55,28 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
 
     if (response.ok) {
       session = await response.json();
+
+      // Fetch artifacts if session is completed
+      if (session.status === 'completed') {
+        try {
+          const artifactsResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/projects/${projectId}/work-sessions/${sessionId}/artifacts`,
+            {
+              headers: {
+                Cookie: (await cookies()).toString(),
+              },
+              cache: 'no-store',
+            }
+          );
+
+          if (artifactsResponse.ok) {
+            artifacts = await artifactsResponse.json();
+          }
+        } catch (artifactErr) {
+          console.error(`[Work Session Artifacts] Error:`, artifactErr);
+          // Don't fail the whole page if artifacts fail
+        }
+      }
     } else if (response.status === 404) {
       error = 'Work session not found';
     } else {
@@ -141,17 +165,15 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
         initialArtifactsCount={session.artifacts_count || 0}
       />
 
-      {/* Placeholder for Artifacts (future) */}
+      {/* Artifacts Viewer */}
       {session.status === 'completed' && (
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Artifacts & Results
           </h2>
-          <p className="text-slate-600 text-sm">
-            Artifacts and detailed results will be displayed here when agent execution is implemented.
-          </p>
-        </Card>
+          <ArtifactList artifacts={artifacts} />
+        </div>
       )}
     </div>
   );

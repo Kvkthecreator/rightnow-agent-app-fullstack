@@ -689,6 +689,77 @@ async def reject_checkpoint(
         )
 
 
+@router.get("/{project_id}/work-sessions/{session_id}/artifacts")
+async def get_work_session_artifacts(
+    project_id: str = Path(..., description="Project ID"),
+    session_id: str = Path(..., description="Work session ID"),
+    user: dict = Depends(verify_jwt)
+):
+    """
+    Get all artifacts for a work session.
+
+    **Phase 3: Artifact Viewing**
+
+    Returns list of artifacts with raw content for inspection and QA.
+    Used to evaluate agent output quality before building custom renderers.
+
+    Returns:
+        List of artifacts with:
+        - id: Artifact UUID
+        - artifact_type: Type of artifact
+        - content: Raw artifact content (jsonb)
+        - agent_confidence: Confidence score (0-1)
+        - agent_reasoning: Why agent created this
+        - created_at: Timestamp
+    """
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user token")
+
+    logger.info(
+        f"[GET ARTIFACTS] Fetching artifacts: session={session_id}, user={user_id}"
+    )
+
+    try:
+        supabase = create_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        )
+
+        # Verify session belongs to user's project
+        session_response = supabase.table("work_sessions").select(
+            "id, project_id"
+        ).eq("id", session_id).eq("project_id", project_id).single().execute()
+
+        if not session_response.data:
+            raise HTTPException(
+                status_code=404,
+                detail="Work session not found or does not belong to this project"
+            )
+
+        # Fetch all artifacts for this session
+        artifacts_response = supabase.table("work_artifacts").select(
+            "id, artifact_type, content, agent_confidence, agent_reasoning, status, created_at"
+        ).eq("work_session_id", session_id).order("created_at").execute()
+
+        artifacts = artifacts_response.data or []
+
+        logger.info(
+            f"[GET ARTIFACTS] Found {len(artifacts)} artifacts for session {session_id}"
+        )
+
+        return artifacts
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[GET ARTIFACTS] Failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch artifacts: {str(e)}"
+        )
+
+
 @router.get("/{project_id}/work-sessions", response_model=WorkSessionsListResponse)
 async def list_project_work_sessions(
     project_id: str = Path(..., description="Project ID"),
