@@ -80,24 +80,34 @@ class SubstrateMemoryAdapter(MemoryProvider):
         """
         logger.info(f"Querying substrate memory: query='{query[:50]}...', limit={limit}")
 
-        # Extract filter parameters
-        states = filters.get("states") if filters else None
-        if not states:
-            # Default to mature blocks
-            states = ["ACCEPTED", "LOCKED"]
+        try:
+            # Extract filter parameters
+            states = filters.get("states") if filters else None
+            if not states:
+                # Default to mature blocks
+                states = ["ACCEPTED", "LOCKED"]
 
-        # Call substrate-api via HTTP (Phase 3 BFF)
-        blocks = self.client.get_basket_blocks(
-            basket_id=self.basket_id,
-            states=states,
-            limit=limit
-        )
+            # Call substrate-api via HTTP (Phase 3 BFF)
+            blocks = self.client.get_basket_blocks(
+                basket_id=self.basket_id,
+                states=states,
+                limit=limit
+            )
 
-        # Convert substrate blocks to SDK Context format
-        contexts = [self._block_to_context(block) for block in blocks]
+            # Convert substrate blocks to SDK Context format
+            contexts = [self._block_to_context(block) for block in blocks]
 
-        logger.debug(f"Retrieved {len(contexts)} context items from substrate")
-        return contexts
+            logger.debug(f"Retrieved {len(contexts)} context items from substrate")
+            return contexts
+
+        except Exception as e:
+            # Graceful degradation: substrate-api not available
+            # Return empty context so agent can still execute
+            logger.warning(
+                f"Substrate-api unavailable, returning empty context. "
+                f"Agent will execute without substrate context. Error: {str(e)}"
+            )
+            return []
 
     async def store(self, context: Context) -> str:
         """
