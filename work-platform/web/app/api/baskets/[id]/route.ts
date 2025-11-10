@@ -13,8 +13,8 @@ import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
 
-const SUBSTRATE_API_URL = process.env.SUBSTRATE_API_URL || 'http://localhost:8001';
-const SUBSTRATE_SERVICE_SECRET = process.env.SUBSTRATE_SERVICE_SECRET;
+// Point to substrate-api's Next.js web layer (port 10000), NOT Python backend (8001)
+const SUBSTRATE_API_URL = process.env.SUBSTRATE_API_URL || 'http://localhost:10000';
 
 export async function GET(
   request: NextRequest,
@@ -24,15 +24,17 @@ export async function GET(
     const { id: basketId } = await params;
     const supabase = createRouteHandlerClient({ cookies });
 
-    // Get authenticated user
+    // Get Supabase session for auth
     const {
-      data: { user },
+      data: { session },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await supabase.auth.getSession();
 
-    if (authError || !user) {
+    if (authError || !session) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+
+    const token = session.access_token;
 
     // Ensure workspace access
     const workspace = await ensureWorkspaceServer(supabase);
@@ -42,15 +44,15 @@ export async function GET(
 
     console.log(`[Baskets API] Fetching basket ${basketId} for workspace ${workspace.id}`);
 
-    // Call substrate-api with service-to-service authentication
+    // Call substrate-api Next.js layer (user token, not service secret)
+    // Substrate-api endpoints: /baskets/{id} (no /api prefix)
     const substrateResponse = await fetch(
-      `${SUBSTRATE_API_URL}/api/baskets/${basketId}`,
+      `${SUBSTRATE_API_URL}/baskets/${basketId}`,
       {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUBSTRATE_SERVICE_SECRET}`,
-          'X-Service-Name': 'work-platform',
+          'Authorization': `Bearer ${token}`,
         },
       }
     );
