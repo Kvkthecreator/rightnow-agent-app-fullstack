@@ -63,14 +63,14 @@ class SubstrateGovernanceAdapter(GovernanceProvider):
         self.client = get_substrate_client()
         logger.info(f"Initialized SubstrateGovernanceAdapter for basket {self.basket_id} in workspace {self.workspace_id}")
 
-    async def propose_change(
+    async def propose(
         self,
         change_type: str,
         data: Dict[str, Any],
         confidence: float = 0.7
     ) -> str:
         """
-        Propose change to substrate via HTTP.
+        Propose change to substrate via HTTP (SDK interface method).
 
         Args:
             change_type: Type of change (add_block, update_block, etc.)
@@ -103,6 +103,39 @@ class SubstrateGovernanceAdapter(GovernanceProvider):
 
         return work_id
 
+    # Alias for backward compatibility
+    async def propose_change(
+        self,
+        change_type: str,
+        data: Dict[str, Any],
+        confidence: float = 0.7
+    ) -> str:
+        """Alias for propose() for backward compatibility."""
+        return await self.propose(change_type, data, confidence)
+
+    async def get_proposal_status(self, proposal_id: str) -> str:
+        """
+        Get proposal status via HTTP (SDK interface method).
+
+        Args:
+            proposal_id: Proposal/work ID
+
+        Returns:
+            Status string ("pending", "approved", "rejected", etc.)
+        """
+        logger.info(f"Getting proposal status: proposal_id={proposal_id}")
+
+        try:
+            # Call substrate-api via HTTP (Phase 3 BFF)
+            status = self.client.get_work_status(work_id=proposal_id)
+            work_status = status.get("status", "pending").lower()
+            logger.debug(f"Proposal {proposal_id} status: {work_status}")
+            return work_status
+
+        except Exception as e:
+            logger.error(f"Error getting proposal status: {e}")
+            return "error"
+
     async def check_approval(self, proposal_id: str) -> bool:
         """
         Check if proposal is approved via HTTP.
@@ -113,21 +146,10 @@ class SubstrateGovernanceAdapter(GovernanceProvider):
         Returns:
             True if approved, False otherwise
         """
-        logger.info(f"Checking approval status: proposal_id={proposal_id}")
-
-        try:
-            # Call substrate-api via HTTP (Phase 3 BFF)
-            status = self.client.get_work_status(work_id=proposal_id)
-
-            work_status = status.get("status", "").lower()
-            is_approved = work_status in ["approved", "completed", "success"]
-
-            logger.debug(f"Proposal {proposal_id} status: {work_status}, approved: {is_approved}")
-            return is_approved
-
-        except Exception as e:
-            logger.error(f"Error checking approval: {e}")
-            return False
+        status = await self.get_proposal_status(proposal_id)
+        is_approved = status in ["approved", "completed", "success"]
+        logger.debug(f"Proposal {proposal_id} approved: {is_approved}")
+        return is_approved
 
     async def commit_change(self, proposal_id: str) -> bool:
         """
