@@ -397,7 +397,10 @@ async def execute_work_session(
     """
     from services.work_session_executor import WorkSessionExecutor
 
-    user_id = user["sub"]
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user token")
+
     logger.info(
         f"[EXECUTE SESSION] User {user_id} executing session {session_id} "
         f"in project {project_id}"
@@ -459,7 +462,9 @@ async def get_work_session_status(
         - checkpoints: List of checkpoints (if any)
         - metadata: Execution metadata
     """
-    user_id = user["sub"]
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user token")
 
     try:
         supabase = create_client(
@@ -538,7 +543,9 @@ async def approve_checkpoint(
     """
     from services.checkpoint_handler import CheckpointHandler
 
-    user_id = user["sub"]
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user token")
 
     logger.info(
         f"[APPROVE CHECKPOINT] User {user_id} approving checkpoint {checkpoint_id} "
@@ -619,7 +626,9 @@ async def reject_checkpoint(
     """
     from services.checkpoint_handler import CheckpointHandler
 
-    user_id = user["sub"]
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user token")
 
     logger.info(
         f"[REJECT CHECKPOINT] User {user_id} rejecting checkpoint {checkpoint_id}: "
