@@ -83,6 +83,7 @@ class WorkSessionDetailResponse(BaseModel):
     completed_at: Optional[str]
     error_message: Optional[str]
     result_summary: Optional[str]
+    artifacts_count: int = 0
 
 
 # Legacy model kept for backward compatibility (deprecated)
@@ -865,8 +866,16 @@ async def get_project_work_session(
 
         agent = agent_response.data
 
+        # Count artifacts for this session
+        artifacts_response = supabase.table("work_artifacts").select(
+            "id", count="exact"
+        ).eq("work_session_id", session_id).execute()
+
+        artifacts_count = artifacts_response.count if artifacts_response.count is not None else 0
+
         logger.info(
-            f"[PROJECT WORK SESSION DETAIL] Found session {session_id} with status {session['status']}"
+            f"[PROJECT WORK SESSION DETAIL] Found session {session_id} with status {session['status']}, "
+            f"{artifacts_count} artifacts"
         )
 
         # Extract metadata fields
@@ -893,6 +902,7 @@ async def get_project_work_session(
             completed_at=session.get("ended_at"),  # Fixed: use ended_at
             error_message=error_message,  # From metadata
             result_summary=result_summary,  # From metadata
+            artifacts_count=artifacts_count,
         )
 
     except HTTPException:

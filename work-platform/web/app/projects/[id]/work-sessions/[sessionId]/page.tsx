@@ -24,6 +24,7 @@ import {
   FileText,
   AlertCircle,
 } from 'lucide-react';
+import WorkSessionExecutor from './WorkSessionExecutor';
 
 interface PageProps {
   params: Promise<{ id: string; sessionId: string }>;
@@ -132,67 +133,13 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
         </Card>
       )}
 
-      {/* Running State */}
-      {session.status === 'running' && (
-        <Card className="p-6 bg-blue-50 border-blue-200">
-          <div className="flex items-center gap-3">
-            <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
-            <div>
-              <h3 className="font-semibold text-blue-900">Agent is processing your request</h3>
-              <p className="text-sm text-blue-700 mt-1">
-                The agent is actively working on your task. Results will appear here when completed.
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Pending State */}
-      {session.status === 'pending' && (
-        <Card className="p-6 bg-slate-50 border-slate-200">
-          <div className="flex items-center gap-3">
-            <Clock className="h-6 w-6 text-slate-600" />
-            <div>
-              <h3 className="font-semibold text-slate-900">Waiting for agent</h3>
-              <p className="text-sm text-slate-600 mt-1">
-                Your work request is queued and will be processed shortly.
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Error Message */}
-      {session.status === 'failed' && session.error_message && (
-        <Card className="p-6 bg-red-50 border-red-200">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-6 w-6 text-red-600 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-red-900">Task Failed</h3>
-              <p className="text-sm text-red-700 mt-1">{session.error_message}</p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Results */}
-      {session.status === 'completed' && (
-        <Card className="p-6 bg-green-50 border-green-200">
-          <div className="flex items-start gap-3">
-            <CheckCircle className="h-6 w-6 text-green-600 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-green-900">Task Completed</h3>
-              {session.result_summary ? (
-                <p className="text-sm text-green-700 mt-1">{session.result_summary}</p>
-              ) : (
-                <p className="text-sm text-green-700 mt-1">
-                  The agent has successfully completed your task.
-                </p>
-              )}
-            </div>
-          </div>
-        </Card>
-      )}
+      {/* Work Session Executor - Shows execute button and status cards */}
+      <WorkSessionExecutor
+        projectId={projectId}
+        sessionId={sessionId}
+        initialStatus={session.status}
+        initialArtifactsCount={session.artifacts_count || 0}
+      />
 
       {/* Placeholder for Artifacts (future) */}
       {session.status === 'completed' && (
