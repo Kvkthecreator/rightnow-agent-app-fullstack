@@ -28,43 +28,41 @@ export default async function ProjectContextPage({ params }: PageProps) {
   const supabase = createServerComponentClient({ cookies });
   const { userId } = await getAuthenticatedUser(supabase);
 
-  // Fetch project details
-  let project: any = null;
-  let error: string | null = null;
+  // Fetch project directly from Supabase (same pattern as overview page)
+  const { data: project, error: dbError } = await supabase
+    .from('projects')
+    .select('id, name, description, basket_id, workspace_id, user_id, created_at')
+    .eq('id', projectId)
+    .maybeSingle();
 
-  try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/projects/${projectId}`,
-      {
-        headers: {
-          Cookie: (await cookies()).toString(),
-        },
-        cache: 'no-store',
-      }
-    );
-
-    if (response.ok) {
-      project = await response.json();
-    } else if (response.status === 404) {
-      error = 'Project not found';
-    } else {
-      error = 'Failed to load project';
-    }
-  } catch (err) {
-    console.error('[Project Context] Error:', err);
-    error = 'Failed to load project';
-  }
-
-  if (error || !project) {
+  if (dbError || !project) {
+    console.error('[Project Context] Database error:', dbError);
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-slate-900">{error || 'Not Found'}</h2>
+          <h2 className="text-xl font-semibold text-slate-900">Project not found</h2>
           <p className="mt-2 text-sm text-slate-600">
             The project you're looking for doesn't exist or you don't have access to it.
           </p>
           <Link href="/projects" className="mt-4 inline-block">
             <Button variant="outline">Back to Projects</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if project has a basket
+  if (!project.basket_id) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-slate-900">No Context Available</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            This project doesn't have a substrate basket yet. Create one to start adding context blocks.
+          </p>
+          <Link href={`/projects/${projectId}`} className="mt-4 inline-block">
+            <Button variant="outline">Back to Project</Button>
           </Link>
         </div>
       </div>

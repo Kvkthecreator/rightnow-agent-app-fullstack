@@ -46,7 +46,8 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
         const response = await fetch(`/api/projects/${projectId}/context`);
 
         if (!response.ok) {
-          throw new Error("Failed to fetch context blocks");
+          const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+          throw new Error(errorData.detail || `Failed to fetch context blocks (${response.status})`);
         }
 
         const data = await response.json();
@@ -125,7 +126,7 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
           <p className="text-slate-900 font-medium">Failed to Load Context</p>
           <p className="text-slate-600 text-sm mt-2">{error}</p>
           <p className="text-slate-500 text-xs mt-4">
-            This may indicate substrate-api connectivity issues. Check backend logs.
+            This may indicate that the basket doesn't exist in substrate-api yet, or there are connectivity issues.
           </p>
         </div>
       </Card>
