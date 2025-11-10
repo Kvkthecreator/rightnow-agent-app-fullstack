@@ -13,12 +13,14 @@ Old /api/work/sessions endpoints remain for backward compatibility.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Depends, Path
 from pydantic import BaseModel, Field
+from supabase import create_client
 
 from app.utils.jwt import verify_jwt
 from app.utils.supabase_client import supabase_admin_client
