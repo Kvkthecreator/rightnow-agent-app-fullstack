@@ -278,7 +278,9 @@ class WorkSessionExecutor:
                 "work_session_id": session_id,
                 "artifact_type": artifact["artifact_type"],
                 "content": artifact["content"],
-                "metadata": artifact.get("metadata", {})
+                "agent_confidence": artifact.get("metadata", {}).get("confidence"),
+                "agent_reasoning": artifact.get("metadata", {}).get("reasoning"),
+                "status": "pending"
             }
             for artifact in artifacts
         ]
