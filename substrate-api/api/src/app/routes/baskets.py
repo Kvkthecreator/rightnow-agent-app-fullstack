@@ -221,8 +221,7 @@ async def get_basket(
                 status,
                 workspace_id,
                 user_id,
-                created_at,
-                updated_at
+                created_at
             FROM baskets
             WHERE id = :basket_id
         """
@@ -260,7 +259,6 @@ async def get_basket(
             "workspace_id": str(basket["workspace_id"]),
             "user_id": str(basket["user_id"]) if basket["user_id"] else None,
             "created_at": basket["created_at"].isoformat(),
-            "updated_at": basket["updated_at"].isoformat() if basket.get("updated_at") else None,
             "stats": {
                 "blocks_count": blocks_count,
                 "documents_count": documents_count,
