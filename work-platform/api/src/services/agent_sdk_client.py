@@ -213,7 +213,7 @@ class AgentSDKClient:
             # Execute agent with context
             # The agent will use its memory adapter to query substrate for additional context
             # and use the context envelope as initial briefing
-            result = agent.execute(
+            result = await agent.execute(
                 task=task_description,
                 context=execution_context
             )
