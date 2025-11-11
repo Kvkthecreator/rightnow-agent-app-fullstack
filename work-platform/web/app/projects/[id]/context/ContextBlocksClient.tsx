@@ -316,9 +316,16 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
                 <h3 className="font-medium text-slate-900 flex-1 line-clamp-2">
                   {block.title}
                 </h3>
-                <Badge variant="outline" className="flex-shrink-0">
-                  {block.semantic_type}
-                </Badge>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Badge variant="outline">
+                    {block.semantic_type}
+                  </Badge>
+                  {block.state === 'PROPOSED' && (
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                      Pending Review
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               <p className="text-sm text-slate-600 line-clamp-3 mb-4">

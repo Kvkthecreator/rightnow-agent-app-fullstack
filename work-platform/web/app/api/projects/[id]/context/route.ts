@@ -68,9 +68,10 @@ export async function GET(
     console.log(`[CONTEXT API] Fetching blocks for basket ${basketId}`);
 
     // Forward request to substrate-api
-    // GET /api/baskets/{basketId}/blocks?states=ACCEPTED,LOCKED,CONSTANT
+    // GET /api/baskets/{basketId}/blocks?states=PROPOSED,ACCEPTED,LOCKED,CONSTANT
+    // Include PROPOSED blocks so users can see pending context that needs review
     const substrateUrl = new URL(`${SUBSTRATE_API_URL}/api/baskets/${basketId}/blocks`);
-    substrateUrl.searchParams.set('states', 'ACCEPTED,LOCKED,CONSTANT');
+    substrateUrl.searchParams.set('states', 'PROPOSED,ACCEPTED,LOCKED,CONSTANT');
     substrateUrl.searchParams.set('limit', '200'); // Reasonable limit for context page
 
     console.log(`[CONTEXT API] Calling substrate-api: ${substrateUrl.toString()}`);

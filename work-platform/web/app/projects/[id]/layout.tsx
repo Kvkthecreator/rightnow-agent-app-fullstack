@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getServerWorkspace } from "@/lib/workspaces/getServerWorkspace";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 import { cookies } from "next/headers";
+import { ProjectNavigation } from "@/components/projects/ProjectNavigation";
 
 export default async function ProjectLayout({
   params,
@@ -27,5 +28,10 @@ export default async function ProjectLayout({
     redirect('/projects');
   }
 
-  return children;
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <ProjectNavigation projectId={id} />
+      <div className="mx-auto">{children}</div>
+    </div>
+  );
 }

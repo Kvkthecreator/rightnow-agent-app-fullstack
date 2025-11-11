@@ -202,13 +202,20 @@ export default function GovernanceSettingsClient({
                 Back
               </button>
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Settings className="h-5 w-5 text-blue-600" />
+                <Shield className="h-5 w-5 text-blue-600" />
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Governance Settings</h1>
                 <p className="text-gray-600 text-sm">Workspace: {workspaceName}</p>
               </div>
             </div>
+            <Badge className={`${governanceStatus.color} flex items-center gap-1.5`}>
+              <StatusIcon className="h-3.5 w-3.5" />
+              {governanceStatus.status === 'full' && 'Full Governance'}
+              {governanceStatus.status === 'partial' && 'Partial Governance'}
+              {governanceStatus.status === 'testing' && 'Testing Mode'}
+              {governanceStatus.status === 'disabled' && 'Disabled'}
+            </Badge>
           </div>
         </div>
 
@@ -219,59 +226,100 @@ export default function GovernanceSettingsClient({
           <CardHeader className="p-6">
             <CardTitle>Review Mode</CardTitle>
             <p className="text-sm text-gray-600 mt-2">
-              Choose how changes get reviewed
+              Control which operations require manual approval
             </p>
           </CardHeader>
           <CardContent className="p-8 space-y-4">
-            <div className="flex gap-6">
-              <label className="flex items-center gap-2 text-sm">
+            <div className="flex flex-col gap-4">
+              <label className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
                 <input
                   type="radio"
                   name="mode"
                   checked={settings.mode === 'proposal'}
                   onChange={() => setSettings(prev => ({ ...prev, mode: 'proposal' }))}
-                  className="h-4 w-4"
+                  className="h-4 w-4 mt-0.5"
                 />
-                <span>Review everything</span>
+                <div className="flex-1">
+                  <div className="font-medium text-sm text-gray-900">Review Everything</div>
+                  <p className="text-xs text-gray-600 mt-1">
+                    All changes go through governance review before execution. Maximum control and safety.
+                  </p>
+                </div>
               </label>
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
                 <input
                   type="radio"
                   name="mode"
                   checked={settings.mode === 'hybrid'}
                   onChange={() => setSettings(prev => ({ ...prev, mode: 'hybrid' }))}
                   disabled={!settings.governance_enabled}
-                  className="h-4 w-4"
+                  className="h-4 w-4 mt-0.5"
                 />
-                <span>Smart review (auto‑approve safe changes)</span>
+                <div className="flex-1">
+                  <div className="font-medium text-sm text-gray-900">Smart Review</div>
+                  <p className="text-xs text-gray-600 mt-1">
+                    High-confidence changes auto-approve. Low-confidence or risky changes require review. Balanced approach.
+                  </p>
+                </div>
               </label>
             </div>
 
-            <div className="text-xs text-gray-600">
-              In Smart review, simple changes are approved automatically. You can switch to Review everything anytime. Timeline restores always ask for review.
+            {/* Entry Point Policies Visibility */}
+            <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="h-4 w-4 text-slate-600" />
+                <h3 className="text-sm font-medium text-slate-900">Current Policy Routing</h3>
+              </div>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-slate-600">Onboarding Dumps (P0 Capture)</span>
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                    ✓ Always Direct
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-slate-600">Manual Edits (Add Context)</span>
+                  <Badge variant="outline" className={settings.mode === 'hybrid' ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-yellow-50 text-yellow-700 border-yellow-300'}>
+                    {settings.mode === 'hybrid' ? '⚡ Smart Review' : '⚠ Requires Review'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-slate-600">Graph Actions (Relationships)</span>
+                  <Badge variant="outline" className={settings.mode === 'hybrid' ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-yellow-50 text-yellow-700 border-yellow-300'}>
+                    {settings.mode === 'hybrid' ? '⚡ Smart Review' : '⚠ Requires Review'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-slate-600">Timeline Restore (History)</span>
+                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                    ⚠ Always Review
+                  </Badge>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mt-3">
+                These policies are managed automatically based on your Review Mode selection. Canon rules ensure P0 capture is always direct and timeline restores always require review.
+              </p>
             </div>
-
-            {/* Default Change Scope moved under Advanced */}
 
             {/* Advanced Policies (optional) */}
             <details className="mt-4">
-              <summary className="text-sm cursor-pointer">Advanced policies (optional)</summary>
-              <div className="mt-3 p-3 bg-gray-50 rounded border text-xs text-gray-600">
-                Entry‑point policies are managed automatically by Review Mode. Manual overrides are disabled to reduce complexity.
-              </div>
+              <summary className="text-sm cursor-pointer text-slate-700 hover:text-slate-900">Advanced settings (optional)</summary>
               <div className="space-y-2 pt-3">
                 <Label className="font-medium">Default Change Scope</Label>
                 <select
                   value={settings.default_blast_radius === 'Global' ? 'Scoped' : settings.default_blast_radius}
-                  onChange={(e) => setSettings(prev => ({ 
-                    ...prev, 
-                    default_blast_radius: e.target.value 
+                  onChange={(e) => setSettings(prev => ({
+                    ...prev,
+                    default_blast_radius: e.target.value
                   }))}
                   className="w-full md:w-64 border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 >
-                  <option value="Local">Local (this basket)</option>
-                  <option value="Scoped">Scoped (your workspace)</option>
+                  <option value="Local">Local (single basket)</option>
+                  <option value="Scoped">Scoped (workspace-wide)</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Defines the default impact radius for changes. Local affects only the current basket, Scoped can affect related content across your workspace.
+                </p>
               </div>
             </details>
           </CardContent>

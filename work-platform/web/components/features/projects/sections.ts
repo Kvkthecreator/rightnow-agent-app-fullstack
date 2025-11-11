@@ -8,6 +8,7 @@ import {
   Layers,
   Clock,
   FileText,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,6 +48,13 @@ export const PROJECT_SECTIONS: ProjectSection[] = [
     icon: FileText,
     href: (id) => `/projects/${id}/reports`,
     description: "View generated reports and artifacts",
+  },
+  {
+    key: "settings",
+    label: "Settings",
+    icon: Settings,
+    href: (id) => `/projects/${id}/settings`,
+    description: "Project settings and basket management",
   },
 ];
 
