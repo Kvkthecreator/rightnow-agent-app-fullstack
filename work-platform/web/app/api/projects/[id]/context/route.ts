@@ -67,43 +67,26 @@ export async function GET(
 
     console.log(`[CONTEXT API] Fetching blocks for basket ${basketId}`);
 
-    // Forward request to substrate-api
-    // GET /api/baskets/{basketId}/blocks?states=PROPOSED,ACCEPTED,LOCKED,CONSTANT
+    // Query blocks directly from database (work-platform shares DB with substrate)
     // Include PROPOSED blocks so users can see pending context that needs review
-    const substrateUrl = new URL(`${SUBSTRATE_API_URL}/api/baskets/${basketId}/blocks`);
-    substrateUrl.searchParams.set('states', 'PROPOSED,ACCEPTED,LOCKED,CONSTANT');
-    substrateUrl.searchParams.set('limit', '200'); // Reasonable limit for context page
+    const { data: blocksData, error: blocksError } = await supabase
+      .from('blocks')
+      .select('*')
+      .eq('basket_id', basketId)
+      .in('state', ['PROPOSED', 'ACCEPTED', 'LOCKED', 'CONSTANT'])
+      .order('created_at', { ascending: false })
+      .limit(200);
 
-    console.log(`[CONTEXT API] Calling substrate-api: ${substrateUrl.toString()}`);
-
-    const substrateResponse = await fetch(substrateUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    console.log(`[CONTEXT API] Substrate response status: ${substrateResponse.status}`);
-
-    if (!substrateResponse.ok) {
-      const errorData = await substrateResponse.json().catch(() => ({
-        detail: 'Failed to fetch substrate blocks'
-      }));
-
-      console.error('[CONTEXT API] Substrate error:', substrateResponse.status, errorData);
-
+    if (blocksError) {
+      console.error('[CONTEXT API] Database error fetching blocks:', blocksError);
       return NextResponse.json(
-        {
-          detail: 'Substrate API error',
-          substrate_error: errorData
-        },
-        { status: substrateResponse.status }
+        { detail: 'Failed to fetch context blocks', error: blocksError.message },
+        { status: 500 }
       );
     }
 
-    const substrateData = await substrateResponse.json();
-    const blocks = substrateData.blocks || [];
+    const blocks = blocksData || [];
+    console.log(`[CONTEXT API] Found ${blocks.length} blocks for basket ${basketId}`);
 
     // Calculate stats
     const knowledgeTypes = ['knowledge', 'factual', 'metric', 'entity'];
