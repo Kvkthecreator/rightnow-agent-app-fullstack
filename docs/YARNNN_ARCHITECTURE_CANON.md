@@ -62,6 +62,12 @@ YARNNN has evolved from a **context-first memory OS** to an **AI Work Platform**
   - Database triggers sync basket_deltas → baskets table
 
 ### Backend Architecture
+- **BFF Data Access Pattern**: Direct SQL with workspace filtering ✅
+  - All routes use `db=Depends(get_db)` for database access
+  - JWT auth via `verify_jwt` dependency, authorization via workspace_id in SQL
+  - Pgbouncer compatible: `statement_cache_size=0` prevents prepared statement errors
+  - **See**: [BFF_DATA_ACCESS_PATTERN.md](BFF_DATA_ACCESS_PATTERN.md)
+
 - **Canonical Queue Processor**: `api/src/services/canonical_queue_processor.py` ✅
   - Orchestrates P0-P4 pipeline agents in strict sequence
   - Processes dumps via queue system with atomic claiming
@@ -71,7 +77,7 @@ YARNNN has evolved from a **context-first memory OS** to an **AI Work Platform**
   - `BasketRepository` - CRUD operations for baskets
   - `DeltaRepository` - Delta persistence and retrieval
   - `EventRepository` - Event publishing for realtime
-  
+
 - **API Integration**: `web/app/api/baskets/[id]/work/route.ts` ✅
   - Bridge between Next.js frontend and FastAPI backend
   - Proper request forwarding and error handling
