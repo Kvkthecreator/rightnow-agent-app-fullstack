@@ -11,8 +11,10 @@ import {
   Search,
   Loader2,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Plus
 } from "lucide-react";
+import { AddContextModal } from "@/components/context/AddContextModal";
 
 interface Block {
   id: string;
@@ -37,30 +39,31 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "knowledge" | "meaning">("all");
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Fetch blocks from BFF
-  useEffect(() => {
-    async function fetchBlocks() {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/projects/${projectId}/context`);
+  const fetchBlocks = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/projects/${projectId}/context`);
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-          throw new Error(errorData.detail || `Failed to fetch context blocks (${response.status})`);
-        }
-
-        const data = await response.json();
-        setBlocks(data.blocks || []);
-        setError(null);
-      } catch (err) {
-        console.error("[Context Blocks] Error:", err);
-        setError(err instanceof Error ? err.message : "Failed to load context");
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(errorData.detail || `Failed to fetch context blocks (${response.status})`);
       }
-    }
 
+      const data = await response.json();
+      setBlocks(data.blocks || []);
+      setError(null);
+    } catch (err) {
+      console.error("[Context Blocks] Error:", err);
+      setError(err instanceof Error ? err.message : "Failed to load context");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchBlocks();
   }, [projectId]);
 
@@ -186,6 +189,14 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
         </div>
         <div className="flex gap-2">
           <Button
+            variant="default"
+            onClick={() => setShowAddModal(true)}
+            className="whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Add Context
+          </Button>
+          <Button
             variant={filter === "all" ? "default" : "outline"}
             onClick={() => setFilter("all")}
           >
@@ -261,6 +272,18 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
           ))}
         </div>
       )}
+
+      {/* Add Context Modal */}
+      <AddContextModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        projectId={projectId}
+        basketId={basketId}
+        onSuccess={() => {
+          // Refetch blocks after successful submission
+          fetchBlocks();
+        }}
+      />
     </div>
   );
 }

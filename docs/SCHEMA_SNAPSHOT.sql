@@ -1,4 +1,4 @@
-\restrict ndooSiJe8FJdJpNAf8LIYQbvMZtOTwodpVgAcQjhQEpa4ePpicMJNAZoUMQD7YG
+\restrict yH2V4Y2ifHTsRH2rcUldU1Ys45XrjQKE8tRemsUnprZZNPJQOmQILo7gpUUbxVn
 CREATE SCHEMA public;
 CREATE TYPE public.alert_severity AS ENUM (
     'info',
@@ -2671,7 +2671,11 @@ CREATE TABLE public.work_sessions (
     ended_at timestamp with time zone,
     metadata jsonb DEFAULT '{}'::jsonb,
     project_agent_id uuid,
-    agent_work_request_id uuid
+    agent_work_request_id uuid,
+    task_configuration jsonb DEFAULT '{}'::jsonb,
+    task_document_id uuid,
+    approval_strategy text DEFAULT 'final_only'::text,
+    CONSTRAINT work_sessions_approval_strategy_check CHECK ((approval_strategy = ANY (ARRAY['checkpoint_required'::text, 'final_only'::text, 'auto_approve_low_risk'::text])))
 );
 CREATE TABLE public.workspace_governance_settings (
     workspace_id uuid NOT NULL,
@@ -3011,10 +3015,14 @@ CREATE INDEX idx_work_requests_subscription ON public.agent_work_requests USING 
 CREATE INDEX idx_work_requests_trial ON public.agent_work_requests USING btree (user_id, workspace_id, is_trial_request) WHERE (is_trial_request = true);
 CREATE INDEX idx_work_requests_user_workspace ON public.agent_work_requests USING btree (user_id, workspace_id);
 CREATE INDEX idx_work_sessions_agent ON public.work_sessions USING btree (project_agent_id);
+CREATE INDEX idx_work_sessions_agent_work_request_id ON public.work_sessions USING btree (agent_work_request_id) WHERE (agent_work_request_id IS NOT NULL);
+CREATE INDEX idx_work_sessions_approval_strategy ON public.work_sessions USING btree (approval_strategy);
 CREATE INDEX idx_work_sessions_basket ON public.work_sessions USING btree (basket_id);
 CREATE INDEX idx_work_sessions_billing ON public.work_sessions USING btree (agent_work_request_id);
 CREATE INDEX idx_work_sessions_project ON public.work_sessions USING btree (project_id);
+CREATE INDEX idx_work_sessions_project_agent_id ON public.work_sessions USING btree (project_agent_id) WHERE (project_agent_id IS NOT NULL);
 CREATE INDEX idx_work_sessions_status ON public.work_sessions USING btree (status);
+CREATE INDEX idx_work_sessions_task_document_id ON public.work_sessions USING btree (task_document_id) WHERE (task_document_id IS NOT NULL);
 CREATE INDEX idx_work_sessions_task_type ON public.work_sessions USING btree (task_type);
 CREATE INDEX idx_work_sessions_user ON public.work_sessions USING btree (initiated_by_user_id);
 CREATE INDEX idx_work_sessions_workspace ON public.work_sessions USING btree (workspace_id);
@@ -3795,4 +3803,4 @@ CREATE POLICY ws_owner_or_member_read ON public.workspaces FOR SELECT USING (((o
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY ws_owner_update ON public.workspaces FOR UPDATE USING ((owner_id = auth.uid()));
-\unrestrict ndooSiJe8FJdJpNAf8LIYQbvMZtOTwodpVgAcQjhQEpa4ePpicMJNAZoUMQD7YG
+\unrestrict yH2V4Y2ifHTsRH2rcUldU1Ys45XrjQKE8tRemsUnprZZNPJQOmQILo7gpUUbxVn
