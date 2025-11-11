@@ -50,12 +50,13 @@ const { count: blocksCount } = await supabase
 // Archives blocks and deletes dumps directly
 await supabase
   .from('blocks')
-  .update({ state: 'ARCHIVED' })
-  .eq('basket_id', basketId);
+  .update({ state: 'ARCHIVED' }, { count: 'exact' })
+  .eq('basket_id', basketId)
+  .not('state', 'in', '(REJECTED,SUPERSEDED,ARCHIVED)');
 
 await supabase
   .from('raw_dumps')
-  .delete()
+  .delete({ count: 'exact' })
   .eq('basket_id', basketId);
 ```
 
@@ -64,6 +65,21 @@ await supabase
 - Simple database updates with no complex business logic
 - No governance routing needed (destructive operation)
 - Faster execution without HTTP roundtrip
+
+**Workspace Purge** (`/api/workspaces/purge`)
+```typescript
+// WRITE: Comprehensive admin operation via stored procedure
+// Uses database function for atomic transaction
+await supabase.rpc('purge_workspace_data', {
+  target_workspace_id: workspaceId
+});
+```
+
+**Why RPC?**
+- Multi-table deletion requires atomic transaction
+- Complex cascade logic handled by database function
+- Ensures data consistency across all related tables
+- Owner-only with email + text confirmation
 
 ### 🔄 Delegate to Substrate-API
 
@@ -95,6 +111,7 @@ POST /substrate-api/api/baskets/[id]/operation
 | `/api/projects/[id]/purge/preview` | GET | Direct DB | Counts blocks and dumps |
 | `/api/projects/[id]/purge` | POST | Direct DB | Archives blocks, deletes dumps |
 | `/api/projects/[id]/work-sessions` | GET | Direct DB | Queries work_sessions table |
+| `/api/workspaces/purge` | DELETE | Direct DB (RPC) | Calls `purge_workspace_data()` stored procedure |
 
 ### Substrate-API Endpoints (Delegated)
 
