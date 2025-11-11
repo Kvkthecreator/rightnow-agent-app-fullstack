@@ -2,7 +2,7 @@ import { type Config } from "tailwindcss";
 import colors from "tailwindcss/colors";
 
 const config = {
-  darkMode: false,
+  darkMode: "class",
     content: {
     files: [
         "./app/**/*.{ts,tsx}",
@@ -33,9 +33,22 @@ const config = {
         accent: "var(--accent)",
         "accent-foreground": "var(--accent-foreground)",
         destructive: "var(--destructive)",
+        "destructive-foreground": "var(--destructive-foreground)",
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
+        success: "var(--success)",
+        "success-foreground": "var(--success-foreground)",
+        warning: "var(--warning)",
+        "warning-foreground": "var(--warning-foreground)",
+        "surface-primary": "var(--surface-primary)",
+        "surface-primary-border": "var(--surface-primary-border)",
+        "surface-success": "var(--surface-success)",
+        "surface-success-border": "var(--surface-success-border)",
+        "surface-warning": "var(--surface-warning)",
+        "surface-warning-border": "var(--surface-warning-border)",
+        "surface-danger": "var(--surface-danger)",
+        "surface-danger-border": "var(--surface-danger-border)",
         sidebar: "var(--sidebar)",
         "sidebar-foreground": "var(--sidebar-foreground)",
         "sidebar-primary": "var(--sidebar-primary)",

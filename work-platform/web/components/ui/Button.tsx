@@ -4,17 +4,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  // Base styles - Apple-like with explicit styling and enhanced hover states
-  "inline-flex items-center justify-center font-medium transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 rounded-lg active:scale-[0.98]",
+  // Base styles stay tactile but now lean entirely on design tokens
+  "inline-flex items-center justify-center font-medium transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 rounded-lg active:scale-[0.98]",
   {
     variants: {
       variant: {
-        default: "bg-slate-900 text-white hover:bg-slate-800 shadow-md hover:shadow-lg active:shadow-sm dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200",
-        secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200 shadow-md hover:shadow-lg active:shadow-sm dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
-        outline: "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800",
-        ghost: "hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100",
-        destructive: "bg-red-500 text-white hover:bg-red-600 shadow-md hover:shadow-lg active:shadow-sm",
-        primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg active:shadow-sm dark:bg-blue-500 dark:hover:bg-blue-600"
+        default: "bg-primary text-primary-foreground shadow-md hover:bg-primary/90",
+        secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+        outline: "border border-border bg-background text-foreground hover:bg-muted/70",
+        ghost: "text-foreground hover:bg-muted/60",
+        destructive: "bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90",
+        primary: "bg-primary text-primary-foreground shadow-md hover:bg-primary/90"
       },
       size: {
         xs: "h-7 px-2.5 text-xs rounded-md gap-1",

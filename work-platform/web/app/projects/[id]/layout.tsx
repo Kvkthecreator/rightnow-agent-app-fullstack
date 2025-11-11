@@ -29,7 +29,7 @@ export default async function ProjectLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background text-foreground">
       <ProjectNavigation projectId={id} />
       <div className="mx-auto">{children}</div>
     </div>

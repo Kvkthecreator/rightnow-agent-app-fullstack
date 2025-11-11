@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -35,8 +36,8 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-slate-900">Project not found</h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <h2 className="text-xl font-semibold text-foreground">Project not found</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
             The project you're looking for doesn't exist or you don't have access to it.
           </p>
         </div>
@@ -79,12 +80,12 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <Link href={`/projects/${projectId}/overview`} className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 mb-2">
+          <Link href={`/projects/${projectId}/overview`} className="mb-2 inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Project
           </Link>
-          <h1 className="text-3xl font-bold text-slate-900">Work Sessions</h1>
-          <p className="text-slate-600 mt-1">{project.name}</p>
+          <h1 className="text-3xl font-bold text-foreground">Work Sessions</h1>
+          <p className="text-muted-foreground mt-1">{project.name}</p>
         </div>
         <Link href={`/projects/${projectId}/overview`}>
           <Button>New Work Request</Button>
@@ -106,7 +107,7 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
           statusFilter="pending"
           active={statusFilter === 'pending'}
           icon={<Clock className="h-4 w-4" />}
-          color="text-slate-600"
+          accent="warning"
         />
         <StatusFilterCard
           label="Running"
@@ -115,7 +116,7 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
           statusFilter="running"
           active={statusFilter === 'running'}
           icon={<Loader2 className="h-4 w-4 animate-spin" />}
-          color="text-blue-600"
+          accent="primary"
         />
         <StatusFilterCard
           label="Completed"
@@ -124,7 +125,7 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
           statusFilter="completed"
           active={statusFilter === 'completed'}
           icon={<CheckCircle className="h-4 w-4" />}
-          color="text-green-600"
+          accent="success"
         />
         <StatusFilterCard
           label="Failed"
@@ -133,17 +134,17 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
           statusFilter="failed"
           active={statusFilter === 'failed'}
           icon={<XCircle className="h-4 w-4" />}
-          color="text-red-600"
+          accent="danger"
         />
       </div>
 
       {/* Sessions List */}
       {sessions.length === 0 ? (
         <Card className="p-12 text-center border-dashed">
-          <h3 className="text-xl font-semibold text-slate-900 mb-2">
+          <h3 className="text-xl font-semibold text-foreground mb-2">
             {statusFilter ? 'No sessions found' : 'No work sessions yet'}
           </h3>
-          <p className="text-slate-600 mb-6 max-w-md mx-auto">
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
             {statusFilter
               ? `No ${statusFilter} work sessions for this project.`
               : 'Create your first work request to get started.'}
@@ -158,19 +159,19 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
         <div className="space-y-3">
           {sessions.map((session) => (
             <Link key={session.session_id} href={`/projects/${projectId}/work-sessions/${session.session_id}`}>
-              <Card className="p-4 hover:border-slate-300 transition cursor-pointer">
+              <Card className="p-4 cursor-pointer transition hover:border-ring">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <Badge variant={getStatusVariant(session.status)}>
+                      <Badge variant={getStatusVariant(session.status)} className="capitalize">
                         {session.status}
                       </Badge>
-                      <span className="text-sm text-slate-600">{session.agent_display_name}</span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-sm text-muted-foreground">{session.agent_display_name}</span>
+                      <span className="text-xs text-muted-foreground">
                         {new Date(session.created_at).toLocaleString()}
                       </span>
                     </div>
-                    <p className="text-slate-900 font-medium">{session.task_description}</p>
+                    <p className="text-foreground font-medium">{session.task_description}</p>
                   </div>
                 </div>
               </Card>
@@ -182,6 +183,27 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
   );
 }
 
+const ACCENT_STYLES = {
+  primary: {
+    surface: "border border-surface-primary-border bg-surface-primary",
+    text: "text-primary",
+  },
+  success: {
+    surface: "border border-surface-success-border bg-surface-success",
+    text: "text-success-foreground",
+  },
+  warning: {
+    surface: "border border-surface-warning-border bg-surface-warning",
+    text: "text-warning-foreground",
+  },
+  danger: {
+    surface: "border border-surface-danger-border bg-surface-danger",
+    text: "text-destructive",
+  },
+} as const;
+
+type AccentKey = keyof typeof ACCENT_STYLES;
+
 function StatusFilterCard({
   label,
   count,
@@ -189,7 +211,7 @@ function StatusFilterCard({
   statusFilter,
   active,
   icon,
-  color = "text-slate-600",
+  accent,
 }: {
   label: string;
   count: number;
@@ -197,28 +219,28 @@ function StatusFilterCard({
   statusFilter?: string;
   active?: boolean;
   icon?: React.ReactNode;
-  color?: string;
+  accent?: AccentKey;
 }) {
   const href = statusFilter
     ? `/projects/${projectId}/work-sessions?status=${statusFilter}`
     : `/projects/${projectId}/work-sessions`;
+  const accentConfig = accent ? ACCENT_STYLES[accent] : null;
+  const textClass = accentConfig ? accentConfig.text : "text-muted-foreground";
 
   return (
     <Link href={href}>
-      <Card className={`p-4 cursor-pointer transition ${
-        active
-          ? 'border-blue-600 bg-blue-50'
-          : 'hover:border-slate-300'
-      }`}>
+      <Card
+        className={cn(
+          "p-4 cursor-pointer transition",
+          active && accentConfig ? accentConfig.surface : undefined,
+          !active && "hover:border-ring",
+        )}
+      >
         <div className="flex items-center gap-2">
-          {icon && <span className={color}>{icon}</span>}
+          {icon && <span className={textClass}>{icon}</span>}
           <div>
-            <div className={`text-2xl font-bold ${
-              active
-                ? 'text-blue-600'
-                : color
-            }`}>{count}</div>
-            <div className="text-xs text-slate-600">{label}</div>
+            <div className={cn("text-2xl font-bold", textClass)}>{count}</div>
+            <div className="text-xs text-muted-foreground">{label}</div>
           </div>
         </div>
       </Card>

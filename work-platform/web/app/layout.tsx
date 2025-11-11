@@ -36,6 +36,24 @@ const geistMono = Roboto_Mono({
 });
 // Pacifico font is now loaded via @font-face in globals.css
 
+const themeInitScript = `
+(function() {
+  try {
+    var storageKey = 'yarnnn-theme';
+    var stored = window.localStorage.getItem(storageKey);
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var theme = stored || (prefersDark ? 'dark' : 'light');
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  } catch (error) {
+    console.warn('theme init failed', error);
+  }
+})();
+`;
+
 export const metadata: Metadata = {
   title: "yarnnn",
   description: "weave your ideas with AI",
@@ -49,8 +67,11 @@ const BUILD_STAMP = new Date().toISOString();
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
       </head>
       <body className="antialiased min-h-screen">
         <GlobalErrorBoundary>

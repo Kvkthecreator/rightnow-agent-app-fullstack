@@ -7,6 +7,7 @@ import PreflightPanel from '@/components/config/PreflightPanel';
 import RuntimeHUD from '@/components/dev/RuntimeHUD';
 import { runPreflightChecks } from '@/lib/config/preflight';
 import { dlog } from '@/lib/dev/log';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(() => new QueryClient({
@@ -48,29 +49,26 @@ export default function Providers({ children }: { children: ReactNode }) {
   }, []);
   
   // Show loading state while checking
-  if (showPreflight === null) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking configuration...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // Show preflight panel if needed
-  if (showPreflight) {
-    return <PreflightPanel />;
-  }
-  
   return (
-    <QueryClientProvider client={client}>
-      <ModalProvider>
-        {children}
-        <ModalRoot />
-        <RuntimeHUD />
-      </ModalProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      {showPreflight === null ? (
+        <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <div className="w-8 h-8 border-2 border-border border-t-ring rounded-full animate-spin mx-auto"></div>
+            <p className="text-sm text-muted-foreground">Checking configuration...</p>
+          </div>
+        </div>
+      ) : showPreflight ? (
+        <PreflightPanel />
+      ) : (
+        <QueryClientProvider client={client}>
+          <ModalProvider>
+            {children}
+            <ModalRoot />
+            <RuntimeHUD />
+          </ModalProvider>
+        </QueryClientProvider>
+      )}
+    </ThemeProvider>
   );
 }

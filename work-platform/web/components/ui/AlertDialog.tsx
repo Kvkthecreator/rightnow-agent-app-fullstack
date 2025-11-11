@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { cn } from "@/lib/utils";
 
 interface AlertDialogProps {
   open: boolean;
@@ -24,7 +25,7 @@ export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) 
 export function AlertDialogContent({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+      className="bg-card text-card-foreground rounded-xl border border-border shadow-xl max-w-md w-full p-6"
       onClick={(e) => e.stopPropagation()}
       {...props}
     >
@@ -43,7 +44,7 @@ export function AlertDialogHeader({ children, ...props }: React.HTMLAttributes<H
 
 export function AlertDialogTitle({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h2 className="text-lg font-semibold text-gray-900" {...props}>
+    <h2 className="text-lg font-semibold text-foreground" {...props}>
       {children}
     </h2>
   );
@@ -51,7 +52,7 @@ export function AlertDialogTitle({ children, ...props }: React.HTMLAttributes<HT
 
 export function AlertDialogDescription({ children, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className="text-sm text-gray-600" {...props}>
+    <p className="text-sm text-muted-foreground" {...props}>
       {children}
     </p>
   );
@@ -72,7 +73,10 @@ interface AlertDialogActionProps extends React.ButtonHTMLAttributes<HTMLButtonEl
 export function AlertDialogAction({ children, className, ...props }: AlertDialogActionProps) {
   return (
     <button
-      className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed ${className || ''}`}
+      className={cn(
+        "px-4 py-2 rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed",
+        className,
+      )}
       {...props}
     >
       {children}
@@ -83,7 +87,10 @@ export function AlertDialogAction({ children, className, ...props }: AlertDialog
 export function AlertDialogCancel({ children, className, ...props }: AlertDialogActionProps) {
   return (
     <button
-      className={`px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed ${className || ''}`}
+      className={cn(
+        "px-4 py-2 rounded-md bg-muted text-foreground transition-colors hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed",
+        className,
+      )}
       {...props}
     >
       {children}

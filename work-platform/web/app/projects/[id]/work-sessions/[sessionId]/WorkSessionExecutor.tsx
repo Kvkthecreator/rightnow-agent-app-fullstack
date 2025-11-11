@@ -134,19 +134,19 @@ export default function WorkSessionExecutor({
   // Show execute button only for initialized status
   if (status === "initialized") {
     return (
-      <Card className="p-6 bg-blue-50 border-blue-200">
+      <Card className="p-6 border border-surface-primary-border bg-surface-primary">
         <div className="flex items-center justify-between">
           <div className="flex items-start gap-3 flex-1">
-            <Play className="h-6 w-6 text-blue-600 mt-0.5" />
+            <Play className="h-6 w-6 text-primary mt-0.5" />
             <div>
-              <h3 className="font-semibold text-blue-900">Ready to Execute</h3>
-              <p className="text-sm text-blue-700 mt-1">
+              <h3 className="font-semibold text-foreground">Ready to Execute</h3>
+              <p className="text-sm text-muted-foreground mt-1">
                 This work session is ready. Click Execute to start the agent.
               </p>
               {error && (
-                <div className="mt-3 flex items-start gap-2 text-red-700 bg-red-100 p-3 rounded">
-                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">{error}</span>
+                <div className="mt-3 flex items-start gap-2 rounded border border-surface-danger-border bg-surface-danger p-3 text-sm text-destructive-foreground">
+                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-destructive" />
+                  <span>{error}</span>
                 </div>
               )}
             </div>
@@ -177,16 +177,16 @@ export default function WorkSessionExecutor({
   // Show execution status for in_progress
   if (status === "in_progress") {
     return (
-      <Card className="p-6 bg-blue-50 border-blue-200">
+      <Card className="p-6 border border-surface-primary-border bg-surface-primary">
         <div className="flex items-center gap-3">
-          <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
+          <Loader2 className="h-6 w-6 text-primary animate-spin" />
           <div>
-            <h3 className="font-semibold text-blue-900">Agent is executing your task</h3>
-            <p className="text-sm text-blue-700 mt-1">
+            <h3 className="font-semibold text-foreground">Agent is executing your task</h3>
+            <p className="text-sm text-muted-foreground mt-1">
               The agent is actively working on your request. Results will appear when completed.
             </p>
             {artifactsCount > 0 && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-blue-700">
+              <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
                 <FileText className="h-4 w-4" />
                 <span>{artifactsCount} artifact{artifactsCount !== 1 ? 's' : ''} created so far</span>
               </div>
@@ -200,16 +200,16 @@ export default function WorkSessionExecutor({
   // Show pending review status for checkpoint
   if (status === "pending_review") {
     return (
-      <Card className="p-6 bg-amber-50 border-amber-200">
+      <Card className="p-6 border border-surface-warning-border bg-surface-warning">
         <div className="flex items-start gap-3">
-          <Clock className="h-6 w-6 text-amber-600 mt-0.5" />
+          <Clock className="h-6 w-6 text-warning-foreground mt-0.5" />
           <div className="flex-1">
-            <h3 className="font-semibold text-amber-900">Checkpoint - Review Required</h3>
-            <p className="text-sm text-amber-700 mt-1">
+            <h3 className="font-semibold text-warning-foreground">Checkpoint - Review Required</h3>
+            <p className="text-sm text-muted-foreground mt-1">
               The agent has paused for your review before continuing.
             </p>
             {artifactsCount > 0 && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-amber-700">
+              <div className="mt-2 flex items-center gap-2 text-sm text-warning-foreground">
                 <FileText className="h-4 w-4" />
                 <span>{artifactsCount} artifact{artifactsCount !== 1 ? 's' : ''} created</span>
               </div>
@@ -219,15 +219,15 @@ export default function WorkSessionExecutor({
                 {checkpoints.map((checkpoint) => (
                   <div
                     key={checkpoint.id}
-                    className="bg-white border border-amber-200 rounded p-3"
+                    className="rounded border border-surface-warning-border bg-card p-3"
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-amber-900">
+                      <span className="text-sm font-medium text-warning-foreground">
                         Checkpoint
                       </span>
                       <Badge variant="outline">{checkpoint.status}</Badge>
                     </div>
-                    <p className="text-sm text-slate-700">{checkpoint.reason}</p>
+                    <p className="text-sm text-muted-foreground">{checkpoint.reason}</p>
                     {/* TODO: Add approve/reject buttons in Phase 3 */}
                   </div>
                 ))}
@@ -242,16 +242,16 @@ export default function WorkSessionExecutor({
   // Show completed status
   if (status === "completed") {
     return (
-      <Card className="p-6 bg-green-50 border-green-200">
+      <Card className="p-6 border border-surface-success-border bg-surface-success">
         <div className="flex items-start gap-3">
-          <CheckCircle className="h-6 w-6 text-green-600 mt-0.5" />
+          <CheckCircle className="h-6 w-6 text-success-foreground mt-0.5" />
           <div>
-            <h3 className="font-semibold text-green-900">Task Completed Successfully</h3>
-            <p className="text-sm text-green-700 mt-1">
+            <h3 className="font-semibold text-success-foreground">Task Completed Successfully</h3>
+            <p className="text-sm text-muted-foreground mt-1">
               The agent has successfully completed your task.
             </p>
             {artifactsCount > 0 && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-green-700">
+              <div className="mt-2 flex items-center gap-2 text-sm text-success-foreground">
                 <FileText className="h-4 w-4" />
                 <span>{artifactsCount} artifact{artifactsCount !== 1 ? 's' : ''} generated</span>
               </div>
@@ -265,16 +265,16 @@ export default function WorkSessionExecutor({
   // Show failed status
   if (status === "failed") {
     return (
-      <Card className="p-6 bg-red-50 border-red-200">
+      <Card className="p-6 border border-surface-danger-border bg-surface-danger">
         <div className="flex items-start gap-3">
-          <XCircle className="h-6 w-6 text-red-600 mt-0.5" />
+          <XCircle className="h-6 w-6 text-destructive mt-0.5" />
           <div>
-            <h3 className="font-semibold text-red-900">Execution Failed</h3>
-            <p className="text-sm text-red-700 mt-1">
+            <h3 className="font-semibold text-destructive-foreground">Execution Failed</h3>
+            <p className="text-sm text-muted-foreground mt-1">
               The agent encountered an error during execution.
             </p>
             {error && (
-              <p className="text-sm text-red-700 mt-2 font-mono bg-red-100 p-2 rounded">
+              <p className="text-sm text-destructive-foreground mt-2 font-mono rounded border border-surface-danger-border bg-card">
                 {error}
               </p>
             )}

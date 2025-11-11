@@ -20,6 +20,17 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Theme QA
+
+Light/dark mode is driven by the `yarnnn-theme` key in `localStorage` plus the user's OS preference. When reviewing UI changes:
+
+1. **Reset the theme**: run `localStorage.removeItem('yarnnn-theme')` in DevTools and refresh. The UI matches your OS `prefers-color-scheme`.
+2. **Force light mode**: run `localStorage.setItem('yarnnn-theme', 'light')` and refresh. Verify project navigation, the Work Sessions list, and a Work Session detail page all use token-based colors (backgrounds should stay neutral, callouts use accent badges, and cards remain readable).
+3. **Force dark mode**: run `localStorage.setItem('yarnnn-theme', 'dark')` and refresh. Confirm the same surfaces above adopt the dark palette (sidebar + cards use `--card`, status callouts use `--surface-*` tokens, syntax blocks remain legible).
+4. **Spot-check primitives**: interact with buttons, inputs, selects, dialogs, dropdown menus, and badges in both themes; they now pull every color from CSS variables so state changes should look identical aside from palette shifts.
+
+If any screen still shows raw slate/white backgrounds, the component is likely bypassing the design tokens and should be updated before shipping.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

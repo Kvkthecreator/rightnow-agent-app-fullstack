@@ -36,7 +36,7 @@ export function ProjectNavigation({ projectId }: ProjectNavigationProps) {
   const pathname = usePathname();
 
   return (
-    <div className="border-b border-slate-200 bg-white">
+    <div className="border-b border-border bg-card backdrop-blur">
       <div className="mx-auto max-w-7xl px-6">
         <nav className="flex space-x-8" aria-label="Project navigation">
           {tabs.map((tab) => {
@@ -51,8 +51,8 @@ export function ProjectNavigation({ projectId }: ProjectNavigationProps) {
                 className={cn(
                   'inline-flex items-center gap-2 border-b-2 px-1 py-4 text-sm font-medium transition-colors',
                   isActive
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:border-muted hover:text-foreground'
                 )}
               >
                 <Icon className="h-4 w-4" />

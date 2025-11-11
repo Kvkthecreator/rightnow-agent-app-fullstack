@@ -91,8 +91,8 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-slate-900">{error || 'Not Found'}</h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <h2 className="text-xl font-semibold text-foreground">{error || 'Not Found'}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
             The work session you're looking for doesn't exist or you don't have access to it.
           </p>
           <Link href={`/projects/${projectId}/work-sessions`} className="mt-4 inline-block">
@@ -109,15 +109,15 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
       <div>
         <Link
           href={`/projects/${projectId}/work-sessions`}
-          className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 mb-2"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Work Sessions
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Work Session</h1>
-            <p className="text-slate-600 mt-1">{session.project_name}</p>
+            <h1 className="text-3xl font-bold text-foreground">Work Session</h1>
+            <p className="text-muted-foreground mt-1">{session.project_name}</p>
           </div>
           <Badge variant={getStatusVariant(session.status)} className="text-base px-4 py-2">
             {getStatusIcon(session.status)}
@@ -128,7 +128,7 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
 
       {/* Session Metadata */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Session Information</h2>
+        <h2 className="text-lg font-semibold text-foreground mb-4">Session Information</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <InfoItem label="Agent" value={session.agent_display_name} icon={<Zap className="h-4 w-4" />} />
           <InfoItem label="Agent Type" value={session.agent_type} />
@@ -143,15 +143,15 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
 
       {/* Task Description */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Task Description</h2>
-        <p className="text-slate-700 whitespace-pre-wrap">{session.task_description}</p>
+        <h2 className="text-lg font-semibold text-foreground mb-4">Task Description</h2>
+        <p className="text-foreground/90 whitespace-pre-wrap">{session.task_description}</p>
       </Card>
 
       {/* Context (if any) */}
       {session.context && Object.keys(session.context).length > 0 && (
         <Card className="p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Additional Context</h2>
-          <pre className="text-sm text-slate-700 bg-slate-50 p-4 rounded overflow-x-auto">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Additional Context</h2>
+          <pre className="text-sm text-muted-foreground bg-muted p-4 rounded-lg overflow-x-auto border border-border/60">
             {JSON.stringify(session.context, null, 2)}
           </pre>
         </Card>
@@ -168,7 +168,7 @@ export default async function WorkSessionDetailPage({ params }: PageProps) {
       {/* Artifacts Viewer */}
       {session.status === 'completed' && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Artifacts & Results
           </h2>
@@ -190,11 +190,11 @@ function InfoItem({
 }) {
   return (
     <div>
-      <div className="text-sm text-slate-600 mb-1 flex items-center gap-1">
+      <div className="text-sm text-muted-foreground mb-1 flex items-center gap-1">
         {icon}
         {label}
       </div>
-      <div className="text-slate-900 font-medium">{value}</div>
+      <div className="text-foreground font-medium">{value}</div>
     </div>
   );
 }

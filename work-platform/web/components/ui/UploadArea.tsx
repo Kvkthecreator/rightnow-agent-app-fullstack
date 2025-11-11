@@ -210,7 +210,7 @@ export function UploadArea({
                 <button
                   type="button"
                   onClick={() => removeFile(f.id)}
-                  className="absolute top-1 right-1 bg-white border px-1 py-0.5 rounded text-xs"
+                  className="absolute top-1 right-1 rounded border border-border bg-card px-1 py-0.5 text-xs text-foreground shadow-sm"
                 >
                   ×
                 </button>

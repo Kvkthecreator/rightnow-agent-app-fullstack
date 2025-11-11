@@ -25,23 +25,23 @@ export default function Error({
     <div className="flex h-full items-center justify-center p-6">
       <Card className="max-w-lg p-8">
         <div className="flex flex-col items-center text-center gap-4">
-          <div className="rounded-full bg-red-100 p-4">
-            <AlertCircle className="h-8 w-8 text-red-600" />
+          <div className="rounded-full border border-surface-danger-border bg-surface-danger p-4">
+            <AlertCircle className="h-8 w-8 text-destructive" />
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">
+            <h2 className="text-2xl font-bold text-foreground">
               Failed to load work sessions
             </h2>
-            <p className="mt-2 text-slate-600">
+            <p className="mt-2 text-muted-foreground">
               We encountered an error while loading the work sessions for this project. This could
               be due to a network issue or a problem with the project data.
             </p>
           </div>
 
           {error.message && (
-            <div className="w-full rounded-lg bg-slate-50 p-3 text-left">
-              <p className="text-sm font-mono text-slate-700">
+            <div className="w-full rounded-lg border border-border bg-muted p-3 text-left">
+              <p className="text-sm font-mono text-foreground/90">
                 {error.message}
               </p>
             </div>
@@ -71,7 +71,7 @@ export default function Error({
           </div>
 
           {error.digest && (
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               Error ID: {error.digest}
             </p>
           )}
