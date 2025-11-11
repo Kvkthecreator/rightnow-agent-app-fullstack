@@ -64,11 +64,17 @@ if USING_DATABASES_LIBRARY:
             database_url = os.getenv("DATABASE_URL")
             if not database_url:
                 raise ValueError("DATABASE_URL environment variable is required")
-            
+
             # Handle Render.com DATABASE_URL format which might need adjustment for databases library
             if database_url.startswith("postgres://"):
                 database_url = database_url.replace("postgres://", "postgresql://", 1)
-            
+
+            # Disable prepared statement caching for pgbouncer compatibility
+            # Supabase uses pgbouncer in transaction mode which doesn't support prepared statements
+            # Add statement_cache_size=0 and prepared_statement_cache_size=0 to URL
+            separator = "&" if "?" in database_url else "?"
+            database_url += f"{separator}statement_cache_size=0&prepared_statement_cache_size=0"
+
             _db = Database(database_url)
             await _db.connect()
             return _db
