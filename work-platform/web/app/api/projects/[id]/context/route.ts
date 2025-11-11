@@ -20,22 +20,25 @@ export async function GET(
 ) {
   try {
     const { id: projectId } = await params;
-
-    // Get Supabase session for auth
     const supabase = createRouteHandlerClient({ cookies });
 
+    console.log(`[CONTEXT API] Request for project ${projectId}`);
+
+    // Get Supabase session for auth
     const {
       data: { session },
       error: authError,
     } = await supabase.auth.getSession();
 
     if (authError || !session) {
+      console.error('[CONTEXT API] Auth error:', authError, 'Session:', session);
       return NextResponse.json(
         { detail: 'Authentication required' },
         { status: 401 }
       );
     }
 
+    console.log('[CONTEXT API] Auth successful, user:', session.user.id);
     const token = session.access_token;
 
     // Fetch project to get basket_id
