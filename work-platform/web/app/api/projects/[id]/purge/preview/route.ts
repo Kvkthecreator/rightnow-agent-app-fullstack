@@ -2,17 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 
-const SUBSTRATE_API_URL = process.env.SUBSTRATE_API_URL || 'http://localhost:10000';
-
 /**
  * GET /api/projects/[id]/purge/preview
  *
  * Preview basket purge counts before execution.
- * Delegates to substrate-api GET /api/baskets/{basketId}/purge/preview
+ * Queries database directly for blocks and raw_dumps counts.
  *
  * Returns:
- * - blocks: number (unarchived blocks count)
- * - dumps: number (non-redacted dumps count)
+ * - blocks: number (active blocks count, excluding REJECTED/SUPERSEDED)
+ * - dumps: number (raw dumps count)
  */
 export async function GET(
   request: NextRequest,
@@ -77,35 +75,42 @@ export async function GET(
 
     console.log(`[PURGE PREVIEW API] Fetching preview for basket ${basketId}`);
 
-    // Forward to substrate-api
-    const substrateUrl = `${SUBSTRATE_API_URL}/api/baskets/${basketId}/purge/preview`;
-    const substrateResponse = await fetch(substrateUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    // Query database directly (work-platform shares DB with substrate-api)
+    // Count active blocks (excluding REJECTED and SUPERSEDED states)
+    const { count: blocksCount, error: blocksError } = await supabase
+      .from('blocks')
+      .select('*', { count: 'exact', head: true })
+      .eq('basket_id', basketId)
+      .not('state', 'in', '(REJECTED,SUPERSEDED)');
 
-    console.log(`[PURGE PREVIEW API] Substrate response status: ${substrateResponse.status}`);
-
-    if (!substrateResponse.ok) {
-      const errorData = await substrateResponse.json().catch(() => ({
-        detail: 'Failed to fetch purge preview',
-      }));
-
-      console.error('[PURGE PREVIEW API] Substrate error:', substrateResponse.status, errorData);
-
+    if (blocksError) {
+      console.error('[PURGE PREVIEW API] Database error counting blocks:', blocksError);
       return NextResponse.json(
-        {
-          detail: 'Substrate API error',
-          substrate_error: errorData,
-        },
-        { status: substrateResponse.status }
+        { detail: 'Failed to count blocks', error: blocksError.message },
+        { status: 500 }
       );
     }
 
-    const result = await substrateResponse.json();
+    // Count raw dumps
+    const { count: dumpsCount, error: dumpsError } = await supabase
+      .from('raw_dumps')
+      .select('*', { count: 'exact', head: true })
+      .eq('basket_id', basketId);
+
+    if (dumpsError) {
+      console.error('[PURGE PREVIEW API] Database error counting dumps:', dumpsError);
+      return NextResponse.json(
+        { detail: 'Failed to count dumps', error: dumpsError.message },
+        { status: 500 }
+      );
+    }
+
+    const result = {
+      blocks: blocksCount || 0,
+      dumps: dumpsCount || 0,
+    };
+
+    console.log(`[PURGE PREVIEW API] Preview result for basket ${basketId}:`, result);
 
     return NextResponse.json(result);
   } catch (error) {
