@@ -134,7 +134,7 @@ export default function ProjectActions({
               e.stopPropagation();
               setDeleteOpen(true);
             }}
-            className="text-rose-600"
+            className="text-destructive"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete Project
@@ -160,7 +160,7 @@ export default function ProjectActions({
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-1 block">Project Name</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Project Name</label>
               <Input
                 value={editedName}
                 onChange={(e) => setEditedName(e.target.value)}
@@ -170,8 +170,8 @@ export default function ProjectActions({
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-1 block">
-                Description <span className="text-slate-400">(optional)</span>
+              <label className="text-sm font-medium text-foreground mb-1 block">
+                Description <span className="text-muted-foreground">(optional)</span>
               </label>
               <Textarea
                 value={editedDescription}
@@ -182,7 +182,7 @@ export default function ProjectActions({
             </div>
 
             {error && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+              <div className="rounded-lg border border-surface-danger-border bg-surface-danger/80 p-3 text-sm text-destructive-foreground">
                 {error}
               </div>
             )}

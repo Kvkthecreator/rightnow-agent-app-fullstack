@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { cn } from "@/lib/utils";
 import {
   Database,
   Brain,
@@ -166,8 +167,8 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
     return (
       <Card className="p-12">
         <div className="flex flex-col items-center justify-center text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400 mb-4" />
-          <p className="text-slate-600">Loading context blocks...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Loading context blocks...</p>
         </div>
       </Card>
     );
@@ -177,10 +178,10 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
     return (
       <Card className="p-12">
         <div className="flex flex-col items-center justify-center text-center">
-          <AlertCircle className="h-8 w-8 text-red-500 mb-4" />
-          <p className="text-slate-900 font-medium">Failed to Load Context</p>
-          <p className="text-slate-600 text-sm mt-2">{error}</p>
-          <p className="text-slate-500 text-xs mt-4">
+          <AlertCircle className="h-8 w-8 text-destructive mb-4" />
+          <p className="text-foreground font-medium">Failed to Load Context</p>
+          <p className="text-muted-foreground text-sm mt-2">{error}</p>
+          <p className="text-muted-foreground/80 text-xs mt-4">
             This may indicate that the basket doesn't exist in substrate-api yet, or there are connectivity issues.
           </p>
         </div>
@@ -188,30 +189,30 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
     );
   }
 
+  const pollingIntent = pollingMessage
+    ? pollingMessage.startsWith('✓')
+      ? 'success'
+      : pollingMessage.startsWith('Processing may')
+        ? 'warning'
+        : 'info'
+    : null;
+
+  const pollingStyles: Record<string, string> = {
+    success: 'border-surface-success-border bg-surface-success text-success-foreground',
+    warning: 'border-surface-warning-border bg-surface-warning text-warning-foreground',
+    info: 'border-surface-primary-border bg-surface-primary text-foreground',
+  };
+
   return (
     <div className="space-y-6">
       {/* Polling Status Message */}
       {pollingMessage && (
-        <div className={`rounded-lg border p-4 ${
-          pollingMessage.startsWith('✓')
-            ? 'bg-green-50 border-green-200'
-            : pollingMessage.startsWith('Processing may')
-            ? 'bg-yellow-50 border-yellow-200'
-            : 'bg-blue-50 border-blue-200'
-        }`}>
+        <div className={cn('rounded-lg border p-4', pollingIntent ? pollingStyles[pollingIntent] : '')}>
           <div className="flex items-center gap-3">
             {isPolling && (
-              <Loader2 className="h-5 w-5 animate-spin text-blue-600 flex-shrink-0" />
+              <Loader2 className="h-5 w-5 animate-spin flex-shrink-0" />
             )}
-            <p className={`text-sm font-medium ${
-              pollingMessage.startsWith('✓')
-                ? 'text-green-900'
-                : pollingMessage.startsWith('Processing may')
-                ? 'text-yellow-900'
-                : 'text-blue-900'
-            }`}>
-              {pollingMessage}
-            </p>
+            <p className="text-sm font-medium">{pollingMessage}</p>
           </div>
         </div>
       )}
@@ -220,34 +221,34 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
       <div className="flex items-center gap-4">
         <Card className="flex-1 p-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-slate-100 p-2">
-              <Database className="h-5 w-5 text-slate-600" />
+            <div className="rounded-lg bg-muted/60 p-2 text-muted-foreground">
+              <Database className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">{blocks.length}</p>
-              <p className="text-xs text-slate-600">Total Blocks</p>
+              <p className="text-2xl font-bold text-foreground">{blocks.length}</p>
+              <p className="text-xs text-muted-foreground">Total Blocks</p>
             </div>
           </div>
         </Card>
         <Card className="flex-1 p-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-blue-100 p-2">
-              <Database className="h-5 w-5 text-blue-600" />
+            <div className="rounded-lg bg-surface-primary/70 p-2 text-primary">
+              <Database className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">{knowledgeCount}</p>
-              <p className="text-xs text-slate-600">Knowledge</p>
+              <p className="text-2xl font-bold text-foreground">{knowledgeCount}</p>
+              <p className="text-xs text-muted-foreground">Knowledge</p>
             </div>
           </div>
         </Card>
         <Card className="flex-1 p-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-purple-100 p-2">
-              <Brain className="h-5 w-5 text-purple-600" />
+            <div className="rounded-lg bg-surface-warning/70 p-2 text-warning-foreground">
+              <Brain className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">{meaningCount}</p>
-              <p className="text-xs text-slate-600">Meaning</p>
+              <p className="text-2xl font-bold text-foreground">{meaningCount}</p>
+              <p className="text-xs text-muted-foreground">Meaning</p>
             </div>
           </div>
         </Card>
@@ -256,7 +257,7 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
       {/* Search & Filters */}
       <div className="flex gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
             placeholder="Search blocks by title, content, or type..."
@@ -299,9 +300,9 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
       {filteredBlocks.length === 0 ? (
         <Card className="p-12">
           <div className="text-center">
-            <Database className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-600 font-medium">No context blocks found</p>
-            <p className="text-slate-500 text-sm mt-2">
+            <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground font-medium">No context blocks found</p>
+            <p className="text-muted-foreground/80 text-sm mt-2">
               {searchQuery || filter !== "all"
                 ? "Try adjusting your search or filters"
                 : "Add content to your project to build substrate context"}
@@ -313,7 +314,7 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
           {filteredBlocks.map((block) => (
             <Card key={block.id} className="p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-3 mb-3">
-                <h3 className="font-medium text-slate-900 flex-1 line-clamp-2">
+                <h3 className="font-medium text-foreground flex-1 line-clamp-2">
                   {block.title}
                 </h3>
                 <div className="flex gap-2 flex-shrink-0">
@@ -321,18 +322,18 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
                     {block.semantic_type}
                   </Badge>
                   {block.state === 'PROPOSED' && (
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                    <Badge variant="outline" className="bg-warning text-warning-foreground border-warning-foreground/50">
                       Pending Review
                     </Badge>
                   )}
                 </div>
               </div>
 
-              <p className="text-sm text-slate-600 line-clamp-3 mb-4">
+              <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
                 {block.content}
               </p>
 
-              <div className="flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-3">
                   {block.confidence !== null && (
                     <span>
@@ -347,7 +348,7 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
                   href={`${process.env.NEXT_PUBLIC_SUBSTRATE_URL || 'http://localhost:10000'}/baskets/${basketId}/building-blocks?block=${block.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                  className="flex items-center gap-1 text-primary hover:text-primary/80"
                 >
                   <span>View in Substrate</span>
                   <ExternalLink className="h-3 w-3" />

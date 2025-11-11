@@ -111,7 +111,7 @@ export function ProjectsIndexClient({ projects }: { projects: ProjectSummary[] }
                         ? `Created ${new Date(project.created_at).toLocaleString()}`
                         : 'No timestamp'}
                   </span>
-                  <span className={pendingWork.count > 0 ? 'text-blue-600 font-medium' : ''}>
+                  <span className={pendingWork.count > 0 ? 'text-primary font-medium' : ''}>
                     {workLabel}
                   </span>
                 </div>
