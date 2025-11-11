@@ -40,6 +40,8 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "knowledge" | "meaning">("all");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollingMessage, setPollingMessage] = useState<string | null>(null);
 
   // Fetch blocks from BFF
   const fetchBlocks = async () => {
@@ -66,6 +68,56 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
   useEffect(() => {
     fetchBlocks();
   }, [projectId]);
+
+  // Polling logic for new blocks after context submission
+  const startPolling = () => {
+    const initialCount = blocks.length;
+    setIsPolling(true);
+    setPollingMessage("Processing context... checking for new blocks");
+
+    let attempts = 0;
+    const maxAttempts = 20; // 20 attempts * 3s = 60s max
+
+    const pollInterval = setInterval(async () => {
+      attempts++;
+
+      try {
+        // Fetch without setting loading state (silent poll)
+        const response = await fetch(`/api/projects/${projectId}/context`);
+        if (response.ok) {
+          const data = await response.json();
+          const newBlocks = data.blocks || [];
+
+          if (newBlocks.length > initialCount) {
+            // New blocks appeared!
+            setBlocks(newBlocks);
+            setIsPolling(false);
+            setPollingMessage(`✓ ${newBlocks.length - initialCount} new block(s) added!`);
+            clearInterval(pollInterval);
+
+            // Clear success message after 5 seconds
+            setTimeout(() => setPollingMessage(null), 5000);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("[Context Blocks] Polling error:", err);
+      }
+
+      if (attempts >= maxAttempts) {
+        clearInterval(pollInterval);
+        setIsPolling(false);
+        setPollingMessage("Processing may still be in progress. Refresh to see updates.");
+
+        // Clear timeout message after 8 seconds
+        setTimeout(() => setPollingMessage(null), 8000);
+      } else {
+        // Update message with remaining time
+        const remainingSeconds = (maxAttempts - attempts) * 3;
+        setPollingMessage(`Processing context... (${remainingSeconds}s remaining)`);
+      }
+    }, 3000); // Poll every 3 seconds
+  };
 
   // Filter blocks
   const filteredBlocks = blocks.filter((block) => {
@@ -138,6 +190,32 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
 
   return (
     <div className="space-y-6">
+      {/* Polling Status Message */}
+      {pollingMessage && (
+        <div className={`rounded-lg border p-4 ${
+          pollingMessage.startsWith('✓')
+            ? 'bg-green-50 border-green-200'
+            : pollingMessage.startsWith('Processing may')
+            ? 'bg-yellow-50 border-yellow-200'
+            : 'bg-blue-50 border-blue-200'
+        }`}>
+          <div className="flex items-center gap-3">
+            {isPolling && (
+              <Loader2 className="h-5 w-5 animate-spin text-blue-600 flex-shrink-0" />
+            )}
+            <p className={`text-sm font-medium ${
+              pollingMessage.startsWith('✓')
+                ? 'text-green-900'
+                : pollingMessage.startsWith('Processing may')
+                ? 'text-yellow-900'
+                : 'text-blue-900'
+            }`}>
+              {pollingMessage}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Stats Bar */}
       <div className="flex items-center gap-4">
         <Card className="flex-1 p-4">
@@ -280,8 +358,12 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
         projectId={projectId}
         basketId={basketId}
         onSuccess={() => {
-          // Refetch blocks after successful submission
+          // Initial fetch (will likely return 0 new blocks)
           fetchBlocks();
+        }}
+        onStartPolling={() => {
+          // Start polling for new blocks after modal closes
+          startPolling();
         }}
       />
     </div>

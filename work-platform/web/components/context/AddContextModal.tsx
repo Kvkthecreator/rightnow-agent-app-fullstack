@@ -17,6 +17,7 @@ interface AddContextModalProps {
   projectId: string;
   basketId: string;
   onSuccess?: () => void;
+  onStartPolling?: () => void;
 }
 
 export function AddContextModal({
@@ -25,6 +26,7 @@ export function AddContextModal({
   projectId,
   basketId,
   onSuccess,
+  onStartPolling,
 }: AddContextModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<
@@ -81,13 +83,15 @@ export function AddContextModal({
 
       setProcessingStep('complete');
 
-      // Auto-close after showing success
+      // Show success message, then close and start polling
       setTimeout(() => {
         setIsProcessing(false);
         setProcessingStep('submitting');
         onClose();
         onSuccess?.();
-      }, 2000);
+        // Start polling after modal closes
+        onStartPolling?.();
+      }, 4000); // Give user 4s to read the message
 
       return result;
     } catch (error) {
@@ -169,7 +173,7 @@ function ProcessingState({
             Extracting knowledge and meaning
           </p>
           <p className="text-sm text-slate-600">
-            P0-P4 pipeline processing (5-10 seconds)
+            P0-P4 pipeline processing (30-60 seconds)
           </p>
         </div>
       </div>
@@ -181,10 +185,11 @@ function ProcessingState({
             <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-medium text-green-900">
-                Context added successfully
+                Context submitted successfully!
               </p>
               <p className="text-sm text-green-700 mt-1">
-                Your context has been captured and will appear shortly.
+                Processing through P0-P4 pipeline (30-60 seconds).
+                New blocks will appear automatically when ready.
               </p>
             </div>
           </div>
