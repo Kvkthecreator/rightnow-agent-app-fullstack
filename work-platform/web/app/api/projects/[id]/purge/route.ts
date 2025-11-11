@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 
-const SUBSTRATE_API_URL = process.env.SUBSTRATE_API_URL || 'http://localhost:10000';
-
 /**
  * POST /api/projects/[id]/purge
  *
  * Execute basket purge operation (archive blocks and/or redact dumps).
- * Delegates to substrate-api POST /api/baskets/{basketId}/purge
+ * Implements purge directly using database operations (BFF pattern).
  *
  * Request Body:
  * - mode: 'archive_all' | 'redact_dumps'
@@ -16,10 +14,9 @@ const SUBSTRATE_API_URL = process.env.SUBSTRATE_API_URL || 'http://localhost:100
  *
  * Returns:
  * - success: boolean
- * - executed_batches: number
  * - total_operations: number
- * - totals: { archivedBlocks, redactedDumps, deprecatedItems, errors }
- * - chunks: Array<{ work_id, counts, errors }>
+ * - totals: { archivedBlocks, redactedDumps }
+ * - message: string
  */
 export async function POST(
   request: NextRequest,
@@ -44,8 +41,6 @@ export async function POST(
         { status: 401 }
       );
     }
-
-    const token = session.access_token;
 
     // Parse request body
     const body = await request.json();
@@ -114,52 +109,67 @@ export async function POST(
 
     console.log(`[PURGE API] Executing ${mode} purge for basket ${basketId}`);
 
-    // Forward to substrate-api
-    const substrateUrl = `${SUBSTRATE_API_URL}/api/baskets/${basketId}/purge`;
-    const substrateResponse = await fetch(substrateUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        mode,
-        confirmation_text: basketId, // substrate-api expects basket_id as confirmation
-      }),
-    });
+    // Execute purge operations directly (BFF pattern)
+    let archivedBlocks = 0;
+    let redactedDumps = 0;
 
-    console.log(`[PURGE API] Substrate response status: ${substrateResponse.status}`);
+    if (mode === 'archive_all') {
+      // Archive all active blocks (excluding REJECTED/SUPERSEDED)
+      console.log('[PURGE API] Archiving blocks...');
+      const { error: archiveError, count: archiveCount } = await supabase
+        .from('blocks')
+        .update({ state: 'ARCHIVED' }, { count: 'exact' })
+        .eq('basket_id', basketId)
+        .not('state', 'in', '(REJECTED,SUPERSEDED,ARCHIVED)');
 
-    if (!substrateResponse.ok) {
-      const errorData = await substrateResponse.json().catch(() => ({
-        detail: 'Failed to execute purge',
-      }));
+      if (archiveError) {
+        console.error('[PURGE API] Error archiving blocks:', archiveError);
+        return NextResponse.json(
+          { detail: 'Failed to archive blocks', error: archiveError.message },
+          { status: 500 }
+        );
+      }
 
-      console.error('[PURGE API] Substrate error:', substrateResponse.status, errorData);
-
-      return NextResponse.json(
-        {
-          detail: 'Substrate API error',
-          substrate_error: errorData,
-        },
-        { status: substrateResponse.status }
-      );
+      archivedBlocks = archiveCount || 0;
+      console.log(`[PURGE API] Archived ${archivedBlocks} blocks`);
     }
 
-    const result = await substrateResponse.json();
+    if (mode === 'archive_all' || mode === 'redact_dumps') {
+      // Delete all raw dumps
+      console.log('[PURGE API] Redacting dumps...');
+      const { error: deleteError, count: deleteCount } = await supabase
+        .from('raw_dumps')
+        .delete({ count: 'exact' })
+        .eq('basket_id', basketId);
 
-    console.log(
-      `[PURGE API] Success: ${result.total_operations} operations, ${result.executed_batches} batches`
-    );
+      if (deleteError) {
+        console.error('[PURGE API] Error redacting dumps:', deleteError);
+        return NextResponse.json(
+          { detail: 'Failed to redact dumps', error: deleteError.message },
+          { status: 500 }
+        );
+      }
 
-    // Add user-friendly message
+      redactedDumps = deleteCount || 0;
+      console.log(`[PURGE API] Redacted ${redactedDumps} dumps`);
+    }
+
+    const totalOperations = archivedBlocks + redactedDumps;
+    console.log(`[PURGE API] Success: ${totalOperations} total operations`);
+
+    // User-friendly message
     const message =
       mode === 'archive_all'
-        ? `Successfully archived ${result.totals?.archivedBlocks || 0} blocks and redacted ${result.totals?.redactedDumps || 0} dumps`
-        : `Successfully redacted ${result.totals?.redactedDumps || 0} dumps`;
+        ? `Successfully archived ${archivedBlocks} blocks and redacted ${redactedDumps} dumps`
+        : `Successfully redacted ${redactedDumps} dumps`;
 
     return NextResponse.json({
-      ...result,
+      success: true,
+      total_operations: totalOperations,
+      totals: {
+        archivedBlocks,
+        redactedDumps,
+      },
       message,
     });
   } catch (error) {
