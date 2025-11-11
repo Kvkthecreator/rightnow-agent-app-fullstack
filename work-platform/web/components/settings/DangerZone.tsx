@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
 import { AlertTriangle, X } from 'lucide-react';
+
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface DangerZoneProps {
   userEmail: string;
@@ -60,10 +62,8 @@ export function DangerZone({ userEmail }: DangerZoneProps) {
         throw new Error(data.error || 'Purge failed');
       }
 
-      // Success - redirect to dashboard
       router.push('/dashboard?purged=true');
       router.refresh();
-
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setPurging(false);
@@ -71,54 +71,46 @@ export function DangerZone({ userEmail }: DangerZoneProps) {
   };
 
   return (
-    <div className="border border-red-200 rounded-lg bg-red-50 p-6">
+    <div className="rounded-2xl border border-surface-danger-border bg-surface-danger/80 p-6">
       <div className="flex items-start gap-3">
-        <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-        <div className="flex-1">
-          <h3 className="text-base font-semibold text-red-900 mb-2">Danger Zone</h3>
-          <div className="space-y-3 text-sm text-red-800">
+        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+        <div className="flex-1 text-destructive-foreground">
+          <h3 className="text-base font-semibold mb-2">Danger Zone</h3>
+          <div className="space-y-3 text-sm">
             <p className="font-medium">Purge Workspace Data</p>
-            <p className="text-red-700">
-              Permanently delete all baskets, documents, and memory in your workspace.
-              This cannot be undone.
-            </p>
-            <p className="text-red-700">
-              Other users' workspaces are not affected.
-            </p>
+            <p>Permanently delete all baskets, documents, and memory in your workspace. This cannot be undone.</p>
+            <p>Other users' workspaces are not affected.</p>
           </div>
           <Button
             onClick={() => setShowModal(true)}
-            variant="outline"
+            variant="destructive"
             size="sm"
-            className="mt-4 border-red-300 text-red-700 hover:bg-red-100"
+            className="mt-4"
           >
             Purge Workspace Data
           </Button>
         </div>
       </div>
 
-      {/* Confirmation Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card text-card-foreground shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-                <h2 className="text-lg font-semibold text-slate-900">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <h2 className="text-lg font-semibold">
                   {step === 1 ? 'Purge Workspace Data' : 'Final Confirmation'}
                 </h2>
               </div>
-              <button onClick={resetModal} className="text-slate-400 hover:text-slate-600">
+              <button onClick={resetModal} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Modal Content */}
             <div className="px-6 py-4">
               {step === 1 && (
-                <div className="space-y-4">
-                  <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-800">
+                <div className="space-y-4 text-sm">
+                  <div className="rounded-xl border border-surface-danger-border bg-surface-danger/80 p-3 text-destructive-foreground">
                     <p className="font-semibold mb-2">This will permanently delete:</p>
                     <ul className="list-disc list-inside space-y-1">
                       <li>All baskets and building blocks</li>
@@ -130,7 +122,7 @@ export function DangerZone({ userEmail }: DangerZoneProps) {
                     </ul>
                   </div>
 
-                  <div className="bg-slate-50 border border-slate-200 rounded p-3 text-sm text-slate-700">
+                  <div className="rounded-xl border border-border bg-muted/60 p-3 text-muted-foreground">
                     <p className="font-semibold mb-2">What stays:</p>
                     <ul className="list-disc list-inside space-y-1">
                       <li>Your account and login</li>
@@ -140,21 +132,18 @@ export function DangerZone({ userEmail }: DangerZoneProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-slate-700">
-                      Type your email to confirm:
-                    </label>
-                    <input
+                    <label className="block text-sm font-medium">Type your email to confirm:</label>
+                    <Input
                       type="email"
                       value={emailInput}
                       onChange={(e) => setEmailInput(e.target.value)}
                       placeholder={userEmail}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
-                    <p className="text-xs text-slate-500">{userEmail}</p>
+                    <p className="text-xs text-muted-foreground">{userEmail}</p>
                   </div>
 
                   {error && (
-                    <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700">
+                    <div className="rounded border border-surface-danger-border bg-surface-danger/80 p-2 text-destructive-foreground">
                       {error}
                     </div>
                   )}
@@ -162,27 +151,27 @@ export function DangerZone({ userEmail }: DangerZoneProps) {
               )}
 
               {step === 2 && (
-                <div className="space-y-4">
-                  <div className="bg-red-100 border border-red-300 rounded p-3 text-sm text-red-900">
+                <div className="space-y-4 text-sm">
+                  <div className="rounded-xl border border-surface-danger-border bg-surface-danger p-3 text-destructive-foreground">
                     <p className="font-bold mb-1">⚠️ Final Warning</p>
                     <p>This action is irreversible. All your workspace data will be permanently deleted.</p>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-slate-700">
+                    <label className="block text-sm font-medium">
                       Type <span className="font-mono font-bold">DELETE MY WORKSPACE DATA</span> to confirm:
                     </label>
-                    <input
+                    <Input
                       type="text"
                       value={confirmText}
                       onChange={(e) => setConfirmText(e.target.value)}
                       placeholder="DELETE MY WORKSPACE DATA"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
+                      className="font-mono"
                     />
                   </div>
 
                   {error && (
-                    <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700">
+                    <div className="rounded border border-surface-danger-border bg-surface-danger/80 p-2 text-destructive-foreground">
                       {error}
                     </div>
                   )}
@@ -190,33 +179,20 @@ export function DangerZone({ userEmail }: DangerZoneProps) {
               )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50">
-              <Button
-                onClick={resetModal}
-                variant="outline"
-                size="sm"
-                disabled={purging}
-              >
+            <div className="flex items-center justify-end gap-3 border-t border-border bg-muted/40 px-6 py-4">
+              <Button onClick={resetModal} variant="outline" size="sm" disabled={purging}>
                 Cancel
               </Button>
-
               {step === 1 && (
-                <Button
-                  onClick={handleContinue}
-                  size="sm"
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                  disabled={!emailInput}
-                >
+                <Button onClick={handleContinue} size="sm" variant="destructive" disabled={!emailInput}>
                   Continue
                 </Button>
               )}
-
               {step === 2 && (
                 <Button
                   onClick={handlePurge}
                   size="sm"
-                  className="bg-red-600 hover:bg-red-700 text-white"
+                  variant="destructive"
                   disabled={confirmText !== 'DELETE MY WORKSPACE DATA' || purging}
                 >
                   {purging ? 'Purging...' : 'Purge Workspace'}
