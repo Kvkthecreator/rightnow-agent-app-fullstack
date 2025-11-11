@@ -3,8 +3,8 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from ..deps import get_db
 from ..utils.jwt import verify_jwt
-from ..utils.supabase_client import supabase_client as supabase
 from ..utils.workspace import get_or_create_workspace
 
 router = APIRouter(tags=["blocks"])
@@ -18,19 +18,41 @@ logger = logging.getLogger("uvicorn.error")
 
 
 @router.get("/baskets/{basket_id}/blocks")
-def list_blocks(basket_id: str, user: dict = Depends(verify_jwt)):
+async def list_blocks(
+    basket_id: str,
+    user: dict = Depends(verify_jwt),
+    db=Depends(get_db),  # noqa: B008
+):
+    """
+    List blocks for a basket.
+
+    BFF pattern: Uses direct SQL to bypass RLS (consistent with baskets route).
+    Auth is handled by verify_jwt dependency + workspace_id filtering.
+    """
     try:
         workspace_id = get_or_create_workspace(user["user_id"])
-        # Canon: use canonical fields only
-        resp = (
-            supabase.table("blocks")
-            .select("id,title,content,semantic_type,confidence_score,state,created_at,updated_at")
-            .eq("basket_id", basket_id)
-            .eq("workspace_id", workspace_id)
-            .order("created_at", desc=True)  # Canon: order by creation time
-            .execute()
+
+        # Direct SQL query (bypasses RLS, consistent with basket routes)
+        query = """
+            SELECT id, title, content, semantic_type, confidence_score, state, created_at, updated_at
+            FROM blocks
+            WHERE basket_id = :basket_id
+            AND workspace_id = :workspace_id
+            ORDER BY created_at DESC
+        """
+
+        results = await db.fetch_all(
+            query,
+            values={
+                "basket_id": basket_id,
+                "workspace_id": workspace_id,
+            }
         )
-        return resp.data  # type: ignore[attr-defined]
+
+        # Convert to dict format
+        blocks = [dict(row) for row in results]
+        return blocks
+
     except Exception as err:
         logger.exception("list_blocks failed")
         raise HTTPException(status_code=500, detail="internal error") from err
