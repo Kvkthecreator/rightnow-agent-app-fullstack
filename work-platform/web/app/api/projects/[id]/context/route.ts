@@ -58,17 +58,22 @@ export async function GET(
     const { basket_id: basketId } = projectResponse.data;
 
     if (!basketId) {
+      console.error('[CONTEXT API] No basket_id for project:', projectId);
       return NextResponse.json(
         { detail: 'Project has no associated basket' },
         { status: 400 }
       );
     }
 
+    console.log(`[CONTEXT API] Fetching blocks for basket ${basketId}`);
+
     // Forward request to substrate-api
     // GET /api/baskets/{basketId}/blocks?states=ACCEPTED,LOCKED,CONSTANT
     const substrateUrl = new URL(`${SUBSTRATE_API_URL}/api/baskets/${basketId}/blocks`);
     substrateUrl.searchParams.set('states', 'ACCEPTED,LOCKED,CONSTANT');
     substrateUrl.searchParams.set('limit', '200'); // Reasonable limit for context page
+
+    console.log(`[CONTEXT API] Calling substrate-api: ${substrateUrl.toString()}`);
 
     const substrateResponse = await fetch(substrateUrl.toString(), {
       method: 'GET',
@@ -78,10 +83,14 @@ export async function GET(
       },
     });
 
+    console.log(`[CONTEXT API] Substrate response status: ${substrateResponse.status}`);
+
     if (!substrateResponse.ok) {
       const errorData = await substrateResponse.json().catch(() => ({
         detail: 'Failed to fetch substrate blocks'
       }));
+
+      console.error('[CONTEXT API] Substrate error:', substrateResponse.status, errorData);
 
       return NextResponse.json(
         {
