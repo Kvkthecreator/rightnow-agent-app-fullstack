@@ -168,6 +168,7 @@ async def create_basket(
 @router.get("/{basket_id}", status_code=200)
 async def get_basket(
     basket_id: str,
+    user: dict = Depends(verify_jwt),  # noqa: B008
     db=Depends(get_db),  # noqa: B008
 ):
     """
