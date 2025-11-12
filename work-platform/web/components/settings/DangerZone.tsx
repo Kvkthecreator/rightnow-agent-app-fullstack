@@ -78,7 +78,7 @@ export function DangerZone({ userEmail }: DangerZoneProps) {
           <h3 className="text-base font-semibold mb-2">Danger Zone</h3>
           <div className="space-y-3 text-sm">
             <p className="font-medium">Purge Workspace Data</p>
-            <p>Permanently delete all baskets, documents, and memory in your workspace. This cannot be undone.</p>
+            <p>Permanently delete all projects, work sessions, baskets, blocks, documents, and context in your workspace. This cannot be undone.</p>
             <p>Other users' workspaces are not affected.</p>
           </div>
           <Button
@@ -113,12 +113,12 @@ export function DangerZone({ userEmail }: DangerZoneProps) {
                   <div className="rounded-xl border border-surface-danger-border bg-surface-danger/80 p-3 text-destructive-foreground">
                     <p className="font-semibold mb-2">This will permanently delete:</p>
                     <ul className="list-disc list-inside space-y-1">
-                      <li>All baskets and building blocks</li>
+                      <li>All projects and assigned agents</li>
+                      <li>All work sessions, artifacts, and checkpoints</li>
+                      <li>All baskets and context blocks</li>
                       <li>All documents and versions</li>
                       <li>All raw dumps and captured memory</li>
-                      <li>All relationships and context items</li>
-                      <li>All reflections and insights</li>
-                      <li>All timeline events and proposals</li>
+                      <li>All relationships and timeline events</li>
                     </ul>
                   </div>
 
@@ -126,7 +126,8 @@ export function DangerZone({ userEmail }: DangerZoneProps) {
                     <p className="font-semibold mb-2">What stays:</p>
                     <ul className="list-disc list-inside space-y-1">
                       <li>Your account and login</li>
-                      <li>Your workspace settings</li>
+                      <li>Your workspace (empty but accessible)</li>
+                      <li>Workspace settings and governance rules</li>
                       <li>Integration connections (if any)</li>
                     </ul>
                   </div>
