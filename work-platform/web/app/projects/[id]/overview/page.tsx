@@ -61,7 +61,7 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
   // Fetch work sessions stats
   const { data: workSessions } = await supabase
     .from('work_sessions')
-    .select('id, status, task_type, project_agent_id, agent_type, created_at, updated_at')
+    .select('id, status, task_type, project_agent_id, agent_type, created_at, updated_at, task_intent')
     .eq('project_id', projectId);
 
   const sessionStats = {
@@ -109,6 +109,8 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     running: number;
     lastRun: string | null;
     lastStatus: string | null;
+    lastTask: string | null;
+    lastSessionId: string | null;
   }> = {};
 
   workSessions?.forEach((session) => {
@@ -119,12 +121,16 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
       running: 0,
       lastRun: null,
       lastStatus: null,
+      lastTask: null,
+      lastSessionId: null,
     };
     if (session.status === 'pending') entry.pending += 1;
     if (session.status === 'running') entry.running += 1;
     if (!entry.lastRun || (session.updated_at && session.updated_at > entry.lastRun)) {
       entry.lastRun = session.updated_at || session.created_at;
       entry.lastStatus = session.status;
+      entry.lastTask = session.task_intent || null;
+      entry.lastSessionId = session.id;
     }
     agentStats[agentId] = entry;
   });

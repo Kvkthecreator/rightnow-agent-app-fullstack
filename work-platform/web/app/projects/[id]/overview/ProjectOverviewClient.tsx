@@ -222,23 +222,44 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
                       {getAgentStatusLabel(stats, agent.is_active)}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {stats?.lastRun
-                      ? `Last run ${formatDistanceToNow(new Date(stats.lastRun))} ago`
-                      : 'No work sessions yet'}
-                  </p>
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p>
+                      {stats?.lastRun
+                        ? `Last run ${formatDistanceToNow(new Date(stats.lastRun))} ago`
+                        : 'No work sessions yet'}
+                    </p>
+                    {stats?.lastTask && (
+                      <p className="line-clamp-2 text-foreground/80">“{stats.lastTask}”</p>
+                    )}
+                    {(stats?.pending || stats?.running) ? (
+                      <p className="text-muted-foreground/90">
+                        Queue: {stats.pending ?? 0} pending · {stats.running ?? 0} running
+                      </p>
+                    ) : null}
+                  </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{getAgentQuickActionHint(agent.agent_type)}</span>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="gap-2"
-                      disabled={!agent.is_active}
-                      onClick={() => handleAgentClick(agent.id)}
-                    >
-                      <Plus className="h-4 w-4" />
-                      {getAgentQuickActionLabel(agent.agent_type)}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={!agent.is_active}
+                        onClick={() => router.push(`/projects/${project.id}/agents/${agent.agent_type}`)}
+                        className="text-xs"
+                      >
+                        Manage
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="gap-2"
+                        disabled={!agent.is_active}
+                        onClick={() => handleAgentClick(agent.id)}
+                      >
+                        <Plus className="h-4 w-4" />
+                        {getAgentQuickActionLabel(agent.agent_type)}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
