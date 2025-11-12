@@ -1,0 +1,164 @@
+-- Migration: Update purge_workspace_data to include work-platform tables
+-- Date: 2025-01-12
+-- Purpose: Include projects, work_sessions, agents, and related tables in workspace purge
+
+-- Drop old version
+DROP FUNCTION IF EXISTS public.purge_workspace_data(uuid);
+
+-- Create updated version with work-platform tables
+CREATE OR REPLACE FUNCTION public.purge_workspace_data(target_workspace_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $function$
+BEGIN
+  -- All operations in this function run in a single transaction
+  -- If any DELETE fails, the entire operation rolls back
+
+  -- ========================================
+  -- WORK-PLATFORM TABLES (New)
+  -- ========================================
+
+  -- Delete work_context_mutations (leaf node, no cascade)
+  DELETE FROM work_context_mutations
+  WHERE work_session_id IN (
+    SELECT id FROM work_sessions WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete work_iterations (leaf node, no cascade)
+  DELETE FROM work_iterations
+  WHERE work_session_id IN (
+    SELECT id FROM work_sessions WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete work_artifacts
+  DELETE FROM work_artifacts
+  WHERE work_session_id IN (
+    SELECT id FROM work_sessions WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete work_checkpoints
+  DELETE FROM work_checkpoints
+  WHERE work_session_id IN (
+    SELECT id FROM work_sessions WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete work_sessions (both workspace and project scoped)
+  DELETE FROM work_sessions
+  WHERE workspace_id = target_workspace_id;
+
+  -- Delete agent_work_requests
+  DELETE FROM agent_work_requests
+  WHERE workspace_id = target_workspace_id;
+
+  -- Delete project_agents (before projects)
+  DELETE FROM project_agents
+  WHERE project_id IN (
+    SELECT id FROM projects WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete projects (before baskets, as projects reference baskets)
+  DELETE FROM projects
+  WHERE workspace_id = target_workspace_id;
+
+  -- ========================================
+  -- SUBSTRATE-API TABLES (Existing)
+  -- ========================================
+
+  -- Delete substrate_references for documents in this workspace
+  DELETE FROM substrate_references
+  WHERE document_id IN (
+    SELECT id FROM documents WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete document_versions for documents in this workspace
+  DELETE FROM document_versions
+  WHERE document_id IN (
+    SELECT id FROM documents WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete document_context_items for documents in this workspace
+  DELETE FROM document_context_items
+  WHERE document_id IN (
+    SELECT id FROM documents WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete documents in this workspace
+  DELETE FROM documents WHERE workspace_id = target_workspace_id;
+
+  -- Delete block_links for blocks in this workspace's baskets
+  DELETE FROM block_links
+  WHERE from_block_id IN (
+    SELECT id FROM blocks WHERE basket_id IN (
+      SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+    )
+  );
+
+  -- Delete substrate_relationships for blocks in this workspace's baskets
+  DELETE FROM substrate_relationships
+  WHERE from_block_id IN (
+    SELECT id FROM blocks WHERE basket_id IN (
+      SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+    )
+  );
+
+  -- Delete blocks in this workspace's baskets
+  DELETE FROM blocks
+  WHERE basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete raw_dumps in this workspace's baskets
+  DELETE FROM raw_dumps
+  WHERE basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete reflections_artifact in this workspace's baskets
+  DELETE FROM reflections_artifact
+  WHERE basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete timeline_events in this workspace's baskets
+  DELETE FROM timeline_events
+  WHERE basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete proposals in this workspace's baskets
+  DELETE FROM proposals
+  WHERE basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete basket_anchors in this workspace's baskets
+  DELETE FROM basket_anchors
+  WHERE basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete agent_processing_queue items for this workspace's baskets
+  DELETE FROM agent_processing_queue
+  WHERE basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete baskets in this workspace (after projects deleted)
+  DELETE FROM baskets WHERE workspace_id = target_workspace_id;
+
+  -- ========================================
+  -- PRESERVED (Intentional)
+  -- ========================================
+  -- - workspaces (workspace itself remains, just empty)
+  -- - workspace_memberships (user still has access)
+  -- - users (account preserved)
+  -- - workspace_governance_settings (settings preserved)
+  -- - Integration tokens/connections (preserved for future use)
+
+END;
+$function$;
+
+-- Add helpful comment
+COMMENT ON FUNCTION public.purge_workspace_data(uuid) IS
+'Purges ALL data (work-platform + substrate) for a workspace. Preserves workspace, memberships, users, and settings. Used by /api/workspaces/purge endpoint.';
