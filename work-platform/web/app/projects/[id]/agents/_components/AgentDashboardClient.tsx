@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { formatDistanceToNow } from 'date-fns';
-import { AgentConfig } from '../config';
+import type { AgentConfig } from '../config';
 import { cn } from '@/lib/utils';
 
 export type AgentSession = {
