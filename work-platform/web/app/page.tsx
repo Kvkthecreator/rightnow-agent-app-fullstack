@@ -72,7 +72,7 @@ export default function LandingPage() {
           <LandingHeader />
           <div className="max-w-[1200px] mx-auto px-4 py-24 flex flex-col items-start space-y-6">
             <span className="text-xs uppercase tracking-[0.4em] text-neutral-500">beta access · multi-agent workspace</span>
-            <h1 className="font-brand text-4xl md:text-7xl">Launch a project. Yarnnn spins up your workspace.</h1>
+            <h1 className="font-brand text-4xl md:text-7xl">Launch a project. yarnnn spins up your workspace.</h1>
             <p className="text-lg md:text-xl max-w-[800px] text-muted-foreground">
               One basket holds your context, and research, content, and reporting agents stay attached to it. Drop intent once. Review work once. Never
               repeat yourself.
@@ -170,7 +170,7 @@ export default function LandingPage() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             We’re onboarding solo founders and small teams now. Get in touch if you want early access to the shared-context, multi-agent workspace.
           </p>
-          <a href="mailto:hello@yarnnn.com" className="inline-flex items-center justify-center rounded-xl border px-5 py-2 text-sm font-medium hover:border-neutral-400">
+          <a href="mailto:contactus@yarnnn.com" className="inline-flex items-center justify-center rounded-xl border px-5 py-2 text-sm font-medium hover:border-neutral-400">
             Contact us
           </a>
         </div>
