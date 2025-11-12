@@ -46,6 +46,14 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
     );
   }
 
+  const { data: projectAgentsData } = await supabase
+    .from('project_agents')
+    .select('id, display_name, agent_type')
+    .eq('project_id', projectId)
+    .order('display_name', { ascending: true });
+
+  const projectAgents = projectAgentsData || [];
+
   // Fetch work sessions via BFF
   let sessions: any[] = [];
   let statusCounts: Record<string, number> = {};
