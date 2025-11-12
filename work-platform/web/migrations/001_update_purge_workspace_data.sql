@@ -126,6 +126,14 @@ BEGIN
     SELECT id FROM baskets WHERE workspace_id = target_workspace_id
   );
 
+  -- Delete proposal_executions (before proposals due to FK)
+  DELETE FROM proposal_executions
+  WHERE proposal_id IN (
+    SELECT id FROM proposals WHERE basket_id IN (
+      SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+    )
+  );
+
   -- Delete proposals in this workspace's baskets
   DELETE FROM proposals
   WHERE basket_id IN (
