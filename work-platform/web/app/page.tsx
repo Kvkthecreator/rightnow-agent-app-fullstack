@@ -72,7 +72,7 @@ export default function LandingPage() {
           <LandingHeader />
           <div className="max-w-[1200px] mx-auto px-4 py-24 flex flex-col items-start space-y-6">
             <span className="text-xs uppercase tracking-[0.4em] text-neutral-500">beta access · multi-agent workspace</span>
-            <h1 className="font-brand text-4xl md:text-7xl">Launch a project. yarnnn spins up your workspace.</h1>
+            <h1 className="font-brand text-4xl md:text-7xl">spin up agents with yarnnn.</h1>
             <p className="text-lg md:text-xl max-w-[800px] text-muted-foreground">
               One basket holds your context, and research, content, and reporting agents stay attached to it. Drop intent once. Review work once. Never
               repeat yourself.
