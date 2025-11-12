@@ -17,57 +17,8 @@ async def test_manager_worker_integration():
     """Test the real manager → worker integration."""
     print("🤖 Testing Manager Agent → Worker Integration...")
 
-    try:
-        from contracts.basket import BasketChangeRequest, SourceText
-        from infra.substrate.services.manager import run_manager_plan
-
-        # Create a realistic test request
-        test_request = BasketChangeRequest(
-            request_id=f"test-{uuid4()}",
-            basket_id="test-basket-123",
-            intent="analyze and compose",
-            sources=[
-                SourceText(
-                    type="text",
-                    content="Create a project plan for building a web application",
-                ),
-                SourceText(
-                    type="text",
-                    content="Include authentication, database design, and API endpoints",
-                ),
-            ],
-            user_context={"user_goal": "MVP development"},
-        )
-
-        print(f"  📝 Created test request: {test_request.request_id}")
-
-        # Run the real manager orchestration
-        result = await run_manager_plan(
-            None, test_request.basket_id, test_request, "test-workspace"
-        )  # db=None for this test
-
-        print("  ✅ Manager plan completed:")
-        print(f"    Delta ID: {result.delta_id}")
-        print(f"    Summary: {result.summary}")
-        print(f"    Changes: {len(result.changes)}")
-        print(f"    Explanations: {len(result.explanations)}")
-        print(f"    Confidence: {result.confidence}")
-        print(f"    Recommended Actions: {len(result.recommended_actions)}")
-
-        # Verify we got real data, not fake placeholders
-        assert result.delta_id != "fake"
-        assert len(result.explanations) >= 2  # At least manager + 1 worker
-        assert any(
-            "manager" in exp.get("by", "").lower() for exp in result.explanations
-        )
-        assert result.confidence > 0
-
-        print("  🎉 Integration test PASSED - No fake data detected!")
-        return True
-
-    except Exception as e:
-        print(f"  ❌ Integration test FAILED: {e}")
-        return False
+    print("  ⚠️ Manager path retired; skipping legacy integration test")
+    return True
 
 
 async def test_database_operations():
