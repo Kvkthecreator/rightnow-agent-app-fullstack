@@ -20,6 +20,7 @@ Canon v2.3 Pipeline Processing Sequence:
 
 import asyncio
 import logging
+import math
 import os
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
@@ -127,6 +128,43 @@ class CanonicalQueueProcessor:
         """Stop the canonical queue processing loop."""
         self.running = False
         logger.info(f"Stopping Canonical Queue Processor: {self.worker_id}")
+
+    def _get_dump_word_count(self, dump_id: UUID) -> int:
+        """Fetch dump body and return approximate word count."""
+        try:
+            response = (
+                supabase.table("raw_dumps")
+                .select("body_md,text_dump")
+                .eq("id", str(dump_id))
+                .limit(1)
+                .execute()
+            )
+            if not response.data:
+                return 0
+            record = response.data[0] if isinstance(response.data, list) else response.data
+            body = (record.get("body_md") or record.get("text_dump") or "").strip()
+            if not body:
+                return 0
+            return len(body.split())
+        except Exception as exc:
+            logger.warning(f"Failed to load dump content for {dump_id}: {exc}")
+            return 0
+
+    def _estimate_block_cap(self, word_count: int, dumps_count: int) -> int:
+        """Estimate a safe block cap based on total content size and batch size."""
+        if word_count <= 40:
+            base = 2
+        elif word_count <= 120:
+            base = 4
+        elif word_count <= 300:
+            base = 6
+        elif word_count <= 600:
+            base = 10
+        else:
+            base = min(25, math.ceil(word_count / 120))
+
+        base = max(base, dumps_count)
+        return max(2, min(25, base))
     
     async def process_basket_work(self, basket_id: str, work_req, workspace_id: str) -> BasketDelta:
         """Process BasketWorkRequest through canonical pipeline."""
@@ -229,27 +267,48 @@ class CanonicalQueueProcessor:
             await self._validate_p0_capture(dump_id, workspace_id)
             logger.info(f"P0 Capture validated for dump {dump_id}")
             
+            # Determine heuristic block cap based on dump content
+            dump_word_counts = {str(dump_id): self._get_dump_word_count(dump_id)}
+            block_cap = self._estimate_block_cap(dump_word_counts[str(dump_id)], 1)
+            
             # P1 GOVERNANCE: Create proposals using comprehensive review or single dump processing
             # Sacred Rule: All substrate mutations flow through governed proposals
             batch_dumps = await self._get_batch_group(dump_id)
             
+            # If batch mode detected, include additional dumps in heuristic cap
+            if len(batch_dumps) > 1:
+                for sibling_dump in batch_dumps:
+                    if sibling_dump == str(dump_id):
+                        continue
+                    dump_word_counts[sibling_dump] = self._get_dump_word_count(_to_uuid(sibling_dump))
+                total_words = sum(dump_word_counts.values())
+                block_cap = self._estimate_block_cap(total_words, len(batch_dumps))
+            
             # Use canonical governance processor with quality extraction
             if len(batch_dumps) > 1:
-                # Comprehensive batch processing for Share Updates
                 governance_result = await self.p1_governance.process_batch_dumps(
                     dump_ids=[_to_uuid(did) for did in batch_dumps],
                     basket_id=basket_id,
-                    workspace_id=workspace_id
+                    workspace_id=workspace_id,
+                    max_blocks=block_cap
                 )
-                logger.info(f"Using canonical governance batch mode ({len(batch_dumps)} dumps)")
+                logger.info(
+                    "Using canonical governance batch mode (%s dumps, max_blocks=%s)",
+                    len(batch_dumps),
+                    block_cap
+                )
             else:
-                # Single dump quality processing
                 governance_result = await self.p1_governance.process_dump(
                     dump_id=dump_id,
                     basket_id=basket_id,
-                    workspace_id=workspace_id
+                    workspace_id=workspace_id,
+                    max_blocks=block_cap
                 )
-                logger.info(f"Using canonical governance (quality extraction) for dump {dump_id}")
+                logger.info(
+                    "Using canonical governance (quality extraction) for dump %s (max_blocks=%s)",
+                    dump_id,
+                    block_cap
+                )
             
             logger.info(
                 f"P1 Governance completed: {governance_result['proposals_created']} proposals created, "

@@ -182,10 +182,11 @@ class TestWorkRoute:
     """Test basket work route with real entities."""
     
     @pytest.fixture
-    def mock_manager(self):
-        """Mock manager to return real-looking entities."""
-        with patch("src.app.routes.baskets.run_manager_plan") as mock:
-            mock.return_value = {
+    def mock_canonical_processor(self):
+        """Mock canonical queue processor to return real-looking entities."""
+        with patch("src.app.routes.baskets.CanonicalQueueProcessor") as processor_cls:
+            processor = MagicMock()
+            processor.process_basket_work.return_value = {
                 "delta_id": str(uuid4()),
                 "basket_id": "test-basket",
                 "summary": "Created 3 blocks from 1 source",
@@ -201,9 +202,11 @@ class TestWorkRoute:
                 "confidence": 0.9,
                 "created_at": "2024-01-01T00:00:00Z"
             }
-            yield mock
+            processor.process_basket_change.return_value = processor.process_basket_work.return_value
+            processor_cls.return_value = processor
+            yield processor
     
-    async def test_init_build_mode(self, client, auth_headers, mock_jwt, mock_manager):
+    async def test_init_build_mode(self, client, auth_headers, mock_jwt, mock_canonical_processor):
         """Test init_build mode returns real entities."""
         payload = {
             "mode": "init_build",
@@ -222,9 +225,9 @@ class TestWorkRoute:
         assert result["changes"][0]["entity"] == "context_block"
         assert result["changes"][0]["to_version"] == 1
     
-    async def test_evolve_turn_mode(self, client, auth_headers, mock_jwt, mock_manager):
+    async def test_evolve_turn_mode(self, client, auth_headers, mock_jwt, mock_canonical_processor):
         """Test evolve_turn mode with version updates."""
-        mock_manager.return_value["changes"] = [
+        mock_canonical_processor.process_basket_work.return_value["changes"] = [
             {
                 "entity": "context_block", 
                 "id": "existing-block-id",

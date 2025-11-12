@@ -5,6 +5,7 @@ Integrates ImprovedP1SubstrateAgent with governance workflow for quality substra
 V3.1: Semantic duplicate detection integrated into block creation workflow.
 """
 
+import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -84,7 +85,13 @@ class GovernanceDumpProcessor:
         self._timeline_enabled = True
         self._execution_logging_enabled = True
         
-    async def process_batch_dumps(self, dump_ids: List[UUID], basket_id: UUID, workspace_id: UUID) -> Dict[str, Any]:
+    async def process_batch_dumps(
+        self,
+        dump_ids: List[UUID],
+        basket_id: UUID,
+        workspace_id: UUID,
+        max_blocks: int = 20
+    ) -> Dict[str, Any]:
         """
         Process multiple dumps through comprehensive governance review for Share Updates.
         
@@ -101,7 +108,7 @@ class GovernanceDumpProcessor:
             
             # Create comprehensive governance proposal with structured ingredients
             proposals_result = await self._create_batch_ingredient_proposals(
-                dump_ids, basket_id, workspace_id, 20
+                dump_ids, basket_id, workspace_id, max_blocks
             )
             
             processing_time_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
@@ -232,6 +239,14 @@ class GovernanceDumpProcessor:
             # V3.0: Single unified substrate source
             blocks_source = substrate_ingredients or substrate_result.get("blocks_created", [])
 
+            # Respect extraction summary total if provided
+            extracted_total = extraction_summary.get("total_blocks") if isinstance(extraction_summary, dict) else None
+            if extracted_total is not None:
+                try:
+                    max_blocks = min(max_blocks, max(0, int(extracted_total)))
+                except Exception:
+                    pass
+
             # Sort by confidence desc and cap to max_blocks for signal density
             def _conf(b: Dict[str, Any]) -> float:
                 try:
@@ -239,13 +254,23 @@ class GovernanceDumpProcessor:
                 except Exception:
                     return 0.7
             try:
-                blocks_source = sorted(blocks_source, key=_conf, reverse=True)[: max(1, int(max_blocks))]
+                blocks_source = sorted(blocks_source, key=_conf, reverse=True)
             except Exception:
+                pass
+
+            if max_blocks > 0:
                 blocks_source = blocks_source[: max(1, int(max_blocks))]
 
             # V3.0: All substrate is blocks (no separate context_items processing)
             ops_accum: List[Dict[str, Any]] = []
             block_confidences: List[float] = []
+
+            if not blocks_source:
+                return {
+                    "proposals_created": 0,
+                    "proposal_ids": [],
+                    "avg_confidence": 0.0
+                }
 
             for block_data in blocks_source:
                 confidence = block_data.get("confidence") if isinstance(block_data, dict) else None
@@ -359,7 +384,7 @@ class GovernanceDumpProcessor:
             blocks_created = _sanitize_for_json(
                 substrate_result.get("block_ingredients") or substrate_result.get("blocks_created", [])
             )
-            
+
             if not blocks_created:
                 return {
                     "proposals_created": 0,
@@ -368,6 +393,9 @@ class GovernanceDumpProcessor:
                 }
             
             # Create single unified proposal
+            if max_blocks > 0:
+                blocks_created = blocks_created[: max(1, int(max_blocks))]
+
             proposal_id = await self._create_unified_governance_proposal(
                 basket_id, workspace_id, blocks_created, dump_ids
             )
@@ -473,6 +501,7 @@ class GovernanceDumpProcessor:
                 "type": "CreateBlock",
                 "data": {
                     "title": b.get("title"),
+                    "content": b.get("content"),
                     "semantic_type": b.get("semantic_type"),
                     "metadata": _sanitize_for_json(b.get("metadata", {})),
                     "confidence": conf
@@ -706,6 +735,11 @@ class GovernanceDumpProcessor:
                         # V3.0: Canon-compliant block creation with emergent anchors
                         # V3.1: Enhanced with duplicate detection metadata
                         block_metadata = metadata.copy() if metadata else {}
+                        try:
+                            fingerprint = hashlib.sha256(body.strip().lower().encode("utf-8")).hexdigest()
+                            block_metadata.setdefault("content_hash", fingerprint)
+                        except Exception:
+                            fingerprint = None
                         if duplicate_check_result and duplicate_check_result.get('similar_blocks'):
                             block_metadata['v3_1_similar_blocks'] = [
                                 {
@@ -918,6 +952,8 @@ class GovernanceDumpProcessor:
             if not query_text:
                 return None
 
+            fingerprint = hashlib.sha256(query_text.lower().encode("utf-8")).hexdigest()
+
             # Search for semantically similar blocks
             similar_blocks = await semantic_search(
                 supabase=supabase,
@@ -931,7 +967,25 @@ class GovernanceDumpProcessor:
                 limit=5
             )
 
+            # Fallback to hash-based detection if vectors unavailable
             if not similar_blocks:
+                hash_resp = (
+                    supabase.table("blocks")
+                    .select("id, title")
+                    .eq("basket_id", basket_id)
+                    .eq("state", "ACCEPTED")
+                    .eq("metadata->>content_hash", fingerprint)
+                    .limit(1)
+                    .execute()
+                )
+                if hash_resp.data:
+                    match_id = hash_resp.data[0].get("id") if isinstance(hash_resp.data, list) else hash_resp.data.get("id")
+                    return {
+                        'is_duplicate': True,
+                        'similarity': 1.0,
+                        'existing_block_id': match_id,
+                        'similar_blocks': []
+                    }
                 return None
 
             # Get highest similarity match
