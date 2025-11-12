@@ -86,6 +86,12 @@ BEGIN
   -- Delete documents in this workspace
   DELETE FROM documents WHERE workspace_id = target_workspace_id;
 
+  -- Delete events (before blocks due to block_id FK NO ACTION)
+  DELETE FROM events
+  WHERE basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
   -- Delete block_links for blocks in this workspace's baskets
   DELETE FROM block_links
   WHERE block_id IN (
@@ -148,6 +154,24 @@ BEGIN
 
   -- Delete agent_processing_queue items for this workspace's baskets
   DELETE FROM agent_processing_queue
+  WHERE basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete app_events (before baskets due to FK NO ACTION)
+  DELETE FROM app_events
+  WHERE basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete mcp_unassigned_captures (before baskets due to FK NO ACTION)
+  DELETE FROM mcp_unassigned_captures
+  WHERE assigned_basket_id IN (
+    SELECT id FROM baskets WHERE workspace_id = target_workspace_id
+  );
+
+  -- Delete narrative (before baskets due to FK NO ACTION)
+  DELETE FROM narrative
   WHERE basket_id IN (
     SELECT id FROM baskets WHERE workspace_id = target_workspace_id
   );
