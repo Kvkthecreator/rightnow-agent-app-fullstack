@@ -16,6 +16,7 @@ import {
   Plus
 } from "lucide-react";
 import { AddContextModal } from "@/components/context/AddContextModal";
+import { ProjectHealthCheck } from "@/components/projects/ProjectHealthCheck";
 
 interface Block {
   id: string;
@@ -205,6 +206,9 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
 
   return (
     <div className="space-y-6">
+      {/* Project Health Check */}
+      <ProjectHealthCheck projectId={projectId} basketId={basketId} />
+
       {/* Polling Status Message */}
       {pollingMessage && (
         <div className={cn('rounded-lg border p-4', pollingIntent ? pollingStyles[pollingIntent] : '')}>
