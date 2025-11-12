@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, CheckCircle, Clock } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { CheckCircle, Clock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -111,18 +110,7 @@ export function AddContextModal({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle>Add Context</DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              disabled={isProcessing}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle>Add Context</DialogTitle>
         </DialogHeader>
 
         {isProcessing ? (
