@@ -11,12 +11,12 @@ import {
   Brain,
   Search,
   Loader2,
-  ExternalLink,
   AlertCircle,
   Plus
 } from "lucide-react";
 import { AddContextModal } from "@/components/context/AddContextModal";
 import { ProjectHealthCheck } from "@/components/projects/ProjectHealthCheck";
+import BlockDetailModal from "@/components/context/BlockDetailModal";
 
 interface Block {
   id: string;
@@ -44,6 +44,7 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
   const [showAddModal, setShowAddModal] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [pollingMessage, setPollingMessage] = useState<string | null>(null);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
 
   // Fetch blocks from BFF
   const fetchBlocks = async () => {
@@ -121,6 +122,10 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
     }, 3000); // Poll every 3 seconds
   };
 
+  // Semantic type categorization (matches P0-P4 pipeline output)
+  const KNOWLEDGE_TYPES = ["fact", "metric", "event", "insight", "action", "finding", "quote", "summary"];
+  const MEANING_TYPES = ["intent", "objective", "rationale", "principle", "assumption", "context", "constraint"];
+
   // Filter blocks
   const filteredBlocks = blocks.filter((block) => {
     // Search filter
@@ -135,20 +140,10 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
 
     // Category filter
     if (filter === "knowledge") {
-      return ["knowledge", "factual", "metric", "entity"].includes(
-        block.semantic_type.toLowerCase()
-      );
+      return KNOWLEDGE_TYPES.includes(block.semantic_type.toLowerCase());
     }
     if (filter === "meaning") {
-      return [
-        "intent",
-        "objective",
-        "rationale",
-        "principle",
-        "assumption",
-        "context",
-        "constraint",
-      ].includes(block.semantic_type.toLowerCase());
+      return MEANING_TYPES.includes(block.semantic_type.toLowerCase());
     }
 
     return true;
@@ -156,12 +151,10 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
 
   // Stats
   const knowledgeCount = blocks.filter((b) =>
-    ["knowledge", "factual", "metric", "entity"].includes(b.semantic_type.toLowerCase())
+    KNOWLEDGE_TYPES.includes(b.semantic_type.toLowerCase())
   ).length;
   const meaningCount = blocks.filter((b) =>
-    ["intent", "objective", "rationale", "principle", "assumption", "context", "constraint"].includes(
-      b.semantic_type.toLowerCase()
-    )
+    MEANING_TYPES.includes(b.semantic_type.toLowerCase())
   ).length;
 
   if (loading) {
@@ -348,15 +341,12 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
                     <span>{block.times_referenced} refs</span>
                   )}
                 </div>
-                <a
-                  href={`${process.env.NEXT_PUBLIC_SUBSTRATE_URL || 'http://localhost:10000'}/baskets/${basketId}/building-blocks?block=${block.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:text-primary/80"
+                <button
+                  onClick={() => setSelectedBlockId(block.id)}
+                  className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
                 >
-                  <span>View in Substrate</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                  <span>Show Details</span>
+                </button>
               </div>
             </Card>
           ))}
@@ -377,6 +367,15 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
           // Start polling for new blocks after modal closes
           startPolling();
         }}
+      />
+
+      {/* Block Detail Modal */}
+      <BlockDetailModal
+        blockId={selectedBlockId}
+        projectId={projectId}
+        basketId={basketId}
+        open={selectedBlockId !== null}
+        onClose={() => setSelectedBlockId(null)}
       />
     </div>
   );
