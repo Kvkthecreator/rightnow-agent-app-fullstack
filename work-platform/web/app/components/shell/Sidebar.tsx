@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Inbox, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield, CloudUpload, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Inbox, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield, CloudUpload, ArrowLeft, PenSquare, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllProjects } from "@/lib/projects/getAllProjects";
@@ -58,7 +58,25 @@ export default function Sidebar({ className }: SidebarProps) {
       if (mobile && !wasMobile && open) {
         setOpen(false);
       }
-    };
+};
+
+const AGENT_LINKS = [
+  {
+    key: 'research',
+    label: 'Research Agent',
+    icon: Brain,
+  },
+  {
+    key: 'content',
+    label: 'Content Agent',
+    icon: PenSquare,
+  },
+  {
+    key: 'reporting',
+    label: 'Reporting Agent',
+    icon: BarChart3,
+  },
+];
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
@@ -231,6 +249,31 @@ export default function Sidebar({ className }: SidebarProps) {
                         <span className="flex items-center gap-2">
                           {Icon && <Icon size={14} />}
                           {section.label}
+                        </span>
+                      </SidebarItem>
+                    );
+                  })}
+                </div>
+              </section>
+              <section className="space-y-2">
+                <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Agents
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {AGENT_LINKS.map((agent) => {
+                    const href = `/projects/${project.id}/agents/${agent.key}`;
+                    const Icon = agent.icon;
+                    return (
+                      <SidebarItem
+                        key={agent.key}
+                        href={href}
+                        onClick={() => {
+                          if (isMobile) setOpen(false);
+                        }}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Icon size={14} />
+                          {agent.label}
                         </span>
                       </SidebarItem>
                     );
