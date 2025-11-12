@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
+import { randomUUID } from 'crypto';
 
 const SUBSTRATE_API_URL = process.env.SUBSTRATE_API_URL || 'http://localhost:10000';
 
@@ -169,8 +170,8 @@ export async function POST(
     const basketId = formData.get('basket_id') as string;
     const textDump = formData.get('text_dump') as string | null;
     const files = formData.getAll('files') as File[];
-    const dumpRequestId = formData.get('dump_request_id') as string;
-    const metaJson = formData.get('meta') as string;
+    const rawDumpRequestId = formData.get('dump_request_id') as string | null;
+    const metaJson = (formData.get('meta') as string | null) ?? '{}';
 
     if (!basketId) {
       return NextResponse.json(
@@ -180,6 +181,14 @@ export async function POST(
     }
 
     console.log(`[CONTEXT API POST] Basket: ${basketId}, Text: ${!!textDump}, Files: ${files.length}`);
+
+    const dumpRequestId = isValidUUID(rawDumpRequestId) ? rawDumpRequestId : randomUUID();
+    if (!isValidUUID(rawDumpRequestId)) {
+      console.warn(
+        '[CONTEXT API POST] Invalid dump_request_id received, generating new one',
+        { provided: rawDumpRequestId, generated: dumpRequestId }
+      );
+    }
 
     // Verify project owns this basket
     const projectResponse = await supabase
@@ -236,7 +245,12 @@ export async function POST(
       });
     } else {
       // Use JSON for text-only submissions
-      const meta = JSON.parse(metaJson);
+      let meta: Record<string, unknown> = {};
+      try {
+        meta = JSON.parse(metaJson);
+      } catch (parseError) {
+        console.warn('[CONTEXT API POST] Failed to parse meta JSON, defaulting to {}', parseError);
+      }
 
       substrateResponse = await fetch(substrateUrl, {
         method: 'POST',
@@ -284,4 +298,10 @@ export async function POST(
       { status: 500 }
     );
   }
+}
+
+function isValidUUID(value: string | null): value is string {
+  if (!value) return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
 }
