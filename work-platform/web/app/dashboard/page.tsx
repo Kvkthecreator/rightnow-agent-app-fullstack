@@ -89,9 +89,6 @@ export default async function DashboardPage() {
     console.error('[Dashboard] Failed to load alerts', error);
   }
 
-  const claudeSummary = hostSummaries?.find((row) => row.host === 'claude');
-  const chatgptSummary = hostSummaries?.find((row) => row.host === 'chatgpt');
-
   const { count: unassignedCount } = await supabase
     .from('mcp_unassigned_captures')
     .select('id', { count: 'exact', head: true })
