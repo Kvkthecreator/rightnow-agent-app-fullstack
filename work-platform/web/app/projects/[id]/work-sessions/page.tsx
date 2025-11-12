@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { ArrowLeft, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, XCircle, Loader2, Repeat } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 interface PageProps {
