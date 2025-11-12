@@ -46,6 +46,8 @@ interface ProjectData {
       running: number;
       lastRun: string | null;
       lastStatus: string | null;
+      lastTask?: string | null;
+      lastSessionId?: string | null;
     }>;
   };
 }
