@@ -36,6 +36,24 @@ const GLOBAL_LINKS = [
   },
 ];
 
+const AGENT_LINKS = [
+  {
+    key: 'research',
+    label: 'Research Agent',
+    icon: Brain,
+  },
+  {
+    key: 'content',
+    label: 'Content Agent',
+    icon: PenSquare,
+  },
+  {
+    key: 'reporting',
+    label: 'Reporting Agent',
+    icon: BarChart3,
+  },
+];
+
 export default function Sidebar({ className }: SidebarProps) {
   const { open, setOpen, toggle } = useNavState();
   const pathname = usePathname();
@@ -58,25 +76,7 @@ export default function Sidebar({ className }: SidebarProps) {
       if (mobile && !wasMobile && open) {
         setOpen(false);
       }
-};
-
-const AGENT_LINKS = [
-  {
-    key: 'research',
-    label: 'Research Agent',
-    icon: Brain,
-  },
-  {
-    key: 'content',
-    label: 'Content Agent',
-    icon: PenSquare,
-  },
-  {
-    key: 'reporting',
-    label: 'Reporting Agent',
-    icon: BarChart3,
-  },
-];
+    };
 
     checkMobile();
     window.addEventListener("resize", checkMobile);
