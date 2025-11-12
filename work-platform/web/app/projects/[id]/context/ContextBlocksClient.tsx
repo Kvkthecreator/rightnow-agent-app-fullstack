@@ -11,10 +11,8 @@ import {
   Brain,
   Search,
   Loader2,
-  AlertCircle,
-  Plus
+  AlertCircle
 } from "lucide-react";
-import { AddContextModal } from "@/components/context/AddContextModal";
 import { ProjectHealthCheck } from "@/components/projects/ProjectHealthCheck";
 import BlockDetailModal from "@/components/context/BlockDetailModal";
 
@@ -33,15 +31,15 @@ interface Block {
 interface ContextBlocksClientProps {
   projectId: string;
   basketId: string;
+  onAddContextClick?: () => void;
 }
 
-export default function ContextBlocksClient({ projectId, basketId }: ContextBlocksClientProps) {
+export default function ContextBlocksClient({ projectId, basketId, onAddContextClick }: ContextBlocksClientProps) {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "knowledge" | "meaning">("all");
-  const [showAddModal, setShowAddModal] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [pollingMessage, setPollingMessage] = useState<string | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -265,14 +263,6 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
         </div>
         <div className="flex gap-2">
           <Button
-            variant="default"
-            onClick={() => setShowAddModal(true)}
-            className="whitespace-nowrap"
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            Add Context
-          </Button>
-          <Button
             variant={filter === "all" ? "default" : "outline"}
             onClick={() => setFilter("all")}
           >
@@ -352,22 +342,6 @@ export default function ContextBlocksClient({ projectId, basketId }: ContextBloc
           ))}
         </div>
       )}
-
-      {/* Add Context Modal */}
-      <AddContextModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        projectId={projectId}
-        basketId={basketId}
-        onSuccess={() => {
-          // Initial fetch (will likely return 0 new blocks)
-          fetchBlocks();
-        }}
-        onStartPolling={() => {
-          // Start polling for new blocks after modal closes
-          startPolling();
-        }}
-      />
 
       {/* Block Detail Modal */}
       <BlockDetailModal

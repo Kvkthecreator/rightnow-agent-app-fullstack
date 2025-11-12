@@ -15,8 +15,9 @@ import { createServerComponentClient } from "@/lib/supabase/clients";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { ArrowLeft, Database, Brain } from "lucide-react";
-import ContextBlocksClient from "./ContextBlocksClient";
+import { ArrowLeft, Brain } from "lucide-react";
+import ContextPageClient from "./ContextPageClient";
+import AddContextButton from "./AddContextButton";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -72,27 +73,23 @@ export default async function ProjectContextPage({ params }: PageProps) {
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6">
       {/* Header */}
-      <div>
-        <Link
-          href={`/projects/${projectId}`}
-          className="mb-2 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Project
-        </Link>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Context</h1>
-            <p className="text-muted-foreground mt-1">{project.name}</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Substrate blocks available for agent work. Agents query this context to produce better results.
-            </p>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <Link
+            href={`/projects/${projectId}`}
+            className="mb-2 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to Project
+          </Link>
+          <h1 className="text-3xl font-bold text-foreground">Context</h1>
+          <p className="text-muted-foreground mt-1">{project.name}</p>
         </div>
+        <AddContextButton projectId={projectId} basketId={project.basket_id} />
       </div>
 
       {/* Context Blocks Client Component */}
-      <ContextBlocksClient projectId={projectId} basketId={project.basket_id} />
+      <ContextPageClient projectId={projectId} basketId={project.basket_id} />
 
       {/* Info Card */}
       <div className="rounded-2xl border border-surface-primary-border bg-surface-primary p-4">
