@@ -217,6 +217,7 @@ export async function POST(
     const substrateUrl = `${SUBSTRATE_API_URL}${endpoint}`;
 
     console.log(`[CONTEXT API POST] Forwarding to substrate-api: ${endpoint}`);
+    console.log(`[CONTEXT API POST] Full URL: ${substrateUrl}`);
 
     // Prepare request to substrate-api
     let substrateResponse: Response;
