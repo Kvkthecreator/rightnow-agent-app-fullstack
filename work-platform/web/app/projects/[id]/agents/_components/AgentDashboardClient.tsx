@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { formatDistanceToNow } from 'date-fns';
-import type { AgentConfig } from '../config';
+import { AGENT_CONFIG, type AgentType } from '../config';
 import { cn } from '@/lib/utils';
 
 export type AgentSession = {
@@ -29,11 +29,12 @@ interface AgentDashboardClientProps {
     created_at: string;
   } | null;
   sessions: AgentSession[];
-  config: AgentConfig;
+  agentType: AgentType;
 }
 
-export default function AgentDashboardClient({ project, agentRow, sessions, config }: AgentDashboardClientProps) {
+export default function AgentDashboardClient({ project, agentRow, sessions, agentType }: AgentDashboardClientProps) {
   const router = useRouter();
+  const config = AGENT_CONFIG[agentType];
 
   const statusBadge = agentRow?.is_active ? 'Active' : 'Disabled';
   const lastSession = sessions[0];

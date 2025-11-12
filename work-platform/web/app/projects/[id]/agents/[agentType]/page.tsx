@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { createServerComponentClient } from '@/lib/supabase/clients';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import AgentDashboardClient, { type AgentSession } from '../_components/AgentDashboardClient';
-import { AGENT_CONFIG, isAgentType, type AgentType } from '../config';
+import { isAgentType, type AgentType } from '../config';
 
 interface PageProps {
   params: Promise<{ id: string; agentType: string }>;
@@ -47,14 +47,12 @@ export default async function AgentPage({ params }: PageProps) {
       ).data || []
     : [];
 
-  const config = AGENT_CONFIG[agentType as AgentType];
-
   return (
     <AgentDashboardClient
       project={{ id: project.id, name: project.name }}
       agentRow={agentRow}
       sessions={sessions}
-      config={config}
+      agentType={agentType as AgentType}
     />
   );
 }
