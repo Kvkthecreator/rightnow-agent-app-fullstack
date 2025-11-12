@@ -10,6 +10,7 @@ import { apiGet } from '@/lib/server/http';
 import AlertAnnouncer, { type DashboardAlert as AnnouncerAlert } from '@/components/dashboard/AlertAnnouncer';
 import { CreateBasketCallout } from './CreateBasketCallout';
 import { CreateProjectButton } from './CreateProjectButton';
+import { PurgeSuccessToast } from './PurgeSuccessToast';
 
 function formatTimestamp(value: string | null | undefined) {
   if (!value) return '—';
@@ -103,6 +104,7 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-12">
+      <PurgeSuccessToast />
       <header className="flex items-start justify-between">
         <div className="space-y-3">
           <h1 className="text-3xl font-semibold">Control Tower</h1>
