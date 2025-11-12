@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Plus } from 'lucide-react';
+import { Plus, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CreateWorkRequestModal from '@/components/CreateWorkRequestModal';
 import { formatDistanceToNow } from 'date-fns';
