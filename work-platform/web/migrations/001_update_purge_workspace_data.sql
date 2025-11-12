@@ -88,7 +88,7 @@ BEGIN
 
   -- Delete block_links for blocks in this workspace's baskets
   DELETE FROM block_links
-  WHERE from_block_id IN (
+  WHERE block_id IN (
     SELECT id FROM blocks WHERE basket_id IN (
       SELECT id FROM baskets WHERE workspace_id = target_workspace_id
     )
