@@ -61,7 +61,7 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
   // Fetch work sessions stats
   const { data: workSessions } = await supabase
     .from('work_sessions')
-    .select('id, status, task_type, created_at')
+    .select('id, status, task_type, project_agent_id, agent_type, created_at, updated_at')
     .eq('project_id', projectId);
 
   const sessionStats = {
@@ -104,6 +104,31 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     // Continue with 0 counts if fetch fails
   }
 
+  const agentStats: Record<string, {
+    pending: number;
+    running: number;
+    lastRun: string | null;
+    lastStatus: string | null;
+  }> = {};
+
+  workSessions?.forEach((session) => {
+    const agentId = session.project_agent_id;
+    if (!agentId) return;
+    const entry = agentStats[agentId] ?? {
+      pending: 0,
+      running: 0,
+      lastRun: null,
+      lastStatus: null,
+    };
+    if (session.status === 'pending') entry.pending += 1;
+    if (session.status === 'running') entry.running += 1;
+    if (!entry.lastRun || (session.updated_at && session.updated_at > entry.lastRun)) {
+      entry.lastRun = session.updated_at || session.created_at;
+      entry.lastStatus = session.status;
+    }
+    agentStats[agentId] = entry;
+  });
+
   const projectData = {
     id: project.id,
     name: project.name,
@@ -120,6 +145,7 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
       contextItems: blocksCount || 0,
       documents: documentsCount || 0,
       workSessions: sessionStats,
+      agents: agentStats,
     },
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Plus, FileText, Layers, Zap, CheckCircle, Clock, PlayCircle, PauseCircle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CreateWorkRequestModal from '@/components/CreateWorkRequestModal';
+import { formatDistanceToNow } from 'date-fns';
 
 interface ProjectAgent {
   id: string;
@@ -40,6 +41,12 @@ interface ProjectData {
       completed: number;
       failed: number;
     };
+    agents: Record<string, {
+      pending: number;
+      running: number;
+      lastRun: string | null;
+      lastStatus: string | null;
+    }>;
   };
 }
 
@@ -55,6 +62,7 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
 
   const activeWork = project.stats.workSessions.pending + project.stats.workSessions.running;
   const totalWork = project.stats.workSessions.total;
+  const agentSummaries = useMemo(() => project.stats.agents || {}, [project.stats.agents]);
 
   const handleAgentClick = (agentId: string) => {
     setSelectedAgentId(agentId);
@@ -190,28 +198,51 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-foreground mb-4">Available Agents</h3>
           <div className="grid gap-4 md:grid-cols-3">
-            {project.agents.map((agent) => (
-              <button
-                key={agent.id}
-                onClick={() => handleAgentClick(agent.id)}
-                disabled={!agent.is_active}
-                className={cn(
-                  'flex items-center gap-3 rounded-xl border bg-card p-4 text-left transition-all',
-                  agent.is_active
-                    ? 'border-border hover:border-ring hover:shadow-md cursor-pointer'
-                    : 'border-border/60 opacity-60 cursor-not-allowed'
-                )}
-              >
-                <div className="rounded-lg bg-surface-primary/70 p-2 text-primary">
-                  <Zap className="h-5 w-5" />
+            {project.agents.map((agent) => {
+              const stats = agentSummaries[agent.id];
+              return (
+                <div
+                  key={agent.id}
+                  className={cn(
+                    'rounded-xl border bg-card p-4 transition-all flex flex-col gap-3',
+                    agent.is_active ? 'hover:border-ring hover:shadow-md' : 'opacity-70'
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg bg-surface-primary/70 p-2 text-primary">
+                        <Zap className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-foreground">{agent.display_name}</div>
+                        <div className="text-xs text-muted-foreground capitalize">{agent.agent_type}</div>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={cn('text-xs capitalize', getAgentStatusBadgeClass(stats, agent.is_active))}>
+                      {getAgentStatusLabel(stats, agent.is_active)}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats?.lastRun
+                      ? `Last run ${formatDistanceToNow(new Date(stats.lastRun))} ago`
+                      : 'No work sessions yet'}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{getAgentQuickActionHint(agent.agent_type)}</span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="gap-2"
+                      disabled={!agent.is_active}
+                      onClick={() => handleAgentClick(agent.id)}
+                    >
+                      <Plus className="h-4 w-4" />
+                      {getAgentQuickActionLabel(agent.agent_type)}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <div className="font-medium text-foreground">{agent.display_name}</div>
-                  <div className="text-xs text-muted-foreground">{agent.agent_type}</div>
-                </div>
-                <Plus className="h-4 w-4 text-muted-foreground" />
-              </button>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}
@@ -293,4 +324,59 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
       />
     </div>
   );
+}
+
+function getAgentQuickActionLabel(agentType: string) {
+  switch (agentType) {
+    case 'research':
+      return 'Run Monitor';
+    case 'content':
+      return 'Create Content';
+    case 'reporting':
+      return 'Generate Report';
+    default:
+      return 'Start Work';
+  }
+}
+
+function getAgentQuickActionHint(agentType: string) {
+  switch (agentType) {
+    case 'research':
+      return 'Monitor markets or run a deep dive.';
+    case 'content':
+      return 'Draft posts, briefs, or copy.';
+    case 'reporting':
+      return 'Assemble summaries or decks.';
+    default:
+      return 'Kick off a new work session.';
+  }
+}
+
+function getAgentStatusLabel(
+  stats: { pending: number; running: number; lastStatus: string | null } | undefined,
+  isActive: boolean
+) {
+  if (!isActive) return 'Inactive';
+  if (!stats) return 'Idle';
+  if (stats.running > 0) return 'Running';
+  if (stats.pending > 0) return 'Queued';
+  if (stats.lastStatus) return stats.lastStatus.charAt(0).toUpperCase() + stats.lastStatus.slice(1);
+  return 'Idle';
+}
+
+function getAgentStatusBadgeClass(
+  stats: { pending: number; running: number; lastStatus: string | null } | undefined,
+  isActive: boolean
+) {
+  const label = getAgentStatusLabel(stats, isActive).toLowerCase();
+  if (label === 'running') {
+    return 'bg-surface-primary/60 text-primary';
+  }
+  if (label === 'queued' || label === 'pending') {
+    return 'bg-surface-warning/60 text-warning-foreground';
+  }
+  if (label === 'inactive') {
+    return 'bg-muted text-muted-foreground';
+  }
+  return 'bg-surface-primary/20 text-primary';
 }

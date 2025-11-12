@@ -764,6 +764,7 @@ async def get_work_session_artifacts(
 async def list_project_work_sessions(
     project_id: str = Path(..., description="Project ID"),
     status: Optional[str] = None,
+    agent_id: Optional[str] = None,
     user: dict = Depends(verify_jwt)
 ):
     """
@@ -817,6 +818,8 @@ async def list_project_work_sessions(
         # Apply status filter if provided
         if status:
             query = query.eq("status", status)
+        if agent_id:
+            query = query.eq("project_agent_id", agent_id)
 
         sessions_response = query.execute()
         sessions = sessions_response.data or []

@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/clients";
 import { getAuthenticatedUser } from "@/lib/auth/getAuthenticatedUser";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -15,12 +16,12 @@ import { cn } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; agent?: string }>;
 }
 
 export default async function WorkSessionsPage({ params, searchParams }: PageProps) {
   const { id: projectId } = await params;
-  const { status: statusFilter } = await searchParams;
+  const { status: statusFilter, agent: agentFilter } = await searchParams;
 
   const supabase = createServerComponentClient({ cookies });
   const { userId } = await getAuthenticatedUser(supabase);
@@ -54,6 +55,9 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
     const url = new URL(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/projects/${projectId}/work-sessions/list`);
     if (statusFilter) {
       url.searchParams.set('status', statusFilter);
+    }
+    if (agentFilter) {
+      url.searchParams.set('agent_id', agentFilter);
     }
 
     const response = await fetch(url.toString(), {
@@ -99,6 +103,7 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
           count={totalCount}
           projectId={projectId}
           active={!statusFilter}
+          agentFilter={agentFilter}
         />
         <StatusFilterCard
           label="Pending"
@@ -106,6 +111,7 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
           projectId={projectId}
           statusFilter="pending"
           active={statusFilter === 'pending'}
+          agentFilter={agentFilter}
           icon={<Clock className="h-4 w-4" />}
           accent="warning"
         />
@@ -115,6 +121,7 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
           projectId={projectId}
           statusFilter="running"
           active={statusFilter === 'running'}
+          agentFilter={agentFilter}
           icon={<Loader2 className="h-4 w-4 animate-spin" />}
           accent="primary"
         />
@@ -124,6 +131,7 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
           projectId={projectId}
           statusFilter="completed"
           active={statusFilter === 'completed'}
+          agentFilter={agentFilter}
           icon={<CheckCircle className="h-4 w-4" />}
           accent="success"
         />
@@ -133,10 +141,21 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
           projectId={projectId}
           statusFilter="failed"
           active={statusFilter === 'failed'}
+          agentFilter={agentFilter}
           icon={<XCircle className="h-4 w-4" />}
           accent="danger"
         />
       </div>
+
+      {/* Agent Filter Pills */}
+      {projectAgents && projectAgents.length > 0 && (
+        <AgentFilterBar
+          agents={projectAgents}
+          projectId={projectId}
+          activeAgentId={agentFilter}
+          statusFilter={statusFilter}
+        />
+      )}
 
       {/* Sessions List */}
       {sessions.length === 0 ? (
@@ -162,11 +181,14 @@ export default async function WorkSessionsPage({ params, searchParams }: PagePro
               <Card className="p-4 cursor-pointer transition hover:border-ring">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Badge variant={getStatusVariant(session.status)} className="capitalize">
-                        {session.status}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">{session.agent_display_name}</span>
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                    <Badge variant={getStatusVariant(session.status)} className="capitalize">
+                      {session.status}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {session.agent_type}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">{session.agent_display_name}</span>
                       <span className="text-xs text-muted-foreground">
                         {new Date(session.created_at).toLocaleString()}
                       </span>
@@ -212,17 +234,23 @@ function StatusFilterCard({
   active,
   icon,
   accent,
+  agentFilter,
 }: {
   label: string;
   count: number;
   projectId: string;
   statusFilter?: string;
   active?: boolean;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   accent?: AccentKey;
+  agentFilter?: string | null;
 }) {
-  const href = statusFilter
-    ? `/projects/${projectId}/work-sessions?status=${statusFilter}`
+  const params = new URLSearchParams();
+  if (statusFilter) params.set('status', statusFilter);
+  if (agentFilter) params.set('agent', agentFilter);
+  const query = params.toString();
+  const href = query
+    ? `/projects/${projectId}/work-sessions?${query}`
     : `/projects/${projectId}/work-sessions`;
   const accentConfig = accent ? ACCENT_STYLES[accent] : null;
   const textClass = accentConfig ? accentConfig.text : "text-muted-foreground";
@@ -259,4 +287,76 @@ function getStatusVariant(status: string): "default" | "secondary" | "destructiv
     default:
       return 'outline';
   }
+}
+
+function AgentFilterBar({
+  agents,
+  projectId,
+  activeAgentId,
+  statusFilter,
+}: {
+  agents: { id: string; display_name: string; agent_type: string }[];
+  projectId: string;
+  activeAgentId?: string | null;
+  statusFilter?: string;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <AgentFilterPill
+        label="All Agents"
+        projectId={projectId}
+        statusFilter={statusFilter}
+        active={!activeAgentId}
+      />
+      {agents.map((agent) => (
+        <AgentFilterPill
+          key={agent.id}
+          label={agent.display_name}
+          projectId={projectId}
+          statusFilter={statusFilter}
+          agentId={agent.id}
+          active={activeAgentId === agent.id}
+          subtitle={agent.agent_type}
+        />
+      ))}
+    </div>
+  );
+}
+
+function AgentFilterPill({
+  label,
+  subtitle,
+  projectId,
+  statusFilter,
+  agentId,
+  active,
+}: {
+  label: string;
+  subtitle?: string;
+  projectId: string;
+  statusFilter?: string;
+  agentId?: string;
+  active?: boolean;
+}) {
+  const params = new URLSearchParams();
+  if (statusFilter) params.set('status', statusFilter);
+  if (agentId) params.set('agent', agentId);
+  const query = params.toString();
+  const href = query
+    ? `/projects/${projectId}/work-sessions?${query}`
+    : `/projects/${projectId}/work-sessions`;
+
+  return (
+    <Link href={href}>
+      <div
+        className={cn(
+          'rounded-full border px-4 py-2 text-sm flex flex-col sm:flex-row sm:items-center sm:gap-2 transition',
+          active ? 'border-ring bg-surface-primary/20 text-foreground' : 'text-muted-foreground hover:border-ring'
+        )}
+      >
+        <span>{label}</span>
+        {subtitle && <span className="text-xs capitalize text-muted-foreground">{subtitle}</span>}
+      </div>
+    </Link>
+  );
 }

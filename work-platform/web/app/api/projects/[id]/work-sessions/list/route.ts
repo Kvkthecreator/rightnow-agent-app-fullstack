@@ -31,11 +31,16 @@ export async function GET(
     // Get query params
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
+    const agentId = searchParams.get('agent_id');
 
     // Build backend URL
     let backendUrl = `${WORK_PLATFORM_API_URL}/api/projects/${projectId}/work-sessions`;
-    if (status) {
-      backendUrl += `?status=${encodeURIComponent(status)}`;
+    const backendParams = new URLSearchParams();
+    if (status) backendParams.set('status', status);
+    if (agentId) backendParams.set('agent_id', agentId);
+
+    if (backendParams.toString()) {
+      backendUrl += `?${backendParams.toString()}`;
     }
 
     // Forward to work-platform backend
