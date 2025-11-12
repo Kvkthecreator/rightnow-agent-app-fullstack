@@ -121,6 +121,7 @@ app.add_middleware(
         "/auth/mcp",  # OAuth authorization flow (uses Supabase cookies, not JWT)
         "/api/auth/mcp",  # OAuth with /api prefix (registration, authorize, token endpoints)
         "/api/dumps",    # Service-to-service dump creation (Phase 6 BFF)
+        "/api/baskets",  # Service-to-service basket creation (Phase 6 BFF)
     },
 )
 
