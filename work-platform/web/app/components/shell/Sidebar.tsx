@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Inbox, Plug, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield, CloudUpload, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Inbox, LogOut, Settings2, FileText, Clock, Brain, Network, Layers, BookOpen, Shield, CloudUpload, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase/clients";
 import { getAllProjects } from "@/lib/projects/getAllProjects";
@@ -23,11 +23,6 @@ const GLOBAL_LINKS = [
     href: '/dashboard',
     label: 'Control Tower',
     icon: LayoutDashboard,
-  },
-  {
-    href: '/dashboard/integrations',
-    label: 'Integrations',
-    icon: Plug,
   },
   {
     href: '/workspace/change-requests',

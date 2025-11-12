@@ -4,11 +4,8 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import type { Database } from '@/lib/dbTypes';
 import { getAuthenticatedUser } from '@/lib/auth/getAuthenticatedUser';
 import { ensureWorkspaceForUser } from '@/lib/workspaces/ensureWorkspaceForUser';
-import { listBasketsByWorkspace } from '@/lib/substrate/baskets';
 import { cn } from '@/lib/utils';
-import { apiGet } from '@/lib/server/http';
 import AlertAnnouncer, { type DashboardAlert as AnnouncerAlert } from '@/components/dashboard/AlertAnnouncer';
-import { CreateBasketCallout } from './CreateBasketCallout';
 import { CreateProjectButton } from './CreateProjectButton';
 import { PurgeSuccessToast } from './PurgeSuccessToast';
 
@@ -24,35 +21,50 @@ export default async function DashboardPage() {
   const { userId } = await getAuthenticatedUser(supabase);
   const workspace = await ensureWorkspaceForUser(userId, supabase);
 
-  const { data: baskets } = await listBasketsByWorkspace(workspace.id);
-
-  const { data: integrationTokens } = await supabase
-    .from('integration_tokens')
-    .select('id, created_at, last_used_at')
+  const { data: projects = [] } = await supabase
+    .from('projects')
+    .select('id, name, status, created_at, updated_at')
     .eq('workspace_id', workspace.id)
+    .order('updated_at', { ascending: false })
+    .limit(4);
+
+  const { data: activeSessions = [] } = await supabase
+    .from('work_sessions')
+    .select('id, project_id, task_type, status, created_at')
+    .eq('workspace_id', workspace.id)
+    .in('status', ['pending', 'running'])
     .order('created_at', { ascending: false })
-    .limit(1);
+    .limit(20);
 
-  const { data: openaiToken } = await supabase
-    .from('openai_app_tokens')
-    .select('install_id, expires_at, updated_at')
+  const pendingByProject = new Map<string, { count: number; lastCreatedAt: string | null; taskType: string | null }>();
+  activeSessions?.forEach((session) => {
+    if (!session.project_id) return;
+    const entry = pendingByProject.get(session.project_id) ?? { count: 0, lastCreatedAt: null, taskType: null };
+    entry.count += 1;
+    if (!entry.lastCreatedAt || (session.created_at && session.created_at > entry.lastCreatedAt)) {
+      entry.lastCreatedAt = session.created_at ?? entry.lastCreatedAt;
+      entry.taskType = session.task_type ?? entry.taskType;
+    }
+    pendingByProject.set(session.project_id, entry);
+  });
+
+  const { data: recentRuns = [] } = await supabase
+    .from('work_sessions')
+    .select('id, project_id, agent_type, task_type, status, updated_at, created_at')
     .eq('workspace_id', workspace.id)
-    .maybeSingle();
+    .order('updated_at', { ascending: false })
+    .limit(6);
 
-  const claudeConnected = Boolean(integrationTokens?.length);
-  const chatgptConnected = Boolean(openaiToken);
-
-  const { data: hostSummaries } = await supabase
-    .from('mcp_activity_host_recent')
-    .select('host, last_seen_at, calls_last_hour, errors_last_hour, p95_latency_ms')
-    .eq('workspace_id', workspace.id);
-
-  const { data: recentActivity } = await supabase
-    .from('mcp_activity_logs')
-    .select('id, host, tool, result, latency_ms, error_code, fingerprint_summary, created_at')
-    .eq('workspace_id', workspace.id)
-    .order('created_at', { ascending: false })
-    .limit(8);
+  const projectNameMap = new Map<string, string>();
+  projects?.forEach((project) => {
+    projectNameMap.set(project.id, project.name || 'Untitled project');
+  });
+  recentRuns?.forEach((run) => {
+    if (run.project_id && !projectNameMap.has(run.project_id)) {
+      const fallback = run.project_id.slice(0, 8);
+      projectNameMap.set(run.project_id, `Project ${fallback}`);
+    }
+  });
 
   // Fetch alerts directly from Supabase (server-side)
   let alerts: AnnouncerAlert[] = [];
@@ -80,9 +92,6 @@ export default async function DashboardPage() {
   const claudeSummary = hostSummaries?.find((row) => row.host === 'claude');
   const chatgptSummary = hostSummaries?.find((row) => row.host === 'chatgpt');
 
-const claudeStatus = deriveHostStatus(claudeConnected, claudeSummary);
-const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
-
   const { count: unassignedCount } = await supabase
     .from('mcp_unassigned_captures')
     .select('id', { count: 'exact', head: true })
@@ -99,8 +108,6 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
     .eq('status', 'PROPOSED')
     .order('created_at', { ascending: false })
     .limit(5);
-
-  const basketName = new Map(baskets?.map((basket) => [basket.id, basket.name || 'Untitled basket']));
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-12">
@@ -125,23 +132,47 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
       )}
 
       <section>
-        <h2 className="text-sm font-semibold uppercase text-muted-foreground">Integrations</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <StatusCard
-            title="Claude"
-            description="Remote MCP connector for Claude and Claude Desktop."
-            status={claudeStatus.badge}
-            meta={claudeStatus.meta}
-            actionHref="/dashboard/integrations"
-          />
-          <StatusCard
-            title="ChatGPT"
-            description="OpenAI Apps SDK integration (preview)."
-            status={chatgptStatus.badge}
-            meta={chatgptStatus.meta}
-            actionHref="/dashboard/integrations"
-          />
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase text-muted-foreground">Projects in progress</h2>
+          <Link href="/projects" className="text-sm text-muted-foreground hover:text-foreground">
+            View all
+          </Link>
         </div>
+        {projects && projects.length > 0 ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {projects.map((project) => {
+              const pending = pendingByProject.get(project.id);
+              const activeRuns = pending?.count ?? 0;
+              const meta =
+                activeRuns > 0
+                  ? `${activeRuns} run${activeRuns > 1 ? 's' : ''} in flight${pending?.taskType ? ` · ${pending.taskType}` : ''}`
+                  : 'No active runs';
+              const lastTouch = pending?.lastCreatedAt || project.updated_at || project.created_at;
+              return (
+                <Link
+                  key={project.id}
+                  href={`/projects/${project.id}`}
+                  className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-medium truncate">{project.name || 'Untitled project'}</h3>
+                      <p className="text-sm text-muted-foreground">{meta}</p>
+                    </div>
+                    <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
+                      {project.status ?? 'active'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">Updated {formatTimestamp(lastTouch)}</div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+            No projects yet. Create one to spin up baskets and agents automatically.
+          </div>
+        )}
       </section>
 
       <section>
@@ -164,123 +195,39 @@ const chatgptStatus = deriveHostStatus(chatgptConnected, chatgptSummary);
 
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase text-muted-foreground">Context Baskets</h2>
-          <Link href="/baskets" className="text-sm text-muted-foreground hover:text-foreground">
-            View all
-          </Link>
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {baskets && baskets.length > 0 ? (
-            baskets.slice(0, 6).map((basket) => (
-              <Link
-                key={basket.id}
-                href={`/baskets/${basket.id}/overview`}
-                className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-medium">{basket.name || 'Untitled basket'}</h3>
-                    <p className="text-sm text-muted-foreground">Curated block workspace</p>
-                  </div>
-                  <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
-                    {basket.status ?? 'Active'}
-                  </span>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Created {formatTimestamp(basket.created_at)}
-                </div>
-              </Link>
-            ))
-          ) : (
-            <CreateBasketCallout className="col-span-2" />
-          )}
-        </div>
-      </section>
-
-      <section>
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase text-muted-foreground">MCP activity</h2>
-          <Link href="/dashboard/integrations" className="text-sm text-muted-foreground hover:text-foreground">
-            Manage integrations
+          <h2 className="text-sm font-semibold uppercase text-muted-foreground">Recent agent runs</h2>
+          <Link href="/projects" className="text-sm text-muted-foreground hover:text-foreground">
+            Manage work
           </Link>
         </div>
         <div className="mt-4 space-y-2">
-          {recentActivity && recentActivity.length > 0 ? (
-            recentActivity.map((event) => (
-              <div
-                key={event.id}
-                className={cn(
-                  'flex items-start justify-between rounded-lg border px-4 py-3 text-sm',
-                  event.result === 'error' ? 'border-rose-200 bg-rose-50' : 'border-border'
-                )}
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium capitalize">{event.host}</span>
-                    <span className={cn('rounded-full px-2 py-0.5 text-xs', statusBadgeClass(event.result))}>
-                      {event.result}
-                    </span>
+          {recentRuns && recentRuns.length > 0 ? (
+            recentRuns.map((run) => (
+              <div key={run.id} className="rounded-lg border border-border px-4 py-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{projectNameMap.get(run.project_id ?? '') || 'Unknown project'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {run.agent_type || run.task_type || 'agent'} · {run.task_type ?? 'task'}
+                    </p>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    <span className="font-medium">{event.tool}</span>
-                    <span className="mx-1">·</span>
-                    <span>{formatTimestamp(event.created_at)}</span>
-                    {event.latency_ms ? (
-                      <>
-                        <span className="mx-1">·</span>
-                        <span>{event.latency_ms}ms</span>
-                      </>
-                    ) : null}
-                  </div>
-                  {event.fingerprint_summary ? (
-                    <p className="text-xs text-muted-foreground line-clamp-2">{event.fingerprint_summary}</p>
-                  ) : null}
-                  {event.error_code ? (
-                    <p className="text-xs text-rose-700">Error code: {event.error_code}</p>
-                  ) : null}
+                  <span className={cn('rounded-full px-3 py-1 text-xs font-medium', runStatusBadge(run.status))}>
+                    {run.status}
+                  </span>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Updated {formatTimestamp(run.updated_at ?? run.created_at)}
                 </div>
               </div>
             ))
           ) : (
             <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-              No recent MCP calls yet. Once Claude or ChatGPT run tools, activity will appear here.
+              When agents start running, their activity will show up here.
             </div>
           )}
         </div>
       </section>
     </main>
-  );
-}
-
-function StatusCard({
-  title,
-  description,
-  status,
-  meta,
-  actionHref,
-}: {
-  title: string;
-  description: string;
-  status: string;
-  meta: string;
-  actionHref: string;
-}) {
-  return (
-    <Link
-      href={actionHref}
-      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-sm"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium">{title}</h3>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-        <span className={cn('rounded-full px-3 py-1 text-xs font-medium tracking-wide', statusBadgeClass(status))}>
-          {status}
-        </span>
-      </div>
-      <div className="text-xs text-muted-foreground">{meta}</div>
-    </Link>
   );
 }
 
@@ -336,93 +283,19 @@ function QueueCard({
   );
 }
 
-function statusBadgeClass(status: string) {
-  const normalized = status.toLowerCase();
-  if (normalized.includes('error')) {
-    return 'bg-rose-100 text-rose-700';
-  }
-  if (normalized.includes('success') || normalized.includes('healthy') || normalized.includes('connected') || normalized.includes('linked')) {
+function runStatusBadge(status?: string | null) {
+  const normalized = (status || '').toLowerCase();
+  if (normalized === 'completed' || normalized === 'approved') {
     return 'bg-emerald-100 text-emerald-700';
   }
-  if (normalized.includes('warning')) {
+  if (normalized === 'running') {
+    return 'bg-sky-100 text-sky-700';
+  }
+  if (normalized === 'pending' || normalized === 'queued') {
     return 'bg-amber-100 text-amber-700';
   }
-  if (normalized.includes('dormant') || normalized.includes('waiting') || normalized.includes('pending')) {
-    return 'bg-amber-100 text-amber-700';
-  }
-  if (normalized.includes('queued')) {
-    return 'bg-amber-100 text-amber-700';
+  if (normalized === 'failed' || normalized === 'error') {
+    return 'bg-rose-100 text-rose-700';
   }
   return 'bg-muted text-foreground';
-}
-
-function formatProposalKind(kind: string) {
-  return kind
-    .toLowerCase()
-    .split('_')
-    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
-    .join(' ');
-}
-
-function deriveHostStatus(
-  connected: boolean,
-  summary?: {
-    last_seen_at: string | null;
-    calls_last_hour: number | null;
-    errors_last_hour: number | null;
-    p95_latency_ms: number | null;
-  }
-) {
-  const STALE_MINUTES = 60;
-  const ERROR_THRESHOLD = 2;
-  const P95_THRESHOLD = 800;
-
-  if (!connected) {
-    return {
-      badge: 'Not linked',
-      meta: 'Waiting for first connection',
-    };
-  }
-
-  if (!summary) {
-    return {
-      badge: 'Pending activity',
-      meta: 'No MCP traffic yet',
-    };
-  }
-
-  const calls = summary.calls_last_hour ?? 0;
-  const errors = summary.errors_last_hour ?? 0;
-  const lastSeen = summary.last_seen_at ? formatTimestamp(summary.last_seen_at) : 'Never';
-  const minutesSinceLastSeen = summary.last_seen_at
-    ? Math.floor((Date.now() - new Date(summary.last_seen_at).getTime()) / 60000)
-    : Number.POSITIVE_INFINITY;
-  const p95Value = summary.p95_latency_ms ?? null;
-  const p95 = summary.p95_latency_ms ? `${Math.round(summary.p95_latency_ms)}ms p95` : 'Latency pending';
-
-  if (errors >= ERROR_THRESHOLD) {
-    return {
-      badge: 'Errors detected',
-      meta: `${errors} errors in last hour · Last call ${lastSeen}`,
-    };
-  }
-
-  if (calls === 0 || minutesSinceLastSeen > STALE_MINUTES) {
-    return {
-      badge: 'Dormant',
-      meta: `No calls in last hour · Last call ${lastSeen}`,
-    };
-  }
-
-  if (p95Value && p95Value > P95_THRESHOLD) {
-    return {
-      badge: 'Warning: slow',
-      meta: `${calls} calls in last hour · ${p95}`,
-    };
-  }
-
-  return {
-    badge: 'Healthy',
-    meta: `${calls} calls in last hour · ${p95}`,
-  };
 }
