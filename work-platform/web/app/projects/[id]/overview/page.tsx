@@ -78,6 +78,8 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
   let blocksCount = 0;
   let documentsCount = 0;
   let basketName = project.name;
+  let knowledgeBlocks = 0;
+  let meaningBlocks = 0;
 
   try {
     const basketResponse = await fetch(
@@ -102,6 +104,30 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
   } catch (error) {
     console.error(`[Project Overview] Error fetching basket ${project.basket_id}:`, error);
     // Continue with 0 counts if fetch fails
+  }
+
+  try {
+    const knowledgeTypes = ['knowledge', 'factual', 'metric', 'entity'];
+    const meaningTypes = ['intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint'];
+
+    const { data: blockBreakdown } = await supabase
+      .from('blocks')
+      .select('semantic_type, count:semantic_type', { head: false })
+      .eq('basket_id', project.basket_id)
+      .in('state', ['PROPOSED', 'ACCEPTED', 'LOCKED', 'CONSTANT'])
+      .group('semantic_type');
+
+    blockBreakdown?.forEach((row: any) => {
+      const type = (row.semantic_type || '').toLowerCase();
+      const count = typeof row.count === 'number' ? row.count : Number(row.count) || 0;
+      if (knowledgeTypes.includes(type)) {
+        knowledgeBlocks += count;
+      } else if (meaningTypes.includes(type)) {
+        meaningBlocks += count;
+      }
+    });
+  } catch (error) {
+    console.warn('[Project Overview] Failed to compute block breakdown:', error);
   }
 
   const agentStats: Record<string, {
@@ -150,6 +176,8 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     stats: {
       contextItems: blocksCount || 0,
       documents: documentsCount || 0,
+      knowledgeBlocks,
+      meaningBlocks,
       workSessions: sessionStats,
       agents: agentStats,
     },
