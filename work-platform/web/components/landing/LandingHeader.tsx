@@ -4,25 +4,25 @@ import Brand from "@/components/Brand";
 
 export default function LandingHeader() {
     return (
-        <header className="w-full py-4 px-5 flex justify-between items-center bg-white">
+        <header className="w-full py-4 px-5 flex justify-between items-center bg-background text-foreground border-b border-border">
             <div className="text-xl">
                 <Link
                     href="/"
-                    className="text-black hover:text-black/80 transition-colors"
+                    className="text-foreground hover:text-foreground/80 transition-colors"
                 >
                     <Brand />
                 </Link>
             </div>
-            <nav className="flex items-center gap-8">
+            <nav className="flex items-center gap-8 text-sm font-medium">
                 <Link
                     href="/about"
-                    className="text-black hover:text-black/80 transition-colors"
+                    className="text-foreground hover:text-foreground/80 transition-colors"
                 >
                     About
                 </Link>
                 <Link
                     href="/login"
-                    className="text-black hover:text-black/80 transition-colors"
+                    className="text-foreground hover:text-foreground/80 transition-colors"
                 >
                     Sign-Up/Login
                 </Link>

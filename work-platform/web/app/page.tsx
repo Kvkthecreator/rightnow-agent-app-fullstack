@@ -99,20 +99,20 @@ export default function LandingPage() {
 
       <section className="w-full max-w-[1200px] mx-auto px-4 py-16 space-y-8">
         <div className="w-full h-px bg-black" />
-        <h2 className="text-4xl md:text-5xl font-normal">What you get out of the box</h2>
+        <h2 className="text-4xl md:text-5xl font-normal text-foreground">What you get out of the box</h2>
         <p className="text-lg text-muted-foreground max-w-3xl">
           Projects, baskets, agents, and work requests are wired together from day one. You focus on intent; yarnnn keeps the rest in sync.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10">
           {whatYouGet.map((item) => (
             <div key={item.title}>
-              <h3 className="text-neutral-500 text-base md:text-xl font-normal mb-2 flex items-center gap-2">
+              <h3 className="text-foreground text-base md:text-xl font-medium mb-2 flex items-center gap-2">
                 <span role="img" aria-label={item.title}>
                   {item.icon}
                 </span>
                 {item.title}
               </h3>
-              <p className="text-black text-base md:text-lg font-normal leading-relaxed">{item.description}</p>
+              <p className="text-muted-foreground text-base md:text-lg leading-relaxed">{item.description}</p>
             </div>
           ))}
         </div>
