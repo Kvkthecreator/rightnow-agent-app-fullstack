@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Database, X, Clock, Copy, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -250,39 +251,37 @@ export default function BlockDetailModal({
     );
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-surface-primary rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="border-b border-surface-primary-border p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Database className="h-4 w-4 text-primary" />
-            <h3 className="text-lg font-medium text-foreground">
-              {block ? `Block - ${block.semantic_type}` : 'Block Details'}
-            </h3>
-          </div>
-          <div className="flex items-center gap-2">
-            {blockId && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => copyToClipboard(blockId)}
-                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
-                title="Copy block ID"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                <span className="text-xs">Copy ID</span>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="max-w-2xl w-full max-h-[80vh] flex flex-col p-0">
+        <DialogHeader className="p-4 border-b border-surface-primary-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Database className="h-4 w-4 text-primary" />
+              <DialogTitle className="text-lg font-medium text-foreground">
+                {block ? `Block - ${block.semantic_type}` : 'Block Details'}
+              </DialogTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              {blockId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(blockId)}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+                  title="Copy block ID"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  <span className="text-xs">Copy ID</span>
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={onClose} title="Close modal">
+                <X className="h-4 w-4" />
               </Button>
-            )}
-            <Button variant="ghost" size="sm" onClick={onClose} title="Close modal">
-              <X className="h-4 w-4" />
-            </Button>
+            </div>
           </div>
-        </div>
+        </DialogHeader>
 
-        {/* Tabs */}
         <div className="border-b border-surface-primary-border">
           <div className="flex">
             <button
@@ -308,18 +307,16 @@ export default function BlockDetailModal({
           </div>
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'content' ? renderContent() : renderMetadata()}
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-surface-primary-border p-4 flex items-center justify-end">
+        <DialogFooter className="border-t border-surface-primary-border p-4">
           <Button variant="outline" size="sm" onClick={onClose}>
             Close
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
