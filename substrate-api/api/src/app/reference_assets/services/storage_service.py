@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import BinaryIO, Optional
 from uuid import UUID, uuid4
 
-from ....utils.supabase_client import supabase_admin_client
+from ...utils.supabase_client import supabase_admin_client
 
 logger = logging.getLogger(__name__)
 
