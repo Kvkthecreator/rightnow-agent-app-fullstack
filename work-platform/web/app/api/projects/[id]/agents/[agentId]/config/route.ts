@@ -108,6 +108,11 @@ export async function GET(
 
     console.log(`[AGENT CONFIG API] Retrieved config for agent ${agentId}`);
 
+    // Type assertion: agent_catalog is a single object, not an array (due to !inner join)
+    const catalog = Array.isArray(agentData.agent_catalog)
+      ? agentData.agent_catalog[0]
+      : agentData.agent_catalog;
+
     return NextResponse.json({
       id: agentData.id,
       agent_type: agentData.agent_type,
@@ -117,10 +122,10 @@ export async function GET(
       config_version: agentData.config_version,
       config_updated_at: agentData.config_updated_at,
       config_updated_by: agentData.config_updated_by,
-      config_schema: agentData.agent_catalog?.config_schema || {},
-      schema_version: agentData.agent_catalog?.schema_version || 1,
-      icon: agentData.agent_catalog?.icon,
-      is_beta: agentData.agent_catalog?.is_beta,
+      config_schema: catalog?.config_schema || {},
+      schema_version: catalog?.schema_version || 1,
+      icon: catalog?.icon,
+      is_beta: catalog?.is_beta,
     });
 
   } catch (error) {
@@ -240,7 +245,11 @@ export async function PUT(
     }
 
     // Validate config against JSON Schema
-    const configSchema = agentData.agent_catalog?.config_schema || {};
+    // Type assertion: agent_catalog is a single object, not an array (due to !inner join)
+    const catalog = Array.isArray(agentData.agent_catalog)
+      ? agentData.agent_catalog[0]
+      : agentData.agent_catalog;
+    const configSchema = catalog?.config_schema || {};
 
     if (Object.keys(configSchema).length > 0) {
       const validate = ajv.compile(configSchema);
