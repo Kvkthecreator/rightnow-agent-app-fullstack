@@ -1,9 +1,9 @@
 # yarnnn Agent Substrate Architecture
 ## Comprehensive Design Document
 
-**Version:** 1.2
-**Date:** 2024-11-13
-**Status:** Architecture Approved - Schema Stress Tested - Config Flexibility Added - Ready for Implementation
+**Version:** 1.3
+**Date:** 2025-11-13
+**Status:** Phase 1 (Backend) ✅ DEPLOYED | Phase 2 (UI) ✅ DEPLOYED | Ready for Testing & Refinement
 
 ---
 
@@ -776,7 +776,11 @@ ADD CONSTRAINT fk_tp_memory_basket
 
 ## Implementation Phases
 
-### Phase 1: Storage Foundation (4-6 weeks)
+### Phase 1: Storage Foundation (P0-P1) ✅ **DEPLOYED**
+
+**Status:** Backend infrastructure deployed to Render | Frontend BFF deployed to Vercel
+**Deployed:** 2025-11-13
+**Next:** Testing & Refinement
 
 **Goal:** Enable agents to access non-text substrate and persistent configurations.
 
@@ -1103,26 +1107,30 @@ ADD CONSTRAINT fk_tp_memory_basket
    ```
 
 **Success Criteria:**
-- [ ] Migrations run successfully on both DBs (work-platform & substrate-API)
-- [ ] Supabase Storage bucket created with correct RLS policies
-- [ ] substrate-API file upload endpoints deployed
-- [ ] User can upload brand voice screenshot via UI
-- [ ] Content Agent receives screenshot in execution payload
-- [ ] User can configure Research agent watchlist
-- [ ] Agent config persists across work sessions
-- [ ] No redundant columns remain (executed_by_agent_id removed)
+- ✅ Migrations run successfully on both DBs (work-platform & substrate-API)
+- ✅ Supabase Storage bucket created with correct RLS policies
+- ✅ substrate-API file upload endpoints deployed to Render
+- ✅ work-platform BFF routes deployed to Vercel
+- ✅ Context page Assets tab UI deployed
+- ✅ Agent Config forms UI deployed
+- 🔄 **IN TESTING:** User can upload brand voice screenshot via UI
+- 🔄 **IN TESTING:** User can configure agent settings via Config forms
+- ⏳ **PENDING (Phase 3):** Content Agent receives screenshot in execution payload
+- ⏳ **PENDING (Phase 3):** Agent config persists across work sessions
 
-**Validation Checklist:**
-- [ ] reference_assets table exists in substrate-API DB
-- [ ] asset_type_catalog table exists in substrate-API DB with initial seed data
-- [ ] blocks.derived_from_asset_id column exists
-- [ ] project_agents.config column exists in work-platform DB
-- [ ] agent_catalog table exists in work-platform DB with dynamic schema support
-- [ ] agent_catalog seeded with 3 agent types (research, content, reporting)
-- [ ] work_sessions.executed_by_agent_id column removed
-- [ ] RLS policies enforce workspace-scoping for assets
-- [ ] Cross-DB work_session_id reference handled in app code (not FK)
-- [ ] No hardcoded CHECK constraints on agent_type or asset_type (FK to catalogs instead)
+**Deployment Validation:**
+- ✅ reference_assets table exists in substrate-API DB
+- ✅ asset_type_catalog table exists in substrate-API DB with initial seed data
+- ✅ blocks.derived_from_asset_id column exists
+- ✅ project_agents.config column exists in work-platform DB
+- ✅ agent_catalog table exists in work-platform DB with dynamic schema support
+- ✅ agent_catalog seeded with 3 agent types (research, content, reporting)
+- ✅ work_sessions.executed_by_agent_id column removed
+- ✅ RLS policies enforce workspace-scoping for assets
+- ✅ Cross-DB work_session_id reference handled in app code (not FK)
+- ✅ No hardcoded CHECK constraints on agent_type or asset_type (FK to catalogs instead)
+- ✅ substrate-API: Deployed to Render (commit 91314c3f)
+- ✅ work-platform: Deployed to Vercel (commit 68265d22)
 
 ---
 
