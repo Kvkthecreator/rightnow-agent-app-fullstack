@@ -3,17 +3,12 @@
 from __future__ import annotations
 
 import logging
-import os
-import sys
 from datetime import datetime, timedelta
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
-
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 from ..utils.jwt import verify_jwt
 from ..utils.supabase_client import supabase_admin_client
