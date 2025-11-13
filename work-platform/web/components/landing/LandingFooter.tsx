@@ -5,7 +5,7 @@ import Brand from "@/components/Brand";
 
 export default function LandingFooter() {
     return (
-        <footer className="bg-white text-black border-t border-neutral-200 py-8 px-4">
+        <footer className="bg-background text-foreground border-t border-border py-8 px-4">
             <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
                 {/* Logo/Icon and Brand */}
                 <div className="flex flex-col items-start gap-2">
