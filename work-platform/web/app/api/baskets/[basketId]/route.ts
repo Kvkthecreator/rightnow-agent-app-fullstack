@@ -1,5 +1,5 @@
 /**
- * API Route: GET /api/baskets/[id]
+ * API Route: GET /api/baskets/[basketId]
  *
  * BFF pattern: Proxy to substrate-api for basket details
  * This route provides basket metadata and stats (blocks/documents counts)
@@ -18,10 +18,10 @@ const SUBSTRATE_API_URL = process.env.SUBSTRATE_API_URL || 'http://localhost:100
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ basketId: string }> }
 ) {
   try {
-    const { id: basketId } = await params;
+    const { basketId } = await params;
     const supabase = createRouteHandlerClient({ cookies });
 
     // Get Supabase session for auth
