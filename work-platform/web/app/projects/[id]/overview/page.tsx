@@ -107,27 +107,23 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
   }
 
   try {
-    const knowledgeTypes = ['knowledge', 'factual', 'metric', 'entity'];
-    const meaningTypes = ['intent', 'objective', 'rationale', 'principle', 'assumption', 'context', 'constraint'];
-
-    const { data: blockBreakdown } = await supabase
-      .from('blocks')
-      .select('semantic_type, count:semantic_type', { head: false })
-      .eq('basket_id', project.basket_id)
-      .in('state', ['PROPOSED', 'ACCEPTED', 'LOCKED', 'CONSTANT'])
-      .group('semantic_type');
-
-    blockBreakdown?.forEach((row: any) => {
-      const type = (row.semantic_type || '').toLowerCase();
-      const count = typeof row.count === 'number' ? row.count : Number(row.count) || 0;
-      if (knowledgeTypes.includes(type)) {
-        knowledgeBlocks += count;
-      } else if (meaningTypes.includes(type)) {
-        meaningBlocks += count;
+    const contextResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/projects/${project.id}/context`,
+      {
+        headers: {
+          Cookie: (await cookies()).toString(),
+        },
+        cache: 'no-store',
       }
-    });
+    );
+
+    if (contextResponse.ok) {
+      const contextData = await contextResponse.json();
+      knowledgeBlocks = contextData?.stats?.knowledge || 0;
+      meaningBlocks = contextData?.stats?.meaning || 0;
+    }
   } catch (error) {
-    console.warn('[Project Overview] Failed to compute block breakdown:', error);
+    console.warn('[Project Overview] Failed to fetch context stats:', error);
   }
 
   const agentStats: Record<string, {
