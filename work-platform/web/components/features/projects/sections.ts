@@ -43,13 +43,6 @@ export const PROJECT_SECTIONS: ProjectSection[] = [
     description: "View and manage agent work sessions",
   },
   {
-    key: "reports",
-    label: "Reports",
-    icon: FileText,
-    href: (id) => `/projects/${id}/reports`,
-    description: "View generated reports and artifacts",
-  },
-  {
     key: "settings",
     label: "Settings",
     icon: Settings,
