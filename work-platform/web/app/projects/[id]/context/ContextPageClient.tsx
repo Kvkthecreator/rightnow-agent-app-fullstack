@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Database, FileBox } from "lucide-react";
 import ContextBlocksClient from "./ContextBlocksClient";
 import ContextAssetsClient from "./ContextAssetsClient";
