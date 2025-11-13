@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { formatDistanceToNow } from 'date-fns';
 import { AGENT_CONFIG, type AgentType } from '../config';
 import { cn } from '@/lib/utils';
+import AgentConfigForm from './AgentConfigForm';
 
 export type AgentSession = {
   id: string;
@@ -78,6 +79,15 @@ export default function AgentDashboardClient({ project, agentRow, sessions, agen
           <p className="text-sm text-muted-foreground">No work sessions yet. Kick off your first task.</p>
         )}
       </Card>
+
+      {/* Configuration Section */}
+      {agentRow && (
+        <AgentConfigForm
+          projectId={project.id}
+          agentId={agentRow.id}
+          agentType={agentType}
+        />
+      )}
 
       <Card className="p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4">Work History</h2>
