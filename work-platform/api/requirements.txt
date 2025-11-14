@@ -14,7 +14,8 @@ typing-extensions>=4.12.2,<5
 tenacity>=8.0.0  # Retry logic for substrate HTTP client (Phase 3.1 BFF)
 
 # ── Claude Agent SDK (Phase 4: Agent Integration) ─────────────────────
-claude-agent-sdk @ git+https://github.com/Kvkthecreator/claude-agentsdk-opensource.git@main
+# Commit 0b25551: Adds metadata consumption (reference_assets + agent_config)
+claude-agent-sdk @ git+https://github.com/Kvkthecreator/claude-agentsdk-opensource.git@0b25551
 pyyaml>=6.0  # For agent configuration files
 
 # ── Supabase integration ──────────────────────────────────────────────
