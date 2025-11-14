@@ -276,7 +276,7 @@ async def _run_research_agent(
     user_id: str
 ) -> Dict[str, Any]:
     """
-    Run research agent task.
+    Run research agent task with enhanced context (assets + config).
 
     Args:
         request: Task request
@@ -296,11 +296,25 @@ async def _run_research_agent(
     # Validate basket access (existing pattern from work_sessions.py)
     await _validate_basket_access(request.basket_id, workspace_id)
 
-    # Create agent with adapters (Phase 4)
+    # Phase 1+2: Get project_id for agent config
+    project_id = None
+    try:
+        project = supabase_admin_client.table("projects").select("id").eq(
+            "basket_id", request.basket_id
+        ).limit(1).execute()
+        if project.data and len(project.data) > 0:
+            project_id = project.data[0]["id"]
+            logger.debug(f"Found project_id={project_id} for basket {request.basket_id}")
+    except Exception as e:
+        logger.warning(f"Failed to get project_id for basket {request.basket_id}: {e}")
+
+    # Create agent with adapters + enhanced context (Phase 4)
     agent = create_research_agent(
         basket_id=request.basket_id,
         workspace_id=workspace_id,
-        user_id=user_id
+        user_id=user_id,
+        project_id=project_id,
+        work_session_id=None  # TODO: Pass work_session_id for temporary assets
     )
 
     # Execute task
@@ -334,7 +348,7 @@ async def _run_content_agent(
     user_id: str
 ) -> Dict[str, Any]:
     """
-    Run content creator agent task.
+    Run content creator agent task with enhanced context (assets + config).
 
     Args:
         request: Task request
@@ -354,11 +368,25 @@ async def _run_content_agent(
     # Validate basket access (existing pattern from work_sessions.py)
     await _validate_basket_access(request.basket_id, workspace_id)
 
-    # Create agent with adapters (Phase 4)
+    # Phase 1+2: Get project_id for agent config
+    project_id = None
+    try:
+        project = supabase_admin_client.table("projects").select("id").eq(
+            "basket_id", request.basket_id
+        ).limit(1).execute()
+        if project.data and len(project.data) > 0:
+            project_id = project.data[0]["id"]
+            logger.debug(f"Found project_id={project_id} for basket {request.basket_id}")
+    except Exception as e:
+        logger.warning(f"Failed to get project_id for basket {request.basket_id}: {e}")
+
+    # Create agent with adapters + enhanced context (Phase 4)
     agent = create_content_agent(
         basket_id=request.basket_id,
         workspace_id=workspace_id,
-        user_id=user_id
+        user_id=user_id,
+        project_id=project_id,
+        work_session_id=None  # TODO: Pass work_session_id for temporary assets
     )
 
     # Execute task
@@ -413,7 +441,7 @@ async def _run_reporting_agent(
     user_id: str
 ) -> Dict[str, Any]:
     """
-    Run reporting agent task.
+    Run reporting agent task with enhanced context (assets + config).
 
     Args:
         request: Task request
@@ -433,11 +461,25 @@ async def _run_reporting_agent(
     # Validate basket access (existing pattern from work_sessions.py)
     await _validate_basket_access(request.basket_id, workspace_id)
 
-    # Create agent with adapters (Phase 4)
+    # Phase 1+2: Get project_id for agent config
+    project_id = None
+    try:
+        project = supabase_admin_client.table("projects").select("id").eq(
+            "basket_id", request.basket_id
+        ).limit(1).execute()
+        if project.data and len(project.data) > 0:
+            project_id = project.data[0]["id"]
+            logger.debug(f"Found project_id={project_id} for basket {request.basket_id}")
+    except Exception as e:
+        logger.warning(f"Failed to get project_id for basket {request.basket_id}: {e}")
+
+    # Create agent with adapters + enhanced context (Phase 4)
     agent = create_reporting_agent(
         basket_id=request.basket_id,
         workspace_id=workspace_id,
-        user_id=user_id
+        user_id=user_id,
+        project_id=project_id,
+        work_session_id=None  # TODO: Pass work_session_id for temporary assets
     )
 
     # Execute task

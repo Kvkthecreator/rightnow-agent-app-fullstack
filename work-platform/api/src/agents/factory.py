@@ -74,18 +74,22 @@ def load_agent_config(agent_type: str) -> dict:
 def create_research_agent(
     basket_id: str | UUID,
     workspace_id: str,
-    user_id: Optional[str] = None
+    user_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    work_session_id: Optional[str] = None
 ) -> ResearchAgent:
     """
-    Create ResearchAgent with substrate adapters.
+    Create ResearchAgent with substrate adapters and enhanced context.
 
     Args:
         basket_id: Basket ID for agent context
         workspace_id: Workspace ID for authorization context
         user_id: User ID for governance operations (optional)
+        project_id: Project ID for agent config (Phase 1+2)
+        work_session_id: Work session ID for temporary assets (Phase 1+2)
 
     Returns:
-        Configured ResearchAgent
+        Configured ResearchAgent with assets + config injection
 
     Raises:
         ImportError: If SDK not installed
@@ -102,8 +106,14 @@ def create_research_agent(
     # Load configuration
     config = load_agent_config("research")
 
-    # Create adapters (use our substrate_client internally - Phase 3 BFF)
-    memory = SubstrateMemoryAdapter(basket_id=basket_id, workspace_id=workspace_id)
+    # Create adapters with enhanced context (Phase 1+2)
+    memory = SubstrateMemoryAdapter(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        agent_type="research",
+        project_id=project_id,
+        work_session_id=work_session_id
+    )
 
     # NOTE: Governance should NOT be used during agent execution.
     # Agents READ from substrate (via memory) and WRITE artifacts.
@@ -138,18 +148,22 @@ def create_research_agent(
 def create_content_agent(
     basket_id: str | UUID,
     workspace_id: str,
-    user_id: Optional[str] = None
+    user_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    work_session_id: Optional[str] = None
 ) -> ContentCreatorAgent:
     """
-    Create ContentCreatorAgent with substrate adapters.
+    Create ContentCreatorAgent with substrate adapters and enhanced context.
 
     Args:
         basket_id: Basket ID for agent context
         workspace_id: Workspace ID for authorization context
         user_id: User ID for governance operations (optional)
+        project_id: Project ID for agent config (Phase 1+2)
+        work_session_id: Work session ID for temporary assets (Phase 1+2)
 
     Returns:
-        Configured ContentCreatorAgent
+        Configured ContentCreatorAgent with assets + config injection
 
     Raises:
         ImportError: If SDK not installed
@@ -166,8 +180,14 @@ def create_content_agent(
     # Load configuration
     config = load_agent_config("content")
 
-    # Create adapters (use our substrate_client internally - Phase 3 BFF)
-    memory = SubstrateMemoryAdapter(basket_id=basket_id, workspace_id=workspace_id)
+    # Create adapters with enhanced context (Phase 1+2)
+    memory = SubstrateMemoryAdapter(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        agent_type="content",
+        project_id=project_id,
+        work_session_id=work_session_id
+    )
 
     # NOTE: Governance should NOT be used during agent execution.
     # Agents READ from substrate (via memory) and WRITE artifacts.
@@ -201,18 +221,22 @@ def create_content_agent(
 def create_reporting_agent(
     basket_id: str | UUID,
     workspace_id: str,
-    user_id: Optional[str] = None
+    user_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    work_session_id: Optional[str] = None
 ) -> ReportingAgent:
     """
-    Create ReportingAgent with substrate adapters.
+    Create ReportingAgent with substrate adapters and enhanced context.
 
     Args:
         basket_id: Basket ID for agent context
         workspace_id: Workspace ID for authorization context
         user_id: User ID for governance operations (optional)
+        project_id: Project ID for agent config (Phase 1+2)
+        work_session_id: Work session ID for temporary assets (Phase 1+2)
 
     Returns:
-        Configured ReportingAgent
+        Configured ReportingAgent with assets + config injection
 
     Raises:
         ImportError: If SDK not installed
@@ -229,8 +253,14 @@ def create_reporting_agent(
     # Load configuration
     config = load_agent_config("reporting")
 
-    # Create adapters (use our substrate_client internally - Phase 3 BFF)
-    memory = SubstrateMemoryAdapter(basket_id=basket_id, workspace_id=workspace_id)
+    # Create adapters with enhanced context (Phase 1+2)
+    memory = SubstrateMemoryAdapter(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        agent_type="reporting",
+        project_id=project_id,
+        work_session_id=work_session_id
+    )
 
     # NOTE: Governance should NOT be used during agent execution.
     # Agents READ from substrate (via memory) and WRITE artifacts.
