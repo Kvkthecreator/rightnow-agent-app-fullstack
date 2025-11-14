@@ -197,6 +197,9 @@ async def upload_reference_asset(
             expires_at = datetime.utcnow() + timedelta(days=7)  # 7 days expiration
 
         # Insert metadata into database
+        # Get user_id with fallback for both key formats
+        user_id = user.get("user_id") or user.get("sub")
+
         asset_data = {
             "id": str(asset_id),
             "basket_id": str(basket_id),
@@ -213,7 +216,7 @@ async def upload_reference_asset(
             "metadata": metadata_dict,
             "tags": tags_list,
             "description": description,
-            "created_by_user_id": user["sub"],
+            "created_by_user_id": user_id,
             "access_count": 0,
         }
 
