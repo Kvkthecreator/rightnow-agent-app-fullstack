@@ -42,24 +42,120 @@ class SubstrateMemoryAdapter(MemoryProvider):
     - Store → create_dump()
     - Get all → get_basket_blocks(limit=large)
 
+    Phase 1+2 Enhancement:
+    - Injects reference_assets into Context.metadata
+    - Injects agent_config into Context.metadata
+    - Provides enhanced context for agent execution
+
     This ensures:
     - Zero direct database access in work-platform ✅
     - Circuit breaker and retry logic preserved ✅
     - Service-to-service auth respected ✅
     """
 
-    def __init__(self, basket_id: str | UUID, workspace_id: str):
+    def __init__(
+        self,
+        basket_id: str | UUID,
+        workspace_id: str,
+        agent_type: Optional[str] = None,
+        project_id: Optional[str] = None,
+        work_session_id: Optional[str] = None
+    ):
         """
-        Initialize memory adapter.
+        Initialize memory adapter with agent execution context.
 
         Args:
             basket_id: Basket ID to operate on
             workspace_id: Workspace ID for authorization context
+            agent_type: Agent type for scoping assets ('research', 'content', 'reporting')
+            project_id: Project ID for fetching agent config
+            work_session_id: Work session ID for temporary assets
         """
         self.basket_id = str(basket_id)
         self.workspace_id = workspace_id
+        self.agent_type = agent_type
+        self.project_id = project_id
+        self.work_session_id = work_session_id
         self.client = get_substrate_client()
-        logger.info(f"Initialized SubstrateMemoryAdapter for basket {self.basket_id} in workspace {self.workspace_id}")
+
+        # Cache for assets + config (fetch once per session)
+        self._assets_cache: Optional[List[Dict]] = None
+        self._config_cache: Optional[Dict] = None
+
+        logger.info(
+            f"Initialized SubstrateMemoryAdapter for basket {self.basket_id}, "
+            f"agent_type={agent_type}, project_id={project_id}"
+        )
+
+    async def _get_reference_assets(self) -> List[Dict]:
+        """
+        Fetch and cache reference assets scoped to agent.
+
+        Returns:
+            List of asset dictionaries with signed URLs
+        """
+        if self._assets_cache is not None:
+            return self._assets_cache
+
+        if not self.agent_type:
+            logger.debug("No agent_type specified, skipping asset fetch")
+            self._assets_cache = []
+            return []
+
+        try:
+            self._assets_cache = self.client.get_reference_assets(
+                basket_id=self.basket_id,
+                agent_type=self.agent_type,
+                work_session_id=self.work_session_id,
+                permanence="permanent"  # Only permanent assets for now
+            )
+            logger.info(
+                f"Loaded {len(self._assets_cache)} reference assets for {self.agent_type} agent"
+            )
+            return self._assets_cache
+        except Exception as e:
+            logger.warning(f"Failed to load reference assets: {e}")
+            self._assets_cache = []
+            return []
+
+    async def _get_agent_config(self) -> Dict[str, Any]:
+        """
+        Fetch and cache agent config from work-platform DB.
+
+        Returns:
+            Agent config dictionary
+        """
+        if self._config_cache is not None:
+            return self._config_cache
+
+        if not self.project_id or not self.agent_type:
+            logger.debug("No project_id or agent_type, skipping config fetch")
+            self._config_cache = {}
+            return {}
+
+        try:
+            # Query work-platform DB via supabase_admin_client
+            from app.utils.supabase_client import supabase_admin_client
+
+            response = supabase_admin_client.table("project_agents").select(
+                "config"
+            ).eq("project_id", self.project_id).eq(
+                "agent_type", self.agent_type
+            ).eq("is_active", True).limit(1).execute()
+
+            if response.data and len(response.data) > 0:
+                self._config_cache = response.data[0].get("config", {})
+                logger.info(f"Loaded config for {self.agent_type} agent")
+            else:
+                logger.debug(f"No active {self.agent_type} agent found for project {self.project_id}")
+                self._config_cache = {}
+
+            return self._config_cache
+
+        except Exception as e:
+            logger.warning(f"Failed to load agent config: {e}")
+            self._config_cache = {}
+            return {}
 
     async def query(
         self,
@@ -70,13 +166,18 @@ class SubstrateMemoryAdapter(MemoryProvider):
         """
         Query substrate for relevant context via HTTP.
 
+        Phase 1+2 Enhancement:
+        - Returns blocks as Context objects
+        - Injects reference_assets into first Context.metadata
+        - Injects agent_config into first Context.metadata
+
         Args:
             query: Semantic query string (currently unused - TODO: add semantic search)
             filters: Optional filters (states, semantic_type, etc.)
             limit: Maximum results to return
 
         Returns:
-            List of Context items from substrate blocks
+            List of Context items (first item contains assets + config in metadata)
         """
         logger.info(f"Querying substrate memory: query='{query[:50]}...', limit={limit}")
 
@@ -96,6 +197,29 @@ class SubstrateMemoryAdapter(MemoryProvider):
 
             # Convert substrate blocks to SDK Context format
             contexts = [self._block_to_context(block) for block in blocks]
+
+            # Phase 1+2: Inject assets + config into first context metadata
+            if contexts or (self.agent_type and self.project_id):
+                # Fetch assets + config
+                assets = await self._get_reference_assets()
+                config = await self._get_agent_config()
+
+                # Create metadata context if we have assets or config
+                if assets or config:
+                    metadata = {}
+                    if assets:
+                        metadata["reference_assets"] = assets
+                        logger.info(f"Injected {len(assets)} reference assets into context")
+                    if config:
+                        metadata["agent_config"] = config
+                        logger.info("Injected agent config into context")
+
+                    # Create metadata context as first item
+                    metadata_context = Context(
+                        content="[AGENT EXECUTION CONTEXT]",
+                        metadata=metadata
+                    )
+                    contexts.insert(0, metadata_context)
 
             logger.debug(f"Retrieved {len(contexts)} context items from substrate")
             return contexts

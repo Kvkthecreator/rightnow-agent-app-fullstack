@@ -624,6 +624,88 @@ class SubstrateClient:
                 return self.get_basket_blocks(basket_id, limit=limit)
             raise
 
+    # ========================================================================
+    # Phase 1+2: Reference Assets & Agent Config (Agent Execution Context)
+    # ========================================================================
+
+    def get_reference_assets(
+        self,
+        basket_id: UUID | str,
+        agent_type: Optional[str] = None,
+        work_session_id: Optional[str] = None,
+        asset_types: Optional[list[str]] = None,
+        permanence: Optional[str] = None,
+    ) -> list[dict]:
+        """
+        Get reference assets for agent execution context.
+
+        Args:
+            basket_id: Basket UUID
+            agent_type: Filter by agent_scope (e.g., 'content', 'research')
+            work_session_id: Filter by work_session_id (temporary assets)
+            asset_types: Filter by asset types (e.g., ['brand_voice', 'screenshot'])
+            permanence: Filter by permanence ('permanent', 'temporary')
+
+        Returns:
+            List of asset dictionaries with signed URLs included
+        """
+        params = {}
+        if agent_type:
+            params["agent_scope"] = agent_type
+        if work_session_id:
+            params["work_session_id"] = work_session_id
+        if asset_types:
+            params["asset_type"] = ",".join(asset_types)
+        if permanence:
+            params["permanence"] = permanence
+
+        response = self._request(
+            "GET",
+            f"/api/substrate/baskets/{basket_id}/assets",
+            params=params
+        )
+
+        assets = response.get("assets", [])
+
+        # Generate signed URLs for each asset
+        assets_with_urls = []
+        for asset in assets:
+            try:
+                url_response = self._request(
+                    "POST",
+                    f"/api/substrate/baskets/{basket_id}/assets/{asset['id']}/signed-url"
+                )
+                asset["signed_url"] = url_response.get("signed_url")
+                asset["url_expires_at"] = url_response.get("expires_at")
+                assets_with_urls.append(asset)
+            except SubstrateAPIError as e:
+                logger.warning(
+                    f"Failed to get signed URL for asset {asset['id']}: {e.message}"
+                )
+                # Include asset without signed URL
+                asset["signed_url"] = None
+                assets_with_urls.append(asset)
+
+        logger.debug(f"Retrieved {len(assets_with_urls)} reference assets for basket {basket_id}")
+        return assets_with_urls
+
+    def get_project_id_for_basket(self, basket_id: UUID | str) -> Optional[str]:
+        """
+        Get project_id for a basket (queries work-platform DB).
+
+        Args:
+            basket_id: Basket UUID
+
+        Returns:
+            Project ID or None if not found
+        """
+        # This will be handled in work-platform routes, not substrate client
+        # Placeholder for now - actual implementation in agent_orchestration.py
+        raise NotImplementedError(
+            "get_project_id_for_basket should be called from work-platform routes, "
+            "not substrate_client (wrong DB)"
+        )
+
     def __enter__(self):
         """Context manager entry."""
         return self
