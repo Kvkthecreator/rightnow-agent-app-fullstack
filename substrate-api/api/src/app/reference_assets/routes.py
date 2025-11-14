@@ -48,11 +48,13 @@ async def verify_workspace_access(basket_id: UUID, user: dict = Depends(verify_j
     workspace_id = await get_workspace_id_from_basket(basket_id)
 
     # Check workspace membership
+    # Note: verify_jwt returns {"user_id": ...}, not {"sub": ...}
+    user_id = user.get("user_id") or user.get("sub")
     result = (
         supabase_admin_client.table("workspace_memberships")
         .select("workspace_id")
         .eq("workspace_id", workspace_id)
-        .eq("user_id", user["sub"])
+        .eq("user_id", user_id)
         .execute()
     )
 
