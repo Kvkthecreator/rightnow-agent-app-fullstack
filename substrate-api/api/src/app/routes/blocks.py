@@ -17,17 +17,19 @@ logger = logging.getLogger("uvicorn.error")
 # Orchestration system (/api/work) in the Next.js backend to ensure governance compliance.
 
 
-@router.get("/baskets/{basket_id}/blocks")
+@router.get("/blocks/by-basket/{basket_id}")
 async def list_blocks(
     basket_id: str,
     user: dict = Depends(verify_jwt),
     db=Depends(get_db),  # noqa: B008
 ):
     """
-    List blocks for a basket.
+    List blocks for a basket (user-facing endpoint with workspace filtering).
 
-    BFF pattern: Uses direct SQL to bypass RLS (consistent with baskets route).
-    Auth is handled by verify_jwt dependency + workspace_id filtering.
+    Requires JWT auth. Filters blocks by user's workspace_id for security.
+
+    Note: For service-to-service calls, use /api/baskets/{basket_id}/blocks instead
+    (no auth required, returns all blocks in basket).
     """
     try:
         workspace_id = get_or_create_workspace(user["user_id"])
