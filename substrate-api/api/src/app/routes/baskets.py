@@ -55,6 +55,97 @@ class CreateBasketResponse(BaseModel):
 
 
 # ========================================================================
+# Phase 4: Service-to-Service Blocks Endpoint (BFF Pattern)
+# IMPORTANT: Must be defined BEFORE /{basket_id} to ensure proper route matching
+# ========================================================================
+
+
+@router.get("/{basket_id}/blocks")
+async def list_basket_blocks(
+    basket_id: str,
+    states: Optional[str] = None,
+    limit: int = 20,
+    db=Depends(get_db),  # noqa: B008
+):
+    """
+    List blocks for a basket (service-to-service endpoint).
+
+    Phase 4: Called by work-platform's SubstrateMemoryAdapter via substrate_client.
+    This endpoint is part of the Phase 3 BFF architecture - work-platform never
+    touches substrate tables directly.
+
+    No JWT auth required - uses service-to-service auth via exempt_prefixes.
+
+    Args:
+        basket_id: Basket UUID
+        states: Optional comma-separated list of block states (e.g., "ACCEPTED,LOCKED")
+        limit: Maximum number of blocks to return (default: 20)
+        db: Database connection
+
+    Returns:
+        List of block dictionaries with id, title, content, semantic_type,
+        confidence_score, state, created_at, updated_at
+
+    Raises:
+        HTTPException 400: Invalid basket_id format
+        HTTPException 500: Database error
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Validate basket_id is valid UUID
+        try:
+            basket_uuid = UUID(basket_id)
+        except (ValueError, AttributeError) as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid basket_id format: {basket_id}",
+            ) from e
+
+        # Build query with optional state filtering
+        query = """
+            SELECT id, title, content, semantic_type, confidence_score, state, created_at, updated_at
+            FROM blocks
+            WHERE basket_id = :basket_id
+        """
+
+        query_values = {"basket_id": str(basket_uuid)}
+
+        # Add state filtering if provided
+        if states:
+            state_list = [s.strip().upper() for s in states.split(",")]
+            # Use ANY for array comparison
+            query += " AND state = ANY(:states)"
+            query_values["states"] = state_list
+
+        query += " ORDER BY created_at DESC LIMIT :limit"
+        query_values["limit"] = limit
+
+        results = await db.fetch_all(query, values=query_values)
+
+        # Convert to dict format
+        blocks = [dict(row) for row in results]
+
+        logger.debug(
+            f"[SERVICE] Fetched {len(blocks)} blocks for basket {basket_id} "
+            f"(states={states}, limit={limit})"
+        )
+
+        return blocks
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.exception(f"Failed to fetch blocks for basket {basket_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch blocks: {str(e)}"
+        ) from e
+
+
+# ========================================================================
 # Phase 6: Basket Creation Endpoint
 # ========================================================================
 
@@ -367,91 +458,3 @@ async def apply_basket_delta(
     return {"status": "applied", "basket_id": basket_id, "delta_id": delta_id}
 
 
-# ========================================================================
-# Phase 4: Service-to-Service Blocks Endpoint (BFF Pattern)
-# ========================================================================
-
-
-@router.get("/{basket_id}/blocks")
-async def list_basket_blocks(
-    basket_id: str,
-    states: Optional[str] = None,
-    limit: int = 20,
-    db=Depends(get_db),  # noqa: B008
-):
-    """
-    List blocks for a basket (service-to-service endpoint).
-
-    Phase 4: Called by work-platform's SubstrateMemoryAdapter via substrate_client.
-    This endpoint is part of the Phase 3 BFF architecture - work-platform never
-    touches substrate tables directly.
-
-    No JWT auth required - uses service-to-service auth via exempt_prefixes.
-
-    Args:
-        basket_id: Basket UUID
-        states: Optional comma-separated list of block states (e.g., "ACCEPTED,LOCKED")
-        limit: Maximum number of blocks to return (default: 20)
-        db: Database connection
-
-    Returns:
-        List of block dictionaries with id, title, content, semantic_type,
-        confidence_score, state, created_at, updated_at
-
-    Raises:
-        HTTPException 400: Invalid basket_id format
-        HTTPException 500: Database error
-    """
-    import logging
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        # Validate basket_id is valid UUID
-        try:
-            basket_uuid = UUID(basket_id)
-        except (ValueError, AttributeError) as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid basket_id format: {basket_id}",
-            ) from e
-
-        # Build query with optional state filtering
-        query = """
-            SELECT id, title, content, semantic_type, confidence_score, state, created_at, updated_at
-            FROM blocks
-            WHERE basket_id = :basket_id
-        """
-
-        query_values = {"basket_id": str(basket_uuid)}
-
-        # Add state filtering if provided
-        if states:
-            state_list = [s.strip().upper() for s in states.split(",")]
-            # Use ANY for array comparison
-            query += " AND state = ANY(:states)"
-            query_values["states"] = state_list
-
-        query += " ORDER BY created_at DESC LIMIT :limit"
-        query_values["limit"] = limit
-
-        results = await db.fetch_all(query, values=query_values)
-
-        # Convert to dict format
-        blocks = [dict(row) for row in results]
-
-        logger.debug(
-            f"[SERVICE] Fetched {len(blocks)} blocks for basket {basket_id} "
-            f"(states={states}, limit={limit})"
-        )
-
-        return blocks
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        logger.exception(f"Failed to fetch blocks for basket {basket_id}: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to fetch blocks: {str(e)}"
-        ) from e
