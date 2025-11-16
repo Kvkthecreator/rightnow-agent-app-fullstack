@@ -3,13 +3,25 @@
 **The Single Source of Truth for YARNNN Service Philosophy and Implementation**
 
 **Version**: 4.0.1 (Current Implementation) / 4.0 (Vision)
-**Date**: 2025-10-31 (Updated: 2025-11-06)
-**Status**: ⚠️ Canonical Vision (Implementation in Phase 1)
+**Date**: 2025-10-31 (Updated: 2025-11-15)
+**Status**: ⚠️ Canonical Vision (Implementation Phases 1-4 Complete)
 **Supersedes**: YARNNN_CANON.md (v3.1)
 
 ---
 
-## ⚠️ CURRENT IMPLEMENTATION STATUS (As of 2025-11-06)
+## 🚨 IMPORTANT: Current Implementation Reference (2025-11-15)
+
+**For current Phase 1-4 implementation details, see**:
+- [AGENT_SUBSTRATE_ARCHITECTURE.md](./AGENT_SUBSTRATE_ARCHITECTURE.md) - **Current source of truth for agent integration**
+- [TERMINOLOGY_GLOSSARY.md](./TERMINOLOGY_GLOSSARY.md) - Prevents terminology confusion across domains
+
+This Canon document describes the **v4.0 VISION and philosophy**. The AGENT_SUBSTRATE_ARCHITECTURE document describes the **actual implementation roadmap** (Phase 1-4 complete, Phase 5+ planned).
+
+**Key Terminology Update**: "Work artifacts" (work-platform) are distinct from "Reflections" (substrate-API P3 outputs). See glossary for complete terminology.
+
+---
+
+## ⚠️ CURRENT IMPLEMENTATION STATUS (As of 2025-11-15)
 
 **This document describes the v4.0 VISION. Implementation is in progress (Phase 1).**
 
@@ -548,6 +560,11 @@ This document is **the single source of truth** for YARNNN's philosophy, identit
 ---
 
 ## 📎 See Also
+
+### Current Implementation (Priority)
+- [AGENT_SUBSTRATE_ARCHITECTURE.md](./AGENT_SUBSTRATE_ARCHITECTURE.md) - **Current source of truth for Phase 1-4 implementation**
+- [TERMINOLOGY_GLOSSARY.md](./TERMINOLOGY_GLOSSARY.md) - **Prevents terminology confusion between domains**
+- [WORK_OUTPUT_TYPES.md](../features/work-management/WORK_OUTPUT_TYPES.md) - Work output types and handling
 
 ### Foundation Documents
 - [YARNNN_WORK_PLATFORM_THESIS.md](./YARNNN_WORK_PLATFORM_THESIS.md) - Why context + work integration matters

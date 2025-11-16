@@ -243,14 +243,14 @@ class AgentSDKClient:
 
     def _parse_agent_output(self, result: Any) -> List[Dict[str, Any]]:
         """
-        Parse agent SDK output into work_artifacts format.
+        Parse agent SDK output into work_outputs format.
 
         Args:
             result: Agent execution result (structure depends on agent type)
 
         Returns:
-            List of artifact dictionaries with:
-            - artifact_type: "research_findings" | "content_draft" | "report"
+            List of output dictionaries with:
+            - output_type: "research_findings" | "content_draft" | "report"
             - content: Main output content
             - metadata: Agent-specific metadata
         """
@@ -261,7 +261,7 @@ class AgentSDKClient:
         if hasattr(result, "findings"):
             for idx, finding in enumerate(result.findings):
                 artifacts.append({
-                    "artifact_type": "research_finding",
+                    "output_type": "research_finding",
                     "content": finding.get("content", ""),
                     "metadata": {
                         "finding_index": idx,
@@ -275,7 +275,7 @@ class AgentSDKClient:
         elif hasattr(result, "variations"):
             for idx, variation in enumerate(result.variations):
                 artifacts.append({
-                    "artifact_type": "content_draft",
+                    "output_type": "content_draft",
                     "content": variation.get("text", ""),
                     "metadata": {
                         "variation_index": idx,
@@ -288,7 +288,7 @@ class AgentSDKClient:
         # Reporting agents return formatted reports
         elif hasattr(result, "report"):
             artifacts.append({
-                "artifact_type": "report",
+                "output_type": "report",
                 "content": result.report.get("content", ""),
                 "metadata": {
                     "report_type": result.report.get("type"),
@@ -300,7 +300,7 @@ class AgentSDKClient:
         # Generic output fallback
         else:
             artifacts.append({
-                "artifact_type": "generic_output",
+                "output_type": "generic_output",
                 "content": str(result),
                 "metadata": {"raw_result": True}
             })

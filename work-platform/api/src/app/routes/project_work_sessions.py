@@ -488,7 +488,7 @@ async def get_work_session_status(
         session = session_response.data
 
         # Get artifacts count
-        artifacts_response = supabase.table("work_artifacts").select(
+        artifacts_response = supabase.table("work_outputs").select(
             "id", count="exact"
         ).eq("work_session_id", session_id).execute()
 
@@ -738,8 +738,8 @@ async def get_work_session_artifacts(
             )
 
         # Fetch all artifacts for this session
-        artifacts_response = supabase.table("work_artifacts").select(
-            "id, artifact_type, content, agent_confidence, agent_reasoning, status, created_at"
+        artifacts_response = supabase.table("work_outputs").select(
+            "id, output_type, content, agent_confidence, agent_reasoning, status, created_at"
         ).eq("work_session_id", session_id).order("created_at").execute()
 
         artifacts = artifacts_response.data or []
@@ -952,7 +952,7 @@ async def get_project_work_session(
         agent = agent_response.data
 
         # Count artifacts for this session
-        artifacts_response = supabase.table("work_artifacts").select(
+        artifacts_response = supabase.table("work_outputs").select(
             "id", count="exact"
         ).eq("work_session_id", session_id).execute()
 

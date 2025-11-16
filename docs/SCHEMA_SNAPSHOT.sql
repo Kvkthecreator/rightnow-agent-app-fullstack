@@ -1,4 +1,4 @@
-\restrict CedIAW0pyNulgeJdWeStCgQTY4AhzdAyMD3iDsETjXD1vb8hbcETspYjWc4yrPU
+\restrict PebzZcpjLjR7Yb1gMoIIzpRSXvOjBmNlG5oEVG7NYx4aWdl1ZMvLQwfVCvDI6TJ
 CREATE SCHEMA public;
 CREATE TYPE public.alert_severity AS ENUM (
     'info',
@@ -107,6 +107,36 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE FUNCTION public.capture_agent_config_change() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  -- Only capture if config actually changed
+  IF OLD.config IS DISTINCT FROM NEW.config THEN
+    INSERT INTO agent_config_history (
+      project_agent_id,
+      config_snapshot,
+      config_version,
+      changed_by_user_id,
+      changed_at,
+      change_reason,
+      metadata
+    ) VALUES (
+      NEW.id,
+      NEW.config,
+      NEW.config_version,
+      NEW.config_updated_by,
+      NEW.config_updated_at,
+      'Auto-captured via trigger',
+      jsonb_build_object(
+        'previous_version', OLD.config_version,
+        'trigger_source', 'project_agents_update'
+      )
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
 CREATE FUNCTION public.check_block_depth() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -190,6 +220,27 @@ BEGIN
         'used_trial_requests', v_used_count,
         'total_trial_limit', 10
     );
+END;
+$$;
+CREATE FUNCTION public.cleanup_expired_assets() RETURNS TABLE(deleted_count bigint)
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+DECLARE
+  deleted_ids uuid[];
+BEGIN
+  -- Find expired temporary assets
+  SELECT array_agg(id) INTO deleted_ids
+  FROM reference_assets
+  WHERE permanence = 'temporary'
+    AND expires_at IS NOT NULL
+    AND expires_at < now();
+  -- Delete from storage (application code should call Supabase Storage API)
+  -- This function only deletes DB records - storage cleanup happens in application
+  -- Delete expired assets
+  DELETE FROM reference_assets
+  WHERE id = ANY(deleted_ids);
+  deleted_count := array_length(deleted_ids, 1);
+  RETURN QUERY SELECT COALESCE(deleted_count, 0);
 END;
 $$;
 CREATE FUNCTION public.cleanup_expired_mcp_sessions() RETURNS integer
@@ -1731,6 +1782,19 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE FUNCTION public.track_asset_access() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  -- Update access stats when asset is retrieved
+  UPDATE reference_assets
+  SET
+    access_count = access_count + 1,
+    last_accessed_at = now()
+  WHERE id = NEW.id;
+  RETURN NEW;
+END;
+$$;
 CREATE FUNCTION public.traverse_relationships(p_start_block_id uuid, p_relationship_type text, p_direction text DEFAULT 'forward'::text, p_max_depth integer DEFAULT 2) RETURNS TABLE(id uuid, content text, semantic_type text, anchor_role text, depth integer, relationship_type text)
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
@@ -1811,8 +1875,8 @@ CREATE FUNCTION public.update_updated_at_column() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
+  NEW.updated_at = now();
+  RETURN NEW;
 END;
 $$;
 CREATE FUNCTION public.update_work_session_timestamp() RETURNS trigger
@@ -1821,6 +1885,17 @@ CREATE FUNCTION public.update_work_session_timestamp() RETURNS trigger
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
+END;
+$$;
+CREATE FUNCTION public.validate_asset_storage_path(basket_id_param uuid, storage_path_param text) RETURNS boolean
+    LANGUAGE plpgsql IMMUTABLE
+    AS $$
+DECLARE
+  expected_prefix text;
+BEGIN
+  -- Expected format: baskets/{basket_id}/assets/{asset_id}/{filename}
+  expected_prefix := 'baskets/' || basket_id_param::text || '/assets/';
+  RETURN storage_path_param LIKE expected_prefix || '%';
 END;
 $$;
 CREATE FUNCTION public.validate_structured_ingredient_metadata(metadata_json jsonb) RETURNS boolean
@@ -1897,9 +1972,26 @@ CREATE TABLE public.agent_catalog (
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    icon text,
+    config_schema jsonb DEFAULT '{}'::jsonb NOT NULL,
+    is_beta boolean DEFAULT false NOT NULL,
+    deprecated_at timestamp with time zone,
+    schema_version integer DEFAULT 1 NOT NULL,
+    created_by_user_id uuid,
+    notes text,
     CONSTRAINT agent_type_lowercase CHECK ((agent_type = lower(agent_type))),
     CONSTRAINT monthly_price_positive CHECK ((monthly_price_cents > 0)),
     CONSTRAINT trial_requests_positive CHECK ((trial_work_requests >= 0))
+);
+CREATE TABLE public.agent_config_history (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    project_agent_id uuid NOT NULL,
+    config_snapshot jsonb NOT NULL,
+    config_version integer NOT NULL,
+    changed_by_user_id uuid,
+    changed_at timestamp with time zone DEFAULT now() NOT NULL,
+    change_reason text,
+    metadata jsonb DEFAULT '{}'::jsonb
 );
 CREATE TABLE public.agent_work_requests (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1954,6 +2046,7 @@ CREATE TABLE public.blocks (
     anchor_status text DEFAULT 'proposed'::text,
     anchor_confidence real,
     embedding public.vector(1536),
+    derived_from_asset_id uuid,
     CONSTRAINT blocks_anchor_confidence_check CHECK (((anchor_confidence >= (0.0)::double precision) AND (anchor_confidence <= (1.0)::double precision))),
     CONSTRAINT blocks_anchor_confidence_v3_check CHECK (((anchor_confidence IS NULL) OR ((anchor_confidence >= (0.0)::double precision) AND (anchor_confidence <= (1.0)::double precision)))),
     CONSTRAINT blocks_anchor_status_v3_check CHECK (((anchor_status IS NULL) OR (anchor_status = ANY (ARRAY['proposed'::text, 'accepted'::text, 'rejected'::text])))),
@@ -2012,6 +2105,19 @@ CREATE TABLE public.artifact_generation_settings (
     version_retention_days integer DEFAULT 90,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now()
+);
+CREATE TABLE public.asset_type_catalog (
+    asset_type text NOT NULL,
+    display_name text NOT NULL,
+    description text,
+    category text,
+    allowed_mime_types text[],
+    is_active boolean DEFAULT true NOT NULL,
+    deprecated_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    notes text
 );
 CREATE TABLE public.basket_anchors (
     id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL,
@@ -2381,7 +2487,11 @@ CREATE TABLE public.project_agents (
     display_name text NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    created_by_user_id uuid
+    created_by_user_id uuid,
+    config jsonb DEFAULT '{}'::jsonb NOT NULL,
+    config_version integer DEFAULT 1 NOT NULL,
+    config_updated_at timestamp with time zone DEFAULT now(),
+    config_updated_by uuid
 );
 CREATE TABLE public.projects (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2465,6 +2575,35 @@ CREATE TABLE public.raw_dumps (
     text_dump text
 );
 ALTER TABLE ONLY public.raw_dumps REPLICA IDENTITY FULL;
+CREATE TABLE public.reference_assets (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    basket_id uuid NOT NULL,
+    storage_path text NOT NULL,
+    file_name text NOT NULL,
+    file_size_bytes bigint,
+    mime_type text,
+    asset_type text NOT NULL,
+    asset_category text NOT NULL,
+    permanence text DEFAULT 'permanent'::text NOT NULL,
+    expires_at timestamp with time zone,
+    work_session_id uuid,
+    agent_scope text[],
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    tags text[],
+    description text,
+    description_embedding public.vector(1536),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    last_accessed_at timestamp with time zone,
+    access_count integer DEFAULT 0 NOT NULL,
+    CONSTRAINT access_count_non_negative CHECK ((access_count >= 0)),
+    CONSTRAINT expires_at_future CHECK (((expires_at IS NULL) OR (expires_at > created_at))),
+    CONSTRAINT file_size_positive CHECK (((file_size_bytes IS NULL) OR (file_size_bytes > 0))),
+    CONSTRAINT reference_assets_permanence_check CHECK ((permanence = ANY (ARRAY['permanent'::text, 'temporary'::text]))),
+    CONSTRAINT temporary_must_expire CHECK ((((permanence = 'temporary'::text) AND (expires_at IS NOT NULL)) OR (permanence = 'permanent'::text))),
+    CONSTRAINT valid_storage_path CHECK (public.validate_asset_storage_path(basket_id, storage_path))
+);
 CREATE TABLE public.reflections_artifact (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid,
@@ -2735,7 +2874,6 @@ CREATE TABLE public.work_sessions (
     task_intent text NOT NULL,
     task_parameters jsonb DEFAULT '{}'::jsonb NOT NULL,
     status text DEFAULT 'pending'::text NOT NULL,
-    executed_by_agent_id text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     started_at timestamp with time zone,
     ended_at timestamp with time zone,
@@ -2796,6 +2934,8 @@ ALTER TABLE ONLY public.agent_catalog
     ADD CONSTRAINT agent_catalog_agent_type_key UNIQUE (agent_type);
 ALTER TABLE ONLY public.agent_catalog
     ADD CONSTRAINT agent_catalog_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.agent_config_history
+    ADD CONSTRAINT agent_config_history_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.agent_work_requests
@@ -2804,6 +2944,8 @@ ALTER TABLE ONLY public.app_events
     ADD CONSTRAINT app_events_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.artifact_generation_settings
     ADD CONSTRAINT artifact_generation_settings_pkey PRIMARY KEY (workspace_id);
+ALTER TABLE ONLY public.asset_type_catalog
+    ADD CONSTRAINT asset_type_catalog_pkey PRIMARY KEY (asset_type);
 ALTER TABLE ONLY public.basket_anchors
     ADD CONSTRAINT basket_anchors_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.basket_deltas
@@ -2878,6 +3020,8 @@ ALTER TABLE ONLY public.proposals
     ADD CONSTRAINT proposals_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.reference_assets
+    ADD CONSTRAINT reference_assets_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.revisions
     ADD CONSTRAINT revisions_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.substrate_references
@@ -2931,6 +3075,10 @@ CREATE INDEX blocks_embedding_accepted_idx ON public.blocks USING ivfflat (embed
 CREATE INDEX blocks_embedding_idx ON public.blocks USING ivfflat (embedding public.vector_cosine_ops) WITH (lists='100');
 CREATE UNIQUE INDEX docs_basket_title_idx ON public.documents USING btree (basket_id, title);
 CREATE INDEX idx_agent_catalog_active ON public.agent_catalog USING btree (is_active) WHERE (is_active = true);
+CREATE INDEX idx_agent_catalog_lifecycle ON public.agent_catalog USING btree (is_active, is_beta, deprecated_at) WHERE (is_active = true);
+CREATE INDEX idx_agent_config_history_agent ON public.agent_config_history USING btree (project_agent_id, changed_at DESC);
+CREATE INDEX idx_agent_config_history_user ON public.agent_config_history USING btree (changed_by_user_id, changed_at DESC);
+CREATE INDEX idx_agent_config_history_version ON public.agent_config_history USING btree (project_agent_id, config_version DESC);
 CREATE INDEX idx_agent_queue_cascade ON public.agent_processing_queue USING gin (cascade_metadata);
 CREATE UNIQUE INDEX idx_agent_queue_dump_id_unique ON public.agent_processing_queue USING btree (dump_id) WHERE (dump_id IS NOT NULL);
 CREATE INDEX idx_agent_queue_priority ON public.agent_processing_queue USING btree (priority DESC, created_at);
@@ -2941,6 +3089,8 @@ CREATE INDEX idx_app_events_basket ON public.app_events USING btree (basket_id, 
 CREATE INDEX idx_app_events_correlation ON public.app_events USING btree (correlation_id) WHERE (correlation_id IS NOT NULL);
 CREATE INDEX idx_app_events_dedupe ON public.app_events USING btree (dedupe_key) WHERE (dedupe_key IS NOT NULL);
 CREATE INDEX idx_app_events_workspace ON public.app_events USING btree (workspace_id, created_at DESC);
+CREATE INDEX idx_asset_type_catalog_active ON public.asset_type_catalog USING btree (is_active) WHERE (is_active = true);
+CREATE INDEX idx_asset_type_catalog_category ON public.asset_type_catalog USING btree (category) WHERE (category IS NOT NULL);
 CREATE INDEX idx_basket_anchors_scope ON public.basket_anchors USING btree (basket_id, scope);
 CREATE INDEX idx_basket_anchors_substrate ON public.basket_anchors USING btree (linked_substrate_id);
 CREATE INDEX idx_basket_deltas_applied_at ON public.basket_deltas USING btree (applied_at);
@@ -2964,10 +3114,12 @@ CREATE INDEX idx_block_usage_score ON public.block_usage USING btree (usefulness
 CREATE INDEX idx_blocks_anchor_confidence ON public.blocks USING btree (basket_id, anchor_confidence DESC) WHERE ((anchor_role IS NOT NULL) AND (anchor_status = 'accepted'::text));
 CREATE INDEX idx_blocks_anchor_role ON public.blocks USING btree (basket_id, anchor_role, anchor_status) WHERE (anchor_role IS NOT NULL);
 CREATE INDEX idx_blocks_anchor_vocabulary ON public.blocks USING btree (basket_id, anchor_role, anchor_status) WHERE (anchor_role IS NOT NULL);
+CREATE INDEX idx_blocks_asset_basket ON public.blocks USING btree (derived_from_asset_id, basket_id) WHERE (derived_from_asset_id IS NOT NULL);
 CREATE INDEX idx_blocks_basket ON public.blocks USING btree (basket_id);
 CREATE INDEX idx_blocks_basket_id ON public.blocks USING btree (basket_id);
 CREATE INDEX idx_blocks_basket_state_time ON public.blocks USING btree (basket_id, state, last_validated_at DESC) WHERE (state = 'ACCEPTED'::public.block_state);
 CREATE INDEX idx_blocks_constants ON public.blocks USING btree (workspace_id, state, scope) WHERE (state = 'CONSTANT'::public.block_state);
+CREATE INDEX idx_blocks_derived_asset ON public.blocks USING btree (derived_from_asset_id, created_at DESC) WHERE (derived_from_asset_id IS NOT NULL);
 CREATE INDEX idx_blocks_raw_dump ON public.blocks USING btree (raw_dump_id);
 CREATE INDEX idx_blocks_recent_validated ON public.blocks USING btree (basket_id, last_validated_at DESC) WHERE (state = 'ACCEPTED'::public.block_state);
 CREATE INDEX idx_blocks_semantic_type ON public.blocks USING btree (basket_id, semantic_type, state);
@@ -3022,6 +3174,8 @@ CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
 CREATE INDEX idx_openai_app_tokens_expires ON public.openai_app_tokens USING btree (expires_at);
 CREATE UNIQUE INDEX idx_openai_app_tokens_workspace ON public.openai_app_tokens USING btree (workspace_id);
 CREATE INDEX idx_project_agents_active ON public.project_agents USING btree (project_id, is_active);
+CREATE INDEX idx_project_agents_active_config ON public.project_agents USING btree (project_id, is_active, config_updated_at DESC) WHERE (is_active = true);
+CREATE INDEX idx_project_agents_config ON public.project_agents USING gin (config);
 CREATE INDEX idx_project_agents_project ON public.project_agents USING btree (project_id);
 CREATE INDEX idx_project_agents_type ON public.project_agents USING btree (agent_type);
 CREATE INDEX idx_projects_basket ON public.projects USING btree (basket_id);
@@ -3050,6 +3204,15 @@ CREATE INDEX idx_raw_dumps_source_meta_gin ON public.raw_dumps USING gin (source
 CREATE INDEX idx_raw_dumps_trace ON public.raw_dumps USING btree (ingest_trace_id);
 CREATE INDEX idx_raw_dumps_workspace_id ON public.raw_dumps USING btree (workspace_id);
 CREATE INDEX idx_rawdump_doc ON public.raw_dumps USING btree (document_id);
+CREATE INDEX idx_ref_assets_basket ON public.reference_assets USING btree (basket_id, created_at DESC);
+CREATE INDEX idx_ref_assets_category ON public.reference_assets USING btree (asset_category, basket_id);
+CREATE INDEX idx_ref_assets_embedding ON public.reference_assets USING ivfflat (description_embedding public.vector_cosine_ops) WITH (lists='100') WHERE (description_embedding IS NOT NULL);
+CREATE INDEX idx_ref_assets_expired ON public.reference_assets USING btree (expires_at) WHERE ((permanence = 'temporary'::text) AND (expires_at IS NOT NULL));
+CREATE INDEX idx_ref_assets_metadata ON public.reference_assets USING gin (metadata);
+CREATE INDEX idx_ref_assets_scope ON public.reference_assets USING gin (agent_scope);
+CREATE INDEX idx_ref_assets_tags ON public.reference_assets USING gin (tags);
+CREATE INDEX idx_ref_assets_type ON public.reference_assets USING btree (asset_type, permanence);
+CREATE INDEX idx_ref_assets_work_session ON public.reference_assets USING btree (work_session_id) WHERE (work_session_id IS NOT NULL);
 CREATE INDEX idx_reflection_cache_basket_computation ON public.reflections_artifact USING btree (basket_id, computation_timestamp DESC);
 CREATE INDEX idx_reflection_cache_computation_timestamp ON public.reflections_artifact USING btree (computation_timestamp DESC);
 CREATE INDEX idx_reflections_basket ON public.reflections_artifact USING btree (basket_id);
@@ -3134,9 +3297,12 @@ CREATE TRIGGER set_updated_at_agent_catalog BEFORE UPDATE ON public.agent_catalo
 CREATE TRIGGER set_updated_at_subscriptions BEFORE UPDATE ON public.user_agent_subscriptions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER sync_text_dump_columns BEFORE UPDATE ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.sync_raw_dump_text_columns();
 CREATE TRIGGER trg_block_depth BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_depth();
+CREATE TRIGGER trg_capture_config_change AFTER UPDATE ON public.project_agents FOR EACH ROW WHEN ((old.config IS DISTINCT FROM new.config)) EXECUTE FUNCTION public.capture_agent_config_change();
 CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.prevent_lock_vs_constant();
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
 CREATE TRIGGER trg_timeline_after_raw_dump AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.fn_timeline_after_raw_dump();
+CREATE TRIGGER trg_update_asset_type_catalog_updated_at BEFORE UPDATE ON public.asset_type_catalog FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER trg_update_reference_assets_updated_at BEFORE UPDATE ON public.reference_assets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER trigger_auto_increment_usage_on_substrate_reference AFTER INSERT ON public.substrate_references FOR EACH ROW EXECUTE FUNCTION public.auto_increment_block_usage_on_reference();
 CREATE TRIGGER trigger_increment_mutations_count AFTER INSERT ON public.work_context_mutations FOR EACH ROW EXECUTE FUNCTION public.increment_work_session_mutations_count();
 CREATE TRIGGER trigger_mark_blocks_stale_on_new_dump AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.mark_related_blocks_stale();
@@ -3150,6 +3316,12 @@ CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects FOR E
 CREATE TRIGGER update_raw_dumps_updated_at BEFORE UPDATE ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_substrate_relationships_updated_at BEFORE UPDATE ON public.substrate_relationships FOR EACH ROW EXECUTE FUNCTION public.update_substrate_relationships_updated_at();
 CREATE TRIGGER update_workspaces_updated_at BEFORE UPDATE ON public.workspaces FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+ALTER TABLE ONLY public.agent_catalog
+    ADD CONSTRAINT agent_catalog_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.agent_config_history
+    ADD CONSTRAINT agent_config_history_changed_by_user_id_fkey FOREIGN KEY (changed_by_user_id) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.agent_config_history
+    ADD CONSTRAINT agent_config_history_project_agent_id_fkey FOREIGN KEY (project_agent_id) REFERENCES public.project_agents(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE ONLY public.agent_processing_queue
@@ -3166,6 +3338,8 @@ ALTER TABLE ONLY public.app_events
     ADD CONSTRAINT app_events_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.artifact_generation_settings
     ADD CONSTRAINT artifact_generation_settings_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.asset_type_catalog
+    ADD CONSTRAINT asset_type_catalog_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES auth.users(id);
 ALTER TABLE ONLY public.basket_anchors
     ADD CONSTRAINT basket_anchors_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.reflections_artifact
@@ -3190,6 +3364,8 @@ ALTER TABLE ONLY public.block_usage
     ADD CONSTRAINT block_usage_block_id_fkey FOREIGN KEY (block_id) REFERENCES public.blocks(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.blocks
+    ADD CONSTRAINT blocks_derived_from_asset_id_fkey FOREIGN KEY (derived_from_asset_id) REFERENCES public.reference_assets(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.blocks
     ADD CONSTRAINT blocks_parent_block_id_fkey FOREIGN KEY (parent_block_id) REFERENCES public.blocks(id);
 ALTER TABLE ONLY public.blocks
@@ -3271,6 +3447,8 @@ ALTER TABLE ONLY public.openai_app_tokens
 ALTER TABLE ONLY public.p3_p4_regeneration_policy
     ADD CONSTRAINT p3_p4_regeneration_policy_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.project_agents
+    ADD CONSTRAINT project_agents_config_updated_by_fkey FOREIGN KEY (config_updated_by) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.project_agents
     ADD CONSTRAINT project_agents_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.projects
     ADD CONSTRAINT projects_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
@@ -3284,6 +3462,12 @@ ALTER TABLE ONLY public.proposals
     ADD CONSTRAINT proposals_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 ALTER TABLE ONLY public.raw_dumps
     ADD CONSTRAINT raw_dumps_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.reference_assets
+    ADD CONSTRAINT reference_assets_asset_type_fkey FOREIGN KEY (asset_type) REFERENCES public.asset_type_catalog(asset_type);
+ALTER TABLE ONLY public.reference_assets
+    ADD CONSTRAINT reference_assets_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.reference_assets
+    ADD CONSTRAINT reference_assets_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES auth.users(id);
 ALTER TABLE ONLY public.reflections_artifact
     ADD CONSTRAINT reflection_cache_workspace_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.reflections_artifact
@@ -3348,10 +3532,14 @@ CREATE POLICY "Authenticated users can view events" ON public.basket_events FOR 
 CREATE POLICY "Service role can manage all relationships" ON public.substrate_relationships USING (((auth.jwt() ->> 'role'::text) = 'service_role'::text)) WITH CHECK (((auth.jwt() ->> 'role'::text) = 'service_role'::text));
 CREATE POLICY "Service role can manage queue" ON public.agent_processing_queue TO service_role USING (true);
 CREATE POLICY "Service role full access" ON public.baskets TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role has full access to agent_catalog" ON public.agent_catalog TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role has full access to agent_config_history" ON public.agent_config_history TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role has full access to asset_type_catalog" ON public.asset_type_catalog TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to block_usage" ON public.block_usage TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to extraction_quality_metrics" ON public.extraction_quality_metrics TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to project_agents" ON public.project_agents TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to projects" ON public.projects TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role has full access to reference_assets" ON public.reference_assets TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to work_artifacts" ON public.work_artifacts TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to work_checkpoints" ON public.work_checkpoints TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to work_sessions" ON public.work_sessions TO service_role USING (true) WITH CHECK (true);
@@ -3384,6 +3572,10 @@ CREATE POLICY "Users can create work_checkpoints in their workspace" ON public.w
 CREATE POLICY "Users can create work_sessions in their workspace" ON public.work_sessions FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
    FROM public.workspace_memberships wm
   WHERE ((wm.workspace_id = work_sessions.workspace_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY "Users can delete assets from their workspace" ON public.reference_assets FOR DELETE TO authenticated USING ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
 CREATE POLICY "Users can delete project_agents in their workspace" ON public.project_agents FOR DELETE USING ((EXISTS ( SELECT 1
    FROM (public.projects p
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = p.workspace_id)))
@@ -3402,6 +3594,11 @@ CREATE POLICY "Users can delete work_checkpoints in their workspace" ON public.w
 CREATE POLICY "Users can delete work_sessions in their workspace" ON public.work_sessions FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships wm
   WHERE ((wm.workspace_id = work_sessions.workspace_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY "Users can insert agent_config_history in their workspace" ON public.agent_config_history FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM ((public.project_agents pa
+     JOIN public.projects p ON ((p.id = pa.project_id)))
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = p.workspace_id)))
+  WHERE ((pa.id = agent_config_history.project_agent_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY "Users can insert events for their workspaces" ON public.events FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -3417,6 +3614,8 @@ CREATE POLICY "Users can modify documents in their workspaces" ON public.documen
 CREATE POLICY "Users can queue processing in their workspace" ON public.agent_processing_queue FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY "Users can read active agent types" ON public.agent_catalog FOR SELECT TO authenticated USING (((is_active = true) AND (deprecated_at IS NULL)));
+CREATE POLICY "Users can read active asset types" ON public.asset_type_catalog FOR SELECT TO authenticated USING (((is_active = true) AND (deprecated_at IS NULL)));
 CREATE POLICY "Users can read block revisions in their workspaces" ON public.block_revisions FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
@@ -3427,6 +3626,13 @@ CREATE POLICY "Users can read documents in their workspaces" ON public.documents
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = documents.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY "Users can revoke own MCP sessions" ON public.mcp_oauth_sessions FOR DELETE USING ((user_id = auth.uid()));
+CREATE POLICY "Users can update assets in their workspace" ON public.reference_assets FOR UPDATE TO authenticated USING ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid())))) WITH CHECK ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
 CREATE POLICY "Users can update project_agents in their workspace" ON public.project_agents FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM (public.projects p
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = p.workspace_id)))
@@ -3471,6 +3677,19 @@ CREATE POLICY "Users can update work_sessions in their workspace" ON public.work
   WHERE ((wm.workspace_id = work_sessions.workspace_id) AND (wm.user_id = auth.uid()))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM public.workspace_memberships wm
   WHERE ((wm.workspace_id = work_sessions.workspace_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY "Users can upload assets to their workspace" ON public.reference_assets FOR INSERT TO authenticated WITH CHECK ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
+CREATE POLICY "Users can view agent_config_history in their workspace" ON public.agent_config_history FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM ((public.project_agents pa
+     JOIN public.projects p ON ((p.id = pa.project_id)))
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = p.workspace_id)))
+  WHERE ((pa.id = agent_config_history.project_agent_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY "Users can view assets in their workspace" ON public.reference_assets FOR SELECT TO authenticated USING ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
 CREATE POLICY "Users can view block_usage in their workspace" ON public.block_usage FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
    FROM ((public.blocks b
      JOIN public.baskets bsk ON ((bsk.id = b.basket_id)))
@@ -3539,7 +3758,7 @@ CREATE POLICY "Workspace members can update events" ON public.events FOR UPDATE 
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = events.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
 ALTER TABLE public.agent_catalog ENABLE ROW LEVEL SECURITY;
-CREATE POLICY agent_catalog_read ON public.agent_catalog FOR SELECT USING ((is_active = true));
+ALTER TABLE public.agent_config_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_processing_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_work_requests ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow agent insert" ON public.revisions FOR INSERT TO authenticated WITH CHECK (((basket_id IS NOT NULL) AND (basket_id IN ( SELECT baskets.id
@@ -3552,6 +3771,7 @@ ALTER TABLE public.artifact_generation_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY artifact_settings_workspace ON public.artifact_generation_settings USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
+ALTER TABLE public.asset_type_catalog ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.basket_anchors ENABLE ROW LEVEL SECURITY;
 CREATE POLICY basket_anchors_service_full ON public.basket_anchors TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY basket_anchors_workspace_members_delete ON public.basket_anchors FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
@@ -3771,6 +3991,7 @@ CREATE POLICY "read reflections by workspace members" ON public.reflections_arti
    FROM (public.baskets b
      JOIN public.v_user_workspaces m ON ((m.workspace_id = b.workspace_id)))
   WHERE ((b.id = reflections_artifact.basket_id) AND (m.user_id = auth.uid()))))));
+ALTER TABLE public.reference_assets ENABLE ROW LEVEL SECURITY;
 CREATE POLICY reflection_cache_no_user_delete ON public.reflections_artifact FOR DELETE USING (false);
 CREATE POLICY reflection_cache_no_user_insert ON public.reflections_artifact FOR INSERT WITH CHECK (false);
 CREATE POLICY reflection_cache_no_user_update ON public.reflections_artifact FOR UPDATE USING (false) WITH CHECK (false);
@@ -3873,4 +4094,4 @@ CREATE POLICY ws_owner_or_member_read ON public.workspaces FOR SELECT USING (((o
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY ws_owner_update ON public.workspaces FOR UPDATE USING ((owner_id = auth.uid()));
-\unrestrict CedIAW0pyNulgeJdWeStCgQTY4AhzdAyMD3iDsETjXD1vb8hbcETspYjWc4yrPU
+\unrestrict PebzZcpjLjR7Yb1gMoIIzpRSXvOjBmNlG5oEVG7NYx4aWdl1ZMvLQwfVCvDI6TJ

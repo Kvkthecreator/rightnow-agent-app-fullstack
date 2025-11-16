@@ -276,7 +276,7 @@ class WorkSessionExecutor:
         artifact_records = [
             {
                 "work_session_id": session_id,
-                "artifact_type": artifact["artifact_type"],
+                "output_type": artifact["output_type"],
                 "content": artifact["content"],
                 "agent_confidence": artifact.get("metadata", {}).get("confidence"),
                 "agent_reasoning": artifact.get("metadata", {}).get("reasoning"),
@@ -285,7 +285,7 @@ class WorkSessionExecutor:
             for artifact in artifacts
         ]
 
-        response = self.supabase.table("work_artifacts").insert(
+        response = self.supabase.table("work_outputs").insert(
             artifact_records
         ).execute()
 

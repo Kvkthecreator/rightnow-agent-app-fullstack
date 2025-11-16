@@ -228,7 +228,7 @@ async def list_projects(
             COUNT(DISTINCT wa.id) AS total_artifacts_count
         FROM projects p
         LEFT JOIN work_sessions ws ON ws.project_id = p.id
-        LEFT JOIN work_artifacts wa ON wa.work_session_id = ws.id
+        LEFT JOIN work_outputs wa ON wa.work_session_id = ws.id
         WHERE p.workspace_id = :workspace_id
         GROUP BY p.id
         ORDER BY p.created_at DESC
@@ -275,7 +275,7 @@ async def get_project(
             COUNT(DISTINCT wa.id) AS total_artifacts_count
         FROM projects p
         LEFT JOIN work_sessions ws ON ws.project_id = p.id
-        LEFT JOIN work_artifacts wa ON wa.work_session_id = ws.id
+        LEFT JOIN work_outputs wa ON wa.work_session_id = ws.id
         WHERE p.id = :project_id AND p.workspace_id = :workspace_id
         GROUP BY p.id
     """

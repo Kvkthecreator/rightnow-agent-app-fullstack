@@ -154,7 +154,7 @@ async def get_work_session(
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Get artifacts
-    artifacts_response = supabase.table("work_artifacts").select(
+    artifacts_response = supabase.table("work_outputs").select(
         "*"
     ).eq("work_session_id", str(session_id)).execute()
 
@@ -225,7 +225,7 @@ async def list_work_sessions(
     # Get artifacts for each session
     session_responses = []
     for session in sessions:
-        artifacts_response = supabase.table("work_artifacts").select(
+        artifacts_response = supabase.table("work_outputs").select(
             "*"
         ).eq("work_session_id", session['id']).execute()
 

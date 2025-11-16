@@ -99,7 +99,7 @@ async def list_session_artifacts(
     where_sql = " AND ".join(where_clauses)
 
     query = f"""
-        SELECT * FROM work_artifacts
+        SELECT * FROM work_outputs
         WHERE {where_sql}
         ORDER BY created_at ASC
     """
@@ -135,7 +135,7 @@ async def review_artifact(
     # Verify artifact exists and user has access
     check_query = """
         SELECT wa.id, ws.workspace_id
-        FROM work_artifacts wa
+        FROM work_outputs wa
         JOIN work_sessions ws ON ws.id = wa.work_session_id
         WHERE wa.id = :artifact_id
     """
@@ -149,7 +149,7 @@ async def review_artifact(
 
     # Update artifact
     query = """
-        UPDATE work_artifacts
+        UPDATE work_outputs
         SET
             status = :status,
             reviewed_by_user_id = :reviewed_by_user_id,

@@ -1,33 +1,52 @@
-# Artifact Types and Handling
+# Work Output Types and Handling
 
-**Complete Catalog of Work Artifacts and Processing Rules**
+**Complete Catalog of Agent Work Outputs and Processing Rules**
 
-**Version**: 4.0
-**Date**: 2025-10-31
+**Version**: 4.1
+**Date**: 2025-11-15
 **Status**: ✅ Canonical
 **Layer**: 2 (Work Orchestration)
 **Category**: Feature Specification
 
 ---
 
-## 🎯 Overview
+## ⚠️ Terminology Update (2025-11-15)
 
-Work artifacts are agent-generated outputs awaiting user approval. This document catalogs all artifact types, their structure, validation rules, and how they're processed after approval.
+**IMPORTANT**: This document previously used the term "artifacts" which caused confusion with substrate-API's `reflections_artifact` table.
 
-**Key Concepts**:
-- Artifacts represent agent work before it impacts substrate
-- Each artifact type has specific content schema and substrate mapping
-- Risk assessment varies by artifact type
-- Approved artifacts → substrate entities (blocks, documents, etc.)
+**New terminology**:
+- **Work Outputs** (work-platform) = Agent-generated deliverables stored in `work_artifacts` table
+- **Reflections** (substrate-API) = P3 pipeline analysis outputs in `reflections_artifact` table
+
+See [TERMINOLOGY_GLOSSARY.md](../../canon/TERMINOLOGY_GLOSSARY.md) for complete naming conventions.
+
+**Related Documents**:
+- [AGENT_SUBSTRATE_ARCHITECTURE.md](../../canon/AGENT_SUBSTRATE_ARCHITECTURE.md) - Current source of truth for Phase 1-3 implementation
+- [TERMINOLOGY_GLOSSARY.md](../../canon/TERMINOLOGY_GLOSSARY.md) - Domain-specific naming conventions
 
 ---
 
-## 📦 Artifact Types
+## 🎯 Overview
+
+Work outputs are agent-generated deliverables stored in the `work_artifacts` table awaiting user approval. This document catalogs all output types, their structure, validation rules, and how they're processed after approval.
+
+**Key Concepts**:
+- Work outputs represent agent work before it impacts substrate
+- Each output type has specific content schema and substrate mapping
+- Risk assessment varies by output type
+- **Only certain output types** become substrate entities (blocks, documents)
+- Insights and external deliverables stay as work outputs (no substrate recursion)
+
+---
+
+## 📦 Work Output Types
 
 ### Type Catalog
 
 ```typescript
-type ArtifactType =
+// Database column: work_artifacts.artifact_type
+// Note: "artifact" in database refers to work-platform outputs, NOT substrate-API reflections
+type WorkOutputType =
   | 'block_proposal'              // New block for substrate
   | 'block_update_proposal'       // Update/supersede existing block
   | 'block_lock_proposal'         // Lock block (finalize)
@@ -827,18 +846,19 @@ async def apply_entity_extraction(
 
 ---
 
-## 📋 Common Artifact Fields
+## 📋 Common Work Output Fields
 
-All artifacts share these base fields:
+All work outputs share these base fields (stored in `work_artifacts` table):
 
 ```typescript
-interface WorkArtifact {
+// Note: Database table is "work_artifacts" - "artifact" here means work output, NOT substrate-API reflections
+interface WorkOutput {
   // Identity
   id: UUID
   work_session_id: UUID
 
-  // Type and content
-  artifact_type: ArtifactType
+  // Type and content (artifact_type column in DB)
+  artifact_type: WorkOutputType   // Kept as "artifact_type" for DB compatibility
   content: Record<string, any>    // Type-specific schema
 
   // Agent metadata
@@ -847,7 +867,7 @@ interface WorkArtifact {
   source_context_ids: UUID[]      // Blocks used for reasoning
 
   // Governance
-  status: ArtifactStatus
+  status: WorkOutputStatus
   risk_level?: RiskLevel
 
   // Substrate linkage (after approval)
@@ -859,7 +879,7 @@ interface WorkArtifact {
   created_at: ISO8601
 }
 
-type ArtifactStatus =
+type WorkOutputStatus =
   | 'draft'
   | 'pending_review'
   | 'approved'
@@ -920,41 +940,41 @@ class ArtifactValidator:
 
 ---
 
-## 🔄 Artifact Processing Pipeline
+## 🔄 Work Output Processing Pipeline
 
 ### Complete Flow
 
 ```
-1. Agent creates artifact (status: draft)
+1. Agent creates work output (status: draft)
    ↓
 2. Risk assessment calculated
    ↓
-3. Artifact status → pending_review
+3. Work output status → pending_review
    ↓
 4. User reviews work session
    ↓
-5. User makes per-artifact decision:
-   - apply_to_substrate → Process artifact → Substrate entity
+5. User makes per-output decision:
+   - apply_to_substrate → Process output → Substrate entity
    - approve_only → Mark approved (no substrate impact)
    - reject → Mark rejected
    - defer → Review later
    ↓
-6. Artifact status → applied_to_substrate | approved | rejected
+6. Work output status → applied_to_substrate | approved | rejected
    ↓
-7. Link artifact → substrate entity (provenance)
+7. Link work output → substrate entity (provenance)
 ```
 
 ### Batch Processing
 
 ```python
-async def process_approved_artifacts(
+async def process_approved_work_outputs(
     session: WorkSession,
-    artifacts: List[WorkArtifact],
-    artifact_decisions: Dict[UUID, ArtifactDecision],
+    outputs: List[WorkOutput],
+    output_decisions: Dict[UUID, OutputDecision],
     user_id: UUID
 ) -> SubstrateChangesSummary:
     """
-    Process multiple artifacts in transaction
+    Process multiple work outputs in transaction
     """
 
     substrate_changes = SubstrateChangesSummary(
@@ -964,35 +984,35 @@ async def process_approved_artifacts(
     )
 
     async with db.transaction():
-        for artifact in artifacts:
-            decision = artifact_decisions.get(artifact.id, 'defer')
+        for output in outputs:
+            decision = output_decisions.get(output.id, 'defer')
 
             if decision == 'apply_to_substrate':
-                if artifact.artifact_type == 'block_proposal':
-                    block_id = await apply_block_proposal(artifact, session, user_id)
+                if output.artifact_type == 'block_proposal':
+                    block_id = await apply_block_proposal(output, session, user_id)
                     substrate_changes.blocksCreated.append(block_id)
 
-                elif artifact.artifact_type == 'block_update_proposal':
-                    block_id = await apply_block_update_proposal(artifact, session, user_id)
+                elif output.artifact_type == 'block_update_proposal':
+                    block_id = await apply_block_update_proposal(output, session, user_id)
                     substrate_changes.blocksUpdated.append(block_id)
 
-                elif artifact.artifact_type == 'document_creation':
-                    doc_id = await apply_document_creation(artifact, session, user_id)
+                elif output.artifact_type == 'document_creation':
+                    doc_id = await apply_document_creation(output, session, user_id)
                     substrate_changes.documentsCreated.append(doc_id)
 
                 # Record mutation in audit trail
                 await db.work_context_mutations.create(
                     work_session_id=session.id,
-                    work_artifact_id=artifact.id,
-                    mutation_type=f"{artifact.artifact_type}_applied",
+                    work_artifact_id=output.id,
+                    mutation_type=f"{output.artifact_type}_applied",
                     applied_by=user_id
                 )
 
             elif decision == 'approve_only':
-                await db.work_artifacts.update(artifact.id, status='approved')
+                await db.work_artifacts.update(output.id, status='approved')
 
             elif decision == 'reject':
-                await db.work_artifacts.update(artifact.id, status='rejected')
+                await db.work_artifacts.update(output.id, status='rejected')
 
     return substrate_changes
 ```
@@ -1001,11 +1021,11 @@ async def process_approved_artifacts(
 
 ## 📊 Metrics
 
-### Artifact Metrics by Type
+### Work Output Metrics by Type
 
 ```typescript
-interface ArtifactTypeMetrics {
-  artifactType: ArtifactType
+interface WorkOutputTypeMetrics {
+  outputType: WorkOutputType
   totalCreated: number
   approvalRate: number
   avgConfidence: number
@@ -1021,6 +1041,11 @@ interface ArtifactTypeMetrics {
 
 ## 📎 See Also
 
+### Current Implementation (Priority)
+- [AGENT_SUBSTRATE_ARCHITECTURE.md](../../canon/AGENT_SUBSTRATE_ARCHITECTURE.md) - **Current source of truth for Phase 1-3 implementation**
+- [TERMINOLOGY_GLOSSARY.md](../../canon/TERMINOLOGY_GLOSSARY.md) - **Prevents terminology confusion between domains**
+
+### Related Documents
 - [WORK_SESSION_LIFECYCLE.md](./WORK_SESSION_LIFECYCLE.md) - Session states
 - [RISK_ASSESSMENT.md](../governance/RISK_ASSESSMENT.md) - Risk calculation
 - [YARNNN_UNIFIED_GOVERNANCE.md](../../architecture/YARNNN_UNIFIED_GOVERNANCE.md) - Governance layer
@@ -1028,4 +1053,4 @@ interface ArtifactTypeMetrics {
 
 ---
 
-**9 artifact types. Each with schema, validation, processing. From agent output to substrate entity.**
+**9 work output types. Each with schema, validation, processing. From agent output to substrate entity.**

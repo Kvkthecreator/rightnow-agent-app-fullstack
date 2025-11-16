@@ -2,10 +2,22 @@
 
 **Why Context + Work Integration Creates Emergent Value**
 
-**Version**: 1.0
-**Date**: 2025-10-31
-**Status**: ✅ Canonical
+**Version**: 1.1
+**Date**: 2025-10-31 (Updated: 2025-11-15)
+**Status**: ✅ Canonical Vision
 **Audience**: Product Strategy, Architecture, Sales
+
+---
+
+## 🚨 Implementation Context (2025-11-15)
+
+This document describes the **strategic thesis** behind YARNNN. For current implementation details:
+- [AGENT_SUBSTRATE_ARCHITECTURE.md](./AGENT_SUBSTRATE_ARCHITECTURE.md) - **Phase 1-4 implementation roadmap**
+- [TERMINOLOGY_GLOSSARY.md](./TERMINOLOGY_GLOSSARY.md) - Prevents terminology confusion
+
+**Phase 1 (DEPLOYED)**: Reference Assets + Agent Configs
+**Phase 2 (NEXT)**: Execution Modes & Scheduling (the real moat - autonomous agents)
+**Phase 3**: Thinking Partner Intelligence Layer
 
 ---
 
@@ -435,6 +447,11 @@ YARNNN: Agent track record (approval rate, confidence accuracy) informs auto-app
 
 ## 📎 See Also
 
+### Current Implementation (Priority)
+- [AGENT_SUBSTRATE_ARCHITECTURE.md](./AGENT_SUBSTRATE_ARCHITECTURE.md) - **Current source of truth for Phase 1-4 implementation**
+- [TERMINOLOGY_GLOSSARY.md](./TERMINOLOGY_GLOSSARY.md) - **Prevents terminology confusion between domains**
+
+### Canon Documents
 - [YARNNN_PLATFORM_CANON_V4.md](./YARNNN_PLATFORM_CANON_V4.md) - Core philosophy and principles
 - [YARNNN_GOVERNANCE_PHILOSOPHY_V4.md](./YARNNN_GOVERNANCE_PHILOSOPHY_V4.md) - Unified governance model
 - [YARNNN_LAYERED_ARCHITECTURE_V4.md](../architecture/YARNNN_LAYERED_ARCHITECTURE_V4.md) - How integration works technically
