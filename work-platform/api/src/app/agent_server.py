@@ -72,6 +72,7 @@ from .routes.agent_orchestration import router as agent_orchestration_router
 from .routes.projects import router as projects_router
 from .routes.project_work_sessions import router as project_work_sessions_router
 from .routes.work_requests import router as work_requests_router
+from .routes.work_supervision import router as work_supervision_router
 from .work.routes import router as work_platform_router
 from .work.review_routes import router as work_review_router
 
@@ -153,6 +154,7 @@ routers = (
     projects_router,
     project_work_sessions_router,
     work_requests_router,
+    work_supervision_router,
     work_platform_router,
     work_review_router,
 )
