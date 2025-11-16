@@ -36,9 +36,44 @@ from adapters import SubstrateMemoryAdapter, SubstrateGovernanceAdapter
 logger = logging.getLogger(__name__)
 
 
-def load_agent_config(agent_type: str) -> dict:
+def load_agent_config_from_db(project_id: str, agent_type: str) -> Optional[dict]:
     """
-    Load agent configuration from YAML file.
+    Load agent configuration from project_agents.config (DB-first approach).
+
+    Args:
+        project_id: Project UUID
+        agent_type: Type of agent (research, content, reporting)
+
+    Returns:
+        Configuration dictionary from DB, or None if not found
+    """
+    if not project_id:
+        return None
+
+    try:
+        from app.utils.supabase_client import supabase_admin_client
+
+        response = supabase_admin_client.table("project_agents").select(
+            "config, display_name"
+        ).eq("project_id", project_id).eq(
+            "agent_type", agent_type
+        ).eq("is_active", True).limit(1).execute()
+
+        if response.data and len(response.data) > 0:
+            db_config = response.data[0].get("config", {})
+            if db_config:
+                logger.info(f"Loaded config from DB for {agent_type} agent in project {project_id}")
+                return db_config
+
+    except Exception as e:
+        logger.warning(f"Failed to load agent config from DB: {e}")
+
+    return None
+
+
+def load_agent_config_from_yaml(agent_type: str) -> dict:
+    """
+    Load agent configuration from YAML file (fallback).
 
     Args:
         agent_type: Type of agent (research, content, reporting)
@@ -58,7 +93,7 @@ def load_agent_config(agent_type: str) -> dict:
             f"Available configs: {list((Path(__file__).parent / 'config').glob('*.yaml'))}"
         )
 
-    logger.info(f"Loading agent config: {config_path}")
+    logger.info(f"Loading agent config from YAML: {config_path}")
 
     with open(config_path) as f:
         config = yaml.safe_load(f)
@@ -67,8 +102,54 @@ def load_agent_config(agent_type: str) -> dict:
     if not config or "agent" not in config:
         raise ValueError(f"Invalid config structure in {config_path}")
 
-    logger.debug(f"Loaded config for {agent_type} agent: {config.get('agent', {}).get('id')}")
+    logger.debug(f"Loaded YAML config for {agent_type} agent: {config.get('agent', {}).get('id')}")
     return config
+
+
+def load_agent_config(agent_type: str, project_id: Optional[str] = None) -> dict:
+    """
+    Load agent configuration: DB-first with YAML fallback.
+
+    Phase 1 consolidation: Single source of truth approach.
+    1. Try project_agents.config (DB) first
+    2. Fall back to YAML defaults if not found
+
+    Args:
+        agent_type: Type of agent (research, content, reporting)
+        project_id: Optional project UUID for DB lookup
+
+    Returns:
+        Configuration dictionary (merged DB + YAML defaults)
+
+    Raises:
+        FileNotFoundError: If no config found anywhere
+        ValueError: If config is invalid
+    """
+    # Load YAML defaults first (these are always available)
+    yaml_config = load_agent_config_from_yaml(agent_type)
+
+    # Try DB config (project-specific overrides)
+    if project_id:
+        db_config = load_agent_config_from_db(project_id, agent_type)
+
+        if db_config:
+            # Merge: DB config takes precedence over YAML defaults
+            # This allows partial overrides (user only specifies what they want to change)
+            merged_config = yaml_config.copy()
+
+            # Merge agent-type specific section (research, content, reporting)
+            if agent_type in merged_config and agent_type in db_config:
+                merged_config[agent_type].update(db_config[agent_type])
+            elif agent_type in db_config:
+                merged_config[agent_type] = db_config[agent_type]
+
+            # Keep YAML agent.id as canonical
+            logger.info(f"Using merged config (DB overrides) for {agent_type} agent")
+            return merged_config
+
+    # No DB config found, use YAML defaults
+    logger.info(f"Using YAML defaults for {agent_type} agent (no DB config found)")
+    return yaml_config
 
 
 def create_research_agent(
@@ -103,8 +184,8 @@ def create_research_agent(
 
     logger.info(f"Creating ResearchAgent for basket {basket_id} in workspace {workspace_id}")
 
-    # Load configuration
-    config = load_agent_config("research")
+    # Load configuration (DB-first with YAML fallback)
+    config = load_agent_config("research", project_id=project_id)
 
     # Create adapters with enhanced context (Phase 1+2)
     memory = SubstrateMemoryAdapter(
@@ -177,8 +258,8 @@ def create_content_agent(
 
     logger.info(f"Creating ContentCreatorAgent for basket {basket_id} in workspace {workspace_id}")
 
-    # Load configuration
-    config = load_agent_config("content")
+    # Load configuration (DB-first with YAML fallback)
+    config = load_agent_config("content", project_id=project_id)
 
     # Create adapters with enhanced context (Phase 1+2)
     memory = SubstrateMemoryAdapter(
@@ -250,8 +331,8 @@ def create_reporting_agent(
 
     logger.info(f"Creating ReportingAgent for basket {basket_id} in workspace {workspace_id}")
 
-    # Load configuration
-    config = load_agent_config("reporting")
+    # Load configuration (DB-first with YAML fallback)
+    config = load_agent_config("reporting", project_id=project_id)
 
     # Create adapters with enhanced context (Phase 1+2)
     memory = SubstrateMemoryAdapter(
