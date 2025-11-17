@@ -257,43 +257,98 @@ class AgentSDKClient:
         artifacts = []
 
         # Handle different agent output formats
-        # Research agents return findings with sources
+        # Research agents return findings with sources (ResearchResult dataclass)
         if hasattr(result, "findings"):
             for idx, finding in enumerate(result.findings):
-                artifacts.append({
-                    "output_type": "research_finding",
-                    "content": finding.get("content", ""),
-                    "metadata": {
+                # Handle both dataclass and dict-like access
+                if hasattr(finding, "content"):
+                    # Dataclass access
+                    content = finding.content
+                    confidence = finding.confidence
+                    sources = finding.sources if hasattr(finding, "sources") else []
+                    domain = finding.domain if hasattr(finding, "domain") else None
+
+                    # Get additional metadata if available (from enhanced findings)
+                    reasoning = getattr(finding, "reasoning", "")
+                    recommendations = getattr(finding, "actionable_recommendations", [])
+
+                    metadata = {
+                        "finding_index": idx,
+                        "confidence": confidence,
+                        "sources": sources,
+                        "domain": domain,
+                    }
+
+                    # Add reasoning if available
+                    if reasoning:
+                        metadata["agent_reasoning"] = reasoning
+                    if recommendations:
+                        metadata["actionable_recommendations"] = recommendations
+
+                else:
+                    # Dict-like access (fallback)
+                    content = finding.get("content", "")
+                    metadata = {
                         "finding_index": idx,
                         "confidence": finding.get("confidence", 0.0),
                         "sources": finding.get("sources", []),
                         "domain": finding.get("domain"),
                     }
+
+                artifacts.append({
+                    "output_type": "research_finding",
+                    "content": content,
+                    "metadata": metadata
                 })
 
-        # Content agents return variations/drafts
+        # Content agents return variations/drafts (ContentResult dataclass)
         elif hasattr(result, "variations"):
             for idx, variation in enumerate(result.variations):
+                if hasattr(variation, "text"):
+                    # Dataclass access
+                    text = variation.text
+                    platform = variation.platform
+                    tone = variation.tone
+                else:
+                    # Dict-like access
+                    text = variation.get("text", "")
+                    platform = variation.get("platform")
+                    tone = variation.get("tone")
+
                 artifacts.append({
                     "output_type": "content_draft",
-                    "content": variation.get("text", ""),
+                    "content": text,
                     "metadata": {
                         "variation_index": idx,
-                        "platform": variation.get("platform"),
-                        "tone": variation.get("tone"),
-                        "word_count": len(variation.get("text", "").split()),
+                        "platform": platform,
+                        "tone": tone,
+                        "word_count": len(text.split()),
                     }
                 })
 
-        # Reporting agents return formatted reports
+        # Reporting agents return formatted reports (ReportResult dataclass)
         elif hasattr(result, "report"):
+            report = result.report
+            if hasattr(report, "content"):
+                # Dataclass access
+                content = report.content
+                report_type = report.type
+                sections = report.sections if hasattr(report, "sections") else []
+                charts = report.charts if hasattr(report, "charts") else []
+            else:
+                # Dict-like access
+                content = report.get("content", "")
+                report_type = report.get("type")
+                sections = report.get("sections", [])
+                charts = report.get("charts", [])
+
             artifacts.append({
                 "output_type": "report",
-                "content": result.report.get("content", ""),
+                "content": content,
                 "metadata": {
-                    "report_type": result.report.get("type"),
-                    "sections": result.report.get("sections", []),
-                    "charts": result.report.get("charts", []),
+                    "report_type": report_type,
+                    "sections": sections,
+                    "charts": charts,
                 }
             })
 
@@ -331,21 +386,37 @@ class AgentSDKClient:
         """
         # Check if agent flagged need for review
         if hasattr(result, "needs_review") and result.needs_review:
-            return result.get("review_reason", "Agent requested human review")
+            # Handle both dataclass and dict-like access
+            if hasattr(result, "review_reason"):
+                reason = result.review_reason
+            else:
+                reason = result.get("review_reason", "Agent requested human review")
+            return reason or "Agent requested human review"
 
         # Research: Low confidence findings
         if hasattr(result, "findings"):
-            low_confidence = [
-                f for f in result.findings
-                if f.get("confidence", 1.0) < 0.7
-            ]
+            low_confidence = []
+            for f in result.findings:
+                # Handle dataclass (ResearchFinding) with .confidence attribute
+                if hasattr(f, "confidence"):
+                    if f.confidence < 0.7:
+                        low_confidence.append(f)
+                else:
+                    # Dict-like access
+                    if f.get("confidence", 1.0) < 0.7:
+                        low_confidence.append(f)
+
             if low_confidence:
                 return f"Found {len(low_confidence)} low-confidence findings requiring review"
 
         # Content: High-impact or sensitive content
         if hasattr(result, "variations"):
-            if any(v.get("requires_review") for v in result.variations):
-                return "Content flagged for review (sensitive topics detected)"
+            for v in result.variations:
+                if hasattr(v, "requires_review"):
+                    if v.requires_review:
+                        return "Content flagged for review (sensitive topics detected)"
+                elif v.get("requires_review"):
+                    return "Content flagged for review (sensitive topics detected)"
 
         # No checkpoint needed
         return None
