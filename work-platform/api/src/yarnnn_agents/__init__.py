@@ -31,6 +31,11 @@ from .base import BaseAgent
 from .session import AgentSession
 from .subagents import SubagentDefinition, SubagentRegistry
 from .archetypes import ResearchAgent, ContentCreatorAgent, ReportingAgent
+from .tools import (
+    EMIT_WORK_OUTPUT_TOOL,
+    parse_work_outputs_from_response,
+    WorkOutput,
+)
 
 __version__ = "1.0.0"  # Internal version, post-internalization
 
@@ -56,4 +61,8 @@ __all__ = [
     "ResearchAgent",
     "ContentCreatorAgent",
     "ReportingAgent",
+    # Tools (Work Output Lifecycle)
+    "EMIT_WORK_OUTPUT_TOOL",
+    "parse_work_outputs_from_response",
+    "WorkOutput",
 ]

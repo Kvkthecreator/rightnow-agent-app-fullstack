@@ -24,6 +24,11 @@ from yarnnn_agents.interfaces import (
     Change,
     extract_metadata_from_contexts
 )
+from yarnnn_agents.tools import (
+    EMIT_WORK_OUTPUT_TOOL,
+    parse_work_outputs_from_response,
+    WorkOutput,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -448,24 +453,35 @@ Output style:
 
         This is on-demand, comprehensive research.
 
+        ENHANCED: Now uses emit_work_output tool to produce structured outputs
+        that can be reviewed and approved by users.
+
         Args:
             topic: Research topic
 
         Returns:
-            Research findings
+            Research findings with structured work_outputs
         """
         self.logger.info(f"Starting deep-dive research: {topic}")
 
-        # Query existing knowledge
+        # Query existing knowledge and extract block IDs for provenance
         context = None
+        source_block_ids = []
         if self.memory:
             memory_results = await self.memory.query(topic, limit=10)
             context = "\n".join([r.content for r in memory_results])
+            # Extract block IDs for provenance tracking
+            source_block_ids = [
+                str(r.metadata.get("block_id", r.metadata.get("id", "")))
+                for r in memory_results
+                if hasattr(r, "metadata") and r.metadata
+            ]
+            source_block_ids = [bid for bid in source_block_ids if bid]  # Filter empty
 
-        # Comprehensive research using Claude
+        # Comprehensive research using Claude WITH structured output tool
         research_prompt = f"""Conduct comprehensive research on: {topic}
 
-**Existing Knowledge:**
+**Existing Knowledge (Block IDs: {source_block_ids if source_block_ids else 'none'}):**
 {context or "No prior context available"}
 
 **Research Objectives:**
@@ -474,25 +490,56 @@ Output style:
 3. Analyze implications
 4. Generate actionable insights
 
-Please conduct thorough research and synthesis."""
+**CRITICAL INSTRUCTION:**
+You MUST use the emit_work_output tool to record your findings. Do NOT just describe findings in text.
 
+For each significant finding, insight, or recommendation you discover:
+1. Call emit_work_output with structured data
+2. Use appropriate output_type (finding, recommendation, insight)
+3. Include source_block_ids from the context blocks used: {source_block_ids}
+4. Assign confidence scores based on evidence quality
+
+Example workflow:
+- Find a key fact → emit_work_output(output_type="finding", ...)
+- Identify a pattern → emit_work_output(output_type="insight", ...)
+- Suggest action → emit_work_output(output_type="recommendation", ...)
+
+You may emit multiple outputs. Each will be reviewed by the user.
+
+Please conduct thorough research and synthesis, emitting structured outputs for all significant findings."""
+
+        # Call Claude WITH the emit_work_output tool
         response = await self.reason(
             task=research_prompt,
             context=context,
+            tools=[EMIT_WORK_OUTPUT_TOOL],  # Enable structured output tool
             max_tokens=8000  # Longer for deep dives
+        )
+
+        # Parse structured work outputs from Claude's response
+        work_outputs = parse_work_outputs_from_response(response)
+
+        # Log what we found
+        self.logger.info(
+            f"Deep-dive produced {len(work_outputs)} structured outputs: "
+            f"{[o.output_type for o in work_outputs]}"
         )
 
         results = {
             "topic": topic,
             "timestamp": datetime.utcnow().isoformat(),
-            "findings": str(response)
+            "raw_response": response,  # Keep raw for debugging
+            "work_outputs": [o.to_dict() for o in work_outputs],  # Structured outputs
+            "output_count": len(work_outputs),
+            "source_block_ids": source_block_ids,
+            "agent_type": "research"  # For output routing
         }
 
-        # Propose findings to memory
-        if self.governance:
-            await self._propose_insights(results["findings"], topic=topic)
+        # Note: Work outputs are NOT proposed to governance here.
+        # They go through the Work Supervision lifecycle (separate from Substrate Governance).
+        # The caller (work session executor) writes these to work_outputs table.
 
-        self.logger.info(f"Deep-dive research complete: {topic}")
+        self.logger.info(f"Deep-dive research complete: {topic} with {len(work_outputs)} outputs")
 
         return results
 
@@ -547,18 +594,33 @@ Keep users informed about their markets, competitors, and topics of interest thr
 - Monitoring Domains: {", ".join(self.monitoring_domains)}
 - Monitoring Frequency: {self.monitoring_frequency}
 
+**CRITICAL: Structured Output Requirements**
+
+You have access to the emit_work_output tool. You MUST use this tool to record all your findings.
+DO NOT just describe findings in free text. Every significant finding must be emitted as a structured output.
+
+When to use emit_work_output:
+- "finding" - When you discover a fact (competitor action, market data, news)
+- "recommendation" - When you suggest an action (change strategy, add to watchlist)
+- "insight" - When you identify a pattern (trend, correlation, anomaly)
+
+Each output you emit will be reviewed by the user before any action is taken.
+The user maintains full control through this supervision workflow.
+
 **Research Approach:**
 1. Query existing knowledge first (avoid redundant research)
 2. Identify knowledge gaps
 3. Conduct targeted research
-4. Synthesize insights (not just data)
-5. Propose findings to memory (via governance)
+4. For each finding: Call emit_work_output with structured data
+5. Synthesize insights (emit as "insight" type)
+6. Suggest actions (emit as "recommendation" type)
 
 **Quality Standards:**
 - Accuracy over speed
-- Insights over data dumps
+- Structured over narrative
 - Actionable over interesting
 - Forward-looking over historical
+- High confidence = high evidence (don't guess)
 
 """
 

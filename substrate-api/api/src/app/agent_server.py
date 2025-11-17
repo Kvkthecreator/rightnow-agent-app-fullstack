@@ -75,6 +75,7 @@ from .routes.p4_canon import router as p4_canon_router
 from .routes.p3_p4_health import router as p3_p4_health_router
 from .api.validator.validate_proposal import router as validator_router
 from .reference_assets import router as reference_assets_router
+from .work_outputs import router as work_outputs_router
 
 
 def _assert_env():
@@ -165,6 +166,7 @@ routers = (
     auth_validate_router,
     openai_apps_router,
     reference_assets_router,
+    work_outputs_router,  # Phase 1 Work Supervision Lifecycle
 )
 
 # Add correlation middleware

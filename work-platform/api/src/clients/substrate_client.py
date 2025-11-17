@@ -706,6 +706,171 @@ class SubstrateClient:
             "not substrate_client (wrong DB)"
         )
 
+    # ========================================================================
+    # Work Outputs (Work Supervision Lifecycle)
+    # ========================================================================
+
+    def create_work_output(
+        self,
+        basket_id: UUID | str,
+        work_session_id: UUID | str,
+        output_type: str,
+        agent_type: str,
+        title: str,
+        body: dict,
+        confidence: float,
+        source_context_ids: Optional[list] = None,
+        tool_call_id: Optional[str] = None,
+        metadata: Optional[dict] = None,
+    ) -> dict:
+        """
+        Create a work output in substrate-API for user supervision.
+
+        Args:
+            basket_id: Basket UUID
+            work_session_id: Work session UUID (cross-DB reference)
+            output_type: Type of output (finding, recommendation, insight, etc.)
+            agent_type: Agent that produced this (research, content, reporting)
+            title: Output title
+            body: Structured output content (JSONB)
+            confidence: Confidence score (0-1)
+            source_context_ids: Block IDs used as context (provenance)
+            tool_call_id: Claude's tool_use id for traceability
+            metadata: Additional metadata
+
+        Returns:
+            Created work output record
+        """
+        request_body = {
+            "basket_id": str(basket_id),
+            "work_session_id": str(work_session_id),
+            "output_type": output_type,
+            "agent_type": agent_type,
+            "title": title,
+            "body": body,
+            "confidence": confidence,
+            "source_context_ids": source_context_ids or [],
+            "tool_call_id": tool_call_id,
+            "metadata": metadata or {},
+        }
+
+        return self._request(
+            "POST",
+            f"/api/baskets/{basket_id}/work-outputs",
+            json=request_body
+        )
+
+    def list_work_outputs(
+        self,
+        basket_id: UUID | str,
+        work_session_id: Optional[UUID | str] = None,
+        supervision_status: Optional[str] = None,
+        agent_type: Optional[str] = None,
+        output_type: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict:
+        """
+        List work outputs for a basket with optional filters.
+
+        Args:
+            basket_id: Basket UUID
+            work_session_id: Filter by work session
+            supervision_status: Filter by status (pending_review, approved, etc.)
+            agent_type: Filter by agent type
+            output_type: Filter by output type
+            limit: Max results
+            offset: Pagination offset
+
+        Returns:
+            {"outputs": [...], "total": int, "basket_id": str}
+        """
+        params = {"limit": limit, "offset": offset}
+        if work_session_id:
+            params["work_session_id"] = str(work_session_id)
+        if supervision_status:
+            params["supervision_status"] = supervision_status
+        if agent_type:
+            params["agent_type"] = agent_type
+        if output_type:
+            params["output_type"] = output_type
+
+        return self._request(
+            "GET",
+            f"/api/baskets/{basket_id}/work-outputs",
+            params=params
+        )
+
+    def get_work_output(
+        self,
+        basket_id: UUID | str,
+        output_id: UUID | str,
+    ) -> dict:
+        """
+        Get a specific work output.
+
+        Args:
+            basket_id: Basket UUID
+            output_id: Output UUID
+
+        Returns:
+            Work output record
+        """
+        return self._request(
+            "GET",
+            f"/api/baskets/{basket_id}/work-outputs/{output_id}"
+        )
+
+    def update_work_output_status(
+        self,
+        basket_id: UUID | str,
+        output_id: UUID | str,
+        supervision_status: str,
+        reviewer_notes: Optional[str] = None,
+        reviewer_id: Optional[UUID | str] = None,
+    ) -> dict:
+        """
+        Update work output supervision status.
+
+        Args:
+            basket_id: Basket UUID
+            output_id: Output UUID
+            supervision_status: New status (approved, rejected, revision_requested)
+            reviewer_notes: Notes from reviewer
+            reviewer_id: User ID of reviewer
+
+        Returns:
+            Updated work output record
+        """
+        request_body = {
+            "supervision_status": supervision_status,
+        }
+        if reviewer_notes:
+            request_body["reviewer_notes"] = reviewer_notes
+        if reviewer_id:
+            request_body["reviewer_id"] = str(reviewer_id)
+
+        return self._request(
+            "PATCH",
+            f"/api/baskets/{basket_id}/work-outputs/{output_id}",
+            json=request_body
+        )
+
+    def get_supervision_stats(self, basket_id: UUID | str) -> dict:
+        """
+        Get supervision statistics for a basket.
+
+        Args:
+            basket_id: Basket UUID
+
+        Returns:
+            {"total_outputs": int, "pending_review": int, "approved": int, ...}
+        """
+        return self._request(
+            "GET",
+            f"/api/baskets/{basket_id}/work-outputs/stats"
+        )
+
     def __enter__(self):
         """Context manager entry."""
         return self
