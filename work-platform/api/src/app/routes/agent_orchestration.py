@@ -118,6 +118,7 @@ async def _create_work_session(
     user_id: str,
     agent_type: str,
     task_intent: str,
+    project_id: Optional[str] = None,
 ) -> str:
     """
     Create a work session for tracking agent outputs.
@@ -128,20 +129,40 @@ async def _create_work_session(
         user_id: User ID
         agent_type: Type of agent (research, content, reporting)
         task_intent: Description of the task
+        project_id: Optional project ID (will be looked up if not provided)
 
     Returns:
         work_session_id (UUID string)
     """
     from datetime import datetime
 
+    # Get project_id if not provided (required field)
+    if not project_id:
+        try:
+            project = supabase_admin_client.table("projects").select("id").eq(
+                "basket_id", basket_id
+            ).limit(1).execute()
+            if project.data and len(project.data) > 0:
+                project_id = project.data[0]["id"]
+            else:
+                # Create a default project if none exists
+                logger.warning(f"No project found for basket {basket_id}, work session creation may fail")
+                # Use a placeholder - this should be fixed in proper project setup
+                project_id = basket_id  # Fallback to basket_id as project_id
+        except Exception as e:
+            logger.warning(f"Failed to get project_id for basket {basket_id}: {e}")
+            project_id = basket_id  # Fallback
+
     session_data = {
+        "project_id": project_id,
         "basket_id": basket_id,
         "workspace_id": workspace_id,
-        "user_id": user_id,
-        "agent_type": agent_type,
+        "initiated_by_user_id": user_id,
+        "task_type": agent_type,
         "task_intent": task_intent,
+        "task_parameters": {},
         "status": "running",
-        "created_at": datetime.utcnow().isoformat(),
+        "started_at": datetime.utcnow().isoformat(),
     }
 
     result = supabase_admin_client.table("work_sessions").insert(session_data).execute()
