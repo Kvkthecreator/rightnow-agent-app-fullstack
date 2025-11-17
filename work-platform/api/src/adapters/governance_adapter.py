@@ -14,11 +14,11 @@ import logging
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-# Import SDK interfaces
+# Import YARNNN agent interfaces (internalized SDK)
 try:
-    from claude_agent_sdk.interfaces import GovernanceProvider
+    from yarnnn_agents.interfaces import GovernanceProvider
 except ImportError:
-    # Fallback if SDK not installed yet
+    # Fallback if interfaces not available yet
     class GovernanceProvider:
         pass
 

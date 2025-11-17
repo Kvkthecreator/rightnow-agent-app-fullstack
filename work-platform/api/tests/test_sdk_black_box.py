@@ -23,8 +23,8 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from claude_agent_sdk.archetypes import ResearchAgent, ContentCreatorAgent, ReportingAgent
-from claude_agent_sdk.interfaces import Context, MemoryProvider
+from yarnnn_agents.archetypes import ResearchAgent, ContentCreatorAgent, ReportingAgent
+from yarnnn_agents.interfaces import Context, MemoryProvider
 from services.agent_sdk_client import AgentSDKClient
 
 
@@ -184,7 +184,7 @@ async def test_output_parsing_to_work_outputs():
     client = AgentSDKClient()
 
     # Create mock research result
-    from claude_agent_sdk.archetypes import ResearchResult, ResearchFinding
+    from yarnnn_agents.archetypes import ResearchResult, ResearchFinding
 
     mock_result = ResearchResult(
         findings=[
@@ -236,7 +236,7 @@ async def test_checkpoint_detection():
     client = AgentSDKClient()
 
     # Test 1: Low confidence triggers checkpoint
-    from claude_agent_sdk.archetypes import ResearchResult, ResearchFinding
+    from yarnnn_agents.archetypes import ResearchResult, ResearchFinding
 
     result_with_low_confidence = ResearchResult(
         findings=[

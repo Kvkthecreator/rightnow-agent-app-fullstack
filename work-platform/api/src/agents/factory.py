@@ -17,9 +17,9 @@ from uuid import UUID
 
 import yaml
 
-# Import SDK archetypes (open-source dependency)
+# Import YARNNN agent archetypes (internalized SDK)
 try:
-    from claude_agent_sdk.archetypes import (
+    from yarnnn_agents.archetypes import (
         ResearchAgent,
         ContentCreatorAgent,
         ReportingAgent,
@@ -28,7 +28,7 @@ try:
 except ImportError:
     SDK_AVAILABLE = False
     logger = logging.getLogger(__name__)
-    logger.warning("Claude Agent SDK not installed - agent creation will fail")
+    logger.warning("YARNNN agents not available - agent creation will fail")
 
 # Import our adapters (Phase 4)
 from adapters import SubstrateMemoryAdapter, SubstrateGovernanceAdapter

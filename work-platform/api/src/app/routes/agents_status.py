@@ -42,20 +42,20 @@ async def get_agents_status():
             }
         }
 
-    # Check if SDK is available
+    # Check if YARNNN agents are available
     try:
-        import claude_agent_sdk
-        sdk_version = getattr(claude_agent_sdk, "__version__", "unknown")
+        import yarnnn_agents
+        sdk_version = getattr(yarnnn_agents, "__version__", "1.0.0")
     except ImportError:
-        logger.error("Claude Agent SDK not installed")
+        logger.error("YARNNN agents not available")
         return {
             "status": "not_configured",
-            "message": "Claude Agent SDK not installed",
-            "note": "Install with: pip install claude-agent-sdk",
+            "message": "YARNNN agents not available",
+            "note": "Check yarnnn_agents module in src/",
             "agents": {
-                "research": "sdk_missing",
-                "content": "sdk_missing",
-                "reporting": "sdk_missing"
+                "research": "agents_missing",
+                "content": "agents_missing",
+                "reporting": "agents_missing"
             }
         }
 

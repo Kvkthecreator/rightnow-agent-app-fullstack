@@ -14,11 +14,11 @@ import logging
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-# Import SDK interfaces
+# Import YARNNN agent interfaces (internalized SDK)
 try:
-    from claude_agent_sdk.interfaces import MemoryProvider, Context
+    from yarnnn_agents.interfaces import MemoryProvider, Context
 except ImportError:
-    # Fallback if SDK not installed yet
+    # Fallback if interfaces not available yet
     class MemoryProvider:
         pass
 

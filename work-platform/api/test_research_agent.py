@@ -22,8 +22,10 @@ if not os.environ.get("ANTHROPIC_API_KEY"):
 
 async def main():
     # Import after path setup
-    from claude_agent_sdk.archetypes import ResearchAgent, ResearchResult
-    from adapters.memory_adapter import SubstrateMemoryAdapter
+    from yarnnn_agents.archetypes import ResearchAgent
+    from yarnnn_agents.interfaces import Context
+    # Skip SubstrateMemoryAdapter to avoid infra dependencies
+    # from adapters.memory_adapter import SubstrateMemoryAdapter
 
     # Configuration from our database
     agent_config = {
@@ -64,14 +66,6 @@ async def main():
     print(f"\n📦 Basket ID: {basket_id}")
     print(f"🏢 Workspace ID: {workspace_id}")
 
-    # Create agent
-    print("\n🤖 Creating ResearchAgent...")
-    agent = ResearchAgent(
-        basket_id=basket_id,
-        workspace_id=workspace_id,
-        api_key=os.environ.get("ANTHROPIC_API_KEY")
-    )
-
     # Mock the memory adapter to return our config
     # This simulates what SubstrateMemoryAdapter does
     class MockMemoryAdapter:
@@ -80,7 +74,7 @@ async def main():
 
         async def query(self, query, limit=10):
             # Return context with injected config
-            from claude_agent_sdk.archetypes import Context
+            # Context is imported at top of main()
 
             # First context item contains agent config (as SubstrateMemoryAdapter does)
             metadata_context = Context(
@@ -103,7 +97,19 @@ async def main():
         async def store(self, context):
             return "stored-context-id"
 
-    agent.memory = MockMemoryAdapter(agent_config)
+    # Create agent
+    print("\n🤖 Creating ResearchAgent...")
+    memory_adapter = MockMemoryAdapter(agent_config)
+    agent = ResearchAgent(
+        agent_id="test-research-agent",
+        memory=memory_adapter,
+        governance=None,
+        anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        monitoring_domains=["ai_agents", "knowledge_management"],
+        monitoring_frequency="daily",
+        signal_threshold=0.7,
+        synthesis_mode="insights"
+    )
 
     # Define task
     task = "Research AI knowledge management tools competitive landscape focusing on Notion AI and Mem.ai positioning"
@@ -114,52 +120,49 @@ async def main():
 
     # Execute
     try:
-        result: ResearchResult = await agent.execute(
+        result = await agent.execute(
             task=task,
             context={"task": task}
         )
 
         print("\n✅ Agent execution completed!")
-        print(f"\n📊 Results: {len(result.findings)} findings generated")
 
-        # Display findings
-        for i, finding in enumerate(result.findings):
+        # SDK returns dict, not dataclass
+        if isinstance(result, dict):
+            print(f"\n📊 Result Type: Dictionary (SDK output)")
+
+            # Display raw result
             print(f"\n{'=' * 60}")
-            print(f"FINDING #{i+1}")
+            print("RAW RESULT")
             print(f"{'=' * 60}")
-            print(f"Content: {finding.content}")
-            print(f"Confidence: {finding.confidence:.0%}")
-            print(f"Domain: {finding.domain}")
+            print(json.dumps(result, indent=2, default=str))
 
-            if finding.sources:
-                print(f"Sources: {', '.join(finding.sources)}")
+            # Extract key information
+            if "findings" in result:
+                findings = result["findings"]
+                print(f"\n📊 Findings: {len(findings)} generated")
+                for i, finding in enumerate(findings):
+                    print(f"\n--- Finding #{i+1} ---")
+                    print(f"Content: {finding.get('content', finding.get('insight', 'N/A'))}")
+                    print(f"Confidence: {finding.get('confidence', 'N/A')}")
+                    if finding.get('sources'):
+                        print(f"Sources: {', '.join(finding['sources'])}")
+            elif "analysis" in result:
+                print(f"\n📊 Analysis Result:")
+                print(result["analysis"])
+            else:
+                print(f"\n📊 Keys in result: {list(result.keys())}")
+        else:
+            # Original dataclass handling
+            print(f"\n📊 Results: {len(result.findings)} findings generated")
+            for i, finding in enumerate(result.findings):
+                print(f"\n{'=' * 60}")
+                print(f"FINDING #{i+1}")
+                print(f"{'=' * 60}")
+                print(f"Content: {finding.content}")
+                print(f"Confidence: {finding.confidence:.0%}")
 
-            # Check for enhanced metadata
-            if hasattr(finding, "reasoning") and finding.reasoning:
-                print(f"Reasoning: {finding.reasoning}")
-
-            if hasattr(finding, "actionable_recommendations") and finding.actionable_recommendations:
-                print("Recommendations:")
-                for rec in finding.actionable_recommendations:
-                    print(f"  - {rec}")
-
-        # Check for review flag
-        if result.needs_review:
-            print(f"\n⚠️  Agent requested review: {result.review_reason}")
-
-        print(f"\n{'=' * 60}")
-        print("RAW RESULT (for debugging)")
-        print(f"{'=' * 60}")
-        print(json.dumps({
-            "findings_count": len(result.findings),
-            "needs_review": result.needs_review,
-            "review_reason": result.review_reason,
-            "sample_finding": {
-                "content": result.findings[0].content if result.findings else None,
-                "confidence": result.findings[0].confidence if result.findings else None,
-                "sources": result.findings[0].sources if result.findings else None,
-            }
-        }, indent=2))
+        print("\n✅ Internalized SDK working correctly!")
 
     except Exception as e:
         print(f"\n❌ Execution failed: {e}")

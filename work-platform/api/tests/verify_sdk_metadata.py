@@ -18,7 +18,7 @@ from typing import List, Dict, Any
 def verify_sdk_version():
     """Verify SDK version is 0.2.0."""
     try:
-        import claude_agent_sdk
+        import yarnnn_agents
         version = claude_agent_sdk.__version__
         print(f"✅ SDK Version: {version}")
 
@@ -40,7 +40,7 @@ def verify_metadata_utilities():
     # Note: SDK v0.2.0 may have metadata extraction as internal methods
     # rather than public utilities. Check for agent methods instead.
     try:
-        from claude_agent_sdk.archetypes import ContentCreatorAgent
+        from yarnnn_agents.archetypes import ContentCreatorAgent
         import inspect
 
         # Check if ContentCreatorAgent has methods that might consume metadata
@@ -59,7 +59,7 @@ def verify_metadata_utilities():
 def verify_agent_archetypes():
     """Verify agent archetypes are importable."""
     try:
-        from claude_agent_sdk.archetypes import (
+        from yarnnn_agents.archetypes import (
             ResearchAgent,
             ContentCreatorAgent,
             ReportingAgent,
@@ -77,7 +77,7 @@ def verify_agent_archetypes():
 def verify_context_interface():
     """Verify Context interface supports metadata."""
     try:
-        from claude_agent_sdk.interfaces import Context
+        from yarnnn_agents.interfaces import Context
 
         # Create test context with metadata
         test_context = Context(
@@ -104,7 +104,7 @@ def verify_context_interface():
 def verify_metadata_extraction():
     """Verify metadata can be passed through Context interface."""
     try:
-        from claude_agent_sdk.interfaces import Context
+        from yarnnn_agents.interfaces import Context
 
         # Create test contexts with metadata (as our memory adapter does)
         contexts = [

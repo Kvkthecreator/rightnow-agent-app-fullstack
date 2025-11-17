@@ -318,7 +318,7 @@ async def test_context_metadata_structure():
     print("="*60)
 
     try:
-        from claude_agent_sdk.interfaces import Context
+        from yarnnn_agents.interfaces import Context
 
         print("\n[Test] Creating Context with metadata...")
 

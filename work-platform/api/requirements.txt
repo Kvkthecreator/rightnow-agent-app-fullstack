@@ -13,9 +13,11 @@ requests>=2.0,<3
 typing-extensions>=4.12.2,<5
 tenacity>=8.0.0  # Retry logic for substrate HTTP client (Phase 3.1 BFF)
 
-# ── Claude Agent SDK (Phase 4: Agent Integration) ─────────────────────
-# Commit 0b25551: Adds metadata consumption (reference_assets + agent_config)
-claude-agent-sdk @ git+https://github.com/Kvkthecreator/claude-agentsdk-opensource.git@0b25551
+# ── YARNNN Agent Framework (Internalized) ─────────────────────────────
+# Formerly external dependency on claude-agentsdk-opensource
+# Now internalized in src/yarnnn_agents/ for better control and simpler architecture
+# See: src/yarnnn_agents/UPSTREAM_TRACKING.md for update procedures
+anthropic>=0.40.0  # Core Anthropic API for agent reasoning
 pyyaml>=6.0  # For agent configuration files
 
 # ── Supabase integration ──────────────────────────────────────────────
