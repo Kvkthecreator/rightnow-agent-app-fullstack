@@ -38,6 +38,9 @@ from utils.permissions import (
     PermissionDeniedError,
 )
 
+# Import work output service for BFF pattern
+from services.work_output_service import write_agent_outputs
+
 router = APIRouter(prefix="/agents", tags=["agent-orchestration"])
 logger = logging.getLogger(__name__)
 
@@ -109,6 +112,75 @@ async def _validate_basket_access(
     logger.debug(f"Validated basket {basket_id} belongs to workspace {workspace_id}")
 
 
+async def _create_work_session(
+    basket_id: str,
+    workspace_id: str,
+    user_id: str,
+    agent_type: str,
+    task_intent: str,
+) -> str:
+    """
+    Create a work session for tracking agent outputs.
+
+    Args:
+        basket_id: Basket ID
+        workspace_id: Workspace ID
+        user_id: User ID
+        agent_type: Type of agent (research, content, reporting)
+        task_intent: Description of the task
+
+    Returns:
+        work_session_id (UUID string)
+    """
+    from datetime import datetime
+
+    session_data = {
+        "basket_id": basket_id,
+        "workspace_id": workspace_id,
+        "user_id": user_id,
+        "agent_type": agent_type,
+        "task_intent": task_intent,
+        "status": "running",
+        "created_at": datetime.utcnow().isoformat(),
+    }
+
+    result = supabase_admin_client.table("work_sessions").insert(session_data).execute()
+
+    if not result.data:
+        raise ValueError("Failed to create work session")
+
+    session_id = result.data[0]["id"]
+    logger.info(f"Created work session {session_id} for {agent_type} task")
+    return session_id
+
+
+async def _update_work_session_status(
+    session_id: str,
+    status: str,
+    output_count: int = 0,
+) -> None:
+    """
+    Update work session status after execution.
+
+    Args:
+        session_id: Work session ID
+        status: New status (completed, failed)
+        output_count: Number of outputs written
+    """
+    from datetime import datetime
+
+    update_data = {
+        "status": status,
+        "ended_at": datetime.utcnow().isoformat(),
+        "metadata": {
+            "output_count": output_count,
+        }
+    }
+
+    supabase_admin_client.table("work_sessions").update(update_data).eq("id", session_id).execute()
+    logger.info(f"Updated work session {session_id} to status={status}, outputs={output_count}")
+
+
 class AgentTaskRequest(BaseModel):
     """Request to run agent task."""
     agent_type: str = Field(..., description="Agent type: research, content, reporting")
@@ -161,6 +233,7 @@ async def run_agent_task(
     )
 
     work_request_id = None
+    work_session_id = None
 
     try:
         # Phase 5: Get workspace_id for permission checks
@@ -196,15 +269,28 @@ async def run_agent_task(
         # Phase 5: Update status to running
         await update_work_request_status(work_request_id, "running")
 
+        # Create work session for tracking outputs (BFF pattern)
+        task_intent = f"{request.agent_type}:{request.task_type}"
+        if request.parameters:
+            task_intent += f" - {str(request.parameters)[:100]}"
+
+        work_session_id = await _create_work_session(
+            basket_id=request.basket_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            agent_type=request.agent_type,
+            task_intent=task_intent,
+        )
+
         # Execute based on agent type
         if request.agent_type == "research":
-            result = await _run_research_agent(request, user_id)
+            result = await _run_research_agent(request, user_id, work_session_id)
 
         elif request.agent_type == "content":
-            result = await _run_content_agent(request, user_id)
+            result = await _run_content_agent(request, user_id, work_session_id)
 
         elif request.agent_type == "reporting":
-            result = await _run_reporting_agent(request, user_id)
+            result = await _run_reporting_agent(request, user_id, work_session_id)
 
         else:
             raise HTTPException(
@@ -212,20 +298,48 @@ async def run_agent_task(
                 detail=f"Unknown agent type: {request.agent_type}"
             )
 
+        # Write agent outputs to substrate-API via BFF pattern
+        work_outputs = result.get("work_outputs", [])
+        output_write_result = {"outputs_written": 0, "output_ids": [], "errors": []}
+
+        if work_outputs:
+            logger.info(f"Writing {len(work_outputs)} outputs to substrate-API")
+            output_write_result = write_agent_outputs(
+                basket_id=request.basket_id,
+                work_session_id=work_session_id,
+                agent_type=request.agent_type,
+                outputs=work_outputs,
+                metadata={"work_request_id": work_request_id},
+            )
+            logger.info(f"Wrote {output_write_result['outputs_written']} outputs successfully")
+
+        # Update work session status
+        session_status = "completed" if output_write_result.get("success", True) else "completed_with_errors"
+        await _update_work_session_status(
+            work_session_id,
+            session_status,
+            output_count=output_write_result.get("outputs_written", 0)
+        )
+
         logger.info(f"Agent task completed successfully: {request.agent_type}/{request.task_type}")
 
         # Phase 5: Update status to completed
         await update_work_request_status(
             work_request_id,
             "completed",
-            result_summary=f"Completed {request.task_type} task"
+            result_summary=f"Completed {request.task_type} task with {output_write_result.get('outputs_written', 0)} outputs"
         )
+
+        # Add output info to result
+        result["work_session_id"] = work_session_id
+        result["outputs_written"] = output_write_result.get("outputs_written", 0)
+        result["output_ids"] = output_write_result.get("output_ids", [])
 
         return AgentTaskResponse(
             status="completed",
             agent_type=request.agent_type,
             task_type=request.task_type,
-            message=f"{request.agent_type} task completed successfully",
+            message=f"{request.agent_type} task completed successfully with {output_write_result.get('outputs_written', 0)} outputs for review",
             result=result,
             work_request_id=work_request_id,
             is_trial_request=not permission_info.get("is_subscribed", False),
@@ -234,6 +348,8 @@ async def run_agent_task(
 
     except ValueError as e:
         logger.error(f"Configuration error: {e}")
+        if work_session_id:
+            await _update_work_session_status(work_session_id, "failed", 0)
         if work_request_id:
             await update_work_request_status(work_request_id, "failed", error_message=str(e))
         raise HTTPException(
@@ -243,6 +359,8 @@ async def run_agent_task(
 
     except ImportError as e:
         logger.error(f"SDK not installed: {e}")
+        if work_session_id:
+            await _update_work_session_status(work_session_id, "failed", 0)
         if work_request_id:
             await update_work_request_status(work_request_id, "failed", error_message=str(e))
         raise HTTPException(
@@ -252,12 +370,16 @@ async def run_agent_task(
 
     except HTTPException:
         # Re-raise HTTPExceptions (permission denied, etc.)
+        if work_session_id:
+            await _update_work_session_status(work_session_id, "failed", 0)
         if work_request_id:
             await update_work_request_status(work_request_id, "failed", error_message="Permission denied")
         raise
 
     except Exception as e:
         logger.exception(f"Agent task failed: {e}")
+        if work_session_id:
+            await _update_work_session_status(work_session_id, "failed", 0)
         if work_request_id:
             await update_work_request_status(work_request_id, "failed", error_message=str(e))
 
@@ -273,7 +395,8 @@ async def run_agent_task(
 
 async def _run_research_agent(
     request: AgentTaskRequest,
-    user_id: str
+    user_id: str,
+    work_session_id: str,
 ) -> Dict[str, Any]:
     """
     Run research agent task with enhanced context (assets + config).
@@ -281,9 +404,10 @@ async def _run_research_agent(
     Args:
         request: Task request
         user_id: User ID
+        work_session_id: Work session ID for output tracking
 
     Returns:
-        Task result
+        Task result with work_outputs list
 
     Raises:
         HTTPException: On invalid task type
@@ -314,7 +438,7 @@ async def _run_research_agent(
         workspace_id=workspace_id,
         user_id=user_id,
         project_id=project_id,
-        work_session_id=None  # TODO: Pass work_session_id for temporary assets
+        work_session_id=work_session_id,
     )
 
     # Execute task
@@ -345,7 +469,8 @@ async def _run_research_agent(
 
 async def _run_content_agent(
     request: AgentTaskRequest,
-    user_id: str
+    user_id: str,
+    work_session_id: str,
 ) -> Dict[str, Any]:
     """
     Run content creator agent task with enhanced context (assets + config).
@@ -353,9 +478,10 @@ async def _run_content_agent(
     Args:
         request: Task request
         user_id: User ID
+        work_session_id: Work session ID for output tracking
 
     Returns:
-        Task result
+        Task result with work_outputs list
 
     Raises:
         HTTPException: On invalid task type or missing parameters
@@ -386,7 +512,7 @@ async def _run_content_agent(
         workspace_id=workspace_id,
         user_id=user_id,
         project_id=project_id,
-        work_session_id=None  # TODO: Pass work_session_id for temporary assets
+        work_session_id=work_session_id,
     )
 
     # Execute task
@@ -438,7 +564,8 @@ async def _run_content_agent(
 
 async def _run_reporting_agent(
     request: AgentTaskRequest,
-    user_id: str
+    user_id: str,
+    work_session_id: str,
 ) -> Dict[str, Any]:
     """
     Run reporting agent task with enhanced context (assets + config).
@@ -446,9 +573,10 @@ async def _run_reporting_agent(
     Args:
         request: Task request
         user_id: User ID
+        work_session_id: Work session ID for output tracking
 
     Returns:
-        Task result
+        Task result with work_outputs list
 
     Raises:
         HTTPException: On invalid task type or missing parameters
@@ -479,7 +607,7 @@ async def _run_reporting_agent(
         workspace_id=workspace_id,
         user_id=user_id,
         project_id=project_id,
-        work_session_id=None  # TODO: Pass work_session_id for temporary assets
+        work_session_id=work_session_id,
     )
 
     # Execute task

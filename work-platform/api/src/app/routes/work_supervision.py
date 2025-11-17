@@ -1,31 +1,30 @@
 """
-Work Supervision API - Minimal human oversight for agent work outputs.
+Work Supervision API - Proxy routes to substrate-API for work output supervision.
 
-Phase 4: Supervision endpoints that connect agent execution to user review.
+This is a proxy layer that forwards supervision requests to substrate-API,
+which owns the work_outputs table. Follows the BFF pattern:
+- work-platform: orchestration and proxy
+- substrate-api: data ownership and business logic
 
-Architecture:
-- GET /supervision/sessions/{session_id}/outputs - List outputs for review
-- POST /supervision/outputs/{output_id}/approve - Approve output
-- POST /supervision/outputs/{output_id}/reject - Reject output
-- GET /supervision/sessions/{session_id}/summary - Session outcome summary
-
-Key insight: These endpoints are separate from substrate governance.
-Work Supervision = human oversight of agent deliverables
-Substrate Governance = block lifecycle management
+Endpoints:
+- GET /supervision/baskets/{basket_id}/outputs - List outputs for review
+- GET /supervision/baskets/{basket_id}/outputs/{output_id} - Get single output
+- POST /supervision/baskets/{basket_id}/outputs/{output_id}/approve - Approve output
+- POST /supervision/baskets/{basket_id}/outputs/{output_id}/reject - Reject output
+- POST /supervision/baskets/{basket_id}/outputs/{output_id}/request-revision - Request revision
+- GET /supervision/baskets/{basket_id}/stats - Get supervision statistics
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from typing import Optional, List
-from uuid import UUID
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 
 from app.utils.jwt import verify_jwt
-from app.utils.supabase_client import supabase_admin_client as supabase
+from clients.substrate_client import get_substrate_client, SubstrateAPIError
 
 router = APIRouter(prefix="/api/supervision", tags=["work-supervision"])
 logger = logging.getLogger(__name__)
@@ -36,182 +35,150 @@ logger = logging.getLogger(__name__)
 # ========================================================================
 
 
-class WorkOutputItem(BaseModel):
-    """Work output item for review."""
-    id: str
-    output_type: str
-    content: str
-    agent_confidence: Optional[float]
-    agent_reasoning: Optional[str]
-    status: str  # pending, approved, rejected
-    created_at: str
-    reviewed_at: Optional[str] = None
-    reviewed_by_user_id: Optional[str] = None
-
-
-class SessionOutputsResponse(BaseModel):
-    """List of outputs for a session."""
-    session_id: str
-    session_status: str
-    outputs: List[WorkOutputItem]
-    total_count: int
-    pending_count: int
-    approved_count: int
-    rejected_count: int
-
-
 class ApproveOutputRequest(BaseModel):
     """Request to approve an output."""
-    feedback: Optional[str] = Field(None, description="Optional reviewer feedback")
+    notes: Optional[str] = Field(None, description="Optional approval notes")
 
 
 class RejectOutputRequest(BaseModel):
     """Request to reject an output."""
-    reason: str = Field(..., description="Reason for rejection")
+    notes: str = Field(..., description="Reason for rejection (required)")
 
 
-class OutputReviewResponse(BaseModel):
-    """Response after reviewing an output."""
+class RequestRevisionRequest(BaseModel):
+    """Request to ask for revision."""
+    feedback: str = Field(..., description="Revision feedback (required)")
+
+
+class SupervisionActionResponse(BaseModel):
+    """Response after supervision action."""
     output_id: str
-    status: str
-    reviewed_at: str
-    reviewed_by_user_id: str
+    supervision_status: str
     message: str
 
 
-class SessionSummaryResponse(BaseModel):
-    """Summary of session outcomes."""
-    session_id: str
-    session_status: str
-    task_intent: str
-    total_outputs: int
-    approved_outputs: int
-    rejected_outputs: int
-    pending_outputs: int
-    can_finalize: bool
-    created_at: str
-    ended_at: Optional[str] = None
-
-
 # ========================================================================
-# Endpoints
+# Proxy Endpoints - Forward to substrate-API
 # ========================================================================
 
 
-@router.get("/sessions/{session_id}/outputs", response_model=SessionOutputsResponse)
-async def list_session_outputs(
-    session_id: str,
-    status_filter: Optional[str] = None,
-    user: dict = Depends(verify_jwt)
+@router.get("/baskets/{basket_id}/outputs")
+async def list_outputs(
+    basket_id: str,
+    supervision_status: Optional[str] = Query(None, description="Filter by status"),
+    agent_type: Optional[str] = Query(None, description="Filter by agent type"),
+    output_type: Optional[str] = Query(None, description="Filter by output type"),
+    work_session_id: Optional[str] = Query(None, description="Filter by session"),
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    user: dict = Depends(verify_jwt),
 ):
     """
-    List all outputs for a work session.
+    List work outputs for a basket (proxy to substrate-API).
 
-    Returns outputs that need human review (supervision).
-
-    Args:
-        session_id: Work session UUID
-        status_filter: Optional filter (pending, approved, rejected)
-        user: Authenticated user
-
-    Returns:
-        List of work outputs with review status
+    Returns outputs pending user review with filtering options.
     """
     user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
-    logger.info(f"[SUPERVISION] Listing outputs for session {session_id}")
+    logger.info(f"[SUPERVISION] Listing outputs for basket {basket_id}")
 
     try:
-        # Verify session exists and user has access
-        session_resp = supabase.table("work_sessions").select(
-            "id, status, workspace_id, task_intent"
-        ).eq("id", session_id).single().execute()
-
-        if not session_resp.data:
-            raise HTTPException(status_code=404, detail="Work session not found")
-
-        session = session_resp.data
-
-        # Verify user has access to this workspace
-        membership = supabase.table("workspace_memberships").select(
-            "id"
-        ).eq("user_id", user_id).eq(
-            "workspace_id", session["workspace_id"]
-        ).execute()
-
-        if not membership.data:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        # Fetch outputs
-        query = supabase.table("work_outputs").select(
-            "id, output_type, content, agent_confidence, agent_reasoning, "
-            "status, created_at, reviewed_at, reviewed_by_user_id"
-        ).eq("work_session_id", session_id).order("created_at")
-
-        if status_filter:
-            query = query.eq("status", status_filter)
-
-        outputs_resp = query.execute()
-        outputs = outputs_resp.data or []
-
-        # Count by status
-        status_counts = {"pending": 0, "approved": 0, "rejected": 0}
-        for output in outputs:
-            status_counts[output.get("status", "pending")] = status_counts.get(output.get("status", "pending"), 0) + 1
-
-        output_items = [
-            WorkOutputItem(
-                id=o["id"],
-                output_type=o["output_type"],
-                content=o["content"] if isinstance(o["content"], str) else str(o["content"]),
-                agent_confidence=o.get("agent_confidence"),
-                agent_reasoning=o.get("agent_reasoning"),
-                status=o["status"],
-                created_at=o["created_at"],
-                reviewed_at=o.get("reviewed_at"),
-                reviewed_by_user_id=o.get("reviewed_by_user_id")
-            )
-            for o in outputs
-        ]
-
-        return SessionOutputsResponse(
-            session_id=session_id,
-            session_status=session["status"],
-            outputs=output_items,
-            total_count=len(outputs),
-            pending_count=status_counts["pending"],
-            approved_count=status_counts["approved"],
-            rejected_count=status_counts["rejected"]
+        client = get_substrate_client()
+        result = client.list_work_outputs(
+            basket_id=basket_id,
+            work_session_id=work_session_id,
+            supervision_status=supervision_status,
+            agent_type=agent_type,
+            output_type=output_type,
+            limit=limit,
+            offset=offset,
         )
 
-    except HTTPException:
-        raise
+        return result
+
+    except SubstrateAPIError as e:
+        logger.error(f"[SUPERVISION] Failed to list outputs: {e.message}")
+        raise HTTPException(status_code=e.status_code or 500, detail=e.message)
     except Exception as e:
-        logger.exception(f"[SUPERVISION] Failed to list outputs: {e}")
+        logger.exception(f"[SUPERVISION] Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/outputs/{output_id}/approve", response_model=OutputReviewResponse)
-async def approve_output(
+@router.get("/baskets/{basket_id}/outputs/{output_id}")
+async def get_output(
+    basket_id: str,
     output_id: str,
-    request: ApproveOutputRequest,
-    user: dict = Depends(verify_jwt)
+    user: dict = Depends(verify_jwt),
 ):
     """
-    Approve a work output.
+    Get a specific work output (proxy to substrate-API).
 
-    This marks the output as approved by human reviewer.
-    Does NOT automatically trigger substrate governance (that's separate).
+    Returns detailed output information for review.
+    """
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user token")
 
-    Args:
-        output_id: Work output UUID
-        request: Approval request with optional feedback
-        user: Authenticated user
+    logger.info(f"[SUPERVISION] Getting output {output_id} from basket {basket_id}")
 
-    Returns:
-        Updated output status
+    try:
+        client = get_substrate_client()
+        result = client.get_work_output(basket_id=basket_id, output_id=output_id)
+        return result
+
+    except SubstrateAPIError as e:
+        logger.error(f"[SUPERVISION] Failed to get output: {e.message}")
+        raise HTTPException(status_code=e.status_code or 500, detail=e.message)
+    except Exception as e:
+        logger.exception(f"[SUPERVISION] Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/baskets/{basket_id}/stats")
+async def get_supervision_stats(
+    basket_id: str,
+    user: dict = Depends(verify_jwt),
+):
+    """
+    Get supervision statistics for a basket (proxy to substrate-API).
+
+    Returns counts of outputs by status for dashboard display.
+    """
+    user_id = user.get("sub") or user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid user token")
+
+    logger.info(f"[SUPERVISION] Getting stats for basket {basket_id}")
+
+    try:
+        client = get_substrate_client()
+        result = client.get_supervision_stats(basket_id=basket_id)
+        return result
+
+    except SubstrateAPIError as e:
+        logger.error(f"[SUPERVISION] Failed to get stats: {e.message}")
+        raise HTTPException(status_code=e.status_code or 500, detail=e.message)
+    except Exception as e:
+        logger.exception(f"[SUPERVISION] Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/baskets/{basket_id}/outputs/{output_id}/approve",
+    response_model=SupervisionActionResponse,
+)
+async def approve_output(
+    basket_id: str,
+    output_id: str,
+    request: ApproveOutputRequest,
+    user: dict = Depends(verify_jwt),
+):
+    """
+    Approve a work output (proxy to substrate-API).
+
+    Marks output as approved for user's knowledge base.
     """
     user_id = user.get("sub") or user.get("user_id")
     if not user_id:
@@ -220,284 +187,126 @@ async def approve_output(
     logger.info(f"[SUPERVISION] Approving output {output_id} by user {user_id}")
 
     try:
-        # Verify output exists and user has access
-        output_resp = supabase.table("work_outputs").select(
-            "id, work_session_id"
-        ).eq("id", output_id).single().execute()
-
-        if not output_resp.data:
-            raise HTTPException(status_code=404, detail="Work output not found")
-
-        session_id = output_resp.data["work_session_id"]
-
-        # Verify user has workspace access
-        session_resp = supabase.table("work_sessions").select(
-            "workspace_id"
-        ).eq("id", session_id).single().execute()
-
-        if not session_resp.data:
-            raise HTTPException(status_code=404, detail="Work session not found")
-
-        membership = supabase.table("workspace_memberships").select(
-            "id"
-        ).eq("user_id", user_id).eq(
-            "workspace_id", session_resp.data["workspace_id"]
-        ).execute()
-
-        if not membership.data:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        # Update output status
-        now = datetime.utcnow().isoformat()
-        update_data = {
-            "status": "approved",
-            "reviewed_at": now,
-            "reviewed_by_user_id": user_id
-        }
-
-        if request.feedback:
-            update_data["review_feedback"] = request.feedback
-
-        supabase.table("work_outputs").update(update_data).eq("id", output_id).execute()
+        client = get_substrate_client()
+        client.update_work_output_status(
+            basket_id=basket_id,
+            output_id=output_id,
+            supervision_status="approved",
+            reviewer_notes=request.notes,
+            reviewer_id=user_id,
+        )
 
         logger.info(f"[SUPERVISION] ✅ Output {output_id} approved")
 
-        return OutputReviewResponse(
+        return SupervisionActionResponse(
             output_id=output_id,
-            status="approved",
-            reviewed_at=now,
-            reviewed_by_user_id=user_id,
-            message="Output approved successfully"
+            supervision_status="approved",
+            message="Output approved successfully",
         )
 
-    except HTTPException:
-        raise
+    except SubstrateAPIError as e:
+        logger.error(f"[SUPERVISION] Failed to approve output: {e.message}")
+        raise HTTPException(status_code=e.status_code or 500, detail=e.message)
     except Exception as e:
-        logger.exception(f"[SUPERVISION] Failed to approve output: {e}")
+        logger.exception(f"[SUPERVISION] Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/outputs/{output_id}/reject", response_model=OutputReviewResponse)
+@router.post(
+    "/baskets/{basket_id}/outputs/{output_id}/reject",
+    response_model=SupervisionActionResponse,
+)
 async def reject_output(
+    basket_id: str,
     output_id: str,
     request: RejectOutputRequest,
-    user: dict = Depends(verify_jwt)
+    user: dict = Depends(verify_jwt),
 ):
     """
-    Reject a work output.
+    Reject a work output (proxy to substrate-API).
 
-    This marks the output as rejected by human reviewer.
-
-    Args:
-        output_id: Work output UUID
-        request: Rejection request with reason
-        user: Authenticated user
-
-    Returns:
-        Updated output status
+    Marks output as rejected with required notes explaining why.
     """
     user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
-    logger.info(f"[SUPERVISION] Rejecting output {output_id}: {request.reason}")
+    if not request.notes or len(request.notes.strip()) == 0:
+        raise HTTPException(status_code=400, detail="Rejection notes are required")
+
+    logger.info(f"[SUPERVISION] Rejecting output {output_id}: {request.notes}")
 
     try:
-        # Same access checks as approve
-        output_resp = supabase.table("work_outputs").select(
-            "id, work_session_id"
-        ).eq("id", output_id).single().execute()
-
-        if not output_resp.data:
-            raise HTTPException(status_code=404, detail="Work output not found")
-
-        session_id = output_resp.data["work_session_id"]
-        session_resp = supabase.table("work_sessions").select(
-            "workspace_id"
-        ).eq("id", session_id).single().execute()
-
-        if not session_resp.data:
-            raise HTTPException(status_code=404, detail="Work session not found")
-
-        membership = supabase.table("workspace_memberships").select(
-            "id"
-        ).eq("user_id", user_id).eq(
-            "workspace_id", session_resp.data["workspace_id"]
-        ).execute()
-
-        if not membership.data:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        # Update output status
-        now = datetime.utcnow().isoformat()
-        update_data = {
-            "status": "rejected",
-            "reviewed_at": now,
-            "reviewed_by_user_id": user_id,
-            "review_feedback": f"REJECTED: {request.reason}"
-        }
-
-        supabase.table("work_outputs").update(update_data).eq("id", output_id).execute()
+        client = get_substrate_client()
+        client.update_work_output_status(
+            basket_id=basket_id,
+            output_id=output_id,
+            supervision_status="rejected",
+            reviewer_notes=request.notes,
+            reviewer_id=user_id,
+        )
 
         logger.info(f"[SUPERVISION] ❌ Output {output_id} rejected")
 
-        return OutputReviewResponse(
+        return SupervisionActionResponse(
             output_id=output_id,
-            status="rejected",
-            reviewed_at=now,
-            reviewed_by_user_id=user_id,
-            message=f"Output rejected: {request.reason}"
+            supervision_status="rejected",
+            message=f"Output rejected: {request.notes}",
         )
 
-    except HTTPException:
-        raise
+    except SubstrateAPIError as e:
+        logger.error(f"[SUPERVISION] Failed to reject output: {e.message}")
+        raise HTTPException(status_code=e.status_code or 500, detail=e.message)
     except Exception as e:
-        logger.exception(f"[SUPERVISION] Failed to reject output: {e}")
+        logger.exception(f"[SUPERVISION] Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/sessions/{session_id}/summary", response_model=SessionSummaryResponse)
-async def get_session_summary(
-    session_id: str,
-    user: dict = Depends(verify_jwt)
+@router.post(
+    "/baskets/{basket_id}/outputs/{output_id}/request-revision",
+    response_model=SupervisionActionResponse,
+)
+async def request_revision(
+    basket_id: str,
+    output_id: str,
+    request: RequestRevisionRequest,
+    user: dict = Depends(verify_jwt),
 ):
     """
-    Get supervision summary for a session.
+    Request revision for a work output (proxy to substrate-API).
 
-    Shows outcome of human review process.
-
-    Args:
-        session_id: Work session UUID
-        user: Authenticated user
-
-    Returns:
-        Summary of session with review outcomes
+    Marks output as needing revision with feedback for the agent.
     """
     user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
+    if not request.feedback or len(request.feedback.strip()) == 0:
+        raise HTTPException(status_code=400, detail="Revision feedback is required")
+
+    logger.info(f"[SUPERVISION] Requesting revision for {output_id}: {request.feedback}")
+
     try:
-        # Fetch session
-        session_resp = supabase.table("work_sessions").select(
-            "id, status, task_intent, workspace_id, created_at, ended_at"
-        ).eq("id", session_id).single().execute()
-
-        if not session_resp.data:
-            raise HTTPException(status_code=404, detail="Work session not found")
-
-        session = session_resp.data
-
-        # Verify access
-        membership = supabase.table("workspace_memberships").select(
-            "id"
-        ).eq("user_id", user_id).eq(
-            "workspace_id", session["workspace_id"]
-        ).execute()
-
-        if not membership.data:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        # Count outputs by status
-        outputs_resp = supabase.table("work_outputs").select(
-            "status"
-        ).eq("work_session_id", session_id).execute()
-
-        outputs = outputs_resp.data or []
-        counts = {"pending": 0, "approved": 0, "rejected": 0}
-        for o in outputs:
-            counts[o["status"]] = counts.get(o["status"], 0) + 1
-
-        # Can finalize if no pending outputs
-        can_finalize = counts["pending"] == 0 and len(outputs) > 0
-
-        return SessionSummaryResponse(
-            session_id=session_id,
-            session_status=session["status"],
-            task_intent=session["task_intent"],
-            total_outputs=len(outputs),
-            approved_outputs=counts["approved"],
-            rejected_outputs=counts["rejected"],
-            pending_outputs=counts["pending"],
-            can_finalize=can_finalize,
-            created_at=session["created_at"],
-            ended_at=session.get("ended_at")
+        client = get_substrate_client()
+        client.update_work_output_status(
+            basket_id=basket_id,
+            output_id=output_id,
+            supervision_status="revision_requested",
+            reviewer_notes=request.feedback,
+            reviewer_id=user_id,
         )
 
-    except HTTPException:
-        raise
+        logger.info(f"[SUPERVISION] 🔄 Revision requested for output {output_id}")
+
+        return SupervisionActionResponse(
+            output_id=output_id,
+            supervision_status="revision_requested",
+            message=f"Revision requested: {request.feedback}",
+        )
+
+    except SubstrateAPIError as e:
+        logger.error(f"[SUPERVISION] Failed to request revision: {e.message}")
+        raise HTTPException(status_code=e.status_code or 500, detail=e.message)
     except Exception as e:
-        logger.exception(f"[SUPERVISION] Failed to get summary: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/sessions/{session_id}/finalize")
-async def finalize_session(
-    session_id: str,
-    user: dict = Depends(verify_jwt)
-):
-    """
-    Finalize session after all outputs reviewed.
-
-    Marks session as completed/failed based on outcomes.
-
-    Args:
-        session_id: Work session UUID
-        user: Authenticated user
-
-    Returns:
-        Final session status
-    """
-    user_id = user.get("sub") or user.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid user token")
-
-    logger.info(f"[SUPERVISION] Finalizing session {session_id}")
-
-    try:
-        # Get summary first
-        summary = await get_session_summary(session_id, user)
-
-        if not summary.can_finalize:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot finalize: {summary.pending_outputs} outputs still pending review"
-            )
-
-        # Determine final status
-        if summary.approved_outputs > 0 and summary.rejected_outputs == 0:
-            final_status = "approved"
-        elif summary.rejected_outputs > 0 and summary.approved_outputs == 0:
-            final_status = "rejected"
-        else:
-            final_status = "completed"  # Mixed outcomes
-
-        # Update session
-        now = datetime.utcnow().isoformat()
-        supabase.table("work_sessions").update({
-            "status": final_status,
-            "ended_at": now,
-            "metadata": {
-                "finalized_by": user_id,
-                "finalized_at": now,
-                "approved_outputs": summary.approved_outputs,
-                "rejected_outputs": summary.rejected_outputs
-            }
-        }).eq("id", session_id).execute()
-
-        logger.info(f"[SUPERVISION] ✅ Session {session_id} finalized as {final_status}")
-
-        return {
-            "session_id": session_id,
-            "final_status": final_status,
-            "finalized_at": now,
-            "approved_outputs": summary.approved_outputs,
-            "rejected_outputs": summary.rejected_outputs,
-            "message": f"Session finalized with status: {final_status}"
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"[SUPERVISION] Failed to finalize session: {e}")
+        logger.exception(f"[SUPERVISION] Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
