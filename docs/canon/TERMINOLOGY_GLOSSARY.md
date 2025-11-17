@@ -1,9 +1,19 @@
 # YARNNN Terminology Glossary
 
-**Version**: 1.0
-**Date**: 2025-11-15
+**Version**: 2.0
+**Date**: 2025-11-17
 **Status**: Canonical
 **Purpose**: Prevent terminology confusion across substrate-API and work-platform domains
+
+---
+
+## Recent Updates (2025-11-17)
+
+- **SDK Internalized**: `claude_agent_sdk` → `yarnnn_agents` (work-platform owns orchestration)
+- **Tool-Use Pattern**: Agents emit structured outputs via `emit_work_output` tool
+- **BFF Pattern Enforced**: work-platform orchestrates, substrate-API owns data
+- **Work Supervision** (independent from Substrate Governance): User reviews agent outputs
+- **Dual Auth**: Service-to-service + User JWT supported in substrate-API
 
 ---
 
@@ -57,10 +67,11 @@
 - **Projects** (`projects` table) - User workspace containers (1:1 with baskets)
 - **Project Agents** (`project_agents` table) - Agent instances with configs
 - **Work Sessions** (`work_sessions` table) - Agent execution tracking
-- **Work Outputs** (`work_artifacts` table) - Agent deliverables pending review
+- **Work Outputs** (`work_outputs` table in substrate-API) - Agent deliverables pending review
 - **Agent Work Requests** (`agent_work_requests` table) - Trial/billing tracking
+- **yarnnn_agents** (internalized SDK) - Agent archetypes, interfaces, integrations
 
-**Key Insight**: Work-platform orchestrates agent execution but queries substrate-API for context (BFF pattern).
+**Key Insight**: Work-platform orchestrates agent execution but writes outputs to substrate-API via BFF pattern. Work outputs table lives in substrate-API for basket-scoped access.
 
 ---
 
@@ -116,24 +127,37 @@
 
 | State | Meaning |
 |-------|---------|
-| **initialized** | Session created, not started |
-| **in_progress** | Agent executing |
-| **awaiting_checkpoint** | Mid-work review needed |
-| **awaiting_final_approval** | Work complete, needs user review |
-| **approved** | User approved, work outputs applied |
-| **rejected** | User rejected |
+| **pending** | Session created, not started |
+| **running** | Agent executing |
+| **completed** | Execution finished successfully |
+| **completed_with_errors** | Finished but some outputs failed to write |
 | **failed** | Execution error |
 
-### Work Output Types (formerly "artifact types")
+### Work Output Supervision Status (NEW - 2025-11-17)
 
+| Status | Meaning |
+|--------|---------|
+| **pending_review** | Awaiting user supervision |
+| **approved** | User approved output |
+| **rejected** | User rejected output |
+| **revision_requested** | User requested changes |
+| **archived** | Removed from active review |
+
+### Work Output Types (Current Implementation)
+
+**Via emit_work_output Tool** (Claude tool-use pattern):
 | Type | Substrate Impact | Example |
 |------|-----------------|---------|
-| **block_proposal** | Creates ACCEPTED block | New competitor finding |
-| **insight** | None (informational) | "Pricing trend analysis" |
-| **external_deliverable** | None (user consumes) | Email draft, report PDF |
-| **document_creation** | Creates document | Research report |
+| **finding** | None (pending absorption) | "Competitor X has 45% market share" |
+| **recommendation** | None | "Focus on differentiation strategy" |
+| **insight** | None | "Pricing trend analysis across competitors" |
+| **draft_content** | None | Blog post draft, email template |
+| **report_section** | None | Analysis section for reports |
+| **data_analysis** | None | Statistical findings |
 
-**Key Insight**: Not all work outputs become substrate entities. Insights and deliverables stay in work_artifacts table.
+**Future Consideration**: block_proposal, document_creation types for direct substrate absorption (not yet implemented).
+
+**Key Insight**: Current implementation focuses on work supervision (user review) before substrate absorption. Approved work outputs do NOT automatically become blocks yet (intentionally deferred).
 
 ---
 

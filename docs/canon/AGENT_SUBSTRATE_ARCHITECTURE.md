@@ -1,9 +1,9 @@
 # yarnnn Agent Substrate Architecture
 ## Comprehensive Design Document
 
-**Version:** 1.3
-**Date:** 2025-11-13
-**Status:** Phase 1 (Backend) ✅ DEPLOYED | Phase 2 (UI) ✅ DEPLOYED | Ready for Testing & Refinement
+**Version:** 2.0
+**Date:** 2025-11-17
+**Status:** Phase 1-4 ✅ DEPLOYED | Work Output Lifecycle Complete | Tool-Use Pattern Validated
 
 ---
 
@@ -52,8 +52,10 @@ The current substrate architecture (`raw_dumps → context_blocks`) is necessary
 5. **Provenance validation** - Same-DB colocation enables local asset existence check for block derivation
 
 **Database Topology:**
-- **work-platform DB**: Projects, project_agents, work_sessions, work_artifacts, user-facing tables
-- **substrate-API DB**: Baskets, blocks, reference_assets, proposals, substrate_references (all substrate primitives)
+- **work-platform DB**: Projects, project_agents, agent_catalog, user-facing tables
+- **substrate-API DB**: Baskets, blocks, reference_assets, **work_outputs** (agent deliverables), proposals, substrate_references (all substrate primitives)
+
+> **Note (2025-11-17)**: work_outputs table is in substrate-API for basket-scoped RLS access. work_sessions remains in work-platform DB but references work_outputs via BFF pattern.
 
 ---
 
@@ -118,7 +120,7 @@ Each substrate primitive has a distinct purpose:
 | **Context Blocks** | Propositional knowledge ("X is Y") | Mutable (governance) | PostgreSQL + pgvector |
 | **Reference Assets** | Fidelity-preserving inputs (screenshots, docs) | Immutable (append-only) | Blob storage + metadata in SQL |
 | **Agent Configs** | Operational parameters (how agents behave) | Mutable (direct update) | JSONB in SQL |
-| **Work Artifacts** | Agent execution outputs (reports, posts) | Immutable (historical record) | PostgreSQL |
+| **Work Outputs** | Agent execution outputs (findings, insights) | Immutable (historical record) | PostgreSQL (substrate-API) |
 
 ### Principle 3: Polyglot Persistence (Incremental)
 Use the right storage for each data type:
@@ -1134,28 +1136,98 @@ ADD CONSTRAINT fk_tp_memory_basket
 
 ---
 
-### Phase 2: Execution Modes & Scheduling (6-8 weeks)
+### Phase 4: Work Output Lifecycle (NEW - 2025-11-17) ✅ **DEPLOYED**
+
+**Status:** Backend infrastructure deployed | Tool-use pattern validated | BFF integration complete
+**Deployed:** 2025-11-17
+**Note:** Phase 4 completes the agent output supervision loop before execution modes.
+
+**Goal:** Complete work supervision lifecycle with structured agent outputs.
+
+**Key Deliverables:**
+
+1. **Tool-Use Pattern (emit_work_output)**:
+   ```python
+   # Agents emit structured outputs via Claude tool-use
+   emit_work_output_tool = {
+       "name": "emit_work_output",
+       "input_schema": {
+           "properties": {
+               "output_type": {"enum": ["finding", "recommendation", "insight", "draft_content"]},
+               "title": {"type": "string"},
+               "body": {"type": "object"},  # summary, details, evidence, recommendations
+               "confidence": {"type": "number"},
+               "source_block_ids": {"type": "array"}  # Provenance
+           }
+       }
+   }
+   ```
+
+2. **Work Outputs Table (substrate-API)**:
+   - Lives in substrate-API for basket-scoped RLS
+   - supervision_status: pending_review → approved/rejected/revision_requested
+   - Provenance: source_context_ids links to source blocks
+   - Cross-DB reference: work_session_id (no FK, validated in app code)
+
+3. **BFF Pattern Enforcement**:
+   - work-platform orchestrates agent execution
+   - substrate-API owns work_outputs table
+   - Dual auth: Service-to-service + User JWT supported
+   - Service auth bypasses workspace membership check (trusted)
+
+4. **Agent Orchestration Flow**:
+   ```python
+   # work-platform/api/src/app/routes/agent_orchestration.py
+   async def execute_agent_work():
+       work_session_id = await _create_work_session(...)  # Track execution
+       result = await _run_research_agent(request, user_id, work_session_id)
+       work_outputs = result.get("work_outputs", [])  # Parsed from tool_use blocks
+       await write_agent_outputs(basket_id, work_session_id, outputs)  # BFF to substrate-API
+   ```
+
+5. **Supervision Endpoints** (substrate-API):
+   - `POST /baskets/{id}/outputs` - Write outputs (service auth)
+   - `GET /baskets/{id}/outputs` - List pending review
+   - `PUT /baskets/{id}/outputs/{id}/status` - Approve/reject
+
+**Validation Results:**
+- ✅ Tool-use pattern tested with real Claude API
+- ✅ 3 structured outputs with provenance tracking
+- ✅ Dual auth working (service + user)
+- ✅ RLS policies enforce basket-scoped access
+
+**Current Scope:**
+- Work outputs are supervised (user reviews)
+- Approved outputs do NOT automatically become blocks (intentionally deferred)
+- Future: block_proposal type for direct substrate absorption
+
+---
+
+### Phase 2: Execution Modes & Scheduling (FUTURE)
+
+**Status:** Not started
+**Priority:** Next after frontend work management UI
 
 **Goal:** Enable scheduled/autonomous agent runs (the real moat).
 
 **Deliverables:**
 
 1. **Database Schema:**
-   - ✅ Add `execution_mode` + `schedule_config` to `project_agents`
-   - ✅ Add `execution_trigger` to `work_sessions`
+   - [ ] Add `execution_mode` + `schedule_config` to `project_agents`
+   - [ ] Add `execution_trigger` to `work_sessions`
 
 2. **Scheduler Service:**
-   - ✅ Background job (cron) that checks for due scheduled runs
-   - ✅ Triggers work sessions via platform-API
-   - ✅ Updates `next_run_at` after execution
+   - [ ] Background job (cron) that checks for due scheduled runs
+   - [ ] Triggers work sessions via platform-API
+   - [ ] Updates `next_run_at` after execution
 
 3. **UI Components:**
-   - ✅ Agent dashboard: Schedule configuration UI
+   - [ ] Agent dashboard: Schedule configuration UI
      - Frequency selector (daily, weekly, etc.)
      - Time picker
      - Timezone selector
      - Enable/disable toggle
-   - ✅ Work sessions list: Badge showing execution trigger
+   - [ ] Work sessions list: Badge showing execution trigger
      - 🔁 Scheduled
      - 👆 Manual
      - 🤖 Autonomous
@@ -1201,32 +1273,35 @@ ADD CONSTRAINT fk_tp_memory_basket
 
 ---
 
-### Phase 3: Thinking Partner (8-12 weeks)
+### Phase 3: Thinking Partner (FUTURE)
+
+**Status:** Not started
+**Priority:** After execution modes
 
 **Goal:** Meta-agent for insights, recursion decisions, and chat interface.
 
 **Deliverables:**
 
 1. **Database Schema:**
-   - ✅ Create `thinking_partner_memory` table
-   - ✅ Create `thinking_partner_chats` table
-   - ✅ Auto-provision Thinking Partner agent for all projects
+   - [ ] Create `thinking_partner_memory` table
+   - [ ] Create `thinking_partner_chats` table
+   - [ ] Auto-provision Thinking Partner agent for all projects
 
 2. **Chat Interface:**
-   - ✅ Chat UI component (sidebar or dedicated page)
-   - ✅ Message history display
-   - ✅ Citation rendering (links to context blocks, assets, work sessions)
+   - [ ] Chat UI component (sidebar or dedicated page)
+   - [ ] Message history display
+   - [ ] Citation rendering (links to context blocks, assets, work sessions)
 
 3. **Thinking Partner Capabilities:**
-   - ✅ **Phase 3.1 (Chat + Insights):**
+   - [ ] **Phase 3.1 (Chat + Insights):**
      - User asks questions
      - TP queries context blocks, assets, work sessions
      - TP answers with citations
-   - ✅ **Phase 3.2 (Recommendations + Triggers):**
+   - [ ] **Phase 3.2 (Recommendations + Triggers):**
      - TP suggests actions ("Add Competitor X to watchlist")
      - User approves → TP updates agent configs
      - TP can trigger work sessions
-   - ✅ **Phase 3.3 (Pattern Recognition + Auto-Recursion):**
+   - [ ] **Phase 3.3 (Pattern Recognition + Auto-Recursion):**
      - TP detects patterns ("User rejects emoji posts")
      - TP creates raw_dumps from synthesized insights
      - TP manages its own memory (stores learnings)
@@ -1245,6 +1320,28 @@ ADD CONSTRAINT fk_tp_memory_basket
 - [ ] TP can trigger Research agent run via chat
 - [ ] TP detects user preference patterns
 - [ ] TP creates raw_dump from synthesized insight
+
+---
+
+## Recent Implementation Summary (2025-11-17)
+
+### What's Deployed
+1. **SDK Internalization**: claude_agent_sdk → yarnnn_agents (work-platform owns orchestration)
+2. **Tool-Use Pattern**: emit_work_output forces Claude to emit structured outputs
+3. **BFF Pattern**: work-platform orchestrates, substrate-API owns data
+4. **Dual Auth**: Service-to-service + User JWT supported
+5. **Work Output Lifecycle**: Complete supervision flow (pending_review → approved/rejected)
+
+### Architectural Decisions Made
+- work_outputs table in substrate-API (not work-platform) for basket-scoped RLS
+- work_session_id cross-DB reference (no FK enforcement, validated in app code)
+- Deferred: Approved outputs do NOT auto-absorb into substrate blocks
+- Service auth bypasses workspace membership (trusted backend-to-backend)
+
+### Next Priorities
+1. Frontend work management UI (supervision dashboard)
+2. Agent quality experiments (output quality validation)
+3. Execution modes (Phase 2)
 
 ---
 
@@ -1788,6 +1885,17 @@ async function buildAgentPayload(workSession) {
   - **Lifecycle management**: Added is_active, is_beta, deprecated_at to both catalogs
   - **Schema versioning**: Added schema_version for config migration support
   - **Admin UI foundation**: Catalogs can be updated via admin routes without migrations
+- **v2.0 (2025-11-17): Work Output Lifecycle Deployed - Major updates:**
+  - **Phase 4 Complete**: Work Output Lifecycle Management deployed
+  - **SDK Internalization**: claude_agent_sdk → yarnnn_agents (work-platform owns orchestration)
+  - **Tool-Use Pattern**: emit_work_output forces structured agent outputs
+  - **BFF Pattern Enforced**: work-platform orchestrates, substrate-API owns data
+  - **Dual Auth Support**: Service-to-service + User JWT in substrate-API
+  - **work_outputs table**: Lives in substrate-API for basket-scoped RLS
+  - **Supervision Status**: pending_review → approved/rejected/revision_requested
+  - **Provenance Tracking**: source_context_ids maps outputs to source blocks
+  - **Marked Future**: Phases 2-3 clearly marked as not started
+  - **Updated Primitives**: Work Artifacts → Work Outputs (terminology clarity)
 
 **Approvals:**
 - Architecture: ✅ Approved

@@ -2,57 +2,168 @@
 
 **Complete Catalog of Agent Work Outputs and Processing Rules**
 
-**Version**: 4.1
-**Date**: 2025-11-15
-**Status**: ✅ Canonical
+**Version**: 5.0
+**Date**: 2025-11-17
+**Status**: ✅ Canonical - Reflects Current Implementation
 **Layer**: 2 (Work Orchestration)
 **Category**: Feature Specification
 
 ---
 
-## ⚠️ Terminology Update (2025-11-15)
+## ⚠️ Major Update (2025-11-17)
 
-**IMPORTANT**: This document previously used the term "artifacts" which caused confusion with substrate-API's `reflections_artifact` table.
+**CRITICAL**: Database table renamed `work_artifacts` → `work_outputs` and moved to **substrate-API** database.
 
-**New terminology**:
-- **Work Outputs** (work-platform) = Agent-generated deliverables stored in `work_artifacts` table
-- **Reflections** (substrate-API) = P3 pipeline analysis outputs in `reflections_artifact` table
+**Implementation Status**:
+- ✅ Tool-use pattern deployed (emit_work_output tool)
+- ✅ work_outputs table in substrate-API (basket-scoped RLS)
+- ✅ BFF pattern: work-platform orchestrates, substrate-API owns data
+- ✅ Supervision status: pending_review → approved/rejected/revision_requested
+- ❌ Substrate absorption NOT yet implemented (outputs stay as outputs)
+
+**Current Output Types** (via emit_work_output tool):
+- `finding` - Research facts/data points
+- `recommendation` - Actionable suggestions
+- `insight` - Analysis and observations
+- `draft_content` - Content drafts (blog posts, emails)
+- `report_section` - Report segments
+- `data_analysis` - Statistical findings
+
+**Future Types** (not yet implemented):
+- `block_proposal` - Direct block creation (requires governance integration)
+- `document_creation` - Composed documents
 
 See [TERMINOLOGY_GLOSSARY.md](../../canon/TERMINOLOGY_GLOSSARY.md) for complete naming conventions.
 
 **Related Documents**:
-- [AGENT_SUBSTRATE_ARCHITECTURE.md](../../canon/AGENT_SUBSTRATE_ARCHITECTURE.md) - Current source of truth for Phase 1-3 implementation
+- [AGENT_SUBSTRATE_ARCHITECTURE.md](../../canon/AGENT_SUBSTRATE_ARCHITECTURE.md) - Current source of truth for Phase 1-4 implementation
+- [WORK_OUTPUT_LIFECYCLE_IMPLEMENTATION.md](../../canon/WORK_OUTPUT_LIFECYCLE_IMPLEMENTATION.md) - Implementation details
 - [TERMINOLOGY_GLOSSARY.md](../../canon/TERMINOLOGY_GLOSSARY.md) - Domain-specific naming conventions
 
 ---
 
 ## 🎯 Overview
 
-Work outputs are agent-generated deliverables stored in the `work_artifacts` table awaiting user approval. This document catalogs all output types, their structure, validation rules, and how they're processed after approval.
+Work outputs are agent-generated deliverables stored in the `work_outputs` table (substrate-API database) awaiting user supervision. This document catalogs all output types, their structure, validation rules, and processing after approval.
 
 **Key Concepts**:
-- Work outputs represent agent work before it impacts substrate
-- Each output type has specific content schema and substrate mapping
-- Risk assessment varies by output type
-- **Only certain output types** become substrate entities (blocks, documents)
-- Insights and external deliverables stay as work outputs (no substrate recursion)
+- Work outputs represent agent work pending user review
+- Emitted via `emit_work_output` tool (Claude tool-use pattern)
+- Each output has provenance (source_context_ids links to source blocks)
+- Supervision status tracks approval workflow
+- **Currently**: Approved outputs stay as outputs (no substrate absorption yet)
+- **Future**: Some output types may create substrate entities (blocks, documents)
 
 ---
 
 ## 📦 Work Output Types
 
-### Type Catalog
+### Current Implementation (2025-11-17)
+
+**Deployed via emit_work_output tool:**
 
 ```typescript
-// Database column: work_artifacts.artifact_type
-// Note: "artifact" in database refers to work-platform outputs, NOT substrate-API reflections
-type WorkOutputType =
+// substrate-API: work_outputs.output_type column
+type CurrentOutputType =
+  | 'finding'           // Research facts/data points
+  | 'recommendation'    // Actionable suggestions
+  | 'insight'           // Analysis/observations
+  | 'draft_content'     // Blog posts, emails, social content
+  | 'report_section'    // Report segments
+  | 'data_analysis'     // Statistical findings
+```
+
+**emit_work_output Tool Schema:**
+```python
+# work-platform/api/src/yarnnn_agents/archetypes/research_agent.py
+emit_work_output_tool = {
+    "name": "emit_work_output",
+    "description": "Emit a structured work output...",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "output_type": {
+                "type": "string",
+                "enum": ["finding", "recommendation", "insight", "draft_content", "report_section", "data_analysis"]
+            },
+            "title": {"type": "string"},
+            "body": {
+                "type": "object",
+                "properties": {
+                    "summary": {"type": "string"},
+                    "details": {"type": "string"},
+                    "evidence": {"type": "array"},
+                    "recommendations": {"type": "array"}
+                },
+                "required": ["summary"]
+            },
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "source_block_ids": {
+                "type": "array",
+                "description": "UUIDs of blocks used as sources (provenance tracking)"
+            }
+        },
+        "required": ["output_type", "title", "body", "confidence"]
+    }
+}
+```
+
+**Database Schema (substrate-API):**
+```sql
+CREATE TABLE work_outputs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    basket_id UUID NOT NULL REFERENCES baskets(id),
+    work_session_id UUID,  -- Cross-DB reference (no FK)
+    agent_type TEXT NOT NULL,
+    output_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body JSONB NOT NULL,
+    confidence NUMERIC(3,2),
+    source_context_ids UUID[],  -- Provenance
+    supervision_status TEXT DEFAULT 'pending_review',
+    reviewer_id UUID,
+    reviewer_notes TEXT,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+---
+
+### Future Types (Not Yet Implemented)
+
+```typescript
+// Planned for substrate absorption (governance integration required)
+type FutureOutputType =
   | 'block_proposal'              // New block for substrate
   | 'block_update_proposal'       // Update/supersede existing block
   | 'block_lock_proposal'         // Lock block (finalize)
   | 'document_creation'           // New composed document
   | 'document_update'             // Update existing document
+  | 'relationship_proposal'       // New relationship between blocks
+  | 'entity_extraction'           // Extracted entities for tagging
+```
+
+---
+
+### Type Catalog (Combined Reference)
+
+```typescript
+// Full catalog for reference (current + future)
+type WorkOutputType =
+  // CURRENT (deployed)
+  | 'finding'                     // Research facts (no substrate impact yet)
+  | 'recommendation'              // Actionable suggestions (no substrate impact)
   | 'insight'                     // Analysis/observation (no substrate impact)
+  | 'draft_content'               // Content drafts (no substrate impact)
+  | 'report_section'              // Report segments (no substrate impact)
+  | 'data_analysis'               // Statistical findings (no substrate impact)
+  // FUTURE (substrate absorption)
+  | 'block_proposal'              // New block for substrate
+  | 'block_update_proposal'       // Update/supersede existing block
+  | 'block_lock_proposal'         // Lock block (finalize)
+  | 'document_creation'           // New composed document
+  | 'document_update'             // Update existing document
   | 'external_deliverable'        // Output for external use (no substrate impact)
   | 'relationship_proposal'       // New relationship between blocks
   | 'entity_extraction'           // Extracted entities for tagging

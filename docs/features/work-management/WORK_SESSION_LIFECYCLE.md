@@ -2,11 +2,29 @@
 
 **Complete State Machine for Agent Work Execution**
 
-**Version**: 4.0
-**Date**: 2025-10-31
-**Status**: ✅ Canonical
+**Version**: 5.0
+**Date**: 2025-11-17
+**Status**: ✅ Canonical - Updated for Current Implementation
 **Layer**: 2 (Work Orchestration)
 **Category**: Feature Specification
+
+---
+
+## ⚠️ Implementation Update (2025-11-17)
+
+**Current Implementation**:
+- work_sessions table in **work-platform DB** (tracks execution)
+- work_outputs table in **substrate-API DB** (stores agent deliverables)
+- BFF pattern: work-platform orchestrates, substrate-API owns data
+- Session status: pending → running → completed/completed_with_errors/failed
+- Supervision: Separate from session status (outputs have supervision_status)
+
+**Simplified States** (actual implementation):
+- `pending` - Created, not started
+- `running` - Agent executing
+- `completed` - Finished successfully
+- `completed_with_errors` - Finished but some outputs failed
+- `failed` - Execution error
 
 ---
 
@@ -16,18 +34,34 @@ This document specifies the complete lifecycle of a **work session** - from task
 
 **Key Concepts**:
 - Work sessions track agent execution from start to finish
-- Each session has a deterministic state machine
-- State transitions are governed by Layer 3 (Unified Governance)
-- Sessions create artifacts that may mutate substrate after approval
+- Sessions live in work-platform DB, outputs live in substrate-API DB
+- BFF pattern enforces clean separation of concerns
+- Session status != supervision status (outputs reviewed independently)
+- Sessions create outputs that await user supervision
 
 ---
 
 ## 📊 State Machine
 
-### States
+### Current Implementation (Simplified)
 
 ```typescript
+// Actual states in work_sessions table (work-platform DB)
 type WorkSessionStatus =
+  | 'pending'                   // Created, not yet started
+  | 'running'                   // Agent actively working
+  | 'completed'                 // Finished successfully, outputs written
+  | 'completed_with_errors'     // Finished but some outputs failed to write
+  | 'failed'                    // Agent execution error
+```
+
+> **Note**: User review/approval is handled via **supervision_status** on individual work_outputs (substrate-API), not session status.
+
+### Future States (Not Yet Implemented)
+
+```typescript
+// Planned for more sophisticated workflows
+type FutureWorkSessionStatus =
   | 'initialized'           // Created, not yet started
   | 'in_progress'           // Agent actively working
   | 'pending_review'        // Work complete, awaiting user review
@@ -38,7 +72,43 @@ type WorkSessionStatus =
   | 'failed'                // Agent error, technical failure
 ```
 
-### State Diagram
+### Current Implementation Flow
+
+```
+┌─────────┐
+│ pending │ (Session created before agent execution)
+└────┬────┘
+     │ _create_work_session()
+     ▼
+┌─────────┐
+│ running │ (Agent executing via yarnnn_agents)
+└────┬────┘
+     │ agent.deep_dive() → emit_work_output tool calls
+     ▼
+┌───────────┐
+│ completed │ (Outputs written to substrate-API)
+└───────────┘
+     │
+     └─────────────────────────────────────────┐
+                                               ▼
+                                    ┌────────────────────┐
+                                    │   work_outputs     │
+                                    │ (substrate-API DB) │
+                                    └─────────┬──────────┘
+                                              │
+                                              │ supervision_status
+                                              ▼
+                                    ┌─────────────────────┐
+                                    │   pending_review    │
+                                    │   approved          │
+                                    │   rejected          │
+                                    │   revision_requested│
+                                    └─────────────────────┘
+```
+
+**Key Insight**: Session status and output supervision are decoupled. Session tracks execution, outputs track user review.
+
+### Future State Diagram (Sophisticated Workflow)
 
 ```
 ┌─────────────┐
@@ -91,7 +161,69 @@ type WorkSessionStatus =
 
 ---
 
-## 🔄 Lifecycle Phases
+## 🔄 Current Implementation (2025-11-17)
+
+### Actual Execution Flow
+
+```python
+# work-platform/api/src/app/routes/agent_orchestration.py
+
+async def execute_agent_work(request: AgentWorkRequest, user_id: str):
+    # 1. Create work session BEFORE agent execution
+    work_session_id = await _create_work_session(
+        basket_id=request.basket_id,
+        workspace_id=request.workspace_id,
+        user_id=user_id,
+        agent_type=request.agent_type,
+        task_intent=request.task_intent,
+        project_id=request.project_id,
+    )
+    # Status: pending → running
+
+    # 2. Execute agent (yarnnn_agents)
+    result = await _run_research_agent(request, user_id, work_session_id)
+    # Agent emits outputs via emit_work_output tool
+
+    # 3. Write outputs to substrate-API
+    work_outputs = result.get("work_outputs", [])
+    output_write_result = write_agent_outputs(
+        basket_id=request.basket_id,
+        work_session_id=work_session_id,
+        agent_type=request.agent_type,
+        outputs=work_outputs,
+    )
+
+    # 4. Update session status based on results
+    if output_write_result.get("all_successful"):
+        # Status: running → completed
+        await update_session_status(work_session_id, "completed")
+    else:
+        # Status: running → completed_with_errors
+        await update_session_status(work_session_id, "completed_with_errors")
+```
+
+### Supervision Flow (Separate from Session)
+
+```python
+# substrate-api/api/src/app/work_outputs/routes.py
+
+@router.get("/baskets/{basket_id}/outputs")
+async def list_outputs(basket_id: str, supervision_status: str = "pending_review"):
+    # Returns outputs pending user review
+    pass
+
+@router.put("/baskets/{basket_id}/outputs/{output_id}/status")
+async def update_output_status(output_id: str, status: str, notes: str):
+    # User approves/rejects individual output
+    # supervision_status: pending_review → approved/rejected/revision_requested
+    pass
+```
+
+**Key Insight**: Session execution and output supervision are independent workflows.
+
+---
+
+## 🔄 Lifecycle Phases (Reference Architecture)
 
 ### Phase 1: Initialization
 
