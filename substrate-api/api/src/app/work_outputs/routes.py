@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from ..utils.jwt import verify_jwt
+from ..utils.service_auth import verify_user_or_service
 from ..utils.supabase_client import supabase_admin_client
 
 logger = logging.getLogger(__name__)
@@ -104,12 +105,25 @@ async def get_workspace_id_from_basket(basket_id: str) -> str:
     return result.data["workspace_id"]
 
 
-async def verify_workspace_access(basket_id: str, user: dict) -> str:
-    """Verify user has access to basket's workspace."""
+async def verify_workspace_access(basket_id: str, auth_info: dict) -> str:
+    """
+    Verify caller has access to basket's workspace.
+
+    For user JWT: Checks workspace membership.
+    For service auth: Trusts the service (work-platform already verified).
+    """
     workspace_id = await get_workspace_id_from_basket(basket_id)
 
-    # Check workspace membership
-    user_id = user.get("user_id") or user.get("sub")
+    # Service-to-service auth bypasses membership check
+    if auth_info.get("is_service"):
+        logger.debug(f"Service {auth_info.get('service_name')} accessing basket {basket_id}")
+        return workspace_id
+
+    # Check workspace membership for user auth
+    user_id = auth_info.get("user_id") or auth_info.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+
     result = (
         supabase_admin_client.table("workspace_memberships")
         .select("workspace_id")
@@ -133,7 +147,7 @@ async def verify_workspace_access(basket_id: str, user: dict) -> str:
 async def create_work_output(
     basket_id: str,
     output_data: WorkOutputCreate,
-    user: dict = Depends(verify_jwt),
+    auth_info: dict = Depends(verify_user_or_service),
 ):
     """
     Create a new work output for user supervision.
@@ -150,7 +164,7 @@ async def create_work_output(
     """
     try:
         # Verify workspace access
-        await verify_workspace_access(basket_id, user)
+        await verify_workspace_access(basket_id, auth_info)
 
         # Verify basket_id matches
         if str(output_data.basket_id) != str(basket_id):
@@ -195,7 +209,7 @@ async def list_work_outputs(
     output_type: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    user: dict = Depends(verify_jwt),
+    auth_info: dict = Depends(verify_user_or_service),
 ):
     """
     List work outputs for a basket with optional filters.
@@ -214,7 +228,7 @@ async def list_work_outputs(
     """
     try:
         # Verify workspace access
-        await verify_workspace_access(basket_id, user)
+        await verify_workspace_access(basket_id, auth_info)
 
         # Build query
         query = supabase_admin_client.table("work_outputs").select("*").eq("basket_id", basket_id)
@@ -253,7 +267,7 @@ async def list_work_outputs(
 @router.get("/{basket_id}/work-outputs/stats", response_model=SupervisionStatsResponse)
 async def get_supervision_stats(
     basket_id: str,
-    user: dict = Depends(verify_jwt),
+    auth_info: dict = Depends(verify_user_or_service),
 ):
     """
     Get supervision statistics for a basket.
@@ -262,7 +276,7 @@ async def get_supervision_stats(
     """
     try:
         # Verify workspace access
-        await verify_workspace_access(basket_id, user)
+        await verify_workspace_access(basket_id, auth_info)
 
         # Call the database function
         result = supabase_admin_client.rpc(
@@ -293,7 +307,7 @@ async def get_supervision_stats(
 async def get_work_output(
     basket_id: str,
     output_id: str,
-    user: dict = Depends(verify_jwt),
+    auth_info: dict = Depends(verify_user_or_service),
 ):
     """
     Get a specific work output.
@@ -307,7 +321,7 @@ async def get_work_output(
     """
     try:
         # Verify workspace access
-        await verify_workspace_access(basket_id, user)
+        await verify_workspace_access(basket_id, auth_info)
 
         # Get output
         result = (
@@ -336,7 +350,7 @@ async def update_work_output_status(
     basket_id: str,
     output_id: str,
     status_update: WorkOutputStatusUpdate,
-    user: dict = Depends(verify_jwt),
+    auth_info: dict = Depends(verify_user_or_service),
 ):
     """
     Update work output supervision status.
@@ -353,7 +367,7 @@ async def update_work_output_status(
     """
     try:
         # Verify workspace access
-        await verify_workspace_access(basket_id, user)
+        await verify_workspace_access(basket_id, auth_info)
 
         # Get current output to verify it exists and is updatable
         current = (
@@ -368,12 +382,12 @@ async def update_work_output_status(
         if not current.data:
             raise HTTPException(status_code=404, detail="Work output not found")
 
-        # Prepare update data
-        user_id = user.get("user_id") or user.get("sub")
+        # Prepare update data - use reviewer_id from request or auth_info
+        reviewer_id = status_update.reviewer_id or auth_info.get("user_id")
         update_data = {
             "supervision_status": status_update.supervision_status,
             "reviewed_at": datetime.utcnow().isoformat(),
-            "reviewed_by": status_update.reviewer_id or user_id,
+            "reviewed_by": reviewer_id,
         }
 
         if status_update.reviewer_notes:
@@ -415,7 +429,7 @@ async def update_work_output_status(
 async def delete_work_output(
     basket_id: str,
     output_id: str,
-    user: dict = Depends(verify_jwt),
+    auth_info: dict = Depends(verify_user_or_service),
 ):
     """
     Delete a work output (archive/cleanup).
@@ -429,7 +443,7 @@ async def delete_work_output(
     """
     try:
         # Verify workspace access
-        await verify_workspace_access(basket_id, user)
+        await verify_workspace_access(basket_id, auth_info)
 
         # Delete output
         result = (
