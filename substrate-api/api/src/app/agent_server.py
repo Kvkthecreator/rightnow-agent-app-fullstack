@@ -76,6 +76,7 @@ from .routes.p3_p4_health import router as p3_p4_health_router
 from .api.validator.validate_proposal import router as validator_router
 from .reference_assets import router as reference_assets_router
 from .work_outputs import router as work_outputs_router
+from .routes.substrate_search import router as substrate_search_router
 
 
 def _assert_env():
@@ -167,6 +168,7 @@ routers = (
     openai_apps_router,
     reference_assets_router,
     work_outputs_router,  # Phase 1 Work Supervision Lifecycle
+    substrate_search_router,  # Phase 1 Claude Agent SDK MCP tools
 )
 
 # Add correlation middleware
