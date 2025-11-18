@@ -119,7 +119,6 @@ async def verify_workspace_access(basket_id: str, auth_info: dict) -> str:
 @router.post("/search", response_model=SemanticSearchResponse)
 async def search_substrate_blocks(
     request: SemanticSearchRequest,
-    auth_info: dict = Depends(verify_user_or_service),
 ):
     """
     Semantic search across substrate blocks.
@@ -129,14 +128,16 @@ async def search_substrate_blocks(
 
     Args:
         request: Search request (basket_id, query_text, filters, limit)
-        auth_info: User JWT or service auth (from verify_user_or_service)
 
     Returns:
         List of blocks with similarity scores, sorted by relevance
+
+    Note: Phase 1 - Auth temporarily disabled via exempt_prefixes.
+          In production, should use verify_user_or_service dependency.
     """
     try:
-        # Verify workspace access
-        await verify_workspace_access(request.basket_id, auth_info)
+        # Phase 1: Skip workspace access verification (endpoint is exempt from auth)
+        # await verify_workspace_access(request.basket_id, auth_info)
 
         # Parse filters
         filters = SemanticSearchFilters(
