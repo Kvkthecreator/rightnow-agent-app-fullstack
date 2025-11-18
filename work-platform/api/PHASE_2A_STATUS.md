@@ -201,17 +201,18 @@ Skills augment agent system prompts with reusable procedural knowledge.
 ## Next Steps
 
 ### Phase 3: Production Testing
-1. ⏳ Enable `USE_AGENT_SDK=true` in Render environment
+1. ✅ ResearchAgentSDK is now the default (no feature flag)
 2. ⏳ Test real agent execution via API
 3. ⏳ Validate work outputs created successfully
-4. ⏳ Compare SDK vs legacy output quality
-5. ⏳ Enable for production traffic
+4. ⏳ Monitor production performance
 
-### Future: Remove Legacy
-- After SDK validated in production, remove legacy ResearchAgent
-- Update factory to use SDK by default
-- Remove feature flag
+### Future: Refactor ContentAgent and ReportingAgent
+- Apply same SDK patterns to content and reporting agents
+- Extract Skills for content creation and report generation
+- Complete migration of all agents to SDK patterns
 
 ---
 
-**Status:** Phase 2 (2a + 2b) complete. Ready for production testing.
+**Status:** Phase 2 (2a + 2b) complete. ResearchAgentSDK is the standard implementation.
+
+**Note:** USE_AGENT_SDK feature flag removed - SDK utilization is fundamental, not optional.
