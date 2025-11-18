@@ -379,6 +379,32 @@ class ResearchAgentSDK(BaseAgent):
 
         return prompt
 
+    async def execute(
+        self,
+        task: str,
+        task_id: Optional[str] = None,
+        task_metadata: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Execute a research task.
+
+        Implements BaseAgent's abstract execute() method.
+        Routes to deep_dive() for now (monitor() not implemented in Phase 2a).
+
+        Args:
+            task: Task description
+            task_id: Optional task ID
+            task_metadata: Optional task metadata
+            **kwargs: Additional arguments
+
+        Returns:
+            Research results
+        """
+        # For Phase 2a, we only support deep_dive (on-demand research)
+        # Future: Add routing logic for monitor() vs deep_dive()
+        return await self.deep_dive(task)
+
     async def deep_dive(self, topic: str) -> Dict[str, Any]:
         """
         Execute deep-dive research on a specific topic.
