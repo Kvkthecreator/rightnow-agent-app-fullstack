@@ -5,24 +5,35 @@ Integrates Claude Agent SDK with existing work_sessions infrastructure.
 Uses adapters to bridge SDK → substrate_client → substrate-api (BFF pattern).
 
 Phase 5: Work-request-based trials (10 free requests total, then subscription).
+
+Phase 2a: Feature flag for SDK migration (USE_AGENT_SDK environment variable).
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Dict, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, Field
 
-# Import Phase 4 components
+# Import Phase 4 components (LEGACY)
 from agents.factory import (
     create_research_agent,
     create_content_agent,
     create_reporting_agent,
 )
 from adapters.auth_adapter import AuthAdapter
+
+# Import Phase 2a SDK components (NEW)
+try:
+    from agents_sdk import ResearchAgentSDK
+    SDK_AVAILABLE = True
+except ImportError:
+    ResearchAgentSDK = None
+    SDK_AVAILABLE = False
 
 # Import Phase 1-3 utilities
 from app.utils.jwt import verify_jwt
@@ -43,6 +54,26 @@ from services.work_output_service import write_agent_outputs
 
 router = APIRouter(prefix="/agents", tags=["agent-orchestration"])
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# Phase 2a: Feature Flag for SDK Migration
+# ============================================================================
+
+# Feature flag: Use Claude Agent SDK instead of legacy yarnnn_agents
+# Set USE_AGENT_SDK=true to enable SDK-based agents
+USE_AGENT_SDK = os.getenv("USE_AGENT_SDK", "false").lower() == "true"
+
+if USE_AGENT_SDK and not SDK_AVAILABLE:
+    logger.warning(
+        "USE_AGENT_SDK=true but claude-agent-sdk not installed. "
+        "Falling back to legacy agents. Install with: pip install claude-agent-sdk"
+    )
+    USE_AGENT_SDK = False
+
+logger.info(
+    f"Agent SDK Migration Status: USE_AGENT_SDK={USE_AGENT_SDK}, "
+    f"SDK_AVAILABLE={SDK_AVAILABLE}"
+)
 
 
 async def _get_workspace_id_for_user(user_id: str) -> str:
@@ -453,14 +484,22 @@ async def _run_research_agent(
     except Exception as e:
         logger.warning(f"Failed to get project_id for basket {request.basket_id}: {e}")
 
-    # Create agent with adapters + enhanced context (Phase 4)
-    agent = create_research_agent(
-        basket_id=request.basket_id,
-        workspace_id=workspace_id,
-        user_id=user_id,
-        project_id=project_id,
-        work_session_id=work_session_id,
-    )
+    # Phase 2a: Create agent (SDK or legacy based on feature flag)
+    if USE_AGENT_SDK:
+        logger.info(f"Using SDK-based ResearchAgent (basket={request.basket_id})")
+        agent = ResearchAgentSDK(
+            basket_id=request.basket_id,
+            work_session_id=work_session_id,
+        )
+    else:
+        logger.info(f"Using legacy ResearchAgent (basket={request.basket_id})")
+        agent = create_research_agent(
+            basket_id=request.basket_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            project_id=project_id,
+            work_session_id=work_session_id,
+        )
 
     # Execute task
     if request.task_type == "monitor":
@@ -476,7 +515,7 @@ async def _run_research_agent(
                 detail="Topic required for deep_dive tasks"
             )
 
-        logger.info(f"Running deep dive research on: {topic}")
+        logger.info(f"Running deep dive research on: {topic} (SDK={USE_AGENT_SDK})")
         result = await agent.deep_dive(topic)
         return result
 
