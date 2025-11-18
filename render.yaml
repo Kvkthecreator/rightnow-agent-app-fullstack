@@ -1,11 +1,12 @@
 # render.yaml - YARNNN v4.0 Mono-Repo Configuration (Phase 2: Architecture Refactor)
 services:
   # Work Platform API - Consumer/Work-Facing Application (BFF Layer)
+  # Phase 0: Switched to Docker for Claude Agent SDK (requires Node.js + Claude Code CLI)
   - type: web
     name: yarnnn-work-platform-api
-    env: python
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: uvicorn src.app.agent_server:app --host 0.0.0.0 --port 10000 --log-level debug
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./work-platform/api
     root: work-platform/api/
     envVars:
       - key: OPENAI_API_KEY

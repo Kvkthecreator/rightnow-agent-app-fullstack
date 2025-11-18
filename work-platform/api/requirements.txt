@@ -20,6 +20,12 @@ tenacity>=8.0.0  # Retry logic for substrate HTTP client (Phase 3.1 BFF)
 anthropic>=0.40.0  # Core Anthropic API for agent reasoning
 pyyaml>=6.0  # For agent configuration files
 
+# ── Claude Agent SDK (Phase 0: Migration) ─────────────────────────────
+# Python SDK that wraps Claude Code CLI (Node.js subprocess)
+# Provides Skills, subagents, session management
+# See: docs/canon/CLAUDE_AGENT_SDK_SELECTION_RATIONALE.md for why we chose this
+claude-agent-sdk>=0.5.0  # Check PyPI for latest version
+
 # ── Supabase integration ──────────────────────────────────────────────
 # Using PyPI version instead of git for Render reliability
 supabase>=2.1.0,<3.0.0
