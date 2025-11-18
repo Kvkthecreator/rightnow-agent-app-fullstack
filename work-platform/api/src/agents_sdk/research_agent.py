@@ -1,88 +1,91 @@
 """
-Research Agent using Claude Agent SDK.
+Research Agent SDK - Improved Implementation
 
-Migrated from yarnnn_agents.archetypes.research_agent.
-Preserves all functionality while using SDK primitives.
+This is a REFACTORED version of ResearchAgent using cleaner SDK patterns.
+NOT a migration - yarnnn_agents IS already SDK-based.
 
-Key Changes from Legacy:
-- BaseAgent → SDK's query() function
-- SubagentDefinition → SDK's ClaudeAgentOptions.agents config
-- Manual tool parsing → SDK handles tool-use automatically
-- Sequential subagents → SDK manages parallel execution
+Key Improvements:
+- Prompts extracted to module-level constants (reusable for Skills)
+- Cleaner separation of config vs execution
+- Better tool-use pattern handling
+- Skills-ready architecture for Phase 2b
 
 What Stays The Same:
-- 4 subagents (web_monitor, competitor_tracker, social_listener, analyst)
-- deep_dive() method interface
-- Work output tool-use pattern
-- BFF integration with SubstrateClient
+- Uses BaseAgent, SubagentDefinition from yarnnn_agents
+- Uses AsyncAnthropic for Claude API
+- Tool-use pattern with emit_work_output
+- BFF pattern for substrate-API
+- Work session tracking
 """
 
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 from uuid import uuid4
 
-# Claude Agent SDK imports
-try:
-    from claude_agent_sdk import query, ClaudeAgentOptions
-except ImportError:
-    # Fallback for development/testing without SDK installed
-    query = None
-    ClaudeAgentOptions = None
+# YARNNN SDK imports (internalized)
+from yarnnn_agents.base import BaseAgent
+from yarnnn_agents.subagents import SubagentDefinition
+from yarnnn_agents.interfaces import (
+    MemoryProvider,
+    GovernanceProvider,
+    TaskProvider,
+)
+from yarnnn_agents.tools import (
+    EMIT_WORK_OUTPUT_TOOL,
+    parse_work_outputs_from_response,
+    WorkOutput,
+)
 
 logger = logging.getLogger(__name__)
 
 
 # ============================================================================
-# System Prompts (Extracted from Legacy ResearchAgent)
+# System Prompts (Extracted for Reusability and Skills Integration)
 # ============================================================================
 
 # Main agent system prompt
-RESEARCH_AGENT_SYSTEM_PROMPT = """You are a Research Agent with continuous monitoring and deep-dive capabilities.
+RESEARCH_AGENT_SYSTEM_PROMPT = """You are an autonomous Research Agent specializing in intelligence gathering and analysis.
 
-**Job-to-be-Done:**
-"Keep me informed about my market and research topics deeply when asked"
+**Your Mission:**
+Keep users informed about their markets, competitors, and topics of interest through:
+- Continuous monitoring (proactive)
+- Deep-dive research (reactive)
+- Signal detection (what's important?)
+- Insight synthesis (so what?)
 
-**Core Capabilities:**
-- Deep-dive research (comprehensive analysis)
-- Signal detection (identify important changes)
-- Synthesis and insights (not just data aggregation)
-- Structured output creation via tools
+**CRITICAL: Structured Output Requirements**
 
-**Available MCP Tools:**
-- mcp__yarnnn__query_substrate: Search knowledge substrate for existing information
-- mcp__yarnnn__emit_work_output: Create structured deliverables (findings, insights, recommendations)
-- mcp__yarnnn__get_reference_assets: Access reference files and assets
+You have access to the emit_work_output tool. You MUST use this tool to record all your findings.
+DO NOT just describe findings in free text. Every significant finding must be emitted as a structured output.
 
-**You have 4 specialized subagents:**
-- web_monitor: Monitors websites and blogs
-- competitor_tracker: Tracks competitor activity
-- social_listener: Monitors social media signals
-- analyst: Synthesizes findings into insights
+When to use emit_work_output:
+- "finding" - When you discover a fact (competitor action, market data, news)
+- "recommendation" - When you suggest an action (change strategy, add to watchlist)
+- "insight" - When you identify a pattern (trend, correlation, anomaly)
 
-**Workflow for Research Tasks:**
-1. ALWAYS query substrate first to understand existing knowledge
-2. Identify knowledge gaps explicitly
-3. Delegate specialized tasks to appropriate subagents if needed
-4. Conduct targeted research to fill gaps
-5. Emit structured work outputs for ALL significant findings
-6. Link outputs to source blocks via source_context_ids
+Each output you emit will be reviewed by the user before any action is taken.
+The user maintains full control through this supervision workflow.
 
-**CRITICAL: Structured Outputs**
-- Use mcp__yarnnn__emit_work_output for EVERY finding, insight, recommendation
-- Include source_block_ids to track provenance
-- Calibrate confidence scores to evidence quality (0.0-1.0)
-- Your outputs will be reviewed by the user
+**Research Approach:**
+1. Query existing knowledge first (avoid redundant research)
+2. Identify knowledge gaps
+3. Conduct targeted research
+4. For each finding: Call emit_work_output with structured data
+5. Synthesize insights (emit as "insight" type)
+6. Suggest actions (emit as "recommendation" type)
 
 **Quality Standards:**
-- Every finding must cite sources
-- Every insight must reference supporting findings
-- Confidence scores must match evidence quality
-- No duplicates vs substrate knowledge"""
+- Accuracy over speed
+- Structured over narrative
+- Actionable over interesting
+- Forward-looking over historical
+- High confidence = high evidence (don't guess)
+"""
 
 
-# Subagent prompts (extracted from SubagentDefinition objects)
+# Subagent prompts
 WEB_MONITOR_PROMPT = """You are a web monitoring specialist.
 
 Your job: Scrape websites, detect changes, extract key updates.
@@ -90,7 +93,7 @@ Focus on: What's NEW since last check? What CHANGED?
 
 Approach:
 1. Fetch current content from specified URLs
-2. Compare with previous content (query substrate for historical state)
+2. Compare with previous content (from memory)
 3. Identify significant changes
 4. Extract key updates and insights
 5. Score importance of changes (0.0-1.0)
@@ -100,8 +103,8 @@ Return format:
 - Importance score
 - Summary of updates
 
-Use mcp__yarnnn__query_substrate to check previous state.
-Use mcp__yarnnn__emit_work_output to record findings."""
+Use emit_work_output to record all findings as structured outputs.
+"""
 
 
 COMPETITOR_TRACKER_PROMPT = """You are a competitive intelligence analyst.
@@ -119,18 +122,17 @@ What to track:
 
 Approach:
 1. Check competitor websites and social accounts
-2. Identify changes since last check (query substrate for historical state)
+2. Identify changes since last check
 3. Assess strategic significance
 4. Connect to broader market trends
-5. Emit structured findings
 
 Return format:
 - Competitor actions detected
 - Strategic implications
 - Threat/opportunity assessment
 
-Use mcp__yarnnn__query_substrate for historical context.
-Use mcp__yarnnn__emit_work_output to record competitive intelligence."""
+Use emit_work_output to record competitive intelligence as structured outputs.
+"""
 
 
 SOCIAL_LISTENER_PROMPT = """You are a social listening specialist.
@@ -158,8 +160,8 @@ Return format:
 - Trending topics
 - Notable mentions
 
-Use mcp__yarnnn__query_substrate for historical context.
-Use mcp__yarnnn__emit_work_output to record social signals."""
+Use emit_work_output to record social signals as structured outputs.
+"""
 
 
 ANALYST_PROMPT = """You are a research analyst and synthesizer.
@@ -168,11 +170,11 @@ Your job: Transform raw data into actionable insights.
 Focus on: Patterns, trends, implications, recommendations.
 
 Analysis approach:
-1. Review all findings from other subagents (query substrate for recent findings)
-2. Identify patterns and trends across findings
+1. Review all monitoring data
+2. Identify patterns and trends
 3. Assess significance and urgency
 4. Connect to broader context
-5. Generate actionable insights and recommendations
+5. Generate actionable insights
 
 Synthesis levels:
 - Summary: Brief overview of findings
@@ -185,98 +187,36 @@ Output style:
 - Forward-looking (what does this mean for the future?)
 - Recommendation-oriented (what should we do?)
 
-Use mcp__yarnnn__query_substrate to access all recent findings.
-Use mcp__yarnnn__emit_work_output to create synthesis outputs (insights, recommendations)."""
+Use emit_work_output to create synthesis outputs (insights, recommendations).
+"""
 
 
 # ============================================================================
-# SDK Agent Configuration
+# ResearchAgentSDK Class (Improved Implementation)
 # ============================================================================
 
-def create_research_agent_options(
-    basket_id: str,
-    work_session_id: str,
-) -> "ClaudeAgentOptions":
+class ResearchAgentSDK(BaseAgent):
     """
-    Create Claude Agent SDK options for ResearchAgent.
+    Improved ResearchAgent using cleaner SDK patterns.
 
-    This configures the agent with subagents and MCP tools.
-    Replaces the legacy _register_subagents() method.
-    """
-    if not ClaudeAgentOptions:
-        raise ImportError("claude-agent-sdk not installed. Run: pip install claude-agent-sdk")
+    This is NOT a migration - it's a REFACTORING of the existing SDK-based agent.
+    Uses YARNNN's internalized SDK (BaseAgent, SubagentDefinition).
 
-    # MCP server will be initialized separately and passed in
-    # For now, we'll configure it in the environment
+    Key Improvements:
+    - Prompts extracted to module-level constants
+    - Better subagent isolation
+    - Cleaner tool-use handling
+    - Skills-ready architecture
 
-    return ClaudeAgentOptions(
-        system_prompt=RESEARCH_AGENT_SYSTEM_PROMPT,
-
-        # Subagents (replaces SubagentDefinition objects)
-        agents={
-            "web_monitor": {
-                "description": "Monitor websites, blogs, and news sources for updates and changes",
-                "prompt": WEB_MONITOR_PROMPT,
-                "tools": [
-                    "mcp__yarnnn__query_substrate",
-                    "mcp__yarnnn__emit_work_output",
-                ],
-                "model": "sonnet"  # Fast for monitoring
-            },
-
-            "competitor_tracker": {
-                "description": "Track competitor activity - products, pricing, messaging, strategic moves",
-                "prompt": COMPETITOR_TRACKER_PROMPT,
-                "tools": [
-                    "mcp__yarnnn__query_substrate",
-                    "mcp__yarnnn__emit_work_output",
-                ],
-                "model": "opus"  # More powerful for deep competitive analysis
-            },
-
-            "social_listener": {
-                "description": "Monitor social media, communities, and forums for signals and sentiment",
-                "prompt": SOCIAL_LISTENER_PROMPT,
-                "tools": [
-                    "mcp__yarnnn__query_substrate",
-                    "mcp__yarnnn__emit_work_output",
-                ],
-                "model": "sonnet"  # Fast for social monitoring
-            },
-
-            "analyst": {
-                "description": "Synthesize research findings into actionable insights",
-                "prompt": ANALYST_PROMPT,
-                "tools": [
-                    "mcp__yarnnn__query_substrate",
-                    "mcp__yarnnn__emit_work_output",
-                ],
-                "model": "sonnet"  # Good balance for synthesis
-            },
-        },
-
-        # Execution limits
-        max_turns=50,
-
-        # Model selection
-        model="claude-sonnet-4-5",  # Default model for main agent
-    )
-
-
-# ============================================================================
-# ResearchAgentSDK Class
-# ============================================================================
-
-class ResearchAgentSDK:
-    """
-    Research Agent using Claude Agent SDK.
-
-    Drop-in replacement for yarnnn_agents.archetypes.ResearchAgent.
-    Preserves the exact interface (deep_dive method) while using SDK internally.
+    Drop-in replacement for ResearchAgent with identical deep_dive() interface.
 
     Usage:
+        from agents_sdk import ResearchAgentSDK
+        from adapters.substrate_adapter import SubstrateMemoryAdapter
+
         agent = ResearchAgentSDK(
             basket_id="5004b9e1-67f5-4955-b028-389d45b1f5a4",
+            workspace_id="ws_001",
             work_session_id="session-uuid",
         )
 
@@ -285,152 +225,300 @@ class ResearchAgentSDK:
         # Returns same structure as legacy:
         # {
         #     "status": "completed",
-        #     "outputs_created": 5,
+        #     "topic": "...",
         #     "work_outputs": [...],
-        #     "session_metadata": {...}
+        #     "output_count": 5,
+        #     "timestamp": "..."
         # }
     """
 
     def __init__(
         self,
         basket_id: str,
+        workspace_id: str,
         work_session_id: str,
+        memory: Optional[MemoryProvider] = None,
+        governance: Optional[GovernanceProvider] = None,
+        tasks: Optional[TaskProvider] = None,
+        anthropic_api_key: Optional[str] = None,
+        model: str = "claude-sonnet-4-5",
+        monitoring_domains: Optional[List[str]] = None,
+        monitoring_frequency: str = "daily",
+        signal_threshold: float = 0.7,
+        synthesis_mode: str = "insights",
     ):
         """
         Initialize ResearchAgentSDK.
 
         Args:
             basket_id: Basket ID for substrate queries
+            workspace_id: Workspace ID for authorization
             work_session_id: Work session ID for output tracking
+            memory: MemoryProvider (auto-created if None)
+            governance: GovernanceProvider (optional)
+            tasks: TaskProvider (optional)
+            anthropic_api_key: Anthropic API key (from env if None)
+            model: Claude model to use
+            monitoring_domains: Domains to monitor (for scheduled runs)
+            monitoring_frequency: How often to monitor
+            signal_threshold: Minimum importance score to alert
+            synthesis_mode: How to present findings
         """
         self.basket_id = basket_id
+        self.workspace_id = workspace_id
         self.work_session_id = work_session_id
 
-        # Create SDK options
-        self.options = create_research_agent_options(
-            basket_id=basket_id,
-            work_session_id=work_session_id,
+        # Auto-create memory adapter if not provided
+        if memory is None:
+            from adapters.substrate_adapter import SubstrateMemoryAdapter
+            memory = SubstrateMemoryAdapter(
+                basket_id=basket_id,
+                workspace_id=workspace_id,
+                agent_type="research",
+            )
+
+        # Get API key
+        if anthropic_api_key is None:
+            anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not anthropic_api_key:
+                raise ValueError("ANTHROPIC_API_KEY required")
+
+        # Initialize BaseAgent
+        super().__init__(
+            agent_type="research",
+            agent_name="Research Agent SDK",
+            memory=memory,
+            governance=governance,
+            tasks=tasks,
+            anthropic_api_key=anthropic_api_key,
+            model=model,
         )
+
+        # Research configuration
+        self.monitoring_domains = monitoring_domains or ["general"]
+        self.monitoring_frequency = monitoring_frequency
+        self.signal_threshold = signal_threshold
+        self.synthesis_mode = synthesis_mode
+
+        # Register subagents with extracted prompts
+        self._register_subagents()
 
         logger.info(
             f"ResearchAgentSDK initialized: basket={basket_id}, "
-            f"session={work_session_id}"
+            f"session={work_session_id}, domains={self.monitoring_domains}"
         )
 
-    async def deep_dive(self, task_intent: str) -> Dict[str, Any]:
-        """
-        Conduct deep-dive research (on-demand).
+    def _register_subagents(self):
+        """Register specialized research subagents using clean SubagentDefinition pattern."""
 
-        This preserves the exact interface from legacy ResearchAgent.deep_dive().
+        # Web Monitor
+        self.subagents.register(
+            SubagentDefinition(
+                name="web_monitor",
+                description="Monitor websites, blogs, and news sources for updates and changes",
+                system_prompt=WEB_MONITOR_PROMPT,
+                tools=["web_search", "web_fetch"],
+                metadata={"type": "monitor"}
+            )
+        )
+
+        # Competitor Tracker
+        self.subagents.register(
+            SubagentDefinition(
+                name="competitor_tracker",
+                description="Track competitor activity - products, pricing, messaging, strategic moves",
+                system_prompt=COMPETITOR_TRACKER_PROMPT,
+                tools=["web_search", "web_fetch"],
+                metadata={"type": "monitor"}
+            )
+        )
+
+        # Social Listener
+        self.subagents.register(
+            SubagentDefinition(
+                name="social_listener",
+                description="Monitor social media, communities, and forums for signals and sentiment",
+                system_prompt=SOCIAL_LISTENER_PROMPT,
+                tools=["web_search", "web_fetch"],
+                metadata={"type": "monitor"}
+            )
+        )
+
+        # Analyst
+        self.subagents.register(
+            SubagentDefinition(
+                name="analyst",
+                description="Synthesize research findings into actionable insights",
+                system_prompt=ANALYST_PROMPT,
+                tools=None,  # No web tools, just analysis
+                metadata={"type": "analyst"}
+            )
+        )
+
+    def _get_default_system_prompt(self) -> str:
+        """
+        Get Research Agent specific system prompt.
+
+        Override from BaseAgent to use extracted RESEARCH_AGENT_SYSTEM_PROMPT.
+        """
+        prompt = RESEARCH_AGENT_SYSTEM_PROMPT
+
+        # Add capabilities info
+        prompt += f"""
+
+**Your Capabilities:**
+- Memory: {"Available" if self.memory is not None else "Not configured"}
+- Governance: {"Available" if self.governance is not None else "Not configured"}
+- Monitoring Domains: {", ".join(self.monitoring_domains)}
+- Monitoring Frequency: {self.monitoring_frequency}
+"""
+
+        # Add subagent delegation info
+        if self.subagents.list_subagents():
+            prompt += "\n" + self.subagents.get_delegation_prompt()
+
+        return prompt
+
+    async def deep_dive(self, topic: str) -> Dict[str, Any]:
+        """
+        Execute deep-dive research on a specific topic.
+
+        Preserves exact interface from legacy ResearchAgent.deep_dive().
+        Uses improved patterns with extracted prompts and cleaner tool handling.
 
         Args:
-            task_intent: Research task description
+            topic: Research topic
 
         Returns:
-            Research results with structured work_outputs:
+            Research findings with structured work_outputs:
             {
-                "status": "completed",
-                "outputs_created": int,
-                "work_outputs": List[dict],  # Structured outputs for review
-                "session_metadata": dict,
                 "topic": str,
-                "timestamp": str
+                "timestamp": str,
+                "work_outputs": List[dict],  # Structured outputs for review
+                "output_count": int,
+                "source_block_ids": List[str],
+                "agent_type": "research"
             }
         """
-        if not query:
-            raise ImportError("claude-agent-sdk not installed. Cannot execute deep_dive.")
+        logger.info(f"ResearchAgentSDK.deep_dive: {topic}")
 
-        logger.info(f"ResearchAgentSDK.deep_dive: {task_intent}")
+        # Query existing knowledge and extract block IDs for provenance
+        context = None
+        source_block_ids = []
+        if self.memory:
+            memory_results = await self.memory.query(topic, limit=10)
+            context = "\n".join([r.content for r in memory_results])
+            # Extract block IDs for provenance tracking
+            source_block_ids = [
+                str(r.metadata.get("block_id", r.metadata.get("id", "")))
+                for r in memory_results
+                if hasattr(r, "metadata") and r.metadata
+            ]
+            source_block_ids = [bid for bid in source_block_ids if bid]  # Filter empty
 
-        # Build research prompt with YARNNN-specific context
-        research_prompt = f"""Research Task: {task_intent}
+        # Comprehensive research using Claude WITH structured output tool
+        research_prompt = f"""Conduct comprehensive research on: {topic}
 
-**Context:**
-- Basket ID: {self.basket_id}
-- Work Session ID: {self.work_session_id}
+**Existing Knowledge (Block IDs: {source_block_ids if source_block_ids else 'none'}):**
+{context or "No prior context available"}
 
-**Instructions:**
-1. Query substrate to understand existing knowledge (use mcp__yarnnn__query_substrate)
-2. Identify knowledge gaps explicitly
-3. Delegate to appropriate subagents if specialized research needed
-4. Conduct targeted research to fill gaps
-5. Emit structured work outputs for ALL significant findings (use mcp__yarnnn__emit_work_output)
-6. Link outputs to source blocks via source_context_ids
+**Research Objectives:**
+1. Provide comprehensive overview
+2. Identify key trends and patterns
+3. Analyze implications
+4. Generate actionable insights
 
-**Remember:**
-- Use mcp__yarnnn__emit_work_output for EVERY finding, insight, recommendation
-- Include source_block_ids to track provenance
-- Calibrate confidence scores to evidence quality
-- Your outputs will be reviewed by the user
+**CRITICAL INSTRUCTION:**
+You MUST use the emit_work_output tool to record your findings. Do NOT just describe findings in text.
 
-Begin research."""
+For each significant finding, insight, or recommendation you discover:
+1. Call emit_work_output with structured data
+2. Use appropriate output_type (finding, recommendation, insight)
+3. Include source_block_ids from the context blocks used: {source_block_ids}
+4. Assign confidence scores based on evidence quality
 
-        # Execute agent with Claude Agent SDK
-        # SDK handles tool calls, subagent delegation, parsing automatically
-        try:
-            result = query(
-                prompt=research_prompt,
-                options=self.options
-            )
+Example workflow:
+- Find a key fact → emit_work_output(output_type="finding", ...)
+- Identify a pattern → emit_work_output(output_type="insight", ...)
+- Suggest action → emit_work_output(output_type="recommendation", ...)
 
-            # Stream response and track outputs
-            # SDK returns async generator
-            outputs_created = 0
-            final_message = None
-            all_tool_calls = []
+You may emit multiple outputs. Each will be reviewed by the user.
 
-            async for message in result:
-                # Track tool calls to emit_work_output
-                if hasattr(message, 'content'):
-                    for block in message.content:
-                        if hasattr(block, 'type') and block.type == 'tool_use':
-                            if hasattr(block, 'name') and 'emit_work_output' in block.name:
-                                outputs_created += 1
-                                all_tool_calls.append(block)
+Please conduct thorough research and synthesis, emitting structured outputs for all significant findings."""
 
-                # Save last message for metadata
-                if hasattr(message, 'text'):
-                    final_message = message
+        # Call Claude WITH the emit_work_output tool
+        response = await self.reason(
+            task=research_prompt,
+            context=context,
+            tools=[EMIT_WORK_OUTPUT_TOOL],  # Enable structured output tool
+            max_tokens=8000  # Longer for deep dives
+        )
 
-            logger.info(
-                f"ResearchAgentSDK completed. Created {outputs_created} outputs via tool calls."
-            )
+        # Parse structured work outputs from Claude's response
+        work_outputs = parse_work_outputs_from_response(response)
 
-            # Return format matching legacy ResearchAgent
-            return {
-                "status": "completed",
-                "outputs_created": outputs_created,
-                "session_metadata": {
-                    "final_response": str(final_message) if final_message else None,
-                    "tool_calls": len(all_tool_calls),
-                },
-                "topic": task_intent,
-                "timestamp": datetime.utcnow().isoformat(),
-                "agent_type": "research",
-                "basket_id": self.basket_id,
-                "work_session_id": self.work_session_id,
-            }
+        # Log what we found
+        logger.info(
+            f"Deep-dive produced {len(work_outputs)} structured outputs: "
+            f"{[o.output_type for o in work_outputs]}"
+        )
 
-        except Exception as e:
-            logger.error(f"ResearchAgentSDK.deep_dive failed: {e}")
-            return {
-                "status": "failed",
-                "error": str(e),
-                "outputs_created": 0,
-                "topic": task_intent,
-                "timestamp": datetime.utcnow().isoformat(),
-            }
+        results = {
+            "topic": topic,
+            "timestamp": datetime.utcnow().isoformat(),
+            "work_outputs": [o.to_dict() for o in work_outputs],  # Structured outputs
+            "output_count": len(work_outputs),
+            "source_block_ids": source_block_ids,
+            "agent_type": "research",  # For output routing
+            "basket_id": self.basket_id,
+            "work_session_id": self.work_session_id,
+        }
+
+        logger.info(f"Deep-dive research complete: {topic} with {len(work_outputs)} outputs")
+
+        return results
 
     async def monitor(self) -> Dict[str, Any]:
         """
-        Continuous monitoring (scheduled runs).
+        Execute continuous monitoring across all configured domains.
 
-        NOT IMPLEMENTED in Phase 2a.
-        Will be added in Phase 3 (scheduled execution).
+        NOT IMPLEMENTED in Phase 2a (focus on deep_dive for now).
+        Will be added in future phases for scheduled execution.
 
-        For now, raises NotImplementedError to maintain compatibility.
+        Raises:
+            NotImplementedError: Always (not yet implemented)
         """
         raise NotImplementedError(
-            "monitor() will be implemented in Phase 3 (scheduled execution). "
+            "monitor() will be implemented in future phases (scheduled execution). "
             "Use deep_dive() for on-demand research."
         )
+
+
+# ============================================================================
+# Convenience Functions
+# ============================================================================
+
+def create_research_agent_sdk(
+    basket_id: str,
+    workspace_id: str,
+    work_session_id: str,
+    **kwargs
+) -> ResearchAgentSDK:
+    """
+    Convenience factory function for creating ResearchAgentSDK.
+
+    Args:
+        basket_id: Basket ID for substrate queries
+        workspace_id: Workspace ID for authorization
+        work_session_id: Work session ID for output tracking
+        **kwargs: Additional arguments for ResearchAgentSDK
+
+    Returns:
+        Configured ResearchAgentSDK instance
+    """
+    return ResearchAgentSDK(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        work_session_id=work_session_id,
+        **kwargs
+    )

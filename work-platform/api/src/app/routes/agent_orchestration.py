@@ -489,6 +489,7 @@ async def _run_research_agent(
         logger.info(f"Using SDK-based ResearchAgent (basket={request.basket_id})")
         agent = ResearchAgentSDK(
             basket_id=request.basket_id,
+            workspace_id=workspace_id,
             work_session_id=work_session_id,
         )
     else:

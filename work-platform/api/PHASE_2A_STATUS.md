@@ -1,140 +1,183 @@
-# Phase 2a Status Report
+# Phase 2a Status Report: Agent Architecture Refactoring
 
 **Date:** 2025-11-18
-**Status:** ⚠️ BLOCKED - SDK API Clarification Needed
+**Status:** ✅ READY TO IMPLEMENT - Approach Clarified
 
-## What We Implemented ✅
+## Strategic Clarification
 
-1. **ResearchAgentSDK Structure** ([src/agents_sdk/research_agent.py](src/agents_sdk/research_agent.py))
-   - Clean separation from legacy yarnnn_agents
-   - 4 subagents with extracted prompts
-   - Feature flag integration
-   - Drop-in replacement interface
+**Key Discovery:** yarnnn_agents IS already an internalized Claude Agent SDK scaffold (based on https://github.com/Kvkthecreator/claude-agentsdk-opensource).
 
-2. **Feature Flag** ([src/app/routes/agent_orchestration.py](src/app/routes/agent_orchestration.py))
-   - `USE_AGENT_SDK` environment variable
-   - Graceful fallback to legacy
-   - Clear logging
+**What This Means:**
+- Phase 2 is NOT "SDK migration" (we already have SDK scaffolding)
+- Phase 2 IS "SDK refactoring and improvement"
+- Focus: Improve existing SDK-based architecture, extract Skills
 
-3. **Test Infrastructure** ([test_sdk_agent.py](test_sdk_agent.py))
-   - Validation test script
-   - Environment checks
+## Current Architecture (yarnnn_agents)
 
-## Discovery: SDK Package Confusion ⚠️
+**Location:** `work-platform/api/src/yarnnn_agents/`
 
-**Issue Found:**
-The package name `claude-agent-sdk` version 0.2.0 currently installed is actually the **legacy YARNNN custom framework** (our own yarnnn_agents), NOT the official Anthropic Claude Code SDK.
+**SDK Components Already Implemented:**
+- ✅ `BaseAgent` - Generic foundation for all agents
+- ✅ `SubagentDefinition` - Subagent configuration
+- ✅ `SubagentRegistry` - Subagent management and delegation
+- ✅ Provider Interfaces - `MemoryProvider`, `GovernanceProvider`, `TaskProvider`
+- ✅ Session Management - `AgentSession`, session tracking
+- ✅ Lifecycle Hooks - step_start, step_end, execute_start, execute_end
 
-**Evidence:**
+**Current ResearchAgent Implementation:**
+- Uses `AsyncAnthropic` directly (raw Claude API)
+- 4 subagents: web_monitor, competitor_tracker, social_listener, analyst
+- Tool-use pattern: `emit_work_output` for structured outputs
+- BFF integration: SubstrateClient for substrate-API queries
+- Work outputs tracked in work_sessions
+
+## What Phase 2a Actually Does
+
+**NOT Migration - This is REFACTORING**
+
+**Goals:**
+1. **Improve subagent isolation** - Better context boundaries
+2. **Extract procedural knowledge** - Move prompts and patterns to reusable components
+3. **Better tool-use patterns** - Cleaner structured output handling
+4. **Prepare for Skills** - Create clean interfaces for Phase 2b
+
+**Approach:**
+Create `agents_sdk/` directory with **improved** implementations that:
+- Use same `BaseAgent`, `SubagentDefinition` patterns
+- Extract system prompts to module-level constants (reusability)
+- Better separation of concerns (agent config vs execution)
+- Cleaner interfaces for Skills to plug into
+
+## Implementation Plan (Revised)
+
+### Phase 2a: Refactor ResearchAgent ✅ READY
+
+**Create:** `agents_sdk/research_agent.py`
+
+**Pattern:** Improved SDK-based implementation
+
 ```python
-# Current installed package (claude_agent_sdk v0.2.0):
-from claude_agent_sdk import BaseAgent, SubagentDefinition  # ✅ Works
-from claude_agent_sdk import query, ClaudeAgentOptions      # ❌ Doesn't exist
+from yarnnn_agents.base import BaseAgent
+from yarnnn_agents.subagents import SubagentDefinition
+from yarnnn_agents.tools import EMIT_WORK_OUTPUT_TOOL
 
-# These are the YARNNN custom classes we're trying to REPLACE
+# Extract prompts to module-level (reusability)
+RESEARCH_AGENT_SYSTEM_PROMPT = """..."""
+WEB_MONITOR_PROMPT = """..."""
+# etc.
+
+class ResearchAgentSDK(BaseAgent):
+    """
+    Improved ResearchAgent using cleaner SDK patterns.
+
+    Key Improvements:
+    - Prompts extracted for reuse
+    - Better subagent isolation
+    - Cleaner tool-use handling
+    - Skills-ready architecture
+    """
+
+    def __init__(self, basket_id: str, work_session_id: str):
+        # Create subagent definitions
+        web_monitor = SubagentDefinition(
+            name="web_monitor",
+            description="Monitor websites and blogs for updates",
+            system_prompt=WEB_MONITOR_PROMPT,
+            tools=["emit_work_output", "query_substrate"],
+            model="claude-sonnet-4-5"
+        )
+        # ... other subagents
+
+        # Initialize BaseAgent with providers
+        super().__init__(
+            agent_type="research",
+            memory=YarnnnMemory(basket_id=basket_id),
+            governance=YarnnnGovernance(basket_id=basket_id),
+            model="claude-sonnet-4-5"
+        )
+
+        # Register subagents
+        self.subagents.register_multiple([
+            web_monitor,
+            competitor_tracker,
+            social_listener,
+            analyst
+        ])
+
+    async def deep_dive(self, task_intent: str) -> Dict[str, Any]:
+        """
+        Preserves exact interface from legacy.
+        Improved implementation with better patterns.
+        """
+        # Use BaseAgent.execute() with clean delegation
+        # ...
 ```
 
-**What This Means:**
-Our implementation in `agents_sdk/research_agent.py` is written for the **official Anthropic Claude Code SDK** which has a different API:
-- Official SDK: Uses `query()` function + `ClaudeAgentOptions`
-- Current installed: Uses `BaseAgent` class + `SubagentDefinition`
+**Key Changes from Current Implementation:**
+1. Prompts extracted to module-level constants
+2. Use `SubagentDefinition` objects (not raw dicts)
+3. Better separation: config vs execution
+4. Cleaner tool response parsing
+5. Skills-ready: `.claude/skills/` can augment prompts
 
-## Two Paths Forward
+**What Stays The Same:**
+- `BaseAgent` and `SubagentDefinition` patterns
+- `AsyncAnthropic` for Claude API
+- Tool-use pattern with `emit_work_output`
+- BFF pattern for substrate-API
+- Work session tracking
+- Database schemas
 
-### Path A: Use Official Claude Code SDK (Original Plan)
+### Phase 2b: Extract Skills
 
-**Pros:**
-- Official Anthropic support
-- Built-in Skills support
-- Progressive context loading
-- Better long-term
+**Create:** `.claude/skills/yarnnn-research-methodology/`
 
-**Cons:**
-- Requires Node.js Claude Code CLI
-- Different API than we coded
-- More complex setup
+**Purpose:** Extract procedural knowledge from prompts into Skills
 
-**What Needs Changing:**
-1. Install actual Claude Code SDK (not our custom package)
-2. Verify API matches our implementation
-3. Set up Node.js CLI integration
-4. Test with real API
+**Skills to Create:**
+1. `yarnnn-research-methodology` - How to do research (query substrate first, fill gaps, cite sources)
+2. `yarnnn-quality-standards` - Quality criteria (confidence scoring, evidence quality)
+3. `yarnnn-substrate-patterns` - How to use substrate tools effectively
 
-### Path B: Keep Custom Framework (Pragmatic)
+**Integration:**
+Skills augment agent system prompts with reusable procedural knowledge.
 
-**Pros:**
-- Already works in production
-- No external dependencies
-- We control the code
+## Exit Criteria
 
-**Cons:**
-- No official Skills support
-- Have to build everything ourselves
-- Miss SDK benefits
+**Phase 2a Complete When:**
+- ✅ `agents_sdk/research_agent.py` implemented with improved patterns
+- ✅ Feature flag `USE_AGENT_SDK` enables new implementation
+- ✅ Test shows new implementation creates work outputs successfully
+- ✅ Prompts extracted to module-level constants
+- ✅ Subagent definitions use clean `SubagentDefinition` pattern
 
-**What This Means:**
-Phase 2a implementation is actually migrating **within our own custom framework**, not to official Anthropic SDK.
+**Phase 2b Complete When:**
+- ✅ 3 Skills created in `.claude/skills/`
+- ✅ Skills loaded and augment agent prompts
+- ✅ Skills reduce prompt duplication
+- ✅ Skills reusable across agents
 
-## Recommendation
+## Files to Create/Modify
 
-**Pause Phase 2a** until we clarify:
+**New Files:**
+- `work-platform/api/src/agents_sdk/__init__.py` - Module exports
+- `work-platform/api/src/agents_sdk/research_agent.py` - Improved implementation
+- `work-platform/api/.claude/skills/yarnnn-research-methodology/` - Skills (Phase 2b)
 
-1. **Which SDK are we targeting?**
-   - Official Anthropic Claude Code SDK?
-   - Our custom yarnnn_agents framework (currently called claude_agent_sdk)?
+**Modified Files:**
+- `work-platform/api/src/app/routes/agent_orchestration.py` - Feature flag integration
 
-2. **If Official SDK:**
-   - Get access to actual package
-   - Verify API documentation
-   - Update implementation to match real API
+**Test File:**
+- `work-platform/api/test_sdk_agent.py` - Validation test
 
-3. **If Custom Framework:**
-   - Rename our package to avoid confusion (yarnnn_agents → yarnnn_sdk?)
-   - Keep current implementation patterns
-   - Skip "SDK migration" and focus on internal refactoring
+## Next Steps
 
-## Current State
-
-**What Works:**
-- ✅ Code structure is clean and well-organized
-- ✅ Feature flag integration complete
-- ✅ Legacy code preserved
-- ✅ Prompts extracted to module level
-
-**What's Blocked:**
-- ❌ Can't test without clarifying which SDK we're using
-- ❌ API calls don't match installed package
-- ❌ Skills implementation depends on SDK choice
-
-## Next Steps (Pending Decision)
-
-**Option 1: Proceed with Official SDK**
-1. Get official Claude Code SDK package name
-2. Install and verify API
-3. Update research_agent.py to match real API
-4. Test execution
-5. Extract Skills (Phase 2b)
-
-**Option 2: Stay with Custom Framework**
-1. Rename phase to "Agent Refactoring" (not SDK migration)
-2. Use existing BaseAgent/SubagentDefinition pattern
-3. Skip Skills (implement as substrate blocks instead)
-4. Focus on cleaning up agent architecture
-
-**Option 3: Hybrid Approach**
-1. Keep custom framework for now
-2. Add Skills-like functionality using filesystem
-3. Plan future migration to official SDK when stable
-
-## Files Created (Phase 2a)
-
-- `src/agents_sdk/research_agent.py` - SDK-based implementation (needs API update)
-- `src/agents_sdk/__init__.py` - Module exports
-- `test_sdk_agent.py` - Validation test
-- `PHASE_2A_STATUS.md` - This document
-
-**Commit:** 29fbb603 "Implement Phase 2a: ResearchAgent SDK migration with feature flag"
+1. ✅ Clarification complete - yarnnn_agents IS SDK-based
+2. ⏳ Implement improved `ResearchAgentSDK` using YARNNN SDK patterns
+3. ⏳ Test against ani-project basket
+4. ⏳ Extract Skills (Phase 2b)
+5. ⏳ Remove legacy after validation
 
 ---
 
-**Recommendation:** Let's discuss which path makes sense for YARNNN before proceeding further.
+**Recommendation:** Proceed with Phase 2a implementation using correct YARNNN SDK patterns (BaseAgent, SubagentDefinition).
