@@ -2,7 +2,7 @@
 
 **Scaffolding Plan for YARNNN's Claude Agent SDK Integration**
 
-**Version**: 2.0 (Sequential Phased Approach)
+**Version**: 3.0 (Revised Structure-First Approach)
 **Date**: 2025-11-18
 **Status**: 🚧 Working Document (can be deleted after implementation)
 **Category**: Implementation Guide
@@ -17,22 +17,146 @@
 **Permanent Documentation:**
 - Rationale: See [CLAUDE_AGENT_SDK_SELECTION_RATIONALE.md](../canon/CLAUDE_AGENT_SDK_SELECTION_RATIONALE.md)
 - Architecture: See [AGENT_SUBSTRATE_ARCHITECTURE.md](../canon/AGENT_SUBSTRATE_ARCHITECTURE.md)
+- Work Output Lifecycle: See [WORK_OUTPUT_LIFECYCLE_IMPLEMENTATION.md](../canon/WORK_OUTPUT_LIFECYCLE_IMPLEMENTATION.md)
 
 ---
 
-## 📋 Migration Strategy: Sequential Phases
+## 🎯 Revised Strategy: Structure-First Approach
 
-**Why Sequential?**
-- Many moving pieces (substrate, work orchestration, agent architecture, integration points)
-- Each phase has clear success criteria and testable milestones
-- Can pause/adjust after each phase based on learnings
-- Lower risk than trying to do everything at once
+**Key Insight from Architecture Audit (2025-11-18):**
+YARNNN already has a proven ResearchAgent architecture with:
+- Custom implementation using raw Anthropic API
+- 4 subagents pattern (web_monitor, competitor_tracker, social_listener, analyst)
+- Tool-use pattern with `emit_work_output` **ALREADY DEPLOYED**
+- Work output lifecycle **COMPLETE** (Phase 1-4 ✅ DEPLOYED)
 
-**Key Principle:** Each phase must be **independently testable** before proceeding to the next.
+**Why Structure-First:**
+1. **Existing Blueprint**: ResearchAgent provides proven patterns to extract
+2. **Architectural Constraints**: SDK integration will reveal what belongs in Skills vs config
+3. **Better Skills**: Skills informed by real implementation, not theoretical patterns
+4. **Incremental Risk**: Test structure works, THEN extract procedural knowledge
+
+**Revised Implementation Order:**
+- ~~Phase 0: Prove SDK works~~ **✅ COMPLETE**
+- ~~Phase 1: MCP Tools for Substrate~~ **✅ COMPLETE**
+- **Phase 2a: Convert ResearchAgent to Claude Agent SDK** (NEW - structure scaffold)
+- **Phase 2b: Extract Skills from Working Implementation** (NEW - informed by Phase 2a)
+- **Phase 3: Production Integration** (deploy with all Skills)
+
+**Key Principle:** Build the framework first, then extract features that enhance it.
 
 ---
 
-## 🎯 Implementation Phases
+## 📊 Current State Summary (2025-11-18)
+
+### What's Already Deployed ✅
+
+**Phase 0 Infrastructure (COMPLETE):**
+- Docker + Node.js 18.x runtime
+- Claude Agent SDK Python package (claude-agent-sdk==0.1.6)
+- Node.js Claude Code CLI bundled (SDK handles spawning)
+- Deployed to Render successfully
+
+**Phase 1 MCP Tools (COMPLETE):**
+- `query_substrate` - Semantic search across knowledge substrate
+- `emit_work_output` - Create structured deliverables
+- `get_reference_assets` - Fetch reference files
+- All three tools tested against production substrate-API
+- Service-to-service auth working (temporarily exempted via exempt_prefixes)
+
+**Work Output Lifecycle (Phase 1-4 COMPLETE - 2025-11-17):**
+- `work_outputs` table in substrate-API with RLS
+- Tool-use pattern: ResearchAgent emits structured outputs via `emit_work_output` tool
+- BFF pattern: work-platform orchestrates, substrate-API owns data
+- Dual auth: Service-to-service + User JWT supported
+- Supervision status: pending_review → approved/rejected/revision_requested
+- Provenance tracking: source_context_ids maps outputs to source blocks
+
+**Existing ResearchAgent Architecture (Custom Implementation):**
+- Location: `work-platform/api/src/yarnnn_agents/archetypes/research_agent.py`
+- Uses **raw AsyncAnthropic API** (NOT Claude Agent SDK)
+- 4 subagents: web_monitor, competitor_tracker, social_listener, analyst
+- Capabilities: `monitor()` (scheduled), `deep_dive()` (on-demand)
+- Already emits 6 output types: finding, recommendation, insight, draft_content, report_section, data_analysis
+- SubstrateClient integration via BFF pattern
+- Circuit breaker + retry logic for resilience
+
+### What's Missing (Migration Target) ❌
+
+**Claude Agent SDK Integration:**
+- Current: Custom `SubagentDefinition` class with manual delegation
+- Target: SDK's native subagent configuration with parallel execution
+- Current: Manual tool response parsing
+- Target: SDK's built-in tool-use pattern
+- Current: No Skills support
+- Target: Progressive Skills loading from `.claude/skills/`
+
+**Skills Architecture:**
+- `.claude/skills/` directory exists with test-skill only
+- Production Skills NOT created yet:
+  - `yarnnn-research-methodology` (planned)
+  - `yarnnn-quality-standards` (planned)
+  - `yarnnn-substrate-patterns` (planned)
+
+**Subagent Constraints:**
+- Current: Sequential execution (NOT parallel)
+- Current: Shared context (NOT isolated)
+- Target: SDK manages parallel execution with context isolation
+
+### Key Architectural Findings
+
+**Database Topology:**
+- **work-platform DB**: projects, work_sessions, project_agents, agent_catalog
+- **substrate-API DB**: baskets, blocks, reference_assets, **work_outputs**
+
+**Cross-DB References:**
+- work_session_id appears in both DBs but NOT FK-enforced (validated in app code)
+- Same Supabase instance, different logical domains
+
+**Service Boundaries (BFF Pattern):**
+```
+work-platform (orchestrator)
+    ↓ HTTP
+substrate-API (data owner)
+    ↓
+Supabase (storage)
+```
+
+**Tool-Use Pattern (Already Proven):**
+- ResearchAgent.deep_dive() uses `emit_work_output` tool
+- Forces structured outputs (prevents free-form text)
+- Tool responses parsed manually via `parse_work_outputs_from_response()`
+- Works reliably with Claude Sonnet 4.5
+
+### Migration Challenges Identified
+
+1. **Node.js subprocess overhead**: Python SDK wraps CLI, adds IPC layer
+2. **Tool namespace changes**: `emit_work_output` → `mcp__yarnnn__emit_work_output`
+3. **Context isolation**: SDK subagents have separate contexts (current shares)
+4. **Parallel execution**: SDK runs subagents in parallel (current sequential)
+5. **Skills as files**: Organizational context must be filesystem-based, not blocks
+
+### What We Learned (Recent Commits)
+
+**Commit d794f328-a8faba57 (Phase 1 Auth Removal):**
+- Middleware exempt_prefixes doesn't bypass Depends() injection
+- Must remove auth dependency from endpoint signature OR use service auth properly
+- Solution: Temporarily exempt Phase 1 endpoints, plan for proper service auth in Phase 6
+
+**Commit 346e0f73 (Phase 1 MCP Tools):**
+- HTTP-only testing bypassed mcp package Python 3.10+ requirement
+- MCP tools work independently without agent integration
+- SubstrateClient BFF pattern proven
+
+**Commit bd2c7e74 (Canon Docs Update):**
+- Terminology settled: "work outputs" NOT "work artifacts"
+- work_session states: pending → running → completed/failed
+- Supervision status separate: pending_review → approved/rejected
+- Substrate absorption intentionally deferred (outputs stay as outputs)
+
+---
+
+## 🎯 Implementation Phases (Revised)
 
 ### Phase 0: Prove Claude Agent SDK Works (Isolated)
 **Goal:** Verify Claude Agent SDK works in our infrastructure, NO YARNNN integration
