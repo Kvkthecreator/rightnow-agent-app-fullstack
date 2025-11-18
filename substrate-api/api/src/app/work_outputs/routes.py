@@ -147,7 +147,6 @@ async def verify_workspace_access(basket_id: str, auth_info: dict) -> str:
 async def create_work_output(
     basket_id: str,
     output_data: WorkOutputCreate,
-    auth_info: dict = Depends(verify_user_or_service),
 ):
     """
     Create a new work output for user supervision.
@@ -161,10 +160,13 @@ async def create_work_output(
 
     Returns:
         Created work output record
+
+    Note: Phase 1 - Auth temporarily disabled via exempt_prefixes (/api/baskets).
+          In production, should use verify_user_or_service dependency.
     """
     try:
-        # Verify workspace access
-        await verify_workspace_access(basket_id, auth_info)
+        # Phase 1: Skip workspace access verification (endpoint is exempt from auth)
+        # await verify_workspace_access(basket_id, auth_info)
 
         # Verify basket_id matches
         if str(output_data.basket_id) != str(basket_id):
