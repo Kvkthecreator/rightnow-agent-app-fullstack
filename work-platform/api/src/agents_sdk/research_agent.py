@@ -267,7 +267,6 @@ class ResearchAgentSDK(BaseAgent):
 
     Usage:
         from agents_sdk import ResearchAgentSDK
-        from adapters.substrate_adapter import SubstrateMemoryAdapter
 
         agent = ResearchAgentSDK(
             basket_id="5004b9e1-67f5-4955-b028-389d45b1f5a4",
@@ -325,11 +324,10 @@ class ResearchAgentSDK(BaseAgent):
 
         # Auto-create memory adapter if not provided
         if memory is None:
-            from adapters.substrate_adapter import SubstrateMemoryAdapter
-            memory = SubstrateMemoryAdapter(
+            from yarnnn_agents.integrations.yarnnn.memory import YarnnnMemory
+            memory = YarnnnMemory(
                 basket_id=basket_id,
                 workspace_id=workspace_id,
-                agent_type="research",
             )
 
         # Get API key
