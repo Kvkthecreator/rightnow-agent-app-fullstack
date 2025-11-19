@@ -1,13 +1,19 @@
 # YARNNN Terminology Glossary
 
-**Version**: 2.0
-**Date**: 2025-11-17
+**Version**: 2.1
+**Date**: 2025-11-19
 **Status**: Canonical
 **Purpose**: Prevent terminology confusion across substrate-API and work-platform domains
 
 ---
 
-## Recent Updates (2025-11-17)
+## Recent Updates (2025-11-19)
+
+- **Agent Knowledge Modules**: "Skills" renamed to "Knowledge Modules" (procedural knowledge, not official Claude SDK Skills)
+- **Agent Execution Triad**: Config (WHAT) + Knowledge (HOW) + Assets (EXAMPLES)
+- **Knowledge Modules Storage**: `agent_orchestration/knowledge_modules/` (file-based)
+
+## Previous Updates (2025-11-17)
 
 - **SDK Internalized**: `claude_agent_sdk` → `yarnnn_agents` (work-platform owns orchestration)
 - **Tool-Use Pattern**: Agents emit structured outputs via `emit_work_output` tool
@@ -18,6 +24,25 @@
 ---
 
 ## Critical Distinctions
+
+### Skills vs Knowledge Modules (NEW - 2025-11-19)
+
+**Problem**: "Skills" is overloaded - official Claude SDK Skills vs. our procedural knowledge.
+
+| Term | Implementation | Purpose | Invocation |
+|------|----------------|---------|------------|
+| **Official Claude SDK Skills** | `Skill` tool + `setting_sources` | Autonomous capabilities (xlsx, pptx, pdf) | Claude decides when to use |
+| **Knowledge Modules** (Our Approach) | Markdown loaded into system prompt | Procedural knowledge (methodology, standards) | Always included in prompt |
+
+**ENFORCEMENT (2025-11-19)**:
+- ✅ Renamed: "Skills" → "Knowledge Modules"
+- ✅ Storage: `agent_orchestration/knowledge_modules/` (not `.claude/skills/`)
+- ✅ Loading: Orchestration layer via `KnowledgeModuleLoader`
+- ❌ NEVER call our implementation "Skills" (misleading - not official SDK pattern)
+
+**Recommendation**:
+- "Knowledge Modules" for our markdown-based procedural knowledge
+- "Official Skills" for Claude SDK's autonomous capabilities (future integration)
 
 ### Artifacts (AVOID using this word alone)
 
@@ -94,6 +119,18 @@
 | **Agent Config** | `project_agents.config` | Per-project per-agent | User-managed |
 
 **Catalog** defines what agents exist. **Config** defines how a specific agent behaves for a specific project.
+
+### The Agent Execution Triad (NEW - 2025-11-19)
+
+Agents receive three complementary inputs at execution time:
+
+| Input | Purpose | Storage | Example |
+|-------|---------|---------|---------|
+| **Agent Config** | WHAT to do | `project_agents.config` (JSONB) | Watchlists, alert rules, output preferences |
+| **Knowledge Modules** | HOW to do it | `agent_orchestration/knowledge_modules/` (markdown) | Research methodology, quality standards |
+| **Reference Assets** | EXAMPLES to learn from | `reference_assets` table + blob storage | Brand voice screenshots, tone samples |
+
+**Key Insight**: Config + Knowledge + Assets = Complete agent execution context. All three are assembled by the orchestration layer and passed to agent SDK constructors.
 
 ### Execution Modes
 
@@ -190,10 +227,19 @@
 | Pattern | Domain | Examples |
 |---------|--------|----------|
 | `substrate_*` | substrate-API | `substrate_references`, `substrate_relationships` |
-| `work_*` | work-platform | `work_sessions`, `work_artifacts`, `work_checkpoints` |
+| `work_*` | work-platform | `work_sessions`, `work_outputs`, `work_checkpoints` |
 | `agent_*` | work-platform | `agent_catalog`, `agent_work_requests`, `agent_config_history` |
 | `project_*` | work-platform | `project_agents`, `projects` |
 | `thinking_partner_*` | substrate-API | `thinking_partner_memory`, `thinking_partner_chats` |
+
+### File Structure (work-platform)
+
+| Pattern | Location | Purpose |
+|---------|----------|---------|
+| `agent_orchestration/` | work-platform/api/src/ | Agent execution orchestration, config assembly |
+| `knowledge_modules/` | agent_orchestration/knowledge_modules/ | Procedural knowledge (HOW to work) |
+| `agents_sdk/` | work-platform/api/src/agents_sdk/ | Agent implementations (SDK layer) |
+| `yarnnn_agents/` | work-platform/api/src/yarnnn_agents/ | Internalized SDK (base classes, tools, integrations) |
 
 ### API Endpoints
 
@@ -228,15 +274,22 @@
 **Wrong**: Intelligence = work outputs analysis
 **Right**: Intelligence = Thinking Partner meta-cognition (Phase 3, separate concern)
 
+### "Unified Governance"
+
+**Wrong**: We have unified governance (work quality + context integrity in one approval)
+**Right**: We have SEPARATED governance:
+- **Work Supervision** (work-platform): User reviews agent work outputs (approve/reject/revise)
+- **Substrate Governance** (substrate-API): Proposals workflow for block mutations
+- These are independent systems (no automatic work→substrate absorption yet)
+
 ---
 
 ## Document Hierarchy
 
-1. **AGENT_SUBSTRATE_ARCHITECTURE.md** - Current source of truth for agent substrate design
-2. **YARNNN_PLATFORM_CANON_V4.md** - Core philosophy and principles (may be outdated on details)
-3. **YARNNN_SUBSTRATE_CANON_V3.md** - Substrate-specific canon (P0-P4 pipeline)
-4. **ARTIFACT_TYPES_AND_HANDLING.md** - Work output types (rename to WORK_OUTPUT_TYPES.md)
-5. **WORK_SESSION_LIFECYCLE.md** - Work session state machine
+1. **AGENT_SUBSTRATE_ARCHITECTURE.md** - Current source of truth for agent substrate design (includes Knowledge Modules)
+2. **TERMINOLOGY_GLOSSARY.md** (this doc) - Prevents terminology confusion across domains
+3. **YARNNN_PLATFORM_CANON_V4.md** - Core philosophy and principles (may be outdated on details)
+4. **YARNNN_SUBSTRATE_CANON_V3.md** - Substrate-specific canon (P0-P4 pipeline)
 
 **When documents conflict**: AGENT_SUBSTRATE_ARCHITECTURE.md takes precedence for Phase 1-3 implementation.
 
@@ -244,10 +297,11 @@
 
 ## Action Items (Documentation Cleanup)
 
-1. Rename `ARTIFACT_TYPES_AND_HANDLING.md` → `WORK_OUTPUT_TYPES.md`
-2. Update all references from "artifact" to "work output" in work-platform docs
-3. Consolidate Phase 1-3 status into AGENT_SUBSTRATE_ARCHITECTURE.md
-4. Mark outdated sections in YARNNN_PLATFORM_CANON_V4.md
+1. ✅ Rename `ARTIFACT_TYPES_AND_HANDLING.md` → `WORK_OUTPUT_TYPES.md` (Complete)
+2. ✅ Update all references from "artifact" to "work output" in work-platform docs (Complete)
+3. ✅ Consolidate Phase 1-3 status into AGENT_SUBSTRATE_ARCHITECTURE.md (Complete)
+4. ✅ Add Agent Knowledge Modules to canon docs (Complete - 2025-11-19)
+5. ⏳ Mark outdated sections in YARNNN_PLATFORM_CANON_V4.md (Pending)
 
 ---
 

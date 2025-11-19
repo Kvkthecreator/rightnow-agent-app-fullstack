@@ -3,9 +3,11 @@
 **Unified Governance: Work Quality + Context Integrity**
 
 **Version**: 4.0 (Major Evolution from Substrate-Only Governance)
-**Date**: 2025-10-31 (Updated: 2025-11-05)
-**Status**: ⚠️ DESIGN VISION (NOT YET IMPLEMENTED)
+**Date**: 2025-10-31 (Updated: 2025-11-19)
+**Status**: ⚠️ DESIGN VISION (NOT YET IMPLEMENTED - SEPARATED GOVERNANCE IN PRODUCTION)
 **Supersedes**: YARNNN_GOVERNANCE_CANON_V5.md
+
+**CURRENT REALITY (2025-11-19)**: Work Supervision (work-platform) and Substrate Governance (substrate-API) are **SEPARATE** systems. This document describes a future "unified" vision that is NOT implemented.
 
 ---
 

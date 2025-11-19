@@ -322,7 +322,17 @@ WHERE permanence = 'temporary'
 ### 3. Agent Configurations (New)
 
 **What They Are:**
-Persistent operational parameters that define how agents behave, what they monitor, and how they produce outputs.
+Persistent operational parameters that define **WHAT** agents do - what they monitor, what rules they follow, what preferences they have.
+
+**The Agent Execution Triad:**
+
+Agents receive three complementary inputs at execution time:
+
+| Input | Purpose | Storage | Example |
+|-------|---------|---------|---------|
+| **Agent Config** | WHAT to do | `project_agents.config` (JSONB) | Watchlists, alert rules, output preferences |
+| **Knowledge Modules** | HOW to do it | `agent_orchestration/knowledge_modules/` (markdown) | Research methodology, quality standards |
+| **Reference Assets** | EXAMPLES to learn from | `reference_assets` table + blob storage | Brand voice screenshots, tone samples |
 
 **Why Separate from Context Blocks:**
 - Configs are **operational** (how to run), blocks are **informational** (what is known)
@@ -530,7 +540,72 @@ interface ReportingAgentConfig {
 
 ---
 
-### 4. Execution Modes (New - Phase 2)
+### 4. Agent Knowledge Modules (New - Phase 2d)
+
+**What They Are:**
+Procedural knowledge modules that teach agents **HOW** to work. These are markdown files containing methodology, standards, and patterns that augment agent system prompts at execution time.
+
+**Why Separate from Agent Config:**
+- Knowledge modules are **procedural** (methodology, processes), configs are **declarative** (settings, preferences)
+- Knowledge modules are **reusable** (shared across agent instances), configs are **instance-specific**
+- Knowledge modules are **version-controlled** (in git), configs are **database-persisted**
+
+**Storage Location:** work-platform codebase (`src/agent_orchestration/knowledge_modules/`)
+
+**File Structure:**
+```
+work-platform/api/src/agent_orchestration/knowledge_modules/
+├── research_methodology.md      # Research agent: 5-step research process
+├── quality_standards.md         # All agents: Confidence scoring, evidence requirements
+├── substrate_patterns.md        # All agents: Tool usage, provenance tracking
+├── content_creation_guide.md    # Content agent: Platform-specific guidelines
+└── report_formatting_guide.md   # Reporting agent: Report structure, formatting
+```
+
+**Module Naming Convention:**
+```
+{domain}_{module_name}.md
+
+Examples:
+- research_methodology.md (agent-specific)
+- quality_standards.md (cross-agent)
+- substrate_patterns.md (cross-agent)
+```
+
+**Loading Pattern:**
+```python
+# Orchestration layer loads modules for agent
+from agent_orchestration.knowledge_modules import KnowledgeModuleLoader
+
+loader = KnowledgeModuleLoader()
+knowledge = loader.load_for_agent(agent_type="research")
+
+# Agent receives knowledge via payload
+agent = ResearchAgentSDK(
+    basket_id=basket_id,
+    workspace_id=workspace_id,
+    knowledge_modules=knowledge,  # Augments system prompt
+    agent_config=project_agent.config,  # Runtime settings
+)
+```
+
+**Relationship to Official Claude SDK Skills:**
+
+**Current State**: We use static prompt templates (knowledge modules)
+- ❌ NOT official Claude SDK Skills (which require `Skill` tool + `setting_sources`)
+- ✅ Prompt-level procedural knowledge injection
+- ✅ Works well for our BFF pattern
+
+**Future State** (if needed): Could add official Skills support to yarnnn_agents
+- Knowledge modules would coexist with Skills
+- Knowledge = static prompt augmentation
+- Skills = autonomous tool invocation
+
+**Key Insight**: Knowledge modules are the **"agent config receiving side"** - they complement `agent_config` (user's settings) with procedural knowledge (how to apply those settings).
+
+---
+
+### 5. Execution Modes (New - Phase 2)
 
 **What They Enable:**
 Differentiation between autonomous/scheduled agents (Research, Content) vs. on-demand agents (Reporting).
@@ -1896,6 +1971,15 @@ async function buildAgentPayload(workSession) {
   - **Provenance Tracking**: source_context_ids maps outputs to source blocks
   - **Marked Future**: Phases 2-3 clearly marked as not started
   - **Updated Primitives**: Work Artifacts → Work Outputs (terminology clarity)
+- **v2.1 (2025-11-19): Agent Knowledge Modules Architecture - Refinements:**
+  - **Phase 2d Added**: Agent Knowledge Modules (procedural knowledge layer)
+  - **The Agent Execution Triad**: Config (WHAT) + Knowledge (HOW) + Assets (EXAMPLES)
+  - **Terminology Clarity**: "Skills" → "Knowledge Modules" (not official Claude SDK Skills)
+  - **Orchestration Layer**: Centralized payload building with knowledge module loading
+  - **Architecture Alignment**: Knowledge modules complement agent_config (receiving side)
+  - **File-based Storage**: Markdown modules in `agent_orchestration/knowledge_modules/`
+  - **Reusability**: Core modules (quality_standards, substrate_patterns) + agent-specific
+  - **Future Path**: Clear separation allowing official Skills integration later
 
 **Approvals:**
 - Architecture: ✅ Approved
