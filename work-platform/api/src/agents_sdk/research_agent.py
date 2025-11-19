@@ -330,7 +330,6 @@ class ResearchAgentSDK(BaseAgent):
                 name="web_monitor",
                 description="Monitor websites, blogs, and news sources for updates and changes",
                 system_prompt=WEB_MONITOR_PROMPT,
-                tools=["web_search", "web_fetch"],
                 metadata={"type": "monitor"}
             )
         )
@@ -341,7 +340,6 @@ class ResearchAgentSDK(BaseAgent):
                 name="competitor_tracker",
                 description="Track competitor activity - products, pricing, messaging, strategic moves",
                 system_prompt=COMPETITOR_TRACKER_PROMPT,
-                tools=["web_search", "web_fetch"],
                 metadata={"type": "monitor"}
             )
         )
@@ -352,7 +350,6 @@ class ResearchAgentSDK(BaseAgent):
                 name="social_listener",
                 description="Monitor social media, communities, and forums for signals and sentiment",
                 system_prompt=SOCIAL_LISTENER_PROMPT,
-                tools=["web_search", "web_fetch"],
                 metadata={"type": "monitor"}
             )
         )
@@ -363,7 +360,6 @@ class ResearchAgentSDK(BaseAgent):
                 name="analyst",
                 description="Synthesize research findings into actionable insights",
                 system_prompt=ANALYST_PROMPT,
-                tools=None,  # No web tools, just analysis
                 metadata={"type": "analyst"}
             )
         )
@@ -492,11 +488,17 @@ You may emit multiple outputs. Each will be reviewed by the user.
 
 Please conduct thorough research and synthesis, emitting structured outputs for all significant findings."""
 
-        # Call Claude WITH the emit_work_output tool
+        # Build tool list: custom + server tools
+        tools = [
+            EMIT_WORK_OUTPUT_TOOL,  # Custom tool for structured outputs
+            {"type": "web_search_20250305", "name": "web_search"}  # Anthropic server tool
+        ]
+
+        # Call Claude with web search enabled
         response = await self.reason(
             task=research_prompt,
             context=context,
-            tools=[EMIT_WORK_OUTPUT_TOOL],  # Enable structured output tool
+            tools=tools,
             max_tokens=8000  # Longer for deep dives
         )
 

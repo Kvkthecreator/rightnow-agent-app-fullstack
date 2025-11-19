@@ -25,9 +25,6 @@ class SubagentDefinition(BaseModel):
     system_prompt: str
     """Subagent-specific system prompt defining role and approach"""
 
-    tools: Optional[List[str]] = None
-    """Tool names available to this subagent (None = inherit all from parent)"""
-
     model: Optional[str] = None
     """Model override for this subagent (None = inherit from parent)"""
 
