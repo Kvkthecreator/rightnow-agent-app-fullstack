@@ -30,6 +30,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
+# Add /app/src to PYTHONPATH so yarnnn_agents can be imported
+ENV PYTHONPATH="/app/src:${PYTHONPATH}"
+
 # Expose port
 EXPOSE 10000
 
