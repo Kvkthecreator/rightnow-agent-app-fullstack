@@ -28,6 +28,9 @@ from pathlib import Path
 # YARNNN SDK imports (internalized)
 from yarnnn_agents.base import BaseAgent
 from yarnnn_agents.subagents import SubagentDefinition
+
+# Memory adapter for BFF-to-substrate integration
+from adapters.memory_adapter import SubstrateMemoryAdapter
 from yarnnn_agents.interfaces import (
     MemoryProvider,
     GovernanceProvider,
@@ -322,9 +325,13 @@ class ResearchAgentSDK(BaseAgent):
         self.workspace_id = workspace_id
         self.work_session_id = work_session_id
 
-        # Memory provider is optional - BaseAgent handles None gracefully
-        # If memory is None, agent will skip memory queries (which is fine for Phase 2)
-        # Future: Integrate with substrate-API for memory when YARNNN_API_KEY is available
+        # Create memory adapter using BFF pattern (substrate-API via SubstrateClient)
+        # Uses SUBSTRATE_SERVICE_SECRET (not YARNNN_API_KEY)
+        memory_adapter = SubstrateMemoryAdapter(
+            basket_id=basket_id,
+            workspace_id=workspace_id
+        )
+        logger.info(f"Created SubstrateMemoryAdapter for basket={basket_id}")
 
         # Get API key
         if anthropic_api_key is None:
@@ -332,11 +339,11 @@ class ResearchAgentSDK(BaseAgent):
             if not anthropic_api_key:
                 raise ValueError("ANTHROPIC_API_KEY required")
 
-        # Initialize BaseAgent
+        # Initialize BaseAgent with substrate memory adapter
         super().__init__(
             agent_type="research",
             agent_name="Research Agent SDK",
-            memory=memory,
+            memory=memory_adapter,  # BFF-to-substrate memory using SubstrateClient
             governance=governance,
             tasks=tasks,
             anthropic_api_key=anthropic_api_key,
