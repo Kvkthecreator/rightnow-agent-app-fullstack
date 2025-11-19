@@ -27,6 +27,9 @@ from agents_sdk import (
 )
 from adapters.auth_adapter import AuthAdapter
 
+# Import Phase 2d Knowledge Module loader
+from agent_orchestration import KnowledgeModuleLoader
+
 # Import Phase 1-3 utilities
 from app.utils.jwt import verify_jwt
 from app.utils.supabase_client import supabase_client, supabase_admin_client
@@ -458,12 +461,17 @@ async def _run_research_agent(
     except Exception as e:
         logger.warning(f"Failed to get project_id for basket {request.basket_id}: {e}")
 
+    # Phase 2d: Load knowledge modules for agent
+    km_loader = KnowledgeModuleLoader()
+    knowledge_modules = km_loader.load_for_agent("research")
+
     # Phase 2: Create ResearchAgentSDK (refactored with Skills)
     logger.info(f"Creating ResearchAgentSDK (basket={request.basket_id})")
     agent = ResearchAgentSDK(
         basket_id=request.basket_id,
         workspace_id=workspace_id,
         work_session_id=work_session_id,
+        knowledge_modules=knowledge_modules,
     )
 
     # Execute task
@@ -531,10 +539,15 @@ async def _run_content_agent(
     except Exception as e:
         logger.warning(f"Failed to get project_id for basket {request.basket_id}: {e}")
 
+    # Phase 2d: Load knowledge modules for agent
+    km_loader = KnowledgeModuleLoader()
+    knowledge_modules = km_loader.load_for_agent("content")
+
     # Create agent with SDK pattern (Phase 2c)
     agent = ContentAgentSDK(
         basket_id=request.basket_id,
         workspace_id=workspace_id,
+        knowledge_modules=knowledge_modules,
     )
 
     # Execute task
@@ -623,10 +636,15 @@ async def _run_reporting_agent(
     except Exception as e:
         logger.warning(f"Failed to get project_id for basket {request.basket_id}: {e}")
 
+    # Phase 2d: Load knowledge modules for agent
+    km_loader = KnowledgeModuleLoader()
+    knowledge_modules = km_loader.load_for_agent("reporting")
+
     # Create agent with SDK pattern (Phase 2c)
     agent = ReportingAgentSDK(
         basket_id=request.basket_id,
         workspace_id=workspace_id,
+        knowledge_modules=knowledge_modules,
     )
 
     # Execute task

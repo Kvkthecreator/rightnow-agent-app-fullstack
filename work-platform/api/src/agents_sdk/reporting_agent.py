@@ -145,6 +145,9 @@ class ReportingAgentSDK(BaseAgent):
         memory: Optional[Any] = None,
         governance: Optional[Any] = None,
         tasks: Optional[Any] = None,
+
+        # Knowledge modules (Phase 2d)
+        knowledge_modules: str = "",
     ):
         """
         Initialize Reporting Agent SDK.
@@ -159,12 +162,14 @@ class ReportingAgentSDK(BaseAgent):
             memory: Memory provider (auto-creates SubstrateMemoryAdapter if None)
             governance: Governance provider (optional)
             tasks: Task provider (optional)
+            knowledge_modules: Knowledge modules (procedural knowledge) loaded from orchestration layer
         """
         # Store configuration
         self.basket_id = str(basket_id)
         self.workspace_id = workspace_id
         self.default_format = default_format
         self.template_library = template_library or {}
+        self.knowledge_modules = knowledge_modules
 
         # Get Anthropic API key
         if not anthropic_api_key:
@@ -185,13 +190,11 @@ class ReportingAgentSDK(BaseAgent):
         else:
             memory_adapter = memory
 
-        # Load Skills from .claude/skills/ (if available)
-        skills_content = self._load_skills()
-
-        # Build system prompt with Skills
+        # Build system prompt with Knowledge Modules (Phase 2d)
         system_prompt = REPORTING_AGENT_SYSTEM_PROMPT
-        if skills_content:
-            system_prompt += f"\n\n{skills_content}"
+        if self.knowledge_modules:
+            system_prompt += f"\n\n# 📚 YARNNN Knowledge Modules (Procedural Knowledge)\n\n"
+            system_prompt += self.knowledge_modules
 
         # Initialize BaseAgent with substrate memory adapter
         super().__init__(
@@ -209,38 +212,6 @@ class ReportingAgentSDK(BaseAgent):
         logger.info(
             f"ReportingAgentSDK initialized - Default format: {default_format}"
         )
-
-    def _load_skills(self) -> str:
-        """
-        Load Skills from .claude/skills/ directory.
-
-        Returns Skills relevant to reporting (if found).
-        """
-        skills_dir = Path(__file__).parent.parent / ".claude" / "skills"
-
-        if not skills_dir.exists():
-            logger.warning(f"Skills directory not found: {skills_dir}")
-            return ""
-
-        # Reporting-specific Skills (can add more as needed)
-        skill_files = [
-            "yarnnn-quality-standards.md",  # Confidence scoring, evidence
-            "yarnnn-substrate-patterns.md",  # Tool usage, provenance
-        ]
-
-        skills_content = []
-        for skill_file in skill_files:
-            skill_path = skills_dir / skill_file
-            if skill_path.exists():
-                with open(skill_path) as f:
-                    skills_content.append(f.read())
-
-        if skills_content:
-            combined = "\n\n".join(skills_content)
-            logger.info(f"Loaded {len(skills_content)} Skills ({len(combined)} chars)")
-            return combined
-
-        return ""
 
     async def execute(self, task: str) -> Dict[str, Any]:
         """

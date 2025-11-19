@@ -196,57 +196,11 @@ Use emit_work_output to create synthesis outputs (insights, recommendations).
 
 
 # ============================================================================
-# Skills Loader (Phase 2b)
+# Knowledge Modules (Phase 2d)
 # ============================================================================
-
-def _load_skills() -> str:
-    """
-    Load Skills from filesystem and format for prompt injection.
-
-    Looks for skill.md files in .claude/skills/ directory.
-    Skills are reusable procedural knowledge that augment agent prompts.
-
-    Returns:
-        Formatted string with all Skills content
-    """
-    # Find skills directory (relative to this file)
-    current_file = Path(__file__)
-    skills_dir = current_file.parent.parent.parent / ".claude" / "skills"
-
-    if not skills_dir.exists():
-        logger.warning(f"Skills directory not found: {skills_dir}")
-        return ""
-
-    skills_content = []
-
-    # Load skills in order
-    skill_names = [
-        "yarnnn-research-methodology",
-        "yarnnn-quality-standards",
-        "yarnnn-substrate-patterns"
-    ]
-
-    for skill_name in skill_names:
-        skill_path = skills_dir / skill_name / "skill.md"
-
-        if skill_path.exists():
-            try:
-                with open(skill_path, 'r') as f:
-                    content = f.read()
-                    skills_content.append(f"\n## 📚 Skill: {skill_name}\n\n{content}")
-                    logger.debug(f"Loaded skill: {skill_name} ({len(content)} chars)")
-            except Exception as e:
-                logger.warning(f"Failed to load skill {skill_name}: {e}")
-        else:
-            logger.warning(f"Skill file not found: {skill_path}")
-
-    if skills_content:
-        result = "\n\n---\n\n".join(skills_content)
-        logger.info(f"Loaded {len(skills_content)} skills ({len(result)} total chars)")
-        return result
-    else:
-        logger.warning("No skills loaded")
-        return ""
+# Knowledge modules are now loaded centrally via KnowledgeModuleLoader
+# and passed to agents via constructor parameter.
+# This section is preserved for documentation purposes only.
 
 
 # ============================================================================
@@ -303,6 +257,7 @@ class ResearchAgentSDK(BaseAgent):
         monitoring_frequency: str = "daily",
         signal_threshold: float = 0.7,
         synthesis_mode: str = "insights",
+        knowledge_modules: str = "",
     ):
         """
         Initialize ResearchAgentSDK.
@@ -320,10 +275,12 @@ class ResearchAgentSDK(BaseAgent):
             monitoring_frequency: How often to monitor
             signal_threshold: Minimum importance score to alert
             synthesis_mode: How to present findings
+            knowledge_modules: Knowledge modules (procedural knowledge) loaded from orchestration layer
         """
         self.basket_id = basket_id
         self.workspace_id = workspace_id
         self.work_session_id = work_session_id
+        self.knowledge_modules = knowledge_modules
 
         # Create memory adapter using BFF pattern (substrate-API via SubstrateClient)
         # Uses SUBSTRATE_SERVICE_SECRET (not YARNNN_API_KEY)
@@ -416,7 +373,7 @@ class ResearchAgentSDK(BaseAgent):
         Get Research Agent specific system prompt.
 
         Override from BaseAgent to use extracted RESEARCH_AGENT_SYSTEM_PROMPT.
-        Injects Skills from .claude/skills/ directory (Phase 2b).
+        Injects Knowledge Modules from orchestration layer (Phase 2d).
         """
         prompt = RESEARCH_AGENT_SYSTEM_PROMPT
 
@@ -430,12 +387,11 @@ class ResearchAgentSDK(BaseAgent):
 - Monitoring Frequency: {self.monitoring_frequency}
 """
 
-        # Phase 2b: Load and inject Skills
-        skills = _load_skills()
-        if skills:
-            prompt += "\n\n---\n\n# 📚 YARNNN Skills (Procedural Knowledge)\n\n"
-            prompt += "The following Skills provide reusable knowledge about how to work effectively in YARNNN:\n\n"
-            prompt += skills
+        # Phase 2d: Inject Knowledge Modules from orchestration layer
+        if self.knowledge_modules:
+            prompt += "\n\n---\n\n# 📚 YARNNN Knowledge Modules (Procedural Knowledge)\n\n"
+            prompt += "The following knowledge modules provide guidelines on how to work effectively in YARNNN:\n\n"
+            prompt += self.knowledge_modules
 
         # Add subagent delegation info
         if self.subagents.list_subagents():
