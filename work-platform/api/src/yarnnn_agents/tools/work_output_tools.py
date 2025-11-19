@@ -29,28 +29,77 @@ class WorkOutput:
 
     This corresponds to a row in the work_outputs table.
     Created by parsing Claude's tool_use response.
+
+    Supports two output modes:
+    - Text outputs: body is populated (string), file_id is None
+    - File outputs: file_id is populated, body is None (mutually exclusive)
     """
-    output_type: str  # finding, recommendation, insight, draft_content, etc.
+    output_type: str  # finding, recommendation, insight, draft_content, spreadsheet, report_pdf, etc.
     title: str
-    body: Dict[str, Any]  # Structured content
-    confidence: float
-    source_block_ids: List[str] = None  # Provenance
-    tool_call_id: str = None  # Claude's tool_use id
+
+    # Content (ONE OF - mutually exclusive)
+    body: Optional[str] = None  # Text content (or JSON string for legacy compatibility)
+    file_id: Optional[str] = None  # Claude Files API identifier (file_011CNha...)
+
+    # File metadata (when file_id is set)
+    file_format: Optional[str] = None  # pdf, xlsx, docx, pptx, png, csv
+    file_size_bytes: Optional[int] = None
+    mime_type: Optional[str] = None
+    storage_path: Optional[str] = None  # Supabase Storage path after persistence
+
+    # Provenance
+    generation_method: str = "text"  # text, code_execution, skill, manual
+    skill_metadata: Optional[Dict[str, Any]] = None  # Skill-specific provenance
+
+    # Legacy fields
+    confidence: Optional[float] = None
+    source_block_ids: Optional[List[str]] = None  # Provenance
+    tool_call_id: Optional[str] = None  # Claude's tool_use id
 
     def __post_init__(self):
         if self.source_block_ids is None:
             self.source_block_ids = []
 
+        # Validate body XOR file_id
+        if self.body is not None and self.file_id is not None:
+            raise ValueError("WorkOutput cannot have both body and file_id - they are mutually exclusive")
+        if self.body is None and self.file_id is None:
+            raise ValueError("WorkOutput must have either body or file_id")
+
+    def is_file_output(self) -> bool:
+        """Check if this is a file output (vs text output)"""
+        return self.file_id is not None
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API serialization."""
-        return {
+        result = {
             "output_type": self.output_type,
             "title": self.title,
-            "body": self.body,
-            "confidence": self.confidence,
-            "source_context_ids": self.source_block_ids,
-            "tool_call_id": self.tool_call_id,
+            "generation_method": self.generation_method,
         }
+
+        # Content (one of)
+        if self.body is not None:
+            result["body"] = self.body
+        if self.file_id is not None:
+            result["file_id"] = self.file_id
+            result["file_format"] = self.file_format
+            result["file_size_bytes"] = self.file_size_bytes
+            result["mime_type"] = self.mime_type
+            if self.storage_path:
+                result["storage_path"] = self.storage_path
+            if self.skill_metadata:
+                result["skill_metadata"] = self.skill_metadata
+
+        # Legacy/optional fields
+        if self.confidence is not None:
+            result["confidence"] = self.confidence
+        if self.source_block_ids:
+            result["source_context_ids"] = self.source_block_ids
+        if self.tool_call_id:
+            result["tool_call_id"] = self.tool_call_id
+
+        return result
 
 
 # Universal tool schema for emitting work outputs
@@ -197,16 +246,30 @@ def parse_work_outputs_from_response(response: Any) -> List[WorkOutput]:
         # Only process emit_work_output tool calls
         if block_type == "tool_use" and tool_name == "emit_work_output":
             try:
+                # Handle body: convert Dict to JSON string for new TEXT column
+                body_input = tool_input.get("body")
+                if isinstance(body_input, dict):
+                    import json
+                    body_str = json.dumps(body_input)
+                else:
+                    body_str = body_input
+
                 output = WorkOutput(
                     output_type=tool_input.get("output_type", "insight"),
                     title=tool_input.get("title", "Untitled Output"),
-                    body=tool_input.get("body", {"summary": "No summary provided"}),
+                    body=body_str if body_str else None,
+                    file_id=tool_input.get("file_id"),
+                    file_format=tool_input.get("file_format"),
+                    file_size_bytes=tool_input.get("file_size_bytes"),
+                    mime_type=tool_input.get("mime_type"),
+                    generation_method=tool_input.get("generation_method", "text"),
+                    skill_metadata=tool_input.get("skill_metadata"),
                     confidence=tool_input.get("confidence", 0.5),
                     source_block_ids=tool_input.get("source_block_ids", []),
                     tool_call_id=tool_id
                 )
                 outputs.append(output)
-                logger.debug(f"Parsed work output: {output.title} ({output.output_type})")
+                logger.debug(f"Parsed work output: {output.title} ({output.output_type}, {'file' if output.is_file_output() else 'text'})")
             except Exception as e:
                 logger.error(f"Failed to parse work output from tool call: {e}")
                 continue
@@ -233,25 +296,33 @@ def validate_work_output(output: WorkOutput) -> List[str]:
     if len(output.title) > 200:
         errors.append("title must be 200 characters or less")
 
-    if not isinstance(output.body, dict):
-        errors.append("body must be a dictionary")
-    elif "summary" not in output.body:
-        errors.append("body must contain 'summary' field")
+    # Content validation (body XOR file_id)
+    if output.body is None and output.file_id is None:
+        errors.append("must have either body or file_id")
+    elif output.body is not None and output.file_id is not None:
+        errors.append("cannot have both body and file_id (mutually exclusive)")
 
-    if output.confidence is None:
-        errors.append("confidence is required")
-    elif not (0 <= output.confidence <= 1):
+    # Body validation (for text outputs)
+    if output.body is not None:
+        # Body is now TEXT (not JSONB), can be plain text or JSON string
+        pass  # Less strict validation for backward compatibility
+
+    # File validation (for file outputs)
+    if output.file_id is not None:
+        if not output.file_format:
+            errors.append("file_format is required when file_id is set")
+        if not output.generation_method in ["code_execution", "skill", "manual"]:
+            errors.append("file outputs must have generation_method of code_execution, skill, or manual")
+
+    # Confidence validation (optional)
+    if output.confidence is not None and not (0 <= output.confidence <= 1):
         errors.append("confidence must be between 0 and 1")
 
     # Type-specific validation
-    valid_types = ["finding", "recommendation", "insight", "draft_content", "report_section", "data_analysis"]
+    valid_types = ["finding", "recommendation", "insight", "draft_content", "report_section", "data_analysis",
+                   "spreadsheet", "report_pdf", "presentation", "document"]
     if output.output_type not in valid_types:
         errors.append(f"output_type must be one of: {valid_types}")
-
-    # Draft content specific
-    if output.output_type == "draft_content":
-        if "draft_text" not in output.body:
-            errors.append("draft_content outputs must include 'draft_text' in body")
 
     return errors
 

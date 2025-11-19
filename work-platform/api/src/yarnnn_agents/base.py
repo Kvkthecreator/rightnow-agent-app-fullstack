@@ -174,7 +174,15 @@ class BaseAgent(ABC):
         api_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY must be provided or set in environment")
-        self.claude = AsyncAnthropic(api_key=api_key)
+
+        # Enable Skills support via beta headers
+        # Required for file generation (PDF, XLSX, DOCX, PPTX)
+        self.claude = AsyncAnthropic(
+            api_key=api_key,
+            default_headers={
+                "anthropic-beta": "code-execution-2025-08-25,files-api-2025-04-14,skills-2025-10-02"
+            }
+        )
 
         # Agent behavior
         self.auto_approve = auto_approve or os.getenv("AGENT_AUTO_APPROVE", "false").lower() == "true"
