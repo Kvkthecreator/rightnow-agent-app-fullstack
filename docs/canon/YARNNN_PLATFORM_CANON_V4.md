@@ -2,10 +2,12 @@
 
 **The Single Source of Truth for YARNNN Service Philosophy and Implementation**
 
-**Version**: 4.0.1 (Current Implementation) / 4.0 (Vision)
-**Date**: 2025-10-31 (Updated: 2025-11-15)
-**Status**: ⚠️ Canonical Vision (Implementation Phases 1-4 Complete)
+**Version**: 4.1.0 (Current Implementation - Architecture Corrected)
+**Date**: 2025-10-31 (Updated: 2025-11-19)
+**Status**: ⚠️ Vision Document with Current Implementation Notes
 **Supersedes**: YARNNN_CANON.md (v3.1)
+
+**IMPORTANT**: Sections marked "Vision" describe future goals. See "Current Implementation" notes for actual state.
 
 ---
 
@@ -21,30 +23,38 @@ This Canon document describes the **v4.0 VISION and philosophy**. The AGENT_SUBS
 
 ---
 
-## ⚠️ CURRENT IMPLEMENTATION STATUS (As of 2025-11-15)
+## ⚠️ CURRENT IMPLEMENTATION STATUS (As of 2025-11-19)
 
-**This document describes the v4.0 VISION. Implementation is in progress (Phase 1).**
+**This document describes the v4.0 VISION. Implementation Phases 1-4 Complete, Phase 2e Complete.**
 
 **What IS Working** ✅:
 - **Substrate Core** (substrate-api): Blocks, documents, insights, timeline, semantic layer
 - **Substrate Governance**: P1 pipeline with proposals, semantic deduplication, quality validation
 - **Projects**: User-facing work containers (1:1 with baskets currently)
-- **Work Sessions**: Basic task tracking schema (projects, work_sessions, work_artifacts, work_checkpoints)
+- **Agent Sessions Architecture** (Phase 2e): agent_sessions, work_requests, work_tickets
+- **Work Outputs**: Agent deliverables via tool-use pattern (emit_work_output)
+- **Work Supervision**: Review workflow (pending_review → approved/rejected)
+- **Reference Assets**: Non-text substrate (screenshots, PDFs) in substrate-API
+- **Agent Configs**: Dynamic agent_catalog with JSONB configs
+- **Knowledge Modules**: Procedural markdown in agent_orchestration/
 
 **What is NOT Yet Implemented** ⏸️:
-- **Work-Platform Governance**: Unified approval orchestrator disabled (Nov 5, 2025)
-- **Work→Substrate Integration**: Bridge architecture deferred to Phase 2
-- **Agent SDK Integration**: Session linking and orchestration
-- **Multi-checkpoint workflows**: Iterations and feedback loops
+- **Unified Governance**: Intentionally separated - substrate governance (proposals) vs work supervision (output review)
+- **Work→Substrate Auto-Absorption**: Approved outputs do NOT auto-become blocks (deferred)
+- **Execution Modes**: Scheduled/autonomous agent runs (Phase 2 next)
+- **Thinking Partner**: Meta-agent for insights and recursion decisions (Phase 3)
 
-**Current Architecture**: **Separated governance** (not unified)
-- Substrate governance via proposals (working)
-- Work-platform governance not yet defined
+**Current Architecture**: **TWO-LAYER with SEPARATED governance** (not 4-layer unified)
+- **Layer 1 (Substrate Core)**: substrate-API with its own frontend scaffolding (not fully functional)
+- **Layer 2 (Work Orchestration)**: work-platform with its own frontend scaffolding (functional)
+- **Layer 1 serves as BFF for Layer 2**: work-platform calls substrate-API for context/outputs
+- **No Layer 3 "Unified Governance"**: Governance is separated by design
+- **No shared Layer 4 Presentation**: Each layer has independent frontends
 
 **See**:
-- [`GOVERNANCE_CLEANUP_SUMMARY_2025_11_05.md`](../architecture/GOVERNANCE_CLEANUP_SUMMARY_2025_11_05.md) - Governance separation
-- [`PHASE1_DEPLOYMENT_SUMMARY.md`](../../work-platform/PHASE1_DEPLOYMENT_SUMMARY.md) - Current work-platform state
-- [`PHASE6_PROJECTS_ARCHITECTURE.md`](../../PHASE6_PROJECTS_ARCHITECTURE.md) - Projects vs Baskets
+- [`AGENT_SUBSTRATE_ARCHITECTURE.md`](./AGENT_SUBSTRATE_ARCHITECTURE.md) - Current source of truth
+- [`PHASE_2E_SESSION_ARCHITECTURE.md`](./PHASE_2E_SESSION_ARCHITECTURE.md) - Latest architecture (Nov 19)
+- [`TERMINOLOGY_GLOSSARY.md`](./TERMINOLOGY_GLOSSARY.md) - Domain boundary clarity
 
 ---
 
@@ -72,13 +82,15 @@ We are **not** just a context OS. We are **not** just agent orchestration. We ar
 ┌─────────────────────────────────────────────────────────────┐
 │ YARNNN: Integrated AI Work Platform                         │
 │ ✅ Deep context substrate (blocks, semantic layer, timeline) │
-│ ✅ Work orchestration (sessions, artifacts, checkpoints)     │
-│ ✅ Unified governance (work quality + context integrity)     │
+│ ✅ Work orchestration (sessions, tickets, outputs)           │
+│ ✅ Separated governance (substrate proposals + work review)  │
 │ ✅ Complete provenance (work → reasoning → substrate)        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **The Thesis**: Context understanding + Work supervision = Superior AI outcomes
+
+**Note**: "Unified governance" was the v4.0 vision but is intentionally separated in current implementation.
 
 ---
 
@@ -91,9 +103,9 @@ Agent work requires human review before updating context. We supervise AI worker
 **Why**: Agents make mistakes. Context pollution is permanent. Human judgment remains essential for quality assurance.
 
 **Manifestation**:
-- All agent work flows through `work_sessions`
-- Artifacts await approval before substrate application
-- Multi-checkpoint supervision for iterative feedback
+- All agent work flows through `work_tickets` (execution tracking)
+- Work outputs await approval via work supervision (not substrate governance)
+- Multi-checkpoint supervision for iterative feedback (work_checkpoints)
 - Risk assessment guides review attention
 
 ### 2. **Context Enables Intelligence**
@@ -110,33 +122,35 @@ Deep substrate understanding improves agent reasoning quality. Context is not ju
 
 ### 3. **Governance Independence (Current Implementation)**
 
-**Current State (Phase 1)**: Work governance and substrate governance are **separated**
+**Current State**: Work supervision and substrate governance are **intentionally separated**
 
 **Why**: Work quality review and substrate integrity validation have different concerns
-- Work governance: "Did the agent complete the task well?"
-- Substrate governance: "Should this become memory?" (deduplication, quality, merge detection)
+- Work supervision: "Did the agent complete the task well?" (work_outputs review)
+- Substrate governance: "Should this become memory?" (proposals → deduplication → quality validation)
 
 **Manifestation**:
-- Substrate governance via P1 proposals (working)
-- Work-platform governance not yet defined (deferred to Phase 2)
-- Bridge architecture pending: approved work artifacts → substrate proposals
+- Substrate governance via P1 proposals pipeline (working)
+- Work supervision via work_outputs review (pending_review → approved/rejected)
+- **No automatic bridge**: Approved work outputs do NOT auto-absorb into substrate blocks (intentionally deferred)
+- Avoids terminology conflict: "governance" only used for substrate, "supervision" for work outputs
 
-**Future Vision (v4.0)**: Unified approval orchestrator
+**Original Vision (v4.0 - Deprecated)**: Unified approval orchestrator
 - Single review for work quality → automatic substrate application
-- Per-artifact decisions (apply/draft/reject)
-- Eliminated in Nov 2025 cleanup because it bypassed substrate proposals
+- Eliminated Nov 2025 because it bypassed substrate proposals and semantic deduplication
+- Separated approach maintains substrate integrity guarantees
 
 ### 4. **Provenance is Mandatory**
 
-Every artifact traces back to work session, agent reasoning, and source context. Complete accountability.
+Every work output traces back to work ticket, agent reasoning, and source context. Complete accountability.
 
 **Why**: Without provenance, debugging is impossible, trust erodes, and quality improvement stalls.
 
 **Manifestation**:
-- `work_artifacts` link to `work_sessions`
-- `work_context_mutations` track substrate changes
+- `work_outputs` link to `work_tickets` via work_ticket_id
+- `work_outputs.source_context_ids` track which blocks were used for reasoning
 - Timeline events capture agent decisions
-- Agent SDK session IDs enable cross-system tracing
+- `agent_sessions.sdk_session_id` enables Claude SDK conversation history resume
+- `work_requests` capture user's original ask (what they wanted done)
 
 ### 5. **Supervision is Iterative**
 
@@ -204,64 +218,80 @@ Agents work autonomously but outputs require approval. Think "employee with auto
 
 ---
 
-## 🏗️ Architecture Overview (4-Layer Model)
+## 🏗️ Architecture Overview (Current: 2-Layer with BFF Pattern)
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│ LAYER 4: PRESENTATION                                       │
-│ - Work review UI (approve/iterate/reject)                   │
-│ - Substrate management UI (view blocks, documents)          │
-│ - Timeline and notifications                                 │
-│ - Agent track record and trust dashboard                    │
-└────────────────────────────────────────────────────────────┘
-                          ↓ user actions
-┌────────────────────────────────────────────────────────────┐
-│ LAYER 3: UNIFIED GOVERNANCE                                 │
-│ - Work quality assessment (reasoning, completeness)         │
-│ - Substrate mutation approval (context integrity)           │
-│ - Risk assessment (confidence, impact, track record)        │
-│ - Single approval → dual effect (work + substrate)          │
-│ - Audit trails (timeline events)                            │
-└────────────────────────────────────────────────────────────┘
-                          ↓ approved artifacts
-┌────────────────────────────────────────────────────────────┐
-│ LAYER 2: WORK ORCHESTRATION                                 │
-│ - Work sessions (task → execution → completion)             │
-│ - Work artifacts (blocks, documents, insights, external)    │
-│ - Checkpoints (multi-stage approval)                         │
-│ - Iterations (feedback loops)                                │
-│ - Context mutations (substrate change tracking)             │
-└────────────────────────────────────────────────────────────┘
-                          ↓ queries/updates
-┌────────────────────────────────────────────────────────────┐
-│ LAYER 1: SUBSTRATE CORE (Context Management)               │
-│ - Blocks (knowledge substrate)                               │
-│ - Documents (P4 compositions)                                │
-│ - Insights (P3 reflections)                                  │
-│ - Timeline events (activity stream)                          │
-│ - Semantic layer (embeddings, relationships)                │
-└────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ LAYER 2: WORK ORCHESTRATION (work-platform)                 │
+│                                                               │
+│ Backend (FastAPI on Render):                                 │
+│ - agent_sessions (persistent Claude SDK sessions)            │
+│ - work_requests (user asks: what they want done)             │
+│ - work_tickets (execution tracking)                          │
+│ - work_checkpoints (approval stages)                         │
+│ - work_iterations (revision loops)                           │
+│ - project_agents (agent instances + configs)                 │
+│ - knowledge_modules (procedural markdown)                    │
+│                                                               │
+│ Frontend (Next.js on Vercel):                                │
+│ - Work review UI (work supervision)                          │
+│ - Agent dashboards                                           │
+│ - Project management                                         │
+└─────────────────────────────────────────────────────────────┘
+                          ↓ BFF calls (HTTP)
+┌─────────────────────────────────────────────────────────────┐
+│ LAYER 1: SUBSTRATE CORE (substrate-API)                     │
+│                                                               │
+│ Backend (FastAPI - serves as BFF for Layer 2):              │
+│ - blocks (knowledge substrate)                               │
+│ - reference_assets (non-text substrate: screenshots, PDFs)  │
+│ - work_outputs (agent deliverables - basket-scoped RLS)     │
+│ - documents (P4 compositions)                                │
+│ - insights (P3 reflections)                                  │
+│ - timeline events (activity stream)                          │
+│ - proposals (P1 governance pipeline)                         │
+│ - semantic layer (embeddings, relationships)                 │
+│                                                               │
+│ Frontend (Next.js - scaffolding exists, not fully functional)│
+│ - Substrate management UI (view blocks, documents)           │
+└─────────────────────────────────────────────────────────────┘
+
+                    SEPARATED GOVERNANCE
+┌──────────────────────────────┬──────────────────────────────┐
+│ Work Supervision             │ Substrate Governance         │
+│ (Layer 2: work-platform)     │ (Layer 1: substrate-API)     │
+├──────────────────────────────┼──────────────────────────────┤
+│ - work_outputs review        │ - P1 proposals pipeline      │
+│ - pending_review → approved  │ - Semantic deduplication     │
+│ - User reviews agent outputs │ - Quality validation         │
+│ - NO auto-substrate update   │ - Block state transitions    │
+└──────────────────────────────┴──────────────────────────────┘
 ```
 
-**Key Insight**: Layers 1-2 are **new in v4.0**. Layer 1 (Substrate) existed in v3.1 but was the entire system. Now it's the foundation for work management.
+**Key Points**:
+- **NO Layer 3 "Unified Governance"** - Governance is intentionally separated
+- **NO shared Layer 4 Presentation** - Each layer has independent frontends
+- **Layer 1 serves as BFF** - work-platform calls substrate-API for context/outputs
+- **Dual auth support** - Service-to-service + User JWT
+- **work_outputs live in Layer 1** - For basket-scoped RLS, but referenced by Layer 2
 
-**See**: [YARNNN_LAYERED_ARCHITECTURE_V4.md](../architecture/YARNNN_LAYERED_ARCHITECTURE_V4.md) for complete details.
+**See**: [AGENT_SUBSTRATE_ARCHITECTURE.md](./AGENT_SUBSTRATE_ARCHITECTURE.md) for complete implementation details.
 
 ---
 
 ## 🎯 Key Differentiators (Competitive Moat)
 
-### 1. Single Approval for Work + Context
+### 1. Separated but Coordinated Review (Current Implementation)
 
-**The Problem**: Traditional systems require double-approval
-- Step 1: Approve agent's work output
-- Step 2: Approve updating your knowledge base
-- Result: Friction, confusion, abandonment
+**The Problem**: Traditional systems either have no review workflow OR require confusing double-approval
 
-**YARNNN Solution**: Unified governance
-- Single review: "Is this good work?"
-- If yes → Work approved AND context updated
-- Result: Efficient, intuitive, high-adoption
+**YARNNN Current Approach**: Separated governance with clear boundaries
+- **Work Supervision**: "Is this agent output good quality?" (work_outputs review)
+- **Substrate Governance**: "Should this become permanent memory?" (proposals pipeline)
+- **Intentionally separated**: Maintains substrate integrity while allowing work quality review
+- **Future bridge**: Approved outputs MAY feed into substrate (deferred, not automatic)
+
+**Result**: Clear separation of concerns, no governance bypass, substrate quality maintained
 
 ### 2. Multi-Checkpoint Iterative Supervision
 
@@ -284,10 +314,11 @@ Agents work autonomously but outputs require approval. Think "employee with auto
 - "Can I trust this?"
 
 **YARNNN Solution**: Full lineage
-- Every artifact links to work session
-- Every session captures reasoning trail
-- Every substrate mutation tracked
-- Agent SDK session IDs enable deep debugging
+- Every work output links to work ticket
+- `work_outputs.source_context_ids` shows which blocks were used
+- `agent_sessions.sdk_session_id` enables conversation history resume
+- `work_requests` capture original user intent
+- Timeline events capture all agent decisions
 - Result: Trust through transparency
 
 ### 4. Context-Powered Agent Reasoning
@@ -572,10 +603,11 @@ This document is **the single source of truth** for YARNNN's philosophy, identit
 - [YARNNN_USER_MENTAL_MODEL_V4.md](./YARNNN_USER_MENTAL_MODEL_V4.md) - Detailed user journey
 
 ### Architecture Documents
-- [YARNNN_LAYERED_ARCHITECTURE_V4.md](../architecture/YARNNN_LAYERED_ARCHITECTURE_V4.md) - Complete 4-layer system design
+- [PHASE_2E_SESSION_ARCHITECTURE.md](./PHASE_2E_SESSION_ARCHITECTURE.md) - Latest architecture (agent sessions, Nov 19)
+- [YARNNN_LAYERED_ARCHITECTURE_V4.md](../architecture/YARNNN_LAYERED_ARCHITECTURE_V4.md) - ⚠️ Vision: 4-layer (current: 2-layer)
 - [YARNNN_WORK_LAYER.md](../architecture/YARNNN_WORK_LAYER.md) - Layer 2 specification
 - [YARNNN_SUBSTRATE_LAYER.md](../architecture/YARNNN_SUBSTRATE_LAYER.md) - Layer 1 specification
-- [YARNNN_UNIFIED_GOVERNANCE.md](../architecture/YARNNN_UNIFIED_GOVERNANCE.md) - Layer 3 specification
+- ~~[YARNNN_UNIFIED_GOVERNANCE.md](../architecture/YARNNN_UNIFIED_GOVERNANCE.md)~~ - Deprecated (governance separated)
 
 ### Legacy Documents
 - [YARNNN_CANON.md](../../YARNNN_CANON.md) - v3.1 canon (superseded)
@@ -583,4 +615,35 @@ This document is **the single source of truth** for YARNNN's philosophy, identit
 
 ---
 
-**This is YARNNN v4.0. We are the AI Work Platform.**
+## 📝 Document Version History
+
+### v4.1.0 (2025-11-19) - Architecture Correction
+**Major corrections to reflect actual implementation:**
+- ❌ Removed "4-layer unified model" - Current: 2-layer with BFF pattern
+- ❌ Removed "Layer 3 Unified Governance" - Governance is intentionally separated
+- ❌ Removed "Layer 4 shared Presentation" - Each layer has independent frontends
+- ✅ Added correct architecture: substrate-API (Layer 1) serves as BFF for work-platform (Layer 2)
+- ✅ Updated terminology: work_sessions → work_tickets, work_artifacts → work_outputs
+- ✅ Clarified governance separation: substrate governance vs work supervision
+- ✅ Added Phase 2e architecture: agent_sessions, work_requests, work_tickets
+- ✅ Updated provenance: work_outputs.source_context_ids, agent_sessions.sdk_session_id
+- ✅ Marked deprecated sections as "Vision" with current implementation notes
+
+**Key Reality Checks:**
+- "Unified governance" was v4.0 vision, eliminated Nov 2025 to maintain substrate integrity
+- No automatic work output → substrate block absorption (intentionally deferred)
+- substrate-API frontend exists but not fully functional
+- work-platform frontend is functional
+- Layer 1 serves as BFF for Layer 2 (not peer services)
+
+### v4.0.1 (2025-11-15) - Initial Phase 1-4 status
+- Added implementation status notes
+- Marked governance as separated
+
+### v4.0 (2025-10-31) - Original vision
+- 4-layer model described (vision, not implementation)
+- Unified governance concept introduced
+
+---
+
+**This is YARNNN v4.1. We are the AI Work Platform.**
