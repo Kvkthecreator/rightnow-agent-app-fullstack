@@ -3,7 +3,7 @@
 ## Your Credentials
 
 ### User Information
-- **User ID**: `aa94fbd9-13cc-4dbc-a9fb-21f4ad0928f2`
+- **User ID**: `aa94fbd9-13cc-4dbc-a9fb-2114ad0928f2` ⚠️ NOTE: NOT `21f4` but `2114`
 - **Email**: `kvkthecreator@gmail.com`
 - **Workspace ID**: `99e6bf7d-513c-45ff-9b96-9362bd914d12`
 
@@ -20,10 +20,11 @@
 ## JWT Token (Valid for 24 hours)
 
 ```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzYzNTY0NDU0LCJpYXQiOjE3NjM0NzgwNTQsImlzcyI6Imh0dHBzOi8vZ2FseXR4eGtyYmtzaWxla21oY3cuc3VwYWJhc2UuY28vYXV0aC92MSIsInN1YiI6ImFhOTRmYmQ5LTEzY2MtNGRiYy1hOWZiLTIxZjRhZDA5MjhmMiIsImVtYWlsIjoia3ZrdGhlY3JlYXRvckBnbWFpbC5jb20iLCJyb2xlIjoiYXV0aGVudGljYXRlZCIsInNlc3Npb25faWQiOiJ0ZXN0LXNlc3Npb24tYWE5NGZiZDkifQ.Z37ACjxjaqC6Jb-97PDngSiFyfmpkNOn2i_04PDIAIw
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzYzNTY3MzYzLCJpYXQiOjE3NjM0ODA5NjMsImlzcyI6Imh0dHBzOi8vZ2FseXR4eGtyYmtzaWxla21oY3cuc3VwYWJhc2UuY28vYXV0aC92MSIsInN1YiI6ImFhOTRmYmQ5LTEzY2MtNGRiYy1hOWZiLTIxMTRhZDA5MjhmMiIsImVtYWlsIjoia3ZrdGhlY3JlYXRvckBnbWFpbC5jb20iLCJyb2xlIjoiYXV0aGVudGljYXRlZCIsInNlc3Npb25faWQiOiJ0ZXN0LXNlc3Npb24tYWE5NGZiZDkifQ.w6o4jX-jSTHvEKT6U4veZfPfszUVqX9fnDXFz2VPOCw
 ```
 
-**Expires**: 2025-11-20T00:00:54Z
+**Expires**: 2025-11-20T00:49:23Z
+**User ID**: `aa94fbd9-13cc-4dbc-a9fb-2114ad0928f2` (CORRECT)
 
 ---
 
@@ -50,11 +51,11 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzY
 ### Once Service is Live
 
 ```bash
-# Set environment variable
-export TEST_JWT_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzYzNTY0NDU0LCJpYXQiOjE3NjM0NzgwNTQsImlzcyI6Imh0dHBzOi8vZ2FseXR4eGtyYmtzaWxla21oY3cuc3VwYWJhc2UuY28vYXV0aC92MSIsInN1YiI6ImFhOTRmYmQ5LTEzY2MtNGRiYy1hOWZiLTIxZjRhZDA5MjhmMiIsImVtYWlsIjoia3ZrdGhlY3JlYXRvckBnbWFpbC5jb20iLCJyb2xlIjoiYXV0aGVudGljYXRlZCIsInNlc3Npb25faWQiOiJ0ZXN0LXNlc3Npb24tYWE5NGZiZDkifQ.Z37ACjxjaqC6Jb-97PDngSiFyfmpkNOn2i_04PDIAIw"
+# Set environment variable (CORRECTED USER ID)
+export TEST_JWT_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzYzNTY3MzYzLCJpYXQiOjE3NjM0ODA5NjMsImlzcyI6Imh0dHBzOi8vZ2FseXR4eGtyYmtzaWxla21oY3cuc3VwYWJhc2UuY28vYXV0aC92MSIsInN1YiI6ImFhOTRmYmQ5LTEzY2MtNGRiYy1hOWZiLTIxMTRhZDA5MjhmMiIsImVtYWlsIjoia3ZrdGhlY3JlYXRvckBnbWFpbC5jb20iLCJyb2xlIjoiYXV0aGVudGljYXRlZCIsInNlc3Npb25faWQiOiJ0ZXN0LXNlc3Npb24tYWE5NGZiZDkifQ.w6o4jX-jSTHvEKT6U4veZfPfszUVqX9fnDXFz2VPOCw"
 
 # Test ResearchAgentSDK
-curl -X POST https://yarnnn-work-platform-api.onrender.com/api/agents/run \
+curl -X POST https://yarnnn-app-fullstack.onrender.com/api/agents/run \
   -H "Authorization: Bearer $TEST_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -115,9 +116,10 @@ After successful test:
 cd /Users/macbook/yarnnn-app-fullstack/work-platform/api
 
 export SUPABASE_URL="https://galytxxkrbksilekmhcw.supabase.co"
-export SUPABASE_JWT_SECRET="2w83nFABokYp0g18I1Lp9u91TQUEFfhvT0EYqHs/0Hg47qGbB6bXw+U0JHdJUSE0QIwxOpZ+cZjAC/ai6/3cFw=="
+export SUPABASE_JWT_SECRET="2w83nFABokYp0g18I1Lp9u91TQUEF+hvTOEYqHs/OHg47qGbB6bXw+U0JHdJUSE0QfwxOpZ+cZjAC/a16/3cFw=="
 
-python3 generate_jwt_simple.py aa94fbd9-13cc-4dbc-a9fb-21f4ad0928f2
+# IMPORTANT: Use CORRECT user ID (2114ad NOT 21f4ad)
+python3 generate_jwt_simple.py aa94fbd9-13cc-4dbc-a9fb-2114ad0928f2
 ```
 
 ---

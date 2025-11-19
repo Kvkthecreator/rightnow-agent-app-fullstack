@@ -1,51 +1,45 @@
 """
-Agent SDK - Improved Implementations (Phase 2a Refactoring)
+Agent SDK - Internalized Claude Agent SDK for YARNNN
 
-This package contains REFACTORED agent implementations using cleaner SDK patterns.
-NOT a migration - yarnnn_agents IS already SDK-based (internalized).
+Phase 2c: All agents refactored to SDK patterns with BFF integration.
 
-Key Improvements:
-- Prompts extracted to module-level constants (reusable for Skills Phase 2b)
-- Better separation of concerns (config vs execution)
-- Cleaner tool-use pattern handling
-- Skills-ready architecture
+This package contains SDK-based agents that use:
+- SubstrateMemoryAdapter (BFF pattern, not YarnnnMemory)
+- Skills loaded from .claude/skills/
+- Prompts extracted to module-level constants
+- BaseAgent from yarnnn_agents scaffold
 
-Migration Status:
-- ResearchAgentSDK: ✅ Implemented (Phase 2a)
-- ContentAgent: ⏳ Planned (Future)
-- ReportingAgent: ⏳ Planned (Future)
-
-Usage:
-    from agents_sdk import ResearchAgentSDK
-
-    agent = ResearchAgentSDK(
-        basket_id="uuid",
-        workspace_id="uuid",
-        work_session_id="uuid",
-    )
-
-    result = await agent.deep_dive("Research task")
+Agents:
+- ResearchAgentSDK: Research and monitoring agent (Phase 2a+2b)
+- ContentAgentSDK: Content creation agent (Phase 2c)
+- ReportingAgentSDK: Report generation agent (Phase 2c)
 """
 
 from .research_agent import (
     ResearchAgentSDK,
     create_research_agent_sdk,
-    # Expose prompts for testing/inspection/Skills
-    RESEARCH_AGENT_SYSTEM_PROMPT,
-    WEB_MONITOR_PROMPT,
-    COMPETITOR_TRACKER_PROMPT,
-    SOCIAL_LISTENER_PROMPT,
-    ANALYST_PROMPT,
+)
+
+from .content_agent import (
+    ContentAgentSDK,
+    create_content_agent_sdk,
+)
+
+from .reporting_agent import (
+    ReportingAgentSDK,
+    create_reporting_agent_sdk,
 )
 
 __all__ = [
+    # Research Agent
     "ResearchAgentSDK",
     "create_research_agent_sdk",
-    "RESEARCH_AGENT_SYSTEM_PROMPT",
-    "WEB_MONITOR_PROMPT",
-    "COMPETITOR_TRACKER_PROMPT",
-    "SOCIAL_LISTENER_PROMPT",
-    "ANALYST_PROMPT",
+    # Content Agent
+    "ContentAgentSDK",
+    "create_content_agent_sdk",
+    # Reporting Agent
+    "ReportingAgentSDK",
+    "create_reporting_agent_sdk",
 ]
 
-__version__ = "2.0.0-refactored"  # Refactored version
+__version__ = "2.1.0-all-agents"

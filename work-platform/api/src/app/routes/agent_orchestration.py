@@ -19,13 +19,11 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, Field
 
-# Import Phase 2 SDK components
-from agents_sdk import ResearchAgentSDK
-
-# Import Phase 4 components (content and reporting still use legacy)
-from agents.factory import (
-    create_content_agent,
-    create_reporting_agent,
+# Import Phase 2c SDK components (all agents refactored)
+from agents_sdk import (
+    ResearchAgentSDK,
+    ContentAgentSDK,
+    ReportingAgentSDK,
 )
 from adapters.auth_adapter import AuthAdapter
 
@@ -49,7 +47,7 @@ from services.work_output_service import write_agent_outputs
 router = APIRouter(prefix="/agents", tags=["agent-orchestration"])
 logger = logging.getLogger(__name__)
 
-logger.info("Agent orchestration initialized with ResearchAgentSDK (Phase 2 refactored patterns)")
+logger.info("Agent orchestration initialized - Phase 2c complete (all agents using SDK patterns)")
 
 
 async def _get_workspace_id_for_user(user_id: str) -> str:
@@ -533,13 +531,10 @@ async def _run_content_agent(
     except Exception as e:
         logger.warning(f"Failed to get project_id for basket {request.basket_id}: {e}")
 
-    # Create agent with adapters + enhanced context (Phase 4)
-    agent = create_content_agent(
+    # Create agent with SDK pattern (Phase 2c)
+    agent = ContentAgentSDK(
         basket_id=request.basket_id,
         workspace_id=workspace_id,
-        user_id=user_id,
-        project_id=project_id,
-        work_session_id=work_session_id,
     )
 
     # Execute task
@@ -628,13 +623,10 @@ async def _run_reporting_agent(
     except Exception as e:
         logger.warning(f"Failed to get project_id for basket {request.basket_id}: {e}")
 
-    # Create agent with adapters + enhanced context (Phase 4)
-    agent = create_reporting_agent(
+    # Create agent with SDK pattern (Phase 2c)
+    agent = ReportingAgentSDK(
         basket_id=request.basket_id,
         workspace_id=workspace_id,
-        user_id=user_id,
-        project_id=project_id,
-        work_session_id=work_session_id,
     )
 
     # Execute task
