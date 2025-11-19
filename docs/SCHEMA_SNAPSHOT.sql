@@ -1,4 +1,4 @@
-\restrict PebzZcpjLjR7Yb1gMoIIzpRSXvOjBmNlG5oEVG7NYx4aWdl1ZMvLQwfVCvDI6TJ
+\restrict efTVp08cfiKtIApChQncMShAmzph72XC8h4oqERUgclxf9Al7QhLh01Pg5jaUPf
 CREATE SCHEMA public;
 CREATE TYPE public.alert_severity AS ENUM (
     'info',
@@ -96,6 +96,23 @@ CREATE TYPE public.substrate_type AS ENUM (
     'event',
     'document'
 );
+CREATE FUNCTION public.approve_work_output(p_output_id uuid, p_reviewer_id uuid, p_notes text DEFAULT NULL::text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  UPDATE work_outputs
+  SET
+    supervision_status = 'approved',
+    reviewed_by = p_reviewer_id,
+    reviewed_at = now(),
+    reviewer_notes = p_notes
+  WHERE id = p_output_id
+    AND supervision_status = 'pending_review';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Output not found or not pending review';
+  END IF;
+END;
+$$;
 CREATE FUNCTION public.auto_increment_block_usage_on_reference() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
@@ -1317,6 +1334,21 @@ BEGIN
   LIMIT 1;
 END;
 $$;
+CREATE FUNCTION public.get_supervision_stats(p_basket_id uuid) RETURNS TABLE(total_outputs bigint, pending_review bigint, approved bigint, rejected bigint, revision_requested bigint)
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        COUNT(*)::bigint AS total_outputs,
+        COUNT(*) FILTER (WHERE supervision_status = 'pending_review')::bigint AS pending_review,
+        COUNT(*) FILTER (WHERE supervision_status = 'approved')::bigint AS approved,
+        COUNT(*) FILTER (WHERE supervision_status = 'rejected')::bigint AS rejected,
+        COUNT(*) FILTER (WHERE supervision_status = 'revision_requested')::bigint AS revision_requested
+    FROM work_outputs
+    WHERE basket_id = p_basket_id;
+END;
+$$;
 CREATE FUNCTION public.get_workspace_constants(p_workspace_id uuid) RETURNS TABLE(id uuid, semantic_type text, title text, content text, anchor_role text, scope public.scope_level, created_at timestamp with time zone)
     LANGUAGE plpgsql STABLE
     AS $$
@@ -1695,6 +1727,46 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+CREATE FUNCTION public.reject_work_output(p_output_id uuid, p_reviewer_id uuid, p_notes text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  IF p_notes IS NULL OR length(trim(p_notes)) = 0 THEN
+    RAISE EXCEPTION 'Rejection notes are required';
+  END IF;
+  UPDATE work_outputs
+  SET
+    supervision_status = 'rejected',
+    reviewed_by = p_reviewer_id,
+    reviewed_at = now(),
+    reviewer_notes = p_notes
+  WHERE id = p_output_id
+    AND supervision_status IN ('pending_review', 'revision_requested');
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Output not found or not reviewable';
+  END IF;
+END;
+$$;
+CREATE FUNCTION public.request_output_revision(p_output_id uuid, p_reviewer_id uuid, p_feedback text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$
+BEGIN
+  IF p_feedback IS NULL OR length(trim(p_feedback)) = 0 THEN
+    RAISE EXCEPTION 'Revision feedback is required';
+  END IF;
+  UPDATE work_outputs
+  SET
+    supervision_status = 'revision_requested',
+    reviewed_by = p_reviewer_id,
+    reviewed_at = now(),
+    reviewer_notes = p_feedback
+  WHERE id = p_output_id
+    AND supervision_status = 'pending_review';
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Output not found or not pending review';
+  END IF;
+END;
+$$;
 CREATE FUNCTION public.semantic_search_blocks(p_basket_id uuid, p_query_embedding public.vector, p_semantic_types text[] DEFAULT NULL::text[], p_anchor_roles text[] DEFAULT NULL::text[], p_states text[] DEFAULT ARRAY['ACCEPTED'::text, 'LOCKED'::text, 'CONSTANT'::text], p_min_similarity numeric DEFAULT 0.70, p_limit integer DEFAULT 20) RETURNS TABLE(id uuid, basket_id uuid, content text, semantic_type text, anchor_role text, state text, metadata jsonb, similarity_score numeric)
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
@@ -1847,6 +1919,18 @@ BEGIN
     ORDER BY relationship_chain.id, relationship_chain.depth;
 END;
 $$;
+CREATE FUNCTION public.update_agent_session_activity() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF NEW.agent_session_id IS NOT NULL THEN
+    UPDATE agent_sessions
+    SET last_active_at = now()
+    WHERE id = NEW.agent_session_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
 CREATE FUNCTION public.update_project_timestamp() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -1992,6 +2076,20 @@ CREATE TABLE public.agent_config_history (
     changed_at timestamp with time zone DEFAULT now() NOT NULL,
     change_reason text,
     metadata jsonb DEFAULT '{}'::jsonb
+);
+CREATE TABLE public.agent_sessions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    workspace_id uuid NOT NULL,
+    basket_id uuid NOT NULL,
+    agent_type text NOT NULL,
+    sdk_session_id text,
+    conversation_history jsonb DEFAULT '[]'::jsonb,
+    state jsonb DEFAULT '{}'::jsonb,
+    last_active_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT agent_sessions_agent_type_check CHECK ((agent_type = ANY (ARRAY['research'::text, 'content'::text, 'reporting'::text])))
 );
 CREATE TABLE public.agent_work_requests (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -2447,6 +2545,20 @@ CREATE TABLE public.openai_app_tokens (
     encryption_updated_at timestamp with time zone,
     rotated_at timestamp with time zone
 );
+CREATE TABLE public.output_type_catalog (
+    output_type text NOT NULL,
+    display_name text NOT NULL,
+    description text,
+    allowed_agent_types text[],
+    can_merge_to_substrate boolean DEFAULT false NOT NULL,
+    merge_target text,
+    is_active boolean DEFAULT true NOT NULL,
+    deprecated_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    notes text,
+    CONSTRAINT output_type_catalog_merge_target_check CHECK ((merge_target = ANY (ARRAY['block'::text, 'document'::text, 'none'::text])))
+);
 CREATE TABLE public.p3_p4_regeneration_policy (
     workspace_id uuid NOT NULL,
     insight_canon_auto_regenerate boolean DEFAULT true,
@@ -2808,82 +2920,105 @@ CREATE VIEW public.v_user_workspaces AS
  SELECT wm.user_id,
     wm.workspace_id
    FROM public.workspace_memberships wm;
-CREATE TABLE public.work_artifacts (
+CREATE TABLE public.work_checkpoints (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    work_session_id uuid NOT NULL,
-    artifact_type text NOT NULL,
-    content jsonb NOT NULL,
-    agent_confidence numeric(3,2),
+    work_ticket_id uuid NOT NULL,
+    checkpoint_sequence integer NOT NULL,
+    checkpoint_type text NOT NULL,
+    review_scope text NOT NULL,
+    outputs_at_checkpoint uuid[],
+    agent_confidence numeric,
     agent_reasoning text,
+    agent_summary text,
     status text DEFAULT 'pending'::text NOT NULL,
     reviewed_by_user_id uuid,
     reviewed_at timestamp with time zone,
-    review_feedback text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-CREATE TABLE public.work_checkpoints (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    work_session_id uuid NOT NULL,
-    checkpoint_type text NOT NULL,
-    status text DEFAULT 'pending'::text NOT NULL,
-    reason text,
     user_decision text,
-    resolved_by_user_id uuid,
-    resolved_at timestamp with time zone,
-    metadata jsonb DEFAULT '{}'::jsonb,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-CREATE TABLE public.work_context_mutations (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    work_session_id uuid NOT NULL,
-    artifact_id uuid,
-    mutation_type text NOT NULL,
-    substrate_id uuid NOT NULL,
-    substrate_type text NOT NULL,
-    before_state jsonb,
-    after_state jsonb NOT NULL,
-    mutation_risk text,
-    validation_checks jsonb,
-    applied_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT work_context_mutations_mutation_risk_check CHECK ((mutation_risk = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text]))),
-    CONSTRAINT work_context_mutations_mutation_type_check CHECK ((mutation_type = ANY (ARRAY['block_created'::text, 'block_updated'::text, 'block_superseded'::text, 'block_locked'::text, 'document_created'::text, 'document_updated'::text]))),
-    CONSTRAINT work_context_mutations_substrate_type_check CHECK ((substrate_type = ANY (ARRAY['block'::text, 'document'::text])))
+    user_feedback text,
+    changes_requested jsonb,
+    risk_level text,
+    risk_factors jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT work_checkpoints_agent_confidence_check CHECK (((agent_confidence >= (0)::numeric) AND (agent_confidence <= (1)::numeric))),
+    CONSTRAINT work_checkpoints_checkpoint_type_check CHECK ((checkpoint_type = ANY (ARRAY['plan_approval'::text, 'mid_work_review'::text, 'artifact_review'::text, 'final_approval'::text]))),
+    CONSTRAINT work_checkpoints_risk_level_check CHECK ((risk_level = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text]))),
+    CONSTRAINT work_checkpoints_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'skipped'::text]))),
+    CONSTRAINT work_checkpoints_user_decision_check CHECK ((user_decision = ANY (ARRAY['approve'::text, 'reject'::text, 'request_changes'::text])))
 );
 CREATE TABLE public.work_iterations (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    work_session_id uuid NOT NULL,
+    work_ticket_id uuid NOT NULL,
     iteration_number integer NOT NULL,
     triggered_by text NOT NULL,
     user_feedback_text text,
     changes_requested jsonb,
     agent_interpretation text,
     revised_approach text,
-    artifacts_revised uuid[],
+    outputs_revised uuid[],
     resolved boolean DEFAULT false NOT NULL,
     resolved_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT work_iterations_triggered_by_check CHECK ((triggered_by = ANY (ARRAY['checkpoint_rejection'::text, 'user_feedback'::text, 'agent_self_correction'::text, 'context_staleness'::text])))
 );
-CREATE TABLE public.work_sessions (
+CREATE TABLE public.work_outputs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    project_id uuid NOT NULL,
     basket_id uuid NOT NULL,
-    workspace_id uuid NOT NULL,
-    initiated_by_user_id uuid NOT NULL,
-    task_type text NOT NULL,
-    task_intent text NOT NULL,
-    task_parameters jsonb DEFAULT '{}'::jsonb NOT NULL,
-    status text DEFAULT 'pending'::text NOT NULL,
+    work_session_id uuid NOT NULL,
+    output_type text NOT NULL,
+    agent_type text NOT NULL,
+    title text NOT NULL,
+    body jsonb NOT NULL,
+    confidence double precision,
+    source_context_ids uuid[],
+    tool_call_id text,
+    supervision_status text DEFAULT 'pending_review'::text NOT NULL,
+    reviewer_notes text,
+    reviewed_at timestamp with time zone,
+    reviewed_by uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    substrate_proposal_id uuid,
+    merged_to_substrate_at timestamp with time zone,
+    CONSTRAINT body_not_empty CHECK ((body <> '{}'::jsonb)),
+    CONSTRAINT title_not_empty CHECK ((length(TRIM(BOTH FROM title)) > 0)),
+    CONSTRAINT work_outputs_confidence_check CHECK (((confidence IS NULL) OR ((confidence >= (0)::double precision) AND (confidence <= (1)::double precision)))),
+    CONSTRAINT work_outputs_supervision_status_check CHECK ((supervision_status = ANY (ARRAY['pending_review'::text, 'approved'::text, 'rejected'::text, 'revision_requested'::text, 'archived'::text])))
+);
+CREATE TABLE public.work_requests (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    workspace_id uuid NOT NULL,
+    basket_id uuid NOT NULL,
+    agent_session_id uuid,
+    requested_by_user_id uuid NOT NULL,
+    request_type text NOT NULL,
+    task_intent text NOT NULL,
+    parameters jsonb DEFAULT '{}'::jsonb,
+    priority text DEFAULT 'normal'::text,
+    requested_at timestamp with time zone DEFAULT now() NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT work_requests_priority_check CHECK ((priority = ANY (ARRAY['low'::text, 'normal'::text, 'high'::text, 'urgent'::text])))
+);
+CREATE TABLE public.work_tickets (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    work_request_id uuid NOT NULL,
+    agent_session_id uuid,
+    workspace_id uuid NOT NULL,
+    basket_id uuid NOT NULL,
+    agent_type text NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
     started_at timestamp with time zone,
-    ended_at timestamp with time zone,
-    metadata jsonb DEFAULT '{}'::jsonb,
-    project_agent_id uuid,
-    agent_work_request_id uuid,
-    task_configuration jsonb DEFAULT '{}'::jsonb,
-    task_document_id uuid,
-    approval_strategy text DEFAULT 'final_only'::text,
-    CONSTRAINT work_sessions_approval_strategy_check CHECK ((approval_strategy = ANY (ARRAY['checkpoint_required'::text, 'final_only'::text, 'auto_approve_low_risk'::text])))
+    completed_at timestamp with time zone,
+    error_message text,
+    reasoning_trail jsonb[] DEFAULT '{}'::jsonb[],
+    context_snapshot jsonb,
+    outputs_count integer DEFAULT 0,
+    checkpoints_count integer DEFAULT 0,
+    iterations_count integer DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT work_tickets_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'running'::text, 'completed'::text, 'failed'::text, 'cancelled'::text])))
 );
 CREATE TABLE public.workspace_governance_settings (
     workspace_id uuid NOT NULL,
@@ -2938,6 +3073,10 @@ ALTER TABLE ONLY public.agent_config_history
     ADD CONSTRAINT agent_config_history_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.agent_sessions
+    ADD CONSTRAINT agent_sessions_basket_id_agent_type_key UNIQUE (basket_id, agent_type);
+ALTER TABLE ONLY public.agent_sessions
+    ADD CONSTRAINT agent_sessions_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.agent_work_requests
     ADD CONSTRAINT agent_work_requests_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.app_events
@@ -3004,6 +3143,8 @@ ALTER TABLE ONLY public.narrative
     ADD CONSTRAINT narrative_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.openai_app_tokens
     ADD CONSTRAINT openai_app_tokens_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.output_type_catalog
+    ADD CONSTRAINT output_type_catalog_pkey PRIMARY KEY (output_type);
 ALTER TABLE ONLY public.p3_p4_regeneration_policy
     ADD CONSTRAINT p3_p4_regeneration_policy_pkey PRIMARY KEY (workspace_id);
 ALTER TABLE ONLY public.pipeline_metrics
@@ -3048,18 +3189,20 @@ ALTER TABLE ONLY public.user_agent_subscriptions
     ADD CONSTRAINT user_agent_subscriptions_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.user_alerts
     ADD CONSTRAINT user_alerts_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.work_artifacts
-    ADD CONSTRAINT work_artifacts_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.work_checkpoints
     ADD CONSTRAINT work_checkpoints_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.work_context_mutations
-    ADD CONSTRAINT work_context_mutations_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.work_checkpoints
+    ADD CONSTRAINT work_checkpoints_work_ticket_id_checkpoint_sequence_key UNIQUE (work_ticket_id, checkpoint_sequence);
 ALTER TABLE ONLY public.work_iterations
     ADD CONSTRAINT work_iterations_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.work_iterations
-    ADD CONSTRAINT work_iterations_work_session_id_iteration_number_key UNIQUE (work_session_id, iteration_number);
-ALTER TABLE ONLY public.work_sessions
-    ADD CONSTRAINT work_sessions_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT work_iterations_work_ticket_id_iteration_number_key UNIQUE (work_ticket_id, iteration_number);
+ALTER TABLE ONLY public.work_outputs
+    ADD CONSTRAINT work_outputs_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.work_requests
+    ADD CONSTRAINT work_requests_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.work_tickets
+    ADD CONSTRAINT work_tickets_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.workspace_governance_settings
     ADD CONSTRAINT workspace_governance_settings_pkey PRIMARY KEY (workspace_id);
 ALTER TABLE ONLY public.workspace_memberships
@@ -3085,6 +3228,11 @@ CREATE INDEX idx_agent_queue_priority ON public.agent_processing_queue USING btr
 CREATE INDEX idx_agent_queue_user_workspace ON public.agent_processing_queue USING btree (user_id, workspace_id);
 CREATE INDEX idx_agent_queue_work_id ON public.agent_processing_queue USING btree (work_id);
 CREATE INDEX idx_agent_queue_work_type ON public.agent_processing_queue USING btree (work_type, processing_state);
+CREATE INDEX idx_agent_sessions_active ON public.agent_sessions USING btree (last_active_at DESC);
+CREATE INDEX idx_agent_sessions_basket ON public.agent_sessions USING btree (basket_id);
+CREATE INDEX idx_agent_sessions_sdk ON public.agent_sessions USING btree (sdk_session_id) WHERE (sdk_session_id IS NOT NULL);
+CREATE INDEX idx_agent_sessions_type ON public.agent_sessions USING btree (agent_type);
+CREATE INDEX idx_agent_sessions_workspace ON public.agent_sessions USING btree (workspace_id);
 CREATE INDEX idx_app_events_basket ON public.app_events USING btree (basket_id, created_at DESC) WHERE (basket_id IS NOT NULL);
 CREATE INDEX idx_app_events_correlation ON public.app_events USING btree (correlation_id) WHERE (correlation_id IS NOT NULL);
 CREATE INDEX idx_app_events_dedupe ON public.app_events USING btree (dedupe_key) WHERE (dedupe_key IS NOT NULL);
@@ -3173,6 +3321,8 @@ CREATE INDEX idx_mcp_unassigned_workspace ON public.mcp_unassigned_captures USIN
 CREATE INDEX idx_narrative_basket ON public.narrative USING btree (basket_id);
 CREATE INDEX idx_openai_app_tokens_expires ON public.openai_app_tokens USING btree (expires_at);
 CREATE UNIQUE INDEX idx_openai_app_tokens_workspace ON public.openai_app_tokens USING btree (workspace_id);
+CREATE INDEX idx_output_type_catalog_active ON public.output_type_catalog USING btree (is_active) WHERE (is_active = true);
+CREATE INDEX idx_output_type_catalog_mergeable ON public.output_type_catalog USING btree (can_merge_to_substrate) WHERE (can_merge_to_substrate = true);
 CREATE INDEX idx_project_agents_active ON public.project_agents USING btree (project_id, is_active);
 CREATE INDEX idx_project_agents_active_config ON public.project_agents USING btree (project_id, is_active, config_updated_at DESC) WHERE (is_active = true);
 CREATE INDEX idx_project_agents_config ON public.project_agents USING gin (config);
@@ -3233,32 +3383,33 @@ CREATE INDEX idx_tombstones_lookup ON public.substrate_tombstones USING btree (w
 CREATE INDEX idx_user_alerts_actionable ON public.user_alerts USING btree (user_id, actionable, created_at DESC) WHERE (dismissed_at IS NULL);
 CREATE INDEX idx_user_alerts_user_active ON public.user_alerts USING btree (user_id, created_at DESC) WHERE (dismissed_at IS NULL);
 CREATE INDEX idx_user_alerts_workspace_active ON public.user_alerts USING btree (workspace_id, created_at DESC) WHERE (dismissed_at IS NULL);
-CREATE INDEX idx_work_artifacts_session ON public.work_artifacts USING btree (work_session_id);
-CREATE INDEX idx_work_artifacts_status ON public.work_artifacts USING btree (status);
-CREATE INDEX idx_work_artifacts_type ON public.work_artifacts USING btree (artifact_type);
-CREATE INDEX idx_work_checkpoints_session ON public.work_checkpoints USING btree (work_session_id);
-CREATE INDEX idx_work_checkpoints_status ON public.work_checkpoints USING btree (status);
-CREATE INDEX idx_work_iterations_resolved ON public.work_iterations USING btree (resolved);
-CREATE INDEX idx_work_iterations_session ON public.work_iterations USING btree (work_session_id);
-CREATE INDEX idx_work_mutations_artifact ON public.work_context_mutations USING btree (artifact_id) WHERE (artifact_id IS NOT NULL);
-CREATE INDEX idx_work_mutations_session ON public.work_context_mutations USING btree (work_session_id);
-CREATE INDEX idx_work_mutations_substrate ON public.work_context_mutations USING btree (substrate_id, substrate_type);
+CREATE INDEX idx_work_checkpoints_status ON public.work_checkpoints USING btree (status) WHERE (status = 'pending'::text);
+CREATE INDEX idx_work_checkpoints_ticket ON public.work_checkpoints USING btree (work_ticket_id);
+CREATE INDEX idx_work_iterations_resolved ON public.work_iterations USING btree (resolved) WHERE (NOT resolved);
+CREATE INDEX idx_work_iterations_ticket ON public.work_iterations USING btree (work_ticket_id);
+CREATE INDEX idx_work_outputs_agent_type ON public.work_outputs USING btree (agent_type, basket_id);
+CREATE INDEX idx_work_outputs_basket ON public.work_outputs USING btree (basket_id, created_at DESC);
+CREATE INDEX idx_work_outputs_metadata ON public.work_outputs USING gin (metadata);
+CREATE INDEX idx_work_outputs_pending ON public.work_outputs USING btree (supervision_status, created_at DESC) WHERE (supervision_status = 'pending_review'::text);
+CREATE INDEX idx_work_outputs_provenance ON public.work_outputs USING gin (source_context_ids);
+CREATE INDEX idx_work_outputs_session ON public.work_outputs USING btree (work_session_id, created_at DESC);
+CREATE INDEX idx_work_outputs_tool_call ON public.work_outputs USING btree (tool_call_id) WHERE (tool_call_id IS NOT NULL);
+CREATE INDEX idx_work_outputs_type ON public.work_outputs USING btree (output_type, basket_id);
+CREATE INDEX idx_work_requests_basket ON public.work_requests USING btree (basket_id);
+CREATE INDEX idx_work_requests_requested_at ON public.work_requests USING btree (requested_at DESC);
+CREATE INDEX idx_work_requests_session ON public.work_requests USING btree (agent_session_id) WHERE (agent_session_id IS NOT NULL);
 CREATE INDEX idx_work_requests_status ON public.agent_work_requests USING btree (status, created_at);
 CREATE INDEX idx_work_requests_subscription ON public.agent_work_requests USING btree (subscription_id) WHERE (subscription_id IS NOT NULL);
 CREATE INDEX idx_work_requests_trial ON public.agent_work_requests USING btree (user_id, workspace_id, is_trial_request) WHERE (is_trial_request = true);
+CREATE INDEX idx_work_requests_user ON public.work_requests USING btree (requested_by_user_id);
 CREATE INDEX idx_work_requests_user_workspace ON public.agent_work_requests USING btree (user_id, workspace_id);
-CREATE INDEX idx_work_sessions_agent ON public.work_sessions USING btree (project_agent_id);
-CREATE INDEX idx_work_sessions_agent_work_request_id ON public.work_sessions USING btree (agent_work_request_id) WHERE (agent_work_request_id IS NOT NULL);
-CREATE INDEX idx_work_sessions_approval_strategy ON public.work_sessions USING btree (approval_strategy);
-CREATE INDEX idx_work_sessions_basket ON public.work_sessions USING btree (basket_id);
-CREATE INDEX idx_work_sessions_billing ON public.work_sessions USING btree (agent_work_request_id);
-CREATE INDEX idx_work_sessions_project ON public.work_sessions USING btree (project_id);
-CREATE INDEX idx_work_sessions_project_agent_id ON public.work_sessions USING btree (project_agent_id) WHERE (project_agent_id IS NOT NULL);
-CREATE INDEX idx_work_sessions_status ON public.work_sessions USING btree (status);
-CREATE INDEX idx_work_sessions_task_document_id ON public.work_sessions USING btree (task_document_id) WHERE (task_document_id IS NOT NULL);
-CREATE INDEX idx_work_sessions_task_type ON public.work_sessions USING btree (task_type);
-CREATE INDEX idx_work_sessions_user ON public.work_sessions USING btree (initiated_by_user_id);
-CREATE INDEX idx_work_sessions_workspace ON public.work_sessions USING btree (workspace_id);
+CREATE INDEX idx_work_requests_workspace ON public.work_requests USING btree (workspace_id);
+CREATE INDEX idx_work_tickets_agent_type ON public.work_tickets USING btree (agent_type);
+CREATE INDEX idx_work_tickets_basket ON public.work_tickets USING btree (basket_id, created_at DESC);
+CREATE INDEX idx_work_tickets_request ON public.work_tickets USING btree (work_request_id);
+CREATE INDEX idx_work_tickets_session ON public.work_tickets USING btree (agent_session_id) WHERE (agent_session_id IS NOT NULL);
+CREATE INDEX idx_work_tickets_status ON public.work_tickets USING btree (status) WHERE (status = ANY (ARRAY['pending'::text, 'running'::text]));
+CREATE INDEX idx_work_tickets_workspace ON public.work_tickets USING btree (workspace_id);
 CREATE INDEX idx_workspace_governance_settings_workspace_id ON public.workspace_governance_settings USING btree (workspace_id);
 CREATE INDEX integration_tokens_user_id_idx ON public.integration_tokens USING btree (user_id);
 CREATE INDEX integration_tokens_workspace_id_idx ON public.integration_tokens USING btree (workspace_id);
@@ -3302,11 +3453,14 @@ CREATE TRIGGER trg_lock_constant BEFORE INSERT OR UPDATE ON public.blocks FOR EA
 CREATE TRIGGER trg_set_basket_user_id BEFORE INSERT ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.set_basket_user_id();
 CREATE TRIGGER trg_timeline_after_raw_dump AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.fn_timeline_after_raw_dump();
 CREATE TRIGGER trg_update_asset_type_catalog_updated_at BEFORE UPDATE ON public.asset_type_catalog FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER trg_update_output_type_catalog_updated_at BEFORE UPDATE ON public.output_type_catalog FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER trg_update_reference_assets_updated_at BEFORE UPDATE ON public.reference_assets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER trg_update_work_outputs_updated_at BEFORE UPDATE ON public.work_outputs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER trigger_auto_increment_usage_on_substrate_reference AFTER INSERT ON public.substrate_references FOR EACH ROW EXECUTE FUNCTION public.auto_increment_block_usage_on_reference();
-CREATE TRIGGER trigger_increment_mutations_count AFTER INSERT ON public.work_context_mutations FOR EACH ROW EXECUTE FUNCTION public.increment_work_session_mutations_count();
 CREATE TRIGGER trigger_mark_blocks_stale_on_new_dump AFTER INSERT ON public.raw_dumps FOR EACH ROW EXECUTE FUNCTION public.mark_related_blocks_stale();
+CREATE TRIGGER trigger_update_agent_session_activity AFTER INSERT ON public.work_tickets FOR EACH ROW EXECUTE FUNCTION public.update_agent_session_activity();
 CREATE TRIGGER trigger_update_project_timestamp BEFORE UPDATE ON public.projects FOR EACH ROW EXECUTE FUNCTION public.update_project_timestamp();
+CREATE TRIGGER trigger_update_work_tickets_timestamp BEFORE UPDATE ON public.work_tickets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_baskets_updated_at BEFORE UPDATE ON public.baskets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_block_change_queue_updated_at BEFORE UPDATE ON public.block_change_queue FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_blocks_updated_at BEFORE UPDATE ON public.blocks FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -3328,6 +3482,12 @@ ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_dump_id_fkey FOREIGN KEY (dump_id) REFERENCES public.raw_dumps(id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE ONLY public.agent_processing_queue
     ADD CONSTRAINT agent_processing_queue_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
+ALTER TABLE ONLY public.agent_sessions
+    ADD CONSTRAINT agent_sessions_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.agent_sessions
+    ADD CONSTRAINT agent_sessions_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.agent_sessions
+    ADD CONSTRAINT agent_sessions_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.agent_work_requests
     ADD CONSTRAINT agent_work_requests_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE SET NULL;
 ALTER TABLE ONLY public.agent_work_requests
@@ -3492,18 +3652,32 @@ ALTER TABLE ONLY public.user_agent_subscriptions
     ADD CONSTRAINT user_agent_subscriptions_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.user_alerts
     ADD CONSTRAINT user_alerts_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.work_artifacts
-    ADD CONSTRAINT work_artifacts_work_session_id_fkey FOREIGN KEY (work_session_id) REFERENCES public.work_sessions(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.work_checkpoints
-    ADD CONSTRAINT work_checkpoints_work_session_id_fkey FOREIGN KEY (work_session_id) REFERENCES public.work_sessions(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.work_sessions
-    ADD CONSTRAINT work_sessions_agent_work_request_id_fkey FOREIGN KEY (agent_work_request_id) REFERENCES public.agent_work_requests(id) ON DELETE SET NULL;
-ALTER TABLE ONLY public.work_sessions
-    ADD CONSTRAINT work_sessions_project_agent_id_fkey FOREIGN KEY (project_agent_id) REFERENCES public.project_agents(id) ON DELETE SET NULL;
-ALTER TABLE ONLY public.work_sessions
-    ADD CONSTRAINT work_sessions_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.work_sessions
-    ADD CONSTRAINT work_sessions_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+    ADD CONSTRAINT work_checkpoints_reviewed_by_user_id_fkey FOREIGN KEY (reviewed_by_user_id) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.work_checkpoints
+    ADD CONSTRAINT work_checkpoints_work_ticket_id_fkey FOREIGN KEY (work_ticket_id) REFERENCES public.work_tickets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.work_iterations
+    ADD CONSTRAINT work_iterations_work_ticket_id_fkey FOREIGN KEY (work_ticket_id) REFERENCES public.work_tickets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.work_outputs
+    ADD CONSTRAINT work_outputs_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.work_outputs
+    ADD CONSTRAINT work_outputs_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.work_requests
+    ADD CONSTRAINT work_requests_agent_session_id_fkey FOREIGN KEY (agent_session_id) REFERENCES public.agent_sessions(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.work_requests
+    ADD CONSTRAINT work_requests_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.work_requests
+    ADD CONSTRAINT work_requests_requested_by_user_id_fkey FOREIGN KEY (requested_by_user_id) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.work_requests
+    ADD CONSTRAINT work_requests_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.work_tickets
+    ADD CONSTRAINT work_tickets_agent_session_id_fkey FOREIGN KEY (agent_session_id) REFERENCES public.agent_sessions(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.work_tickets
+    ADD CONSTRAINT work_tickets_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.work_tickets
+    ADD CONSTRAINT work_tickets_work_request_id_fkey FOREIGN KEY (work_request_id) REFERENCES public.work_requests(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.work_tickets
+    ADD CONSTRAINT work_tickets_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_governance_settings
     ADD CONSTRAINT workspace_governance_settings_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.workspace_memberships
@@ -3530,6 +3704,7 @@ CREATE POLICY "Allow workspace members to read baskets" ON public.baskets FOR SE
 CREATE POLICY "Anon can view events temporarily" ON public.basket_events FOR SELECT TO anon USING (true);
 CREATE POLICY "Authenticated users can view events" ON public.basket_events FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Service role can manage all relationships" ON public.substrate_relationships USING (((auth.jwt() ->> 'role'::text) = 'service_role'::text)) WITH CHECK (((auth.jwt() ->> 'role'::text) = 'service_role'::text));
+CREATE POLICY "Service role can manage integration tokens" ON public.integration_tokens TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role can manage queue" ON public.agent_processing_queue TO service_role USING (true);
 CREATE POLICY "Service role full access" ON public.baskets TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to agent_catalog" ON public.agent_catalog TO service_role USING (true) WITH CHECK (true);
@@ -3537,12 +3712,31 @@ CREATE POLICY "Service role has full access to agent_config_history" ON public.a
 CREATE POLICY "Service role has full access to asset_type_catalog" ON public.asset_type_catalog TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to block_usage" ON public.block_usage TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to extraction_quality_metrics" ON public.extraction_quality_metrics TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role has full access to output_type_catalog" ON public.output_type_catalog TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to project_agents" ON public.project_agents TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to projects" ON public.projects TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service role has full access to reference_assets" ON public.reference_assets TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Service role has full access to work_artifacts" ON public.work_artifacts TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Service role has full access to work_checkpoints" ON public.work_checkpoints TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Service role has full access to work_sessions" ON public.work_sessions TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role has full access to work_outputs" ON public.work_outputs TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Users can create agent sessions in their workspaces" ON public.agent_sessions FOR INSERT WITH CHECK (((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))) AND (created_by_user_id = auth.uid())));
+CREATE POLICY "Users can create checkpoints in their workspace tickets" ON public.work_checkpoints FOR INSERT WITH CHECK ((work_ticket_id IN ( SELECT work_tickets.id
+   FROM public.work_tickets
+  WHERE (work_tickets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid()))))));
+CREATE POLICY "Users can create integration tokens for their workspaces" ON public.integration_tokens FOR INSERT TO authenticated WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.user_id = auth.uid()) AND (workspace_memberships.role = ANY (ARRAY['owner'::text, 'admin'::text]))))));
+CREATE POLICY "Users can create iterations in their workspace tickets" ON public.work_iterations FOR INSERT WITH CHECK ((work_ticket_id IN ( SELECT work_tickets.id
+   FROM public.work_tickets
+  WHERE (work_tickets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid()))))));
+CREATE POLICY "Users can create outputs in their workspace" ON public.work_outputs FOR INSERT TO authenticated WITH CHECK ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
 CREATE POLICY "Users can create project_agents in their workspace" ON public.project_agents FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM (public.projects p
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = p.workspace_id)))
@@ -3561,18 +3755,17 @@ CREATE POLICY "Users can create relationships in their workspace baskets" ON pub
      JOIN public.baskets bsk ON ((b.basket_id = bsk.id)))
      JOIN public.workspace_memberships wm ON ((bsk.workspace_id = wm.workspace_id)))
   WHERE ((b.id = substrate_relationships.from_block_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can create work_artifacts in their workspace" ON public.work_artifacts FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
-   FROM (public.work_sessions ws
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = ws.workspace_id)))
-  WHERE ((ws.id = work_artifacts.work_session_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can create work_checkpoints in their workspace" ON public.work_checkpoints FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
-   FROM (public.work_sessions ws
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = ws.workspace_id)))
-  WHERE ((ws.id = work_checkpoints.work_session_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can create work_sessions in their workspace" ON public.work_sessions FOR INSERT TO authenticated WITH CHECK ((EXISTS ( SELECT 1
-   FROM public.workspace_memberships wm
-  WHERE ((wm.workspace_id = work_sessions.workspace_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY "Users can create work requests in their workspaces" ON public.work_requests FOR INSERT WITH CHECK (((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))) AND (requested_by_user_id = auth.uid())));
+CREATE POLICY "Users can create work tickets in their workspaces" ON public.work_tickets FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can delete assets from their workspace" ON public.reference_assets FOR DELETE TO authenticated USING ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
+CREATE POLICY "Users can delete outputs from their workspace" ON public.work_outputs FOR DELETE TO authenticated USING ((basket_id IN ( SELECT b.id
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE (wm.user_id = auth.uid()))));
@@ -3583,17 +3776,6 @@ CREATE POLICY "Users can delete project_agents in their workspace" ON public.pro
 CREATE POLICY "Users can delete projects in their workspace" ON public.projects FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships wm
   WHERE ((wm.workspace_id = projects.workspace_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can delete work_artifacts in their workspace" ON public.work_artifacts FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.work_sessions ws
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = ws.workspace_id)))
-  WHERE ((ws.id = work_artifacts.work_session_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can delete work_checkpoints in their workspace" ON public.work_checkpoints FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.work_sessions ws
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = ws.workspace_id)))
-  WHERE ((ws.id = work_checkpoints.work_session_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can delete work_sessions in their workspace" ON public.work_sessions FOR DELETE TO authenticated USING ((EXISTS ( SELECT 1
-   FROM public.workspace_memberships wm
-  WHERE ((wm.workspace_id = work_sessions.workspace_id) AND (wm.user_id = auth.uid())))));
 CREATE POLICY "Users can insert agent_config_history in their workspace" ON public.agent_config_history FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM ((public.project_agents pa
      JOIN public.projects p ON ((p.id = pa.project_id)))
@@ -3616,6 +3798,7 @@ CREATE POLICY "Users can queue processing in their workspace" ON public.agent_pr
   WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can read active agent types" ON public.agent_catalog FOR SELECT TO authenticated USING (((is_active = true) AND (deprecated_at IS NULL)));
 CREATE POLICY "Users can read active asset types" ON public.asset_type_catalog FOR SELECT TO authenticated USING (((is_active = true) AND (deprecated_at IS NULL)));
+CREATE POLICY "Users can read active output types" ON public.output_type_catalog FOR SELECT TO authenticated USING (((is_active = true) AND (deprecated_at IS NULL)));
 CREATE POLICY "Users can read block revisions in their workspaces" ON public.block_revisions FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = block_revisions.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
@@ -3626,6 +3809,21 @@ CREATE POLICY "Users can read documents in their workspaces" ON public.documents
    FROM public.workspace_memberships
   WHERE ((workspace_memberships.workspace_id = documents.workspace_id) AND (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY "Users can revoke own MCP sessions" ON public.mcp_oauth_sessions FOR DELETE USING ((user_id = auth.uid()));
+CREATE POLICY "Users can revoke their workspace integration tokens" ON public.integration_tokens FOR UPDATE TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.user_id = auth.uid()) AND (workspace_memberships.role = ANY (ARRAY['owner'::text, 'admin'::text])))))) WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE ((workspace_memberships.user_id = auth.uid()) AND (workspace_memberships.role = ANY (ARRAY['owner'::text, 'admin'::text]))))));
+CREATE POLICY "Users can supervise outputs in their workspace" ON public.work_outputs FOR UPDATE TO authenticated USING ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid())))) WITH CHECK ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
+CREATE POLICY "Users can update agent sessions in their workspaces" ON public.agent_sessions FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can update assets in their workspace" ON public.reference_assets FOR UPDATE TO authenticated USING ((basket_id IN ( SELECT b.id
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
@@ -3633,6 +3831,11 @@ CREATE POLICY "Users can update assets in their workspace" ON public.reference_a
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE (wm.user_id = auth.uid()))));
+CREATE POLICY "Users can update checkpoints in their workspace tickets" ON public.work_checkpoints FOR UPDATE USING ((work_ticket_id IN ( SELECT work_tickets.id
+   FROM public.work_tickets
+  WHERE (work_tickets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid()))))));
 CREATE POLICY "Users can update project_agents in their workspace" ON public.project_agents FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM (public.projects p
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = p.workspace_id)))
@@ -3658,29 +3861,16 @@ CREATE POLICY "Users can update their queued items" ON public.agent_processing_q
   WHERE (workspace_memberships.user_id = auth.uid())))) WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
-CREATE POLICY "Users can update work_artifacts in their workspace" ON public.work_artifacts FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.work_sessions ws
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = ws.workspace_id)))
-  WHERE ((ws.id = work_artifacts.work_session_id) AND (wm.user_id = auth.uid()))))) WITH CHECK ((EXISTS ( SELECT 1
-   FROM (public.work_sessions ws
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = ws.workspace_id)))
-  WHERE ((ws.id = work_artifacts.work_session_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can update work_checkpoints in their workspace" ON public.work_checkpoints FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.work_sessions ws
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = ws.workspace_id)))
-  WHERE ((ws.id = work_checkpoints.work_session_id) AND (wm.user_id = auth.uid()))))) WITH CHECK ((EXISTS ( SELECT 1
-   FROM (public.work_sessions ws
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = ws.workspace_id)))
-  WHERE ((ws.id = work_checkpoints.work_session_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can update work_sessions in their workspace" ON public.work_sessions FOR UPDATE TO authenticated USING ((EXISTS ( SELECT 1
-   FROM public.workspace_memberships wm
-  WHERE ((wm.workspace_id = work_sessions.workspace_id) AND (wm.user_id = auth.uid()))))) WITH CHECK ((EXISTS ( SELECT 1
-   FROM public.workspace_memberships wm
-  WHERE ((wm.workspace_id = work_sessions.workspace_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY "Users can update work tickets in their workspaces" ON public.work_tickets FOR UPDATE USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can upload assets to their workspace" ON public.reference_assets FOR INSERT TO authenticated WITH CHECK ((basket_id IN ( SELECT b.id
    FROM (public.baskets b
      JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
   WHERE (wm.user_id = auth.uid()))));
+CREATE POLICY "Users can view agent sessions in their workspaces" ON public.agent_sessions FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Users can view agent_config_history in their workspace" ON public.agent_config_history FOR SELECT USING ((EXISTS ( SELECT 1
    FROM ((public.project_agents pa
      JOIN public.projects p ON ((p.id = pa.project_id)))
@@ -3700,6 +3890,11 @@ CREATE POLICY "Users can view blocks in their workspace" ON public.blocks FOR SE
   WHERE ((baskets.id = blocks.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view checkpoints in their workspace tickets" ON public.work_checkpoints FOR SELECT USING ((work_ticket_id IN ( SELECT work_tickets.id
+   FROM public.work_tickets
+  WHERE (work_tickets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid()))))));
 CREATE POLICY "Users can view executions in their workspace" ON public.proposal_executions FOR SELECT USING ((proposal_id IN ( SELECT proposals.id
    FROM public.proposals
   WHERE (proposals.workspace_id IN ( SELECT workspace_memberships.workspace_id
@@ -3708,11 +3903,20 @@ CREATE POLICY "Users can view executions in their workspace" ON public.proposal_
 CREATE POLICY "Users can view extraction metrics in their workspace" ON public.extraction_quality_metrics FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
    FROM public.workspace_memberships wm
   WHERE ((wm.workspace_id = extraction_quality_metrics.workspace_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY "Users can view iterations in their workspace tickets" ON public.work_iterations FOR SELECT USING ((work_ticket_id IN ( SELECT work_tickets.id
+   FROM public.work_tickets
+  WHERE (work_tickets.workspace_id IN ( SELECT workspace_memberships.workspace_id
+           FROM public.workspace_memberships
+          WHERE (workspace_memberships.user_id = auth.uid()))))));
 CREATE POLICY "Users can view narrative in their workspace" ON public.narrative FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.baskets
   WHERE ((baskets.id = narrative.basket_id) AND (baskets.workspace_id IN ( SELECT workspace_memberships.workspace_id
            FROM public.workspace_memberships
           WHERE (workspace_memberships.user_id = auth.uid())))))));
+CREATE POLICY "Users can view outputs in their workspace" ON public.work_outputs FOR SELECT TO authenticated USING ((basket_id IN ( SELECT b.id
+   FROM (public.baskets b
+     JOIN public.workspace_memberships wm ON ((wm.workspace_id = b.workspace_id)))
+  WHERE (wm.user_id = auth.uid()))));
 CREATE POLICY "Users can view own MCP sessions" ON public.mcp_oauth_sessions FOR SELECT USING ((user_id = auth.uid()));
 CREATE POLICY "Users can view project_agents in their workspace" ON public.project_agents FOR SELECT USING ((EXISTS ( SELECT 1
    FROM (public.projects p
@@ -3740,17 +3944,15 @@ CREATE POLICY "Users can view relationships in their workspace baskets" ON publi
      JOIN public.baskets bsk ON ((b.basket_id = bsk.id)))
      JOIN public.workspace_memberships wm ON ((bsk.workspace_id = wm.workspace_id)))
   WHERE (((b.id = substrate_relationships.from_block_id) OR (b.id = substrate_relationships.to_block_id)) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can view work_artifacts in their workspace" ON public.work_artifacts FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.work_sessions ws
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = ws.workspace_id)))
-  WHERE ((ws.id = work_artifacts.work_session_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can view work_checkpoints in their workspace" ON public.work_checkpoints FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
-   FROM (public.work_sessions ws
-     JOIN public.workspace_memberships wm ON ((wm.workspace_id = ws.workspace_id)))
-  WHERE ((ws.id = work_checkpoints.work_session_id) AND (wm.user_id = auth.uid())))));
-CREATE POLICY "Users can view work_sessions in their workspace" ON public.work_sessions FOR SELECT TO authenticated USING ((EXISTS ( SELECT 1
-   FROM public.workspace_memberships wm
-  WHERE ((wm.workspace_id = work_sessions.workspace_id) AND (wm.user_id = auth.uid())))));
+CREATE POLICY "Users can view their workspace integration tokens" ON public.integration_tokens FOR SELECT TO authenticated USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY "Users can view work requests in their workspaces" ON public.work_requests FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
+CREATE POLICY "Users can view work tickets in their workspaces" ON public.work_tickets FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
+   FROM public.workspace_memberships
+  WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY "Workspace members can read events" ON public.events FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -3760,6 +3962,7 @@ CREATE POLICY "Workspace members can update events" ON public.events FOR UPDATE 
 ALTER TABLE public.agent_catalog ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_config_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_processing_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.agent_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.agent_work_requests ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow agent insert" ON public.revisions FOR INSERT TO authenticated WITH CHECK (((basket_id IS NOT NULL) AND (basket_id IN ( SELECT baskets.id
    FROM public.baskets
@@ -3908,6 +4111,7 @@ CREATE POLICY events_select_workspace_member ON public.events FOR SELECT TO auth
   WHERE (workspace_memberships.user_id = auth.uid()))));
 CREATE POLICY events_service_role_all ON public.events TO service_role USING (true) WITH CHECK (true);
 ALTER TABLE public.extraction_quality_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.integration_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.knowledge_timeline ENABLE ROW LEVEL SECURITY;
 CREATE POLICY knowledge_timeline_workspace_read ON public.knowledge_timeline FOR SELECT USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -3952,6 +4156,7 @@ CREATE POLICY narrative_update_workspace_member ON public.narrative FOR UPDATE T
   WHERE ((b.id = narrative.basket_id) AND (wm.user_id = auth.uid())))));
 ALTER TABLE public.openai_app_tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY openai_app_tokens_service_access ON public.openai_app_tokens USING ((auth.role() = 'service_role'::text)) WITH CHECK ((auth.role() = 'service_role'::text));
+ALTER TABLE public.output_type_catalog ENABLE ROW LEVEL SECURITY;
 CREATE POLICY p3_p4_policy_workspace_access ON public.p3_p4_regeneration_policy USING ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid()))));
@@ -4065,13 +4270,13 @@ ALTER TABLE public.user_agent_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_alerts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY user_alerts_own_read ON public.user_alerts FOR SELECT USING ((user_id = auth.uid()));
 CREATE POLICY user_alerts_own_update ON public.user_alerts FOR UPDATE USING ((user_id = auth.uid()));
-ALTER TABLE public.work_artifacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.work_checkpoints ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.work_context_mutations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.work_iterations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.work_outputs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.work_requests ENABLE ROW LEVEL SECURITY;
 CREATE POLICY work_requests_service_write ON public.agent_work_requests USING (((auth.jwt() ->> 'role'::text) = 'service_role'::text));
 CREATE POLICY work_requests_user_read ON public.agent_work_requests FOR SELECT USING ((auth.uid() = user_id));
-ALTER TABLE public.work_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.work_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workspace_governance_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY workspace_governance_settings_insert ON public.workspace_governance_settings FOR INSERT WITH CHECK ((workspace_id IN ( SELECT workspace_memberships.workspace_id
    FROM public.workspace_memberships
@@ -4094,4 +4299,4 @@ CREATE POLICY ws_owner_or_member_read ON public.workspaces FOR SELECT USING (((o
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY ws_owner_update ON public.workspaces FOR UPDATE USING ((owner_id = auth.uid()));
-\unrestrict PebzZcpjLjR7Yb1gMoIIzpRSXvOjBmNlG5oEVG7NYx4aWdl1ZMvLQwfVCvDI6TJ
+\unrestrict efTVp08cfiKtIApChQncMShAmzph72XC8h4oqERUgclxf9Al7QhLh01Pg5jaUPf

@@ -423,11 +423,44 @@ Agents work autonomously but outputs require approval. Think "employee with auto
 
 **Pattern**: Session Linking
 - Agent SDK manages execution (Claude conversations, tool use)
-- YARNNN manages work lifecycle (artifacts, approval, substrate)
-- Linked via `work_sessions.agent_session_id`
+- YARNNN manages work lifecycle (outputs, approval, substrate)
+- Linked via `agent_sessions.sdk_session_id` (Phase 2e architecture)
 - Enables cross-system tracing and debugging
 
 **Why**: In v3.1, agents were internal-only. Now we support external agent frameworks.
+
+### Agent Skills & File Generation
+
+**Concept**: Agents can generate professional deliverables beyond text outputs.
+
+**Capabilities** (via Claude Agent SDK Skills):
+- **PDF**: Professional reports, formatted documents
+- **XLSX**: Spreadsheets with formulas, data tables
+- **DOCX**: Word documents with rich formatting
+- **PPTX**: Presentation slides with layouts
+
+**Architecture**:
+```
+Agent generates file (via Skill)
+  ↓ file_id returned
+Download from Claude Files API
+  ↓ (bytes, metadata)
+Upload to Supabase Storage (yarnnn-assets bucket)
+  ↓ storage_path
+work_outputs table (file_id, file_format, storage_path, skill_metadata)
+```
+
+**Implementation** (Phase 2e+):
+- `work_outputs.file_id`: Claude Files API reference
+- `work_outputs.storage_path`: Supabase Storage location (persistent)
+- `work_outputs.generation_method`: `skill` | `code_execution` | `text`
+- `work_outputs.skill_metadata`: Provenance tracking
+
+**Storage Pattern**: `baskets/{basket_id}/work_outputs/{work_ticket_id}/{filename}`
+
+**Why File Support**: Agents produce real business deliverables (reports, spreadsheets, presentations), not just text. Users expect downloadable artifacts.
+
+**Reference**: See [`SKILLS_IMPLEMENTATION_GUIDE.md`](./SKILLS_IMPLEMENTATION_GUIDE.md) for technical details.
 
 ---
 
