@@ -1,9 +1,15 @@
-"""Work Platform API routes - Phase 1: Projects & Work Sessions.
+"""Work Platform API routes - Phase 2e: Projects & Work Tickets.
 
-Endpoints for work orchestration domain:
-- Projects (work containers linked 1:1 with baskets)
-- Work Sessions (agent execution requests)
-- Artifacts & Checkpoints (coming in separate endpoints)
+NOTE: This file has been partially migrated from work_sessions to work_tickets.
+However, the Phase 2e schema removes project_id from work_tickets (no longer exists).
+Work tickets now only have work_request_id, agent_session_id, and denormalized fields.
+
+TODO: This file needs more significant refactoring beyond renaming:
+- Projects may no longer be the primary organizing concept
+- Work tickets are now linked via work_requests (not projects)
+- Consider if project-based endpoints still make sense
+
+For now, renamed work_session → work_ticket for compilation.
 """
 
 from datetime import datetime
@@ -21,14 +27,14 @@ from .models import (
     ProjectCreate,
     ProjectUpdate,
     ProjectWithStats,
-    WorkSession,
-    WorkSessionCreate,
-    WorkSessionUpdate,
-    WorkSessionStatus,
+    WorkTicket,
+    WorkTicketCreate,
+    WorkTicketUpdate,
+    WorkTicketStatus,
     TaskType,
 )
 from .task_params import validate_task_params
-from .executor import start_work_session_execution
+from .executor import start_work_ticket_execution
 
 router = APIRouter(prefix="/work", tags=["work-platform"])
 
@@ -199,9 +205,9 @@ async def list_projects(
     """List all projects for the current user's workspace.
 
     Returns projects with aggregated statistics:
-    - Total work sessions count
-    - Active sessions count (pending, running, paused)
-    - Completed sessions count
+    - Total work tickets count
+    - Active tickets count (pending, running, paused)
+    - Completed tickets count
     - Total artifacts count
 
     Args:
@@ -216,19 +222,19 @@ async def list_projects(
     query = """
         SELECT
             p.*,
-            COUNT(DISTINCT ws.id) AS work_sessions_count,
+            COUNT(DISTINCT ws.id) AS work_tickets_count,
             COUNT(DISTINCT CASE
                 WHEN ws.status IN ('pending', 'running', 'paused')
                 THEN ws.id
-            END) AS active_sessions_count,
+            END) AS active_tickets_count,
             COUNT(DISTINCT CASE
                 WHEN ws.status = 'completed'
                 THEN ws.id
-            END) AS completed_sessions_count,
+            END) AS completed_tickets_count,
             COUNT(DISTINCT wa.id) AS total_artifacts_count
         FROM projects p
-        LEFT JOIN work_sessions ws ON ws.project_id = p.id
-        LEFT JOIN work_outputs wa ON wa.work_session_id = ws.id
+        LEFT JOIN work_tickets ws ON ws.project_id = p.id
+        LEFT JOIN work_outputs wa ON wa.work_ticket_id = ws.id
         WHERE p.workspace_id = :workspace_id
         GROUP BY p.id
         ORDER BY p.created_at DESC
@@ -263,19 +269,19 @@ async def get_project(
     query = """
         SELECT
             p.*,
-            COUNT(DISTINCT ws.id) AS work_sessions_count,
+            COUNT(DISTINCT ws.id) AS work_tickets_count,
             COUNT(DISTINCT CASE
                 WHEN ws.status IN ('pending', 'running', 'paused')
                 THEN ws.id
-            END) AS active_sessions_count,
+            END) AS active_tickets_count,
             COUNT(DISTINCT CASE
                 WHEN ws.status = 'completed'
                 THEN ws.id
-            END) AS completed_sessions_count,
+            END) AS completed_tickets_count,
             COUNT(DISTINCT wa.id) AS total_artifacts_count
         FROM projects p
-        LEFT JOIN work_sessions ws ON ws.project_id = p.id
-        LEFT JOIN work_outputs wa ON wa.work_session_id = ws.id
+        LEFT JOIN work_tickets ws ON ws.project_id = p.id
+        LEFT JOIN work_outputs wa ON wa.work_ticket_id = ws.id
         WHERE p.id = :project_id AND p.workspace_id = :workspace_id
         GROUP BY p.id
     """
@@ -365,9 +371,9 @@ async def delete_project(
     user: dict = Depends(verify_jwt),
     db=Depends(get_db),
 ):
-    """Delete a project (CASCADE deletes all work sessions, artifacts, checkpoints).
+    """Delete a project (CASCADE deletes all work tickets, artifacts, checkpoints).
 
-    WARNING: This is a destructive operation. All work sessions and artifacts
+    WARNING: This is a destructive operation. All work tickets and artifacts
     will be deleted. The linked basket will NOT be deleted.
 
     Args:
@@ -405,15 +411,15 @@ async def delete_project(
 # ============================================================================
 
 
-@router.post("/sessions", response_model=WorkSession, status_code=status.HTTP_201_CREATED)
-async def create_work_session(
-    request: WorkSessionCreate,
+@router.post("/tickets", response_model=WorkTicket, status_code=status.HTTP_201_CREATED)
+async def create_work_ticket(
+    request: WorkTicketCreate,
     user: dict = Depends(verify_jwt),
     db=Depends(get_db),
 ):
     """Create a new work session within a project.
 
-    Work sessions are individual work requests with:
+    Work tickets are individual work requests with:
     - Task type (research, content_creation, analysis)
     - Task intent (natural language description)
     - Task parameters (validated based on task_type)
@@ -486,7 +492,7 @@ async def create_work_session(
 
     # Create work session
     query = """
-        INSERT INTO work_sessions (
+        INSERT INTO work_tickets (
             project_id,
             basket_id,
             workspace_id,
@@ -521,7 +527,7 @@ async def create_work_session(
         "task_type": request.task_type.value,
         "task_intent": request.task_intent,
         "task_parameters": validated_params,
-        "status": WorkSessionStatus.PENDING.value,
+        "status": WorkTicketStatus.PENDING.value,
     }
 
     try:
@@ -532,7 +538,7 @@ async def create_work_session(
                 detail="Failed to create work session"
             )
 
-        return WorkSession(**dict(result))
+        return WorkTicket(**dict(result))
 
     except Exception as e:
         raise HTTPException(
@@ -541,16 +547,16 @@ async def create_work_session(
         )
 
 
-@router.get("/sessions", response_model=List[WorkSession])
-async def list_work_sessions(
+@router.get("/tickets", response_model=List[WorkTicket])
+async def list_work_tickets(
     project_id: Optional[UUID] = None,
-    status: Optional[WorkSessionStatus] = None,
+    status: Optional[WorkTicketStatus] = None,
     limit: int = 50,
     offset: int = 0,
     user: dict = Depends(verify_jwt),
     db=Depends(get_db),
 ):
-    """List work sessions for the current user's workspace.
+    """List work tickets for the current user's workspace.
 
     Optionally filter by project_id and/or status.
 
@@ -563,7 +569,7 @@ async def list_work_sessions(
         db: Database connection
 
     Returns:
-        List of work sessions (most recent first)
+        List of work tickets (most recent first)
     """
     workspace_id = _get_workspace_id(user)
 
@@ -587,7 +593,7 @@ async def list_work_sessions(
 
     query = f"""
         SELECT ws.*
-        FROM work_sessions ws
+        FROM work_tickets ws
         WHERE {where_sql}
         ORDER BY ws.created_at DESC
         LIMIT :limit OFFSET :offset
@@ -595,12 +601,12 @@ async def list_work_sessions(
 
     results = await db.fetch_all(query, values)
 
-    return [WorkSession(**dict(row)) for row in results]
+    return [WorkTicket(**dict(row)) for row in results]
 
 
-@router.post("/sessions/{session_id}/start", response_model=WorkSession)
+@router.post("/tickets/{ticket_id}/start", response_model=WorkTicket)
 async def start_session_execution(
-    session_id: UUID,
+    ticket_id: UUID,
     user: dict = Depends(verify_jwt),
     db=Depends(get_db),
 ):
@@ -611,7 +617,7 @@ async def start_session_execution(
     - PENDING → RUNNING → PAUSED (at checkpoint) or COMPLETED
 
     Args:
-        session_id: Work session UUID
+        ticket_id: Work session UUID
         user: Authenticated user from JWT
         db: Database connection
 
@@ -627,22 +633,22 @@ async def start_session_execution(
 
     # Verify session exists and user has access
     check_query = """
-        SELECT status FROM work_sessions
-        WHERE id = :session_id AND workspace_id = :workspace_id
+        SELECT status FROM work_tickets
+        WHERE id = :ticket_id AND workspace_id = :workspace_id
     """
     session = await db.fetch_one(
         check_query,
-        {"session_id": str(session_id), "workspace_id": workspace_id}
+        {"ticket_id": str(ticket_id), "workspace_id": workspace_id}
     )
 
     if not session:
         raise HTTPException(
             status_code=404,
-            detail=f"Work session {session_id} not found"
+            detail=f"Work session {ticket_id} not found"
         )
 
     # Check session status
-    if session["status"] != WorkSessionStatus.PENDING.value:
+    if session["status"] != WorkTicketStatus.PENDING.value:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot start session in {session['status']} status. Session must be PENDING."
@@ -650,7 +656,7 @@ async def start_session_execution(
 
     # Start execution
     try:
-        updated_session = await start_work_session_execution(session_id, db)
+        updated_session = await start_work_ticket_execution(ticket_id, db)
         return updated_session
 
     except ValueError as e:
@@ -665,16 +671,16 @@ async def start_session_execution(
         )
 
 
-@router.get("/sessions/{session_id}", response_model=WorkSession)
-async def get_work_session(
-    session_id: UUID,
+@router.get("/tickets/{ticket_id}", response_model=WorkTicket)
+async def get_work_ticket(
+    ticket_id: UUID,
     user: dict = Depends(verify_jwt),
     db=Depends(get_db),
 ):
     """Get work session details.
 
     Args:
-        session_id: Work session UUID
+        ticket_id: Work session UUID
         user: Authenticated user from JWT
         db: Database connection
 
@@ -688,34 +694,34 @@ async def get_work_session(
 
     query = """
         SELECT ws.*
-        FROM work_sessions ws
-        WHERE ws.id = :session_id AND ws.workspace_id = :workspace_id
+        FROM work_tickets ws
+        WHERE ws.id = :ticket_id AND ws.workspace_id = :workspace_id
     """
 
     result = await db.fetch_one(
         query,
-        {"session_id": str(session_id), "workspace_id": workspace_id}
+        {"ticket_id": str(ticket_id), "workspace_id": workspace_id}
     )
 
     if not result:
         raise HTTPException(
             status_code=404,
-            detail=f"Work session {session_id} not found"
+            detail=f"Work session {ticket_id} not found"
         )
 
-    return WorkSession(**dict(result))
+    return WorkTicket(**dict(result))
 
 
-@router.get("/projects/{project_id}/sessions", response_model=List[WorkSession])
-async def list_project_sessions(
+@router.get("/projects/{project_id}/tickets", response_model=List[WorkTicket])
+async def list_project_tickets(
     project_id: UUID,
-    status: Optional[WorkSessionStatus] = None,
+    status: Optional[WorkTicketStatus] = None,
     limit: int = 50,
     offset: int = 0,
     user: dict = Depends(verify_jwt),
     db=Depends(get_db),
 ):
-    """List all work sessions for a specific project.
+    """List all work tickets for a specific project.
 
     Args:
         project_id: Project UUID
@@ -726,7 +732,7 @@ async def list_project_sessions(
         db: Database connection
 
     Returns:
-        List of work sessions for the project (most recent first)
+        List of work tickets for the project (most recent first)
 
     Raises:
         404: Project not found or access denied
@@ -773,7 +779,7 @@ async def list_project_sessions(
 
     query = f"""
         SELECT ws.*
-        FROM work_sessions ws
+        FROM work_tickets ws
         WHERE {where_sql}
         ORDER BY ws.created_at DESC
         LIMIT :limit OFFSET :offset
@@ -781,12 +787,12 @@ async def list_project_sessions(
 
     results = await db.fetch_all(query, values)
 
-    return [WorkSession(**dict(row)) for row in results]
+    return [WorkTicket(**dict(row)) for row in results]
 
 
-@router.post("/sessions/{session_id}/start", response_model=WorkSession)
+@router.post("/tickets/{ticket_id}/start", response_model=WorkTicket)
 async def start_session_execution(
-    session_id: UUID,
+    ticket_id: UUID,
     user: dict = Depends(verify_jwt),
     db=Depends(get_db),
 ):
@@ -797,7 +803,7 @@ async def start_session_execution(
     - PENDING → RUNNING → PAUSED (at checkpoint) or COMPLETED
 
     Args:
-        session_id: Work session UUID
+        ticket_id: Work session UUID
         user: Authenticated user from JWT
         db: Database connection
 
@@ -813,22 +819,22 @@ async def start_session_execution(
 
     # Verify session exists and user has access
     check_query = """
-        SELECT status FROM work_sessions
-        WHERE id = :session_id AND workspace_id = :workspace_id
+        SELECT status FROM work_tickets
+        WHERE id = :ticket_id AND workspace_id = :workspace_id
     """
     session = await db.fetch_one(
         check_query,
-        {"session_id": str(session_id), "workspace_id": workspace_id}
+        {"ticket_id": str(ticket_id), "workspace_id": workspace_id}
     )
 
     if not session:
         raise HTTPException(
             status_code=404,
-            detail=f"Work session {session_id} not found"
+            detail=f"Work session {ticket_id} not found"
         )
 
     # Check session status
-    if session["status"] != WorkSessionStatus.PENDING.value:
+    if session["status"] != WorkTicketStatus.PENDING.value:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot start session in {session['status']} status. Session must be PENDING."
@@ -836,7 +842,7 @@ async def start_session_execution(
 
     # Start execution
     try:
-        updated_session = await start_work_session_execution(session_id, db)
+        updated_session = await start_work_ticket_execution(ticket_id, db)
         return updated_session
 
     except ValueError as e:

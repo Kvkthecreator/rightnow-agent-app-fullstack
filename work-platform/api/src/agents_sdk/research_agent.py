@@ -228,7 +228,7 @@ class ResearchAgentSDK(BaseAgent):
         agent = ResearchAgentSDK(
             basket_id="5004b9e1-67f5-4955-b028-389d45b1f5a4",
             workspace_id="ws_001",
-            work_session_id="session-uuid",
+            work_ticket_id="session-uuid",
         )
 
         result = await agent.deep_dive("Analyze AI companion competitor pricing")
@@ -247,7 +247,7 @@ class ResearchAgentSDK(BaseAgent):
         self,
         basket_id: str,
         workspace_id: str,
-        work_session_id: str,
+        work_ticket_id: str,
         memory: Optional[MemoryProvider] = None,
         governance: Optional[GovernanceProvider] = None,
         tasks: Optional[TaskProvider] = None,
@@ -265,7 +265,7 @@ class ResearchAgentSDK(BaseAgent):
         Args:
             basket_id: Basket ID for substrate queries
             workspace_id: Workspace ID for authorization
-            work_session_id: Work session ID for output tracking
+            work_ticket_id: Work session ID for output tracking
             memory: MemoryProvider (auto-created if None)
             governance: GovernanceProvider (optional)
             tasks: TaskProvider (optional)
@@ -279,7 +279,7 @@ class ResearchAgentSDK(BaseAgent):
         """
         self.basket_id = basket_id
         self.workspace_id = workspace_id
-        self.work_session_id = work_session_id
+        self.work_ticket_id = work_ticket_id
         self.knowledge_modules = knowledge_modules
 
         # Create memory adapter using BFF pattern (substrate-API via SubstrateClient)
@@ -318,7 +318,7 @@ class ResearchAgentSDK(BaseAgent):
 
         logger.info(
             f"ResearchAgentSDK initialized: basket={basket_id}, "
-            f"session={work_session_id}, domains={self.monitoring_domains}"
+            f"session={work_ticket_id}, domains={self.monitoring_domains}"
         )
 
     def _register_subagents(self):
@@ -517,7 +517,7 @@ Please conduct thorough research and synthesis, emitting structured outputs for 
             "source_block_ids": source_block_ids,
             "agent_type": "research",  # For output routing
             "basket_id": self.basket_id,
-            "work_session_id": self.work_session_id,
+            "work_ticket_id": self.work_ticket_id,
         }
 
         logger.info(f"Deep-dive research complete: {topic} with {len(work_outputs)} outputs")
@@ -547,7 +547,7 @@ Please conduct thorough research and synthesis, emitting structured outputs for 
 def create_research_agent_sdk(
     basket_id: str,
     workspace_id: str,
-    work_session_id: str,
+    work_ticket_id: str,
     **kwargs
 ) -> ResearchAgentSDK:
     """
@@ -556,7 +556,7 @@ def create_research_agent_sdk(
     Args:
         basket_id: Basket ID for substrate queries
         workspace_id: Workspace ID for authorization
-        work_session_id: Work session ID for output tracking
+        work_ticket_id: Work session ID for output tracking
         **kwargs: Additional arguments for ResearchAgentSDK
 
     Returns:
@@ -565,6 +565,6 @@ def create_research_agent_sdk(
     return ResearchAgentSDK(
         basket_id=basket_id,
         workspace_id=workspace_id,
-        work_session_id=work_session_id,
+        work_ticket_id=work_ticket_id,
         **kwargs
     )

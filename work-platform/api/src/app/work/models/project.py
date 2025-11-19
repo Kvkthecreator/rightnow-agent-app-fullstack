@@ -1,11 +1,11 @@
 """Project domain model.
 
 Projects are work domain containers that link 1:1 with substrate baskets.
-They encapsulate all work sessions and artifacts related to a specific context.
+They encapsulate all work tickets and outputs related to a specific context.
 
-Phase 1 Design:
+Phase 2e Update:
 - 1:1 relationship with baskets (enforced by unique constraint)
-- Container for work sessions
+- Container for work tickets (renamed from work_sessions)
 - Simple metadata (name, description)
 - No complex governance logic yet
 """
@@ -72,10 +72,10 @@ class ProjectUpdate(BaseModel):
 class ProjectWithStats(Project):
     """Project with aggregated statistics."""
 
-    work_sessions_count: int = 0
-    active_sessions_count: int = 0
-    completed_sessions_count: int = 0
-    total_artifacts_count: int = 0
+    work_tickets_count: int = 0
+    active_tickets_count: int = 0
+    completed_tickets_count: int = 0
+    total_outputs_count: int = 0
 
     class Config:
         """Pydantic config."""

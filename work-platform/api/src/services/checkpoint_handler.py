@@ -4,7 +4,7 @@ Checkpoint Handler: Manages execution checkpoints for user review.
 This service handles:
 1. Checkpoint creation (pause points in agent execution)
 2. Checkpoint approval/rejection
-3. Intermediate artifact storage
+3. Intermediate output storage
 4. Resume context management
 
 Phase 2: Agent Execution & Checkpoints
@@ -29,7 +29,7 @@ class CheckpointHandler:
 
     Checkpoints are pause points where:
     - Agent pauses execution
-    - Intermediate artifacts are saved
+    - Intermediate outputs are saved
     - User reviews progress
     - User approves/rejects/provides feedback
     - Execution resumes (or fails)
@@ -60,42 +60,42 @@ class CheckpointHandler:
 
     async def create_checkpoint(
         self,
-        work_session_id: str | UUID,
+        work_ticket_id: str | UUID,
         reason: str,
-        artifact_ids: List[str]
+        output_ids: List[str]
     ) -> str:
         """
         Create a checkpoint for user review.
 
         Args:
-            work_session_id: Work session UUID
+            work_ticket_id: Work session UUID
             reason: Reason for checkpoint (why agent paused)
-            artifact_ids: List of artifact UUIDs created at this checkpoint
+            output_ids: List of output UUIDs created at this checkpoint
 
         Returns:
             Created checkpoint UUID
 
         Example:
             checkpoint_id = await handler.create_checkpoint(
-                work_session_id="uuid",
+                work_ticket_id="uuid",
                 reason="Low confidence findings require review",
-                artifact_ids=["artifact_uuid_1", "artifact_uuid_2"]
+                output_ids=["output_uuid_1", "output_uuid_2"]
             )
         """
-        work_session_id = str(work_session_id)
+        work_ticket_id = str(work_ticket_id)
 
         logger.info(
-            f"[CHECKPOINT HANDLER] Creating checkpoint for session {work_session_id}: "
+            f"[CHECKPOINT HANDLER] Creating checkpoint for session {work_ticket_id}: "
             f"{reason}"
         )
 
         checkpoint_data = {
-            "work_session_id": work_session_id,
+            "work_ticket_id": work_ticket_id,
             "reason": reason,
             "status": "pending_review",  # pending_review | approved | rejected
             "metadata": {
-                "artifact_ids": artifact_ids,
-                "artifact_count": len(artifact_ids),
+                "output_ids": output_ids,
+                "output_count": len(output_ids),
                 "created_at": datetime.utcnow().isoformat(),
             }
         }
@@ -111,7 +111,7 @@ class CheckpointHandler:
 
         logger.info(
             f"[CHECKPOINT HANDLER] ✅ Created checkpoint {checkpoint_id} "
-            f"with {len(artifact_ids)} artifacts"
+            f"with {len(output_ids)} outputs"
         )
 
         return checkpoint_id
@@ -218,8 +218,8 @@ class CheckpointHandler:
 
             # Also mark work session as failed
             checkpoint = response.data[0]
-            await self._fail_work_session(
-                checkpoint["work_session_id"],
+            await self._fail_work_ticket(
+                checkpoint["work_ticket_id"],
                 f"Checkpoint rejected: {rejection_reason}"
             )
         else:
@@ -243,7 +243,7 @@ class CheckpointHandler:
         checkpoint_id = str(checkpoint_id)
 
         response = self.supabase.table("work_checkpoints").select(
-            "id, work_session_id, reason, status, "
+            "id, work_ticket_id, reason, status, "
             "reviewed_by_user_id, reviewed_at, metadata, created_at"
         ).eq("id", checkpoint_id).single().execute()
 
@@ -254,39 +254,39 @@ class CheckpointHandler:
 
     async def list_session_checkpoints(
         self,
-        work_session_id: str | UUID
+        work_ticket_id: str | UUID
     ) -> List[Dict[str, Any]]:
         """
         List all checkpoints for a work session.
 
         Args:
-            work_session_id: Work session UUID
+            work_ticket_id: Work session UUID
 
         Returns:
             List of checkpoint dictionaries, ordered by creation time
         """
-        work_session_id = str(work_session_id)
+        work_ticket_id = str(work_ticket_id)
 
         response = self.supabase.table("work_checkpoints").select(
             "id, reason, status, reviewed_by_user_id, reviewed_at, metadata, created_at"
-        ).eq("work_session_id", work_session_id).order(
+        ).eq("work_ticket_id", work_ticket_id).order(
             "created_at", desc=False
         ).execute()
 
         return response.data or []
 
-    async def _fail_work_session(self, work_session_id: str, error_message: str):
+    async def _fail_work_ticket(self, work_ticket_id: str, error_message: str):
         """Mark work session as failed due to checkpoint rejection."""
-        self.supabase.table("work_sessions").update({
+        self.supabase.table("work_tickets").update({
             "status": "failed",
             "metadata": {
                 "error": error_message,
                 "failed_at": datetime.utcnow().isoformat(),
                 "failure_reason": "checkpoint_rejected"
             }
-        }).eq("id", work_session_id).execute()
+        }).eq("id", work_ticket_id).execute()
 
         logger.info(
-            f"[CHECKPOINT HANDLER] Work session {work_session_id} failed "
+            f"[CHECKPOINT HANDLER] Work session {work_ticket_id} failed "
             f"due to checkpoint rejection"
         )

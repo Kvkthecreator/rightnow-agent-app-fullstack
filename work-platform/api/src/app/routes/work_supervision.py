@@ -68,7 +68,7 @@ async def list_outputs(
     supervision_status: Optional[str] = Query(None, description="Filter by status"),
     agent_type: Optional[str] = Query(None, description="Filter by agent type"),
     output_type: Optional[str] = Query(None, description="Filter by output type"),
-    work_session_id: Optional[str] = Query(None, description="Filter by session"),
+    work_ticket_id: Optional[str] = Query(None, description="Filter by session"),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     user: dict = Depends(verify_jwt),
@@ -88,7 +88,7 @@ async def list_outputs(
         client = get_substrate_client()
         result = client.list_work_outputs(
             basket_id=basket_id,
-            work_session_id=work_session_id,
+            work_ticket_id=work_ticket_id,
             supervision_status=supervision_status,
             agent_type=agent_type,
             output_type=output_type,

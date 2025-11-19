@@ -6,7 +6,7 @@ This service manages the full execution flow:
 2. Create and initialize agent
 3. Provision context envelope
 4. Execute agent task
-5. Handle outputs (artifacts, checkpoints)
+5. Handle outputs (outputs, checkpoints)
 6. Update work session status
 7. Handle errors and retries
 
@@ -30,12 +30,12 @@ from clients.substrate_client import SubstrateClient
 logger = logging.getLogger(__name__)
 
 
-class WorkSessionExecutionError(Exception):
+class WorkTicketExecutionError(Exception):
     """Raised when work session execution fails."""
     pass
 
 
-class WorkSessionExecutor:
+class WorkTicketExecutor:
     """
     Orchestrates work session execution via Agent SDK.
 
@@ -76,43 +76,43 @@ class WorkSessionExecutor:
 
         logger.info("[WORK SESSION EXECUTOR] Initialized")
 
-    async def execute_work_session(self, session_id: str | UUID) -> Dict[str, Any]:
+    async def execute_work_ticket(self, ticket_id: str | UUID) -> Dict[str, Any]:
         """
         Execute a work session end-to-end.
 
         Args:
-            session_id: UUID of work session to execute
+            ticket_id: UUID of work session to execute
 
         Returns:
             Execution result dictionary with:
-            - session_id: UUID
+            - ticket_id: UUID
             - status: "completed" | "checkpoint_required" | "failed"
-            - artifacts_count: Number of artifacts created
+            - outputs_count: Number of outputs created
             - checkpoint_id: UUID of checkpoint (if status=checkpoint_required)
             - error: Error message (if status=failed)
 
         Raises:
-            WorkSessionExecutionError: If execution fails critically
+            WorkTicketExecutionError: If execution fails critically
         """
-        session_id = str(session_id)
-        logger.info(f"[WORK SESSION EXECUTOR] Starting execution for session {session_id}")
+        ticket_id = str(ticket_id)
+        logger.info(f"[WORK SESSION EXECUTOR] Starting execution for session {ticket_id}")
 
         try:
             # ================================================================
             # Step 1: Fetch and validate work session
             # ================================================================
-            session = await self._fetch_work_session(session_id)
+            session = await self._fetch_work_ticket(ticket_id)
 
             if session["status"] not in ["initialized", "paused"]:
-                raise WorkSessionExecutionError(
-                    f"Work session {session_id} is not in executable state. "
+                raise WorkTicketExecutionError(
+                    f"Work session {ticket_id} is not in executable state. "
                     f"Current status: {session['status']}"
                 )
 
             # ================================================================
             # Step 2: Transition to in_progress
             # ================================================================
-            await self._update_session_status(session_id, "in_progress")
+            await self._update_session_status(ticket_id, "in_progress")
 
             # ================================================================
             # Step 3: Create agent instance
@@ -138,7 +138,7 @@ class WorkSessionExecutor:
             # ================================================================
             # Step 5: Execute agent task
             # ================================================================
-            status, artifacts, checkpoint_reason = await self.agent_client.execute_task(
+            status, outputs, checkpoint_reason = await self.agent_client.execute_task(
                 agent=agent,
                 task_description=session["task_intent"],
                 task_configuration=session.get("task_configuration", {}),
@@ -149,90 +149,90 @@ class WorkSessionExecutor:
             # Step 6: Handle execution result
             # ================================================================
             if status == "failed":
-                await self._handle_execution_failure(session_id, checkpoint_reason)
+                await self._handle_execution_failure(ticket_id, checkpoint_reason)
                 return {
-                    "session_id": session_id,
+                    "ticket_id": ticket_id,
                     "status": "failed",
                     "error": checkpoint_reason,
-                    "artifacts_count": 0
+                    "outputs_count": 0
                 }
 
-            # Save artifacts to database
-            artifact_ids = await self._save_artifacts(session_id, artifacts)
+            # Save outputs to database
+            output_ids = await self._save_outputs(ticket_id, outputs)
 
             # ================================================================
             # Step 7: Handle checkpoints or completion
             # ================================================================
             if status == "checkpoint_required":
                 checkpoint_id = await self.checkpoint_handler.create_checkpoint(
-                    work_session_id=session_id,
+                    work_ticket_id=ticket_id,
                     reason=checkpoint_reason,
-                    artifact_ids=artifact_ids
+                    output_ids=output_ids
                 )
 
                 await self._update_session_status(
-                    session_id,
+                    ticket_id,
                     "pending_review",
                     metadata={"checkpoint_id": checkpoint_id}
                 )
 
                 logger.info(
                     f"[WORK SESSION EXECUTOR] ✅ Execution paused at checkpoint: "
-                    f"session={session_id}, checkpoint={checkpoint_id}"
+                    f"session={ticket_id}, checkpoint={checkpoint_id}"
                 )
 
                 return {
-                    "session_id": session_id,
+                    "ticket_id": ticket_id,
                     "status": "checkpoint_required",
-                    "artifacts_count": len(artifact_ids),
+                    "outputs_count": len(output_ids),
                     "checkpoint_id": checkpoint_id
                 }
 
             else:  # status == "completed"
                 await self._update_session_status(
-                    session_id,
+                    ticket_id,
                     "completed",
                     metadata={
-                        "artifacts_count": len(artifact_ids),
+                        "outputs_count": len(output_ids),
                         "completed_at": datetime.utcnow().isoformat()
                     }
                 )
 
                 logger.info(
                     f"[WORK SESSION EXECUTOR] ✅ Execution completed: "
-                    f"session={session_id}, artifacts={len(artifact_ids)}"
+                    f"session={ticket_id}, outputs={len(output_ids)}"
                 )
 
                 return {
-                    "session_id": session_id,
+                    "ticket_id": ticket_id,
                     "status": "completed",
-                    "artifacts_count": len(artifact_ids)
+                    "outputs_count": len(output_ids)
                 }
 
         except Exception as e:
             logger.error(
-                f"[WORK SESSION EXECUTOR] ❌ Execution failed for session {session_id}: {e}",
+                f"[WORK SESSION EXECUTOR] ❌ Execution failed for session {ticket_id}: {e}",
                 exc_info=True
             )
-            await self._handle_execution_failure(session_id, str(e))
-            raise WorkSessionExecutionError(f"Execution failed: {str(e)}") from e
+            await self._handle_execution_failure(ticket_id, str(e))
+            raise WorkTicketExecutionError(f"Execution failed: {str(e)}") from e
 
-    async def _fetch_work_session(self, session_id: str) -> Dict[str, Any]:
+    async def _fetch_work_ticket(self, ticket_id: str) -> Dict[str, Any]:
         """Fetch work session from database."""
-        response = self.supabase.table("work_sessions").select(
+        response = self.supabase.table("work_tickets").select(
             "id, project_id, basket_id, workspace_id, initiated_by_user_id, "
             "task_type, task_intent, task_configuration, task_document_id, "
             "approval_strategy, status, metadata"
-        ).eq("id", session_id).single().execute()
+        ).eq("id", ticket_id).single().execute()
 
         if not response.data:
-            raise WorkSessionExecutionError(f"Work session {session_id} not found")
+            raise WorkTicketExecutionError(f"Work session {ticket_id} not found")
 
         return response.data
 
     async def _update_session_status(
         self,
-        session_id: str,
+        ticket_id: str,
         status: str,
         metadata: Optional[Dict[str, Any]] = None
     ):
@@ -241,66 +241,66 @@ class WorkSessionExecutor:
 
         if metadata:
             # Merge with existing metadata
-            current = self.supabase.table("work_sessions").select("metadata").eq(
-                "id", session_id
+            current = self.supabase.table("work_tickets").select("metadata").eq(
+                "id", ticket_id
             ).single().execute()
 
             existing_metadata = current.data.get("metadata", {}) if current.data else {}
             existing_metadata.update(metadata)
             update_data["metadata"] = existing_metadata
 
-        self.supabase.table("work_sessions").update(update_data).eq(
-            "id", session_id
+        self.supabase.table("work_tickets").update(update_data).eq(
+            "id", ticket_id
         ).execute()
 
-        logger.info(f"[WORK SESSION EXECUTOR] Updated session {session_id}: status={status}")
+        logger.info(f"[WORK SESSION EXECUTOR] Updated session {ticket_id}: status={status}")
 
-    async def _save_artifacts(
+    async def _save_outputs(
         self,
-        session_id: str,
-        artifacts: List[Dict[str, Any]]
+        ticket_id: str,
+        outputs: List[Dict[str, Any]]
     ) -> List[str]:
         """
-        Save artifacts to work_artifacts table.
+        Save outputs to work_outputs table.
 
         Args:
-            session_id: Work session ID
-            artifacts: List of artifact dicts from agent execution
+            ticket_id: Work session ID
+            outputs: List of output dicts from agent execution
 
         Returns:
-            List of created artifact UUIDs
+            List of created output UUIDs
         """
-        if not artifacts:
+        if not outputs:
             return []
 
-        artifact_records = [
+        output_records = [
             {
-                "work_session_id": session_id,
-                "output_type": artifact["output_type"],
-                "content": artifact["content"],
-                "agent_confidence": artifact.get("metadata", {}).get("confidence"),
-                "agent_reasoning": artifact.get("metadata", {}).get("reasoning"),
+                "work_ticket_id": ticket_id,
+                "output_type": output["output_type"],
+                "content": output["content"],
+                "agent_confidence": output.get("metadata", {}).get("confidence"),
+                "agent_reasoning": output.get("metadata", {}).get("reasoning"),
                 "status": "pending"
             }
-            for artifact in artifacts
+            for output in outputs
         ]
 
         response = self.supabase.table("work_outputs").insert(
-            artifact_records
+            output_records
         ).execute()
 
-        artifact_ids = [record["id"] for record in response.data]
+        output_ids = [record["id"] for record in response.data]
 
         logger.info(
-            f"[WORK SESSION EXECUTOR] Saved {len(artifact_ids)} artifacts for session {session_id}"
+            f"[WORK SESSION EXECUTOR] Saved {len(output_ids)} outputs for session {ticket_id}"
         )
 
-        return artifact_ids
+        return output_ids
 
-    async def _handle_execution_failure(self, session_id: str, error_message: str):
+    async def _handle_execution_failure(self, ticket_id: str, error_message: str):
         """Handle execution failure by updating status and logging."""
         await self._update_session_status(
-            session_id,
+            ticket_id,
             "failed",
             metadata={
                 "error": error_message,
@@ -308,11 +308,11 @@ class WorkSessionExecutor:
             }
         )
 
-        logger.error(f"[WORK SESSION EXECUTOR] Session {session_id} failed: {error_message}")
+        logger.error(f"[WORK SESSION EXECUTOR] Session {ticket_id} failed: {error_message}")
 
     async def resume_from_checkpoint(
         self,
-        session_id: str | UUID,
+        ticket_id: str | UUID,
         checkpoint_id: str | UUID,
         user_feedback: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -320,12 +320,12 @@ class WorkSessionExecutor:
         Resume execution from a checkpoint after user approval.
 
         Args:
-            session_id: Work session UUID
+            ticket_id: Work session UUID
             checkpoint_id: Checkpoint UUID
             user_feedback: Optional user feedback/instructions
 
         Returns:
-            Execution result (same format as execute_work_session)
+            Execution result (same format as execute_work_ticket)
 
         Note:
             This will be implemented after basic execution works.

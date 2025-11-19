@@ -543,7 +543,7 @@ class SubstrateClient:
             force_regenerate: Force regeneration even if cached
 
         Returns:
-            Insight artifact
+            Insight output
         """
         request_body = {
             "basket_id": str(basket_id),
@@ -632,7 +632,7 @@ class SubstrateClient:
         self,
         basket_id: UUID | str,
         agent_type: Optional[str] = None,
-        work_session_id: Optional[str] = None,
+        work_ticket_id: Optional[str] = None,
         asset_types: Optional[list[str]] = None,
         permanence: Optional[str] = None,
     ) -> list[dict]:
@@ -642,7 +642,7 @@ class SubstrateClient:
         Args:
             basket_id: Basket UUID
             agent_type: Filter by agent_scope (e.g., 'content', 'research')
-            work_session_id: Filter by work_session_id (temporary assets)
+            work_ticket_id: Filter by work_ticket_id (temporary assets)
             asset_types: Filter by asset types (e.g., ['brand_voice', 'screenshot'])
             permanence: Filter by permanence ('permanent', 'temporary')
 
@@ -652,8 +652,8 @@ class SubstrateClient:
         params = {}
         if agent_type:
             params["agent_scope"] = agent_type
-        if work_session_id:
-            params["work_session_id"] = work_session_id
+        if work_ticket_id:
+            params["work_ticket_id"] = work_ticket_id
         if asset_types:
             params["asset_type"] = ",".join(asset_types)
         if permanence:
@@ -713,7 +713,7 @@ class SubstrateClient:
     def create_work_output(
         self,
         basket_id: UUID | str,
-        work_session_id: UUID | str,
+        work_ticket_id: UUID | str,
         output_type: str,
         agent_type: str,
         title: str,
@@ -728,7 +728,7 @@ class SubstrateClient:
 
         Args:
             basket_id: Basket UUID
-            work_session_id: Work session UUID (cross-DB reference)
+            work_ticket_id: Work session UUID (cross-DB reference)
             output_type: Type of output (finding, recommendation, insight, etc.)
             agent_type: Agent that produced this (research, content, reporting)
             title: Output title
@@ -743,7 +743,7 @@ class SubstrateClient:
         """
         request_body = {
             "basket_id": str(basket_id),
-            "work_session_id": str(work_session_id),
+            "work_ticket_id": str(work_ticket_id),
             "output_type": output_type,
             "agent_type": agent_type,
             "title": title,
@@ -763,7 +763,7 @@ class SubstrateClient:
     def list_work_outputs(
         self,
         basket_id: UUID | str,
-        work_session_id: Optional[UUID | str] = None,
+        work_ticket_id: Optional[UUID | str] = None,
         supervision_status: Optional[str] = None,
         agent_type: Optional[str] = None,
         output_type: Optional[str] = None,
@@ -775,7 +775,7 @@ class SubstrateClient:
 
         Args:
             basket_id: Basket UUID
-            work_session_id: Filter by work session
+            work_ticket_id: Filter by work session
             supervision_status: Filter by status (pending_review, approved, etc.)
             agent_type: Filter by agent type
             output_type: Filter by output type
@@ -786,8 +786,8 @@ class SubstrateClient:
             {"outputs": [...], "total": int, "basket_id": str}
         """
         params = {"limit": limit, "offset": offset}
-        if work_session_id:
-            params["work_session_id"] = str(work_session_id)
+        if work_ticket_id:
+            params["work_ticket_id"] = str(work_ticket_id)
         if supervision_status:
             params["supervision_status"] = supervision_status
         if agent_type:

@@ -11,7 +11,7 @@ CURRENT STATE:
 
 TODO (Future):
 - Design proper work-platform → substrate-api integration
-- Should approved artifacts create substrate proposals?
+- Should approved outputs create substrate proposals?
 - Should work governance be independent from substrate governance?
 - What's the right bridge architecture?
 
@@ -29,10 +29,10 @@ from supabase import Client
 from app.models.block import Block
 from app.models.document import Document
 from app.work.models import (
-    WorkSession,
-    WorkArtifact,
-    WorkArtifactType,
-    WorkArtifactStatus,
+    WorkTicket,
+    WorkOutput,
+    WorkOutputType,
+    WorkOutputStatus,
     WorkContextMutation,
     WorkMutationType,
     SubstrateType,
@@ -41,7 +41,7 @@ from app.work.models import (
 
 
 class ArtifactDecision(str, Enum):
-    """Decision for individual artifact."""
+    """Decision for individual output."""
 
     APPLY_TO_SUBSTRATE = "apply_to_substrate"
     SAVE_AS_DRAFT = "save_as_draft"
@@ -53,8 +53,8 @@ class WorkReviewDecision(BaseModel):
 
     work_quality: str  # 'approved' or 'rejected'
     feedback: Optional[str] = None
-    artifacts: Dict[UUID, ArtifactDecision]  # per-artifact decisions
-    artifact_feedback: Dict[UUID, str] = {}  # optional feedback per artifact
+    outputs: Dict[UUID, ArtifactDecision]  # per-output decisions
+    output_feedback: Dict[UUID, str] = {}  # optional feedback per output
 
 
 class WorkReviewResult(BaseModel):
@@ -62,9 +62,9 @@ class WorkReviewResult(BaseModel):
 
     status: str  # 'approved', 'rejected', or 'partial'
     reason: Optional[str] = None
-    artifacts_applied: int
+    outputs_applied: int
     substrate_mutations: List[UUID]
-    rejected_artifacts: List[UUID] = []
+    rejected_outputs: List[UUID] = []
 
 
 class UnifiedApprovalOrchestrator:
@@ -82,110 +82,110 @@ class UnifiedApprovalOrchestrator:
         """Initialize orchestrator with database client."""
         self.db = db
 
-    async def review_work_session(
+    async def review_work_ticket(
         self,
-        work_session_id: UUID,
+        work_ticket_id: UUID,
         user_id: UUID,
         decision: WorkReviewDecision,
     ) -> WorkReviewResult:
         """
-        Review work session and apply approved artifacts to substrate.
+        Review work session and apply approved outputs to substrate.
 
         Args:
-            work_session_id: Work session to review
+            work_ticket_id: Work session to review
             user_id: User performing review
             decision: Review decision
 
         Returns:
             WorkReviewResult with outcome details
         """
-        # Fetch session and artifacts
-        session = await self._get_work_session(work_session_id)
-        artifacts = await self._get_artifacts(work_session_id)
+        # Fetch session and outputs
+        session = await self._get_work_ticket(work_ticket_id)
+        outputs = await self._get_outputs(work_ticket_id)
 
         # Step 1: Work Quality Assessment
         if decision.work_quality != "approved":
-            await self._reject_work_session(session, decision.feedback, user_id)
+            await self._reject_work_ticket(session, decision.feedback, user_id)
             return WorkReviewResult(
                 status="rejected",
                 reason=decision.feedback or "Work quality did not meet standards",
-                artifacts_applied=0,
+                outputs_applied=0,
                 substrate_mutations=[],
-                rejected_artifacts=[a.id for a in artifacts],
+                rejected_outputs=[a.id for a in outputs],
             )
 
         # Step 2: Per-Artifact Processing
-        applied_artifacts = []
-        rejected_artifacts = []
+        applied_outputs = []
+        rejected_outputs = []
         substrate_mutations = []
 
-        for artifact in artifacts:
-            artifact_decision = decision.artifacts.get(
-                artifact.id, ArtifactDecision.APPLY_TO_SUBSTRATE
+        for output in outputs:
+            output_decision = decision.outputs.get(
+                output.id, ArtifactDecision.APPLY_TO_SUBSTRATE
             )
 
-            if artifact_decision == ArtifactDecision.APPLY_TO_SUBSTRATE:
-                # Apply to substrate based on artifact type
-                substrate_id = await self._apply_artifact_to_substrate(
-                    artifact, session, user_id
+            if output_decision == ArtifactDecision.APPLY_TO_SUBSTRATE:
+                # Apply to substrate based on output type
+                substrate_id = await self._apply_output_to_substrate(
+                    output, session, user_id
                 )
                 if substrate_id:
-                    applied_artifacts.append(artifact.id)
+                    applied_outputs.append(output.id)
                     substrate_mutations.append(substrate_id)
 
-            elif artifact_decision == ArtifactDecision.SAVE_AS_DRAFT:
+            elif output_decision == ArtifactDecision.SAVE_AS_DRAFT:
                 # Mark approved but don't apply to substrate
-                await self._update_artifact_status(
-                    artifact.id,
-                    WorkArtifactStatus.APPROVED,
+                await self._update_output_status(
+                    output.id,
+                    WorkOutputStatus.APPROVED,
                     user_id,
-                    decision.artifact_feedback.get(artifact.id),
+                    decision.output_feedback.get(output.id),
                 )
-                applied_artifacts.append(artifact.id)
+                applied_outputs.append(output.id)
 
-            elif artifact_decision == ArtifactDecision.REJECT:
-                # Reject artifact
-                await self._update_artifact_status(
-                    artifact.id,
-                    WorkArtifactStatus.REJECTED,
+            elif output_decision == ArtifactDecision.REJECT:
+                # Reject output
+                await self._update_output_status(
+                    output.id,
+                    WorkOutputStatus.REJECTED,
                     user_id,
-                    decision.artifact_feedback.get(artifact.id),
+                    decision.output_feedback.get(output.id),
                 )
-                rejected_artifacts.append(artifact.id)
+                rejected_outputs.append(output.id)
 
         # Step 3: Update Session Status
-        await self._complete_work_session(
+        await self._complete_work_ticket(
             session,
-            len(applied_artifacts) > 0,
+            len(applied_outputs) > 0,
             user_id,
         )
 
         # Step 4: Emit Timeline Events
         await self._emit_work_completion_event(
-            session, applied_artifacts, substrate_mutations
+            session, applied_outputs, substrate_mutations
         )
 
         return WorkReviewResult(
-            status="approved" if len(applied_artifacts) > 0 else "rejected",
-            artifacts_applied=len(applied_artifacts),
+            status="approved" if len(applied_outputs) > 0 else "rejected",
+            outputs_applied=len(applied_outputs),
             substrate_mutations=substrate_mutations,
-            rejected_artifacts=rejected_artifacts,
+            rejected_outputs=rejected_outputs,
         )
 
-    async def _apply_artifact_to_substrate(
+    async def _apply_output_to_substrate(
         self,
-        artifact: WorkArtifact,
-        session: WorkSession,
+        output: WorkOutput,
+        session: WorkTicket,
         user_id: UUID,
     ) -> Optional[UUID]:
         """
-        Apply artifact to substrate based on type.
+        Apply output to substrate based on type.
 
         ⚠️ NOT IMPLEMENTED: This method bypasses substrate governance (proposals)
         and directly creates blocks, which violates the substrate purity principle.
 
         TODO (Future Implementation):
-        1. Submit approved artifacts to substrate-api as proposals
+        1. Submit approved outputs to substrate-api as proposals
         2. Let substrate governance (P1) validate and create blocks
         3. Handle semantic deduplication and quality checks
         4. Track proposal status and notify work-platform of results
@@ -200,21 +200,21 @@ class UnifiedApprovalOrchestrator:
         )
 
         # DISABLED CODE (kept for reference):
-        # if artifact.artifact_type == WorkArtifactType.BLOCK_PROPOSAL:
-        #     return await self._create_block_from_artifact(artifact, session, user_id)
-        # elif artifact.artifact_type == WorkArtifactType.BLOCK_UPDATE:
-        #     return await self._supersede_block_from_artifact(artifact, session, user_id)
-        # elif artifact.artifact_type == WorkArtifactType.DOCUMENT_CREATION:
-        #     return await self._create_document_from_artifact(artifact, session, user_id)
-        # elif artifact.artifact_type == WorkArtifactType.EXTERNAL_DELIVERABLE:
-        #     await self._store_external_artifact(artifact)
+        # if output.output_type == WorkOutputType.BLOCK_PROPOSAL:
+        #     return await self._create_block_from_output(output, session, user_id)
+        # elif output.output_type == WorkOutputType.BLOCK_UPDATE:
+        #     return await self._supersede_block_from_output(output, session, user_id)
+        # elif output.output_type == WorkOutputType.DOCUMENT_CREATION:
+        #     return await self._create_document_from_output(output, session, user_id)
+        # elif output.output_type == WorkOutputType.EXTERNAL_DELIVERABLE:
+        #     await self._store_external_output(output)
         #     return None
         # return None
 
-    async def _create_block_from_artifact(
+    async def _create_block_from_output(
         self,
-        artifact: WorkArtifact,
-        session: WorkSession,
+        output: WorkOutput,
+        session: WorkTicket,
         user_id: UUID,
     ) -> UUID:
         """
@@ -237,20 +237,20 @@ class UnifiedApprovalOrchestrator:
         )
 
         # DISABLED CODE - DO NOT UNCOMMENT WITHOUT FIXING GOVERNANCE BYPASS
-        # # Extract block data from artifact content
+        # # Extract block data from output content
         # block_data = {
         #     "basket_id": str(session.basket_id),
         #     "workspace_id": str(session.workspace_id),
-        #     "content": artifact.content.get("content"),
-        #     "semantic_type": artifact.content.get("semantic_type", "general"),
+        #     "content": output.content.get("content"),
+        #     "semantic_type": output.content.get("semantic_type", "general"),
         #     "state": "ACCEPTED",  # ❌ BYPASSES PROPOSALS!
-        #     "scope": artifact.content.get("scope", "BASKET"),
+        #     "scope": output.content.get("scope", "BASKET"),
         #     "version": 1,
         #     "metadata": {
-        #         "created_from_work_session": str(session.id),
-        #         "created_from_artifact": str(artifact.id),
-        #         "agent_confidence": artifact.agent_confidence,
-        #         "agent_reasoning": artifact.agent_reasoning,
+        #         "created_from_work_ticket": str(session.id),
+        #         "created_from_output": str(output.id),
+        #         "agent_confidence": output.agent_confidence,
+        #         "agent_reasoning": output.agent_reasoning,
         #     },
         # }
         #
@@ -258,12 +258,12 @@ class UnifiedApprovalOrchestrator:
         # result = self.db.table("blocks").insert(block_data).execute()
         # block_id = UUID(result.data[0]["id"])
         #
-        # # Update artifact with block link
-        # await self._update_artifact(
-        #     artifact.id,
+        # # Update output with block link
+        # await self._update_output(
+        #     output.id,
         #     {
         #         "becomes_block_id": str(block_id),
-        #         "status": WorkArtifactStatus.APPLIED_TO_SUBSTRATE.value,
+        #         "status": WorkOutputStatus.APPLIED_TO_SUBSTRATE.value,
         #         "applied_at": datetime.utcnow().isoformat(),
         #         "reviewed_by_user_id": str(user_id),
         #         "reviewed_at": datetime.utcnow().isoformat(),
@@ -273,21 +273,21 @@ class UnifiedApprovalOrchestrator:
         #
         # # Log substrate mutation
         # await self._log_context_mutation(
-        #     work_session_id=session.id,
-        #     artifact_id=artifact.id,
+        #     work_ticket_id=session.id,
+        #     output_id=output.id,
         #     mutation_type=WorkMutationType.BLOCK_CREATED,
         #     substrate_id=block_id,
         #     substrate_type=SubstrateType.BLOCK,
         #     after_state=block_data,
-        #     risk_level=artifact.risk_level,
+        #     risk_level=output.risk_level,
         # )
         #
         # return block_id
 
-    async def _supersede_block_from_artifact(
+    async def _supersede_block_from_output(
         self,
-        artifact: WorkArtifact,
-        session: WorkSession,
+        output: WorkOutput,
+        session: WorkTicket,
         user_id: UUID,
     ) -> UUID:
         """
@@ -299,10 +299,10 @@ class UnifiedApprovalOrchestrator:
             "Direct block superseding is disabled. Must go through substrate proposals."
         )
 
-    async def _create_document_from_artifact(
+    async def _create_document_from_output(
         self,
-        artifact: WorkArtifact,
-        session: WorkSession,
+        output: WorkOutput,
+        session: WorkTicket,
         user_id: UUID,
     ) -> UUID:
         """
@@ -315,20 +315,20 @@ class UnifiedApprovalOrchestrator:
             "Direct document creation is disabled pending architecture decision."
         )
 
-    async def _store_external_artifact(self, artifact: WorkArtifact) -> None:
-        """Store reference to external artifact (no substrate impact)."""
-        await self._update_artifact(
-            artifact.id,
+    async def _store_external_output(self, output: WorkOutput) -> None:
+        """Store reference to external output (no substrate impact)."""
+        await self._update_output(
+            output.id,
             {
-                "status": WorkArtifactStatus.APPROVED.value,
+                "status": WorkOutputStatus.APPROVED.value,
                 "applied_at": datetime.utcnow().isoformat(),
             },
         )
 
     async def _log_context_mutation(
         self,
-        work_session_id: UUID,
-        artifact_id: UUID,
+        work_ticket_id: UUID,
+        output_id: UUID,
         mutation_type: WorkMutationType,
         substrate_id: UUID,
         substrate_type: SubstrateType,
@@ -338,8 +338,8 @@ class UnifiedApprovalOrchestrator:
     ) -> None:
         """Log substrate mutation to work_context_mutations."""
         mutation_data = {
-            "work_session_id": str(work_session_id),
-            "artifact_id": str(artifact_id),
+            "work_ticket_id": str(work_ticket_id),
+            "output_id": str(output_id),
             "mutation_type": mutation_type.value,
             "substrate_id": str(substrate_id),
             "substrate_type": substrate_type.value,
@@ -349,16 +349,16 @@ class UnifiedApprovalOrchestrator:
         }
         self.db.table("work_context_mutations").insert(mutation_data).execute()
 
-    async def _update_artifact_status(
+    async def _update_output_status(
         self,
-        artifact_id: UUID,
-        status: WorkArtifactStatus,
+        output_id: UUID,
+        status: WorkOutputStatus,
         user_id: UUID,
         feedback: Optional[str] = None,
     ) -> None:
-        """Update artifact status."""
-        await self._update_artifact(
-            artifact_id,
+        """Update output status."""
+        await self._update_output(
+            output_id,
             {
                 "status": status.value,
                 "reviewed_by_user_id": str(user_id),
@@ -367,15 +367,15 @@ class UnifiedApprovalOrchestrator:
             },
         )
 
-    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> None:
-        """Update artifact in database."""
-        self.db.table("work_artifacts").update(updates).eq("id", str(artifact_id)).execute()
+    async def _update_output(self, output_id: UUID, updates: Dict[str, Any]) -> None:
+        """Update output in database."""
+        self.db.table("work_outputs").update(updates).eq("id", str(output_id)).execute()
 
-    async def _reject_work_session(
-        self, session: WorkSession, reason: Optional[str], user_id: UUID
+    async def _reject_work_ticket(
+        self, session: WorkTicket, reason: Optional[str], user_id: UUID
     ) -> None:
         """Mark work session as rejected."""
-        self.db.table("work_sessions").update(
+        self.db.table("work_tickets").update(
             {
                 "status": "rejected",
                 "ended_at": datetime.utcnow().isoformat(),
@@ -388,11 +388,11 @@ class UnifiedApprovalOrchestrator:
             }
         ).eq("id", str(session.id)).execute()
 
-    async def _complete_work_session(
-        self, session: WorkSession, approved: bool, user_id: UUID
+    async def _complete_work_ticket(
+        self, session: WorkTicket, approved: bool, user_id: UUID
     ) -> None:
         """Mark work session as complete."""
-        self.db.table("work_sessions").update(
+        self.db.table("work_tickets").update(
             {
                 "status": "approved" if approved else "rejected",
                 "ended_at": datetime.utcnow().isoformat(),
@@ -404,39 +404,39 @@ class UnifiedApprovalOrchestrator:
             }
         ).eq("id", str(session.id)).execute()
 
-    async def _get_work_session(self, session_id: UUID) -> WorkSession:
+    async def _get_work_ticket(self, ticket_id: UUID) -> WorkTicket:
         """Fetch work session from database."""
-        result = self.db.table("work_sessions").select("*").eq("id", str(session_id)).execute()
+        result = self.db.table("work_tickets").select("*").eq("id", str(ticket_id)).execute()
         if not result.data:
-            raise ValueError(f"Work session {session_id} not found")
-        return WorkSession(**result.data[0])
+            raise ValueError(f"Work session {ticket_id} not found")
+        return WorkTicket(**result.data[0])
 
-    async def _get_artifacts(self, session_id: UUID) -> List[WorkArtifact]:
-        """Fetch all artifacts for work session."""
+    async def _get_outputs(self, ticket_id: UUID) -> List[WorkOutput]:
+        """Fetch all outputs for work session."""
         result = (
-            self.db.table("work_artifacts")
+            self.db.table("work_outputs")
             .select("*")
-            .eq("work_session_id", str(session_id))
+            .eq("work_ticket_id", str(ticket_id))
             .execute()
         )
-        return [WorkArtifact(**data) for data in result.data]
+        return [WorkOutput(**data) for data in result.data]
 
     async def _emit_work_completion_event(
         self,
-        session: WorkSession,
-        artifact_ids: List[UUID],
+        session: WorkTicket,
+        output_ids: List[UUID],
         substrate_ids: List[UUID],
     ) -> None:
         """Emit timeline event for work completion."""
         event_data = {
             "workspace_id": str(session.workspace_id),
             "basket_id": str(session.basket_id),
-            "event_type": "work_session_completed",
+            "event_type": "work_ticket_completed",
             "event_subtype": session.task_type,
             "description": f"Work session completed: {session.task_intent}",
             "metadata": {
-                "work_session_id": str(session.id),
-                "artifacts_applied": len(artifact_ids),
+                "work_ticket_id": str(session.id),
+                "outputs_applied": len(output_ids),
                 "substrate_mutations": len(substrate_ids),
                 "agent_id": session.executed_by_agent_id,
             },

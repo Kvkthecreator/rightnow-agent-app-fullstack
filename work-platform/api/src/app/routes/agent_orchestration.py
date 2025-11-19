@@ -1,7 +1,7 @@
 """
 Agent Orchestration API - Phase 4 + Phase 5
 
-Integrates Claude Agent SDK with existing work_sessions infrastructure.
+Integrates Claude Agent SDK with existing work_tickets infrastructure.
 Uses adapters to bridge SDK → substrate_client → substrate-api (BFF pattern).
 
 Phase 5: Work-request-based trials (10 free requests total, then subscription).
@@ -57,7 +57,7 @@ async def _get_workspace_id_for_user(user_id: str) -> str:
     """
     Get workspace_id for user using existing authorization pattern.
 
-    Pattern from work_sessions.py: Query workspace_memberships table.
+    Pattern from work_tickets.py: Query workspace_memberships table.
 
     Args:
         user_id: User ID from JWT
@@ -94,7 +94,7 @@ async def _validate_basket_access(
     """
     Validate that basket belongs to workspace (existing pattern).
 
-    Pattern from work_sessions.py: Query baskets with workspace_id filter.
+    Pattern from work_tickets.py: Query baskets with workspace_id filter.
 
     Args:
         basket_id: Basket ID
@@ -120,7 +120,7 @@ async def _validate_basket_access(
     logger.debug(f"Validated basket {basket_id} belongs to workspace {workspace_id}")
 
 
-async def _create_work_session(
+async def _create_work_ticket(
     basket_id: str,
     workspace_id: str,
     user_id: str,
@@ -140,7 +140,7 @@ async def _create_work_session(
         project_id: Optional project ID (will be looked up if not provided)
 
     Returns:
-        work_session_id (UUID string)
+        work_ticket_id (UUID string)
     """
     from datetime import datetime
 
@@ -173,18 +173,18 @@ async def _create_work_session(
         "started_at": datetime.utcnow().isoformat(),
     }
 
-    result = supabase_admin_client.table("work_sessions").insert(session_data).execute()
+    result = supabase_admin_client.table("work_tickets").insert(session_data).execute()
 
     if not result.data:
         raise ValueError("Failed to create work session")
 
-    session_id = result.data[0]["id"]
-    logger.info(f"Created work session {session_id} for {agent_type} task")
-    return session_id
+    ticket_id = result.data[0]["id"]
+    logger.info(f"Created work session {ticket_id} for {agent_type} task")
+    return ticket_id
 
 
-async def _update_work_session_status(
-    session_id: str,
+async def _update_work_ticket_status(
+    ticket_id: str,
     status: str,
     output_count: int = 0,
 ) -> None:
@@ -192,7 +192,7 @@ async def _update_work_session_status(
     Update work session status after execution.
 
     Args:
-        session_id: Work session ID
+        ticket_id: Work session ID
         status: New status (completed, failed)
         output_count: Number of outputs written
     """
@@ -206,8 +206,8 @@ async def _update_work_session_status(
         }
     }
 
-    supabase_admin_client.table("work_sessions").update(update_data).eq("id", session_id).execute()
-    logger.info(f"Updated work session {session_id} to status={status}, outputs={output_count}")
+    supabase_admin_client.table("work_tickets").update(update_data).eq("id", ticket_id).execute()
+    logger.info(f"Updated work session {ticket_id} to status={status}, outputs={output_count}")
 
 
 class AgentTaskRequest(BaseModel):
@@ -262,7 +262,7 @@ async def run_agent_task(
     )
 
     work_request_id = None
-    work_session_id = None
+    work_ticket_id = None
 
     try:
         # Phase 5: Get workspace_id for permission checks
@@ -303,7 +303,7 @@ async def run_agent_task(
         if request.parameters:
             task_intent += f" - {str(request.parameters)[:100]}"
 
-        work_session_id = await _create_work_session(
+        work_ticket_id = await _create_work_ticket(
             basket_id=request.basket_id,
             workspace_id=workspace_id,
             user_id=user_id,
@@ -313,13 +313,13 @@ async def run_agent_task(
 
         # Execute based on agent type
         if request.agent_type == "research":
-            result = await _run_research_agent(request, user_id, work_session_id)
+            result = await _run_research_agent(request, user_id, work_ticket_id)
 
         elif request.agent_type == "content":
-            result = await _run_content_agent(request, user_id, work_session_id)
+            result = await _run_content_agent(request, user_id, work_ticket_id)
 
         elif request.agent_type == "reporting":
-            result = await _run_reporting_agent(request, user_id, work_session_id)
+            result = await _run_reporting_agent(request, user_id, work_ticket_id)
 
         else:
             raise HTTPException(
@@ -335,7 +335,7 @@ async def run_agent_task(
             logger.info(f"Writing {len(work_outputs)} outputs to substrate-API")
             output_write_result = write_agent_outputs(
                 basket_id=request.basket_id,
-                work_session_id=work_session_id,
+                work_ticket_id=work_ticket_id,
                 agent_type=request.agent_type,
                 outputs=work_outputs,
                 metadata={"work_request_id": work_request_id},
@@ -344,8 +344,8 @@ async def run_agent_task(
 
         # Update work session status
         session_status = "completed" if output_write_result.get("success", True) else "completed_with_errors"
-        await _update_work_session_status(
-            work_session_id,
+        await _update_work_ticket_status(
+            work_ticket_id,
             session_status,
             output_count=output_write_result.get("outputs_written", 0)
         )
@@ -360,7 +360,7 @@ async def run_agent_task(
         )
 
         # Add output info to result
-        result["work_session_id"] = work_session_id
+        result["work_ticket_id"] = work_ticket_id
         result["outputs_written"] = output_write_result.get("outputs_written", 0)
         result["output_ids"] = output_write_result.get("output_ids", [])
 
@@ -377,8 +377,8 @@ async def run_agent_task(
 
     except ValueError as e:
         logger.error(f"Configuration error: {e}")
-        if work_session_id:
-            await _update_work_session_status(work_session_id, "failed", 0)
+        if work_ticket_id:
+            await _update_work_ticket_status(work_ticket_id, "failed", 0)
         if work_request_id:
             await update_work_request_status(work_request_id, "failed", error_message=str(e))
         raise HTTPException(
@@ -388,8 +388,8 @@ async def run_agent_task(
 
     except ImportError as e:
         logger.error(f"SDK not installed: {e}")
-        if work_session_id:
-            await _update_work_session_status(work_session_id, "failed", 0)
+        if work_ticket_id:
+            await _update_work_ticket_status(work_ticket_id, "failed", 0)
         if work_request_id:
             await update_work_request_status(work_request_id, "failed", error_message=str(e))
         raise HTTPException(
@@ -399,16 +399,16 @@ async def run_agent_task(
 
     except HTTPException:
         # Re-raise HTTPExceptions (permission denied, etc.)
-        if work_session_id:
-            await _update_work_session_status(work_session_id, "failed", 0)
+        if work_ticket_id:
+            await _update_work_ticket_status(work_ticket_id, "failed", 0)
         if work_request_id:
             await update_work_request_status(work_request_id, "failed", error_message="Permission denied")
         raise
 
     except Exception as e:
         logger.exception(f"Agent task failed: {e}")
-        if work_session_id:
-            await _update_work_session_status(work_session_id, "failed", 0)
+        if work_ticket_id:
+            await _update_work_ticket_status(work_ticket_id, "failed", 0)
         if work_request_id:
             await update_work_request_status(work_request_id, "failed", error_message=str(e))
 
@@ -425,7 +425,7 @@ async def run_agent_task(
 async def _run_research_agent(
     request: AgentTaskRequest,
     user_id: str,
-    work_session_id: str,
+    work_ticket_id: str,
 ) -> Dict[str, Any]:
     """
     Run research agent task with enhanced context (assets + config).
@@ -433,7 +433,7 @@ async def _run_research_agent(
     Args:
         request: Task request
         user_id: User ID
-        work_session_id: Work session ID for output tracking
+        work_ticket_id: Work session ID for output tracking
 
     Returns:
         Task result with work_outputs list
@@ -443,10 +443,10 @@ async def _run_research_agent(
     """
     logger.info(f"Creating research agent for basket {request.basket_id}")
 
-    # Get workspace_id for user (existing pattern from work_sessions.py)
+    # Get workspace_id for user (existing pattern from work_tickets.py)
     workspace_id = await _get_workspace_id_for_user(user_id)
 
-    # Validate basket access (existing pattern from work_sessions.py)
+    # Validate basket access (existing pattern from work_tickets.py)
     await _validate_basket_access(request.basket_id, workspace_id)
 
     # Phase 1+2: Get project_id for agent config
@@ -470,7 +470,7 @@ async def _run_research_agent(
     agent = ResearchAgentSDK(
         basket_id=request.basket_id,
         workspace_id=workspace_id,
-        work_session_id=work_session_id,
+        work_ticket_id=work_ticket_id,
         knowledge_modules=knowledge_modules,
     )
 
@@ -503,7 +503,7 @@ async def _run_research_agent(
 async def _run_content_agent(
     request: AgentTaskRequest,
     user_id: str,
-    work_session_id: str,
+    work_ticket_id: str,
 ) -> Dict[str, Any]:
     """
     Run content creator agent task with enhanced context (assets + config).
@@ -511,7 +511,7 @@ async def _run_content_agent(
     Args:
         request: Task request
         user_id: User ID
-        work_session_id: Work session ID for output tracking
+        work_ticket_id: Work session ID for output tracking
 
     Returns:
         Task result with work_outputs list
@@ -521,10 +521,10 @@ async def _run_content_agent(
     """
     logger.info(f"Creating content agent for basket {request.basket_id}")
 
-    # Get workspace_id for user (existing pattern from work_sessions.py)
+    # Get workspace_id for user (existing pattern from work_tickets.py)
     workspace_id = await _get_workspace_id_for_user(user_id)
 
-    # Validate basket access (existing pattern from work_sessions.py)
+    # Validate basket access (existing pattern from work_tickets.py)
     await _validate_basket_access(request.basket_id, workspace_id)
 
     # Phase 1+2: Get project_id for agent config
@@ -600,7 +600,7 @@ async def _run_content_agent(
 async def _run_reporting_agent(
     request: AgentTaskRequest,
     user_id: str,
-    work_session_id: str,
+    work_ticket_id: str,
 ) -> Dict[str, Any]:
     """
     Run reporting agent task with enhanced context (assets + config).
@@ -608,7 +608,7 @@ async def _run_reporting_agent(
     Args:
         request: Task request
         user_id: User ID
-        work_session_id: Work session ID for output tracking
+        work_ticket_id: Work session ID for output tracking
 
     Returns:
         Task result with work_outputs list
@@ -618,10 +618,10 @@ async def _run_reporting_agent(
     """
     logger.info(f"Creating reporting agent for basket {request.basket_id}")
 
-    # Get workspace_id for user (existing pattern from work_sessions.py)
+    # Get workspace_id for user (existing pattern from work_tickets.py)
     workspace_id = await _get_workspace_id_for_user(user_id)
 
-    # Validate basket access (existing pattern from work_sessions.py)
+    # Validate basket access (existing pattern from work_tickets.py)
     await _validate_basket_access(request.basket_id, workspace_id)
 
     # Phase 1+2: Get project_id for agent config

@@ -59,7 +59,7 @@ class SubstrateMemoryAdapter(MemoryProvider):
         workspace_id: str,
         agent_type: Optional[str] = None,
         project_id: Optional[str] = None,
-        work_session_id: Optional[str] = None
+        work_ticket_id: Optional[str] = None
     ):
         """
         Initialize memory adapter with agent execution context.
@@ -69,13 +69,13 @@ class SubstrateMemoryAdapter(MemoryProvider):
             workspace_id: Workspace ID for authorization context
             agent_type: Agent type for scoping assets ('research', 'content', 'reporting')
             project_id: Project ID for fetching agent config
-            work_session_id: Work session ID for temporary assets
+            work_ticket_id: Work session ID for temporary assets
         """
         self.basket_id = str(basket_id)
         self.workspace_id = workspace_id
         self.agent_type = agent_type
         self.project_id = project_id
-        self.work_session_id = work_session_id
+        self.work_ticket_id = work_ticket_id
         self.client = get_substrate_client()
 
         # Cache for assets + config (fetch once per session)
@@ -106,7 +106,7 @@ class SubstrateMemoryAdapter(MemoryProvider):
             self._assets_cache = self.client.get_reference_assets(
                 basket_id=self.basket_id,
                 agent_type=self.agent_type,
-                work_session_id=self.work_session_id,
+                work_ticket_id=self.work_ticket_id,
                 permanence="permanent"  # Only permanent assets for now
             )
             logger.info(

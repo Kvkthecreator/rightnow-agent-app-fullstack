@@ -1,38 +1,33 @@
-"""Work orchestration models (Layer 2)."""
+"""Work orchestration models (Layer 2 - Phase 2e)."""
 
 from .project import Project, ProjectCreate, ProjectUpdate, ProjectWithStats
-from .work_session import (
-    WorkSession,
-    WorkSessionCreate,
-    WorkSessionUpdate,
-    WorkSessionStatus,
+from .work_ticket import (
+    WorkTicket,
+    WorkTicketCreate,
+    WorkTicketUpdate,
+    WorkTicketStatus,
     TaskType,
 )
-from .work_artifact import WorkArtifact, WorkArtifactType, WorkArtifactStatus, RiskLevel
-from .work_checkpoint import WorkCheckpoint, WorkCheckpointType, WorkCheckpointStatus
-from .work_iteration import WorkIteration, WorkIterationTrigger
-from .work_context_mutation import WorkContextMutation, WorkMutationType, SubstrateType
+from .work_checkpoint import WorkCheckpoint, WorkCheckpointType, WorkCheckpointStatus, WorkCheckpointCreate, WorkCheckpointReview, UserDecision
+from .work_iteration import WorkIteration, WorkIterationTrigger, WorkIterationCreate
 
 __all__ = [
     "Project",
     "ProjectCreate",
     "ProjectUpdate",
     "ProjectWithStats",
-    "WorkSession",
-    "WorkSessionCreate",
-    "WorkSessionUpdate",
-    "WorkSessionStatus",
+    "WorkTicket",
+    "WorkTicketCreate",
+    "WorkTicketUpdate",
+    "WorkTicketStatus",
     "TaskType",
-    "WorkArtifact",
-    "WorkArtifactType",
-    "WorkArtifactStatus",
     "WorkCheckpoint",
     "WorkCheckpointType",
     "WorkCheckpointStatus",
+    "WorkCheckpointCreate",
+    "WorkCheckpointReview",
+    "UserDecision",
     "WorkIteration",
     "WorkIterationTrigger",
-    "WorkContextMutation",
-    "WorkMutationType",
-    "SubstrateType",
-    "RiskLevel",
+    "WorkIterationCreate",
 ]

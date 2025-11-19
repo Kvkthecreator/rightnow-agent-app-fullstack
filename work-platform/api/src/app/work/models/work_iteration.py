@@ -21,7 +21,7 @@ class WorkIteration(BaseModel):
     """Work iteration tracking feedback loops."""
 
     id: UUID
-    work_session_id: UUID
+    work_ticket_id: UUID
 
     iteration_number: int
 
@@ -32,7 +32,7 @@ class WorkIteration(BaseModel):
 
     agent_interpretation: Optional[str] = None
     revised_approach: Optional[str] = None
-    artifacts_revised: List[UUID] = Field(default_factory=list)
+    outputs_revised: List[UUID] = Field(default_factory=list)
 
     resolved: bool = False
     resolved_at: Optional[datetime] = None
@@ -48,11 +48,11 @@ class WorkIteration(BaseModel):
 class WorkIterationCreate(BaseModel):
     """Create work iteration request."""
 
-    work_session_id: UUID
+    work_ticket_id: UUID
     iteration_number: int
     triggered_by: WorkIterationTrigger
     user_feedback_text: Optional[str] = None
     changes_requested: Optional[Dict[str, Any]] = None
     agent_interpretation: Optional[str] = None
     revised_approach: Optional[str] = None
-    artifacts_revised: List[UUID] = Field(default_factory=list)
+    outputs_revised: List[UUID] = Field(default_factory=list)

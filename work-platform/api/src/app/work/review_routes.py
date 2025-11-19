@@ -1,6 +1,6 @@
 """Artifact and checkpoint review routes (Phase 1).
 
-Endpoints for reviewing work artifacts and resolving checkpoints.
+Endpoints for reviewing work outputs and resolving checkpoints.
 """
 
 from datetime import datetime
@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from ..deps import get_db
 from ..utils.jwt import verify_jwt
 from ..utils.workspace import get_or_create_workspace
-from .models import WorkSessionStatus
+from .models import WorkTicketStatus
 
 router = APIRouter(prefix="/work", tags=["work-platform-reviews"])
 
@@ -55,42 +55,42 @@ def _get_workspace_id(user: dict) -> str:
 # ============================================================================
 
 
-@router.get("/sessions/{session_id}/artifacts")
-async def list_session_artifacts(
-    session_id: UUID,
+@router.get("/tickets/{ticket_id}/outputs")
+async def list_session_outputs(
+    ticket_id: UUID,
     status_filter: Optional[str] = None,
     user: dict = Depends(verify_jwt),
     db=Depends(get_db),
 ):
-    """List artifacts for a work session.
+    """List outputs for a work session.
 
     Args:
-        session_id: Work session UUID
+        ticket_id: Work session UUID
         status_filter: Filter by artifact status (pending, approved, rejected)
         user: Authenticated user from JWT
         db: Database connection
 
     Returns:
-        List of work artifacts
+        List of work outputs
     """
     workspace_id = _get_workspace_id(user)
 
     # Verify session exists and user has access
     session_query = """
-        SELECT id FROM work_sessions
-        WHERE id = :session_id AND workspace_id = :workspace_id
+        SELECT id FROM work_tickets
+        WHERE id = :ticket_id AND workspace_id = :workspace_id
     """
     session = await db.fetch_one(
         session_query,
-        {"session_id": str(session_id), "workspace_id": workspace_id}
+        {"ticket_id": str(ticket_id), "workspace_id": workspace_id}
     )
 
     if not session:
         raise HTTPException(status_code=404, detail="Work session not found")
 
-    # Fetch artifacts
-    where_clauses = ["work_session_id = :session_id"]
-    values = {"session_id": str(session_id)}
+    # Fetch outputs
+    where_clauses = ["work_ticket_id = :ticket_id"]
+    values = {"ticket_id": str(ticket_id)}
 
     if status_filter:
         where_clauses.append("status = :status")
@@ -108,7 +108,7 @@ async def list_session_artifacts(
     return [dict(row) for row in results]
 
 
-@router.post("/artifacts/{artifact_id}/review")
+@router.post("/outputs/{artifact_id}/review")
 async def review_artifact(
     artifact_id: UUID,
     request: ArtifactReviewRequest,
@@ -136,7 +136,7 @@ async def review_artifact(
     check_query = """
         SELECT wa.id, ws.workspace_id
         FROM work_outputs wa
-        JOIN work_sessions ws ON ws.id = wa.work_session_id
+        JOIN work_tickets ws ON ws.id = wa.work_ticket_id
         WHERE wa.id = :artifact_id
     """
     artifact = await db.fetch_one(check_query, {"artifact_id": str(artifact_id)})
@@ -175,9 +175,9 @@ async def review_artifact(
 # ============================================================================
 
 
-@router.get("/sessions/{session_id}/checkpoints")
+@router.get("/tickets/{ticket_id}/checkpoints")
 async def list_session_checkpoints(
-    session_id: UUID,
+    ticket_id: UUID,
     status_filter: Optional[str] = None,
     user: dict = Depends(verify_jwt),
     db=Depends(get_db),
@@ -185,7 +185,7 @@ async def list_session_checkpoints(
     """List checkpoints for a work session.
 
     Args:
-        session_id: Work session UUID
+        ticket_id: Work session UUID
         status_filter: Filter by checkpoint status (pending, resolved)
         user: Authenticated user from JWT
         db: Database connection
@@ -197,20 +197,20 @@ async def list_session_checkpoints(
 
     # Verify session exists and user has access
     session_query = """
-        SELECT id FROM work_sessions
-        WHERE id = :session_id AND workspace_id = :workspace_id
+        SELECT id FROM work_tickets
+        WHERE id = :ticket_id AND workspace_id = :workspace_id
     """
     session = await db.fetch_one(
         session_query,
-        {"session_id": str(session_id), "workspace_id": workspace_id}
+        {"ticket_id": str(ticket_id), "workspace_id": workspace_id}
     )
 
     if not session:
         raise HTTPException(status_code=404, detail="Work session not found")
 
     # Fetch checkpoints
-    where_clauses = ["work_session_id = :session_id"]
-    values = {"session_id": str(session_id)}
+    where_clauses = ["work_ticket_id = :ticket_id"]
+    values = {"ticket_id": str(ticket_id)}
 
     if status_filter:
         where_clauses.append("status = :status")
@@ -256,9 +256,9 @@ async def resolve_checkpoint(
 
     # Verify checkpoint exists and user has access
     check_query = """
-        SELECT wc.id, wc.work_session_id, ws.workspace_id, ws.status
+        SELECT wc.id, wc.work_ticket_id, ws.workspace_id, ws.status
         FROM work_checkpoints wc
-        JOIN work_sessions ws ON ws.id = wc.work_session_id
+        JOIN work_tickets ws ON ws.id = wc.work_ticket_id
         WHERE wc.id = :checkpoint_id
     """
     checkpoint = await db.fetch_one(check_query, {"checkpoint_id": str(checkpoint_id)})
@@ -292,16 +292,16 @@ async def resolve_checkpoint(
     # Update session status based on decision
     new_session_status = None
     if request.user_decision == "continue":
-        new_session_status = WorkSessionStatus.COMPLETED
+        new_session_status = WorkTicketStatus.COMPLETED
     elif request.user_decision == "reject":
-        new_session_status = WorkSessionStatus.FAILED
+        new_session_status = WorkTicketStatus.FAILED
     elif request.user_decision == "modify":
         # Phase 1: Just mark as paused (future: will trigger iteration)
-        new_session_status = WorkSessionStatus.PAUSED
+        new_session_status = WorkTicketStatus.PAUSED
 
     if new_session_status:
         update_session_query = """
-            UPDATE work_sessions
+            UPDATE work_tickets
             SET
                 status = :status,
                 ended_at = CASE WHEN :status IN ('completed', 'failed') THEN NOW() ELSE ended_at END,
@@ -310,13 +310,13 @@ async def resolve_checkpoint(
                     '{last_checkpoint_decision}',
                     to_jsonb(:user_decision::text)
                 )
-            WHERE id = :session_id
+            WHERE id = :ticket_id
         """
 
         await db.execute(
             update_session_query,
             {
-                "session_id": checkpoint["work_session_id"],
+                "ticket_id": checkpoint["work_ticket_id"],
                 "status": new_session_status.value,
                 "user_decision": request.user_decision,
             }

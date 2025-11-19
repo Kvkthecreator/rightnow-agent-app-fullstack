@@ -4,7 +4,7 @@ Project Work Sessions API - Phase 6.5
 Project-scoped work sessions that integrate with:
 - project_agents (many-to-many)
 - agent_work_requests (billing/trials)
-- work_sessions (execution records)
+- work_tickets (execution records)
 
 This is the NEW endpoint for project-based work requests.
 Old /api/work/sessions endpoints remain for backward compatibility.
@@ -31,7 +31,7 @@ from utils.permissions import (
 )
 
 # Import enhanced task configuration models and services
-from models.task_configurations import CreateWorkSessionRequest as EnhancedWorkSessionRequest
+from models.task_configurations import CreateWorkTicketRequest as EnhancedWorkTicketRequest
 from services.context_envelope_generator import ContextEnvelopeGenerator
 from clients.substrate_client import SubstrateClient
 
@@ -44,10 +44,10 @@ logger = logging.getLogger(__name__)
 # ========================================================================
 
 
-class WorkSessionListItem(BaseModel):
+class WorkTicketListItem(BaseModel):
     """Work session list item (summary)."""
 
-    session_id: str
+    ticket_id: str
     agent_id: str
     agent_type: str
     agent_display_name: str
@@ -57,18 +57,18 @@ class WorkSessionListItem(BaseModel):
     completed_at: Optional[str]
 
 
-class WorkSessionsListResponse(BaseModel):
+class WorkTicketsListResponse(BaseModel):
     """List of work sessions for a project."""
 
-    sessions: list[WorkSessionListItem]
+    sessions: list[WorkTicketListItem]
     total_count: int
     status_counts: dict
 
 
-class WorkSessionDetailResponse(BaseModel):
+class WorkTicketDetailResponse(BaseModel):
     """Detailed work session information."""
 
-    session_id: str
+    ticket_id: str
     project_id: str
     project_name: str
     agent_id: str
@@ -85,12 +85,12 @@ class WorkSessionDetailResponse(BaseModel):
     completed_at: Optional[str]
     error_message: Optional[str]
     result_summary: Optional[str]
-    artifacts_count: int = 0
+    outputs_count: int = 0
 
 
 # Legacy model kept for backward compatibility (deprecated)
-class LegacyCreateWorkSessionRequest(BaseModel):
-    """Legacy request format (deprecated - use EnhancedWorkSessionRequest)."""
+class LegacyCreateWorkTicketRequest(BaseModel):
+    """Legacy request format (deprecated - use EnhancedWorkTicketRequest)."""
     agent_id: str
     task_description: str
     work_mode: str = "general"
@@ -98,10 +98,10 @@ class LegacyCreateWorkSessionRequest(BaseModel):
     priority: int = 5
 
 
-class WorkSessionResponse(BaseModel):
+class WorkTicketResponse(BaseModel):
     """Work session response."""
 
-    session_id: str
+    ticket_id: str
     project_id: str
     agent_id: str
     agent_type: str
@@ -119,10 +119,10 @@ class WorkSessionResponse(BaseModel):
 # ========================================================================
 
 
-@router.post("/{project_id}/work-sessions", response_model=WorkSessionResponse)
-async def create_project_work_session(
+@router.post("/{project_id}/work-sessions", response_model=WorkTicketResponse)
+async def create_project_work_ticket(
     project_id: str = Path(..., description="Project ID"),
-    request: EnhancedWorkSessionRequest = ...,
+    request: EnhancedWorkTicketRequest = ...,
     user: dict = Depends(verify_jwt)
 ):
     """
@@ -135,7 +135,7 @@ async def create_project_work_session(
     2. Get agent_type from project_agents
     3. Check permissions (trial/subscription)
     4. Create agent_work_request (billing)
-    5. Create work_session (execution record)
+    5. Create work_ticket (execution record)
     6. Return session details
 
     Args:
@@ -321,7 +321,7 @@ async def create_project_work_session(
         }
 
         try:
-            session_response = supabase.table("work_sessions").insert(
+            session_response = supabase.table("work_tickets").insert(
                 session_data
             ).execute()
 
@@ -329,10 +329,10 @@ async def create_project_work_session(
                 raise Exception("No work session created")
 
             session = session_response.data[0]
-            session_id = session["id"]
+            ticket_id = session["id"]
 
             logger.info(
-                f"[PROJECT WORK SESSION] ✅ SUCCESS: session={session_id}, "
+                f"[PROJECT WORK SESSION] ✅ SUCCESS: session={ticket_id}, "
                 f"work_request={work_request_id}, agent={agent_type}"
             )
 
@@ -346,8 +346,8 @@ async def create_project_work_session(
         # ================================================================
         # Step 7: Return Work Session Details
         # ================================================================
-        return WorkSessionResponse(
-            session_id=session_id,
+        return WorkTicketResponse(
+            ticket_id=ticket_id,
             project_id=project_id,
             agent_id=request.agent_id,
             agent_type=agent_type,
@@ -374,10 +374,10 @@ async def create_project_work_session(
 # PHASE 2: AGENT EXECUTION ENDPOINTS
 # ============================================================================
 
-@router.post("/{project_id}/work-sessions/{session_id}/execute")
-async def execute_work_session(
+@router.post("/{project_id}/work-sessions/{ticket_id}/execute")
+async def execute_work_ticket(
     project_id: str = Path(..., description="Project ID"),
-    session_id: str = Path(..., description="Work session ID"),
+    ticket_id: str = Path(..., description="Work session ID"),
     user: dict = Depends(verify_jwt)
 ):
     """
@@ -391,20 +391,20 @@ async def execute_work_session(
     3. Create agent instance
     4. Provision context envelope
     5. Execute agent task
-    6. Handle outputs (artifacts, checkpoints)
+    6. Handle outputs (outputs, checkpoints)
     7. Update session status
 
     Returns:
-        Execution result with status and artifacts
+        Execution result with status and outputs
     """
-    from services.work_session_executor import WorkSessionExecutor
+    from services.work_ticket_executor import WorkTicketExecutor
 
     user_id = user.get("sub") or user.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
     logger.info(
-        f"[EXECUTE SESSION] User {user_id} executing session {session_id} "
+        f"[EXECUTE SESSION] User {user_id} executing session {ticket_id} "
         f"in project {project_id}"
     )
 
@@ -415,9 +415,9 @@ async def execute_work_session(
             os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         )
 
-        session_response = supabase.table("work_sessions").select(
+        session_response = supabase.table("work_tickets").select(
             "id, project_id, status"
-        ).eq("id", session_id).eq("project_id", project_id).single().execute()
+        ).eq("id", ticket_id).eq("project_id", project_id).single().execute()
 
         if not session_response.data:
             raise HTTPException(
@@ -426,12 +426,12 @@ async def execute_work_session(
             )
 
         # Execute work session
-        executor = WorkSessionExecutor()
-        result = await executor.execute_work_session(session_id)
+        executor = WorkTicketExecutor()
+        result = await executor.execute_work_ticket(ticket_id)
 
         logger.info(
             f"[EXECUTE SESSION] ✅ Execution completed: "
-            f"session={session_id}, status={result['status']}"
+            f"session={ticket_id}, status={result['status']}"
         )
 
         return result
@@ -439,17 +439,17 @@ async def execute_work_session(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"[EXECUTE SESSION] Failed to execute session {session_id}: {e}")
+        logger.exception(f"[EXECUTE SESSION] Failed to execute session {ticket_id}: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to execute work session: {str(e)}"
         )
 
 
-@router.get("/{project_id}/work-sessions/{session_id}/status")
-async def get_work_session_status(
+@router.get("/{project_id}/work-sessions/{ticket_id}/status")
+async def get_work_ticket_status(
     project_id: str = Path(..., description="Project ID"),
-    session_id: str = Path(..., description="Work session ID"),
+    ticket_id: str = Path(..., description="Work session ID"),
     user: dict = Depends(verify_jwt)
 ):
     """
@@ -460,7 +460,7 @@ async def get_work_session_status(
     Returns:
         Work session status with:
         - status: Current execution status
-        - artifacts_count: Number of artifacts created
+        - outputs_count: Number of outputs created
         - checkpoints: List of checkpoints (if any)
         - metadata: Execution metadata
     """
@@ -474,10 +474,10 @@ async def get_work_session_status(
             os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         )
 
-        # Fetch session with artifacts and checkpoints
-        session_response = supabase.table("work_sessions").select(
+        # Fetch session with outputs and checkpoints
+        session_response = supabase.table("work_tickets").select(
             "id, status, task_type, task_intent, metadata, created_at"
-        ).eq("id", session_id).eq("project_id", project_id).single().execute()
+        ).eq("id", ticket_id).eq("project_id", project_id).single().execute()
 
         if not session_response.data:
             raise HTTPException(
@@ -487,26 +487,26 @@ async def get_work_session_status(
 
         session = session_response.data
 
-        # Get artifacts count
-        artifacts_response = supabase.table("work_outputs").select(
+        # Get outputs count
+        outputs_response = supabase.table("work_outputs").select(
             "id", count="exact"
-        ).eq("work_session_id", session_id).execute()
+        ).eq("work_ticket_id", ticket_id).execute()
 
-        artifacts_count = artifacts_response.count or 0
+        outputs_count = outputs_response.count or 0
 
         # Get checkpoints
         checkpoints_response = supabase.table("work_checkpoints").select(
             "id, reason, status, created_at"
-        ).eq("work_session_id", session_id).order("created_at").execute()
+        ).eq("work_ticket_id", ticket_id).order("created_at").execute()
 
         checkpoints = checkpoints_response.data or []
 
         return {
-            "session_id": session["id"],
+            "ticket_id": session["id"],
             "status": session["status"],
             "task_type": session["task_type"],
             "task_intent": session["task_intent"],
-            "artifacts_count": artifacts_count,
+            "outputs_count": outputs_count,
             "checkpoints": checkpoints,
             "metadata": session.get("metadata", {}),
             "created_at": session["created_at"]
@@ -515,17 +515,17 @@ async def get_work_session_status(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"[GET STATUS] Failed to get status for session {session_id}: {e}")
+        logger.exception(f"[GET STATUS] Failed to get status for session {ticket_id}: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get work session status: {str(e)}"
         )
 
 
-@router.post("/{project_id}/work-sessions/{session_id}/checkpoints/{checkpoint_id}/approve")
+@router.post("/{project_id}/work-sessions/{ticket_id}/checkpoints/{checkpoint_id}/approve")
 async def approve_checkpoint(
     project_id: str = Path(..., description="Project ID"),
-    session_id: str = Path(..., description="Work session ID"),
+    ticket_id: str = Path(..., description="Work session ID"),
     checkpoint_id: str = Path(..., description="Checkpoint ID"),
     feedback: Optional[str] = None,
     user: dict = Depends(verify_jwt)
@@ -551,7 +551,7 @@ async def approve_checkpoint(
 
     logger.info(
         f"[APPROVE CHECKPOINT] User {user_id} approving checkpoint {checkpoint_id} "
-        f"in session {session_id}"
+        f"in session {ticket_id}"
     )
 
     try:
@@ -562,13 +562,13 @@ async def approve_checkpoint(
         )
 
         checkpoint_response = supabase.table("work_checkpoints").select(
-            "id, work_session_id"
+            "id, work_ticket_id"
         ).eq("id", checkpoint_id).single().execute()
 
         if not checkpoint_response.data:
             raise HTTPException(status_code=404, detail="Checkpoint not found")
 
-        if checkpoint_response.data["work_session_id"] != session_id:
+        if checkpoint_response.data["work_ticket_id"] != ticket_id:
             raise HTTPException(
                 status_code=400,
                 detail="Checkpoint does not belong to this work session"
@@ -606,10 +606,10 @@ async def approve_checkpoint(
         )
 
 
-@router.post("/{project_id}/work-sessions/{session_id}/checkpoints/{checkpoint_id}/reject")
+@router.post("/{project_id}/work-sessions/{ticket_id}/checkpoints/{checkpoint_id}/reject")
 async def reject_checkpoint(
     project_id: str = Path(..., description="Project ID"),
-    session_id: str = Path(..., description="Work session ID"),
+    ticket_id: str = Path(..., description="Work session ID"),
     checkpoint_id: str = Path(..., description="Checkpoint ID"),
     rejection_reason: str = ...,
     user: dict = Depends(verify_jwt)
@@ -645,13 +645,13 @@ async def reject_checkpoint(
         )
 
         checkpoint_response = supabase.table("work_checkpoints").select(
-            "id, work_session_id"
+            "id, work_ticket_id"
         ).eq("id", checkpoint_id).single().execute()
 
         if not checkpoint_response.data:
             raise HTTPException(status_code=404, detail="Checkpoint not found")
 
-        if checkpoint_response.data["work_session_id"] != session_id:
+        if checkpoint_response.data["work_ticket_id"] != ticket_id:
             raise HTTPException(
                 status_code=400,
                 detail="Checkpoint does not belong to this work session"
@@ -689,25 +689,25 @@ async def reject_checkpoint(
         )
 
 
-@router.get("/{project_id}/work-sessions/{session_id}/artifacts")
-async def get_work_session_artifacts(
+@router.get("/{project_id}/work-sessions/{ticket_id}/outputs")
+async def get_work_ticket_outputs(
     project_id: str = Path(..., description="Project ID"),
-    session_id: str = Path(..., description="Work session ID"),
+    ticket_id: str = Path(..., description="Work session ID"),
     user: dict = Depends(verify_jwt)
 ):
     """
-    Get all artifacts for a work session.
+    Get all outputs for a work session.
 
     **Phase 3: Artifact Viewing**
 
-    Returns list of artifacts with raw content for inspection and QA.
+    Returns list of outputs with raw content for inspection and QA.
     Used to evaluate agent output quality before building custom renderers.
 
     Returns:
-        List of artifacts with:
+        List of outputs with:
         - id: Artifact UUID
-        - artifact_type: Type of artifact
-        - content: Raw artifact content (jsonb)
+        - output_type: Type of output
+        - content: Raw output content (jsonb)
         - agent_confidence: Confidence score (0-1)
         - agent_reasoning: Why agent created this
         - created_at: Timestamp
@@ -717,7 +717,7 @@ async def get_work_session_artifacts(
         raise HTTPException(status_code=401, detail="Invalid user token")
 
     logger.info(
-        f"[GET ARTIFACTS] Fetching artifacts: session={session_id}, user={user_id}"
+        f"[GET ARTIFACTS] Fetching outputs: session={ticket_id}, user={user_id}"
     )
 
     try:
@@ -727,9 +727,9 @@ async def get_work_session_artifacts(
         )
 
         # Verify session belongs to user's project
-        session_response = supabase.table("work_sessions").select(
+        session_response = supabase.table("work_tickets").select(
             "id, project_id"
-        ).eq("id", session_id).eq("project_id", project_id).single().execute()
+        ).eq("id", ticket_id).eq("project_id", project_id).single().execute()
 
         if not session_response.data:
             raise HTTPException(
@@ -737,18 +737,18 @@ async def get_work_session_artifacts(
                 detail="Work session not found or does not belong to this project"
             )
 
-        # Fetch all artifacts for this session
-        artifacts_response = supabase.table("work_outputs").select(
+        # Fetch all outputs for this session
+        outputs_response = supabase.table("work_outputs").select(
             "id, output_type, content, agent_confidence, agent_reasoning, status, created_at"
-        ).eq("work_session_id", session_id).order("created_at").execute()
+        ).eq("work_ticket_id", ticket_id).order("created_at").execute()
 
-        artifacts = artifacts_response.data or []
+        outputs = outputs_response.data or []
 
         logger.info(
-            f"[GET ARTIFACTS] Found {len(artifacts)} artifacts for session {session_id}"
+            f"[GET ARTIFACTS] Found {len(outputs)} outputs for session {ticket_id}"
         )
 
-        return artifacts
+        return outputs
 
     except HTTPException:
         raise
@@ -756,12 +756,12 @@ async def get_work_session_artifacts(
         logger.exception(f"[GET ARTIFACTS] Failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch artifacts: {str(e)}"
+            detail=f"Failed to fetch outputs: {str(e)}"
         )
 
 
-@router.get("/{project_id}/work-sessions", response_model=WorkSessionsListResponse)
-async def list_project_work_sessions(
+@router.get("/{project_id}/work-sessions", response_model=WorkTicketsListResponse)
+async def list_project_work_tickets(
     project_id: str = Path(..., description="Project ID"),
     status: Optional[str] = None,
     agent_id: Optional[str] = None,
@@ -804,7 +804,7 @@ async def list_project_work_sessions(
             raise HTTPException(status_code=403, detail="Access denied")
 
         # Build query for work sessions
-        query = supabase.table("work_sessions").select(
+        query = supabase.table("work_tickets").select(
             """
             id,
             project_agent_id,
@@ -834,8 +834,8 @@ async def list_project_work_sessions(
 
             if agent_response.data:
                 agent = agent_response.data
-                session_list.append(WorkSessionListItem(
-                    session_id=session["id"],
+                session_list.append(WorkTicketListItem(
+                    ticket_id=session["id"],
                     agent_id=agent["id"],
                     agent_type=agent["agent_type"],
                     agent_display_name=agent["display_name"],
@@ -846,7 +846,7 @@ async def list_project_work_sessions(
                 ))
 
         # Get status counts
-        all_sessions_response = supabase.table("work_sessions").select(
+        all_sessions_response = supabase.table("work_tickets").select(
             "status"
         ).eq("project_id", project_id).execute()
 
@@ -859,7 +859,7 @@ async def list_project_work_sessions(
             f"[PROJECT WORK SESSIONS LIST] Found {len(session_list)} sessions for project {project_id}"
         )
 
-        return WorkSessionsListResponse(
+        return WorkTicketsListResponse(
             sessions=session_list,
             total_count=len(all_sessions_response.data or []),
             status_counts=status_counts,
@@ -875,10 +875,10 @@ async def list_project_work_sessions(
         )
 
 
-@router.get("/{project_id}/work-sessions/{session_id}", response_model=WorkSessionDetailResponse)
-async def get_project_work_session(
+@router.get("/{project_id}/work-sessions/{ticket_id}", response_model=WorkTicketDetailResponse)
+async def get_project_work_ticket(
     project_id: str = Path(..., description="Project ID"),
-    session_id: str = Path(..., description="Work session ID"),
+    ticket_id: str = Path(..., description="Work session ID"),
     user: dict = Depends(verify_jwt)
 ):
     """
@@ -886,7 +886,7 @@ async def get_project_work_session(
 
     Args:
         project_id: Project ID
-        session_id: Work session ID
+        ticket_id: Work session ID
         user: Authenticated user from JWT
 
     Returns:
@@ -898,7 +898,7 @@ async def get_project_work_session(
 
     logger.info(
         f"[PROJECT WORK SESSION DETAIL] Fetching session: "
-        f"project={project_id}, session={session_id}, user={user_id}"
+        f"project={project_id}, session={ticket_id}, user={user_id}"
     )
 
     supabase = supabase_admin_client
@@ -919,7 +919,7 @@ async def get_project_work_session(
             raise HTTPException(status_code=403, detail="Access denied")
 
         # Fetch work session
-        session_response = supabase.table("work_sessions").select(
+        session_response = supabase.table("work_tickets").select(
             """
             id,
             project_id,
@@ -934,7 +934,7 @@ async def get_project_work_session(
             started_at,
             ended_at
             """
-        ).eq("id", session_id).eq("project_id", project_id).single().execute()
+        ).eq("id", ticket_id).eq("project_id", project_id).single().execute()
 
         if not session_response.data:
             raise HTTPException(status_code=404, detail="Work session not found")
@@ -951,16 +951,16 @@ async def get_project_work_session(
 
         agent = agent_response.data
 
-        # Count artifacts for this session
-        artifacts_response = supabase.table("work_outputs").select(
+        # Count outputs for this session
+        outputs_response = supabase.table("work_outputs").select(
             "id", count="exact"
-        ).eq("work_session_id", session_id).execute()
+        ).eq("work_ticket_id", ticket_id).execute()
 
-        artifacts_count = artifacts_response.count if artifacts_response.count is not None else 0
+        outputs_count = outputs_response.count if outputs_response.count is not None else 0
 
         logger.info(
-            f"[PROJECT WORK SESSION DETAIL] Found session {session_id} with status {session['status']}, "
-            f"{artifacts_count} artifacts"
+            f"[PROJECT WORK SESSION DETAIL] Found session {ticket_id} with status {session['status']}, "
+            f"{outputs_count} outputs"
         )
 
         # Extract metadata fields
@@ -969,8 +969,8 @@ async def get_project_work_session(
         error_message = metadata.get("error_message")
         result_summary = metadata.get("result_summary")
 
-        return WorkSessionDetailResponse(
-            session_id=session["id"],
+        return WorkTicketDetailResponse(
+            ticket_id=session["id"],
             project_id=session["project_id"],
             project_name=project["name"],
             agent_id=agent["id"],
@@ -987,7 +987,7 @@ async def get_project_work_session(
             completed_at=session.get("ended_at"),  # Fixed: use ended_at
             error_message=error_message,  # From metadata
             result_summary=result_summary,  # From metadata
-            artifacts_count=artifacts_count,
+            outputs_count=outputs_count,
         )
 
     except HTTPException:

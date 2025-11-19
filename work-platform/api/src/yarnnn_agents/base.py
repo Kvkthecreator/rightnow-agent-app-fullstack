@@ -91,7 +91,7 @@ class BaseAgent(ABC):
         # Execute with optional task linking
         result = await agent.execute(
             "Research AI governance",
-            task_id="work_session_123",
+            task_id="work_ticket_123",
             task_metadata={"workspace_id": "ws_001", "basket_id": "basket_abc"}
         )
     """
@@ -113,8 +113,8 @@ class BaseAgent(ABC):
         model: str = "claude-sonnet-4-5",
 
         # Session resumption (optional)
-        session_id: Optional[str] = None,
-        claude_session_id: Optional[str] = None,
+        ticket_id: Optional[str] = None,
+        claude_ticket_id: Optional[str] = None,
 
         # Agent behavior
         auto_approve: bool = False,
@@ -145,8 +145,8 @@ class BaseAgent(ABC):
             tasks: Task provider implementation (optional)
             anthropic_api_key: Anthropic API key (or from ANTHROPIC_API_KEY env)
             model: Claude model to use
-            session_id: Existing session ID to resume (optional)
-            claude_session_id: Claude conversation session to resume (optional)
+            ticket_id: Existing session ID to resume (optional)
+            claude_ticket_id: Claude conversation session to resume (optional)
             auto_approve: Auto-approve high-confidence proposals
             confidence_threshold: Threshold for auto-approval
             max_retries: Maximum retries for failed operations
@@ -182,18 +182,18 @@ class BaseAgent(ABC):
         self.max_retries = int(os.getenv("AGENT_MAX_RETRIES", str(max_retries)))
 
         # Session management
-        if session_id:
+        if ticket_id:
             # Resume existing session
             self.current_session = AgentSession(
-                id=session_id,
+                id=ticket_id,
                 agent_id=self.agent_id,
-                claude_session_id=claude_session_id
+                claude_ticket_id=claude_ticket_id
             )
         else:
             # Create new session (will be initialized on first execute)
             self.current_session = None
 
-        self._claude_session_id = claude_session_id  # For resumption
+        self._claude_ticket_id = claude_ticket_id  # For resumption
 
         # Metadata
         self.metadata = metadata or {}
@@ -225,7 +225,7 @@ class BaseAgent(ABC):
         Start a new agent session.
 
         Args:
-            task_id: Optional external task ID (e.g., YARNNN work_session_id)
+            task_id: Optional external task ID (e.g., YARNNN work_ticket_id)
             task_metadata: Optional task-specific metadata (e.g., workspace_id, basket_id)
 
         Returns:
@@ -233,7 +233,7 @@ class BaseAgent(ABC):
         """
         session = AgentSession(
             agent_id=self.agent_id,
-            claude_session_id=self._claude_session_id,
+            claude_ticket_id=self._claude_ticket_id,
             task_id=task_id,
             task_metadata=task_metadata or {},
             metadata={
@@ -307,8 +307,8 @@ class BaseAgent(ABC):
             ]
 
         # Add session resumption if requested
-        if resume_session and self._claude_session_id:
-            request_params["resume"] = self._claude_session_id
+        if resume_session and self._claude_ticket_id:
+            request_params["resume"] = self._claude_ticket_id
 
         # Call Claude
         self.logger.info(f"Reasoning: {task[:100]}...")
@@ -319,11 +319,11 @@ class BaseAgent(ABC):
             # Extract and store Claude session ID if this is first message
             # Note: Actual implementation depends on Claude SDK's session management
             # This is a placeholder for session ID extraction
-            if not self._claude_session_id and hasattr(response, 'session_id'):
-                self._claude_session_id = response.session_id
+            if not self._claude_ticket_id and hasattr(response, 'ticket_id'):
+                self._claude_ticket_id = response.ticket_id
                 if self.current_session:
-                    self.current_session.claude_session_id = response.session_id
-                    self.logger.info(f"Claude session started: {response.session_id}")
+                    self.current_session.claude_ticket_id = response.ticket_id
+                    self.logger.info(f"Claude session started: {response.ticket_id}")
 
             return response
 
@@ -407,7 +407,7 @@ Your capabilities depend on the providers configured:
         """
         return AgentState(
             agent_id=self.agent_id,
-            session_id=self.current_session.id if self.current_session else None,
+            ticket_id=self.current_session.id if self.current_session else None,
             current_step=getattr(self, '_current_step', None),
             metadata=self.metadata
         )

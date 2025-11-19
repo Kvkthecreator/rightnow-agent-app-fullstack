@@ -285,7 +285,7 @@ class ApprovalStrategy(BaseModel):
 # UNIFIED WORK SESSION REQUEST
 # ============================================================================
 
-class CreateWorkSessionRequest(BaseModel):
+class CreateWorkTicketRequest(BaseModel):
     """Request to create a work session with agent-specific configuration."""
 
     agent_id: str = Field(

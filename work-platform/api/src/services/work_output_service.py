@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def write_agent_outputs(
     basket_id: str,
-    work_session_id: str,
+    work_ticket_id: str,
     agent_type: str,
     outputs: List[Dict[str, Any]],
     metadata: Optional[Dict[str, Any]] = None,
@@ -37,7 +37,7 @@ def write_agent_outputs(
 
     Args:
         basket_id: Basket UUID
-        work_session_id: Work session UUID (from work-platform DB)
+        work_ticket_id: Work session UUID (from work-platform DB)
         agent_type: Type of agent (research, content, reporting)
         outputs: List of output dictionaries from agent execution
                  Each should have: output_type, title, body, confidence, source_context_ids, tool_call_id
@@ -58,7 +58,7 @@ def write_agent_outputs(
 
         write_result = write_agent_outputs(
             basket_id=basket_id,
-            work_session_id=session_id,
+            work_ticket_id=ticket_id,
             agent_type="research",
             outputs=outputs
         )
@@ -68,7 +68,7 @@ def write_agent_outputs(
     errors = []
 
     logger.info(
-        f"Writing {len(outputs)} agent outputs for session {work_session_id} "
+        f"Writing {len(outputs)} agent outputs for session {work_ticket_id} "
         f"to basket {basket_id}"
     )
 
@@ -77,7 +77,7 @@ def write_agent_outputs(
             # Extract fields from output dict
             created_output = client.create_work_output(
                 basket_id=basket_id,
-                work_session_id=work_session_id,
+                work_ticket_id=work_ticket_id,
                 output_type=output.get("output_type", "insight"),
                 agent_type=agent_type,
                 title=output.get("title", f"Output #{i+1}"),
@@ -120,14 +120,14 @@ def write_agent_outputs(
 
 def get_pending_outputs_for_session(
     basket_id: str,
-    work_session_id: str,
+    work_ticket_id: str,
 ) -> List[Dict[str, Any]]:
     """
     Get all pending review outputs for a work session.
 
     Args:
         basket_id: Basket UUID
-        work_session_id: Work session UUID
+        work_ticket_id: Work session UUID
 
     Returns:
         List of work output records with status 'pending_review'
@@ -137,7 +137,7 @@ def get_pending_outputs_for_session(
     try:
         result = client.list_work_outputs(
             basket_id=basket_id,
-            work_session_id=work_session_id,
+            work_ticket_id=work_ticket_id,
             supervision_status="pending_review",
         )
         return result.get("outputs", [])

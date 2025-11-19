@@ -111,7 +111,7 @@ class SubstrateClient:
     async def emit_work_output(
         self,
         basket_id: str,
-        work_session_id: str,
+        work_ticket_id: str,
         output_type: str,
         agent_type: str,
         title: str,
@@ -127,7 +127,7 @@ class SubstrateClient:
 
         Args:
             basket_id: Basket ID
-            work_session_id: Work session ID
+            work_ticket_id: Work session ID
             output_type: finding, recommendation, insight, etc.
             agent_type: research, content, reporting
             title: Output title (max 200 chars)
@@ -144,7 +144,7 @@ class SubstrateClient:
         url = f"{self.base_url}/api/baskets/{basket_id}/work-outputs"
         payload = {
             "basket_id": basket_id,
-            "work_session_id": work_session_id,
+            "work_ticket_id": work_ticket_id,
             "output_type": output_type,
             "agent_type": agent_type,
             "title": title,
@@ -285,7 +285,7 @@ def create_mcp_server() -> Server:
                     "type": "object",
                     "properties": {
                         "basket_id": {"type": "string", "description": "Basket ID"},
-                        "work_session_id": {"type": "string", "description": "Work session ID"},
+                        "work_ticket_id": {"type": "string", "description": "Work session ID"},
                         "output_type": {
                             "type": "string",
                             "enum": ["finding", "recommendation", "insight", "draft_content", "analysis"],
@@ -350,7 +350,7 @@ def create_mcp_server() -> Server:
                     },
                     "required": [
                         "basket_id",
-                        "work_session_id",
+                        "work_ticket_id",
                         "output_type",
                         "agent_type",
                         "title",
@@ -409,7 +409,7 @@ def create_mcp_server() -> Server:
             elif name == "emit_work_output":
                 result = await substrate_client.emit_work_output(
                     basket_id=arguments["basket_id"],
-                    work_session_id=arguments["work_session_id"],
+                    work_ticket_id=arguments["work_ticket_id"],
                     output_type=arguments["output_type"],
                     agent_type=arguments["agent_type"],
                     title=arguments["title"],

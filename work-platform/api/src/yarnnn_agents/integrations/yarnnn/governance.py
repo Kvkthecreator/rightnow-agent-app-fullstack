@@ -90,9 +90,9 @@ class YarnnnGovernance(GovernanceProvider):
             reasoning: Explanation of changes
             metadata: Additional metadata for linking sessions and tracking.
                      Recommended fields for session linking:
-                     - agent_session_id: AgentSession.id from Agent SDK
+                     - agent_ticket_id: AgentSession.id from Agent SDK
                      - agent_id: Persistent agent identifier
-                     - work_session_id: Optional YARNNN WorkSession ID
+                     - work_ticket_id: Optional YARNNN WorkTicket ID
                      - workspace_id: Optional workspace context
                      - task_id: Optional external task identifier
 
@@ -106,9 +106,9 @@ class YarnnnGovernance(GovernanceProvider):
                 confidence=0.85,
                 reasoning="Adding research insights",
                 metadata={
-                    "agent_session_id": agent.current_session.id,
+                    "agent_ticket_id": agent.current_session.id,
                     "agent_id": agent.agent_id,
-                    "work_session_id": "work_session_123",
+                    "work_ticket_id": "work_ticket_123",
                     "workspace_id": "ws_001"
                 }
             )
@@ -249,9 +249,9 @@ class YarnnnGovernance(GovernanceProvider):
 
     @staticmethod
     def create_session_metadata(
-        agent_session_id: Optional[str] = None,
+        agent_ticket_id: Optional[str] = None,
         agent_id: Optional[str] = None,
-        work_session_id: Optional[str] = None,
+        work_ticket_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
         task_id: Optional[str] = None,
         **additional_metadata: Any
@@ -263,9 +263,9 @@ class YarnnnGovernance(GovernanceProvider):
         with YARNNN Work sessions and other external task systems.
 
         Args:
-            agent_session_id: AgentSession.id from Agent SDK
+            agent_ticket_id: AgentSession.id from Agent SDK
             agent_id: Persistent agent identifier
-            work_session_id: YARNNN WorkSession ID
+            work_ticket_id: YARNNN WorkTicket ID
             workspace_id: Workspace context
             task_id: External task system identifier
             **additional_metadata: Any other custom metadata fields
@@ -277,9 +277,9 @@ class YarnnnGovernance(GovernanceProvider):
             from yarnnn_agents.integrations.yarnnn import YarnnnGovernance
 
             metadata = YarnnnGovernance.create_session_metadata(
-                agent_session_id=agent.current_session.id,
+                agent_ticket_id=agent.current_session.id,
                 agent_id=agent.agent_id,
-                work_session_id="work_session_123",
+                work_ticket_id="work_ticket_123",
                 workspace_id="ws_001",
                 custom_field="custom_value"
             )
@@ -293,12 +293,12 @@ class YarnnnGovernance(GovernanceProvider):
         """
         metadata: Dict[str, Any] = {}
 
-        if agent_session_id:
-            metadata["agent_session_id"] = agent_session_id
+        if agent_ticket_id:
+            metadata["agent_ticket_id"] = agent_ticket_id
         if agent_id:
             metadata["agent_id"] = agent_id
-        if work_session_id:
-            metadata["work_session_id"] = work_session_id
+        if work_ticket_id:
+            metadata["work_ticket_id"] = work_ticket_id
         if workspace_id:
             metadata["workspace_id"] = workspace_id
         if task_id:

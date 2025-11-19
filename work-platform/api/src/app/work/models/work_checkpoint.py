@@ -46,13 +46,13 @@ class WorkCheckpoint(BaseModel):
     """Work checkpoint for multi-stage approval."""
 
     id: UUID
-    work_session_id: UUID
+    work_ticket_id: UUID
 
     checkpoint_sequence: int
     checkpoint_type: WorkCheckpointType
 
     review_scope: str
-    artifacts_at_checkpoint: List[UUID] = Field(default_factory=list)
+    outputs_at_checkpoint: List[UUID] = Field(default_factory=list)
 
     agent_confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     agent_reasoning: Optional[str] = None
@@ -80,11 +80,11 @@ class WorkCheckpoint(BaseModel):
 class WorkCheckpointCreate(BaseModel):
     """Create work checkpoint request."""
 
-    work_session_id: UUID
+    work_ticket_id: UUID
     checkpoint_sequence: int
     checkpoint_type: WorkCheckpointType
     review_scope: str
-    artifacts_at_checkpoint: List[UUID] = Field(default_factory=list)
+    outputs_at_checkpoint: List[UUID] = Field(default_factory=list)
     agent_confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     agent_reasoning: Optional[str] = None
     agent_summary: Optional[str] = None
