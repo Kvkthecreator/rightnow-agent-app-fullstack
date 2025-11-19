@@ -21,15 +21,20 @@ def verify_integration_token(token: str) -> dict:
 
     sb = supabase_admin()
     token_hash = _hash_token(token)
-    resp = (
-        sb.table("integration_tokens")
-        .select("id, user_id, workspace_id, revoked_at")
-        .eq("token_hash", token_hash)
-        .maybe_single()
-        .execute()
-    )
 
-    record = resp.data
+    try:
+        resp = (
+            sb.table("integration_tokens")
+            .select("id, user_id, workspace_id, revoked_at")
+            .eq("token_hash", token_hash)
+            .maybe_single()
+            .execute()
+        )
+        record = resp.data if resp else None
+    except Exception as exc:
+        log.debug("Integration token query failed: %s", exc)
+        raise HTTPException(status_code=401, detail="Invalid integration token")
+
     if not record or record.get("revoked_at"):
         log.debug("Integration token invalid or revoked")
         raise HTTPException(status_code=401, detail="Invalid integration token")
