@@ -264,23 +264,40 @@ async def test_5_agent_execution(work_ticket_id: str):
     print("🤖 Executing agent (this may take 30-60 seconds)...")
 
     try:
-        # Run agent
-        result = await agent.run(task)
+        # Execute agent (use deep_dive method for research tasks)
+        result = await agent.deep_dive(task)
 
         print("\n" + "="*60)
-        print("AGENT OUTPUT:")
-        print("="*60)
-        print(result.get("output", "No output"))
+        print("AGENT RESULT:")
         print("="*60)
 
-        # Validate output quality
-        output = result.get("output", "")
+        # ResearchAgentSDK.deep_dive returns:
+        # {
+        #   "topic": str,
+        #   "work_outputs": List[dict],
+        #   "output_count": int,
+        #   ...
+        # }
+
+        print(f"Topic: {result.get('topic', 'N/A')}")
+        print(f"Work Outputs: {result.get('output_count', 0)}")
+        print(f"\nWork Outputs Details:")
+        for i, wo in enumerate(result.get('work_outputs', []), 1):
+            print(f"  {i}. {wo.get('output_type', 'unknown')}: {wo.get('title', 'untitled')}")
+            if wo.get('body'):
+                preview = wo['body'][:100] + "..." if len(wo['body']) > 100 else wo['body']
+                print(f"     {preview}")
+
+        print("="*60)
+
+        # Validate output quality based on work_outputs
+        work_outputs = result.get("work_outputs", [])
 
         quality_checks = {
-            "Has substantial content": len(output) > 100,
-            "Mentions sessions": "session" in output.lower(),
-            "Mentions tools": "tool" in output.lower(),
-            "Structured format": any(marker in output for marker in ["1.", "2.", "-", "*"]),
+            "Has work outputs": len(work_outputs) > 0,
+            "Has multiple outputs": len(work_outputs) >= 2,
+            "Outputs have types": all(wo.get('output_type') for wo in work_outputs),
+            "Outputs have content": all(wo.get('body') for wo in work_outputs),
         }
 
         print("\n📊 Output Quality Checks:")

@@ -13,7 +13,7 @@ Differences from archetype:
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Literal
+from typing import Any, Dict, List, Optional, Literal, Union
 from uuid import UUID
 
 from yarnnn_agents.base import BaseAgent
@@ -121,7 +121,7 @@ class ContentAgentSDK(BaseAgent):
     def __init__(
         self,
         # BFF context (REQUIRED for SubstrateMemoryAdapter)
-        basket_id: str | UUID,
+        basket_id: Union[str, UUID],
         workspace_id: str,
 
         # Claude configuration
@@ -315,7 +315,7 @@ class ContentAgentSDK(BaseAgent):
 # ============================================================================
 
 def create_content_agent_sdk(
-    basket_id: str | UUID,
+    basket_id: Union[str, UUID],
     workspace_id: str,
     anthropic_api_key: Optional[str] = None,
     **kwargs
