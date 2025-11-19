@@ -322,13 +322,9 @@ class ResearchAgentSDK(BaseAgent):
         self.workspace_id = workspace_id
         self.work_session_id = work_session_id
 
-        # Auto-create memory adapter if not provided
-        if memory is None:
-            from yarnnn_agents.integrations.yarnnn.memory import YarnnnMemory
-            memory = YarnnnMemory(
-                basket_id=basket_id,
-                workspace_id=workspace_id,
-            )
+        # Memory provider is optional - BaseAgent handles None gracefully
+        # If memory is None, agent will skip memory queries (which is fine for Phase 2)
+        # Future: Integrate with substrate-API for memory when YARNNN_API_KEY is available
 
         # Get API key
         if anthropic_api_key is None:
