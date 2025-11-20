@@ -1,12 +1,14 @@
 """
-Agent Orchestration API - Phase 4 + Phase 5
+Work Orchestration API - Phase 4 + Phase 5
 
-Integrates Claude Agent SDK with existing work_tickets infrastructure.
+Core work execution infrastructure for YARNNN platform.
+Creates work_requests, work_tickets, and orchestrates specialist agents.
 Uses adapters to bridge SDK → substrate_client → substrate-api (BFF pattern).
 
 Phase 5: Work-request-based trials (10 free requests total, then subscription).
 
-Phase 2: ResearchAgentSDK is the standard implementation (refactored SDK patterns).
+Architecture: ALL specialist agents use Official Claude Agent SDK (v0.1.8+)
+Entry Point: Thinking Partner gateway delegates to this orchestration layer.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ from agents_sdk import (
 from adapters.auth_adapter import AuthAdapter
 
 # Import Phase 2d Knowledge Module loader
-from agent_orchestration import KnowledgeModuleLoader
+from work_orchestration import KnowledgeModuleLoader
 
 # Import Phase 1-3 utilities
 from app.utils.jwt import verify_jwt
@@ -47,10 +49,10 @@ from utils.permissions import (
 # Import work output service for BFF pattern
 from services.work_output_service import write_agent_outputs
 
-router = APIRouter(prefix="/agents", tags=["agent-orchestration"])
+router = APIRouter(prefix="/agents", tags=["work-orchestration"])
 logger = logging.getLogger(__name__)
 
-logger.info("Agent orchestration initialized - Phase 2c complete (all agents using SDK patterns)")
+logger.info("Work orchestration initialized - Phase 2c complete (all agents using SDK patterns)")
 
 
 async def _get_workspace_id_for_user(user_id: str) -> str:
@@ -231,13 +233,20 @@ class AgentTaskResponse(BaseModel):
     remaining_trials: Optional[int] = None  # Phase 5: Remaining trial requests
 
 
-@router.post("/run", response_model=AgentTaskResponse)
+@router.post("/run", response_model=AgentTaskResponse, deprecated=True)
 async def run_agent_task(
     request: AgentTaskRequest,
     user: dict = Depends(verify_jwt)
 ):
     """
-    Run agent task with SDK integration.
+    [DEPRECATED] Direct agent invocation endpoint.
+
+    ⚠️  DEPRECATED: This endpoint is for internal/testing use only.
+    ⚠️  Users should interact via Thinking Partner gateway: POST /api/tp/chat
+    ⚠️  TP decides when to create work_requests and orchestrate specialist agents.
+
+    This endpoint bypasses TP intelligence and should NOT be used by frontend.
+    Maintained for backward compatibility and system testing only.
 
     Phase 4: Uses adapters to bridge SDK → substrate_client → substrate-api.
     Phase 5: Enforces 10 trial work requests, then requires subscription.

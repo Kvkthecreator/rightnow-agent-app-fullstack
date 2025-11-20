@@ -11,7 +11,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from agent_orchestration import KnowledgeModuleLoader
+from work_orchestration import KnowledgeModuleLoader
 
 
 def main():

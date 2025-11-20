@@ -225,7 +225,7 @@ async def test_5_agent_execution(work_ticket_id: str):
         return None
 
     from agents_sdk import ResearchAgentSDK
-    from agent_orchestration import KnowledgeModuleLoader
+    from work_orchestration import KnowledgeModuleLoader
 
     basket_id = "5004b9e1-67f5-4955-b028-389d45b1f5a4"
     workspace_id = "99e6bf7d-513c-45ff-9b96-9362bd914d12"

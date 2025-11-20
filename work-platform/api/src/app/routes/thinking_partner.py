@@ -143,7 +143,7 @@ async def tp_chat(
     1. Query existing knowledge (memory)
     2. Check work orchestration state (infra_reader)
     3. Decide what action to take
-    4. Potentially delegate to specialized agents (agent_orchestration)
+    4. Potentially delegate to specialized agents (work_orchestration)
     5. Respond conversationally with results
 
     Args:
@@ -300,7 +300,7 @@ async def get_tp_capabilities():
             "description": "Meta-agent that orchestrates specialized agents",
             "pattern": "Gateway/Mirror/Meta",
             "tools": {
-                "agent_orchestration": {...},
+                "work_orchestration": {...},
                 "infra_reader": {...},
                 "steps_planner": {...}
             },
@@ -319,7 +319,7 @@ async def get_tp_capabilities():
             "Emit meta-intelligence (insights, recommendations)"
         ],
         "tools": {
-            "agent_orchestration": {
+            "work_orchestration": {
                 "description": "Delegate work to specialized agents",
                 "agents": ["research", "content", "reporting"]
             },

@@ -68,7 +68,7 @@ from .routes.p3_insights import router as p3_insights_router
 from .routes.p4_canon import router as p4_canon_router
 from .routes.p3_p4_health import router as p3_p4_health_router
 from .routes.agents_status import router as agents_status_router
-from .routes.agent_orchestration import router as agent_orchestration_router
+from .routes.work_orchestration import router as work_orchestration_router
 from .routes.projects import router as projects_router
 from .routes.project_work_tickets import router as project_work_tickets_router
 from .routes.work_requests import router as work_requests_router
@@ -152,7 +152,7 @@ routers = (
     integration_tokens_router,
     auth_validate_router,
     agents_status_router,
-    agent_orchestration_router,
+    work_orchestration_router,
     projects_router,
     project_work_tickets_router,
     work_requests_router,
