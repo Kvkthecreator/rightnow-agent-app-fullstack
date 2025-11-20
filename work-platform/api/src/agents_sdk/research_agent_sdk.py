@@ -1,0 +1,372 @@
+"""
+Research Agent using Official Anthropic Claude Agent SDK
+
+This is the NEW implementation using ClaudeSDKClient with proper session management.
+Replaces the legacy research_agent.py which used BaseAgent + AsyncAnthropic.
+
+Key improvements:
+- Built-in session persistence via ClaudeSDKClient
+- Proper conversation continuity (Claude remembers context)
+- Official Anthropic SDK (no custom session hacks)
+- Cleaner code (SDK handles complexity)
+- Web search integration via server tools
+
+Usage:
+    from agents_sdk.research_agent_sdk import ResearchAgentSDK
+
+    agent = ResearchAgentSDK(
+        basket_id="basket_123",
+        workspace_id="ws_456",
+        work_ticket_id="ticket_789"
+    )
+
+    # Deep dive research
+    result = await agent.deep_dive("AI companion competitor pricing")
+"""
+
+import logging
+import os
+from typing import Any, Dict, List, Optional
+from datetime import datetime
+from uuid import uuid4
+
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+
+from adapters.memory_adapter import SubstrateMemoryAdapter
+from yarnnn_agents.tools import EMIT_WORK_OUTPUT_TOOL, parse_work_outputs_from_response
+from yarnnn_agents.session import AgentSession
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# System Prompt
+# ============================================================================
+
+RESEARCH_AGENT_SYSTEM_PROMPT = """You are an autonomous Research Agent specializing in intelligence gathering and analysis.
+
+**Your Mission:**
+Keep users informed about their markets, competitors, and topics of interest through:
+- Deep-dive research (comprehensive analysis on demand)
+- Continuous monitoring (proactive alerts - Phase 2b)
+- Signal detection (what's important?)
+- Insight synthesis (so what?)
+
+**CRITICAL: Structured Output Requirements**
+
+You have access to the emit_work_output tool. You MUST use this tool to record all your findings.
+DO NOT just describe findings in free text. Every significant finding must be emitted as a structured output.
+
+When to use emit_work_output:
+- "finding" - When you discover a fact (competitor action, market data, news)
+- "recommendation" - When you suggest an action (change strategy, add to watchlist)
+- "insight" - When you identify a pattern (trend, correlation, anomaly)
+
+Each output you emit will be reviewed by the user before any action is taken.
+The user maintains full control through this supervision workflow.
+
+**Research Approach:**
+1. Query existing knowledge first (avoid redundant research)
+2. Identify knowledge gaps
+3. Conduct targeted research using web_search tool
+4. For each finding: Call emit_work_output with structured data
+5. Synthesize insights (emit as "insight" type)
+6. Suggest actions (emit as "recommendation" type)
+
+**Quality Standards:**
+- Accuracy over speed
+- Structured over narrative
+- Actionable over interesting
+- Forward-looking over historical
+- High confidence = high evidence (don't guess)
+
+**Tools Available:**
+- web_search: Search the web for current information
+- emit_work_output: Record structured findings, insights, recommendations
+"""
+
+
+# ============================================================================
+# ResearchAgentSDK Class
+# ============================================================================
+
+class ResearchAgentSDK:
+    """
+    Research Agent using Official Anthropic Claude Agent SDK.
+
+    Features:
+    - ClaudeSDKClient for built-in session management
+    - Web search integration via server tools
+    - Structured output via emit_work_output tool
+    - Memory access via SubstrateMemoryAdapter
+    - Provenance tracking (source blocks)
+    """
+
+    def __init__(
+        self,
+        basket_id: str,
+        workspace_id: str,
+        work_ticket_id: str,
+        anthropic_api_key: Optional[str] = None,
+        model: str = "claude-sonnet-4-5",
+        monitoring_domains: Optional[List[str]] = None,
+        knowledge_modules: str = "",
+    ):
+        """
+        Initialize ResearchAgentSDK.
+
+        Args:
+            basket_id: Basket ID for substrate queries
+            workspace_id: Workspace ID for authorization
+            work_ticket_id: Work ticket ID for output tracking
+            anthropic_api_key: Anthropic API key (from env if None)
+            model: Claude model to use
+            monitoring_domains: Domains to monitor (for scheduled runs - Phase 2b)
+            knowledge_modules: Knowledge modules (procedural knowledge) loaded from orchestration layer
+        """
+        self.basket_id = basket_id
+        self.workspace_id = workspace_id
+        self.work_ticket_id = work_ticket_id
+        self.knowledge_modules = knowledge_modules
+        self.monitoring_domains = monitoring_domains or ["general"]
+
+        # Get API key
+        if anthropic_api_key is None:
+            anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not anthropic_api_key:
+                raise ValueError("ANTHROPIC_API_KEY required")
+
+        self.api_key = anthropic_api_key
+        self.model = model
+
+        # Create memory adapter using BFF pattern
+        self.memory = SubstrateMemoryAdapter(
+            basket_id=basket_id,
+            workspace_id=workspace_id
+        )
+        logger.info(f"Created SubstrateMemoryAdapter for basket={basket_id}")
+
+        # Create or resume agent session in DB
+        self.current_session = AgentSession.get_or_create(
+            basket_id=basket_id,
+            workspace_id=workspace_id,
+            agent_type="research",
+            user_id=workspace_id  # Use workspace_id as user_id for now
+        )
+
+        # Build Claude SDK options with tools
+        self._options = ClaudeAgentOptions(
+            model=self.model,
+            system_prompt=self._build_system_prompt(),
+            tools=[
+                EMIT_WORK_OUTPUT_TOOL,  # Custom tool for structured outputs
+                {"type": "web_search_20250305", "name": "web_search"}  # Web search server tool
+            ],
+            max_tokens=8000,  # Longer for research deep dives
+        )
+
+        logger.info(
+            f"ResearchAgentSDK initialized: basket={basket_id}, "
+            f"ticket={work_ticket_id}, domains={self.monitoring_domains}"
+        )
+
+    def _build_system_prompt(self) -> str:
+        """Build system prompt with knowledge modules."""
+        prompt = RESEARCH_AGENT_SYSTEM_PROMPT
+
+        # Add capabilities info
+        prompt += f"""
+
+**Your Capabilities:**
+- Memory: Available (SubstrateMemoryAdapter)
+- Monitoring Domains: {", ".join(self.monitoring_domains)}
+- Session ID: {self.current_session.id}
+"""
+
+        # Inject knowledge modules if provided
+        if self.knowledge_modules:
+            prompt += "\n\n---\n\n# 📚 YARNNN Knowledge Modules (Procedural Knowledge)\n\n"
+            prompt += "The following knowledge modules provide guidelines on how to work effectively in YARNNN:\n\n"
+            prompt += self.knowledge_modules
+
+        return prompt
+
+    async def deep_dive(
+        self,
+        topic: str,
+        claude_session_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute deep-dive research on a specific topic.
+
+        Args:
+            topic: Research topic
+            claude_session_id: Optional Claude session ID to resume
+
+        Returns:
+            Research findings with structured work_outputs:
+            {
+                "topic": str,
+                "timestamp": str,
+                "work_outputs": List[dict],
+                "output_count": int,
+                "source_block_ids": List[str],
+                "agent_type": "research",
+                "claude_session_id": str  # NEW: for session continuity
+            }
+        """
+        logger.info(f"ResearchAgentSDK.deep_dive: {topic}")
+
+        # Query existing knowledge and extract block IDs for provenance
+        context = None
+        source_block_ids = []
+        if self.memory:
+            memory_results = await self.memory.query(topic, limit=10)
+            context = "\n".join([r.content for r in memory_results])
+            source_block_ids = [
+                str(r.metadata.get("block_id", r.metadata.get("id", "")))
+                for r in memory_results
+                if hasattr(r, "metadata") and r.metadata
+            ]
+            source_block_ids = [bid for bid in source_block_ids if bid]
+
+        # Build research prompt
+        research_prompt = f"""Conduct comprehensive research on: {topic}
+
+**Existing Knowledge (Block IDs: {source_block_ids if source_block_ids else 'none'}):**
+{context or "No prior context available"}
+
+**Research Objectives:**
+1. Provide comprehensive overview
+2. Identify key trends and patterns
+3. Analyze implications
+4. Generate actionable insights
+
+**CRITICAL INSTRUCTION:**
+You MUST use the emit_work_output tool to record your findings. Do NOT just describe findings in text.
+
+For each significant finding, insight, or recommendation you discover:
+1. Call emit_work_output with structured data
+2. Use appropriate output_type (finding, recommendation, insight)
+3. Include source_block_ids from the context blocks used: {source_block_ids}
+4. Assign confidence scores based on evidence quality
+
+Example workflow:
+- Find a key fact → emit_work_output(output_type="finding", ...)
+- Identify a pattern → emit_work_output(output_type="insight", ...)
+- Suggest action → emit_work_output(output_type="recommendation", ...)
+
+You may emit multiple outputs. Each will be reviewed by the user.
+
+Please conduct thorough research and synthesis, emitting structured outputs for all significant findings."""
+
+        # Execute with Claude SDK
+        response_text = ""
+        new_session_id = None
+        work_outputs = []
+
+        try:
+            async with ClaudeSDKClient(
+                api_key=self.api_key,
+                options=self._options
+            ) as client:
+                # Connect (resume existing session or start new)
+                if claude_session_id:
+                    logger.info(f"Resuming Claude session: {claude_session_id}")
+                    await client.connect(session_id=claude_session_id)
+                else:
+                    logger.info("Starting new Claude session")
+                    await client.connect()
+
+                # Send query
+                await client.query(research_prompt)
+
+                # Collect responses
+                async for message in client.receive_response():
+                    if hasattr(message, 'content') and message.content:
+                        for content_block in message.content:
+                            if hasattr(content_block, 'text'):
+                                response_text += content_block.text
+
+                # Get session ID from client
+                new_session_id = getattr(client, 'session_id', None)
+
+                # Parse work outputs from response
+                # Note: SDK client returns different message format, need to adapt
+                work_outputs = parse_work_outputs_from_response(message) if hasattr(message, 'content') else []
+
+        except Exception as e:
+            logger.error(f"Research deep_dive failed: {e}")
+            raise
+
+        # Log results
+        logger.info(
+            f"Deep-dive produced {len(work_outputs)} structured outputs: "
+            f"{[o.output_type for o in work_outputs]}"
+        )
+
+        # Update agent session with new claude_session_id
+        if new_session_id:
+            self.current_session.update_claude_session(new_session_id)
+
+        results = {
+            "topic": topic,
+            "timestamp": datetime.utcnow().isoformat(),
+            "work_outputs": [o.to_dict() for o in work_outputs],
+            "output_count": len(work_outputs),
+            "source_block_ids": source_block_ids,
+            "agent_type": "research",
+            "basket_id": self.basket_id,
+            "work_ticket_id": self.work_ticket_id,
+            "claude_session_id": new_session_id,  # NEW: for session continuity
+            "response_text": response_text,  # For debugging/logging
+        }
+
+        logger.info(f"Deep-dive research complete: {topic} with {len(work_outputs)} outputs")
+
+        return results
+
+    async def monitor(self) -> Dict[str, Any]:
+        """
+        Execute continuous monitoring across all configured domains.
+
+        NOT IMPLEMENTED in Phase 2a (focus on deep_dive for now).
+        Will be added in Phase 2b for scheduled execution.
+
+        Raises:
+            NotImplementedError: Always (not yet implemented)
+        """
+        raise NotImplementedError(
+            "monitor() will be implemented in Phase 2b (scheduled execution). "
+            "Use deep_dive() for on-demand research."
+        )
+
+
+# ============================================================================
+# Convenience Functions
+# ============================================================================
+
+def create_research_agent_sdk(
+    basket_id: str,
+    workspace_id: str,
+    work_ticket_id: str,
+    **kwargs
+) -> ResearchAgentSDK:
+    """
+    Convenience factory function for creating ResearchAgentSDK.
+
+    Args:
+        basket_id: Basket ID for substrate queries
+        workspace_id: Workspace ID for authorization
+        work_ticket_id: Work ticket ID for output tracking
+        **kwargs: Additional arguments for ResearchAgentSDK
+
+    Returns:
+        Configured ResearchAgentSDK instance
+    """
+    return ResearchAgentSDK(
+        basket_id=basket_id,
+        workspace_id=workspace_id,
+        work_ticket_id=work_ticket_id,
+        **kwargs
+    )

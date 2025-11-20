@@ -17,18 +17,14 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
-from agents_sdk.thinking_partner import ThinkingPartnerAgent, create_thinking_partner  # LEGACY
-from agents_sdk.thinking_partner_sdk import ThinkingPartnerAgentSDK, create_thinking_partner_sdk  # NEW SDK
+from agents_sdk.thinking_partner_sdk import ThinkingPartnerAgentSDK, create_thinking_partner_sdk
 from app.utils.jwt import verify_jwt
 from app.utils.supabase_client import supabase_admin_client
 
 router = APIRouter(prefix="/tp", tags=["thinking-partner"])
 logger = logging.getLogger(__name__)
 
-# Feature flag: Use official Claude Agent SDK with ClaudeSDKClient
-USE_AGENT_SDK = os.getenv("USE_AGENT_SDK", "false").lower() == "true"
-
-logger.info(f"Thinking Partner routes initialized (USE_AGENT_SDK={USE_AGENT_SDK})")
+logger.info("Thinking Partner routes initialized (using official Claude Agent SDK)")
 
 
 async def _get_workspace_id_for_user(user_id: str) -> str:
@@ -189,24 +185,12 @@ async def tp_chat(
         # Validate basket access
         await _validate_basket_access(request.basket_id, workspace_id)
 
-        # Create or resume Thinking Partner (SDK or legacy)
-        if USE_AGENT_SDK:
-            # NEW: Official Claude Agent SDK with session management
-            logger.info("Using Claude Agent SDK (ClaudeSDKClient)")
-            tp = create_thinking_partner_sdk(
-                basket_id=request.basket_id,
-                workspace_id=workspace_id,
-                user_id=user_id
-            )
-        else:
-            # LEGACY: Custom implementation with AsyncAnthropic
-            logger.info("Using legacy ThinkingPartnerAgent")
-            tp = create_thinking_partner(
-                basket_id=request.basket_id,
-                workspace_id=workspace_id,
-                user_id=user_id,
-                claude_session_id=request.claude_session_id
-            )
+        # Create Thinking Partner using official Claude Agent SDK
+        tp = create_thinking_partner_sdk(
+            basket_id=request.basket_id,
+            workspace_id=workspace_id,
+            user_id=user_id
+        )
 
         # Chat with TP
         result = await tp.chat(

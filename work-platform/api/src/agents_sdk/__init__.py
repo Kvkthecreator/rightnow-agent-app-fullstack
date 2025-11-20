@@ -15,11 +15,13 @@ Agents:
 - ReportingAgentSDK: Report generation agent (Phase 2c)
 """
 
-from .research_agent import (
+from .research_agent_sdk import (
     ResearchAgentSDK,
     create_research_agent_sdk,
 )
 
+# TODO: Migrate Content and Reporting agents to SDK (Phase 2 follow-up)
+# For now, keep legacy implementations until SDK versions are created
 from .content_agent import (
     ContentAgentSDK,
     create_content_agent_sdk,
