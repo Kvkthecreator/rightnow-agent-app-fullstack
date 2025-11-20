@@ -133,8 +133,8 @@ export interface TPChatRequest {
 
 export interface TPChatResponse {
   message: string;
-  claude_session_id: string;
-  session_id?: string;
+  claude_session_id: string | null;
+  session_id?: string | null;
   work_outputs: WorkOutput[];
   actions_taken: string[];
 }
