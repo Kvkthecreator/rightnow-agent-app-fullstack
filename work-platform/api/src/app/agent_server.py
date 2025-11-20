@@ -117,6 +117,7 @@ app.add_middleware(
         "/", "/health", "/health/db", "/docs", "/openapi.json", "/favicon.ico", "/robots.txt", "/index.html",
         "/api/agents/p4-composition",
         "/api/mcp/auth/sessions/validate",  # MCP session validation (no JWT required)
+        "/api/tp/capabilities",  # TP capabilities endpoint (public, no auth needed)
     },
     exempt_prefixes={
         "/health",

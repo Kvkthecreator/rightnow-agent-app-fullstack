@@ -60,7 +60,7 @@ async def _validate_basket_access(
     workspace_id: str
 ) -> None:
     """
-    Validate that basket belongs to workspace.
+    Validate that basket belongs to workspace via projects table.
 
     Args:
         basket_id: Basket ID
@@ -69,18 +69,20 @@ async def _validate_basket_access(
     Raises:
         HTTPException: If basket not found or doesn't belong to workspace
     """
-    response = supabase_admin_client.table("baskets").select("id").eq(
-        "id", basket_id
-    ).eq("workspace_id", workspace_id).execute()
+    # Query projects table (work-platform DB) instead of baskets table (substrate-API DB)
+    # Projects table has basket_id and workspace_id for validation
+    response = supabase_admin_client.table("projects").select("id").eq(
+        "basket_id", basket_id
+    ).eq("workspace_id", workspace_id).limit(1).execute()
 
-    if not response.data:
-        logger.error(f"Basket {basket_id} not found in workspace {workspace_id}")
+    if not response.data or len(response.data) == 0:
+        logger.error(f"No project found with basket {basket_id} in workspace {workspace_id}")
         raise HTTPException(
             status_code=404,
             detail="Basket not found or access denied"
         )
 
-    logger.debug(f"Validated basket {basket_id} belongs to workspace {workspace_id}")
+    logger.debug(f"Validated basket {basket_id} belongs to workspace {workspace_id} via project {response.data[0]['id']}")
 
 
 # ============================================================================
