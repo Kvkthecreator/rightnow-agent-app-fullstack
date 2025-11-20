@@ -1,38 +1,44 @@
 """
-Agent SDK - Internalized Claude Agent SDK for YARNNN
+Agent SDK - Official Anthropic Claude Agent SDK Integration for YARNNN
 
-Phase 2c: All agents refactored to SDK patterns with BFF integration.
+ALL AGENTS NOW USE OFFICIAL CLAUDE AGENT SDK (claude-agent-sdk>=0.1.8)
 
 This package contains SDK-based agents that use:
-- SubstrateMemoryAdapter (BFF pattern, not YarnnnMemory)
-- Skills loaded from .claude/skills/
-- Prompts extracted to module-level constants
-- BaseAgent from yarnnn_agents scaffold
+- ClaudeSDKClient for session management and conversation continuity
+- Native subagents via ClaudeAgentOptions.agents parameter
+- Skills integration via setting_sources parameter
+- SubstrateMemoryAdapter (BFF pattern for knowledge base access)
+- Structured outputs via emit_work_output tool
 
-Agents:
-- ResearchAgentSDK: Research and monitoring agent (Phase 2a+2b)
-- ContentAgentSDK: Content creation agent (Phase 2c)
-- ReportingAgentSDK: Report generation agent (Phase 2c)
+Agents (ALL using official SDK):
+- ThinkingPartnerAgentSDK: Multi-agent orchestration gateway
+- ResearchAgentSDK: Intelligence gathering with web search
+- ContentAgentSDK: Creative text generation with platform specialists
+- ReportingAgentSDK: Professional file generation with Skills
 """
+
+from .thinking_partner_sdk import (
+    ThinkingPartnerAgentSDK,
+)
 
 from .research_agent_sdk import (
     ResearchAgentSDK,
     create_research_agent_sdk,
 )
 
-# TODO: Migrate Content and Reporting agents to SDK (Phase 2 follow-up)
-# For now, keep legacy implementations until SDK versions are created
-from .content_agent import (
+from .content_agent_sdk import (
     ContentAgentSDK,
     create_content_agent_sdk,
 )
 
-from .reporting_agent import (
+from .reporting_agent_sdk import (
     ReportingAgentSDK,
     create_reporting_agent_sdk,
 )
 
 __all__ = [
+    # Thinking Partner
+    "ThinkingPartnerAgentSDK",
     # Research Agent
     "ResearchAgentSDK",
     "create_research_agent_sdk",
@@ -44,4 +50,4 @@ __all__ = [
     "create_reporting_agent_sdk",
 ]
 
-__version__ = "2.1.0-all-agents"
+__version__ = "3.0.0-official-sdk"
