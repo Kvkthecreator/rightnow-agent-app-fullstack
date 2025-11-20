@@ -33,7 +33,7 @@ from uuid import uuid4
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
 from adapters.memory_adapter import SubstrateMemoryAdapter
-from yarnnn_agents.tools import EMIT_WORK_OUTPUT_TOOL, parse_work_outputs_from_response
+from agents_sdk.shared_tools_mcp import create_shared_tools_server
 from yarnnn_agents.session import AgentSession
 
 logger = logging.getLogger(__name__)
@@ -154,13 +154,23 @@ class ResearchAgentSDK:
             user_id=workspace_id  # Use workspace_id as user_id for now
         )
 
-        # Build Claude SDK options with tools
+        # Create MCP server for emit_work_output tool with context baked in
+        shared_tools = create_shared_tools_server(
+            basket_id=basket_id,
+            work_ticket_id=work_ticket_id,
+            agent_type="research"
+        )
+
+        # Build Claude SDK options with MCP server
+        # NOTE: Official SDK v0.1.8+ does NOT have 'tools' parameter
+        # Must use mcp_servers + allowed_tools pattern
         self._options = ClaudeAgentOptions(
             model=self.model,
             system_prompt=self._build_system_prompt(),
-            tools=[
-                EMIT_WORK_OUTPUT_TOOL,  # Custom tool for structured outputs
-                {"type": "web_search_20250305", "name": "web_search"}  # Web search server tool
+            mcp_servers={"shared_tools": shared_tools},
+            allowed_tools=[
+                "mcp__shared_tools__emit_work_output",  # Custom tool for structured outputs
+                "web_search"  # Built-in web search
             ],
             max_tokens=8000,  # Longer for research deep dives
         )

@@ -35,7 +35,7 @@ from datetime import datetime
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AgentDefinition
 
 from adapters.memory_adapter import SubstrateMemoryAdapter
-from yarnnn_agents.tools import EMIT_WORK_OUTPUT_TOOL, parse_work_outputs_from_response
+from agents_sdk.shared_tools_mcp import create_shared_tools_server
 from yarnnn_agents.session import AgentSession
 
 logger = logging.getLogger(__name__)
@@ -318,12 +318,22 @@ class ContentAgentSDK:
         if "instagram" in self.enabled_platforms:
             subagents["instagram_specialist"] = INSTAGRAM_SPECIALIST
 
-        # Build Claude SDK options with subagents and tools
+        # Create MCP server for emit_work_output tool with context baked in
+        shared_tools = create_shared_tools_server(
+            basket_id=basket_id,
+            work_ticket_id=work_ticket_id,
+            agent_type="content"
+        )
+
+        # Build Claude SDK options with subagents and MCP server
+        # NOTE: Official SDK v0.1.8+ does NOT have 'tools' parameter
+        # Must use mcp_servers + allowed_tools pattern
         self._options = ClaudeAgentOptions(
             model=self.model,
             system_prompt=self._build_system_prompt(),
             agents=subagents,  # Native subagents!
-            tools=[EMIT_WORK_OUTPUT_TOOL],
+            mcp_servers={"shared_tools": shared_tools},
+            allowed_tools=["mcp__shared_tools__emit_work_output"],
             max_tokens=4096,  # Text content only
         )
 
