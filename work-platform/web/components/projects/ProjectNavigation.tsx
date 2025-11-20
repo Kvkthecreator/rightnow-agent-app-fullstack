@@ -11,8 +11,8 @@ interface ProjectNavigationProps {
 
 const tabs = [
   {
-    name: 'Overview',
-    href: '/overview',
+    name: 'Chat',
+    href: '',  // Root project page is now TP chat
     icon: LayoutDashboard,
   },
   {
@@ -41,7 +41,10 @@ export function ProjectNavigation({ projectId }: ProjectNavigationProps) {
         <nav className="flex space-x-8" aria-label="Project navigation">
           {tabs.map((tab) => {
             const href = `/projects/${projectId}${tab.href}`;
-            const isActive = pathname === href || pathname.startsWith(href + '/');
+            // Special handling for Chat tab (root): active only if exactly at project root
+            const isActive = tab.href === ''
+              ? pathname === `/projects/${projectId}`
+              : pathname === href || pathname.startsWith(href + '/');
             const Icon = tab.icon;
 
             return (
