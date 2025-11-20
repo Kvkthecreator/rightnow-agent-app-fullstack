@@ -263,6 +263,7 @@ class BaseAgent(ABC):
         context: Optional[str] = None,
         system_prompt: Optional[str] = None,
         tools: Optional[List[Dict[str, Any]]] = None,
+        container: Optional[Dict[str, Any]] = None,
         max_tokens: int = 4096,
         resume_session: bool = False
     ) -> Any:
@@ -274,6 +275,7 @@ class BaseAgent(ABC):
             context: Additional context (e.g., from memory)
             system_prompt: Custom system prompt
             tools: Tools to provide to Claude
+            container: Container configuration (e.g., {"skills": [...]}) for Skills API
             max_tokens: Maximum response tokens
             resume_session: Whether to resume previous Claude session
 
@@ -313,6 +315,10 @@ class BaseAgent(ABC):
                 }
                 for tool in tools
             ]
+
+        # Add container for Skills API
+        if container:
+            request_params["container"] = container
 
         # Add session resumption if requested
         if resume_session and self._claude_ticket_id:

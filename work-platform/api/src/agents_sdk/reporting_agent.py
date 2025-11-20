@@ -30,13 +30,14 @@ logger = logging.getLogger(__name__)
 # PROMPTS (Module-level constants for Skills extraction in future)
 # ============================================================================
 
-REPORTING_AGENT_SYSTEM_PROMPT = """You are a professional reporting and analytics specialist.
+REPORTING_AGENT_SYSTEM_PROMPT = """You are a professional reporting and analytics specialist with file generation capabilities.
 
 Your core capabilities:
 - Generate professional reports from data and analysis
 - Create executive summaries and insights
-- Format content for business deliverables (PDF, XLSX, PPT)
+- Generate professional FILE deliverables (PDF, XLSX, PPTX, DOCX)
 - Synthesize complex information into actionable insights
+- Create data visualizations and charts
 
 Report Types:
 - **Executive Summary**: High-level overview with key takeaways
@@ -44,21 +45,39 @@ Report Types:
 - **Research Report**: Detailed findings with supporting data
 - **Status Update**: Progress tracking and milestone reporting
 
-Output Formats:
-- **PDF**: Professional reports with sections and formatting
-- **XLSX**: Data tables, charts, pivot analysis
-- **PPT**: Presentation slides with visual storytelling
-- **Markdown**: Structured documents for web/wiki
+Output Formats & Skills:
+- **PDF**: Professional reports with sections, formatting (use pdf skill)
+- **XLSX**: Data tables, charts, pivot analysis, dashboards (use xlsx skill)
+- **PPTX**: Presentation slides with visual storytelling (use pptx skill)
+- **DOCX**: Formatted documents with headers, tables (use docx skill)
+- **Markdown**: Structured documents for web/wiki (TEXT only, no skill needed)
+
+**IMPORTANT - File Generation**:
+When generating PDF, XLSX, PPTX, or DOCX:
+1. Use the appropriate Claude Skill for the format
+2. Create professional, well-structured content
+3. Include charts, tables, and visualizations where appropriate
+4. Emit work_output with file_id, format, and metadata
+5. For data analysis, use code_execution tool for calculations/charts
+
+When generating Markdown:
+1. Return formatted TEXT (no Skills needed)
+2. Use headers, lists, tables, code blocks
+3. Emit work_output with markdown content in body
 
 Quality Standards:
 - Clear, concise language
 - Data-driven insights
-- Professional formatting
+- Professional formatting (especially for files)
 - Actionable recommendations
 - Executive-friendly summaries
+- Visual aids (charts, tables) for data
 
-You have access to the substrate (data, templates, past reports) via memory.
-Use emit_work_output to save generated reports for approval.
+You have access to:
+- Substrate (data, templates, past reports) via memory
+- Claude Skills (pdf, xlsx, pptx, docx) for file generation
+- code_execution for data processing and chart generation
+- emit_work_output to save generated reports for approval
 """
 
 REPORT_GENERATION_USER_PROMPT_TEMPLATE = """Generate a {report_type} report in {format} format.
@@ -206,7 +225,6 @@ class ReportingAgentSDK(BaseAgent):
             anthropic_api_key=anthropic_api_key,
             model=model,
             system_prompt=system_prompt,
-            tools=[EMIT_WORK_OUTPUT_TOOL],
         )
 
         logger.info(
@@ -302,8 +320,46 @@ class ReportingAgentSDK(BaseAgent):
             requirements=requirements or "Standard professional quality"
         )
 
-        # Execute with Claude (BaseAgent handles memory context injection)
-        response = await self.execute_with_context(user_prompt)
+        # Query memory for templates and past reports
+        context = None
+        source_block_ids = []
+        if self.memory:
+            memory_results = await self.memory.query(
+                f"report templates for {report_type} in {format} format",
+                limit=5
+            )
+            context = "\n".join([r.content for r in memory_results])
+            source_block_ids = [
+                str(r.metadata.get("block_id", r.metadata.get("id", "")))
+                for r in memory_results
+                if hasattr(r, "metadata") and r.metadata
+            ]
+            source_block_ids = [bid for bid in source_block_ids if bid]
+
+        # Build tools - add code_execution for data processing and Skills for files
+        from yarnnn_agents.utils.skills_helper import get_skills_for_formats
+
+        tools = [
+            EMIT_WORK_OUTPUT_TOOL,
+            {"type": "code_execution_20250825", "name": "code_execution"}
+        ]
+
+        # Add Skills container for file generation (only for file formats)
+        container = None
+        if format in ["pdf", "xlsx", "pptx", "docx"]:
+            container = {
+                "skills": get_skills_for_formats([format])
+            }
+            logger.info(f"Skills enabled for {format} file generation")
+
+        # Call Claude with reason()
+        response = await self.reason(
+            task=user_prompt,
+            context=context,
+            tools=tools,
+            container=container,  # Skills for file formats
+            max_tokens=8000  # Reports can be longer than content
+        )
 
         # Parse work outputs from response
         work_outputs = parse_work_outputs_from_response(response)
@@ -314,7 +370,8 @@ class ReportingAgentSDK(BaseAgent):
 
         return {
             "report": response.content[0].text if response.content else "",
-            "work_outputs": [wo.model_dump() for wo in work_outputs],
+            "work_outputs": [wo.to_dict() for wo in work_outputs],
+            "source_block_ids": source_block_ids,
             "report_type": report_type,
             "format": format,
             "topic": topic,
