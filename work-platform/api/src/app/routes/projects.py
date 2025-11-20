@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.utils.jwt import verify_jwt
-from app.routes.agent_orchestration import _get_workspace_id_for_user
+from app.routes.work_orchestration import _get_workspace_id_for_user
 from services.project_scaffolder import (
     scaffold_new_project,
     ProjectScaffoldingError,
