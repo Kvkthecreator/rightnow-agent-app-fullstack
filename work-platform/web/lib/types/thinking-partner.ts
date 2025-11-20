@@ -158,6 +158,6 @@ export interface ChatState {
   messages: TPMessage[];
   isLoading: boolean;
   error?: string;
-  sessionId?: string;
-  claudeSessionId?: string;
+  sessionId?: string | null;
+  claudeSessionId?: string | null;
 }
