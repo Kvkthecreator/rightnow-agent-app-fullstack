@@ -281,19 +281,52 @@ Please conduct thorough research and synthesis, emitting structured outputs for 
                 # Send query
                 await client.query(research_prompt)
 
-                # Collect responses
+                # Collect responses and parse tool results
                 async for message in client.receive_response():
-                    if hasattr(message, 'content') and message.content:
-                        for content_block in message.content:
-                            if hasattr(content_block, 'text'):
-                                response_text += content_block.text
+                    logger.debug(f"SDK message type: {type(message).__name__}")
+
+                    # Process content blocks
+                    if hasattr(message, 'content') and isinstance(message.content, list):
+                        for block in message.content:
+                            if not hasattr(block, 'type'):
+                                continue
+
+                            block_type = block.type
+                            logger.debug(f"SDK block type: {block_type}")
+
+                            # Text blocks
+                            if block_type == 'text' and hasattr(block, 'text'):
+                                response_text += block.text
+
+                            # Tool result blocks (extract work outputs)
+                            elif block_type == 'tool_result':
+                                tool_name = getattr(block, 'tool_name', '')
+                                logger.debug(f"Tool result from: {tool_name}")
+
+                                if tool_name == 'emit_work_output':
+                                    try:
+                                        result_content = getattr(block, 'content', None)
+                                        if result_content:
+                                            import json
+                                            if isinstance(result_content, str):
+                                                output_data = json.loads(result_content)
+                                            else:
+                                                output_data = result_content
+
+                                            # Convert to WorkOutput object if needed
+                                            from yarnnn_agents.tools import WorkOutput
+                                            if isinstance(output_data, dict):
+                                                work_output = WorkOutput(**output_data)
+                                            else:
+                                                work_output = output_data
+                                            work_outputs.append(work_output)
+                                            logger.info(f"Captured work output: {output_data.get('title', 'untitled')}")
+                                    except Exception as e:
+                                        logger.error(f"Failed to parse work output: {e}", exc_info=True)
 
                 # Get session ID from client
                 new_session_id = getattr(client, 'session_id', None)
-
-                # Parse work outputs from response
-                # Note: SDK client returns different message format, need to adapt
-                work_outputs = parse_work_outputs_from_response(message) if hasattr(message, 'content') else []
+                logger.debug(f"Session ID retrieved: {new_session_id}")
 
         except Exception as e:
             logger.error(f"Research deep_dive failed: {e}")

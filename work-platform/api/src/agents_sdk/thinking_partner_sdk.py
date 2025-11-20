@@ -417,33 +417,64 @@ Examples:
             work_outputs = []
 
             async for message in client.receive_response():
+                logger.debug(f"SDK message type: {type(message).__name__}")
+
                 # Extract text content
                 if hasattr(message, 'text'):
                     response_text += message.text
 
-                # Track tool uses
-                if hasattr(message, 'content'):
+                # Process content blocks (text, tool_use, tool_result)
+                if hasattr(message, 'content') and isinstance(message.content, list):
                     for block in message.content:
-                        if hasattr(block, 'type') and block.type == 'tool_use':
+                        if not hasattr(block, 'type'):
+                            continue
+
+                        block_type = block.type
+                        logger.debug(f"SDK block type: {block_type}")
+
+                        # Text blocks
+                        if block_type == 'text' and hasattr(block, 'text'):
+                            response_text += block.text
+
+                        # Tool use blocks (for tracking)
+                        elif block_type == 'tool_use':
                             tool_name = getattr(block, 'name', 'unknown')
                             actions_taken.append(f"Used tool: {tool_name}")
+                            logger.info(f"TP used tool: {tool_name}")
 
-                            # Handle emit_work_output
+                        # Tool result blocks (CRITICAL - extract work outputs)
+                        elif block_type == 'tool_result':
+                            tool_name = getattr(block, 'tool_name', '')
+                            logger.debug(f"Tool result from: {tool_name}")
+
                             if tool_name == 'emit_work_output':
-                                # Parse work output from tool call
-                                # (SDK will handle tool execution)
-                                logger.info("TP emitted work output")
+                                try:
+                                    result_content = getattr(block, 'content', None)
+                                    if result_content:
+                                        # Parse work output from tool result
+                                        import json
+                                        if isinstance(result_content, str):
+                                            output_data = json.loads(result_content)
+                                        else:
+                                            output_data = result_content
+
+                                        work_outputs.append(output_data)
+                                        logger.info(f"Captured work output: {output_data.get('title', 'untitled')}")
+                                except Exception as e:
+                                    logger.error(f"Failed to parse work output: {e}", exc_info=True)
 
             # Get session ID from client
             new_session_id = getattr(client, 'session_id', None)
+            logger.debug(f"Session ID retrieved: {new_session_id}")
 
-            # Parse work outputs from response
-            # (This extracts structured outputs from tool calls)
-            work_outputs = []  # TODO: Extract from SDK tool results
+            # Persist session ID to database for resumption
+            if new_session_id and self.current_session:
+                self.current_session.update_claude_session(new_session_id)
+                logger.info(f"Stored Claude session: {new_session_id}")
 
             result = {
                 "message": response_text or "Processing...",
-                "claude_session_id": new_session_id,  # Now actually works!
+                "claude_session_id": new_session_id,
                 "session_id": self.current_session.id if self.current_session else None,
                 "work_outputs": work_outputs,
                 "actions_taken": actions_taken,

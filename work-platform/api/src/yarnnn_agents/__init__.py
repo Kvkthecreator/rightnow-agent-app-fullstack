@@ -1,19 +1,14 @@
 """
-YARNNN Agent Framework - Internalized Claude Agent SDK
+YARNNN Agent Framework - Minimal Support for Claude Agent SDK
 
-This is an internalized version of the Claude Agent SDK scaffolding,
-customized for YARNNN's work-platform. Provides agent archetypes,
-session management, and provider interfaces.
+Provides essential utilities for agents using the official Claude Agent SDK:
+- AgentSession: Session and work ticket tracking
+- MemoryProvider, GovernanceProvider, TaskProvider: Interface definitions
+- EMIT_WORK_OUTPUT_TOOL: Tool for structured outputs
+- WorkOutput: Data model for agent deliverables
 
-Originally based on: https://github.com/Kvkthecreator/claude-agentsdk-opensource
-Now maintained as part of work-platform backend.
-
-Key Components:
-- BaseAgent: Foundation for all agent types
-- ResearchAgent, ContentCreatorAgent, ReportingAgent: Production-ready archetypes
-- MemoryProvider, GovernanceProvider: Pluggable backend interfaces
-- AgentSession: Session and state management
-- SubagentRegistry: Subagent orchestration support
+All production agents now use official Claude Agent SDK (claude-agent-sdk>=0.1.8)
+This package provides supporting infrastructure only.
 """
 
 from .interfaces import (
@@ -27,40 +22,29 @@ from .interfaces import (
     InterruptDecision,
     Change,
 )
-from .base import BaseAgent
 from .session import AgentSession
-from .subagents import SubagentDefinition, SubagentRegistry
-from .archetypes import ResearchAgent, ContentCreatorAgent, ReportingAgent
 from .tools import (
     EMIT_WORK_OUTPUT_TOOL,
     parse_work_outputs_from_response,
     WorkOutput,
 )
 
-__version__ = "1.0.0"  # Internal version, post-internalization
+__version__ = "2.0.0"  # Official Claude SDK era
 
 __all__ = [
-    # Core
-    "BaseAgent",
+    # Session Management
     "AgentSession",
-    # Providers
+    # Provider Interfaces
     "MemoryProvider",
     "GovernanceProvider",
     "TaskProvider",
     "Context",
-    # State
+    # State Types
     "AgentState",
     "StepContext",
     "StepResult",
     "InterruptDecision",
     "Change",
-    # Subagents
-    "SubagentDefinition",
-    "SubagentRegistry",
-    # Archetypes
-    "ResearchAgent",
-    "ContentCreatorAgent",
-    "ReportingAgent",
     # Tools (Work Output Lifecycle)
     "EMIT_WORK_OUTPUT_TOOL",
     "parse_work_outputs_from_response",
