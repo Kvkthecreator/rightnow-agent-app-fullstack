@@ -32,6 +32,7 @@ Usage:
 
 import logging
 import os
+import json
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -482,6 +483,205 @@ Examples:
             }
         }
 
+    async def _execute_work_orchestration(self, tool_input: Dict[str, Any]) -> str:
+        """
+        Execute work_orchestration tool - delegates to specialist agents.
+
+        This is the CRITICAL method that makes TP functional as a gateway.
+        When TP calls work_orchestration tool, this method:
+        1. Creates work_request + work_ticket
+        2. Executes the appropriate specialist agent (ResearchAgentSDK/ContentAgentSDK/ReportingAgentSDK)
+        3. Returns work_outputs for TP to synthesize
+
+        Args:
+            tool_input: {agent_type, task, parameters}
+
+        Returns:
+            JSON string with execution results for Claude to continue reasoning
+        """
+        agent_type = tool_input.get('agent_type')
+        task = tool_input.get('task')
+        parameters = tool_input.get('parameters', {})
+
+        logger.info(f"Executing work_orchestration: agent_type={agent_type}, task={task[:100]}")
+
+        try:
+            # Import work orchestration route handler
+            from app.routes.work_orchestration import run_agent_task
+            from pydantic import BaseModel, Field
+
+            # Build request matching AgentTaskRequest schema
+            class AgentTaskRequest(BaseModel):
+                agent_type: str
+                task_type: str
+                basket_id: str
+                parameters: Dict[str, Any] = Field(default_factory=dict)
+
+            # Map TP's task to task_type for specialist agents
+            task_type = "deep_dive" if agent_type == "research" else "create" if agent_type == "content" else "generate"
+
+            request = AgentTaskRequest(
+                agent_type=agent_type,
+                task_type=task_type,
+                basket_id=self.basket_id,
+                parameters={
+                    "topic": task,  # For research
+                    **parameters  # User-provided parameters
+                }
+            )
+
+            # Create mock user dict for JWT authentication
+            user = {
+                "sub": self.user_id,
+                "user_id": self.user_id
+            }
+
+            # Execute agent via work orchestration endpoint
+            result = await run_agent_task(request, user)
+
+            # Extract work_outputs from result
+            work_outputs = []
+            if hasattr(result, 'result') and result.result:
+                work_outputs = result.result.get('work_outputs', [])
+
+            response = {
+                "status": "success",
+                "agent_type": agent_type,
+                "task": task,
+                "work_outputs_count": len(work_outputs),
+                "work_outputs": work_outputs[:3],  # Return first 3 for context (avoid token limits)
+                "message": f"Agent {agent_type} completed with {len(work_outputs)} outputs"
+            }
+
+            logger.info(f"work_orchestration SUCCESS: {agent_type} produced {len(work_outputs)} outputs")
+            return json.dumps(response)
+
+        except Exception as e:
+            logger.error(f"work_orchestration FAILED: {e}", exc_info=True)
+            return json.dumps({
+                "status": "error",
+                "agent_type": agent_type,
+                "error": str(e),
+                "message": f"Failed to execute {agent_type} agent: {str(e)}"
+            })
+
+    async def _execute_infra_reader(self, tool_input: Dict[str, Any]) -> str:
+        """
+        Execute infra_reader tool - queries work orchestration state.
+
+        Args:
+            tool_input: {query_type, filters}
+
+        Returns:
+            JSON string with query results
+        """
+        query_type = tool_input.get('query_type')
+        filters = tool_input.get('filters', {})
+
+        logger.info(f"Executing infra_reader: query_type={query_type}, filters={filters}")
+
+        try:
+            from app.utils.supabase import supabase_admin
+
+            supabase = supabase_admin()
+            results = []
+
+            if query_type == "recent_work_requests":
+                limit = filters.get('limit', 10)
+                response = supabase.table("work_requests").select(
+                    "id, agent_type, work_mode, status, created_at"
+                ).eq("basket_id", self.basket_id).order(
+                    "created_at", desc=True
+                ).limit(limit).execute()
+                results = response.data
+
+            elif query_type == "work_tickets_by_status":
+                status = filters.get('status', 'completed')
+                response = supabase.table("work_tickets").select(
+                    "id, task_type, status, started_at, ended_at"
+                ).eq("basket_id", self.basket_id).eq("status", status).limit(10).execute()
+                results = response.data
+
+            elif query_type == "agent_sessions":
+                response = supabase.table("agent_sessions").select(
+                    "id, agent_type, last_active_at, created_at"
+                ).eq("basket_id", self.basket_id).execute()
+                results = response.data
+
+            return json.dumps({
+                "status": "success",
+                "query_type": query_type,
+                "results_count": len(results),
+                "results": results[:5]  # Limit to avoid token overflow
+            })
+
+        except Exception as e:
+            logger.error(f"infra_reader FAILED: {e}", exc_info=True)
+            return json.dumps({
+                "status": "error",
+                "query_type": query_type,
+                "error": str(e)
+            })
+
+    async def _execute_steps_planner(self, tool_input: Dict[str, Any]) -> str:
+        """
+        Execute steps_planner tool - plans multi-step workflows.
+
+        Uses Claude to generate execution plan.
+
+        Args:
+            tool_input: {user_request, existing_context}
+
+        Returns:
+            JSON string with execution plan
+        """
+        user_request = tool_input.get('user_request')
+        existing_context = tool_input.get('existing_context', '')
+
+        logger.info(f"Executing steps_planner: request={user_request[:100]}")
+
+        try:
+            # Use Claude to generate plan
+            planning_prompt = f"""Given this user request:
+"{user_request}"
+
+Existing context:
+{existing_context}
+
+Create a structured execution plan with steps, agents, and dependencies.
+
+Return JSON format:
+{{
+  "steps": [
+    {{"step_num": 1, "agent": "research", "task": "...", "dependencies": []}},
+    {{"step_num": 2, "agent": "content", "task": "...", "dependencies": [1]}}
+  ]
+}}"""
+
+            from anthropic import AsyncAnthropic
+            client = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+            response = await client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=2000,
+                messages=[{"role": "user", "content": planning_prompt}]
+            )
+
+            plan_text = response.content[0].text
+
+            return json.dumps({
+                "status": "success",
+                "user_request": user_request,
+                "plan": plan_text
+            })
+
+        except Exception as e:
+            logger.error(f"steps_planner FAILED: {e}", exc_info=True)
+            return json.dumps({
+                "status": "error",
+                "error": str(e)
+            })
+
     async def chat(
         self,
         user_message: str,
@@ -571,11 +771,36 @@ Examples:
                         if block_type == 'text' and hasattr(block, 'text'):
                             response_text += block.text
 
-                        # Tool use blocks (for tracking)
+                        # Tool use blocks - EXECUTE CUSTOM TOOLS
                         elif block_type == 'tool_use':
                             tool_name = getattr(block, 'name', 'unknown')
+                            tool_input = getattr(block, 'input', {})
+                            tool_id = getattr(block, 'id', None)
+
                             actions_taken.append(f"Used tool: {tool_name}")
-                            logger.info(f"TP used tool: {tool_name}")
+                            logger.info(f"TP used tool: {tool_name} with input: {tool_input}")
+
+                            # Execute custom tools that require server-side logic
+                            tool_result_content = None
+                            try:
+                                if tool_name == 'work_orchestration':
+                                    tool_result_content = await self._execute_work_orchestration(tool_input)
+                                elif tool_name == 'infra_reader':
+                                    tool_result_content = await self._execute_infra_reader(tool_input)
+                                elif tool_name == 'steps_planner':
+                                    tool_result_content = await self._execute_steps_planner(tool_input)
+                                # emit_work_output is handled automatically by SDK
+
+                                # If we executed a custom tool, continue conversation with result
+                                if tool_result_content:
+                                    logger.info(f"Tool {tool_name} executed successfully")
+                                    # Continue agentic loop by querying with tool result
+                                    await client.query(f"Tool result for {tool_name}: {tool_result_content}")
+
+                            except Exception as e:
+                                logger.error(f"Tool {tool_name} execution failed: {e}", exc_info=True)
+                                error_result = json.dumps({"error": str(e), "status": "failed"})
+                                await client.query(f"Tool result for {tool_name}: {error_result}")
 
                         # Tool result blocks (CRITICAL - extract work outputs)
                         elif block_type == 'tool_result':
