@@ -315,14 +315,6 @@ class ThinkingPartnerAgentSDK:
 
     def _build_options(self) -> ClaudeAgentOptions:
         """Build ClaudeAgentOptions with tools, subagents, and configuration."""
-        # Build tools for work orchestration
-        tools = [
-            self._create_work_orchestration_tool(),
-            self._create_infra_reader_tool(),
-            self._create_steps_planner_tool(),
-            EMIT_WORK_OUTPUT_TOOL,
-        ]
-
         # Build specialist subagents for quick read-only queries
         subagents = {
             "research_specialist": RESEARCH_SPECIALIST,
@@ -330,11 +322,13 @@ class ThinkingPartnerAgentSDK:
             "reporting_specialist": REPORTING_SPECIALIST,
         }
 
+        # TEMPORARY: Only use emit_work_output tool until we implement MCP server
+        # Custom tools (work_orchestration, infra_reader, steps_planner) need MCP server pattern
         return ClaudeAgentOptions(
             model=self.model,
             system_prompt=self._get_system_prompt(),
             agents=subagents,  # Native subagents for quick queries!
-            tools=tools,       # work_orchestration tool for tracked work!
+            tools=[EMIT_WORK_OUTPUT_TOOL],  # Only built-in tool for now
             max_tokens=4096,
         )
 
