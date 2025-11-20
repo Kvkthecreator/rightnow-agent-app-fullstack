@@ -33,9 +33,9 @@ COPY . .
 # Add /app/src to PYTHONPATH so yarnnn_agents can be imported
 ENV PYTHONPATH="/app/src:${PYTHONPATH}"
 
-# Expose port
+# Expose port (Render will set PORT env var)
 EXPOSE 10000
 
 # Start application
-# Note: This matches the startCommand in render.yaml
-CMD ["uvicorn", "src.app.agent_server:app", "--host", "0.0.0.0", "--port", "10000", "--log-level", "debug"]
+# Use PORT env var from Render, fallback to 10000 for local dev
+CMD uvicorn src.app.agent_server:app --host 0.0.0.0 --port ${PORT:-10000} --log-level debug
