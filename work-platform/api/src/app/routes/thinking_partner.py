@@ -107,7 +107,7 @@ class WorkOutputSummary(BaseModel):
 class TPChatResponse(BaseModel):
     """Response from Thinking Partner chat."""
     message: str = Field(..., description="TP's response message")
-    claude_session_id: str = Field(..., description="Claude session ID for resumption")
+    claude_session_id: Optional[str] = Field(None, description="Claude session ID for resumption")
     session_id: Optional[str] = Field(None, description="AgentSession ID")
     work_outputs: List[Dict[str, Any]] = Field(default_factory=list, description="Work outputs emitted by TP")
     actions_taken: List[str] = Field(default_factory=list, description="Actions TP performed")
