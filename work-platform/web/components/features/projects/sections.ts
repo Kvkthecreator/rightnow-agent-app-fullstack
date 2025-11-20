@@ -4,11 +4,11 @@
  */
 
 import {
-  LayoutDashboard,
+  MessageSquare,
   Layers,
   Clock,
-  FileText,
   Settings,
+  LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,6 +21,13 @@ export type ProjectSection = {
 };
 
 export const PROJECT_SECTIONS: ProjectSection[] = [
+  {
+    key: "chat",
+    label: "Chat",
+    icon: MessageSquare,
+    href: (id) => `/projects/${id}`,
+    description: "Thinking Partner - orchestrate research, content, and reports",
+  },
   {
     key: "overview",
     label: "Overview",
