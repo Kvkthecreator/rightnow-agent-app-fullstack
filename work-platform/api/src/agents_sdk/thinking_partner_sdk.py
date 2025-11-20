@@ -322,13 +322,13 @@ class ThinkingPartnerAgentSDK:
             "reporting_specialist": REPORTING_SPECIALIST,
         }
 
-        # TEMPORARY: Only use emit_work_output tool until we implement MCP server
-        # Custom tools (work_orchestration, infra_reader, steps_planner) need MCP server pattern
+        # NOTE: ClaudeAgentOptions does NOT have a 'tools' parameter in official SDK v0.1.8+
+        # Tools must be registered via mcp_servers parameter with @tool decorator
+        # For now, TP works with native subagents only (no custom tools)
         return ClaudeAgentOptions(
             model=self.model,
             system_prompt=self._get_system_prompt(),
             agents=subagents,  # Native subagents for quick queries!
-            tools=[EMIT_WORK_OUTPUT_TOOL],  # Only built-in tool for now
             max_tokens=4096,
         )
 
