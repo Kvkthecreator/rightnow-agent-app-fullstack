@@ -13,7 +13,7 @@
 import { useState } from 'react';
 import { TPChatInterface } from '@/components/thinking/TPChatInterface';
 import { LiveContextPane } from '@/components/thinking/LiveContextPane';
-import { TPPhase } from '@/lib/types/thinking-partner';
+import type { TPPhase } from '@/lib/types/thinking-partner';
 
 interface TPChatPageProps {
   projectId: string;

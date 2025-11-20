@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { TPPhase, TPState } from '@/lib/types/thinking-partner';
+import type { TPPhase, TPState } from '@/lib/types/thinking-partner';
 import { cn } from '@/lib/utils';
 import {
   Brain,

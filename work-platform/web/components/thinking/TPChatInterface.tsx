@@ -12,7 +12,7 @@ import { Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
 import { cn } from '@/lib/utils';
-import { TPMessage, ChatState } from '@/lib/types/thinking-partner';
+import type { TPMessage, ChatState } from '@/lib/types/thinking-partner';
 import { ThinkingPartnerGateway } from '@/lib/gateway/ThinkingPartnerGateway';
 import { TPMessageList } from './TPMessageList';
 

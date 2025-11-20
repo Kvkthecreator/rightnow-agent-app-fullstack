@@ -5,8 +5,8 @@
  * Handles API calls, session management, and real-time updates.
  */
 
-import { RealtimeChannel } from '@supabase/supabase-js';
-import {
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import type {
   TPChatRequest,
   TPChatResponse,
   TPSession,

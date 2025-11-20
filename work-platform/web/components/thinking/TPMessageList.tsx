@@ -7,7 +7,7 @@
  * Supports markdown rendering, actions taken, and work outputs.
  */
 
-import { TPMessage } from '@/lib/types/thinking-partner';
+import type { TPMessage } from '@/lib/types/thinking-partner';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, User, Bot } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
