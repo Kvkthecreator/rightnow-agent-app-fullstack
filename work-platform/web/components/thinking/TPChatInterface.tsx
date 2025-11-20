@@ -208,7 +208,6 @@ export function TPChatInterface({
           <Button
             onClick={handleSendMessage}
             disabled={!inputMessage.trim() || chatState.isLoading}
-            size="default"
             className="self-end"
           >
             {chatState.isLoading ? (
