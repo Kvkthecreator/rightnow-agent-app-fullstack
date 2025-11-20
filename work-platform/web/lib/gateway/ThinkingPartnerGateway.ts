@@ -14,6 +14,7 @@ import type {
   TPState,
   WorkTicketStatus,
 } from '@/lib/types/thinking-partner';
+import { fetchWithToken } from '@/lib/fetchWithToken';
 
 /**
  * ThinkingPartnerGateway
@@ -42,11 +43,8 @@ export class ThinkingPartnerGateway {
       claude_session_id: this.claudeSessionId,
     };
 
-    const response = await fetch('/api/tp/chat', {
+    const response = await fetchWithToken('/api/tp/chat', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(request),
     });
 
@@ -74,7 +72,7 @@ export class ThinkingPartnerGateway {
       return null;
     }
 
-    const response = await fetch(`/api/tp/session/${this.sessionId}`);
+    const response = await fetchWithToken(`/api/tp/session/${this.sessionId}`);
 
     if (!response.ok) {
       return null;
