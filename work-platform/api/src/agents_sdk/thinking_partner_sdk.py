@@ -909,8 +909,9 @@ Return JSON format:
 {user_message}"""
 
         # Create SDK client with options
+        # NOTE: api_key comes from ANTHROPIC_API_KEY env var (SDK reads it automatically)
+        # See: https://docs.claude.com/en/docs/agent-sdk/python#environment-setup
         async with ClaudeSDKClient(
-            api_key=self.api_key,
             options=self._options
         ) as client:
             # Connect with initial prompt
