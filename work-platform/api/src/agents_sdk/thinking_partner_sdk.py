@@ -633,6 +633,7 @@ Examples:
         try:
             from clients.substrate_client import SubstrateClient
 
+            logger.debug(f"Staging: Loading substrate blocks for basket={self.basket_id}, has_token={bool(self.user_token)}")
             client = SubstrateClient(user_token=self.user_token)
             blocks = client.get_basket_blocks(
                 basket_id=self.basket_id,
@@ -642,7 +643,7 @@ Examples:
             logger.info(f"Staging: Loaded {len(blocks)} substrate blocks")
             return blocks
         except Exception as e:
-            logger.warning(f"Failed to load substrate blocks: {e}")
+            logger.error(f"Failed to load substrate blocks (basket={self.basket_id}): {e}", exc_info=True)
             return []
 
     async def _load_reference_assets(self, agent_type: str) -> list:
@@ -658,6 +659,7 @@ Examples:
         try:
             from clients.substrate_client import SubstrateClient
 
+            logger.debug(f"Staging: Loading reference assets for basket={self.basket_id}, agent_type={agent_type}")
             client = SubstrateClient(user_token=self.user_token)
             assets = client.get_reference_assets(
                 basket_id=self.basket_id,
@@ -668,7 +670,7 @@ Examples:
             logger.info(f"Staging: Loaded {len(assets)} reference assets for {agent_type}")
             return assets
         except Exception as e:
-            logger.warning(f"Failed to load reference assets: {e}")
+            logger.error(f"Failed to load reference assets (basket={self.basket_id}, agent={agent_type}): {e}", exc_info=True)
             return []
 
     async def _load_agent_config(self, agent_type: str) -> dict:

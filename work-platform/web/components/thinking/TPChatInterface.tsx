@@ -50,20 +50,34 @@ export function TPChatInterface({
       const savedChat = localStorage.getItem(storageKey);
       if (savedChat) {
         const parsed = JSON.parse(savedChat);
-        setChatState((prev) => ({
-          ...prev,
-          messages: parsed.messages || [],
-          sessionId: parsed.sessionId,
-          claudeSessionId: parsed.claudeSessionId,
-        }));
 
-        // Resume session if we have a claude_session_id
-        if (parsed.claudeSessionId && gatewayRef.current) {
-          gatewayRef.current.resumeSession(parsed.claudeSessionId);
+        // Validate parsed data before using
+        if (parsed && typeof parsed === 'object') {
+          setChatState((prev) => ({
+            ...prev,
+            messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+            sessionId: parsed.sessionId || undefined,
+            claudeSessionId: parsed.claudeSessionId || undefined,
+          }));
+
+          // Resume session if we have a valid claude_session_id
+          if (parsed.claudeSessionId && typeof parsed.claudeSessionId === 'string' && gatewayRef.current) {
+            gatewayRef.current.resumeSession(parsed.claudeSessionId);
+          }
+        } else {
+          // Clear corrupted data
+          console.warn('Corrupted chat history detected, clearing...');
+          localStorage.removeItem(storageKey);
         }
       }
     } catch (error) {
       console.error('Failed to load chat history:', error);
+      // Clear corrupted localStorage on parse error
+      try {
+        localStorage.removeItem(storageKey);
+      } catch (e) {
+        console.error('Failed to clear corrupted storage:', e);
+      }
     }
 
     // Cleanup on unmount
