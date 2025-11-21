@@ -303,6 +303,13 @@ class ThinkingPartnerAgentSDK:
         # Track current AgentSession (for work ticket linking)
         self.current_session: Optional[AgentSession] = None
 
+        # Cache for specialist sessions (hierarchical session management)
+        self._specialist_sessions: Dict[str, Optional[AgentSession]] = {
+            "research": None,
+            "content": None,
+            "reporting": None
+        }
+
         # Build agent options
         self._options = self._build_options()
 
@@ -312,6 +319,118 @@ class ThinkingPartnerAgentSDK:
             f"subagents=['research_specialist', 'content_specialist', 'reporting_specialist'], "
             f"tools=['work_orchestration', 'infra_reader', 'steps_planner', 'emit_work_output']"
         )
+
+    async def _load_specialist_sessions(self) -> None:
+        """
+        Load existing specialist sessions for this basket.
+
+        Called after TP session is created to populate _specialist_sessions cache
+        with any existing child sessions.
+
+        This enables TP to resume conversations with specialists across multiple
+        work_requests.
+        """
+        if not self.current_session or not self.current_session.id:
+            logger.warning("Cannot load specialist sessions: TP session not initialized")
+            return
+
+        try:
+            from app.utils.supabase import supabase_admin
+            supabase = supabase_admin()
+
+            # Query for specialist sessions that are children of TP session
+            result = supabase.table("agent_sessions").select("*").eq(
+                "basket_id", self.basket_id
+            ).eq(
+                "parent_session_id", self.current_session.id
+            ).execute()
+
+            # Populate cache
+            for session_data in result.data:
+                agent_type = session_data.get('agent_type')
+                if agent_type in self._specialist_sessions:
+                    self._specialist_sessions[agent_type] = AgentSession(**session_data)
+                    logger.info(
+                        f"Loaded specialist session: {agent_type} "
+                        f"(session_id={session_data['id']})"
+                    )
+
+            logger.info(
+                f"Loaded {len([s for s in self._specialist_sessions.values() if s])} "
+                f"specialist sessions for TP session {self.current_session.id}"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to load specialist sessions: {e}", exc_info=True)
+            # Non-critical error - TP can still create new sessions on-demand
+
+    async def _get_or_create_specialist_session(
+        self,
+        agent_type: str
+    ) -> AgentSession:
+        """
+        Get or create persistent specialist session as child of TP.
+
+        This implements hierarchical session management:
+        - Each specialist (research, content, reporting) has ONE persistent session per basket
+        - Specialist sessions are children of TP session (parent_session_id → TP)
+        - Specialist sessions accumulate conversation history across work_requests
+        - TP grants memory access to specialists when delegating
+
+        Args:
+            agent_type: Specialist agent type ('research', 'content', 'reporting')
+
+        Returns:
+            AgentSession instance for the specialist (loaded from DB or newly created)
+
+        Raises:
+            ValueError: If agent_type not recognized or TP session not initialized
+            RuntimeError: If database operations fail
+        """
+        if agent_type not in self._specialist_sessions:
+            raise ValueError(f"Unknown agent_type: {agent_type}")
+
+        if not self.current_session or not self.current_session.id:
+            raise ValueError("Cannot create specialist session: TP session not initialized")
+
+        # Check cache first
+        if self._specialist_sessions[agent_type]:
+            logger.info(f"Using cached {agent_type} session")
+            return self._specialist_sessions[agent_type]
+
+        # Get or create specialist session
+        try:
+            specialist_session = await AgentSession.get_or_create(
+                basket_id=self.basket_id,
+                workspace_id=self.workspace_id,
+                agent_type=agent_type,
+                user_id=self.user_id
+            )
+
+            # Link to TP as parent if not already linked
+            if not specialist_session.parent_session_id:
+                specialist_session.parent_session_id = self.current_session.id
+                specialist_session.created_by_session_id = self.current_session.id
+                await specialist_session.save()
+                logger.info(
+                    f"Linked {agent_type} session to TP parent: "
+                    f"{specialist_session.id} → {self.current_session.id}"
+                )
+
+            # Cache for future use
+            self._specialist_sessions[agent_type] = specialist_session
+
+            logger.info(
+                f"Got specialist session: {agent_type} "
+                f"(session_id={specialist_session.id}, "
+                f"parent={specialist_session.parent_session_id})"
+            )
+
+            return specialist_session
+
+        except Exception as e:
+            logger.error(f"Failed to get_or_create specialist session: {e}", exc_info=True)
+            raise RuntimeError(f"Specialist session creation failed: {e}") from e
 
     def _build_options(self) -> ClaudeAgentOptions:
         """Build ClaudeAgentOptions with tools, subagents, and configuration."""
@@ -481,11 +600,18 @@ Examples:
         """
         Execute work_orchestration tool - delegates to specialist agents.
 
-        This is the CRITICAL method that makes TP functional as a gateway.
+        This is the CRITICAL method that makes TP functional as a gateway with hierarchical sessions.
         When TP calls work_orchestration tool, this method:
-        1. Creates work_request + work_ticket
-        2. Executes the appropriate specialist agent (ResearchAgentSDK/ContentAgentSDK/ReportingAgentSDK)
-        3. Returns work_outputs for TP to synthesize
+        1. Gets or creates persistent specialist session (child of TP)
+        2. Creates work_request + work_ticket linked to sessions
+        3. Executes the appropriate specialist agent with session + memory
+        4. Returns work_outputs for TP to synthesize
+
+        Hierarchical Session Pattern:
+        - TP session is parent (agent_type="thinking_partner")
+        - Specialist sessions are children (parent_session_id → TP)
+        - Each specialist maintains conversation continuity across work_requests
+        - TP grants memory access to specialists
 
         Args:
             tool_input: {agent_type, task, parameters}
@@ -500,54 +626,104 @@ Examples:
         logger.info(f"Executing work_orchestration: agent_type={agent_type}, task={task[:100]}")
 
         try:
-            # Import work orchestration route handler
-            from app.routes.work_orchestration import run_agent_task
-            from pydantic import BaseModel, Field
+            # Get or create persistent specialist session as child of TP
+            specialist_session = await self._get_or_create_specialist_session(agent_type)
 
-            # Build request matching AgentTaskRequest schema
-            class AgentTaskRequest(BaseModel):
-                agent_type: str
-                task_type: str
-                basket_id: str
-                parameters: Dict[str, Any] = Field(default_factory=dict)
+            # Import specialist agents SDK
+            from agents_sdk import ResearchAgentSDK, ContentAgentSDK, ReportingAgentSDK
+            from work_orchestration import KnowledgeModuleLoader
 
-            # Map TP's task to task_type for specialist agents
-            task_type = "deep_dive" if agent_type == "research" else "create" if agent_type == "content" else "generate"
+            # Create work_ticket for output tracking
+            from app.routes.work_orchestration import _create_work_ticket
 
-            request = AgentTaskRequest(
-                agent_type=agent_type,
-                task_type=task_type,
+            task_intent = f"{agent_type}:{task[:100]}"
+            work_ticket_id = await _create_work_ticket(
                 basket_id=self.basket_id,
-                parameters={
-                    "topic": task,  # For research
-                    **parameters  # User-provided parameters
-                }
+                workspace_id=self.workspace_id,
+                user_id=self.user_id,
+                agent_type=agent_type,
+                task_intent=task_intent
             )
 
-            # Create mock user dict for JWT authentication
-            user = {
-                "sub": self.user_id,
-                "user_id": self.user_id
-            }
+            # Load knowledge modules for specialist
+            km_loader = KnowledgeModuleLoader()
+            knowledge_modules = km_loader.load_for_agent(agent_type)
 
-            # Execute agent via work orchestration endpoint
-            result = await run_agent_task(request, user)
+            # Execute specialist agent with hierarchical session + TP's memory
+            result = None
+
+            if agent_type == "research":
+                agent = ResearchAgentSDK(
+                    basket_id=self.basket_id,
+                    workspace_id=self.workspace_id,
+                    work_ticket_id=work_ticket_id,
+                    knowledge_modules=knowledge_modules,
+                    session=specialist_session,  # Persistent session from TP!
+                    memory=self.memory  # TP grants memory access!
+                )
+                # Execute with session resumption
+                result = await agent.deep_dive(
+                    topic=task,
+                    claude_session_id=specialist_session.sdk_session_id  # Resume conversation!
+                )
+
+            elif agent_type == "content":
+                platform = parameters.get('platform', 'linkedin')
+                content_type = parameters.get('content_type', 'post')
+
+                agent = ContentAgentSDK(
+                    basket_id=self.basket_id,
+                    workspace_id=self.workspace_id,
+                    work_ticket_id=work_ticket_id,
+                    knowledge_modules=knowledge_modules,
+                    session=specialist_session,
+                    memory=self.memory
+                )
+                result = await agent.create(
+                    platform=platform,
+                    topic=task,
+                    content_type=content_type,
+                    claude_session_id=specialist_session.sdk_session_id
+                )
+
+            elif agent_type == "reporting":
+                report_format = parameters.get('format', 'pdf')
+
+                agent = ReportingAgentSDK(
+                    basket_id=self.basket_id,
+                    workspace_id=self.workspace_id,
+                    work_ticket_id=work_ticket_id,
+                    knowledge_modules=knowledge_modules,
+                    session=specialist_session,
+                    memory=self.memory
+                )
+                result = await agent.generate(
+                    report_type=task,
+                    output_format=report_format,
+                    claude_session_id=specialist_session.sdk_session_id
+                )
+
+            else:
+                raise ValueError(f"Unknown agent_type: {agent_type}")
 
             # Extract work_outputs from result
-            work_outputs = []
-            if hasattr(result, 'result') and result.result:
-                work_outputs = result.result.get('work_outputs', [])
+            work_outputs = result.get('work_outputs', [])
 
             response = {
                 "status": "success",
                 "agent_type": agent_type,
                 "task": task,
                 "work_outputs_count": len(work_outputs),
-                "work_outputs": work_outputs[:3],  # Return first 3 for context (avoid token limits)
-                "message": f"Agent {agent_type} completed with {len(work_outputs)} outputs"
+                "work_outputs": work_outputs[:3],  # Return first 3 for context
+                "specialist_session_id": specialist_session.id,
+                "claude_session_id": specialist_session.sdk_session_id,
+                "message": f"Agent {agent_type} completed with {len(work_outputs)} outputs (session persistent)"
             }
 
-            logger.info(f"work_orchestration SUCCESS: {agent_type} produced {len(work_outputs)} outputs")
+            logger.info(
+                f"work_orchestration SUCCESS: {agent_type} produced {len(work_outputs)} outputs "
+                f"(session={specialist_session.id}, parent={specialist_session.parent_session_id})"
+            )
             return json.dumps(response)
 
         except Exception as e:
@@ -703,8 +879,17 @@ Return JSON format:
 
         # Start or resume AgentSession (for work ticket linking)
         if not self.current_session:
-            self.current_session = self._start_session()
-            logger.info(f"Started new AgentSession: {self.current_session.id}")
+            # Use database-backed session management
+            self.current_session = await AgentSession.get_or_create(
+                basket_id=self.basket_id,
+                workspace_id=self.workspace_id,
+                agent_type="thinking_partner",
+                user_id=self.user_id
+            )
+            logger.info(f"Initialized TP session: {self.current_session.id}")
+
+            # Load existing specialist sessions (hierarchical)
+            await self._load_specialist_sessions()
 
         # Query memory for context
         context = None

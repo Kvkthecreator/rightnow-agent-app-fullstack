@@ -262,6 +262,8 @@ class ContentAgentSDK:
         enabled_platforms: Optional[List[str]] = None,
         brand_voice_mode: Literal["adaptive", "strict", "creative"] = "adaptive",
         knowledge_modules: str = "",
+        session: Optional['AgentSession'] = None,
+        memory: Optional['SubstrateMemoryAdapter'] = None,
     ):
         """
         Initialize ContentAgentSDK.
@@ -275,6 +277,8 @@ class ContentAgentSDK:
             enabled_platforms: Platforms to support (default: ["twitter", "linkedin", "blog", "instagram"])
             brand_voice_mode: Voice learning approach
             knowledge_modules: Knowledge modules (procedural knowledge) loaded from orchestration layer
+            session: Optional AgentSession from TP (hierarchical session management)
+            memory: Optional SubstrateMemoryAdapter from TP (TP grants memory access)
         """
         self.basket_id = basket_id
         self.workspace_id = workspace_id
@@ -292,20 +296,26 @@ class ContentAgentSDK:
         self.api_key = anthropic_api_key
         self.model = model
 
-        # Create memory adapter using BFF pattern
-        self.memory = SubstrateMemoryAdapter(
-            basket_id=basket_id,
-            workspace_id=workspace_id
-        )
-        logger.info(f"Created SubstrateMemoryAdapter for basket={basket_id}")
+        # Use provided memory adapter from TP, or create new one
+        if memory:
+            self.memory = memory
+            logger.info(f"Using memory adapter from TP for basket={basket_id}")
+        else:
+            # Standalone mode: create own memory adapter
+            self.memory = SubstrateMemoryAdapter(
+                basket_id=basket_id,
+                workspace_id=workspace_id
+            )
+            logger.info(f"Created SubstrateMemoryAdapter for basket={basket_id}")
 
-        # Create or resume agent session in DB
-        self.current_session = AgentSession.get_or_create(
-            basket_id=basket_id,
-            workspace_id=workspace_id,
-            agent_type="content",
-            user_id=workspace_id  # Use workspace_id as user_id for now
-        )
+        # Use provided session from TP, or will create in async init
+        if session:
+            self.current_session = session
+            logger.info(f"Using session from TP: {session.id} (parent={session.parent_session_id})")
+        else:
+            # Standalone mode: session will be created by async get_or_create in methods
+            self.current_session = None
+            logger.info("Standalone mode: session will be created on first method call")
 
         # Build subagents dict for ClaudeAgentOptions
         subagents = {}

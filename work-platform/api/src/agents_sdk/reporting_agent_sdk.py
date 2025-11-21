@@ -146,6 +146,8 @@ class ReportingAgentSDK:
         model: str = "claude-sonnet-4-5",
         default_format: str = "pdf",
         knowledge_modules: str = "",
+        session: Optional['AgentSession'] = None,
+        memory: Optional['SubstrateMemoryAdapter'] = None,
     ):
         """
         Initialize ReportingAgentSDK.
@@ -158,6 +160,8 @@ class ReportingAgentSDK:
             model: Claude model to use
             default_format: Default output format (pdf, xlsx, pptx, docx, markdown)
             knowledge_modules: Knowledge modules (procedural knowledge) loaded from orchestration layer
+            session: Optional AgentSession from TP (hierarchical session management)
+            memory: Optional SubstrateMemoryAdapter from TP (TP grants memory access)
         """
         self.basket_id = basket_id
         self.workspace_id = workspace_id
@@ -174,20 +178,26 @@ class ReportingAgentSDK:
         self.api_key = anthropic_api_key
         self.model = model
 
-        # Create memory adapter using BFF pattern
-        self.memory = SubstrateMemoryAdapter(
-            basket_id=basket_id,
-            workspace_id=workspace_id
-        )
-        logger.info(f"Created SubstrateMemoryAdapter for basket={basket_id}")
+        # Use provided memory adapter from TP, or create new one
+        if memory:
+            self.memory = memory
+            logger.info(f"Using memory adapter from TP for basket={basket_id}")
+        else:
+            # Standalone mode: create own memory adapter
+            self.memory = SubstrateMemoryAdapter(
+                basket_id=basket_id,
+                workspace_id=workspace_id
+            )
+            logger.info(f"Created SubstrateMemoryAdapter for basket={basket_id}")
 
-        # Create or resume agent session in DB
-        self.current_session = AgentSession.get_or_create(
-            basket_id=basket_id,
-            workspace_id=workspace_id,
-            agent_type="reporting",
-            user_id=workspace_id  # Use workspace_id as user_id for now
-        )
+        # Use provided session from TP, or will create in async init
+        if session:
+            self.current_session = session
+            logger.info(f"Using session from TP: {session.id} (parent={session.parent_session_id})")
+        else:
+            # Standalone mode: session will be created by async get_or_create in methods
+            self.current_session = None
+            logger.info("Standalone mode: session will be created on first method call")
 
         # Create MCP server for emit_work_output tool with context baked in
         shared_tools = create_shared_tools_server(
