@@ -35,7 +35,7 @@ export default async function ProjectsPage() {
   try {
     const { data, error } = await supabase
       .from('work_tickets')
-      .select('id,basket_id,task_type,status,created_at')
+      .select('id,basket_id,agent_type,status,created_at')
       .in('status', ['pending', 'running']);
     if (error) throw error;
     pendingWorkSessions = data ?? [];
@@ -50,7 +50,7 @@ export default async function ProjectsPage() {
     entry.count += 1;
     if (!entry.lastCreatedAt || (session.created_at && session.created_at > entry.lastCreatedAt)) {
       entry.lastCreatedAt = session.created_at ?? entry.lastCreatedAt;
-      entry.taskType = session.task_type ?? entry.taskType;
+      entry.taskType = session.agent_type ?? entry.taskType;
     }
     sessionsByBasket.set(session.basket_id, entry);
   });
