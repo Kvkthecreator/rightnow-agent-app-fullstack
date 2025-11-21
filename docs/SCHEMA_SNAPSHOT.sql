@@ -1,4 +1,4 @@
-\restrict efTVp08cfiKtIApChQncMShAmzph72XC8h4oqERUgclxf9Al7QhLh01Pg5jaUPf
+\restrict 7vcQYpANp8wXVSZbG5ju2H9eklGwM9fdHbZucx1oYWuCvO2Vkio1Eo3nK0yLBYr
 CREATE SCHEMA public;
 CREATE TYPE public.alert_severity AS ENUM (
     'info',
@@ -1298,6 +1298,22 @@ BEGIN
     ORDER BY vc.version DESC;
 END;
 $$;
+CREATE FUNCTION public.get_child_sessions(parent_id uuid) RETURNS TABLE(id uuid, agent_type text, sdk_session_id text, last_active_at timestamp with time zone, created_at timestamp with time zone)
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        s.id,
+        s.agent_type,
+        s.sdk_session_id,
+        s.last_active_at,
+        s.created_at
+    FROM agent_sessions s
+    WHERE s.parent_session_id = parent_id
+    ORDER BY s.created_at ASC;
+END;
+$$;
 CREATE FUNCTION public.get_current_insight_canon(p_basket_id uuid) RETURNS TABLE(id uuid, reflection_text text, substrate_hash text, graph_signature text, derived_from jsonb, created_at timestamp with time zone)
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     AS $$
@@ -1332,6 +1348,40 @@ BEGIN
   WHERE d.basket_id = p_basket_id
     AND d.doc_type = 'document_canon'
   LIMIT 1;
+END;
+$$;
+CREATE FUNCTION public.get_session_hierarchy(basket_id_param uuid) RETURNS TABLE(session_id uuid, agent_type text, parent_session_id uuid, sdk_session_id text, is_root boolean, depth integer)
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    RETURN QUERY
+    WITH RECURSIVE session_tree AS (
+        -- Base case: TP session (root)
+        SELECT
+            s.id AS session_id,
+            s.agent_type,
+            s.parent_session_id,
+            s.sdk_session_id,
+            (s.parent_session_id IS NULL) AS is_root,
+            0 AS depth
+        FROM agent_sessions s
+        WHERE s.basket_id = basket_id_param
+          AND s.parent_session_id IS NULL
+          AND s.agent_type = 'thinking_partner'
+        UNION ALL
+        -- Recursive case: Child sessions
+        SELECT
+            s.id AS session_id,
+            s.agent_type,
+            s.parent_session_id,
+            s.sdk_session_id,
+            FALSE AS is_root,
+            st.depth + 1 AS depth
+        FROM agent_sessions s
+        INNER JOIN session_tree st ON s.parent_session_id = st.session_id
+    )
+    SELECT * FROM session_tree
+    ORDER BY depth, agent_type;
 END;
 $$;
 CREATE FUNCTION public.get_supervision_stats(p_basket_id uuid) RETURNS TABLE(total_outputs bigint, pending_review bigint, approved bigint, rejected bigint, revision_requested bigint)
@@ -2089,6 +2139,8 @@ CREATE TABLE public.agent_sessions (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by_user_id uuid,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    parent_session_id uuid,
+    created_by_session_id uuid,
     CONSTRAINT agent_sessions_agent_type_check CHECK ((agent_type = ANY (ARRAY['research'::text, 'content'::text, 'reporting'::text])))
 );
 CREATE TABLE public.agent_work_requests (
@@ -2963,11 +3015,11 @@ CREATE TABLE public.work_iterations (
 CREATE TABLE public.work_outputs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     basket_id uuid NOT NULL,
-    work_session_id uuid NOT NULL,
+    work_ticket_id uuid NOT NULL,
     output_type text NOT NULL,
     agent_type text NOT NULL,
     title text NOT NULL,
-    body jsonb NOT NULL,
+    body text,
     confidence double precision,
     source_context_ids uuid[],
     tool_call_id text,
@@ -2980,9 +3032,18 @@ CREATE TABLE public.work_outputs (
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     substrate_proposal_id uuid,
     merged_to_substrate_at timestamp with time zone,
-    CONSTRAINT body_not_empty CHECK ((body <> '{}'::jsonb)),
+    file_id text,
+    file_format text,
+    file_size_bytes integer,
+    mime_type text,
+    storage_path text,
+    generation_method text DEFAULT 'text'::text,
+    skill_metadata jsonb,
     CONSTRAINT title_not_empty CHECK ((length(TRIM(BOTH FROM title)) > 0)),
     CONSTRAINT work_outputs_confidence_check CHECK (((confidence IS NULL) OR ((confidence >= (0)::double precision) AND (confidence <= (1)::double precision)))),
+    CONSTRAINT work_outputs_content_type CHECK ((((body IS NOT NULL) AND (file_id IS NULL)) OR ((body IS NULL) AND (file_id IS NOT NULL)))),
+    CONSTRAINT work_outputs_generation_method_check CHECK ((generation_method = ANY (ARRAY['text'::text, 'code_execution'::text, 'skill'::text, 'manual'::text]))),
+    CONSTRAINT work_outputs_storage_path_format CHECK (((storage_path IS NULL) OR (storage_path ~~ (('baskets/'::text || (basket_id)::text) || '/work_outputs/%'::text)))),
     CONSTRAINT work_outputs_supervision_status_check CHECK ((supervision_status = ANY (ARRAY['pending_review'::text, 'approved'::text, 'rejected'::text, 'revision_requested'::text, 'archived'::text])))
 );
 CREATE TABLE public.work_requests (
@@ -3230,6 +3291,8 @@ CREATE INDEX idx_agent_queue_work_id ON public.agent_processing_queue USING btre
 CREATE INDEX idx_agent_queue_work_type ON public.agent_processing_queue USING btree (work_type, processing_state);
 CREATE INDEX idx_agent_sessions_active ON public.agent_sessions USING btree (last_active_at DESC);
 CREATE INDEX idx_agent_sessions_basket ON public.agent_sessions USING btree (basket_id);
+CREATE INDEX idx_agent_sessions_basket_type ON public.agent_sessions USING btree (basket_id, agent_type);
+CREATE INDEX idx_agent_sessions_parent ON public.agent_sessions USING btree (parent_session_id) WHERE (parent_session_id IS NOT NULL);
 CREATE INDEX idx_agent_sessions_sdk ON public.agent_sessions USING btree (sdk_session_id) WHERE (sdk_session_id IS NOT NULL);
 CREATE INDEX idx_agent_sessions_type ON public.agent_sessions USING btree (agent_type);
 CREATE INDEX idx_agent_sessions_workspace ON public.agent_sessions USING btree (workspace_id);
@@ -3389,10 +3452,13 @@ CREATE INDEX idx_work_iterations_resolved ON public.work_iterations USING btree 
 CREATE INDEX idx_work_iterations_ticket ON public.work_iterations USING btree (work_ticket_id);
 CREATE INDEX idx_work_outputs_agent_type ON public.work_outputs USING btree (agent_type, basket_id);
 CREATE INDEX idx_work_outputs_basket ON public.work_outputs USING btree (basket_id, created_at DESC);
+CREATE INDEX idx_work_outputs_file_format ON public.work_outputs USING btree (file_format) WHERE (file_format IS NOT NULL);
+CREATE INDEX idx_work_outputs_file_id ON public.work_outputs USING btree (file_id) WHERE (file_id IS NOT NULL);
+CREATE INDEX idx_work_outputs_generation_method ON public.work_outputs USING btree (generation_method);
 CREATE INDEX idx_work_outputs_metadata ON public.work_outputs USING gin (metadata);
 CREATE INDEX idx_work_outputs_pending ON public.work_outputs USING btree (supervision_status, created_at DESC) WHERE (supervision_status = 'pending_review'::text);
 CREATE INDEX idx_work_outputs_provenance ON public.work_outputs USING gin (source_context_ids);
-CREATE INDEX idx_work_outputs_session ON public.work_outputs USING btree (work_session_id, created_at DESC);
+CREATE INDEX idx_work_outputs_session ON public.work_outputs USING btree (work_ticket_id, created_at DESC);
 CREATE INDEX idx_work_outputs_tool_call ON public.work_outputs USING btree (tool_call_id) WHERE (tool_call_id IS NOT NULL);
 CREATE INDEX idx_work_outputs_type ON public.work_outputs USING btree (output_type, basket_id);
 CREATE INDEX idx_work_requests_basket ON public.work_requests USING btree (basket_id);
@@ -3485,7 +3551,11 @@ ALTER TABLE ONLY public.agent_processing_queue
 ALTER TABLE ONLY public.agent_sessions
     ADD CONSTRAINT agent_sessions_basket_id_fkey FOREIGN KEY (basket_id) REFERENCES public.baskets(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.agent_sessions
+    ADD CONSTRAINT agent_sessions_created_by_session_id_fkey FOREIGN KEY (created_by_session_id) REFERENCES public.agent_sessions(id);
+ALTER TABLE ONLY public.agent_sessions
     ADD CONSTRAINT agent_sessions_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.agent_sessions
+    ADD CONSTRAINT agent_sessions_parent_session_id_fkey FOREIGN KEY (parent_session_id) REFERENCES public.agent_sessions(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.agent_sessions
     ADD CONSTRAINT agent_sessions_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public.agent_work_requests
@@ -4299,4 +4369,4 @@ CREATE POLICY ws_owner_or_member_read ON public.workspaces FOR SELECT USING (((o
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY ws_owner_update ON public.workspaces FOR UPDATE USING ((owner_id = auth.uid()));
-\unrestrict efTVp08cfiKtIApChQncMShAmzph72XC8h4oqERUgclxf9Al7QhLh01Pg5jaUPf
+\unrestrict 7vcQYpANp8wXVSZbG5ju2H9eklGwM9fdHbZucx1oYWuCvO2Vkio1Eo3nK0yLBYr
