@@ -30,30 +30,29 @@ export default async function ProjectsPage() {
     console.error('[projects/page] Failed to load projects', projectsError);
   }
 
-  // Fetch pending work requests (work_sessions in pending/running status)
+  // Fetch pending work tickets (work_tickets in pending/running status)
   let pendingWorkSessions: any[] = [];
   try {
     const { data, error } = await supabase
-      .from('work_sessions')
-      .select('id,project_id,task_type,status,created_at')
-      .eq('workspace_id', workspace.id)
+      .from('work_tickets')
+      .select('id,basket_id,task_type,status,created_at')
       .in('status', ['pending', 'running']);
     if (error) throw error;
     pendingWorkSessions = data ?? [];
   } catch (err) {
-    console.error('[projects/page] Failed to load pending work sessions', err);
+    console.error('[projects/page] Failed to load pending work tickets', err);
   }
 
-  // Group work sessions by project
-  const sessionsByProject = new Map<string, { count: number; lastCreatedAt: string | null; taskType: string | null }>();
+  // Group work tickets by basket_id (then map to projects)
+  const sessionsByBasket = new Map<string, { count: number; lastCreatedAt: string | null; taskType: string | null }>();
   pendingWorkSessions.forEach((session) => {
-    const entry = sessionsByProject.get(session.project_id) ?? { count: 0, lastCreatedAt: null, taskType: null };
+    const entry = sessionsByBasket.get(session.basket_id) ?? { count: 0, lastCreatedAt: null, taskType: null };
     entry.count += 1;
     if (!entry.lastCreatedAt || (session.created_at && session.created_at > entry.lastCreatedAt)) {
       entry.lastCreatedAt = session.created_at ?? entry.lastCreatedAt;
       entry.taskType = session.task_type ?? entry.taskType;
     }
-    sessionsByProject.set(session.project_id, entry);
+    sessionsByBasket.set(session.basket_id, entry);
   });
 
   const summaries = (projects || []).map((project: any) => ({
@@ -64,7 +63,7 @@ export default async function ProjectsPage() {
     status: project.status,
     created_at: project.created_at,
     updated_at: project.updated_at,
-    pendingWork: sessionsByProject.get(project.id) ?? { count: 0, lastCreatedAt: null, taskType: null },
+    pendingWork: sessionsByBasket.get(project.basket_id) ?? { count: 0, lastCreatedAt: null, taskType: null },
   }));
 
   return <ProjectsIndexClient projects={summaries} />;
