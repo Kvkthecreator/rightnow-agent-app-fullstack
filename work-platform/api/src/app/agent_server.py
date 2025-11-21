@@ -44,7 +44,6 @@ async def get_canonical_queue_health():
     return {"status": "migrated_to_claude_sdk", "queue_health": "n/a"}
 
 from .routes.agent_run import router as agent_run_router
-from .routes.agents import router as agents_router
 from .routes.auth_health import router as auth_health_router
 from .routes.block_lifecycle import router as block_lifecycle_router
 from .routes.blocks import router as blocks_router
@@ -136,7 +135,6 @@ routers = (
     debug_router,
     agent_router,
     agent_run_router,
-    agents_router,
     phase1_router,
     block_lifecycle_router,
     context_intelligence_router,
