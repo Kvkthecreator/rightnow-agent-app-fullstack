@@ -27,8 +27,8 @@ export async function fetchWithToken(
   // Keep Next.js API routes (like /api/baskets/[id]/stats) on frontend
   let url: string;
   if (typeof input === 'string') {
-    // Only redirect specific backend routes to api.yarnnn.com
-    const backendRoutes = ['/api/p3/', '/api/p4/', '/api/dumps/', '/api/health/', '/api/integrations/'];
+    // Only redirect specific backend routes to backend API
+    const backendRoutes = ['/api/p3/', '/api/p4/', '/api/dumps/', '/api/health/', '/api/integrations/', '/api/tp/'];
     const isBackendRoute = backendRoutes.some(route => input.startsWith(route));
 
     if (isBackendRoute) {
