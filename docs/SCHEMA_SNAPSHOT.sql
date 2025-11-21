@@ -1,4 +1,4 @@
-\restrict 7vcQYpANp8wXVSZbG5ju2H9eklGwM9fdHbZucx1oYWuCvO2Vkio1Eo3nK0yLBYr
+\restrict LoyQzQThWXDhkhf6ea6Xr1uOOfuSgltHtwBQovobJYJ6BdDjZ7oMzb2Yt9euUut
 CREATE SCHEMA public;
 CREATE TYPE public.alert_severity AS ENUM (
     'info',
@@ -2141,7 +2141,7 @@ CREATE TABLE public.agent_sessions (
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     parent_session_id uuid,
     created_by_session_id uuid,
-    CONSTRAINT agent_sessions_agent_type_check CHECK ((agent_type = ANY (ARRAY['research'::text, 'content'::text, 'reporting'::text])))
+    CONSTRAINT agent_sessions_agent_type_check CHECK ((agent_type = ANY (ARRAY['research'::text, 'content'::text, 'reporting'::text, 'thinking_partner'::text])))
 );
 CREATE TABLE public.agent_work_requests (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -4369,4 +4369,4 @@ CREATE POLICY ws_owner_or_member_read ON public.workspaces FOR SELECT USING (((o
    FROM public.workspace_memberships
   WHERE (workspace_memberships.user_id = auth.uid())))));
 CREATE POLICY ws_owner_update ON public.workspaces FOR UPDATE USING ((owner_id = auth.uid()));
-\unrestrict 7vcQYpANp8wXVSZbG5ju2H9eklGwM9fdHbZucx1oYWuCvO2Vkio1Eo3nK0yLBYr
+\unrestrict LoyQzQThWXDhkhf6ea6Xr1uOOfuSgltHtwBQovobJYJ6BdDjZ7oMzb2Yt9euUut
