@@ -94,51 +94,77 @@ Use them for conversational queries that don't need new work.
    - Recommendations ("You should...")
    - Meta-insights (system-level intelligence)
 
-**Memory Access:**
-You have access to the user's knowledge substrate via memory queries:
-- Blocks (facts, insights, data)
-- Documents (compositions, articles)
-- Timeline (history, events)
-- Previous work outputs (from all agents)
+**Memory & Context Architecture:**
+
+**IMPORTANT**: You do NOT have automatic memory access during chat phase.
+Memory queries happen at the STAGING BOUNDARY when creating work requests.
+
+**Three-Phase Pattern:**
+1. **Chat Phase (Current)**: You collect requirements via natural conversation
+   - NO substrate queries happen here
+   - Claude SDK session handles conversation history
+   - You rely on user input and prior conversation context
+
+2. **Staging Phase (work_orchestration tool)**: Context loading at boundary
+   - Substrate blocks loaded (long-term knowledge base)
+   - Reference assets loaded (task-specific resources)
+   - Agent config loaded (agent settings)
+   - Everything bundled together for specialist
+
+3. **Delegation Phase**: Specialist receives complete bundle
+   - Agent gets pre-loaded context (NO queries during execution)
+   - Agent executes with full context
+   - Work outputs returned to you
 
 **Your Approach:**
 
 When user makes a request:
 1. **Understand Intent**: What does user want?
-2. **Query Context**: What do we already know? (memory.query)
-3. **Check Work State**: Any relevant ongoing/past work? (infra_reader)
+2. **Collect Requirements**: Natural conversation to gather details
+   - What platform? (for content)
+   - What format? (for reports)
+   - What priority? (for work orchestration)
+   - Any specific requirements?
+3. **Check Work State**: Any relevant ongoing/past work? (infra_reader if needed)
 4. **Decide Action** (KEY DECISION):
    - **Quick query?** → Use specialist subagent (research_specialist, content_specialist, reporting_specialist)
      * "What do we know about X?" → research_specialist
      * "What content style works best?" → content_specialist
      * "What are our key metrics?" → reporting_specialist
-   - **New work needed?** → Use work_orchestration tool (creates work_request/work_ticket)
+   - **New work needed?** → Use work_orchestration tool (triggers STAGING + DELEGATION)
      * "Research competitors" → work_orchestration(agent_type="research")
+       * STAGING: Loads substrate blocks, reference assets, config
+       * DELEGATION: Passes bundle to ResearchAgentSDK
      * "Create LinkedIn post" → work_orchestration(agent_type="content")
+       * STAGING: Loads substrate blocks (brand voice examples), assets, config
+       * DELEGATION: Passes bundle to ContentAgentSDK
      * "Generate report" → work_orchestration(agent_type="reporting")
+       * STAGING: Loads substrate blocks (data), assets, config
+       * DELEGATION: Passes bundle to ReportingAgentSDK
    - **Complex workflow?** → Use steps_planner, then work_orchestration for each step
 5. **Execute & Synthesize**: Run agent(s), combine outputs intelligently
 6. **Emit Meta-Intelligence**: Any patterns worth noting? (emit_work_output)
 
 **Decision Matrix:**
 - User wants ANSWER from existing knowledge → Specialist subagent (fast, no work_request)
-- User wants NEW DELIVERABLE (content, research, report) → work_orchestration tool (tracked, billed)
+- User wants NEW DELIVERABLE (content, research, report) → work_orchestration tool (tracked, staged)
 - User wants guidance/advice → Direct answer or specialist subagent
 - User wants multi-step execution → steps_planner + work_orchestration
 
 **Conversation Style:**
 - Conversational, not robotic
 - Proactive: Suggest what might be helpful
-- Transparent: Explain your reasoning ("I'll use research_specialist for a quick answer")
+- Transparent: Explain your reasoning ("I'll create a work request for research")
 - Efficient: Don't re-run work unnecessarily
 - Pattern-aware: Notice user preferences
 
 **Important:**
-- Always query existing knowledge BEFORE delegating to agents
+- You do NOT query substrate during chat - context loading happens at staging boundary
+- Collect ALL requirements during chat phase before calling work_orchestration
 - Explain what you're doing and why
 - Ask for clarification when intent is ambiguous
-- Specialist subagents query memory (read-only, fast)
-- work_orchestration tool creates tracked work (writes deliverables)
+- Specialist subagents query memory (read-only, fast - for quick answers)
+- work_orchestration tool triggers staging + delegation (for new deliverables)
 - Emit insights about patterns you notice (user preferences, recurring topics)
 """
 
@@ -288,13 +314,10 @@ class ThinkingPartnerAgentSDK:
         self.user_token = user_token
         self.model = model
 
-        # Create memory adapter using BFF pattern with user token
-        self.memory = SubstrateMemoryAdapter(
-            basket_id=basket_id,
-            workspace_id=workspace_id,
-            user_token=user_token  # Pass through for substrate-API authentication
-        )
-        logger.info(f"Created SubstrateMemoryAdapter for basket={basket_id}")
+        # NO memory adapter for TP chat
+        # Substrate queries happen during staging phase (work_orchestration tool)
+        self.memory = None
+        logger.info(f"TP initialized (chat-only mode, no substrate memory)")
 
         # Get API key
         if anthropic_api_key is None:
@@ -600,22 +623,103 @@ Examples:
             }
         }
 
+    async def _load_substrate_blocks(self) -> list:
+        """
+        Load substrate blocks (long-term knowledge base) during staging.
+
+        Returns:
+            List of block dicts
+        """
+        try:
+            from clients.substrate_client import SubstrateClient
+
+            client = SubstrateClient(user_token=self.user_token)
+            blocks = client.get_basket_blocks(
+                basket_id=self.basket_id,
+                states=["ACCEPTED", "LOCKED"],
+                limit=50
+            )
+            logger.info(f"Staging: Loaded {len(blocks)} substrate blocks")
+            return blocks
+        except Exception as e:
+            logger.warning(f"Failed to load substrate blocks: {e}")
+            return []
+
+    async def _load_reference_assets(self, agent_type: str) -> list:
+        """
+        Load reference assets (task-specific resources) during staging.
+
+        Args:
+            agent_type: "research" | "content" | "reporting"
+
+        Returns:
+            List of asset dicts
+        """
+        try:
+            from clients.substrate_client import SubstrateClient
+
+            client = SubstrateClient(user_token=self.user_token)
+            assets = client.get_reference_assets(
+                basket_id=self.basket_id,
+                agent_type=agent_type,
+                work_ticket_id=None,
+                permanence="permanent"
+            )
+            logger.info(f"Staging: Loaded {len(assets)} reference assets for {agent_type}")
+            return assets
+        except Exception as e:
+            logger.warning(f"Failed to load reference assets: {e}")
+            return []
+
+    async def _load_agent_config(self, agent_type: str) -> dict:
+        """
+        Load agent configuration from work-platform database during staging.
+
+        Args:
+            agent_type: "research" | "content" | "reporting"
+
+        Returns:
+            Agent config dict
+        """
+        try:
+            from app.utils.supabase_client import supabase_admin_client
+
+            response = supabase_admin_client.table("project_agents").select(
+                "config"
+            ).eq("basket_id", self.basket_id).eq(
+                "agent_type", agent_type
+            ).eq("is_active", True).limit(1).execute()
+
+            if response.data and len(response.data) > 0:
+                config = response.data[0].get("config", {})
+                logger.info(f"Staging: Loaded config for {agent_type}")
+                return config
+            return {}
+        except Exception as e:
+            logger.warning(f"Failed to load agent config: {e}")
+            return {}
+
     async def _execute_work_orchestration(self, tool_input: Dict[str, Any]) -> str:
         """
-        Execute work_orchestration tool - delegates to specialist agents.
+        Execute work_orchestration tool - STAGING + DELEGATION.
 
-        This is the CRITICAL method that makes TP functional as a gateway with hierarchical sessions.
-        When TP calls work_orchestration tool, this method:
-        1. Gets or creates persistent specialist session (child of TP)
-        2. Creates work_request + work_ticket linked to sessions
-        3. Executes the appropriate specialist agent with session + memory
-        4. Returns work_outputs for TP to synthesize
+        NEW PATTERN (Work Request Roll-Up + Staging):
+        Phase 1 (Chat): User requirements collected via natural conversation
+        Phase 2 (STAGING - THIS METHOD):
+            - Load substrate blocks (long-term knowledge) ← Query 1
+            - Load reference assets (task-specific) ← Query 2
+            - Load agent config (agent settings) ← Query 3
+            - Create work_request + work_ticket
+            - Bundle everything into WorkBundle
+        Phase 3 (Delegation):
+            - Pass complete bundle to specialist agent
+            - Agent executes with pre-loaded context (NO substrate queries!)
+            - Return work_outputs to TP
 
         Hierarchical Session Pattern:
         - TP session is parent (agent_type="thinking_partner")
         - Specialist sessions are children (parent_session_id → TP)
         - Each specialist maintains conversation continuity across work_requests
-        - TP grants memory access to specialists
 
         Args:
             tool_input: {agent_type, task, parameters}
@@ -630,12 +734,32 @@ Examples:
         logger.info(f"Executing work_orchestration: agent_type={agent_type}, task={task[:100]}")
 
         try:
+            # ================================================================
+            # PHASE 2: STAGING - Load all context ONCE at staging boundary
+            # ================================================================
+
+            logger.info(f"STAGING PHASE: Loading context for {agent_type} work request")
+
+            # Query 1: Load substrate blocks (long-term knowledge base)
+            substrate_blocks = await self._load_substrate_blocks()
+
+            # Query 2: Load reference assets (task-specific resources)
+            reference_assets = await self._load_reference_assets(agent_type)
+
+            # Query 3: Load agent configuration (agent settings)
+            agent_config = await self._load_agent_config(agent_type)
+
+            logger.info(
+                f"STAGING COMPLETE: {len(substrate_blocks)} blocks, "
+                f"{len(reference_assets)} assets, config={bool(agent_config)}"
+            )
+
+            # ================================================================
+            # Create work_request and work_ticket for tracking
+            # ================================================================
+
             # Get or create persistent specialist session as child of TP
             specialist_session = await self._get_or_create_specialist_session(agent_type)
-
-            # Import specialist agents SDK
-            from agents_sdk import ResearchAgentSDK, ContentAgentSDK, ReportingAgentSDK
-            from work_orchestration import KnowledgeModuleLoader
 
             # Create work_ticket for output tracking
             from app.routes.work_orchestration import _create_work_ticket
@@ -649,11 +773,69 @@ Examples:
                 task_intent=task_intent
             )
 
+            # Create work_request record (links to TP session)
+            from app.utils.supabase_client import supabase_admin_client
+
+            work_request_data = {
+                "basket_id": self.basket_id,
+                "workspace_id": self.workspace_id,
+                "user_id": self.user_id,
+                "agent_type": agent_type,
+                "agent_session_id": self.current_session.id,  # Links to TP session!
+                "work_mode": "autonomous",
+                "request_intent": task_intent,
+                "priority": priority,
+                "status": "pending"
+            }
+
+            response = supabase_admin_client.table("work_requests").insert(
+                work_request_data
+            ).execute()
+
+            if not response.data or len(response.data) == 0:
+                raise Exception("Failed to create work_request")
+
+            work_request_id = response.data[0]["id"]
+            logger.info(f"Created work_request: {work_request_id}")
+
+            # ================================================================
+            # Create WorkBundle with pre-loaded context
+            # ================================================================
+
+            from agents_sdk.work_bundle import WorkBundle
+
+            bundle = WorkBundle(
+                work_request_id=work_request_id,
+                work_ticket_id=work_ticket_id,
+                basket_id=self.basket_id,
+                workspace_id=self.workspace_id,
+                user_id=self.user_id,
+                task=task,
+                agent_type=agent_type,
+                priority=priority,
+                substrate_blocks=substrate_blocks,
+                reference_assets=reference_assets,
+                agent_config=agent_config,
+                user_requirements=parameters  # Additional params from chat
+            )
+
+            logger.info(f"WorkBundle created:\n{bundle.get_context_summary()}")
+
+            # ================================================================
+            # PHASE 3: DELEGATION - Pass bundle to specialist agent
+            # ================================================================
+
+            logger.info(f"DELEGATION PHASE: Executing {agent_type} with pre-loaded context")
+
+            # Import specialist agents SDK
+            from agents_sdk import ResearchAgentSDK, ContentAgentSDK, ReportingAgentSDK
+            from work_orchestration import KnowledgeModuleLoader
+
             # Load knowledge modules for specialist
             km_loader = KnowledgeModuleLoader()
             knowledge_modules = km_loader.load_for_agent(agent_type)
 
-            # Execute specialist agent with hierarchical session + TP's memory
+            # Execute specialist agent with bundle (NO memory adapter!)
             result = None
 
             if agent_type == "research":
@@ -663,7 +845,7 @@ Examples:
                     work_ticket_id=work_ticket_id,
                     knowledge_modules=knowledge_modules,
                     session=specialist_session,  # Persistent session from TP!
-                    memory=self.memory  # TP grants memory access!
+                    bundle=bundle  # Pre-loaded context bundle!
                 )
                 # Execute with session resumption
                 result = await agent.deep_dive(
@@ -681,7 +863,7 @@ Examples:
                     work_ticket_id=work_ticket_id,
                     knowledge_modules=knowledge_modules,
                     session=specialist_session,
-                    memory=self.memory
+                    bundle=bundle
                 )
                 result = await agent.create(
                     platform=platform,
@@ -699,7 +881,7 @@ Examples:
                     work_ticket_id=work_ticket_id,
                     knowledge_modules=knowledge_modules,
                     session=specialist_session,
-                    memory=self.memory
+                    bundle=bundle
                 )
                 result = await agent.generate(
                     report_type=task,
@@ -719,14 +901,22 @@ Examples:
                 "task": task,
                 "work_outputs_count": len(work_outputs),
                 "work_outputs": work_outputs[:3],  # Return first 3 for context
+                "work_request_id": work_request_id,
+                "work_ticket_id": work_ticket_id,
                 "specialist_session_id": specialist_session.id,
                 "claude_session_id": specialist_session.sdk_session_id,
-                "message": f"Agent {agent_type} completed with {len(work_outputs)} outputs (session persistent)"
+                "context_loaded": {
+                    "substrate_blocks": len(substrate_blocks),
+                    "reference_assets": len(reference_assets),
+                    "agent_config": bool(agent_config)
+                },
+                "message": f"Agent {agent_type} completed with {len(work_outputs)} outputs (staged bundle)"
             }
 
             logger.info(
                 f"work_orchestration SUCCESS: {agent_type} produced {len(work_outputs)} outputs "
-                f"(session={specialist_session.id}, parent={specialist_session.parent_session_id})"
+                f"(bundle={len(substrate_blocks)}+{len(reference_assets)}, "
+                f"session={specialist_session.id}, parent={specialist_session.parent_session_id})"
             )
             return json.dumps(response)
 
@@ -895,22 +1085,10 @@ Return JSON format:
             # Load existing specialist sessions (hierarchical)
             await self._load_specialist_sessions()
 
-        # Query memory for context
-        context = None
-        if self.memory:
-            memory_results = await self.memory.query(user_message, limit=5)
-            if memory_results:
-                context = "\n".join([r.content for r in memory_results])
-
-        # Build prompt with context
+        # NO automatic memory loading during chat phase
+        # Memory queries happen during staging phase (work_orchestration tool)
+        # TP chat relies on Claude SDK session for conversation history
         full_prompt = user_message
-        if context:
-            full_prompt = f"""**Relevant Context from Memory:**
-
-{context}
-
-**User Message:**
-{user_message}"""
 
         # Create SDK client with options
         # NOTE: api_key comes from ANTHROPIC_API_KEY env var (SDK reads it automatically)

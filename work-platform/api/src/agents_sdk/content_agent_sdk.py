@@ -263,7 +263,8 @@ class ContentAgentSDK:
         brand_voice_mode: Literal["adaptive", "strict", "creative"] = "adaptive",
         knowledge_modules: str = "",
         session: Optional['AgentSession'] = None,
-        memory: Optional['SubstrateMemoryAdapter'] = None,
+        bundle: Optional[Any] = None,  # NEW: Pre-loaded context bundle from TP staging
+        memory: Optional['SubstrateMemoryAdapter'] = None,  # DEPRECATED: For backward compatibility
     ):
         """
         Initialize ContentAgentSDK.
@@ -278,7 +279,8 @@ class ContentAgentSDK:
             brand_voice_mode: Voice learning approach
             knowledge_modules: Knowledge modules (procedural knowledge) loaded from orchestration layer
             session: Optional AgentSession from TP (hierarchical session management)
-            memory: Optional SubstrateMemoryAdapter from TP (TP grants memory access)
+            bundle: Optional WorkBundle from TP staging (pre-loaded substrate + assets)
+            memory: DEPRECATED - Use bundle instead (kept for backward compatibility)
         """
         self.basket_id = basket_id
         self.workspace_id = workspace_id
@@ -296,17 +298,24 @@ class ContentAgentSDK:
         self.api_key = anthropic_api_key
         self.model = model
 
-        # Use provided memory adapter from TP, or create new one
-        if memory:
-            self.memory = memory
-            logger.info(f"Using memory adapter from TP for basket={basket_id}")
-        else:
-            # Standalone mode: create own memory adapter
-            self.memory = SubstrateMemoryAdapter(
-                basket_id=basket_id,
-                workspace_id=workspace_id
+        # NEW PATTERN: Use pre-loaded bundle from TP staging
+        if bundle:
+            self.bundle = bundle
+            logger.info(
+                f"Using WorkBundle from TP staging: {len(bundle.substrate_blocks)} blocks, "
+                f"{len(bundle.reference_assets)} assets"
             )
-            logger.info(f"Created SubstrateMemoryAdapter for basket={basket_id}")
+            self.memory = None  # No memory adapter needed - bundle has pre-loaded context
+        elif memory:
+            # LEGACY PATTERN: For backward compatibility (will be removed)
+            self.bundle = None
+            self.memory = memory
+            logger.info(f"LEGACY: Using memory adapter from TP for basket={basket_id}")
+        else:
+            # Standalone mode: No pre-loaded context (testing only)
+            self.bundle = None
+            self.memory = None
+            logger.info("Standalone mode: No pre-loaded context (testing mode)")
 
         # Use provided session from TP, or will create in async init
         if session:

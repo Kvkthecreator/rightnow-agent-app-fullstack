@@ -112,7 +112,8 @@ class ResearchAgentSDK:
         monitoring_domains: Optional[List[str]] = None,
         knowledge_modules: str = "",
         session: Optional[AgentSession] = None,
-        memory: Optional[SubstrateMemoryAdapter] = None,
+        bundle: Optional[Any] = None,  # NEW: Pre-loaded context bundle from TP staging
+        memory: Optional[SubstrateMemoryAdapter] = None,  # DEPRECATED: For backward compatibility
     ):
         """
         Initialize ResearchAgentSDK.
@@ -126,7 +127,8 @@ class ResearchAgentSDK:
             monitoring_domains: Domains to monitor (for scheduled runs - Phase 2b)
             knowledge_modules: Knowledge modules (procedural knowledge) loaded from orchestration layer
             session: Optional AgentSession from TP (hierarchical session management)
-            memory: Optional SubstrateMemoryAdapter from TP (TP grants memory access)
+            bundle: Optional WorkBundle from TP staging (pre-loaded substrate + assets)
+            memory: DEPRECATED - Use bundle instead (kept for backward compatibility)
         """
         self.basket_id = basket_id
         self.workspace_id = workspace_id
@@ -143,17 +145,24 @@ class ResearchAgentSDK:
         self.api_key = anthropic_api_key
         self.model = model
 
-        # Use provided memory adapter from TP, or create new one
-        if memory:
-            self.memory = memory
-            logger.info(f"Using memory adapter from TP for basket={basket_id}")
-        else:
-            # Standalone mode: create own memory adapter
-            self.memory = SubstrateMemoryAdapter(
-                basket_id=basket_id,
-                workspace_id=workspace_id
+        # NEW PATTERN: Use pre-loaded bundle from TP staging
+        if bundle:
+            self.bundle = bundle
+            logger.info(
+                f"Using WorkBundle from TP staging: {len(bundle.substrate_blocks)} blocks, "
+                f"{len(bundle.reference_assets)} assets"
             )
-            logger.info(f"Created SubstrateMemoryAdapter for basket={basket_id}")
+            self.memory = None  # No memory adapter needed - bundle has pre-loaded context
+        elif memory:
+            # LEGACY PATTERN: For backward compatibility (will be removed)
+            self.bundle = None
+            self.memory = memory
+            logger.info(f"LEGACY: Using memory adapter from TP for basket={basket_id}")
+        else:
+            # Standalone mode: No pre-loaded context (testing only)
+            self.bundle = None
+            self.memory = None
+            logger.info("Standalone mode: No pre-loaded context (testing mode)")
 
         # Use provided session from TP, or will create in async init
         if session:
@@ -191,16 +200,19 @@ class ResearchAgentSDK:
         )
 
     def _build_system_prompt(self) -> str:
-        """Build system prompt with knowledge modules."""
+        """Build system prompt with knowledge modules and bundle context."""
         prompt = RESEARCH_AGENT_SYSTEM_PROMPT
 
         # Add capabilities info
+        context_info = "Pre-loaded bundle (from TP staging)" if self.bundle else "None (standalone mode)"
+        session_info = self.current_session.id if self.current_session else "Will be created"
+
         prompt += f"""
 
 **Your Capabilities:**
-- Memory: Available (SubstrateMemoryAdapter)
+- Context: {context_info}
 - Monitoring Domains: {", ".join(self.monitoring_domains)}
-- Session ID: {self.current_session.id}
+- Session ID: {session_info}
 """
 
         # Inject knowledge modules if provided
@@ -208,6 +220,33 @@ class ResearchAgentSDK:
             prompt += "\n\n---\n\n# 📚 YARNNN Knowledge Modules (Procedural Knowledge)\n\n"
             prompt += "The following knowledge modules provide guidelines on how to work effectively in YARNNN:\n\n"
             prompt += self.knowledge_modules
+
+        # Inject bundle context if available (substrate blocks + reference assets)
+        if self.bundle:
+            prompt += "\n\n---\n\n# 📦 Pre-loaded Context (from TP Staging)\n\n"
+
+            if self.bundle.substrate_blocks:
+                prompt += f"**Substrate Knowledge Base** ({len(self.bundle.substrate_blocks)} blocks):\n\n"
+                for idx, block in enumerate(self.bundle.substrate_blocks[:10], 1):  # Limit to 10 blocks
+                    block_content = block.get('content', '')[:500]  # Limit content length
+                    block_id = block.get('id', 'unknown')
+                    prompt += f"{idx}. [Block {block_id}]\n{block_content}\n\n"
+
+                if len(self.bundle.substrate_blocks) > 10:
+                    prompt += f"... and {len(self.bundle.substrate_blocks) - 10} more blocks\n\n"
+
+            if self.bundle.reference_assets:
+                prompt += f"**Reference Assets** ({len(self.bundle.reference_assets)} assets):\n\n"
+                for idx, asset in enumerate(self.bundle.reference_assets[:5], 1):  # Limit to 5 assets
+                    asset_name = asset.get('name', 'unknown')
+                    asset_type = asset.get('asset_type', 'unknown')
+                    prompt += f"{idx}. {asset_name} ({asset_type})\n"
+
+                if len(self.bundle.reference_assets) > 5:
+                    prompt += f"... and {len(self.bundle.reference_assets) - 5} more assets\n\n"
+
+            if self.bundle.agent_config:
+                prompt += f"\n**Agent Configuration**: {list(self.bundle.agent_config.keys())}\n"
 
         return prompt
 
@@ -237,10 +276,22 @@ class ResearchAgentSDK:
         """
         logger.info(f"ResearchAgentSDK.deep_dive: {topic}")
 
-        # Query existing knowledge and extract block IDs for provenance
-        context = None
+        # Extract source block IDs for provenance tracking
         source_block_ids = []
-        if self.memory:
+        context_summary = "No prior context available"
+
+        if self.bundle:
+            # NEW PATTERN: Use pre-loaded bundle from TP staging
+            source_block_ids = [
+                str(block.get('id', ''))
+                for block in self.bundle.substrate_blocks
+                if block.get('id')
+            ]
+            context_summary = f"{len(self.bundle.substrate_blocks)} substrate blocks pre-loaded"
+            logger.info(f"Using bundle context: {len(self.bundle.substrate_blocks)} blocks, {len(self.bundle.reference_assets)} assets")
+
+        elif self.memory:
+            # LEGACY PATTERN: Query memory adapter (will be removed)
             memory_results = await self.memory.query(topic, limit=10)
             context = "\n".join([r.content for r in memory_results])
             source_block_ids = [
@@ -249,12 +300,14 @@ class ResearchAgentSDK:
                 if hasattr(r, "metadata") and r.metadata
             ]
             source_block_ids = [bid for bid in source_block_ids if bid]
+            context_summary = context if context else "No prior context available"
+            logger.info(f"LEGACY: Using memory adapter query results")
 
         # Build research prompt
         research_prompt = f"""Conduct comprehensive research on: {topic}
 
-**Existing Knowledge (Block IDs: {source_block_ids if source_block_ids else 'none'}):**
-{context or "No prior context available"}
+**Pre-loaded Context:** {context_summary}
+**Source Block IDs:** {source_block_ids if source_block_ids else 'none'}
 
 **Research Objectives:**
 1. Provide comprehensive overview
