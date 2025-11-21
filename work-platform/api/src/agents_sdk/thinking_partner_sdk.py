@@ -267,6 +267,7 @@ class ThinkingPartnerAgentSDK:
         basket_id: str,
         workspace_id: str,
         user_id: str,
+        user_token: Optional[str] = None,  # NEW: User JWT token for substrate-API auth
         anthropic_api_key: Optional[str] = None,
         model: str = "claude-sonnet-4-5",
     ):
@@ -277,18 +278,21 @@ class ThinkingPartnerAgentSDK:
             basket_id: Basket ID for substrate queries
             workspace_id: Workspace ID for authorization
             user_id: User ID for personalization
+            user_token: User JWT token for substrate-API authentication
             anthropic_api_key: Anthropic API key (from env if None)
             model: Claude model to use
         """
         self.basket_id = basket_id
         self.workspace_id = workspace_id
         self.user_id = user_id
+        self.user_token = user_token
         self.model = model
 
-        # Create memory adapter using BFF pattern
+        # Create memory adapter using BFF pattern with user token
         self.memory = SubstrateMemoryAdapter(
             basket_id=basket_id,
-            workspace_id=workspace_id
+            workspace_id=workspace_id,
+            user_token=user_token  # Pass through for substrate-API authentication
         )
         logger.info(f"Created SubstrateMemoryAdapter for basket={basket_id}")
 

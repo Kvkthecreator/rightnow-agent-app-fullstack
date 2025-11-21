@@ -158,18 +158,20 @@ class SubstrateClient:
     def __init__(
         self,
         base_url: Optional[str] = None,
-        service_secret: Optional[str] = None,
+        service_secret: Optional[str] = None,  # DEPRECATED: Use user_token instead
+        user_token: Optional[str] = None,  # NEW: User JWT token for authentication
         timeout: float = 30.0,
     ):
         self.base_url = base_url or os.getenv(
             "SUBSTRATE_API_URL", "http://localhost:10000"
         )
-        self.service_secret = service_secret or os.getenv("SUBSTRATE_SERVICE_SECRET")
+        # Prefer user_token over service_secret (backward compatibility)
+        self.auth_token = user_token or service_secret or os.getenv("SUBSTRATE_SERVICE_SECRET")
         self.timeout = timeout
 
-        if not self.service_secret:
+        if not self.auth_token:
             logger.warning(
-                "SUBSTRATE_SERVICE_SECRET not set - service auth will fail"
+                "No auth token provided - substrate-API authentication will fail"
             )
 
         # HTTP client with connection pooling
@@ -185,9 +187,9 @@ class SubstrateClient:
         logger.info(f"SubstrateClient initialized with base_url={self.base_url}")
 
     def _get_headers(self) -> dict[str, str]:
-        """Get request headers with service authentication."""
+        """Get request headers with authentication (user JWT or service token)."""
         return {
-            "Authorization": f"Bearer {self.service_secret}",
+            "Authorization": f"Bearer {self.auth_token}",
             "X-Service-Name": "platform-api",
             "Content-Type": "application/json",
         }

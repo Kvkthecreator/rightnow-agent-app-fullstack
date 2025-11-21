@@ -57,6 +57,7 @@ class SubstrateMemoryAdapter(MemoryProvider):
         self,
         basket_id: str | UUID,
         workspace_id: str,
+        user_token: Optional[str] = None,  # NEW: User JWT token for substrate-API auth
         agent_type: Optional[str] = None,
         project_id: Optional[str] = None,
         work_ticket_id: Optional[str] = None
@@ -67,16 +68,21 @@ class SubstrateMemoryAdapter(MemoryProvider):
         Args:
             basket_id: Basket ID to operate on
             workspace_id: Workspace ID for authorization context
+            user_token: User JWT token for substrate-API authentication
             agent_type: Agent type for scoping assets ('research', 'content', 'reporting')
             project_id: Project ID for fetching agent config
             work_ticket_id: Work session ID for temporary assets
         """
         self.basket_id = str(basket_id)
         self.workspace_id = workspace_id
+        self.user_token = user_token
         self.agent_type = agent_type
         self.project_id = project_id
         self.work_ticket_id = work_ticket_id
-        self.client = get_substrate_client()
+
+        # Create client with user token if provided, otherwise use singleton
+        from clients.substrate_client import SubstrateClient
+        self.client = SubstrateClient(user_token=user_token) if user_token else get_substrate_client()
 
         # Cache for assets + config (fetch once per session)
         self._assets_cache: Optional[List[Dict]] = None

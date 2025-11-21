@@ -173,6 +173,11 @@ async def tp_chat(
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid user token")
 
+    # Extract user JWT token for substrate-API authentication
+    user_token = user.get("token", "")
+    if not user_token:
+        logger.warning(f"TP chat: No JWT token found for user={user_id}")
+
     logger.info(
         f"TP chat: user={user_id}, basket={request.basket_id}, "
         f"message={request.message[:100]}"
@@ -185,11 +190,12 @@ async def tp_chat(
         # Validate basket access
         await _validate_basket_access(request.basket_id, workspace_id)
 
-        # Create Thinking Partner using official Claude Agent SDK
+        # Create Thinking Partner using official Claude Agent SDK with user JWT
         tp = create_thinking_partner_sdk(
             basket_id=request.basket_id,
             workspace_id=workspace_id,
-            user_id=user_id
+            user_id=user_id,
+            user_token=user_token  # Pass JWT for substrate-API authentication
         )
 
         # Chat with TP
