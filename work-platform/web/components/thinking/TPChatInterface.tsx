@@ -38,15 +38,57 @@ export function TPChatInterface({
   const gatewayRef = useRef<ThinkingPartnerGateway | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize gateway
+  // Storage key for chat history
+  const storageKey = `tp-chat-${basketId}`;
+
+  // Initialize gateway and load chat history
   useEffect(() => {
     gatewayRef.current = new ThinkingPartnerGateway(basketId, workspaceId);
+
+    // Load chat history from localStorage on mount
+    try {
+      const savedChat = localStorage.getItem(storageKey);
+      if (savedChat) {
+        const parsed = JSON.parse(savedChat);
+        setChatState((prev) => ({
+          ...prev,
+          messages: parsed.messages || [],
+          sessionId: parsed.sessionId,
+          claudeSessionId: parsed.claudeSessionId,
+        }));
+
+        // Resume session if we have a claude_session_id
+        if (parsed.claudeSessionId && gatewayRef.current) {
+          gatewayRef.current.resumeSession(parsed.claudeSessionId);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+    }
 
     // Cleanup on unmount
     return () => {
       gatewayRef.current?.unsubscribe();
     };
-  }, [basketId, workspaceId]);
+  }, [basketId, workspaceId, storageKey]);
+
+  // Persist chat state to localStorage whenever it changes
+  useEffect(() => {
+    if (chatState.messages.length > 0) {
+      try {
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            messages: chatState.messages,
+            sessionId: chatState.sessionId,
+            claudeSessionId: chatState.claudeSessionId,
+          })
+        );
+      } catch (error) {
+        console.error('Failed to save chat history:', error);
+      }
+    }
+  }, [chatState.messages, chatState.sessionId, chatState.claudeSessionId, storageKey]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
