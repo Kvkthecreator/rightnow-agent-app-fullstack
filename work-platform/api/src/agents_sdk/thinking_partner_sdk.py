@@ -444,11 +444,11 @@ class ThinkingPartnerAgentSDK:
         # NOTE: ClaudeAgentOptions does NOT have a 'tools' parameter in official SDK v0.1.8+
         # Tools must be registered via mcp_servers parameter with @tool decorator
         # For now, TP works with native subagents only (no custom tools)
+        # max_tokens is controlled at the ClaudeSDKClient.chat() level, not in options
         return ClaudeAgentOptions(
             model=self.model,
             system_prompt=self._get_system_prompt(),
             agents=subagents,  # Native subagents for quick queries!
-            max_tokens=4096,
         )
 
     def _get_system_prompt(self) -> str:
