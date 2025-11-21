@@ -53,6 +53,11 @@ class AgentSession(BaseModel):
     basket_id: str
     agent_type: str
     sdk_session_id: Optional[str] = None
+
+    # Hierarchical session management
+    parent_session_id: Optional[str] = None  # FK to parent session (TP is root with NULL)
+    created_by_session_id: Optional[str] = None  # Audit trail: which session created this
+
     conversation_history: List[Dict[str, Any]] = Field(default_factory=list)
     state: Dict[str, Any] = Field(default_factory=dict)
     last_active_at: Optional[datetime] = None
@@ -255,6 +260,10 @@ class AgentSession(BaseModel):
             "basket_id": self.basket_id,
             "agent_type": self.agent_type,
             "sdk_session_id": self.sdk_session_id,
+            # Hierarchical session fields
+            "parent_session_id": self.parent_session_id,
+            "created_by_session_id": self.created_by_session_id,
+            # Timestamps and metadata
             "last_active_at": self.last_active_at.isoformat() if self.last_active_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "metadata": self.metadata,
