@@ -960,27 +960,18 @@ Return JSON format:
                             actions_taken.append(f"Used tool: {tool_name}")
                             logger.info(f"TP used tool: {tool_name} with input: {tool_input}")
 
-                            # Execute custom tools that require server-side logic
-                            tool_result_content = None
-                            try:
-                                if tool_name == 'work_orchestration':
-                                    tool_result_content = await self._execute_work_orchestration(tool_input)
-                                elif tool_name == 'infra_reader':
-                                    tool_result_content = await self._execute_infra_reader(tool_input)
-                                elif tool_name == 'steps_planner':
-                                    tool_result_content = await self._execute_steps_planner(tool_input)
-                                # emit_work_output is handled automatically by SDK
-
-                                # If we executed a custom tool, continue conversation with result
-                                if tool_result_content:
-                                    logger.info(f"Tool {tool_name} executed successfully")
-                                    # Continue agentic loop by querying with tool result
-                                    await client.query(f"Tool result for {tool_name}: {tool_result_content}")
-
-                            except Exception as e:
-                                logger.error(f"Tool {tool_name} execution failed: {e}", exc_info=True)
-                                error_result = json.dumps({"error": str(e), "status": "failed"})
-                                await client.query(f"Tool result for {tool_name}: {error_result}")
+                            # NOTE: Custom tools (work_orchestration, infra_reader, steps_planner)
+                            # should be registered as MCP servers, NOT manually executed here.
+                            # Manually calling client.query() interferes with SDK's tool execution flow
+                            # and causes the receive_response() loop to hang waiting for responses.
+                            #
+                            # For now, we just log that these tools were used.
+                            # TODO: Migrate these to proper MCP servers like we did for specialist agents.
+                            if tool_name in ('work_orchestration', 'infra_reader', 'steps_planner'):
+                                logger.warning(
+                                    f"Tool {tool_name} called but not registered as MCP server. "
+                                    f"This tool will not execute. Migrate to MCP pattern."
+                                )
 
                         # Tool result blocks (CRITICAL - extract work outputs)
                         elif block_type == 'tool_result':
