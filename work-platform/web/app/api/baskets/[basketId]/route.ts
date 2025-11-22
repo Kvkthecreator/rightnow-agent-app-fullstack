@@ -1,8 +1,9 @@
 /**
  * API Route: GET /api/baskets/[basketId]
  *
- * BFF pattern: Proxy to substrate-api for basket details
- * This route provides basket metadata and stats (blocks/documents counts)
+ * Direct database query pattern (same as Context API)
+ * Provides basket metadata and stats (blocks/documents counts)
+ * Queries Supabase directly to avoid substrate API auth issues
  *
  * Authentication: Uses Supabase session
  * Authorization: User must have access to workspace
@@ -12,9 +13,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@/lib/supabase/clients';
 import { ensureWorkspaceServer } from '@/lib/workspaces/ensureWorkspaceServer';
-
-// Point to substrate-api's Next.js web layer (port 10000), NOT Python backend (8001)
-const SUBSTRATE_API_URL = process.env.SUBSTRATE_API_URL || 'http://localhost:10000';
 
 export async function GET(
   request: NextRequest,
@@ -44,42 +42,47 @@ export async function GET(
 
     console.log(`[Baskets API] Fetching basket ${basketId} for workspace ${workspace.id}`);
 
-    // Call substrate-api (user token, not service secret)
-    // Substrate-api uses /api prefix for all routes
-    const substrateResponse = await fetch(
-      `${SUBSTRATE_API_URL}/api/baskets/${basketId}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      }
-    );
+    // Query basket directly from Supabase (same pattern as Context API)
+    // This avoids 401 errors from substrate API authentication issues
+    const { data: basket, error: basketError } = await supabase
+      .from('baskets')
+      .select('*')
+      .eq('id', basketId)
+      .single();
 
-    if (!substrateResponse.ok) {
-      const errorText = await substrateResponse.text();
-      console.error(`[Baskets API] Substrate API error: ${substrateResponse.status} ${errorText}`);
-
-      if (substrateResponse.status === 404) {
-        return NextResponse.json({ error: 'Basket not found' }, { status: 404 });
-      }
-
-      return NextResponse.json(
-        { error: 'Failed to fetch basket from substrate' },
-        { status: substrateResponse.status }
-      );
+    if (basketError || !basket) {
+      console.error(`[Baskets API] Basket not found: ${basketError?.message}`);
+      return NextResponse.json({ error: 'Basket not found' }, { status: 404 });
     }
 
-    const basketData = await substrateResponse.json();
-
     // Verify workspace access (basket must belong to user's workspace)
-    if (basketData.workspace_id !== workspace.id) {
+    if (basket.workspace_id !== workspace.id) {
       console.warn(
-        `[Baskets API] Workspace mismatch: basket ${basketId} belongs to ${basketData.workspace_id}, user is in ${workspace.id}`
+        `[Baskets API] Workspace mismatch: basket ${basketId} belongs to ${basket.workspace_id}, user is in ${workspace.id}`
       );
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
+
+    // Query blocks count for stats (same as Context API does)
+    const { count: blocksCount, error: blocksCountError } = await supabase
+      .from('blocks')
+      .select('id', { count: 'exact', head: true })
+      .eq('basket_id', basketId)
+      .in('state', ['PROPOSED', 'ACCEPTED', 'LOCKED', 'CONSTANT']);
+
+    // Query documents count (if documents table exists)
+    const { count: documentsCount, error: documentsCountError } = await supabase
+      .from('documents')
+      .select('id', { count: 'exact', head: true })
+      .eq('basket_id', basketId);
+
+    const basketData = {
+      ...basket,
+      stats: {
+        blocks_count: blocksCount || 0,
+        documents_count: documentsCount || 0,
+      },
+    };
 
     console.log(
       `[Baskets API] Successfully fetched basket ${basketId}: ${basketData.stats.blocks_count} blocks, ${basketData.stats.documents_count} documents`
