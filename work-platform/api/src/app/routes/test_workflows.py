@@ -1,0 +1,295 @@
+"""
+Test Workflows Endpoint - For E2E Testing Without JWT Complexity
+
+SECURITY: Only enabled when ENABLE_TEST_ENDPOINTS=true in environment.
+Uses service-to-service authentication (X-Test-User-ID header).
+
+This endpoint allows automated testing without needing valid Supabase JWTs,
+which simplifies CI/CD and development testing.
+
+Usage:
+    curl -X POST http://localhost:10000/api/test/workflows/research \
+      -H "X-Test-User-ID: uuid" \
+      -H "Content-Type: application/json" \
+      -d '{"basket_id": "uuid", "task_description": "test"}'
+"""
+
+import os
+import logging
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Header
+from pydantic import BaseModel
+
+from app.utils.supabase_client import supabase_admin_client as supabase
+from agents_sdk.research_agent_sdk import ResearchAgentSDK
+from agents_sdk.work_bundle import WorkBundle
+from yarnnn_agents.session import AgentSession
+
+logger = logging.getLogger(__name__)
+
+# Test endpoints are DISABLED by default (production safety)
+ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() == "true"
+
+router = APIRouter(prefix="/test/workflows", tags=["testing"])
+
+
+class TestResearchRequest(BaseModel):
+    """Test research workflow parameters."""
+    basket_id: str
+    task_description: str
+    research_scope: Optional[str] = "general"
+    depth: Optional[str] = "quick"
+
+
+class TestResearchResponse(BaseModel):
+    """Test research workflow response."""
+    success: bool
+    work_request_id: str
+    work_ticket_id: str
+    agent_session_id: str
+    status: str
+    outputs: list[dict]
+    execution_time_ms: Optional[int]
+    message: str
+    test_mode: bool = True
+
+
+@router.post("/research", response_model=TestResearchResponse)
+async def test_research_workflow(
+    request: TestResearchRequest,
+    x_test_user_id: str = Header(..., description="Test user ID for auth bypass")
+):
+    """
+    Test endpoint for research workflow (bypasses JWT auth).
+
+    **SECURITY**: Only available when ENABLE_TEST_ENDPOINTS=true.
+
+    This endpoint allows E2E testing without needing valid Supabase JWTs.
+    Uses X-Test-User-ID header for user identification.
+
+    Args:
+        request: Research workflow parameters
+        x_test_user_id: User ID from X-Test-User-ID header
+
+    Returns:
+        Research workflow execution result
+
+    Raises:
+        503: Test endpoints disabled (production mode)
+        400: Invalid test user ID
+        500: Execution error
+    """
+    # Security check: Test endpoints must be explicitly enabled
+    if not ENABLE_TEST_ENDPOINTS:
+        raise HTTPException(
+            status_code=503,
+            detail="Test endpoints are disabled. Set ENABLE_TEST_ENDPOINTS=true to enable."
+        )
+
+    logger.info(
+        f"[TEST RESEARCH WORKFLOW] Starting: user={x_test_user_id}, "
+        f"basket={request.basket_id}"
+    )
+
+    try:
+        # Step 1: Validate basket access and get workspace
+        basket_response = supabase.table("baskets").select(
+            "id, workspace_id, name"
+        ).eq("id", request.basket_id).single().execute()
+
+        if not basket_response.data:
+            raise HTTPException(status_code=404, detail="Basket not found")
+
+        basket = basket_response.data
+        workspace_id = basket["workspace_id"]
+
+        logger.info(f"[TEST] Basket found: {basket['name']} in workspace {workspace_id}")
+
+        # Step 2: Get or create research agent session
+        research_session = await AgentSession.get_or_create(
+            basket_id=request.basket_id,
+            workspace_id=workspace_id,
+            agent_type="research",
+            user_id=x_test_user_id,
+        )
+
+        logger.info(f"[TEST] Agent session: {research_session.id}")
+
+        # Step 3: Create work_request
+        work_request_data = {
+            "workspace_id": workspace_id,
+            "basket_id": request.basket_id,
+            "requested_by_user_id": x_test_user_id,
+            "request_type": "test_research_workflow",
+            "task_intent": request.task_description,
+            "parameters": {
+                "research_scope": request.research_scope,
+                "depth": request.depth,
+                "test_mode": True,
+            },
+            "priority": "normal",
+        }
+        work_request_response = supabase.table("work_requests").insert(
+            work_request_data
+        ).execute()
+        work_request_id = work_request_response.data[0]["id"]
+
+        # Step 4: Create work_ticket
+        work_ticket_data = {
+            "work_request_id": work_request_id,
+            "agent_session_id": research_session.id,
+            "workspace_id": workspace_id,
+            "basket_id": request.basket_id,
+            "agent_type": "research",
+            "status": "pending",
+            "metadata": {
+                "workflow": "test_research",
+                "test_mode": True,
+            },
+        }
+        work_ticket_response = supabase.table("work_tickets").insert(
+            work_ticket_data
+        ).execute()
+        work_ticket_id = work_ticket_response.data[0]["id"]
+
+        logger.info(
+            f"[TEST] Created: work_request={work_request_id}, "
+            f"work_ticket={work_ticket_id}"
+        )
+
+        # Step 5: Load context (WorkBundle pattern)
+        blocks_response = supabase.table("blocks").select(
+            "id, content, semantic_type, state, created_at, metadata"
+        ).eq("basket_id", request.basket_id).in_(
+            "state", ["ACCEPTED", "LOCKED", "CONSTANT"]
+        ).order("created_at", ascending=False).limit(50).execute()
+
+        substrate_blocks = blocks_response.data or []
+
+        assets_response = supabase.table("documents").select(
+            "id, name, asset_type, url, metadata"
+        ).eq("basket_id", request.basket_id).execute()
+
+        reference_assets = assets_response.data or []
+
+        config_response = supabase.table("agent_configs").select(
+            "config"
+        ).eq("agent_type", "research").eq(
+            "workspace_id", workspace_id
+        ).maybeSingle().execute()
+
+        agent_config = config_response.data.get("config", {}) if config_response.data else {}
+
+        # Create WorkBundle
+        context_bundle = WorkBundle(
+            work_request_id=work_request_id,
+            work_ticket_id=work_ticket_id,
+            basket_id=request.basket_id,
+            workspace_id=workspace_id,
+            user_id=x_test_user_id,
+            task=request.task_description,
+            agent_type="research",
+            priority="medium",
+            substrate_blocks=substrate_blocks,
+            reference_assets=reference_assets,
+            agent_config=agent_config,
+        )
+
+        logger.info(
+            f"[TEST] WorkBundle: {len(substrate_blocks)} blocks, "
+            f"{len(reference_assets)} assets"
+        )
+
+        # Step 6: Update work_ticket to running
+        supabase.table("work_tickets").update({
+            "status": "running",
+            "started_at": "now()",
+        }).eq("id", work_ticket_id).execute()
+
+        # Step 7: Execute ResearchAgentSDK
+        logger.info(f"[TEST] Executing ResearchAgentSDK...")
+
+        research_sdk = ResearchAgentSDK(
+            basket_id=request.basket_id,
+            workspace_id=workspace_id,
+            work_ticket_id=work_ticket_id,
+            session=research_session,
+            bundle=context_bundle,
+        )
+
+        import time
+        start_time = time.time()
+
+        result = await research_sdk.deep_dive(
+            topic=request.task_description,
+            claude_session_id=research_session.claude_session_id,
+        )
+
+        execution_time_ms = int((time.time() - start_time) * 1000)
+
+        # Step 8: Update work_ticket to completed
+        supabase.table("work_tickets").update({
+            "status": "completed",
+            "completed_at": "now()",
+            "metadata": {
+                "execution_time_ms": execution_time_ms,
+                "output_count": result["output_count"],
+                "test_mode": True,
+            },
+        }).eq("id", work_ticket_id).execute()
+
+        logger.info(
+            f"[TEST] Execution complete: {result['output_count']} outputs "
+            f"in {execution_time_ms}ms"
+        )
+
+        return TestResearchResponse(
+            success=True,
+            work_request_id=work_request_id,
+            work_ticket_id=work_ticket_id,
+            agent_session_id=research_session.id,
+            status="completed",
+            outputs=result["work_outputs"],
+            execution_time_ms=execution_time_ms,
+            message=f"Test successful: {result['output_count']} outputs generated",
+            test_mode=True,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[TEST RESEARCH WORKFLOW] Failed: {e}")
+
+        # Update work_ticket to failed if it exists
+        if 'work_ticket_id' in locals():
+            try:
+                supabase.table("work_tickets").update({
+                    "status": "failed",
+                    "completed_at": "now()",
+                    "metadata": {
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "test_mode": True,
+                    },
+                }).eq("id", work_ticket_id).execute()
+            except Exception as update_error:
+                logger.error(f"Failed to update work_ticket: {update_error}")
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Test research workflow failed: {str(e)}"
+        )
+
+
+@router.get("/health")
+async def test_health():
+    """
+    Health check for test endpoints.
+
+    Returns endpoint status and whether testing is enabled.
+    """
+    return {
+        "status": "ok" if ENABLE_TEST_ENDPOINTS else "disabled",
+        "test_endpoints_enabled": ENABLE_TEST_ENDPOINTS,
+        "message": "Test endpoints ready" if ENABLE_TEST_ENDPOINTS else "Set ENABLE_TEST_ENDPOINTS=true to enable",
+    }
