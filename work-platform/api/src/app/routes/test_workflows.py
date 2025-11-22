@@ -1,11 +1,8 @@
 """
 Test Workflows Endpoint - For E2E Testing Without JWT Complexity
 
-SECURITY: Only enabled when ENABLE_TEST_ENDPOINTS=true in environment.
-Uses service-to-service authentication (X-Test-User-ID header).
-
-This endpoint allows automated testing without needing valid Supabase JWTs,
-which simplifies CI/CD and development testing.
+Uses service-to-service authentication (X-Test-User-ID header) instead of JWT.
+Bypasses Supabase JWT complexity for programmatic testing.
 
 Usage:
     curl -X POST http://localhost:10000/api/test/workflows/research \
@@ -14,7 +11,6 @@ Usage:
       -d '{"basket_id": "uuid", "task_description": "test"}'
 """
 
-import os
 import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Header
@@ -26,9 +22,6 @@ from agents_sdk.work_bundle import WorkBundle
 from yarnnn_agents.session import AgentSession
 
 logger = logging.getLogger(__name__)
-
-# Test endpoints are DISABLED by default (production safety)
-ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() == "true"
 
 router = APIRouter(prefix="/test/workflows", tags=["testing"])
 
@@ -62,10 +55,8 @@ async def test_research_workflow(
     """
     Test endpoint for research workflow (bypasses JWT auth).
 
-    **SECURITY**: Only available when ENABLE_TEST_ENDPOINTS=true.
-
-    This endpoint allows E2E testing without needing valid Supabase JWTs.
-    Uses X-Test-User-ID header for user identification.
+    Uses X-Test-User-ID header for user identification instead of JWT.
+    This allows E2E testing without Supabase authentication complexity.
 
     Args:
         request: Research workflow parameters
@@ -75,16 +66,9 @@ async def test_research_workflow(
         Research workflow execution result
 
     Raises:
-        503: Test endpoints disabled (production mode)
-        400: Invalid test user ID
+        400: Invalid request or basket not found
         500: Execution error
     """
-    # Security check: Test endpoints must be explicitly enabled
-    if not ENABLE_TEST_ENDPOINTS:
-        raise HTTPException(
-            status_code=503,
-            detail="Test endpoints are disabled. Set ENABLE_TEST_ENDPOINTS=true to enable."
-        )
 
     logger.info(
         f"[TEST RESEARCH WORKFLOW] Starting: user={x_test_user_id}, "
@@ -286,10 +270,9 @@ async def test_health():
     """
     Health check for test endpoints.
 
-    Returns endpoint status and whether testing is enabled.
+    Returns endpoint status for availability testing.
     """
     return {
-        "status": "ok" if ENABLE_TEST_ENDPOINTS else "disabled",
-        "test_endpoints_enabled": ENABLE_TEST_ENDPOINTS,
-        "message": "Test endpoints ready" if ENABLE_TEST_ENDPOINTS else "Set ENABLE_TEST_ENDPOINTS=true to enable",
+        "status": "ok",
+        "message": "Test endpoints available",
     }

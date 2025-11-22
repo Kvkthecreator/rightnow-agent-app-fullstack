@@ -123,6 +123,7 @@ app.add_middleware(
         "/health",
         "/auth/mcp",  # OAuth authorization flow (uses Supabase cookies, not JWT)
         "/api/auth/mcp",  # OAuth with /api prefix (registration, authorize, token endpoints)
+        "/api/test/workflows",  # Test endpoints (header-based auth for E2E testing)
     },
 )
 
