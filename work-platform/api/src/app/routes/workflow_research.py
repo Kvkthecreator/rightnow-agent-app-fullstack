@@ -115,15 +115,15 @@ async def execute_research_workflow(
         work_request_data = {
             "workspace_id": workspace_id,
             "basket_id": request.basket_id,
-            "user_id": user_id,
+            "requested_by_user_id": user_id,
             "request_type": "research_workflow",
-            "request_data": {
-                "task_description": request.task_description,
+            "task_intent": request.task_description,
+            "parameters": {
                 "research_scope": request.research_scope,
                 "depth": request.depth,
                 "output_format": request.output_format,
             },
-            "status": "pending",
+            "priority": "normal",
         }
         work_request_response = supabase.table("work_requests").insert(
             work_request_data
