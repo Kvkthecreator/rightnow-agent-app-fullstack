@@ -68,19 +68,19 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     last_active_at: session.last_active_at,
   })) || [];
 
-  // Fetch work sessions stats
-  const { data: workSessions } = await supabase
-    .from('work_sessions')
-    .select('id, status, task_type, project_agent_id, agent_type, created_at, updated_at, task_intent')
-    .eq('project_id', projectId);
+  // Fetch work tickets stats (Phase 2e schema: work_tickets, not work_sessions)
+  const { data: workTickets } = await supabase
+    .from('work_tickets')
+    .select('id, status, agent_type, created_at, updated_at, metadata')
+    .eq('basket_id', project.basket_id);
 
   const sessionStats = {
-    total: workSessions?.length || 0,
-    pending: workSessions?.filter(s => s.status === 'pending').length || 0,
-    running: workSessions?.filter(s => s.status === 'running').length || 0,
-    paused: workSessions?.filter(s => s.status === 'paused').length || 0,
-    completed: workSessions?.filter(s => s.status === 'completed').length || 0,
-    failed: workSessions?.filter(s => s.status === 'failed').length || 0,
+    total: workTickets?.length || 0,
+    pending: workTickets?.filter(t => t.status === 'pending').length || 0,
+    running: workTickets?.filter(t => t.status === 'running').length || 0,
+    paused: 0, // work_tickets doesn't have 'paused' status
+    completed: workTickets?.filter(t => t.status === 'completed').length || 0,
+    failed: workTickets?.filter(t => t.status === 'failed').length || 0,
   };
 
   // Fetch basket data from substrate-api via BFF pattern
