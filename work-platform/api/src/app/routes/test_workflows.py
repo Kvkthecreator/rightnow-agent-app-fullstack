@@ -146,7 +146,7 @@ async def test_research_workflow(
             "id, content, semantic_type, state, created_at, metadata"
         ).eq("basket_id", request.basket_id).in_(
             "state", ["ACCEPTED", "LOCKED", "CONSTANT"]
-        ).order("created_at", ascending=False).limit(50).execute()
+        ).order("created_at", desc=True).limit(50).execute()
 
         substrate_blocks = blocks_response.data or []
 
