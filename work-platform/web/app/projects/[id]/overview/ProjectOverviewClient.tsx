@@ -113,7 +113,7 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
           <p className="text-sm text-muted-foreground mb-4">
             All agent sessions pre-scaffolded and ready for immediate use. No setup required.
           </p>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
             {project.agents.map((agent) => {
               const stats = agentSummaries[agent.id];
               return (
@@ -124,17 +124,17 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
                     agent.is_active ? 'hover:border-ring hover:shadow-md' : 'opacity-70'
                   )}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
                       <div className="rounded-lg bg-surface-primary/70 p-2 text-primary">
                         <Zap className="h-5 w-5" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <div className="font-medium text-foreground">{agent.display_name}</div>
                         <div className="text-xs text-muted-foreground capitalize">{agent.agent_type}</div>
                       </div>
                     </div>
-                    <Badge variant="outline" className={cn('text-xs capitalize', getAgentStatusBadgeClass(stats, agent.is_active))}>
+                    <Badge variant="outline" className={cn('text-xs capitalize w-fit', getAgentStatusBadgeClass(stats, agent.is_active))}>
                       {getAgentStatusLabel(stats, agent.is_active)}
                     </Badge>
                   </div>

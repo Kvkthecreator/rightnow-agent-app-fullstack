@@ -49,6 +49,13 @@ export default async function ProjectSettingsPage({ params }: PageProps) {
     notFound();
   }
 
+  // Fetch agent sessions (pre-scaffolded during project creation)
+  const { data: agentSessions } = await supabase
+    .from('agent_sessions')
+    .select('id, agent_type, created_at, last_active_at, parent_session_id, created_by_session_id')
+    .eq('basket_id', project.basket_id)
+    .order('created_at', { ascending: true });
+
   // Fetch basket stats from substrate-api via BFF
   let basketStats = {
     blocks: 0,
@@ -88,6 +95,7 @@ export default async function ProjectSettingsPage({ params }: PageProps) {
           updated_at: project.updated_at,
         }}
         basketStats={basketStats}
+        agentSessions={agentSessions || []}
       />
     </div>
   );
