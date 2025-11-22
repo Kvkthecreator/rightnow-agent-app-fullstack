@@ -23,7 +23,7 @@ from agents_sdk.work_bundle import WorkBundle
 from yarnnn_agents.session import AgentSession
 import logging
 
-router = APIRouter(prefix="/api/work/research", tags=["workflows"])
+router = APIRouter(prefix="/work/research", tags=["workflows"])
 logger = logging.getLogger(__name__)
 
 
