@@ -789,9 +789,9 @@ async def list_project_work_tickets(
     supabase = supabase_admin_client
 
     try:
-        # Validate project exists and user has access
+        # Validate project exists and user has access (include basket_id for work_tickets query)
         project_response = supabase.table("projects").select(
-            "id, name, user_id"
+            "id, name, user_id, basket_id"
         ).eq("id", project_id).single().execute()
 
         if not project_response.data:
@@ -803,52 +803,71 @@ async def list_project_work_tickets(
         if project["user_id"] != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
-        # Build query for work sessions
+        # Get basket_id for this project (work_tickets uses basket_id, not project_id)
+        basket_id = project.get("basket_id")
+        if not basket_id:
+            raise HTTPException(status_code=404, detail="Project has no associated basket")
+
+        # Build query for work tickets (Phase 2e schema)
+        # work_tickets columns: id, work_request_id, agent_session_id, basket_id, agent_type, status, created_at, completed_at
         query = supabase.table("work_tickets").select(
             """
             id,
-            project_agent_id,
-            task_intent,
+            agent_session_id,
+            agent_type,
             status,
             created_at,
-            ended_at
+            completed_at,
+            work_request_id,
+            metadata
             """
-        ).eq("project_id", project_id).order("created_at", desc=True)
+        ).eq("basket_id", basket_id).order("created_at", desc=True)
 
         # Apply status filter if provided
         if status:
             query = query.eq("status", status)
         if agent_id:
-            query = query.eq("project_agent_id", agent_id)
+            # agent_id parameter now refers to agent_session_id
+            query = query.eq("agent_session_id", agent_id)
 
         sessions_response = query.execute()
         sessions = sessions_response.data or []
 
-        # Get agent info for each session
+        # Get agent session info for each ticket
         session_list = []
         for session in sessions:
-            # Fetch agent details
-            agent_response = supabase.table("project_agents").select(
-                "id, agent_type, display_name"
-            ).eq("id", session["project_agent_id"]).single().execute()
+            agent_session_id = session.get("agent_session_id")
+            agent_type = session.get("agent_type", "unknown")
 
-            if agent_response.data:
-                agent = agent_response.data
-                session_list.append(WorkTicketListItem(
-                    ticket_id=session["id"],
-                    agent_id=agent["id"],
-                    agent_type=agent["agent_type"],
-                    agent_display_name=agent["display_name"],
-                    task_description=session["task_intent"],  # Fixed: use task_intent
-                    status=session["status"],
-                    created_at=session["created_at"],
-                    completed_at=session.get("ended_at"),  # Fixed: use ended_at
-                ))
+            # Try to get display name from agent_sessions table if we have a session_id
+            display_name = agent_type.replace("_", " ").title()
+            if agent_session_id:
+                agent_session_response = supabase.table("agent_sessions").select(
+                    "id, agent_type"
+                ).eq("id", agent_session_id).single().execute()
+                if agent_session_response.data:
+                    agent_type = agent_session_response.data.get("agent_type", agent_type)
+                    display_name = agent_type.replace("_", " ").title()
 
-        # Get status counts
+            # Extract task description from metadata if available
+            metadata = session.get("metadata", {})
+            task_description = metadata.get("task_description") or metadata.get("task_intent") or "Work ticket"
+
+            session_list.append(WorkTicketListItem(
+                ticket_id=session["id"],
+                agent_id=agent_session_id or "unknown",  # Use agent_session_id
+                agent_type=agent_type,
+                agent_display_name=display_name,
+                task_description=task_description,
+                status=session["status"],
+                created_at=session["created_at"],
+                completed_at=session.get("completed_at"),
+            ))
+
+        # Get status counts (using basket_id, not project_id)
         all_sessions_response = supabase.table("work_tickets").select(
             "status"
-        ).eq("project_id", project_id).execute()
+        ).eq("basket_id", basket_id).execute()
 
         status_counts = {}
         for sess in (all_sessions_response.data or []):
