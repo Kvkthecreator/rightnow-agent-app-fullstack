@@ -193,9 +193,9 @@ async def execute_research_workflow(
             "config"
         ).eq("agent_type", "research").eq(
             "workspace_id", workspace_id
-        ).maybeSingle().execute()
+        ).limit(1).execute()
 
-        agent_config = config_response.data.get("config", {}) if config_response.data else {}
+        agent_config = config_response.data[0].get("config", {}) if config_response.data else {}
 
         # 5e. Create WorkBundle with loaded context
         context_bundle = WorkBundle(
