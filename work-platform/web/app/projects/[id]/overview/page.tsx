@@ -51,12 +51,22 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     );
   }
 
-  // Fetch project agents (auto-scaffolded on project creation)
-  const { data: projectAgents } = await supabase
-    .from('project_agents')
-    .select('id, agent_type, display_name, is_active, created_at')
-    .eq('project_id', projectId)
+  // Fetch agent sessions (pre-scaffolded during project creation)
+  const { data: agentSessions } = await supabase
+    .from('agent_sessions')
+    .select('id, agent_type, workspace_id, basket_id, created_at, last_active_at, metadata')
+    .eq('basket_id', project.basket_id)
     .order('created_at', { ascending: true });
+
+  // Transform agent_sessions to match ProjectAgent interface
+  const projectAgents = agentSessions?.map(session => ({
+    id: session.id,
+    agent_type: session.agent_type,
+    display_name: getAgentDisplayName(session.agent_type),
+    is_active: true, // All pre-scaffolded sessions are active
+    created_at: session.created_at,
+    last_active_at: session.last_active_at,
+  })) || [];
 
   // Fetch work sessions stats
   const { data: workSessions } = await supabase
@@ -184,4 +194,20 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
       <ProjectOverviewClient project={projectData} />
     </div>
   );
+}
+
+// Helper function to get display names for agent types
+function getAgentDisplayName(agentType: string): string {
+  switch (agentType) {
+    case 'thinking_partner':
+      return 'Thinking Partner';
+    case 'research':
+      return 'Research Agent';
+    case 'content':
+      return 'Content Agent';
+    case 'reporting':
+      return 'Reporting Agent';
+    default:
+      return agentType.charAt(0).toUpperCase() + agentType.slice(1) + ' Agent';
+  }
 }

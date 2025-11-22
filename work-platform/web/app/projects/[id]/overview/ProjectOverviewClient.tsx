@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Plus, Zap } from 'lucide-react';
+import { Plus, Zap, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CreateWorkRequestModal from '@/components/CreateWorkRequestModal';
 import { formatDistanceToNow } from 'date-fns';
@@ -103,8 +103,17 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
       {/* Project Agents */}
       {project.agents && project.agents.length > 0 && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Available Agents</h3>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-foreground">Agent Infrastructure</h3>
+            <Badge variant="secondary" className="gap-2 bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {project.agents.length} Agents Ready
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            All agent sessions pre-scaffolded and ready for immediate use. No setup required.
+          </p>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {project.agents.map((agent) => {
               const stats = agentSummaries[agent.id];
               return (
@@ -133,7 +142,7 @@ export function ProjectOverviewClient({ project }: ProjectOverviewClientProps) {
                     <p>
                       {stats?.lastRun
                         ? `Last run ${formatDistanceToNow(new Date(stats.lastRun))} ago`
-                        : 'No work sessions yet'}
+                        : 'Session ready • Never used'}
                     </p>
                     {stats?.lastTask && (
                       <p className="line-clamp-2 text-foreground/80">“{stats.lastTask}”</p>
@@ -253,11 +262,11 @@ function getAgentStatusLabel(
   isActive: boolean
 ) {
   if (!isActive) return 'Inactive';
-  if (!stats) return 'Idle';
+  if (!stats) return 'Ready'; // Changed from 'Idle' to 'Ready' for pre-scaffolded sessions
   if (stats.running > 0) return 'Running';
   if (stats.pending > 0) return 'Queued';
   if (stats.lastStatus) return stats.lastStatus.charAt(0).toUpperCase() + stats.lastStatus.slice(1);
-  return 'Idle';
+  return 'Ready';
 }
 
 function getAgentStatusBadgeClass(
@@ -273,6 +282,9 @@ function getAgentStatusBadgeClass(
   }
   if (label === 'inactive') {
     return 'bg-muted text-muted-foreground';
+  }
+  if (label === 'ready') {
+    return 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20';
   }
   return 'bg-surface-primary/20 text-primary';
 }
