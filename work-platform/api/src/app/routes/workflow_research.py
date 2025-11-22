@@ -155,13 +155,66 @@ async def execute_research_workflow(
             f"work_ticket={work_ticket_id}"
         )
 
-        # Step 5: Load context (WorkBundle pattern - same as TP staging)
-        # TODO: Implement context loading (blocks, assets, config)
-        # For now, create empty bundle (to be implemented in Step 3)
+        # Step 5: Load context (WorkBundle pattern)
+        logger.info(f"[RESEARCH WORKFLOW] Loading context for basket {request.basket_id}")
+
+        # 5a. Load substrate blocks (approved knowledge)
+        blocks_response = supabase.table("blocks").select(
+            "id, content, semantic_type, state, created_at, metadata"
+        ).eq("basket_id", request.basket_id).in_(
+            "state", ["ACCEPTED", "LOCKED", "CONSTANT"]  # Only approved blocks
+        ).order("created_at", ascending=False).limit(200).execute()
+
+        substrate_blocks = blocks_response.data or []
+        logger.info(f"[RESEARCH WORKFLOW] Loaded {len(substrate_blocks)} substrate blocks")
+
+        # 5b. Load prior work outputs (recent research to avoid duplication)
+        prior_outputs_response = supabase.table("work_outputs").select(
+            "id, title, output_type, body, confidence, created_at"
+        ).eq("basket_id", request.basket_id).eq(
+            "agent_type", "research"
+        ).eq("status", "approved").order(
+            "created_at", ascending=False
+        ).limit(50).execute()
+
+        prior_work_outputs = prior_outputs_response.data or []
+        logger.info(f"[RESEARCH WORKFLOW] Loaded {len(prior_work_outputs)} prior outputs")
+
+        # 5c. Load reference assets (documents, screenshots, etc.)
+        assets_response = supabase.table("documents").select(
+            "id, name, asset_type, url, metadata"
+        ).eq("basket_id", request.basket_id).execute()
+
+        reference_assets = assets_response.data or []
+        logger.info(f"[RESEARCH WORKFLOW] Loaded {len(reference_assets)} reference assets")
+
+        # 5d. Load agent config (if exists)
+        config_response = supabase.table("agent_configs").select(
+            "config"
+        ).eq("agent_type", "research").eq(
+            "workspace_id", workspace_id
+        ).maybeSingle().execute()
+
+        agent_config = config_response.data.get("config", {}) if config_response.data else {}
+
+        # 5e. Create WorkBundle with loaded context
         context_bundle = WorkBundle(
-            blocks=[],  # TODO: Load substrate blocks
-            reference_assets=[],  # TODO: Load reference assets
-            agent_config={},  # TODO: Load agent config
+            work_request_id=work_request_id,
+            work_ticket_id=work_ticket_id,
+            basket_id=request.basket_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            task=request.task_description,
+            agent_type="research",
+            priority="medium",
+            substrate_blocks=substrate_blocks,
+            reference_assets=reference_assets,
+            agent_config=agent_config,
+        )
+
+        logger.info(
+            f"[RESEARCH WORKFLOW] WorkBundle created: {len(substrate_blocks)} blocks, "
+            f"{len(reference_assets)} assets, {len(prior_work_outputs)} prior outputs"
         )
 
         # Step 6: Update work_ticket status to running
@@ -171,27 +224,80 @@ async def execute_research_workflow(
         }).eq("id", work_ticket_id).execute()
 
         # Step 7: Execute ResearchAgentSDK with context
-        # TODO: Implement actual execution (to be completed in Step 3)
-        # For now, return pending status
+        logger.info(f"[RESEARCH WORKFLOW] Executing ResearchAgentSDK")
+
+        # Initialize ResearchAgentSDK with bundle
+        research_sdk = ResearchAgentSDK(
+            basket_id=request.basket_id,
+            workspace_id=workspace_id,
+            work_ticket_id=work_ticket_id,
+            session=research_session,
+            bundle=context_bundle,  # Pass WorkBundle with loaded context
+        )
+
+        # Build enhanced prompt with prior work context
+        enhanced_task = request.task_description
+        if prior_work_outputs:
+            enhanced_task += "\n\n**Prior Research** (avoid duplication):\n"
+            for output in prior_work_outputs[:5]:  # Show last 5
+                enhanced_task += f"- {output['title']} ({output['output_type']})\n"
+
+        # Execute deep dive research
+        import time
+        start_time = time.time()
+
+        result = await research_sdk.deep_dive(
+            topic=enhanced_task,
+            claude_session_id=research_session.claude_session_id,
+        )
+
+        execution_time_ms = int((time.time() - start_time) * 1000)
+
+        # Step 8: Update work_ticket status to completed
+        supabase.table("work_tickets").update({
+            "status": "completed",
+            "completed_at": "now()",
+            "metadata": {
+                "execution_time_ms": execution_time_ms,
+                "output_count": result["output_count"],
+                "claude_session_id": result.get("claude_session_id"),
+            },
+        }).eq("id", work_ticket_id).execute()
 
         logger.info(
-            f"[RESEARCH WORKFLOW] Execution pending (context loading to be implemented)"
+            f"[RESEARCH WORKFLOW] Execution complete: {result['output_count']} outputs "
+            f"in {execution_time_ms}ms"
         )
 
         return ResearchWorkflowResponse(
             work_request_id=work_request_id,
             work_ticket_id=work_ticket_id,
             agent_session_id=research_session.id,
-            status="pending",
-            outputs=[],
-            execution_time_ms=None,
-            message="Research workflow created (execution to be implemented in Step 3)",
+            status="completed",
+            outputs=result["work_outputs"],
+            execution_time_ms=execution_time_ms,
+            message=f"Research complete: {result['output_count']} outputs generated",
         )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"[RESEARCH WORKFLOW] Failed: {e}")
+
+        # Update work_ticket to failed status if it exists
+        if 'work_ticket_id' in locals():
+            try:
+                supabase.table("work_tickets").update({
+                    "status": "failed",
+                    "completed_at": "now()",
+                    "metadata": {
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                }).eq("id", work_ticket_id).execute()
+            except Exception as update_error:
+                logger.error(f"Failed to update work_ticket status: {update_error}")
+
         raise HTTPException(
             status_code=500,
             detail=f"Research workflow execution failed: {str(e)}"
