@@ -156,15 +156,7 @@ async def test_research_workflow(
 
         reference_assets = assets_response.data or []
 
-        config_response = supabase.table("agent_configs").select(
-            "config"
-        ).eq("agent_type", "research").eq(
-            "workspace_id", workspace_id
-        ).limit(1).execute()
-
-        agent_config = config_response.data[0].get("config", {}) if config_response.data else {}
-
-        # Create WorkBundle
+        # Create WorkBundle (agent_config optional - using defaults)
         context_bundle = WorkBundle(
             work_request_id=work_request_id,
             work_ticket_id=work_ticket_id,
@@ -176,7 +168,7 @@ async def test_research_workflow(
             priority="medium",
             substrate_blocks=substrate_blocks,
             reference_assets=reference_assets,
-            agent_config=agent_config,
+            agent_config={},  # Use defaults for testing
         )
 
         logger.info(

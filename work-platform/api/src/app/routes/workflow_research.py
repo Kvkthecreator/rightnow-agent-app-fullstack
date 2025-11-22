@@ -182,22 +182,13 @@ async def execute_research_workflow(
 
         # 5c. Load reference assets (documents, screenshots, etc.)
         assets_response = supabase.table("documents").select(
-            "id, name, asset_type, url, metadata"
+            "id, title, document_type, metadata"
         ).eq("basket_id", request.basket_id).execute()
 
         reference_assets = assets_response.data or []
         logger.info(f"[RESEARCH WORKFLOW] Loaded {len(reference_assets)} reference assets")
 
-        # 5d. Load agent config (if exists)
-        config_response = supabase.table("agent_configs").select(
-            "config"
-        ).eq("agent_type", "research").eq(
-            "workspace_id", workspace_id
-        ).limit(1).execute()
-
-        agent_config = config_response.data[0].get("config", {}) if config_response.data else {}
-
-        # 5e. Create WorkBundle with loaded context
+        # 5d. Create WorkBundle with loaded context (agent_config uses defaults)
         context_bundle = WorkBundle(
             work_request_id=work_request_id,
             work_ticket_id=work_ticket_id,
@@ -209,7 +200,7 @@ async def execute_research_workflow(
             priority="medium",
             substrate_blocks=substrate_blocks,
             reference_assets=reference_assets,
-            agent_config=agent_config,
+            agent_config={},  # Use defaults
         )
 
         logger.info(
