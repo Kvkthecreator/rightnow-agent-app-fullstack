@@ -1,12 +1,23 @@
 """
-Project Scaffolder - Phase 6 Refactor: Project-First Onboarding
+Project Scaffolder - Phase 6.5 Refactor: Project-First Onboarding with Pre-Scaffolded Sessions
 
-Creates user-facing PROJECTS (not just work requests) with underlying basket infrastructure.
+Creates user-facing PROJECTS with complete agent infrastructure pre-loaded.
 
-DOMAIN SEPARATION:
+ARCHITECTURE:
 - Projects = User-facing containers (work-platform domain)
 - Baskets = Storage infrastructure (substrate domain)
-- Currently 1:1 mapping, but architecturally decoupled
+- Agent Sessions = Pre-scaffolded execution contexts (TP + 3 specialists)
+
+HIERARCHICAL SESSIONS:
+- TP session: Root (parent_session_id=NULL)
+- Specialist sessions: Children (parent_session_id=TP.id)
+- All 4 sessions created upfront for immediate use
+
+BENEFITS:
+- No cold-start penalty (sessions ready immediately)
+- Enables both direct agent invocation AND TP orchestration
+- Complete hierarchical structure from day 1
+- Supports future dual-path architecture (direct vs chat-guided)
 
 This is for NEW user onboarding. Existing agent execution flows remain unchanged.
 """
@@ -60,14 +71,14 @@ async def scaffold_new_project(
     """
     Scaffold new project with basket-first infrastructure (NEW users).
 
-    Phase 6.5 Refactor: Creates PROJECT (pure container) with BASKET (storage) and ALL AGENTS.
+    Phase 6.5 Refactor: Creates PROJECT (pure container) with BASKET (storage) and ALL AGENT SESSIONS.
 
     Flow:
     1. Check permissions (trial/subscription)
     2. Create basket (substrate-api) with origin_template='project_onboarding'
     3. Create raw_dump (substrate-api) with initial context
     4. Create project (work-platform DB) linking to basket
-    5. Auto-scaffold ALL agent instances (research, content, reporting)
+    5. Pre-scaffold ALL agent sessions (TP + research + content + reporting)
     6. Record work_request (for trial tracking with research agent)
 
     Args:
@@ -83,7 +94,12 @@ async def scaffold_new_project(
             "project_name": "...",
             "basket_id": "...",
             "dump_id": "...",
-            "agent_ids": ["...", "...", "..."],  # All 3 agents auto-created
+            "agent_session_ids": {
+                "thinking_partner": "...",
+                "research": "...",
+                "content": "...",
+                "reporting": "..."
+            },  # All 4 agent sessions pre-scaffolded
             "work_request_id": "...",
             "status": "active",
             "is_trial_request": true/false,
@@ -103,7 +119,7 @@ async def scaffold_new_project(
     basket_id = None
     dump_id = None
     project_id = None
-    agent_ids = []
+    agent_session_ids = {}
     work_request_id = None
 
     try:
@@ -137,7 +153,7 @@ async def scaffold_new_project(
             "created_via": "project_scaffolder",
             "origin": "new_project_onboarding",
             "origin_template": "project_onboarding",
-            "auto_scaffolded_agents": ["research", "content", "reporting"],
+            "auto_scaffolded_sessions": ["thinking_partner", "research", "content", "reporting"],
         }
 
         try:
@@ -210,7 +226,7 @@ async def scaffold_new_project(
             "metadata": {
                 "dump_id": dump_id,
                 "initial_context_length": len(initial_context),
-                "auto_scaffolded_agents": ["research", "content", "reporting"],
+                "auto_scaffolded_sessions": ["thinking_partner", "research", "content", "reporting"],
             },
         }
 
@@ -239,41 +255,69 @@ async def scaffold_new_project(
             )
 
         # ================================================================
-        # Step 5: Auto-Scaffold ALL Agent Instances (project_agents)
+        # Step 5: Pre-Scaffold ALL Agent Sessions (TP + Specialists)
         # ================================================================
         try:
             logger.debug(
-                f"[PROJECT SCAFFOLDING] Auto-scaffolding all agents for project {project_id}"
+                f"[PROJECT SCAFFOLDING] Pre-scaffolding all agent sessions for project {project_id}"
             )
 
-            # Create all 3 agent types
-            agent_types = ["research", "content", "reporting"]
-            agents_data = [
-                {
-                    "project_id": project_id,
-                    "agent_type": agent_type,
-                    "display_name": f"{agent_type.title()} Agent",
-                    "created_by_user_id": user_id,
-                    "is_active": True
-                }
-                for agent_type in agent_types
-            ]
+            # Import AgentSession for session management
+            from yarnnn_agents.session import AgentSession
 
-            agent_response = supabase_admin_client.table("project_agents").insert(agents_data).execute()
-
-            if not agent_response.data or len(agent_response.data) == 0:
-                raise Exception("No agents created in database")
-
-            agent_ids = [agent["id"] for agent in agent_response.data]
+            # Step 5.1: Create TP session (root of hierarchy, parent_session_id=NULL)
+            tp_session = await AgentSession.get_or_create(
+                basket_id=basket_id,
+                workspace_id=workspace_id,
+                agent_type="thinking_partner",
+                user_id=user_id,
+            )
+            agent_session_ids["thinking_partner"] = tp_session.id
             logger.info(
-                f"[PROJECT SCAFFOLDING] Created {len(agent_ids)} agents for project {project_id}: {agent_types}"
+                f"[PROJECT SCAFFOLDING] Created TP session {tp_session.id} (root)"
+            )
+
+            # Step 5.2: Pre-create specialist sessions (children of TP)
+            specialist_types = ["research", "content", "reporting"]
+            for agent_type in specialist_types:
+                specialist_session = await AgentSession.get_or_create(
+                    basket_id=basket_id,
+                    workspace_id=workspace_id,
+                    agent_type=agent_type,
+                    user_id=user_id,
+                )
+
+                # Link as child of TP session (hierarchical structure)
+                if not specialist_session.parent_session_id:
+                    specialist_session.parent_session_id = tp_session.id
+                    specialist_session.created_by_session_id = tp_session.id
+                    # Update session in database with parent linkage
+                    update_response = supabase_admin_client.table("agent_sessions").update({
+                        "parent_session_id": tp_session.id,
+                        "created_by_session_id": tp_session.id
+                    }).eq("id", specialist_session.id).execute()
+
+                    if not update_response.data:
+                        logger.warning(
+                            f"[PROJECT SCAFFOLDING] Failed to link {agent_type} session to TP parent"
+                        )
+
+                agent_session_ids[agent_type] = specialist_session.id
+                logger.info(
+                    f"[PROJECT SCAFFOLDING] Created {agent_type} session {specialist_session.id} "
+                    f"(parent={tp_session.id})"
+                )
+
+            logger.info(
+                f"[PROJECT SCAFFOLDING] Pre-scaffolded 4 agent sessions: "
+                f"TP + {len(specialist_types)} specialists"
             )
 
         except Exception as e:
-            logger.error(f"[PROJECT SCAFFOLDING] Failed to create agents: {e}")
+            logger.error(f"[PROJECT SCAFFOLDING] Failed to create agent sessions: {e}")
             raise ProjectScaffoldingError(
-                message=f"Failed to create project agents: {str(e)}",
-                step="create_agents",
+                message=f"Failed to create agent sessions: {str(e)}",
+                step="create_agent_sessions",
                 details={"error": str(e)},
                 project_id=project_id,
                 basket_id=basket_id,
@@ -325,7 +369,7 @@ async def scaffold_new_project(
         # ================================================================
         logger.info(
             f"[PROJECT SCAFFOLDING] ✅ SUCCESS: project={project_id}, "
-            f"basket={basket_id}, agents={len(agent_ids)}, work_request={work_request_id}"
+            f"basket={basket_id}, sessions={len(agent_session_ids)}, work_request={work_request_id}"
         )
 
         return {
@@ -333,7 +377,7 @@ async def scaffold_new_project(
             "project_name": project_name,
             "basket_id": basket_id,
             "dump_id": dump_id,
-            "agent_ids": agent_ids,
+            "agent_session_ids": agent_session_ids,
             "work_request_id": work_request_id,
             "status": "active",
             "is_trial_request": not permission_info.get("is_subscribed", False),
