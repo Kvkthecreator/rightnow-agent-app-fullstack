@@ -64,7 +64,7 @@ class ProjectResponse(BaseModel):
     project_name: str
     basket_id: str
     dump_id: str
-    agent_ids: list[str]
+    agent_session_ids: dict[str, str]  # Changed from agent_ids: list[str] to match scaffolder
     work_request_id: str
     status: str
     is_trial_request: bool
@@ -118,7 +118,12 @@ async def create_project(
             "project_name": "Healthcare AI Research",
             "basket_id": "660e8400-...",
             "dump_id": "770e8400-...",
-            "agent_ids": ["990e8400-...", "aa0e8400-...", "bb0e8400-..."],
+            "agent_session_ids": {
+                "thinking_partner": "990e8400-...",
+                "research": "aa0e8400-...",
+                "content": "bb0e8400-...",
+                "reporting": "cc0e8400-..."
+            },
             "work_request_id": "880e8400-...",
             "status": "active",
             "is_trial_request": true,
