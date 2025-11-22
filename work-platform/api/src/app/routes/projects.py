@@ -7,8 +7,7 @@ DOMAIN SEPARATION:
 - Projects = User-facing containers (work-platform domain)
 - Baskets = Storage infrastructure (substrate domain)
 
-This is NOT a replacement for existing agent execution flows.
-Power users can still use POST /api/agents/run directly.
+Work execution uses deterministic workflow endpoints (e.g., /api/work/research).
 """
 
 from __future__ import annotations
@@ -95,8 +94,7 @@ async def create_project(
     5. Auto-scaffold ALL agents (research, content, reporting)
     6. Work request record (for trial tracking)
 
-    This is a wrapper for onboarding, NOT a replacement for existing flows.
-    Power users can still use POST /api/agents/run directly.
+    Work execution uses deterministic workflow endpoints (e.g., /api/work/research).
 
     Args:
         request: Project creation parameters

@@ -78,7 +78,7 @@ async def scaffold_new_user_onboarding(
             "status": "scaffolded",
             "is_trial_request": true/false,
             "remaining_trials": 7,
-            "next_step": "Use POST /api/agents/run to execute agent"
+            "next_step": "Use workflow endpoints (e.g., POST /api/work/research) to execute agents"
         }
 
     Raises:
@@ -237,7 +237,7 @@ async def scaffold_new_user_onboarding(
             "status": "scaffolded",
             "is_trial_request": not permission_info.get("is_subscribed", False),
             "remaining_trials": permission_info.get("remaining_trial_requests"),
-            "next_step": f"Use POST /api/agents/run with basket_id={basket_id} to execute {agent_type} agent",
+            "next_step": f"Use workflow endpoints (e.g., POST /api/work/{agent_type}) with basket_id={basket_id}",
         }
 
     except PermissionDeniedError:

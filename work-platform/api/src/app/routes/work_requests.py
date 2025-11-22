@@ -3,8 +3,7 @@ Work Requests API - Phase 6: Basket-First Onboarding
 
 Endpoints for NEW user onboarding with deterministic basket scaffolding.
 
-This is NOT a replacement for existing agent execution flows.
-Power users can still use POST /api/agents/run directly with manually-created baskets.
+Work execution uses deterministic workflow endpoints (e.g., /api/work/research).
 
 Future: Smart work orchestration with basket inference will be separate.
 """
@@ -86,8 +85,7 @@ async def create_new_work_request(
     3. Raw dump creation (substrate-api)
     4. Work request record (work-platform)
 
-    This is a wrapper for onboarding, NOT a replacement for existing flows.
-    Power users can still use POST /api/agents/run with manually-created baskets.
+    Work execution uses deterministic workflow endpoints (e.g., /api/work/research).
 
     Future: Smart orchestration for existing users will be separate endpoint.
 
@@ -116,7 +114,7 @@ async def create_new_work_request(
             "is_trial_request": true,
             "remaining_trials": 7,
             "message": "Basket scaffolded successfully. Ready for agent execution.",
-            "next_step": "Use POST /api/agents/run with basket_id to execute agent"
+            "next_step": "Use workflow endpoints (e.g., POST /api/work/research) to execute agents"
         }
     """
     user_id = user.get("sub") or user.get("user_id")
