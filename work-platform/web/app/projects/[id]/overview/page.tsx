@@ -136,6 +136,8 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     console.warn('[Project Overview] Failed to fetch context stats:', error);
   }
 
+  // Build agent-level stats from work_tickets (Phase 2e schema)
+  // Map: agent_session_id → stats
   const agentStats: Record<string, {
     pending: number;
     running: number;
@@ -145,26 +147,26 @@ export default async function ProjectOverviewPage({ params }: PageProps) {
     lastSessionId: string | null;
   }> = {};
 
-  workSessions?.forEach((session) => {
-    const agentId = session.project_agent_id;
-    if (!agentId) return;
-    const entry = agentStats[agentId] ?? {
-      pending: 0,
-      running: 0,
-      lastRun: null,
-      lastStatus: null,
-      lastTask: null,
-      lastSessionId: null,
+  agentSessions?.forEach((session) => {
+    const ticketsForAgent = workTickets?.filter(t => t.agent_type === session.agent_type) || [];
+    const pending = ticketsForAgent.filter(t => t.status === 'pending').length;
+    const running = ticketsForAgent.filter(t => t.status === 'running').length;
+
+    // Find most recent ticket for this agent type
+    const sortedTickets = ticketsForAgent.sort((a, b) =>
+      new Date(b.updated_at || b.created_at).getTime() -
+      new Date(a.updated_at || a.created_at).getTime()
+    );
+    const lastTicket = sortedTickets[0];
+
+    agentStats[session.id] = {
+      pending,
+      running,
+      lastRun: lastTicket?.updated_at || lastTicket?.created_at || null,
+      lastStatus: lastTicket?.status || null,
+      lastTask: (lastTicket?.metadata as any)?.task_description || null,
+      lastSessionId: lastTicket?.id || null,
     };
-    if (session.status === 'pending') entry.pending += 1;
-    if (session.status === 'running') entry.running += 1;
-    if (!entry.lastRun || (session.updated_at && session.updated_at > entry.lastRun)) {
-      entry.lastRun = session.updated_at || session.created_at;
-      entry.lastStatus = session.status;
-      entry.lastTask = session.task_intent || null;
-      entry.lastSessionId = session.id;
-    }
-    agentStats[agentId] = entry;
   });
 
   const projectData = {
