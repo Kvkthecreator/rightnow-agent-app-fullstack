@@ -151,7 +151,7 @@ async def test_research_workflow(
         substrate_blocks = blocks_response.data or []
 
         assets_response = supabase.table("documents").select(
-            "id, name, asset_type, url, metadata"
+            "id, title, document_type, metadata"
         ).eq("basket_id", request.basket_id).execute()
 
         reference_assets = assets_response.data or []
